@@ -50,7 +50,7 @@ export default function TraverseCalculator() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Traverse Adjustment</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Based on N.N. Basak, Chapter 9</p>
+      <p className="text-sm text-[var(--text-muted)] mb-8">Closed traverse adjustment using Bowditch or Transit rules</p>
 
       <div className="flex gap-4 mb-6">
         <button onClick={() => { setMethod('bowditch'); setResult(null); }} className={`btn ${method === 'bowditch' ? 'btn-primary' : 'btn-secondary'}`}>

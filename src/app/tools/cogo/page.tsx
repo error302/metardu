@@ -45,7 +45,7 @@ export default function COGOCalculator() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">COGO Tools</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Coordinate Geometry — Based on N.N. Basak</p>
+      <p className="text-sm text-[var(--text-muted)] mb-8">Coordinate Geometry calculations</p>
 
       <div className="flex gap-4 mb-6 flex-wrap">
         <button onClick={() => { setMode('radiation'); setResult(null); }} className={`btn ${mode === 'radiation' ? 'btn-primary' : 'btn-secondary'}`}>Radiation</button>

@@ -1,5 +1,4 @@
 // GeoNova Engine - COGO (Coordinate Geometry)
-// Based on N.N. Basak Surveying and Levelling
 
 import { Point2D, COGOIntersection, COGORadiation, COOResection } from './types';
 import { toRadians, toDegrees } from './angles';

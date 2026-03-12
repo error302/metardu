@@ -1,5 +1,4 @@
 // GeoNova Engine - Angle calculations
-// Based on N.N. Basak Surveying and Levelling
 
 import { DMS } from './types';
 

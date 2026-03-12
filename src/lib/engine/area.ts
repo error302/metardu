@@ -1,5 +1,4 @@
 // GeoNova Engine - Area calculations
-// Based on N.N. Basak Surveying and Levelling
 
 import { Point2D, AreaResult } from './types';
 

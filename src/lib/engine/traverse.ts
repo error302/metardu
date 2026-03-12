@@ -1,5 +1,4 @@
 // GeoNova Engine - Traverse calculations
-// Based on N.N. Basak Surveying and Levelling
 
 import { NamedPoint2D, TraverseResult, TraverseLeg } from './types';
 import { toRadians, bearingToString } from './angles';

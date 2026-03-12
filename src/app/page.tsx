@@ -9,7 +9,7 @@ export default function Home() {
           Professional Surveying Calculations
         </p>
         <p className="text-sm text-[var(--text-muted)]">
-          Based on N.N. Basak — Surveying and Levelling
+          Professional Surveying Calculations Platform
         </p>
       </div>
 
@@ -35,7 +35,7 @@ export default function Home() {
             Calculation Accuracy
           </h3>
           <p className="text-sm text-[var(--text-secondary)]">
-            All algorithms follow Basak standards. Full working shown for every calculation. 
+            Professional grade calculations with full working shown for every result.
             Precision ratios and arithmetic checks included.
           </p>
         </div>

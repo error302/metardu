@@ -1,5 +1,4 @@
 // GeoNova Engine - Type definitions
-// Based on N.N. Basak Surveying and Levelling
 
 export interface Point2D {
   easting: number;

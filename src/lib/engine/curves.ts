@@ -1,5 +1,4 @@
 // GeoNova Engine - Curve calculations
-// Based on N.N. Basak Surveying and Levelling
 
 import { CurveElements, CurveStakeoutResult, CurveStakeoutPoint } from './types';
 import { toRadians, toDegrees, bearingToString } from './angles';

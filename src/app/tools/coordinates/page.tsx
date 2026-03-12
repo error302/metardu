@@ -66,7 +66,7 @@ export default function CoordinatesCalculator() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Coordinate Conversion</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">WGS84 / UTM — Based on N.N. Basak</p>
+      <p className="text-sm text-[var(--text-muted)] mb-8">WGS84 / UTM coordinate conversions</p>
 
       <div className="flex gap-4 mb-6 flex-wrap">
         <button onClick={() => { setTab('utm-to-geo'); setResult(null); }} className={`btn ${tab === 'utm-to-geo' ? 'btn-primary' : 'btn-secondary'}`}>

@@ -32,7 +32,7 @@ export default function DistanceCalculator() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Distance & Bearing Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Based on N.N. Basak, Chapter 3</p>
+      <p className="text-sm text-[var(--text-muted)] mb-8">Calculate distance, bearing, and slope corrections</p>
 
       <div className="flex gap-4 mb-6">
         <button 

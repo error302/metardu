@@ -52,7 +52,7 @@ export default function LevelingCalculator() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Leveling Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Based on N.N. Basak, Chapter 9</p>
+      <p className="text-sm text-[var(--text-muted)] mb-8">Rise & Fall and Height of Collimation methods</p>
 
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <div className="card p-4">

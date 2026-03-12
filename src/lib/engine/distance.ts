@@ -1,5 +1,4 @@
 // GeoNova Engine - Distance and Bearing calculations
-// Based on N.N. Basak Surveying and Levelling
 
 import { Point2D, DistanceBearingResult } from './types';
 import { toRadians, toDegrees, normalizeBearing, bearingToString, wcbToQuadrant, backBearing } from './angles';

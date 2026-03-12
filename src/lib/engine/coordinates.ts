@@ -1,5 +1,4 @@
 // GeoNova Engine - Coordinate conversions
-// Based on N.N. Basak Surveying and Levelling
 
 import { LatLon, UTMCoord, DMS } from './types';
 import { decimalToDMS } from './angles';

@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'GeoNova — Professional Surveying Calculations',
-  description: 'Professional land surveying calculation platform based on N.N. Basak standards',
+  description: 'Professional land surveying calculation platform',
 };
 
 export default function RootLayout({
@@ -38,7 +38,7 @@ export default function RootLayout({
               </div>
             </div>
             <div className="text-xs text-[var(--text-muted)]">
-              Basak Standard
+              Professional Grade
             </div>
           </div>
         </nav>
@@ -47,7 +47,7 @@ export default function RootLayout({
         </main>
         <footer className="border-t border-[var(--border-color)] py-6 mt-16">
           <div className="max-w-7xl mx-auto px-4 text-center text-xs text-[var(--text-muted)]">
-            GeoNova v1.0 — Based on N.N. Basak, Surveying and Levelling
+            GeoNova v1.0 — Professional Surveying Calculations
           </div>
         </footer>
       </body>

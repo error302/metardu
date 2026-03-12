@@ -1,5 +1,4 @@
 // GeoNova Engine - Leveling calculations
-// Based on N.N. Basak Surveying and Levelling
 
 import { LevelingResult, LevelingReading } from './types';
 
