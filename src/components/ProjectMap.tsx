@@ -176,7 +176,7 @@ export default function ProjectMap({
     console.log('Processing point:', point.name, 'lat:', lat, 'lon:', lon)
     
     if (!lat || !lon) {
-      console.log('Converting point:', point.name, {
+    console.log('Converting point:', point.name, {
         easting: point.easting,
         northing: point.northing,
         zone: utmZone,
@@ -188,9 +188,10 @@ export default function ProjectMap({
         Number(utmZone),
         hemisphere as 'N' | 'S'
       )
-      console.log('Result:', converted)
+      console.log('Result lat:', converted.lat, 'lon:', converted.lon)
       lat = converted.lat
       lon = converted.lon
+      console.log('Using for marker:', point.name, '=', lat, lon)
     }
     
     return {
