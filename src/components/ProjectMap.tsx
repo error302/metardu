@@ -172,7 +172,19 @@ export default function ProjectMap({
     let lon = point.lon
     
     if (!lat || !lon) {
-      const converted = utmToGeographic(point.easting, point.northing, utmZone, hemisphere)
+      console.log('Converting point:', point.name, {
+        easting: point.easting,
+        northing: point.northing,
+        zone: utmZone,
+        hemisphere
+      })
+      const converted = utmToGeographic(
+        Number(point.easting),
+        Number(point.northing),
+        Number(utmZone),
+        hemisphere as 'N' | 'S'
+      )
+      console.log('Result:', converted)
       lat = converted.lat
       lon = converted.lon
     }
