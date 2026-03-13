@@ -6,6 +6,150 @@ import { bowditchAdjustment } from '@/lib/engine/traverse'
 import { dmsToDecimal, decimalToDMS } from '@/lib/engine/angles'
 import { distanceBearing } from '@/lib/engine/distance'
 
+interface BlunderResult {
+  legName: string
+  correction: string
+  contribution: string
+  isBlunder: boolean
+  distanceMismatch: boolean
+  warning: string | null
+}
+
+function detectBlunders(legs: any[], totalDistance: number): BlunderResult[] {
+  const corrections = legs.map(l => Math.sqrt(l.correctionE ** 2 + l.correctionN ** 2))
+  const avgCorrection = corrections.reduce((a, b) => a + b, 0) / corrections.length
+
+  return legs.map((leg, i) => {
+    const correction = Math.sqrt(leg.correctionE ** 2 + leg.correctionN ** 2)
+    const contribution = (correction / totalDistance) * 100
+    const isBlunder = avgCorrection > 0 && correction > avgCorrection * 3
+
+    const computedDist = Math.sqrt(leg.rawDeltaE ** 2 + leg.rawDeltaN ** 2)
+    const distanceMismatch = Math.abs(computedDist - leg.distance) > 1.0
+
+    let bearingJumpWarning = false
+    if (i > 0) {
+      const prevBearing = legs[i - 1].bearing
+      const currBearing = leg.bearing
+      const diff = Math.abs(currBearing - prevBearing)
+      bearingJumpWarning = diff > 150 && diff < 210
+    }
+
+    let warning: string | null = null
+    if (isBlunder) {
+      warning = `Correction ${correction.toFixed(3)}m is ${(correction / avgCorrection).toFixed(1)}× average — check bearing and distance`
+    } else if (distanceMismatch) {
+      warning = `Computed distance ${computedDist.toFixed(3)}m differs by ${Math.abs(computedDist - leg.distance).toFixed(3)}m`
+    } else if (bearingJumpWarning) {
+      warning = `Large bearing change of ${Math.abs(legs[i-1].bearing - leg.bearing).toFixed(1)}° — verify field reading`
+    }
+
+    return {
+      legName: `${leg.from} → ${leg.to}`,
+      correction: correction.toFixed(4),
+      contribution: contribution.toFixed(1),
+      isBlunder,
+      distanceMismatch,
+      warning
+    }
+  })
+}
+
+interface NamedPoint2D {
+  name: string
+  easting: number
+  northing: number
+}
+
+function TraverseDiagram({ stations, closingError }: {
+  stations: NamedPoint2D[]
+  closingError: { e: number, n: number }
+}) {
+  const width = 500
+  const height = 400
+  const padding = 50
+
+  const eastings = stations.map(s => s.easting)
+  const northings = stations.map(s => s.northing)
+  const minE = Math.min(...eastings)
+  const maxE = Math.max(...eastings)
+  const minN = Math.min(...northings)
+  const maxN = Math.max(...northings)
+
+  const scaleE = (width - padding * 2) / (maxE - minE || 1)
+  const scaleN = (height - padding * 2) / (maxN - minN || 1)
+  const scale = Math.min(scaleE, scaleN)
+
+  function toScreen(e: number, n: number) {
+    return {
+      x: padding + (e - minE) * scale,
+      y: height - padding - (n - minN) * scale
+    }
+  }
+
+  const points = stations.map(s => ({
+    ...s,
+    ...toScreen(s.easting, s.northing)
+  }))
+
+  return (
+    <svg width={width} height={height} className="bg-gray-900 rounded border border-amber-500/30 w-full">
+      {points.slice(0, -1).map((p, i) => (
+        <line
+          key={i}
+          x1={p.x} y1={p.y}
+          x2={points[i+1].x} y2={points[i+1].y}
+          stroke="#E8841A"
+          strokeWidth={2}
+        />
+      ))}
+
+      {(() => {
+        const last = points[points.length - 1]
+        const first = points[0]
+        return (
+          <line
+            x1={last.x} y1={last.y}
+            x2={first.x} y2={first.y}
+            stroke="#ef4444"
+            strokeWidth={2}
+            strokeDasharray="5,5"
+          />
+        )
+      })()}
+
+      {points.map((p, i) => (
+        <g key={i}>
+          <circle
+            cx={p.x} cy={p.y} r={6}
+            fill={i === 0 ? '#ef4444' : '#E8841A'}
+            stroke="white"
+            strokeWidth={1.5}
+          />
+          <text
+            x={p.x + 10} y={p.y - 8}
+            fill="white"
+            fontSize={11}
+            fontFamily="monospace"
+          >
+            {p.name}
+          </text>
+        </g>
+      ))}
+
+      <g transform={`translate(${width - 30}, 30)`}>
+        <line x1={0} y1={20} x2={0} y2={0} stroke="white" strokeWidth={2}/>
+        <polygon points="0,-5 -4,5 4,5" fill="white"/>
+        <text x={-4} y={30} fill="white" fontSize={10}>N</text>
+      </g>
+
+      <text x={10} y={height - 10} fill="#ef4444" fontSize={9} fontFamily="monospace">
+        Misclosure vector (dashed red)
+      </text>
+    </svg>
+  )
+}
+
 interface TraverseModalProps {
   isOpen: boolean
   onClose: () => void
@@ -64,6 +208,8 @@ export default function TraverseModal({
   
   // Results
   const [results, setResults] = useState<any>(null)
+  const [blunderResults, setBlunderResults] = useState<BlunderResult[]>([])
+  const [diagramStations, setDiagramStations] = useState<NamedPoint2D[]>([])
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [error, setError] = useState('')
   
@@ -209,6 +355,18 @@ export default function TraverseModal({
       if (onTraverseResult) {
         onTraverseResult(traverseResult)
       }
+
+      // Run blunder detection
+      const blunders = detectBlunders(traverseResult.legs, traverseResult.totalDistance)
+      setBlunderResults(blunders)
+
+      // Build diagram stations
+      const diagramPts: NamedPoint2D[] = points.map(p => ({
+        name: p.name,
+        easting: p.easting,
+        northing: p.northing
+      }))
+      setDiagramStations(diagramPts)
 
       setStep('results')
     } catch (err: any) {
@@ -621,22 +779,73 @@ export default function TraverseModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {results.legs.map((leg: any, idx: number) => (
-                    <tr key={idx} className="border-b border-gray-700/50">
-                      <td className="px-2 py-2 font-mono text-gray-100">{leg.from} → {leg.to}</td>
-                      <td className="px-2 py-2 text-right font-mono text-gray-300">{leg.distance.toFixed(3)}</td>
-                      <td className="px-2 py-2 font-mono text-gray-300">{leg.bearingDMS}</td>
-                      <td className="px-2 py-2 text-right font-mono text-gray-300">{leg.rawDeltaN > 0 ? leg.rawDeltaN.toFixed(4) : '-'}</td>
-                      <td className="px-2 py-2 text-right font-mono text-gray-300">{leg.rawDeltaN < 0 ? Math.abs(leg.rawDeltaN).toFixed(4) : '-'}</td>
-                      <td className="px-2 py-2 text-right font-mono text-gray-300">{leg.rawDeltaE > 0 ? leg.rawDeltaE.toFixed(4) : '-'}</td>
-                      <td className="px-2 py-2 text-right font-mono text-gray-300">{leg.rawDeltaE < 0 ? Math.abs(leg.rawDeltaE).toFixed(4) : '-'}</td>
-                      <td className="px-2 py-2 text-right font-mono text-[#E8841A]">{leg.adjDeltaN.toFixed(4)}</td>
-                      <td className="px-2 py-2 text-right font-mono text-[#E8841A]">{leg.adjDeltaE.toFixed(4)}</td>
-                    </tr>
-                  ))}
+                  {results.legs.map((leg: any, idx: number) => {
+                    const blunder = blunderResults[idx]
+                    const isBlunderRow = blunder?.isBlunder || blunder?.distanceMismatch
+                    return (
+                      <tr key={idx} className={`border-b border-gray-700/50 ${isBlunderRow ? 'bg-red-900/30' : ''}`}>
+                        <td className={`px-2 py-2 font-mono ${isBlunderRow ? 'text-red-400' : 'text-gray-100'}`}>
+                          {leg.from} → {leg.to}
+                          {isBlunderRow && <span className="ml-2 text-red-400">⚠</span>}
+                        </td>
+                        <td className="px-2 py-2 text-right font-mono text-gray-300">{leg.distance.toFixed(3)}</td>
+                        <td className="px-2 py-2 font-mono text-gray-300">{leg.bearingDMS}</td>
+                        <td className="px-2 py-2 text-right font-mono text-gray-300">{leg.rawDeltaN > 0 ? leg.rawDeltaN.toFixed(4) : '-'}</td>
+                        <td className="px-2 py-2 text-right font-mono text-gray-300">{leg.rawDeltaN < 0 ? Math.abs(leg.rawDeltaN).toFixed(4) : '-'}</td>
+                        <td className="px-2 py-2 text-right font-mono text-gray-300">{leg.rawDeltaE > 0 ? leg.rawDeltaE.toFixed(4) : '-'}</td>
+                        <td className="px-2 py-2 text-right font-mono text-gray-300">{leg.rawDeltaE < 0 ? Math.abs(leg.rawDeltaE).toFixed(4) : '-'}</td>
+                        <td className="px-2 py-2 text-right font-mono text-[#E8841A]">{leg.adjDeltaN.toFixed(4)}</td>
+                        <td className="px-2 py-2 text-right font-mono text-[#E8841A]">{leg.adjDeltaE.toFixed(4)}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
+
+            {/* Traverse Diagram */}
+            {diagramStations.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold text-gray-200 mb-2">Traverse Diagram</h3>
+                <div className="flex justify-center">
+                  <TraverseDiagram 
+                    stations={diagramStations} 
+                    closingError={{ e: results.closingErrorE, n: results.closingErrorN }} 
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Blunder Analysis */}
+            {blunderResults.length > 0 && (
+              <div className="mt-4 p-3 bg-gray-800/50 rounded border border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-200 mb-2">Blunder Detection Analysis</h3>
+                <div className="space-y-2">
+                  {blunderResults.map((b, i) => (
+                    <div key={i} className={`flex items-center gap-2 text-xs ${b.isBlunder || b.distanceMismatch ? 'text-red-400' : 'text-gray-400'}`}>
+                      <span className="font-mono">{b.legName}</span>
+                      <div className="flex-1 h-2 bg-gray-700 rounded overflow-hidden">
+                        <div 
+                          className={`h-full ${b.isBlunder ? 'bg-red-500' : 'bg-green-600'}`} 
+                          style={{ width: `${Math.min(parseFloat(b.contribution), 100)}%` }}
+                        />
+                      </div>
+                      <span className="w-12 text-right">{b.contribution}%</span>
+                      {b.isBlunder && <span className="text-red-400">⚠ CHECK</span>}
+                      {!b.isBlunder && !b.distanceMismatch && <span className="text-green-400">✓ OK</span>}
+                    </div>
+                  ))}
+                </div>
+                {blunderResults.some(b => b.warning) && (
+                  <div className="mt-3 pt-2 border-t border-gray-700">
+                    <p className="text-xs text-gray-400 mb-1">Warnings:</p>
+                    {blunderResults.filter(b => b.warning).map((b, i) => (
+                      <p key={i} className="text-xs text-red-400">• {b.warning}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-3">
               <button
