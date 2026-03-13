@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { geographicToUTM } from '@/lib/engine/coordinates'
-import Link from 'next/link'
 import AddPointModal from '@/components/AddPointModal'
 import CSVUploadModal from '@/components/CSVUploadModal'
 
@@ -107,10 +106,6 @@ export default function ProjectPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-gray-950 flex">
       <aside className="w-64 border-r border-gray-800 bg-gray-900/30 p-4">
-        <Link href="/dashboard" className="text-xl font-bold mb-8 block" style={{ color: '#E8841A' }}>
-          GEONOVA
-        </Link>
-        
         <div className="space-y-2">
           <button
             onClick={() => {
