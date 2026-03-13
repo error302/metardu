@@ -45,9 +45,6 @@ export default function TraverseModal({
   const [openingName, setOpeningName] = useState('')
   const [openingEasting, setOpeningEasting] = useState('')
   const [openingNorthing, setOpeningNorthing] = useState('')
-  const [openingBearingDeg, setOpeningBearingDeg] = useState('')
-  const [openingBearingMin, setOpeningBearingMin] = useState('')
-  const [openingBearingSec, setOpeningBearingSec] = useState('')
   
   // Traverse legs
   const [legs, setLegs] = useState<TraverseLeg[]>([
@@ -134,20 +131,12 @@ export default function TraverseModal({
         openingPtName = openingName
       }
 
-      // Convert initial bearing to decimal (bearings are 0-360 from North)
-      const initBearing = dmsToDecimal({
-        degrees: parseInt(openingBearingDeg) || 0,
-        minutes: parseInt(openingBearingMin) || 0,
-        seconds: parseFloat(openingBearingSec) || 0,
-        direction: 'N'
-      })
-
-      // Build traverse points and calculate
+      // Build traverse points - each leg's bearing is from previous point to this leg's point
       const points: { name: string; easting: number; northing: number }[] = [
         { name: openingPtName, easting: openingE, northing: openingN }
       ]
       const distances: number[] = []
-      const bearings: number[] = [initBearing]
+      const bearings: number[] = []
 
       let currentE = openingE
       let currentN = openingN
@@ -166,13 +155,13 @@ export default function TraverseModal({
         distances.push(dist)
         bearings.push(bearing)
         
-        // Calculate next point position
+        // Calculate next point position using this leg's bearing
         const rad = bearing * Math.PI / 180
-        currentE += dist * Math.sin(rad)
-        currentN += dist * Math.cos(rad)
+        currentE = currentE + dist * Math.sin(rad)
+        currentN = currentN + dist * Math.cos(rad)
         
         points.push({
-          name: leg.stationName || `P${points.length + 1}`,
+          name: leg.stationName || `P${points.length}`,
           easting: currentE,
           northing: currentN
         })
@@ -365,32 +354,6 @@ export default function TraverseModal({
                 </div>
               )}
 
-              <div className="mt-4">
-                <label className="block text-sm text-gray-300 mb-1">Initial Bearing to First Station</label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    placeholder="Deg"
-                    value={openingBearingDeg}
-                    onChange={(e) => setOpeningBearingDeg(e.target.value)}
-                    className="w-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={openingBearingMin}
-                    onChange={(e) => setOpeningBearingMin(e.target.value)}
-                    className="w-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Sec"
-                    value={openingBearingSec}
-                    onChange={(e) => setOpeningBearingSec(e.target.value)}
-                    className="w-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Section 2: Traverse Legs */}
