@@ -167,9 +167,13 @@ export default function ProjectMap({
     return () => window.removeEventListener('keydown', handleKey)
   }, [onModeChange])
 
+  console.log('ProjectMap received points:', points.length, 'zone:', utmZone, 'hemisphere:', hemisphere)
+  
   const markers = points.map(point => {
     let lat = point.lat
     let lon = point.lon
+    
+    console.log('Processing point:', point.name, 'lat:', lat, 'lon:', lon)
     
     if (!lat || !lon) {
       console.log('Converting point:', point.name, {
