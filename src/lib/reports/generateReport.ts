@@ -226,6 +226,7 @@ export function generateSurveyReport(options: ReportOptions): void {
     doc.text(`Page ${i} of ${pageCount}`, 185, 290, { align: 'right' })
   }
 
-  const filename = `${project.name.replace(/\s+/g, '_')}_survey_report.pdf`
+  const date = new Date().toISOString().slice(0, 10)
+  const filename = `${project.name.replace(/\s+/g, '_')}_${date}_Survey_Report.pdf`
   doc.save(filename)
 }
