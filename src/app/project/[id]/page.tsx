@@ -7,6 +7,7 @@ import { geographicToUTM } from '@/lib/engine/coordinates'
 import AddPointModal from '@/components/AddPointModal'
 import CSVUploadModal from '@/components/CSVUploadModal'
 import TraverseModal from '@/components/TraverseModal'
+import ParcelAreaModal from '@/components/ParcelAreaModal'
 
 const ProjectMap = dynamic(() => import('@/components/ProjectMap'), {
   ssr: false,
@@ -46,6 +47,8 @@ export default function ProjectPage({ params }: PageProps) {
   const [showCSVUpload, setShowCSVUpload] = useState(false)
   const [showTraverse, setShowTraverse] = useState(false)
   const [drawMode, setDrawMode] = useState(false)
+  const [areaMode, setAreaMode] = useState(false)
+  const [areaPoints, setAreaPoints] = useState<any[]>([])
   const [drawPoints, setDrawPoints] = useState<any[]>([])
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [prefillCoords, setPrefillCoords] = useState<{ easting?: number; northing?: number }>({})
@@ -105,6 +108,16 @@ export default function ProjectPage({ params }: PageProps) {
     setTimeout(() => setCopiedId(null), 1500)
   }
 
+  const handleAreaPointSelect = (point: any) => {
+    if (areaPoints.length >= 3 && areaPoints[0].id === point.id) {
+      // Closed polygon - calculate area
+      return
+    }
+    if (!areaPoints.some(p => p.id === point.id)) {
+      setAreaPoints([...areaPoints, point])
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -144,6 +157,7 @@ export default function ProjectPage({ params }: PageProps) {
             onClick={() => {
               setDrawMode(!drawMode)
               setDrawPoints([])
+              setAreaMode(false)
             }}
             className={`w-full px-4 py-2 rounded text-sm transition-colors ${
               drawMode 
@@ -152,6 +166,20 @@ export default function ProjectPage({ params }: PageProps) {
             }`}
           >
             {drawMode ? 'Drawing Active' : 'Draw Line'}
+          </button>
+          <button
+            onClick={() => {
+              setAreaMode(!areaMode)
+              setDrawMode(false)
+              setAreaPoints([])
+            }}
+            className={`w-full px-4 py-2 rounded text-sm transition-colors ${
+              areaMode 
+                ? 'bg-purple-600 hover:bg-purple-500 text-white font-semibold' 
+                : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+            }`}
+          >
+            {areaMode ? 'Select Area' : 'Compute Area'}
           </button>
         </div>
       </aside>
@@ -264,6 +292,22 @@ export default function ProjectPage({ params }: PageProps) {
         onClose={() => setShowTraverse(false)}
         projectId={params.id}
         onTraverseComplete={handlePointAdded}
+      />
+
+      <ParcelAreaModal
+        isOpen={areaMode}
+        onClose={() => {
+          setAreaMode(false)
+          setAreaPoints([])
+        }}
+        points={points.map(p => ({
+          id: p.id,
+          name: p.name,
+          easting: p.easting,
+          northing: p.northing,
+          elevation: p.elevation || undefined,
+          is_control: p.is_control
+        }))}
       />
     </div>
   )

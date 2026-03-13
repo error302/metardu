@@ -1,0 +1,140 @@
+'use client'
+
+import { useState } from 'react'
+import { coordinateArea } from '@/lib/engine/area'
+import { distanceBearing } from '@/lib/engine/distance'
+import { SurveyPoint } from './ProjectMap'
+
+interface ParcelAreaModalProps {
+  isOpen: boolean
+  onClose: () => void
+  points: SurveyPoint[]
+}
+
+export default function ParcelAreaModal({ isOpen, onClose, points }: ParcelAreaModalProps) {
+  const [selectedPoints, setSelectedPoints] = useState<SurveyPoint[]>([])
+  const [result, setResult] = useState<{
+    areaSqm: number
+    areaHa: number
+    areaAcres: number
+    perimeter: number
+  } | null>(null)
+
+  const handlePointClick = (point: SurveyPoint) => {
+    // Check if clicking first point to close
+    if (selectedPoints.length >= 3 && selectedPoints[0].id === point.id) {
+      calculateArea()
+      return
+    }
+    
+    // Add point if not already selected
+    if (!selectedPoints.some(p => p.id === point.id)) {
+      setSelectedPoints([...selectedPoints, point])
+    }
+  }
+
+  const calculateArea = () => {
+    if (selectedPoints.length < 3) return
+
+    const coords = selectedPoints.map(p => ({
+      easting: p.easting,
+      northing: p.northing
+    }))
+
+    const areaResult = coordinateArea(coords)
+    setResult(areaResult)
+  }
+
+  const clearSelection = () => {
+    setSelectedPoints([])
+    setResult(null)
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose}></div>
+      <div className="relative bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-md">
+        <h2 className="text-xl font-bold text-gray-100 mb-4">Compute Parcel Area</h2>
+
+        <p className="text-gray-400 text-sm mb-4">
+          Click points on the map in boundary order. Click the first point again to close the polygon.
+        </p>
+
+        {/* Selected points list */}
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-gray-300">Selected Points ({selectedPoints.length})</span>
+            <button
+              onClick={clearSelection}
+              className="text-xs text-red-400 hover:text-red-300"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {selectedPoints.map((p, i) => (
+              <span
+                key={p.id}
+                className="px-2 py-1 bg-gray-800 rounded text-xs font-mono text-gray-100"
+              >
+                {i + 1}. {p.name}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Result */}
+        {result && (
+          <div className="mb-4 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+            <h3 className="text-lg font-semibold text-[#E8841A] mb-3">Parcel Area</h3>
+            <div className="space-y-2 font-mono">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Area:</span>
+                <span className="text-gray-100">{result.areaSqm.toFixed(4)} m²</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Hectares:</span>
+                <span className="text-gray-100">{result.areaHa.toFixed(6)} ha</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Acres:</span>
+                <span className="text-gray-100">{result.areaAcres.toFixed(6)} acres</span>
+              </div>
+              <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between">
+                <span className="text-gray-400">Perimeter:</span>
+                <span className="text-[#E8841A] font-semibold">{result.perimeter.toFixed(4)} m</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded"
+          >
+            Close
+          </button>
+          {selectedPoints.length >= 3 && !result && (
+            <button
+              onClick={calculateArea}
+              className="flex-1 px-6 py-2 bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold rounded"
+            >
+              Calculate Area
+            </button>
+          )}
+          {result && (
+            <button
+              onClick={onClose}
+              className="flex-1 px-6 py-2 bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold rounded"
+            >
+              Done
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
