@@ -6,6 +6,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { distanceBearing } from '@/lib/engine/distance'
 import { bearingToString } from '@/lib/engine/angles'
+import { utmToGeographic } from '@/lib/engine/coordinates'
 
 // Fix Leaflet default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -75,47 +76,6 @@ const areaIcon = new L.Icon({
   shadowSize: [41, 41]
 })
 
-function UTMToLatLon(easting: number, northing: number, zone: number, hemisphere: 'N' | 'S'): { lat: number; lon: number } {
-  const k0 = 0.9996
-  const WGS84_A = 6378137.0
-  const WGS84_F = 1 / 298.257223563
-  const WGS84_E2 = 2 * WGS84_F - WGS84_F * WGS84_F
-  const e1 = (1 - Math.sqrt(1 - WGS84_E2)) / (1 + Math.sqrt(1 - WGS84_E2))
-  
-  let y = northing
-  if (hemisphere === 'S') {
-    y -= 10000000
-  }
-  
-  const lonOrigin = (zone - 1) * 6 - 180 + 3
-  const lonOriginRad = lonOrigin * Math.PI / 180
-  
-  const M = y / k0
-  const mu = M / (WGS84_A * (1 - WGS84_E2 / 4 - 3 * WGS84_E2 * WGS84_E2 / 64))
-  
-  const phi1 = mu + (3 * e1 / 2 - 27 * e1 * e1 * e1 / 32) * Math.sin(2 * mu)
-             + (21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32) * Math.sin(4 * mu)
-             + (151 * e1 * e1 * e1 / 96) * Math.sin(6 * mu)
-  
-  const N1 = WGS84_A / Math.sqrt(1 - WGS84_E2 * Math.sin(phi1) * Math.sin(phi1))
-  const T1 = Math.tan(phi1) * Math.tan(phi1)
-  const C1 = (WGS84_E2 / (1 - WGS84_E2)) * Math.cos(phi1) * Math.cos(phi1)
-  const R1 = WGS84_A * (1 - WGS84_E2) / Math.pow(1 - WGS84_E2 * Math.sin(phi1) * Math.sin(phi1), 1.5)
-  const D = (easting - 500000) / (N1 * k0)
-  
-  let lat = phi1 - (N1 * Math.tan(phi1) / R1) * (D * D / 2
-             - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * WGS84_E2 / (1 - WGS84_E2)) * D * D * D * D / 24
-             + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * WGS84_E2 / (1 - WGS84_E2) - 3 * C1 * C1) * D * D * D * D * D * D / 720)
-  
-  let lon = (lonOriginRad) + (D - (1 + 2 * T1 + C1) * D * D * D / 6
-             + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * WGS84_E2 / (1 - WGS84_E2) + 24 * T1 * T1) * D * D * D * D * D / 120) / Math.cos(phi1)
-  
-  return {
-    lat: Math.round(lat * 180 / Math.PI * 10000000) / 10000000,
-    lon: Math.round(lon * 180 / Math.PI * 10000000) / 10000000
-  }
-}
-
 function MapClickHandler({ onClick }: { onClick: (lat: number, lon: number) => void }) {
   useMapEvents({
     click: (e) => {
@@ -142,12 +102,12 @@ function FlyToPoints({ points, utmZone, hemisphere }: { points: SurveyPoint[]; u
     
     if (points.length > prevPointsLength.current && points.length > 0) {
       const lastPoint = points[points.length - 1]
-      const converted = UTMToLatLon(lastPoint.easting, lastPoint.northing, utmZone, hemisphere)
+      const converted = utmToGeographic(lastPoint.easting, lastPoint.northing, utmZone, hemisphere)
       map.flyTo([converted.lat, converted.lon], 16, { duration: 1 })
     } else if (points.length > 1 && prevPointsLength.current === 0) {
       const bounds = L.latLngBounds(
         points.map(p => {
-          const converted = UTMToLatLon(p.easting, p.northing, utmZone, hemisphere)
+          const converted = utmToGeographic(p.easting, p.northing, utmZone, hemisphere)
           return [converted.lat, converted.lon] as [number, number]
         })
       )
@@ -208,7 +168,7 @@ export default function ProjectMap({
     let lon = point.lon
     
     if (!lat || !lon) {
-      const converted = UTMToLatLon(point.easting, point.northing, utmZone, hemisphere)
+      const converted = utmToGeographic(point.easting, point.northing, utmZone, hemisphere)
       lat = converted.lat
       lon = converted.lon
     }
