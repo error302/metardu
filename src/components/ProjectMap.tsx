@@ -24,6 +24,8 @@ export interface SurveyPoint {
   northing: number
   elevation?: number
   is_control?: boolean
+  control_order?: string
+  locked?: boolean
   lat?: number
   lon?: number
 }
@@ -39,7 +41,7 @@ interface ProjectMapProps {
   onModeChange?: (mode: MapMode) => void
   onAreaPointsUpdate?: (points: SurveyPoint[]) => void
   areaPoints?: SurveyPoint[]
-  onDeletePoint?: (pointId: string) => void
+  onDeletePoint?: (point: SurveyPoint) => void
   onEditPoint?: (point: SurveyPoint) => void
 }
 
@@ -72,6 +74,24 @@ const selectedIcon = new L.Icon({
 
 const areaIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+})
+
+const orangeIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+})
+
+const yellowIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -326,7 +346,15 @@ export default function ProjectMap({
           const isAreaSelected = localAreaPoints.some(d => d.id === point.id)
           const isAreaFirst = localAreaPoints.length > 0 && localAreaPoints[0].id === point.id
           
-          let icon = point.is_control ? redIcon : amberIcon
+          // Default to amber for survey points
+          let icon = amberIcon
+          if (point.is_control) {
+            // Control points: red (primary), orange (secondary), yellow (temporary)
+            if (point.control_order === 'primary') icon = redIcon
+            else if (point.control_order === 'secondary') icon = orangeIcon
+            else if (point.control_order === 'temporary') icon = yellowIcon
+            else icon = redIcon // default to red for generic control points
+          }
           if (isDistanceSelected) icon = selectedIcon
           if (isAreaSelected || isAreaFirst) icon = areaIcon
           
@@ -353,6 +381,7 @@ export default function ProjectMap({
               <Popup>
                 <div className="text-sm">
                   <strong className="text-gray-900">{point.name}</strong>
+                  {point.locked && <span className="text-gray-900"> 🔒</span>}
                   <br />
                   <span className="text-gray-600">E: {point.easting.toFixed(4)}</span>
                   <br />
@@ -364,7 +393,14 @@ export default function ProjectMap({
                     </>
                   )}
                   {point.is_control && (
-                    <span className="text-red-600 font-semibold"> (Control Point)</span>
+                    <span className={`font-semibold ${
+                      point.control_order === 'primary' ? 'text-red-600' : 
+                      point.control_order === 'secondary' ? 'text-orange-600' : 
+                      point.control_order === 'temporary' ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {' (' + (point.control_order || 'primary') + ' control)'}
+                      {point.locked ? ' 🔒' : ''}
+                    </span>
                   )}
                 </div>
               </Popup>
@@ -460,7 +496,7 @@ export default function ProjectMap({
             <button
               onClick={() => {
                 if (confirm(`Delete point "${contextMenu.point.name}"?`)) {
-                  onDeletePoint?.(contextMenu.point.id!)
+                  onDeletePoint?.(contextMenu.point)
                 }
                 setContextMenu(null)
               }}

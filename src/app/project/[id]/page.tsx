@@ -39,6 +39,8 @@ interface Point {
   northing: number
   elevation: number | null
   is_control: boolean
+  control_order?: string
+  locked?: boolean
 }
 
 type MapMode = 'idle' | 'distance' | 'area' | 'traverse'
@@ -61,6 +63,8 @@ export default function ProjectPage({ params }: PageProps) {
     northing: number
     elevation: number
     is_control: boolean
+    control_order?: string
+    locked?: boolean
   } | null>(null)
   const [traverseResult, setTraverseResult] = useState<any>(null)
   const [areaResult, setAreaResult] = useState<any>(null)
@@ -122,19 +126,29 @@ export default function ProjectPage({ params }: PageProps) {
     fetchData()
   }
 
-  const handleDeletePoint = async (pointId: string) => {
-    await supabase.from('survey_points').delete().eq('id', pointId)
+  const handleDeletePoint = async (point: any) => {
+    if (point.locked) {
+      alert('This control point is locked and cannot be deleted.')
+      return
+    }
+    await supabase.from('survey_points').delete().eq('id', point.id)
     fetchData()
   }
 
   const handleEditPoint = (point: any) => {
+    if (point.locked) {
+      alert('This control point is locked and cannot be edited.')
+      return
+    }
     setEditPoint({
       id: point.id,
       name: point.name,
       easting: point.easting,
       northing: point.northing,
       elevation: point.elevation || 0,
-      is_control: point.is_control || false
+      is_control: point.is_control || false,
+      control_order: point.control_order,
+      locked: point.locked || false
     })
     setShowAddPoint(true)
   }
@@ -273,7 +287,9 @@ export default function ProjectPage({ params }: PageProps) {
                 easting: p.easting,
                 northing: p.northing,
                 elevation: p.elevation || undefined,
-                is_control: p.is_control
+                is_control: p.is_control,
+                control_order: (p as any).control_order,
+                locked: (p as any).locked
               }))}
               utmZone={project.utm_zone}
               hemisphere={project.hemisphere}
@@ -306,8 +322,16 @@ export default function ProjectPage({ params }: PageProps) {
                       <tr key={point.id} className="border-b border-gray-800/50">
                         <td className="px-4 py-3 font-mono text-gray-100">
                           {point.name}
+                          {point.locked && <span className="ml-1">🔒</span>}
                           {point.is_control && (
-                            <span className="ml-2 text-xs text-red-400">(CP)</span>
+                            <span className={`ml-2 text-xs ${
+                              point.control_order === 'primary' ? 'text-red-400' :
+                              point.control_order === 'secondary' ? 'text-orange-400' :
+                              point.control_order === 'temporary' ? 'text-yellow-400' :
+                              'text-red-400'
+                            }`}>
+                              ({point.control_order === 'temporary' ? 'TMP' : point.control_order === 'secondary' ? 'SEC' : 'PRI'})
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-3 font-mono text-gray-300">{point.easting.toFixed(4)}</td>
@@ -359,6 +383,8 @@ export default function ProjectPage({ params }: PageProps) {
         editPointNorthing={editPoint?.northing}
         editPointElevation={editPoint?.elevation}
         editPointIsControl={editPoint?.is_control}
+        editPointControlOrder={editPoint?.control_order}
+        editPointLocked={editPoint?.locked}
       />
 
       <CSVUploadModal

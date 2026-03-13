@@ -19,6 +19,8 @@ interface AddPointModalProps {
   editPointNorthing?: number
   editPointElevation?: number
   editPointIsControl?: boolean
+  editPointControlOrder?: string
+  editPointLocked?: boolean
 }
 
 export default function AddPointModal({
@@ -35,18 +37,23 @@ export default function AddPointModal({
   editPointEasting,
   editPointNorthing,
   editPointElevation,
-  editPointIsControl
+  editPointIsControl,
+  editPointControlOrder,
+  editPointLocked
 }: AddPointModalProps) {
   const [name, setName] = useState('')
   const [easting, setEasting] = useState('')
   const [northing, setNorthing] = useState('')
   const [elevation, setElevation] = useState('0')
   const [isControl, setIsControl] = useState(false)
+  const [controlOrder, setControlOrder] = useState<'primary' | 'secondary' | 'temporary'>('secondary')
+  const [locked, setLocked] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   const isEditMode = !!editPointId
+  const isLocked = isEditMode && editPointLocked
 
   useEffect(() => {
     // Reset form when modal opens/closes or edit point changes
@@ -56,6 +63,8 @@ export default function AddPointModal({
       setNorthing(editPointNorthing?.toFixed(4) || '')
       setElevation(editPointElevation?.toString() || '0')
       setIsControl(editPointIsControl || false)
+      setControlOrder((editPointControlOrder as any) || 'secondary')
+      setLocked(editPointLocked || false)
     } else if (prefillEasting !== undefined) {
       setEasting(prefillEasting.toFixed(4))
     }
@@ -66,10 +75,12 @@ export default function AddPointModal({
       setName('')
       setElevation('0')
       setIsControl(false)
+      setControlOrder('secondary')
+      setLocked(false)
     }
     setError(null)
     setSuccessMsg(null)
-  }, [isOpen, prefillEasting, prefillNorthing, isEditMode, editPointName, editPointEasting, editPointNorthing, editPointElevation, editPointIsControl])
+  }, [isOpen, prefillEasting, prefillNorthing, isEditMode, editPointName, editPointEasting, editPointNorthing, editPointElevation, editPointIsControl, editPointControlOrder, editPointLocked])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,7 +99,9 @@ export default function AddPointModal({
             easting: Number(parseFloat(easting).toFixed(4)),
             northing: Number(parseFloat(northing).toFixed(4)),
             elevation: Number(parseFloat(elevation || '0').toFixed(4)),
-            is_control: Boolean(isControl)
+            is_control: Boolean(isControl),
+            control_order: isControl ? controlOrder : null,
+            locked: isControl ? locked : false
           })
           .eq('id', editPointId)
 
@@ -106,7 +119,9 @@ export default function AddPointModal({
             easting: Number(parseFloat(easting).toFixed(4)),
             northing: Number(parseFloat(northing).toFixed(4)),
             elevation: Number(parseFloat(elevation || '0').toFixed(4)),
-            is_control: Boolean(isControl)
+            is_control: Boolean(isControl),
+            control_order: isControl ? controlOrder : null,
+            locked: isControl ? locked : false
           })
 
         if (insertError) {
@@ -257,6 +272,35 @@ export default function AddPointModal({
               This is a control point
             </label>
           </div>
+
+          {isControl && (
+            <div className="pl-6 space-y-3 border-l-2 border-gray-700">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Control Classification</label>
+                <select
+                  value={controlOrder}
+                  onChange={(e) => setControlOrder(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+                >
+                  <option value="primary">Primary Control</option>
+                  <option value="secondary">Secondary Control</option>
+                  <option value="temporary">Temporary Control</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="locked"
+                  checked={locked}
+                  onChange={(e) => setLocked(e.target.checked)}
+                  className="w-4 h-4 rounded bg-gray-800 border-gray-700 text-[#E8841A] focus:ring-[#E8841A]"
+                />
+                <label htmlFor="locked" className="text-sm text-gray-300">
+                  🔒 Lock this point (prevent edit/delete)
+                </label>
+              </div>
+            </div>
+          )}
 
           {successMsg && (
             <div className="text-green-400 text-sm p-2 bg-green-900/20 rounded border border-green-800">
