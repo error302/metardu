@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 export default function NavBar() {
   const [user, setUser] = useState<{ email: string } | null>(null)
@@ -10,10 +11,21 @@ export default function NavBar() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
       setUser(user as { email: string } | null)
       setLoading(false)
+    }
+    
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user as { email: string } | null)
+      setLoading(false)
     })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const handleSignOut = async () => {

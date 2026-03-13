@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -107,6 +107,35 @@ function RecenterMap({ center }: { center: [number, number] }) {
   return null
 }
 
+function FlyToPoints({ points, utmZone, hemisphere }: { points: SurveyPoint[]; utmZone: number; hemisphere: 'N' | 'S' }) {
+  const map = useMap()
+  const prevPointsLength = useRef(0)
+  
+  useEffect(() => {
+    if (points.length === 0) return
+    
+    // Only fly to point if it was just added (length increased)
+    if (points.length > prevPointsLength.current && points.length > 0) {
+      const lastPoint = points[points.length - 1]
+      const converted = UTMToLatLon(lastPoint.easting, lastPoint.northing, utmZone, hemisphere)
+      map.flyTo([converted.lat, converted.lon], 16, { duration: 1 })
+    } else if (points.length > 1 && prevPointsLength.current === 0) {
+      // First batch import - fit bounds
+      const bounds = L.latLngBounds(
+        points.map(p => {
+          const converted = UTMToLatLon(p.easting, p.northing, utmZone, hemisphere)
+          return [converted.lat, converted.lon] as [number, number]
+        })
+      )
+      map.fitBounds(bounds, { padding: [50, 50] })
+    }
+    
+    prevPointsLength.current = points.length
+  }, [points, map, utmZone, hemisphere])
+  
+  return null
+}
+
 export default function ProjectMap({ points, utmZone, hemisphere, onMapClick }: ProjectMapProps) {
   // Default center based on UTM zone (Kenya center for zone 37S)
   const getDefaultCenter = (): [number, number] => {
@@ -156,6 +185,7 @@ export default function ProjectMap({ points, utmZone, hemisphere, onMapClick }: 
       />
       <MapClickHandler onClick={handleMapClick} />
       <RecenterMap center={center} />
+      <FlyToPoints points={markers} utmZone={utmZone} hemisphere={hemisphere} />
       
       {markers.map((point, idx) => (
         <Marker
