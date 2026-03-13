@@ -197,20 +197,6 @@ export default function TraverseModal({
       const traverseResult = bowditchAdjustment(traverseInput)
       setResults(traverseResult)
 
-      // Save adjusted points to database
-      const pointsToInsert = traverseResult.legs.map(leg => ({
-        project_id: projectId,
-        name: leg.to,
-        easting: leg.adjEasting,
-        northing: leg.adjNorthing,
-        elevation: 0,
-        is_control: false
-      }))
-
-      if (pointsToInsert.length > 0) {
-        await supabase.from('survey_points').insert(pointsToInsert)
-      }
-
       setStep('results')
     } catch (err: any) {
       setError(err.message || 'Calculation failed')
@@ -242,39 +228,62 @@ export default function TraverseModal({
       return
     }
 
-    // Save adjusted points to database with upsert
-    const pointsToUpsert = results.legs.map((leg: any) => ({
-      project_id: projectId,
-      name: leg.to,
-      easting: Number(leg.adjEasting.toFixed(4)),
-      northing: Number(leg.adjNorthing.toFixed(4)),
-      elevation: 0,
-      is_control: false
-    }))
+    setLoading(true)
 
-    if (pointsToUpsert.length > 0) {
-      const { error: upsertError } = await supabase
+    try {
+      // Delete existing non-control traverse stations first
+      await supabase
         .from('survey_points')
-        .upsert(
-          pointsToUpsert,
-          { onConflict: 'project_id,name' }
-        )
+        .delete()
+        .eq('project_id', projectId)
+        .eq('is_control', false)
 
-      if (upsertError) {
-        setSaveMessage({ type: 'error', text: `Error saving: ${upsertError.message}` })
-        return
+      // Get the adjusted points from results
+      // Results legs have: from, to, adjEasting, adjNorthing
+      const adjustedPoints = results.legs.map((leg: any) => ({
+        name: leg.to,
+        easting: leg.adjEasting,
+        northing: leg.adjNorthing
+      }))
+
+      // Insert fresh adjusted points (skip opening point as it's the control)
+      if (adjustedPoints.length > 0) {
+        const pointsToInsert = adjustedPoints
+          .filter((p: any) => p.name)
+          .map((p: any) => ({
+            project_id: projectId,
+            name: p.name,
+            easting: Number(p.easting.toFixed(4)),
+            northing: Number(p.northing.toFixed(4)),
+            elevation: 0,
+            is_control: false
+          }))
+
+        const { error: insertError } = await supabase
+          .from('survey_points')
+          .insert(pointsToInsert)
+
+        if (insertError) {
+          setSaveMessage({ type: 'error', text: `Error saving: ${insertError.message}` })
+          setLoading(false)
+          return
+        }
+
+        setSaveMessage({ 
+          type: 'success', 
+          text: `${pointsToInsert.length} points saved to project` 
+        })
       }
+
+      setLoading(false)
+      setTimeout(() => {
+        onTraverseComplete()
+        handleClose()
+      }, 1500)
+    } catch (err: any) {
+      setSaveMessage({ type: 'error', text: `Error: ${err.message}` })
+      setLoading(false)
     }
-
-    setSaveMessage({ 
-      type: 'success', 
-      text: `${pointsToUpsert.length} points saved to project` 
-    })
-
-    setTimeout(() => {
-      onTraverseComplete()
-      handleClose()
-    }, 1500)
   }
 
   if (!isOpen) return null
