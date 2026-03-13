@@ -65,6 +65,7 @@ export default function TraverseModal({
   
   // Results
   const [results, setResults] = useState<any>(null)
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [error, setError] = useState('')
   
   const supabase = createClient()
@@ -74,6 +75,7 @@ export default function TraverseModal({
       fetchControlPoints()
       setStep('input')
       setResults(null)
+      setSaveMessage(null)
     }
   }, [isOpen])
 
@@ -235,12 +237,55 @@ export default function TraverseModal({
     ])
     setResults(null)
     setError('')
+    setSaveMessage(null)
     onClose()
   }
 
-  const handleSaveAndClose = () => {
-    onTraverseComplete()
-    handleClose()
+  const handleSaveAndClose = async () => {
+    if (!results) return
+
+    // Check precision grade - don't save if POOR
+    if (results.precisionGrade === 'poor') {
+      setSaveMessage({ 
+        type: 'error', 
+        text: 'Precision is too low to save. Check your measurements and recalculate.' 
+      })
+      return
+    }
+
+    // Save adjusted points to database with upsert
+    const pointsToUpsert = results.legs.map((leg: any) => ({
+      project_id: projectId,
+      name: leg.to,
+      easting: Number(leg.adjEasting.toFixed(4)),
+      northing: Number(leg.adjNorthing.toFixed(4)),
+      elevation: 0,
+      is_control: false
+    }))
+
+    if (pointsToUpsert.length > 0) {
+      const { error: upsertError } = await supabase
+        .from('survey_points')
+        .upsert(
+          pointsToUpsert,
+          { onConflict: 'project_id,name' }
+        )
+
+      if (upsertError) {
+        setSaveMessage({ type: 'error', text: `Error saving: ${upsertError.message}` })
+        return
+      }
+    }
+
+    setSaveMessage({ 
+      type: 'success', 
+      text: `${pointsToUpsert.length} points saved to project` 
+    })
+
+    setTimeout(() => {
+      onTraverseComplete()
+      handleClose()
+    }, 1500)
   }
 
   if (!isOpen) return null
@@ -564,6 +609,16 @@ export default function TraverseModal({
               </span>
             </div>
 
+            {saveMessage && (
+              <div className={`p-3 rounded text-sm ${
+                saveMessage.type === 'success' 
+                  ? 'bg-green-900/30 border border-green-600 text-green-400' 
+                  : 'bg-red-900/30 border border-red-600 text-red-400'
+              }`}>
+                {saveMessage.text}
+              </div>
+            )}
+
             {/* Gale's Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -600,7 +655,10 @@ export default function TraverseModal({
 
             <div className="flex gap-3">
               <button
-                onClick={() => setStep('input')}
+                onClick={() => {
+                  setStep('input')
+                  setSaveMessage(null)
+                }}
                 className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded"
               >
                 Back
