@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { geographicToUTM } from '@/lib/engine/coordinates'
 import AddPointModal from '@/components/AddPointModal'
 import CSVUploadModal from '@/components/CSVUploadModal'
+import TraverseModal from '@/components/TraverseModal'
 
 const ProjectMap = dynamic(() => import('@/components/ProjectMap'), {
   ssr: false,
@@ -43,6 +44,7 @@ export default function ProjectPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true)
   const [showAddPoint, setShowAddPoint] = useState(false)
   const [showCSVUpload, setShowCSVUpload] = useState(false)
+  const [showTraverse, setShowTraverse] = useState(false)
   const [prefillCoords, setPrefillCoords] = useState<{ easting?: number; northing?: number }>({})
 
   const supabase = createClient()
@@ -123,8 +125,8 @@ export default function ProjectPage({ params }: PageProps) {
             Upload CSV
           </button>
           <button
-            disabled
-            className="w-full px-4 py-2 bg-gray-800 text-gray-500 rounded text-sm cursor-not-allowed"
+            onClick={() => setShowTraverse(true)}
+            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors"
           >
             Run Traverse
           </button>
@@ -221,6 +223,13 @@ export default function ProjectPage({ params }: PageProps) {
         onClose={() => setShowCSVUpload(false)}
         projectId={params.id}
         onUploadComplete={handlePointAdded}
+      />
+
+      <TraverseModal
+        isOpen={showTraverse}
+        onClose={() => setShowTraverse(false)}
+        projectId={params.id}
+        onTraverseComplete={handlePointAdded}
       />
     </div>
   )
