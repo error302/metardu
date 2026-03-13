@@ -376,6 +376,25 @@ export default function TraverseModal({
     setLoading(false)
   }
 
+  const loadTestData = () => {
+    setOpeningUseExisting(true)
+    // Will need to find CP1 from controlPoints
+    setTimeout(() => {
+      const cp1 = controlPoints.find(p => p.name === 'CP1')
+      if (cp1) {
+        setOpeningPointId(cp1.id)
+      }
+    }, 100)
+    setLegs([
+      { id: 1, stationName: 'P1', distance: '100', bearingDeg: '0', bearingMin: '0', bearingSec: '0' },
+      { id: 2, stationName: 'P2', distance: '100', bearingDeg: '90', bearingMin: '0', bearingSec: '0' },
+      { id: 3, stationName: 'P3', distance: '100', bearingDeg: '180', bearingMin: '0', bearingSec: '0' },
+      { id: 4, stationName: 'P4', distance: '100', bearingDeg: '270', bearingMin: '0', bearingSec: '0' },
+      { id: 5, stationName: 'P5', distance: '100', bearingDeg: '0', bearingMin: '0', bearingSec: '0' },
+    ])
+    setHasClosingControl(false)
+  }
+
   const handleClose = () => {
     setLegs([
       { id: 1, stationName: '', distance: '', bearingDeg: '', bearingMin: '', bearingSec: '' },
@@ -475,7 +494,18 @@ export default function TraverseModal({
           <div className="space-y-6">
             {/* Section 1: Opening Control Point */}
             <div className="border border-gray-700 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-100 mb-3">Opening Control Point</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-gray-100">Opening Control Point</h3>
+                {process.env.NODE_ENV === 'development' && (
+                  <button
+                    type="button"
+                    onClick={loadTestData}
+                    className="text-xs text-gray-500 underline hover:text-gray-400"
+                  >
+                    Load test data
+                  </button>
+                )}
+              </div>
               
               <div className="flex gap-4 mb-4">
                 <label className="flex items-center gap-2 text-gray-300">
