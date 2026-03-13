@@ -90,10 +90,10 @@ export default function AddPointModal({
           .from('survey_points')
           .update({
             name: name.trim(),
-            easting: parseFloat(easting),
-            northing: parseFloat(northing),
-            elevation: parseFloat(elevation) || 0,
-            is_control: isControl
+            easting: Number(parseFloat(easting).toFixed(4)),
+            northing: Number(parseFloat(northing).toFixed(4)),
+            elevation: Number(parseFloat(elevation || '0').toFixed(4)),
+            is_control: Boolean(isControl)
           })
           .eq('id', editPointId)
 
@@ -108,10 +108,10 @@ export default function AddPointModal({
           .insert({
             project_id: projectId,
             name: name.trim(),
-            easting: parseFloat(easting),
-            northing: parseFloat(northing),
-            elevation: parseFloat(elevation) || 0,
-            is_control: isControl
+            easting: Number(parseFloat(easting).toFixed(4)),
+            northing: Number(parseFloat(northing).toFixed(4)),
+            elevation: Number(parseFloat(elevation || '0').toFixed(4)),
+            is_control: Boolean(isControl)
           })
 
         if (insertError) {
