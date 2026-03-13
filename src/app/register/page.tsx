@@ -49,10 +49,10 @@ export default function RegisterPage() {
           <p className="text-gray-400">Create your account</p>
         </div>
 
-        {success ? (
+          {success ? (
           <div className="p-4 bg-green-900/30 border border-green-600 rounded text-green-400 text-center">
             <p className="mb-4">Check your email to confirm your account.</p>
-            <a href="/login" className="text-amber-500 hover:text-amber-400">
+            <a href="/login" className="text-[#E8841A] hover:text-[#d67715]">
               Back to Sign In
             </a>
           </div>
@@ -70,7 +70,7 @@ export default function RegisterPage() {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-amber-500 focus:outline-none text-gray-100"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
                 required
               />
             </div>
@@ -81,7 +81,7 @@ export default function RegisterPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-amber-500 focus:outline-none text-gray-100"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
                 required
               />
             </div>
@@ -92,7 +92,7 @@ export default function RegisterPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-amber-500 focus:outline-none text-gray-100"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
                 required
                 minLength={6}
               />
@@ -101,7 +101,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-black font-semibold rounded transition-colors disabled:opacity-50"
+              className="w-full py-3 bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold rounded transition-colors disabled:opacity-50"
             >
               {loading ? 'Creating account...' : 'Create Account'}
             </button>
@@ -110,7 +110,7 @@ export default function RegisterPage() {
 
         <p className="text-center mt-6 text-gray-400">
           Already have an account?{' '}
-          <a href="/login" className="text-amber-500 hover:text-amber-400">
+          <a href="/login" className="text-[#E8841A] hover:text-[#d67715]">
             Sign In
           </a>
         </p>

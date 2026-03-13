@@ -68,7 +68,7 @@ export default function NewProjectPage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-amber-500 focus:outline-none text-gray-100"
+              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
               required
               placeholder="My Survey Project"
             />
@@ -79,7 +79,7 @@ export default function NewProjectPage() {
             <textarea
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-amber-500 focus:outline-none text-gray-100 h-24 resize-none"
+              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100 h-24 resize-none"
               placeholder="Project location or description..."
             />
           </div>
@@ -91,7 +91,7 @@ export default function NewProjectPage() {
                 type="number"
                 value={utmZone}
                 onChange={(e) => setUtmZone(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-amber-500 focus:outline-none text-gray-100"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
                 min={1}
                 max={60}
               />
@@ -102,7 +102,7 @@ export default function NewProjectPage() {
               <select
                 value={hemisphere}
                 onChange={(e) => setHemisphere(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-amber-500 focus:outline-none text-gray-100"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
               >
                 <option value="N">Northern</option>
                 <option value="S">Southern</option>
@@ -120,7 +120,7 @@ export default function NewProjectPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 text-black font-semibold rounded transition-colors disabled:opacity-50"
+              className="flex-1 py-3 bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold rounded transition-colors disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Create Project'}
             </button>

@@ -55,7 +55,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-amber-500 focus:outline-none text-gray-100"
+              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
               required
             />
           </div>
@@ -66,7 +66,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-amber-500 focus:outline-none text-gray-100"
+              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
               required
             />
           </div>
@@ -74,7 +74,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-black font-semibold rounded transition-colors disabled:opacity-50"
+            className="w-full py-3 bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold rounded transition-colors disabled:opacity-50"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
@@ -82,7 +82,7 @@ export default function LoginPage() {
 
         <p className="text-center mt-6 text-gray-400">
           Don't have an account?{' '}
-          <a href="/register" className="text-amber-500 hover:text-amber-400">
+          <a href="/register" className="text-[#E8841A] hover:text-[#d67715]">
             Register
           </a>
         </p>

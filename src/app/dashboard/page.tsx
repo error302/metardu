@@ -52,7 +52,7 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold text-gray-100">Your Projects</h1>
           <Link
             href="/project/new"
-            className="px-6 py-2 bg-amber-600 hover:bg-amber-500 text-black font-semibold rounded transition-colors"
+            className="px-6 py-2 bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold rounded transition-colors"
           >
             New Project
           </Link>
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
             <p className="text-gray-400 mb-4">No projects yet</p>
             <Link
               href="/project/new"
-              className="inline-block px-6 py-2 bg-amber-600 hover:bg-amber-500 text-black font-semibold rounded transition-colors"
+              className="inline-block px-6 py-2 bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold rounded transition-colors"
             >
               Create Your First Project
             </Link>
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
             {projects.map((project) => (
               <div
                 key={project.id}
-                className="border border-gray-800 bg-gray-900/50 rounded-lg p-6 hover:border-amber-600/50 transition-colors"
+                className="border border-gray-800 bg-gray-900/50 rounded-lg p-6 hover:border-[#E8841A]/50 transition-colors"
               >
                 <h3 className="text-lg font-semibold text-gray-100 mb-2">
                   {project.name}
@@ -91,7 +91,7 @@ export default async function DashboardPage() {
                 </div>
                 <Link
                   href={`/project/${project.id}`}
-                  className="mt-4 block w-full text-center py-2 bg-gray-800 hover:bg-gray-700 text-amber-500 rounded transition-colors"
+                  className="mt-4 block w-full text-center py-2 bg-gray-800 hover:bg-gray-700 text-[#E8841A] rounded transition-colors"
                 >
                   Open
                 </Link>
