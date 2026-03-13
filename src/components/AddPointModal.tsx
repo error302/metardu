@@ -48,6 +48,20 @@ export default function AddPointModal({
     setError('')
     setLoading(true)
 
+    // Check for duplicate point name
+    const { data: existing } = await supabase
+      .from('survey_points')
+      .select('name')
+      .eq('project_id', projectId)
+      .eq('name', name)
+      .single()
+
+    if (existing) {
+      setError('Point name already exists in this project.')
+      setLoading(false)
+      return
+    }
+
     const { error } = await supabase.from('survey_points').insert({
       project_id: projectId,
       name,

@@ -45,6 +45,9 @@ export default function ProjectPage({ params }: PageProps) {
   const [showAddPoint, setShowAddPoint] = useState(false)
   const [showCSVUpload, setShowCSVUpload] = useState(false)
   const [showTraverse, setShowTraverse] = useState(false)
+  const [drawMode, setDrawMode] = useState(false)
+  const [drawPoints, setDrawPoints] = useState<any[]>([])
+  const [copiedId, setCopiedId] = useState<string | null>(null)
   const [prefillCoords, setPrefillCoords] = useState<{ easting?: number; northing?: number }>({})
 
   const supabase = createClient()
@@ -95,6 +98,13 @@ export default function ProjectPage({ params }: PageProps) {
     fetchData()
   }
 
+  const handleCopyCoords = async (point: Point) => {
+    const text = `${point.name}, ${point.easting}, ${point.northing}, ${point.elevation || 0}`
+    await navigator.clipboard.writeText(text)
+    setCopiedId(point.id)
+    setTimeout(() => setCopiedId(null), 1500)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -130,6 +140,19 @@ export default function ProjectPage({ params }: PageProps) {
           >
             Run Traverse
           </button>
+          <button
+            onClick={() => {
+              setDrawMode(!drawMode)
+              setDrawPoints([])
+            }}
+            className={`w-full px-4 py-2 rounded text-sm transition-colors ${
+              drawMode 
+                ? 'bg-green-600 hover:bg-green-500 text-white font-semibold' 
+                : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+            }`}
+          >
+            {drawMode ? 'Drawing Active' : 'Draw Line'}
+          </button>
         </div>
       </aside>
 
@@ -160,6 +183,8 @@ export default function ProjectPage({ params }: PageProps) {
               utmZone={project.utm_zone}
               hemisphere={project.hemisphere}
               onMapClick={handleMapClick}
+              drawMode={drawMode}
+              onDrawUpdate={setDrawPoints}
             />
           </div>
 
@@ -173,6 +198,7 @@ export default function ProjectPage({ params }: PageProps) {
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Easting (m)</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Northing (m)</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Elevation (m)</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -188,11 +214,19 @@ export default function ProjectPage({ params }: PageProps) {
                         <td className="px-4 py-3 font-mono text-gray-300">{point.easting.toFixed(4)}</td>
                         <td className="px-4 py-3 font-mono text-gray-300">{point.northing.toFixed(4)}</td>
                         <td className="px-4 py-3 font-mono text-gray-300">{point.elevation?.toFixed(3) ?? '—'}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => handleCopyCoords(point)}
+                            className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+                          >
+                            {copiedId === point.id ? 'Copied!' : 'Copy'}
+                          </button>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                         No points yet. Use "Add Point" or "Upload CSV" to get started.
                       </td>
                     </tr>
