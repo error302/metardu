@@ -43,12 +43,20 @@ export default function AddPointModal({
   const [elevation, setElevation] = useState('0')
   const [isControl, setIsControl] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const supabase = createClient()
+  const [error, setError] = useState<string | null>(null)
+  let supabase: ReturnType<typeof createClient> | null = null
 
   const isEditMode = !!editPointId
 
+  const getClient = () => {
+    if (!supabase) {
+      supabase = createClient()
+    }
+    return supabase
+  }
+
   useEffect(() => {
+    // Reset form when modal opens/closes or edit point changes
     if (isEditMode && editPointName) {
       setName(editPointName)
       setEasting(editPointEasting?.toFixed(4) || '')
@@ -66,66 +74,65 @@ export default function AddPointModal({
       setElevation('0')
       setIsControl(false)
     }
-  }, [prefillEasting, prefillNorthing, isEditMode, editPointName, editPointEasting, editPointNorthing, editPointElevation, editPointIsControl])
+    setError(null)
+  }, [isOpen, prefillEasting, prefillNorthing, isEditMode, editPointName, editPointEasting, editPointNorthing, editPointElevation, editPointIsControl])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
+    setError(null)
     setLoading(true)
 
-    // Check for duplicate point name (only for new points)
-    if (!isEditMode) {
-      const { data: existing } = await supabase
-        .from('survey_points')
-        .select('name')
-        .eq('project_id', projectId)
-        .eq('name', name)
-        .single()
-
-      if (existing) {
-        setError('Point name already exists in this project.')
-        setLoading(false)
-        return
-      }
-    }
-
-    let error
     try {
-      if (isEditMode) {
-        ({ error } = await supabase.from('survey_points').update({
-          name,
-          easting: parseFloat(easting),
-          northing: parseFloat(northing),
-          elevation: parseFloat(elevation) || 0,
-          is_control: isControl
-        }).eq('id', editPointId))
-      } else {
-        ({ error } = await supabase.from('survey_points').insert({
-          project_id: projectId,
-          name,
-          easting: parseFloat(easting),
-          northing: parseFloat(northing),
-          elevation: parseFloat(elevation) || 0,
-          is_control: isControl
-        }))
-      }
-    } catch (err) {
-      setError('Failed to save point. Please try again.')
-      setLoading(false)
-      return
-    }
+      const client = getClient()
 
-    if (error) {
-      setError(error.message)
+      if (isEditMode) {
+        const { error: updateError } = await client
+          .from('survey_points')
+          .update({
+            name: name.trim(),
+            easting: parseFloat(easting),
+            northing: parseFloat(northing),
+            elevation: parseFloat(elevation) || 0,
+            is_control: isControl
+          })
+          .eq('id', editPointId)
+
+        if (updateError) {
+          setError(`Failed to update point: ${updateError.message}`)
+          setLoading(false)
+          return
+        }
+      } else {
+        const { error: insertError } = await client
+          .from('survey_points')
+          .insert({
+            project_id: projectId,
+            name: name.trim(),
+            easting: parseFloat(easting),
+            northing: parseFloat(northing),
+            elevation: parseFloat(elevation) || 0,
+            is_control: isControl
+          })
+
+        if (insertError) {
+          if (insertError.code === '23505') {
+            setError(`Point "${name}" already exists in this project. Use a different name.`)
+          } else {
+            setError(`Failed to add point: ${insertError.message}`)
+          }
+          setLoading(false)
+          return
+        }
+      }
+
+      // Success
       setLoading(false)
-    } else {
-      setName('')
-      setEasting('')
-      setNorthing('')
-      setElevation('0')
-      setIsControl(false)
       onPointAdded()
       onClose()
+
+    } catch (err) {
+      setError('Unexpected error. Please try again.')
+      setLoading(false)
     }
   }
 
@@ -141,7 +148,7 @@ export default function AddPointModal({
         
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
+            <div className="text-red-400 text-sm p-2 bg-red-900/20 rounded border border-red-800">
               {error}
             </div>
           )}
