@@ -190,6 +190,21 @@ export default function SettingOutCalculator() {
                     <div className="font-mono text-[var(--accent)]">{result2.deltaN >= 0 ? '+' : ''}{result2.deltaN.toFixed(4)} m</div>
                   </div>
                 </div>
+                <div className="bg-amber-900/20 border border-amber-700/50 rounded p-3">
+                  <div className="text-xs text-amber-400 font-semibold mb-2">Field Instructions:</div>
+                  {(() => {
+                    const instructions = []
+                    if (Math.abs(result2.deltaE) > 0.001) {
+                      instructions.push(`Move ${Math.abs(result2.deltaE).toFixed(3)} m ${result2.deltaE > 0 ? 'East' : 'West'}`)
+                    }
+                    if (Math.abs(result2.deltaN) > 0.001) {
+                      instructions.push(`Move ${Math.abs(result2.deltaN).toFixed(3)} m ${result2.deltaN > 0 ? 'North' : 'South'}`)
+                    }
+                    return instructions.map((inst, i) => (
+                      <div key={i} className="text-sm font-mono text-amber-300">→ {inst}</div>
+                    ))
+                  })()}
+                </div>
                 <div className="border-t border-gray-700 pt-4">
                   <div className="text-xs text-gray-500 mb-2">{result2.formula}</div>
                   {result2.steps.map((step: string, i: number) => (
