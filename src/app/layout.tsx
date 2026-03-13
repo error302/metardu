@@ -37,8 +37,13 @@ export default function RootLayout({
                 <NavLink href="/tools/curves">Curves</NavLink>
               </div>
             </div>
-            <div className="text-xs text-[var(--text-muted)]">
-              Professional Grade
+            <div className="flex items-center gap-4">
+              <a href="/login" className="px-4 py-2 text-sm border border-[#E8841A] text-[#E8841A] rounded hover:bg-[#E8841A]/10 transition-colors">
+                Log In
+              </a>
+              <a href="/register" className="px-4 py-2 text-sm bg-[#E8841A] text-black font-semibold rounded hover:bg-[#d67715] transition-colors">
+                Get Started
+              </a>
             </div>
           </div>
         </nav>
