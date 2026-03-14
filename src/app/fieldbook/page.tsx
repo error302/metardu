@@ -187,39 +187,43 @@ export default function DigitalFieldBookPage() {
     })
   }, [supabase])
 
-  const levelingComputed = useMemo(() => {
-    const open = asNumber(openingRL)
-    if (open === null) return { ok: false as const, errors: ['Opening RL is required.'] }
-    const close = closingRL.trim() ? asNumber(closingRL) : undefined
-    if (closingRL.trim() && close === null) return { ok: false as const, errors: ['Closing RL must be a number.'] }
-    const k = asNumber(distanceKm) ?? 1
+    const levelingComputed = useMemo(() => {
+      const open = asNumber(openingRL)
+      if (open === null) return { ok: false as const, errors: ['Opening RL is required.'] }
+      // Help TypeScript narrow the type: open should be number after validation
+      const openingRLValue: number = open
+      const close = closingRL.trim() ? asNumber(closingRL) : undefined
+      if (closingRL.trim() && close === null) return { ok: false as const, errors: ['Closing RL must be a number.'] }
+      // Help TypeScript narrow the type: close should be number | undefined after validation
+      const closingRLValue: number | undefined = close === null ? undefined : close
+      const k = asNumber(distanceKm) ?? 1
 
-    const readings = levelRows.map((r) => ({
-      station: r.station.trim(),
-      bs: r.bs.trim() ? asNumber(r.bs) ?? undefined : undefined,
-      is: r.is.trim() ? asNumber(r.is) ?? undefined : undefined,
-      fs: r.fs.trim() ? asNumber(r.fs) ?? undefined : undefined,
-    }))
+      const readings = levelRows.map((r) => ({
+        station: r.station.trim(),
+        bs: r.bs.trim() ? asNumber(r.bs) ?? undefined : undefined,
+        is: r.is.trim() ? asNumber(r.is) ?? undefined : undefined,
+        fs: r.fs.trim() ? asNumber(r.fs) ?? undefined : undefined,
+      }))
 
-    const errors: string[] = []
-    const stationSet = new Set<string>()
-    for (const r of readings) {
-      if (!r.station) errors.push('Station names are required.')
-      if (r.station) {
-        const key = r.station.toUpperCase()
-        if (stationSet.has(key)) errors.push(`Duplicate station: ${r.station}`)
-        stationSet.add(key)
+      const errors: string[] = []
+      const stationSet = new Set<string>()
+      for (const r of readings) {
+        if (!r.station) errors.push('Station names are required.')
+        if (r.station) {
+          const key = r.station.toUpperCase()
+          if (stationSet.has(key)) errors.push(`Duplicate station: ${r.station}`)
+          stationSet.add(key)
+        }
       }
-    }
-    if (errors.length) return { ok: false as const, errors }
+      if (errors.length) return { ok: false as const, errors }
 
-    const calc =
-      levelMethod === 'rise_and_fall'
-        ? riseAndFall({ readings, openingRL: open, closingRL: close, method: 'rise_and_fall', distanceKm: k })
-        : heightOfCollimation({ readings, openingRL: open, closingRL: close, method: 'height_of_collimation', distanceKm: k })
+      const calc =
+        levelMethod === 'rise_and_fall'
+          ? riseAndFall({ readings, openingRL: openingRLValue, closingRL: closingRLValue, method: 'rise_and_fall', distanceKm: k })
+          : heightOfCollimation({ readings, openingRL: openingRLValue, closingRL: closingRLValue, method: 'height_of_collimation', distanceKm: k })
 
-    return { ok: true as const, calc }
-  }, [openingRL, closingRL, distanceKm, levelMethod, levelRows])
+      return { ok: true as const, calc }
+    }, [openingRL, closingRL, distanceKm, levelMethod, levelRows])
 
   const traverseComputed = useMemo(() => {
     const startEasting = asNumber(startE)
@@ -463,20 +467,22 @@ export default function DigitalFieldBookPage() {
     downloadBlob(`geonova-fieldbook-${type}.json`, new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
   }
 
-  function exportCSV() {
-    const rows =
-      type === 'leveling'
-        ? levelRows.map((r) => ({ Station: r.station, BS: r.bs, IS: r.is, FS: r.fs, Remarks: r.remarks }))
-        : type === 'traverse'
-          ? travRows.map((r) => ({ Station: r.station, Bearing: r.bearing, Distance: r.distance, Remarks: r.remarks }))
-          : type === 'control'
-            ? controlRows.map((r) => ({ PointID: r.pointId, IH: r.instrumentHeight, TH: r.targetHeight, Bearing: r.bearing, VAngle: r.verticalAngle, SlopeDist: r.slopeDistance, Remarks: r.remarks }))
-            : type === 'hydrographic'
-              ? hydroRows.map((r) => ({ SoundingID: r.soundingId, Easting: r.easting, Northing: r.northing, Depth: r.depth, Tide: r.tide, Remarks: r.remarks }))
-              : miningRows.map((r) => ({ PointID: r.pointId, Bearing: r.bearing, VAngle: r.verticalAngle, SlopeDist: r.slopeDistance, Remarks: r.remarks }))
+   function exportCSV() {
+     let rows: any[] = []
+     if (type === 'leveling') {
+       rows = levelRows.map((r) => ({ Station: r.station, BS: r.bs, IS: r.is, FS: r.fs, Remarks: r.remarks }))
+     } else if (type === 'traverse') {
+       rows = travRows.map((r) => ({ Station: r.station, Bearing: r.bearing, Distance: r.distance, Remarks: r.remarks }))
+     } else if (type === 'control') {
+       rows = controlRows.map((r) => ({ PointID: r.pointId, IH: r.instrumentHeight, TH: r.targetHeight, Bearing: r.bearing, VAngle: r.verticalAngle, SlopeDist: r.slopeDistance, Remarks: r.remarks }))
+     } else if (type === 'hydrographic') {
+       rows = hydroRows.map((r) => ({ SoundingID: r.soundingId, Easting: r.easting, Northing: r.northing, Depth: r.depth, Tide: r.tide, Remarks: r.remarks }))
+     } else {
+       rows = miningRows.map((r) => ({ PointID: r.pointId, Bearing: r.bearing, VAngle: r.verticalAngle, SlopeDist: r.slopeDistance, Remarks: r.remarks }))
+     }
 
-    downloadBlob(`geonova-fieldbook-${type}.csv`, new Blob([Papa.unparse(rows)], { type: 'text/csv' }))
-  }
+     downloadBlob(`geonova-fieldbook-${type}.csv`, new Blob([Papa.unparse(rows)], { type: 'text/csv' }))
+   }
 
   function exportPDF() {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -604,7 +610,7 @@ export default function DigitalFieldBookPage() {
                     }`}
                   >
                     <div className="text-sm text-gray-200 truncate">{fb.name || fb.id}</div>
-                    <div className="text-xs text-[var(--text-muted)]">{fb.updated_at ?? fb.created_at ? new Date(fb.updated_at ?? fb.created_at).toLocaleString() : ''}</div>
+                     <div className="text-xs text-[var(--text-muted)]">{fb.updated_at ?? fb.created_at ? new Date(fb.updated_at ?? fb.created_at as string | number | Date).toLocaleString() : ''}</div>
                   </button>
                 ))
               )}
