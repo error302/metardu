@@ -117,6 +117,13 @@ WRONG:
   Area: 0.24 ha (insufficient precision)
   Precision: 1/12500 (wrong format)
 
+## UTM COVERAGE (GLOBAL)
+- All 60 UTM zones supported (1-60)
+- Both hemispheres: N (Northern) and S (Southern)
+- Special zones: Norway (32V), Svalbard (31-37X) handled
+- Auto-detection: from GPS coordinates
+- Zone descriptions shown for common regions
+
 ## ONLINE FEATURES ROADMAP
 
 ### Phase 7 — Online Power Features

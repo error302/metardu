@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { getUTMZoneFromLatLng } from '@/lib/engine/utmZones'
 
 export default function NewProjectPage() {
   const [name, setName] = useState('')
@@ -14,8 +15,38 @@ export default function NewProjectPage() {
   const [surveyorName, setSurveyorName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [detecting, setDetecting] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  const detectZoneFromGPS = () => {
+    if (!navigator.geolocation) {
+      setError('GPS not supported in your browser')
+      return
+    }
+
+    setDetecting(true)
+    setError('')
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { zone, hemisphere: hem, description } = getUTMZoneFromLatLng(
+          pos.coords.latitude,
+          pos.coords.longitude
+        )
+        setUtmZone(String(zone))
+        setHemisphere(hem)
+        setDetecting(false)
+        setError(`✓ Detected: Zone ${zone}${hem} — ${description}`)
+        
+        setTimeout(() => setError(''), 5000)
+      },
+      (err) => {
+        setDetecting(false)
+        setError('Could not get location. Please check GPS permissions.')
+      }
+    )
+  }
 
   useState(() => {
     const getUser = async () => {
@@ -57,6 +88,22 @@ export default function NewProjectPage() {
     }
   }
 
+  const zoneDescriptions: Record<number, string> = {
+    28: 'West Africa',
+    29: 'West Africa',
+    30: 'West Africa / UK',
+    31: 'West Africa / Europe',
+    32: 'East Africa / Europe',
+    33: 'East Africa / Europe',
+    34: 'East Africa / Middle East',
+    35: 'East Africa',
+    36: 'East Africa / Middle East',
+    37: 'East Africa (Kenya, Uganda, Tanzania)',
+    38: 'East Africa / Arabia',
+    39: 'East Africa / Arabia',
+    40: 'East Africa / South Asia',
+  }
+
   return (
     <div className="min-h-screen bg-gray-950">
       <header className="border-b border-gray-800 bg-gray-900/50">
@@ -73,7 +120,11 @@ export default function NewProjectPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
+            <div className={`p-3 border rounded text-sm ${
+              error.startsWith('✓') 
+                ? 'bg-green-900/30 border-green-600 text-green-400'
+                : 'bg-red-900/30 border-red-600 text-red-400'
+            }`}>
               {error}
             </div>
           )}
@@ -102,7 +153,7 @@ export default function NewProjectPage() {
 
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm text-gray-300 mb-2">UTM Zone</label>
+              <label className="block text-sm text-gray-300 mb-2">UTM Zone (1-60)</label>
               <input
                 type="number"
                 value={utmZone}
@@ -110,7 +161,13 @@ export default function NewProjectPage() {
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
                 min={1}
                 max={60}
+                required
               />
+              {zoneDescriptions[parseInt(utmZone)] && (
+                <p className="text-amber-500 text-xs mt-1">
+                  {zoneDescriptions[parseInt(utmZone)]}
+                </p>
+              )}
             </div>
 
             <div>
@@ -120,11 +177,21 @@ export default function NewProjectPage() {
                 onChange={(e) => setHemisphere(e.target.value)}
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
               >
-                <option value="N">Northern</option>
-                <option value="S">Southern</option>
+                <option value="N">N — Northern</option>
+                <option value="S">S — Southern</option>
               </select>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={detectZoneFromGPS}
+            disabled={detecting}
+            className="text-sm text-amber-500 hover:text-amber-400 flex items-center gap-2"
+          >
+            <span>📍</span>
+            {detecting ? 'Detecting...' : 'Detect zone from GPS'}
+          </button>
 
           <div>
             <label className="block text-sm text-gray-300 mb-2">Survey Type</label>
@@ -183,6 +250,20 @@ export default function NewProjectPage() {
             </button>
           </div>
         </form>
+
+        <div className="mt-12 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
+          <h3 className="text-gray-400 text-sm font-medium mb-3">UTM Zone Reference</h3>
+          <div className="grid grid-cols-4 gap-2 text-xs text-gray-500">
+            <div><span className="text-amber-500">28-30</span> West Africa</div>
+            <div><span className="text-amber-500">31-32</span> Central Africa</div>
+            <div><span className="text-amber-500">33-37</span> East Africa</div>
+            <div><span className="text-amber-500">37</span> Kenya/Uganda/TZ</div>
+            <div><span className="text-amber-500">10-19</span> USA</div>
+            <div><span className="text-amber-500">42-46</span> South Asia</div>
+            <div><span className="text-amber-500">46-54</span> SE Asia</div>
+            <div><span className="text-amber-500">49-56</span> Australia</div>
+          </div>
+        </div>
       </main>
     </div>
   )
