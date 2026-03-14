@@ -132,6 +132,14 @@ export default function NavBar() {
             </div>
           </div>
           
+          {/* Process Field Notes - Flagship Feature */}
+          <Link 
+            href="/process" 
+            className="px-4 py-2 text-sm font-semibold text-[#E8841A] hover:text-[#E8841A] transition-colors"
+          >
+            Process Field Notes
+          </Link>
+          
           {user && (
             <Link href="/dashboard" className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
               Projects

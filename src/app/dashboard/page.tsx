@@ -19,6 +19,24 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-950">
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* Process Field Notes - Flagship Feature */}
+        <div className="mb-8 p-6 bg-gradient-to-r from-[#E8841A]/20 to-transparent border border-[#E8841A]/30 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-100 mb-1">📋 Process Field Notes</h2>
+              <p className="text-gray-400 text-sm">
+                Drop your CSV and let GeoNova do the rest. Supports: Traverse, Leveling, Radiation
+              </p>
+            </div>
+            <Link
+              href="/process"
+              className="px-6 py-3 bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold rounded-lg transition-colors"
+            >
+              Start Processing
+            </Link>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold text-gray-100">Your Projects</h1>
           <Link
