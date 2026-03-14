@@ -14,6 +14,7 @@ interface Reading {
 export default function LevelingCalculator() {
   const [bm, setBm] = useState('100.0000');
   const [closingBm, setClosingBm] = useState('');
+  const [distanceKm, setDistanceKm] = useState('1');
   const [method, setMethod] = useState<'rf' | 'hoc'>('rf');
   const [readings, setReadings] = useState<Reading[]>([
     { id: 1, station: '1', bs: '1.523', fs: '' },
@@ -43,8 +44,14 @@ export default function LevelingCalculator() {
     }));
 
     const r = method === 'rf'
-      ? riseAndFall({ readings: obs, openingRL, closingRL: closing, method: 'rise_and_fall' })
-      : heightOfCollimation({ readings: obs, openingRL, method: 'height_of_collimation' });
+      ? riseAndFall({ readings: obs, openingRL, closingRL: closing, method: 'rise_and_fall', distanceKm: parseFloat(distanceKm) || 1 })
+      : heightOfCollimation({ readings: obs, openingRL, method: 'height_of_collimation', distanceKm: parseFloat(distanceKm) || 1 });
+
+    // BLOCK RESULTS if arithmetic check fails (Basak rule)
+    if (!r.arithmeticCheck) {
+      alert('ARITHMETIC CHECK FAILED — Results will not be displayed.\n\nAccording to Basak standards, the calculation must pass the arithmetic check before results can be shown.\n\nCheck your readings: ΣBS - ΣFS must equal ΣRise - ΣFall');
+      return;
+    }
 
     setResult(r);
   };
@@ -62,6 +69,10 @@ export default function LevelingCalculator() {
         <div className="card p-4">
           <label className="label">Closing Benchmark (m)</label>
           <input className="input" value={closingBm} onChange={e => setClosingBm(e.target.value)} placeholder="Optional" />
+        </div>
+        <div className="card p-4">
+          <label className="label">Distance (km) for allowable error</label>
+          <input className="input" value={distanceKm} onChange={e => setDistanceKm(e.target.value)} placeholder="1" />
         </div>
         <div className="card p-4">
           <label className="label">Method</label>
