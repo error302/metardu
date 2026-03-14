@@ -479,8 +479,8 @@ export default function Home() {
               <h3 className="text-white font-bold text-lg mb-4">Resources</h3>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="/guide" className="hover:text-[#E8841A]">Field Guide</a></li>
-                <li><a href="#" className="hover:text-[#E8841A]">Documentation</a></li>
-                <li><a href="#" className="hover:text-[#E8841A]">Sample Files</a></li>
+                <li><a href="/docs" className="hover:text-[#E8841A]">Documentation</a></li>
+                <li><a href="/docs/csv-import" className="hover:text-[#E8841A]">Sample Files</a></li>
                 <li><a href="#" className="hover:text-[#E8841A]">Basak Standards</a></li>
               </ul>
             </div>
@@ -489,9 +489,9 @@ export default function Home() {
               <h3 className="text-white font-bold text-lg mb-4">Connect</h3>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li>support@geonova.app</li>
-                <li><a href="#" className="hover:text-[#E8841A]">Twitter/X</a></li>
-                <li><a href="#" className="hover:text-[#E8841A]">LinkedIn</a></li>
-                <li><a href="#" className="hover:text-[#E8841A]">WhatsApp Community</a></li>
+                <li><a href="/community" className="hover:text-[#E8841A]">WhatsApp Community</a></li>
+                <li><a href="/community" className="hover:text-[#E8841A]">Twitter/X</a></li>
+                <li><a href="/community" className="hover:text-[#E8841A]">LinkedIn</a></li>
               </ul>
             </div>
           </div>

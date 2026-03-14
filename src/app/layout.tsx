@@ -3,6 +3,7 @@ import './globals.css';
 import NavBar from '@/components/NavBar';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { SubscriptionProvider } from '@/lib/subscription/subscriptionContext';
+import FeedbackWidget from '@/components/FeedbackWidget';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://geonova-henna.vercel.app'),
@@ -88,6 +89,7 @@ export default function RootLayout({
                 GeoNova v1.0 — Professional Surveying Calculations
               </div>
             </footer>
+            <FeedbackWidget />
           </SubscriptionProvider>
         </LanguageProvider>
       </body>
