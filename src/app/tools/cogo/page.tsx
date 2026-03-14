@@ -2,14 +2,17 @@
 
 import { useState } from 'react';
 import { radiation, bearingIntersection, tienstraResection } from '@/lib/engine/cogo';
+import { distanceBearing } from '@/lib/engine/distance';
 
 export default function COGOCalculator() {
-  const [mode, setMode] = useState<'radiation' | 'intersection' | 'resection'>('radiation');
+  const [mode, setMode] = useState<'radiation' | 'intersection' | 'resection' | 'missing-line'>('radiation');
   const [input, setInput] = useState({
     fromN: '5000', fromE: '3000', bearing: '45.5234', distance: '150.0',
     stAN: '5000', stAE: '3000', bearA: '30', stBN: '5100', stBE: '3200', bearB: '120',
     p1N: '5000', p1E: '3000', p2N: '5234', p2E: '3156', p3N: '5100', p3E: '3400',
-    ang1: '45', ang2: '60'
+    ang1: '45', ang2: '60',
+    // Missing line inputs
+    missAN: '', missAE: '', missBN: '', missBE: ''
   });
   const [result, setResult] = useState<any>(null);
 
@@ -28,7 +31,7 @@ export default function COGOCalculator() {
         if (isNaN(stA.northing) || isNaN(stB.northing) || isNaN(bearA) || isNaN(bearB)) return;
         const r = bearingIntersection(stA, bearA, stB, bearB);
         if (r) setResult({ type: 'intersection', point: r.point, distA: r.distanceFromA, distB: r.distanceFromB });
-      } else {
+      } else if (mode === 'resection') {
         const p1 = { northing: parseFloat(input.p1N), easting: parseFloat(input.p1E) };
         const p2 = { northing: parseFloat(input.p2N), easting: parseFloat(input.p2E) };
         const p3 = { northing: parseFloat(input.p3N), easting: parseFloat(input.p3E) };
@@ -36,6 +39,21 @@ export default function COGOCalculator() {
         if (isNaN(p1.northing) || isNaN(a1) || isNaN(a2)) return;
         const r = tienstraResection(p1, p2, p3, a1, a2);
         if (r) setResult({ type: 'resection', point: r.point, d1: r.distanceToP1, d2: r.distanceToP2, d3: r.distanceToP3 });
+      } else if (mode === 'missing-line') {
+        const ptA = { northing: parseFloat(input.missAN), easting: parseFloat(input.missAE) };
+        const ptB = { northing: parseFloat(input.missBN), easting: parseFloat(input.missBE) };
+        if (isNaN(ptA.northing) || isNaN(ptB.northing)) return;
+        const r = distanceBearing(ptA, ptB);
+        setResult({ 
+          type: 'missing-line', 
+          distance: r.distance, 
+          bearing: r.bearing,
+          bearingDMS: r.bearingDMS,
+          backBearing: r.backBearing,
+          backBearingDMS: r.backBearingDMS,
+          deltaE: r.deltaE,
+          deltaN: r.deltaN
+        });
       }
     } catch (e) {
       setResult({ error: 'Calculation error - check inputs' });
@@ -51,6 +69,7 @@ export default function COGOCalculator() {
         <button onClick={() => { setMode('radiation'); setResult(null); }} className={`btn ${mode === 'radiation' ? 'btn-primary' : 'btn-secondary'}`}>Radiation</button>
         <button onClick={() => { setMode('intersection'); setResult(null); }} className={`btn ${mode === 'intersection' ? 'btn-primary' : 'btn-secondary'}`}>Bearing Intersection</button>
         <button onClick={() => { setMode('resection'); setResult(null); }} className={`btn ${mode === 'resection' ? 'btn-primary' : 'btn-secondary'}`}>Resection (Tienstra)</button>
+        <button onClick={() => { setMode('missing-line'); setResult(null); }} className={`btn ${mode === 'missing-line' ? 'btn-primary' : 'btn-secondary'}`}>Missing Line</button>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
@@ -89,6 +108,19 @@ export default function COGOCalculator() {
                   <div className="grid grid-cols-2 gap-4"><div><label className="label">Angle at P1 (°)</label><input className="input" value={input.ang1} onChange={e => setInput({...input, ang1: e.target.value})} /></div><div><label className="label">Angle at P2 (°)</label><input className="input" value={input.ang2} onChange={e => setInput({...input, ang2: e.target.value})} /></div></div>
                 </>
               )}
+              {mode === 'missing-line' && (
+                <>
+                  <div className="text-sm text-gray-400 mb-2">Point A → Point B</div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="label">Point A Northing</label><input className="input" value={input.missAN} onChange={e => setInput({...input, missAN: e.target.value})} placeholder="5000.0000" /></div>
+                    <div><label className="label">Point A Easting</label><input className="input" value={input.missAE} onChange={e => setInput({...input, missAE: e.target.value})} placeholder="3000.0000" /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="label">Point B Northing</label><input className="input" value={input.missBN} onChange={e => setInput({...input, missBN: e.target.value})} placeholder="5234.5678" /></div>
+                    <div><label className="label">Point B Easting</label><input className="input" value={input.missBE} onChange={e => setInput({...input, missBE: e.target.value})} placeholder="3156.7890" /></div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <button onClick={calculate} className="btn btn-primary w-full">Calculate</button>
@@ -121,6 +153,16 @@ export default function COGOCalculator() {
                   <ResultRow label="Distance to P1" value={`${result.d1.toFixed(4)} m`} />
                   <ResultRow label="Distance to P2" value={`${result.d2.toFixed(4)} m`} />
                   <ResultRow label="Distance to P3" value={`${result.d3.toFixed(4)} m`} />
+                </>
+              )}
+              {result.type === 'missing-line' && (
+                <>
+                  <ResultRow label="Distance A → B" value={`${result.distance.toFixed(4)} m`} />
+                  <ResultRow label="Bearing A → B" value={result.bearingDMS} />
+                  <ResultRow label="Back Bearing B → A" value={result.backBearingDMS} />
+                  <div className="border-t border-[var(--border-color)] my-2"></div>
+                  <ResultRow label="ΔEasting" value={`${result.deltaE >= 0 ? '+' : ''}${result.deltaE.toFixed(4)} m`} />
+                  <ResultRow label="ΔNorthing" value={`${result.deltaN >= 0 ? '+' : ''}${result.deltaN.toFixed(4)} m`} />
                 </>
               )}
             </div>
