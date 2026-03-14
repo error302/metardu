@@ -1,0 +1,6 @@
+CRITICAL FILE SAFETY RULES:
+- NEVER delete any existing file under any circumstances
+- If a file has errors, FIX it in place using edit tool
+- If a file needs to be replaced, show the new content first and wait for approval before touching the original
+- rm, del, unlink commands are BANNED on src/ directory
+- Report file errors to the user instead of deleting

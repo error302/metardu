@@ -35,6 +35,7 @@ const toolGroups = [
       { href: '/tools/traverse', label: 'Traverse' },
       { href: '/tools/coordinates', label: 'Coordinates' },
       { href: '/tools/cogo', label: 'COGO' },
+      { href: '/tools/chainage', label: 'Chainage Calculator' },
     ]
   },
   {
@@ -146,6 +147,22 @@ export default function NavBar() {
             className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
           >
             Field Mode
+          </Link>
+          
+          {/* Guide */}
+          <Link 
+            href="/guide" 
+            className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+          >
+            Guide
+          </Link>
+          
+          {/* Community - Beacon Network */}
+          <Link 
+            href="/beacons" 
+            className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+          >
+            Beacons
           </Link>
           
           {user && (

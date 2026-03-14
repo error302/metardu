@@ -23,6 +23,7 @@ export default function LevelingCalculator() {
     { id: 4, station: '4', bs: '', fs: '1.789' },
   ]);
   const [result, setResult] = useState<any>(null);
+  const [showProfile, setShowProfile] = useState(false);
 
   const addReading = () => {
     setReadings([...readings, { id: Date.now(), station: String(readings.length + 1), bs: '', fs: '' }]);
@@ -186,6 +187,24 @@ export default function LevelingCalculator() {
               )}
             </div>
           </div>
+
+          {result && result.readings.length > 0 && (
+            <div className="mt-4">
+              <button 
+                onClick={() => setShowProfile(!showProfile)}
+                className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded"
+              >
+                {showProfile ? 'Hide Profile' : 'View Profile'}
+              </button>
+              
+              {showProfile && (
+                <div className="mt-4 bg-gray-900/50 border border-gray-800 rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-200 mb-4">Longitudinal Profile</h3>
+                  <LevelingProfile readings={result.readings} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -200,5 +219,57 @@ function ResultRow({ label, value, highlight }: { label: string; value: string; 
         {value}
       </span>
     </div>
+  );
+}
+
+function LevelingProfile({ readings }: { readings: any[] }) {
+  const width = 600;
+  const height = 250;
+  const padding = 50;
+
+  const validReadings = readings.filter(r => r.reducedLevel !== undefined);
+  if (validReadings.length === 0) return null;
+
+  const rls = validReadings.map(r => r.adjustedRL || r.reducedLevel);
+  const minRL = Math.min(...rls) - 0.5;
+  const maxRL = Math.max(...rls) + 0.5;
+  const maxIdx = validReadings.length - 1;
+
+  const toX = (idx: number) => padding + (idx / maxIdx) * (width - padding * 2);
+  const toY = (rl: number) => height - padding - ((rl - minRL) / (maxRL - minRL)) * (height - padding * 2);
+
+  const pathData = validReadings.map((r, i) => {
+    const rl = r.adjustedRL || r.reducedLevel;
+    return `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(rl)}`;
+  }).join(' ');
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} className="bg-gray-900 rounded border border-amber-500/30">
+      <defs>
+        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5"/>
+        </pattern>
+      </defs>
+      <rect width={width} height={height} fill="url(#grid)"/>
+      
+      <path d={pathData} stroke="#E8841A" strokeWidth={2} fill="none"/>
+      
+      {validReadings.map((r, i) => {
+        const rl = r.adjustedRL || r.reducedLevel;
+        return (
+          <g key={i}>
+            <circle cx={toX(i)} cy={toY(rl)} r={4} fill="#E8841A"/>
+            <text x={toX(i)} y={height - 10} fill="white" fontSize={9} textAnchor="middle">{r.station}</text>
+            <text x={toX(i)} y={toY(rl) - 8} fill="white" fontSize={7} textAnchor="middle">{rl.toFixed(2)}</text>
+          </g>
+        );
+      })}
+      
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="white" strokeWidth={1}/>
+      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="white" strokeWidth={1}/>
+      
+      <text x={width/2} y={height - 2} fill="gray" fontSize={9} textAnchor="middle">Station</text>
+      <text x={12} y={height/2} fill="gray" fontSize={9} textAnchor="middle" transform={`rotate(-90, 12, ${height/2})`}>Reduced Level (m)</text>
+    </svg>
   );
 }

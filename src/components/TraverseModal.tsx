@@ -174,6 +174,17 @@ interface TraverseLeg {
   bearingSec: string
 }
 
+type TraverseType = 'closed' | 'link' | 'open' | 'radial'
+
+interface RadialObservation {
+  id: number
+  pointName: string
+  bearingDeg: string
+  bearingMin: string
+  bearingSec: string
+  distance: string
+}
+
 export default function TraverseModal({
   isOpen,
   onClose,
@@ -184,6 +195,15 @@ export default function TraverseModal({
   const [controlPoints, setControlPoints] = useState<ControlPoint[]>([])
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'input' | 'results'>('input')
+  
+  // Traverse type selector
+  const [traverseType, setTraverseType] = useState<TraverseType>('closed')
+  
+  // Radial observations
+  const [radialStationId, setRadialStationId] = useState('')
+  const [radialObservations, setRadialObservations] = useState<RadialObservation[]>([
+    { id: 1, pointName: '', bearingDeg: '', bearingMin: '', bearingSec: '', distance: '' }
+  ])
   
   // Opening control
   const [openingUseExisting, setOpeningUseExisting] = useState(true)
@@ -261,7 +281,142 @@ export default function TraverseModal({
     setLoading(true)
 
     try {
-      // Get opening point coordinates
+      // Handle Radial Survey
+      if (traverseType === 'radial') {
+        if (!radialStationId) {
+          throw new Error('Select instrument station')
+        }
+        
+        const station = controlPoints.find(p => p.id === radialStationId)
+        if (!station) throw new Error('Instrument station not found')
+        
+        const computedPoints = []
+        let cumulativeDist = 0
+        
+        for (const obs of radialObservations) {
+          if (!obs.pointName || !obs.distance || !obs.bearingDeg) continue
+          
+          const dist = parseFloat(obs.distance)
+          const bearing = dmsToDecimal({
+            degrees: parseInt(obs.bearingDeg) || 0,
+            minutes: parseInt(obs.bearingMin) || 0,
+            seconds: parseFloat(obs.bearingSec) || 0,
+            direction: 'N'
+          })
+          
+          const rad = bearing * Math.PI / 180
+          const easting = station.easting + dist * Math.sin(rad)
+          const northing = station.northing + dist * Math.cos(rad)
+          cumulativeDist += dist
+          
+          computedPoints.push({
+            name: obs.pointName,
+            easting,
+            northing,
+            distance: dist,
+            bearing,
+            cumulativeDist
+          })
+        }
+        
+        setResults({
+          type: 'radial',
+          station,
+          points: computedPoints,
+          totalDistance: cumulativeDist,
+          closingErrorE: 0,
+          closingErrorN: 0,
+          linearError: 0,
+          precisionRatio: 0,
+          precisionGrade: 'N/A',
+          isClosed: false
+        })
+        
+        setStep('results')
+        setLoading(false)
+        return
+      }
+      
+      // Handle Open Traverse (no closing control)
+      if (traverseType === 'open') {
+        let openingE: number, openingN: number, openingPtName: string
+        
+        if (openingUseExisting && openingPointId) {
+          const pt = controlPoints.find(p => p.id === openingPointId)
+          if (!pt) throw new Error('Select opening control point')
+          openingE = pt.easting
+          openingN = pt.northing
+          openingPtName = pt.name
+        } else {
+          if (!openingEasting || !openingNorthing || !openingName) {
+            throw new Error('Enter opening point coordinates')
+          }
+          openingE = parseFloat(openingEasting)
+          openingN = parseFloat(openingNorthing)
+          openingPtName = openingName
+        }
+        
+        const computedStations = []
+        let currentE = openingE
+        let currentN = openingN
+        let cumulativeDist = 0
+        
+        computedStations.push({
+          name: openingPtName,
+          easting: currentE,
+          northing: currentN,
+          distance: 0,
+          bearing: null,
+          bearingDMS: '—',
+          cumulativeDist: 0
+        })
+        
+        for (const leg of legs) {
+          if (!leg.distance || !leg.bearingDeg) continue
+          
+          const dist = parseFloat(leg.distance)
+          const bearing = dmsToDecimal({
+            degrees: parseInt(leg.bearingDeg) || 0,
+            minutes: parseInt(leg.bearingMin) || 0,
+            seconds: parseFloat(leg.bearingSec) || 0,
+            direction: 'N'
+          })
+          
+          cumulativeDist += dist
+          const rad = bearing * Math.PI / 180
+          currentE = currentE + dist * Math.sin(rad)
+          currentN = currentN + dist * Math.cos(rad)
+          
+          computedStations.push({
+            name: leg.stationName || `T${computedStations.length}`,
+            easting: currentE,
+            northing: currentN,
+            distance: dist,
+            bearing,
+            bearingDMS: decimalToDMS(bearing, false),
+            cumulativeDist
+          })
+        }
+        
+        setResults({
+          type: 'open',
+          stations: computedStations,
+          openingPoint: { name: openingPtName, easting: openingE, northing: openingN },
+          closingErrorE: 0,
+          closingErrorN: 0,
+          linearError: 0,
+          precisionRatio: 0,
+          precisionGrade: 'N/A',
+          totalDistance: cumulativeDist,
+          isClosed: false
+        })
+        
+        setStep('results')
+        setLoading(false)
+        return
+      }
+      
+      // Existing closed/link traverse logic...
       let openingE: number, openingN: number, openingPtName: string
       
       if (openingUseExisting && openingPointId) {
@@ -492,7 +647,191 @@ export default function TraverseModal({
 
         {step === 'input' && (
           <div className="space-y-6">
+            {/* Traverse Type Selector */}
+            <div className="border border-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-100 mb-4">Traverse Type</h3>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setTraverseType('closed')}
+                  className={`p-3 rounded-lg border text-center transition-colors ${
+                    traverseType === 'closed' 
+                      ? 'border-[#E8841A] bg-[#E8841A]/10' 
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="font-medium text-gray-200">Closed Loop</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTraverseType('link')}
+                  className={`p-3 rounded-lg border text-center transition-colors ${
+                    traverseType === 'link' 
+                      ? 'border-[#E8841A] bg-[#E8841A]/10' 
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="font-medium text-gray-200">Link</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTraverseType('open')}
+                  className={`p-3 rounded-lg border text-center transition-colors ${
+                    traverseType === 'open' 
+                      ? 'border-[#E8841A] bg-[#E8841A]/10' 
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="font-medium text-gray-200">Open</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTraverseType('radial')}
+                  className={`p-3 rounded-lg border text-center transition-colors ${
+                    traverseType === 'radial' 
+                      ? 'border-[#E8841A] bg-[#E8841A]/10' 
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="font-medium text-gray-200">Radial</div>
+                </button>
+              </div>
+              
+              <div className="text-sm text-gray-400 bg-gray-800/50 rounded p-3">
+                {traverseType === 'closed' && 'Closed Loop: Starts and ends at same control point. Misclosure computed and adjusted.'}
+                {traverseType === 'link' && 'Link Traverse: Connects two known control points. Precision checked against closing control.'}
+                {traverseType === 'open' && 'Open Traverse: Starts at known control, no closing control. Used for roads/pipelines. Running coordinates computed.'}
+                {traverseType === 'radial' && 'Radial Survey: One instrument station observing multiple detail points. Compute coordinates for each ray.'}
+              </div>
+            </div>
+
+            {/* Radial Survey Input */}
+            {traverseType === 'radial' && (
+              <div className="border border-gray-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-100 mb-4">Radial Survey</h3>
+                
+                <div className="mb-4">
+                  <label className="block text-sm text-gray-400 mb-2">Instrument Station</label>
+                  <select
+                    value={radialStationId}
+                    onChange={(e) => setRadialStationId(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200"
+                  >
+                    <option value="">Select station...</option>
+                    {controlPoints.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="space-y-3">
+                  {radialObservations.map((obs, idx) => (
+                    <div key={obs.id} className="grid grid-cols-5 gap-2 items-end">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Point</label>
+                        <input
+                          type="text"
+                          value={obs.pointName}
+                          onChange={(e) => {
+                            const updated = [...radialObservations]
+                            updated[idx].pointName = e.target.value
+                            setRadialObservations(updated)
+                          }}
+                          className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm"
+                          placeholder="P1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Deg</label>
+                        <input
+                          type="number"
+                          value={obs.bearingDeg}
+                          onChange={(e) => {
+                            const updated = [...radialObservations]
+                            updated[idx].bearingDeg = e.target.value
+                            setRadialObservations(updated)
+                          }}
+                          className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm"
+                          placeholder="000"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Min</label>
+                        <input
+                          type="number"
+                          value={obs.bearingMin}
+                          onChange={(e) => {
+                            const updated = [...radialObservations]
+                            updated[idx].bearingMin = e.target.value
+                            setRadialObservations(updated)
+                          }}
+                          className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm"
+                          placeholder="00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Sec</label>
+                        <input
+                          type="number"
+                          value={obs.bearingSec}
+                          onChange={(e) => {
+                            const updated = [...radialObservations]
+                            updated[idx].bearingSec = e.target.value
+                            setRadialObservations(updated)
+                          }}
+                          className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm"
+                          placeholder="00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Dist (m)</label>
+                        <div className="flex gap-1">
+                          <input
+                            type="number"
+                            value={obs.distance}
+                            onChange={(e) => {
+                              const updated = [...radialObservations]
+                              updated[idx].distance = e.target.value
+                              setRadialObservations(updated)
+                            }}
+                            className="flex-1 px-2 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm"
+                            placeholder="0.000"
+                          />
+                          {radialObservations.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setRadialObservations(radialObservations.filter((_, i) => i !== idx))}
+                              className="px-2 py-2 bg-red-900/50 hover:bg-red-900 text-red-400 rounded text-sm"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => setRadialObservations([...radialObservations, { 
+                    id: radialObservations.length + 1, 
+                    pointName: '', 
+                    bearingDeg: '', 
+                    bearingMin: '', 
+                    bearingSec: '', 
+                    distance: '' 
+                  }])}
+                  className="mt-3 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm"
+                >
+                  + Add Point
+                </button>
+              </div>
+            )}
+
             {/* Section 1: Opening Control Point */}
+            {traverseType !== 'radial' && (
             <div className="border border-gray-700 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold text-gray-100">Opening Control Point</h3>
@@ -565,6 +904,7 @@ export default function TraverseModal({
               )}
 
             </div>
+            )}
 
             {/* Section 2: Traverse Legs */}
             <div className="border border-gray-700 rounded-lg p-4">
@@ -652,7 +992,8 @@ export default function TraverseModal({
               </button>
             </div>
 
-            {/* Section 3: Closing Control */}
+            {/* Section 3: Closing Control - only for closed/link */}
+            {(traverseType === 'closed' || traverseType === 'link') && (
             <div className="border border-gray-700 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
                 <input
@@ -729,6 +1070,7 @@ export default function TraverseModal({
                 <p className="text-gray-500 text-sm">Leave blank for loop traverse</p>
               )}
             </div>
+            )}
 
             <div className="flex gap-3">
               <button

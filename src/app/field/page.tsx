@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { queueOperation, getPendingOperations, syncPendingOperations, isOnline, setupOnlineListener } from '@/lib/offline/syncQueue'
 
 type Tab = 'points' | 'traverse' | 'leveling' | 'radiation'
 type SyncStatus = 'synced' | 'pending' | 'offline'
@@ -84,26 +85,43 @@ export default function FieldPage() {
 
   useEffect(() => {
     checkOnlineStatus()
-    loadPendingObservations()
+    loadPendingFromIndexedDB()
     loadLastPointInfo()
     fetchProjects()
+    
+    setupOnlineListener(async () => {
+      setSyncStatus('pending')
+      const results = await syncPendingOperations(supabase)
+      if (results.synced > 0) {
+        setSyncStatus('synced')
+      }
+    })
   }, [])
 
-  const checkOnlineStatus = () => {
-    setSyncStatus(navigator.onLine ? 'synced' : 'offline')
-    window.addEventListener('online', () => setSyncStatus('pending'))
-    window.addEventListener('offline', () => setSyncStatus('offline'))
+  const checkOnlineStatus = async () => {
+    const online = isOnline()
+    setSyncStatus(online ? 'synced' : 'offline')
+    
+    if (online) {
+      const pending = await getPendingOperations()
+      if (pending.length > 0) {
+        setSyncStatus('pending')
+        const results = await syncPendingOperations(supabase)
+        if (results.synced > 0) {
+          setSyncStatus('synced')
+        }
+      }
+    }
   }
 
-  const loadPendingObservations = () => {
+  const loadPendingFromIndexedDB = async () => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const pending: PendingObservation[] = JSON.parse(stored)
-        if (pending.length > 0) setSyncStatus('pending')
+      const pending = await getPendingOperations()
+      if (pending.length > 0) {
+        setSyncStatus('pending')
       }
     } catch (e) {
-      console.error('Error loading pending observations:', e)
+      console.error('Error loading pending from IndexedDB:', e)
     }
   }
 
@@ -169,8 +187,18 @@ export default function FieldPage() {
     }
   }
 
-  const savePendingObservation = (type: Tab, data: any) => {
+  const savePendingObservation = async (type: Tab, data: any) => {
     try {
+      if (selectedProject) {
+        await queueOperation({
+          type: 'INSERT',
+          table: 'survey_points',
+          data: { project_id: selectedProject, ...data },
+          timestamp: new Date().toISOString(),
+          projectId: selectedProject
+        })
+      }
+      
       const stored = localStorage.getItem(STORAGE_KEY)
       const pending: PendingObservation[] = stored ? JSON.parse(stored) : []
       

@@ -2,14 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { geographicToUTM } from '@/lib/engine/coordinates'
-import { generateSurveyReport } from '@/lib/reports/generateReport'
+import { generateSurveyReport, generateSurveyPlan } from '@/lib/reports/generateReport'
+import { downloadLandXML } from '@/lib/export/generateLandXML'
+import { exportProject, importProject } from '@/lib/export/exportProject'
+import { downloadGeoJSON } from '@/lib/export/generateGeoJSON'
 import AddPointModal from '@/components/AddPointModal'
 import CSVUploadModal from '@/components/CSVUploadModal'
 import TraverseModal from '@/components/TraverseModal'
 import ParcelAreaModal from '@/components/ParcelAreaModal'
 import StakeoutMode from '@/components/StakeoutMode'
+import NearbyBeaconsModal from '@/components/NearbyBeaconsModal'
+import ParcelBuilderModal from '@/components/ParcelBuilderModal'
 
 const ProjectMap = dynamic(() => import('@/components/ProjectMap'), {
   ssr: false,
@@ -31,6 +37,9 @@ interface Project {
   utm_zone: number
   hemisphere: 'N' | 'S'
   created_at: string
+  survey_type?: string
+  client_name?: string | null
+  surveyor_name?: string | null
 }
 
 interface Point {
@@ -72,6 +81,11 @@ export default function ProjectPage({ params }: PageProps) {
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [reportLoading, setReportLoading] = useState(false)
   const [showStakeout, setShowStakeout] = useState(false)
+  const [showNearbyBeacons, setShowNearbyBeacons] = useState(false)
+  const [showParcelBuilder, setShowParcelBuilder] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'pending' | 'offline'>('synced')
+  const [viewerCount, setViewerCount] = useState(1)
+  const [isOnline, setIsOnline] = useState(true)
 
   const supabase = createClient()
 
@@ -111,6 +125,92 @@ export default function ProjectPage({ params }: PageProps) {
       }
     })
   }, [])
+
+  // Online/offline status
+  useEffect(() => {
+    setIsOnline(navigator.onLine)
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => { setIsOnline(false); setSyncStatus('offline') }
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // Real-time subscription for points
+  useEffect(() => {
+    const supabase = createClient()
+    
+    const channel = supabase
+      .channel(`project-${params.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'survey_points',
+          filter: `project_id=eq.${params.id}`
+        },
+        (payload) => {
+          setSyncStatus('synced')
+          if (payload.eventType === 'INSERT') {
+            setPoints(prev => {
+              if (prev.some(p => p.id === payload.new.id)) return prev
+              return [...prev, payload.new as any]
+            })
+          }
+          if (payload.eventType === 'UPDATE') {
+            setPoints(prev => prev.map(p => 
+              p.id === payload.new.id ? { ...p, ...payload.new } as any : p
+            ))
+          }
+          if (payload.eventType === 'DELETE') {
+            setPoints(prev => prev.filter(p => p.id !== payload.old.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => { 
+      supabase.removeChannel(channel) 
+    }
+  }, [params.id])
+
+  // Presence tracking for viewer count
+  useEffect(() => {
+    const supabase = createClient()
+    
+    const channel = supabase.channel(`presence-${params.id}`)
+    
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState()
+      const userIds = Object.keys(state)
+      setViewerCount(userIds.length || 1)
+    })
+
+    channel.on('presence', { event: 'join' }, () => {
+      const state = channel.presenceState()
+      setViewerCount(Object.keys(state).length || 1)
+    })
+
+    channel.on('presence', { event: 'leave' }, () => {
+      const state = channel.presenceState()
+      setViewerCount(Object.keys(state).length || 1)
+    })
+
+    // Track presence
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        channel.track({ user_id: user.id, online_at: new Date().toISOString() })
+      }
+    })
+
+    return () => { 
+      supabase.removeChannel(channel) 
+    }
+  }, [params.id])
 
   useEffect(() => {
     fetchData()
@@ -204,7 +304,10 @@ export default function ProjectPage({ params }: PageProps) {
         location: project.location || 'Not specified',
         utm_zone: project.utm_zone,
         hemisphere: project.hemisphere,
-        created_at: project.created_at
+        created_at: project.created_at,
+        survey_type: project.survey_type,
+        client_name: project.client_name,
+        surveyor_name: project.surveyor_name
       },
       points: points.map(p => ({
         name: p.name,
@@ -215,6 +318,86 @@ export default function ProjectPage({ params }: PageProps) {
       })),
       traverse: traverseResult || undefined,
       area: areaResult || undefined
+    }, uploadToStorage)
+  }
+
+  const [parcelData, setParcelData] = useState<any>(null)
+
+  useEffect(() => {
+    if (project) {
+      const fetchParcel = async () => {
+        const { data } = await supabase
+          .from('parcels')
+          .select('*')
+          .eq('project_id', params.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+        if (data) setParcelData(data)
+      }
+      fetchParcel()
+    }
+  }, [project, params.id])
+
+  const handleGenerateSurveyPlan = async () => {
+    if (!project) return
+    
+    setReportLoading(true)
+    setShareUrl(null)
+    
+    const uploadToStorage = async (blob: Blob, filename: string) => {
+      try {
+        const fileExt = filename.split('.').pop()
+        const fileName = `${params.id}/${Date.now()}.${fileExt}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('reports')
+          .upload(fileName, blob, { contentType: 'application/pdf', upsert: true })
+        
+        if (uploadError) {
+          console.error('Upload error:', uploadError)
+          setReportLoading(false)
+          return
+        }
+        
+        const { data: urlData } = supabase.storage
+          .from('reports')
+          .getPublicUrl(fileName)
+        
+        if (urlData) {
+          setShareUrl(urlData.publicUrl)
+        }
+      } catch (err) {
+        console.error('Error uploading report:', err)
+      }
+      setReportLoading(false)
+    }
+    
+    generateSurveyPlan({
+      project: {
+        name: project.name,
+        location: project.location || 'Not specified',
+        utm_zone: project.utm_zone,
+        hemisphere: project.hemisphere,
+        created_at: project.created_at
+      },
+      points: points.map(p => ({
+        name: p.name,
+        easting: p.easting,
+        northing: p.northing,
+        elevation: p.elevation,
+        is_control: p.is_control,
+        control_order: p.control_order
+      })),
+      parcel: parcelData,
+      traverse: traverseResult ? {
+        legs: traverseResult.legs.map((l: any) => ({
+          fromName: l.fromName,
+          toName: l.toName,
+          distance: l.distance,
+          bearing: l.adjustedBearing || l.rawBearing
+        }))
+      } : undefined
     }, uploadToStorage)
   }
 
@@ -298,11 +481,91 @@ export default function ProjectPage({ params }: PageProps) {
             {reportLoading ? 'Generating...' : '📄 Generate Report'}
           </button>
           <button
+            onClick={handleGenerateSurveyPlan}
+            disabled={reportLoading || points.length === 0}
+            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold rounded text-sm transition-colors disabled:opacity-50"
+          >
+            🗺️ Generate Survey Plan
+          </button>
+          <button
+            onClick={() => {
+              if (project) {
+                downloadLandXML(
+                  {
+                    name: project.name,
+                    location: project.location || '',
+                    utm_zone: project.utm_zone,
+                    hemisphere: project.hemisphere
+                  },
+                  points.map(p => ({
+                    name: p.name,
+                    easting: p.easting,
+                    northing: p.northing,
+                    elevation: p.elevation,
+                    is_control: p.is_control
+                  }))
+                )
+              }
+            }}
+            disabled={points.length === 0}
+            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors disabled:opacity-50"
+          >
+            📥 Export LandXML
+          </button>
+          <button
+            onClick={() => {
+              downloadGeoJSON(
+                points.map(p => ({
+                  name: p.name,
+                  easting: p.easting,
+                  northing: p.northing,
+                  elevation: p.elevation,
+                  is_control: p.is_control
+                })),
+                project?.name || 'survey',
+                project?.utm_zone,
+                project?.hemisphere
+              )
+            }}
+            disabled={points.length === 0}
+            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors disabled:opacity-50"
+          >
+            🗺️ Export GeoJSON
+          </button>
+          <button
+            onClick={async () => {
+              await exportProject(params.id, supabase)
+            }}
+            disabled={points.length === 0}
+            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors disabled:opacity-50"
+          >
+            💾 Export Project
+          </button>
+          <button
             onClick={() => setShowStakeout(true)}
             disabled={points.length === 0}
             className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors disabled:opacity-50"
           >
             🎯 Stakeout All Points
+          </button>
+          <button
+            onClick={() => setShowNearbyBeacons(true)}
+            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors"
+          >
+            📍 Nearby Beacons
+          </button>
+          <Link
+            href={`/project/${params.id}/profiles`}
+            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors text-center block"
+          >
+            📐 Profiles
+          </Link>
+          <button
+            onClick={() => setShowParcelBuilder(true)}
+            disabled={points.length < 3}
+            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors disabled:opacity-50"
+          >
+            🗺️ Build Parcel
           </button>
           {shareUrl && (
             <div className="mt-2 p-2 bg-green-900/30 border border-green-700 rounded">
@@ -327,6 +590,22 @@ export default function ProjectPage({ params }: PageProps) {
               <div className="text-xs text-gray-500 mt-1">Link expires in 7 days</div>
             </div>
           )}
+          
+          {/* Sync status indicator */}
+          <div className="mt-4 pt-4 border-t border-gray-800">
+            <div className="flex items-center gap-2 text-xs">
+              <div className={`w-2 h-2 rounded-full ${
+                syncStatus === 'synced' ? 'bg-green-500' :
+                syncStatus === 'pending' ? 'bg-yellow-500 animate-pulse' :
+                'bg-red-500'
+              }`} />
+              <span className="text-gray-400">
+                {syncStatus === 'synced' ? 'All changes saved' :
+                 syncStatus === 'pending' ? 'Saving...' :
+                 'Offline — changes queued'}
+              </span>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -339,6 +618,14 @@ export default function ProjectPage({ params }: PageProps) {
                 UTM Zone {project.utm_zone} {project.hemisphere}
                 {project.location && ` — ${project.location}`}
               </p>
+            </div>
+            <div className="flex items-center gap-4">
+              {/* Collaboration indicators */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-400">👥 {viewerCount} viewer{viewerCount !== 1 ? 's' : ''}</span>
+                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+                <span className="text-gray-500 text-xs">{isOnline ? 'Live' : 'Offline'}</span>
+              </div>
             </div>
           </div>
         </header>
@@ -505,6 +792,24 @@ export default function ProjectPage({ params }: PageProps) {
             onComplete={() => {}}
           />
         </div>
+      )}
+
+      {showNearbyBeacons && (
+        <NearbyBeaconsModal
+          projectEasting={points[0]?.easting || 500000}
+          projectNorthing={points[0]?.northing || 4500000}
+          projectId={params.id}
+          onClose={() => setShowNearbyBeacons(false)}
+        />
+      )}
+
+      {showParcelBuilder && (
+        <ParcelBuilderModal
+          projectId={params.id}
+          points={points}
+          onClose={() => setShowParcelBuilder(false)}
+          onParcelCreated={() => {}}
+        />
       )}
     </div>
   )

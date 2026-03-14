@@ -9,10 +9,23 @@ export default function NewProjectPage() {
   const [location, setLocation] = useState('')
   const [utmZone, setUtmZone] = useState('37')
   const [hemisphere, setHemisphere] = useState('S')
+  const [surveyType, setSurveyType] = useState('topographic')
+  const [clientName, setClientName] = useState('')
+  const [surveyorName, setSurveyorName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  useState(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.email) {
+        setSurveyorName(user.email)
+      }
+    }
+    getUser()
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,6 +44,9 @@ export default function NewProjectPage() {
       utm_zone: parseInt(utmZone),
       hemisphere,
       user_id: user.id,
+      survey_type: surveyType,
+      client_name: clientName || null,
+      surveyor_name: surveyorName || user.email,
     })
 
     if (error) {
@@ -107,6 +123,47 @@ export default function NewProjectPage() {
                 <option value="N">Northern</option>
                 <option value="S">Southern</option>
               </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-300 mb-2">Survey Type</label>
+            <select
+              value={surveyType}
+              onChange={(e) => setSurveyType(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+            >
+              <option value="boundary">Boundary Survey</option>
+              <option value="topographic">Topographic Survey</option>
+              <option value="road">Road Survey</option>
+              <option value="construction">Construction Survey</option>
+              <option value="control">Control Network</option>
+              <option value="leveling">Leveling Survey</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Client Name</label>
+              <input
+                type="text"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+                placeholder="e.g., Kenya National Highways Authority"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Surveyor Name</label>
+              <input
+                type="text"
+                value={surveyorName}
+                onChange={(e) => setSurveyorName(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+                placeholder="Your name or company"
+              />
             </div>
           </div>
 

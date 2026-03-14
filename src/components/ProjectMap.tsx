@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Tooltip, Polyline, useMapEvents, useMap, LayersControl } from 'react-leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { distanceBearing } from '@/lib/engine/distance'
@@ -367,25 +368,40 @@ export default function ProjectMap({
           <Polyline positions={areaLinePositions} color="#8B5CF6" weight={3} />
         )}
         
-        {markers.map((point, idx) => {
-          const isDistanceSelected = distancePoints.some(s => s.id === point.id)
-          const isAreaSelected = localAreaPoints.some(d => d.id === point.id)
-          const isAreaFirst = localAreaPoints.length > 0 && localAreaPoints[0].id === point.id
-          
-          // Default to amber for survey points
-          let icon = amberIcon
-          if (point.is_control) {
-            // Control points: red (primary), orange (secondary), yellow (temporary)
-            if (point.control_order === 'primary') icon = redIcon
-            else if (point.control_order === 'secondary') icon = orangeIcon
-            else if (point.control_order === 'temporary') icon = yellowIcon
-            else icon = redIcon // default to red for generic control points
-          }
-          if (isDistanceSelected) icon = selectedIcon
-          if (isAreaSelected || isAreaFirst) icon = areaIcon
-          
-          return (
-            <Marker
+        {/* Marker clustering */}
+        <MarkerClusterGroup
+          chunkedLoading
+          maxClusterRadius={60}
+          spiderfyOnMaxZoom={true}
+          showCoverageOnHover={false}
+          iconCreateFunction={(cluster: any) => {
+            const count = cluster.getChildCount()
+            return L.divIcon({
+              html: `<div class="bg-[#E8841A] text-white rounded-full flex items-center justify-center font-bold text-xs" style="width: 30px; height: 30px;">${count}</div>`,
+              className: '',
+              iconSize: L.point(30, 30)
+            })
+          }}
+        >
+          {markers.map((point, idx) => {
+            const isDistanceSelected = distancePoints.some(s => s.id === point.id)
+            const isAreaSelected = localAreaPoints.some(d => d.id === point.id)
+            const isAreaFirst = localAreaPoints.length > 0 && localAreaPoints[0].id === point.id
+            
+            // Default to amber for survey points
+            let icon = amberIcon
+            if (point.is_control) {
+              // Control points: red (primary), orange (secondary), yellow (temporary)
+              if (point.control_order === 'primary') icon = redIcon
+              else if (point.control_order === 'secondary') icon = orangeIcon
+              else if (point.control_order === 'temporary') icon = yellowIcon
+              else icon = redIcon // default to red for generic control points
+            }
+            if (isDistanceSelected) icon = selectedIcon
+            if (isAreaSelected || isAreaFirst) icon = areaIcon
+            
+            return (
+              <Marker
               key={point.id || idx}
               position={[point.lat!, point.lon!]}
               icon={icon}
@@ -433,6 +449,7 @@ export default function ProjectMap({
             </Marker>
           )
         })}
+        </MarkerClusterGroup>
       </MapContainer>
 
       {/* Mode indicator */}
