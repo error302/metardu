@@ -11,7 +11,11 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  trailingSlash: true
+  trailingSlash: true,
+  compress: true,
+  poweredByHeader: false,
+  generateEtags: true,
+  swcMinify: true,
 }
 
 module.exports = withPWA(nextConfig)

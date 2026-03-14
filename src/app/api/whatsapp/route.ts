@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 
 export async function POST(req: NextRequest) {
   try {
+    const identifier = getClientIdentifier(req)
+    const { allowed, remaining } = rateLimit(identifier, 30, 60000)
+    
+    if (!allowed) {
+      return new NextResponse(
+        `<?xml version="1.0" encoding="UTF-8"?>
+<Response><Message>Too many requests. Please try again in 1 minute.</Message></Response>`,
+        { headers: { 'Content-Type': 'text/xml', 'X-RateLimit-Remaining': '0' } }
+      )
+    }
+
     const body = await req.text()
     const params = new URLSearchParams(body)
     
