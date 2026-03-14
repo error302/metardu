@@ -157,6 +157,14 @@ export default function NavBar() {
             Guide
           </Link>
           
+          {/* Field Book */}
+          <Link 
+            href="/fieldbook" 
+            className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+          >
+            Field Book
+          </Link>
+          
           {/* Community - Beacon Network */}
           <Link 
             href="/beacons" 
