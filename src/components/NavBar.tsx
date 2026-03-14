@@ -150,6 +150,14 @@ export default function NavBar() {
             Field Mode
           </Link>
           
+          {/* Pricing */}
+          <Link 
+            href="/pricing" 
+            className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+          >
+            Pricing
+          </Link>
+          
           {/* Guide */}
           <Link 
             href="/guide" 
@@ -175,9 +183,14 @@ export default function NavBar() {
           </Link>
           
           {user && (
-            <Link href="/dashboard" className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
-              Projects
-            </Link>
+            <>
+              <Link href="/dashboard" className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
+                Projects
+              </Link>
+              <Link href="/account" className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
+                Account
+              </Link>
+            </>
           )}
           
           <Link href="/dashboard" className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
@@ -263,7 +276,15 @@ export default function NavBar() {
               </div>
             ))}
             
-            <div className="border-t border-gray-800 pt-4 space-y-2">
+            <Link
+                    href="/pricing"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-3 py-2 text-sm text-gray-300 hover:text-[var(--accent)]"
+                  >
+                    Pricing
+                  </Link>
+                  
+                  <div className="border-t border-gray-800 pt-4 space-y-2">
               {user ? (
                 <>
                   <Link
@@ -272,6 +293,13 @@ export default function NavBar() {
                     className="block px-3 py-2 text-sm text-gray-300 hover:text-[var(--accent)]"
                   >
                     Projects
+                  </Link>
+                  <Link
+                    href="/account"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-3 py-2 text-sm text-gray-300 hover:text-[var(--accent)]"
+                  >
+                    Account
                   </Link>
                   <Link
                     href="/dashboard"

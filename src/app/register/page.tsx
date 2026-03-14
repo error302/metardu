@@ -20,7 +20,7 @@ export default function RegisterPage() {
     setSuccess(false)
     setLoading(true)
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -33,7 +33,17 @@ export default function RegisterPage() {
     if (error) {
       setError(error.message)
       setLoading(false)
-    } else {
+    } else if (data.user) {
+      // Create trial subscription for new user
+      await supabase.from('user_subscriptions').insert({
+        user_id: data.user.id,
+        plan_id: 'pro',
+        status: 'trial',
+        trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+      
       setSuccess(true)
       setLoading(false)
     }
