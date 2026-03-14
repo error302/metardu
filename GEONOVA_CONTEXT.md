@@ -116,3 +116,47 @@ WRONG:
   Bearing: 82.2° (decimal degrees)
   Area: 0.24 ha (insufficient precision)
   Precision: 1/12500 (wrong format)
+
+## ONLINE FEATURES ROADMAP
+
+### Phase 7 — Online Power Features
+- GNSS baseline processing (upload raw files)
+- Live coordinate transformation API
+- Real-time weather + EDM corrections
+- Online benchmark database lookup
+- Satellite imagery overlay (Sentinel-2)
+
+### Phase 8 — Integration Layer  
+- Kenya NLIMS land registry integration
+- Uganda NLIS integration
+- Tanzania Land Registry integration
+- KenCORS real-time corrections
+- Digital signature + QR verification
+- Equipment calibration tracker
+
+### Phase 9 — Community + Marketplace
+- Survey job marketplace (5% commission)
+- Peer review network
+- AI plan checking
+- CPD certificate system
+- Professional body integration:
+  ISK, Uganda, Tanzania boards
+
+### Phase 10 — Enterprise
+- Cloud rendering for large projects
+- Survey project insurance integration
+- Government department licensing
+- University API
+- White-label for large firms
+
+### THE KILLER WORKFLOW (target):
+Field observation
+  → GNSS processing (GeoNova)
+  → Traverse adjustment (GeoNova)
+  → Survey plan generation (GeoNova)
+  → Digital signature (GeoNova)
+  → Land registry submission (GeoNova)
+
+Zero external software needed.
+This is what defeats Trimble, Leica,
+and AutoCAD in the African market.
