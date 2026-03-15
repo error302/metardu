@@ -267,3 +267,4 @@ export function getSpecialties() {
 export * from './peerReview'
 export * from './aiPlanChecker'
 export * from './cpdCertificates'
+export * from './jobMarketplace'
