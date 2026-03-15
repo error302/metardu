@@ -33,7 +33,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps) {
     await loadRecommendations(type)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+
     e.preventDefault()
     setLoading(true)
     try {

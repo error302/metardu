@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import Link from 'next/link'
 import { getUserJobs, GeoNovaJob } from '@/lib/supabase/jobs'
 import JobCard from '@/components/jobs/JobCard'
 import { createClient } from '@/lib/supabase/client'
 
 export default function JobsPage() {
+  const { t } = useLanguage()
   const [jobs, setJobs] = useState<GeoNovaJob[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -42,7 +44,7 @@ export default function JobsPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-100">Field Missions</h1>
+
             <p className="text-gray-400 mt-1">Plan, schedule, and prepare your survey jobs</p>
           </div>
           <div className="flex gap-3">

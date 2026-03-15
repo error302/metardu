@@ -1,233 +1,129 @@
 'use client'
 
-import { useState } from 'react'
-import {
-  checkSurveyPlan,
-  getCountryRequirements,
-  PlanCheckInput,
-  PlanCheckResult
-} from '@/lib/marketplace/aiPlanChecker'
+import { useState, useRef, useEffect } from 'react'
+import { Button } from '@/components/ui/button' // Replace if needed
+import { Send, Loader2, MapPin, Ruler, Settings, Bot } from 'lucide-react' // npm i lucide-react
 
-export default function AIPlanCheckerPage() {
-  const [input, setInput] = useState<PlanCheckInput>({
-    projectName: '',
-    surveyType: 'traverse',
-    country: 'kenya',
-    points: [
-      { name: 'A', easting: 500000, northing: 9800000 },
-      { name: 'B', easting: 500100, northing: 9800000 },
-      { name: 'C', easting: 500100, northing: 9800100 },
-    ],
-    controlPoints: [],
-  })
-  const [result, setResult] = useState<PlanCheckResult | null>(null)
+export default function AIPlanChecker() {
+  type MessageRole = 'system' | 'user' | 'assistant'
+  const [messages, setMessages] = useState<{ role: MessageRole; content: string }[]>([
+    { role: 'system', content: `You are GeoNova Field Assistant, expert surveyor AI. Help with:
+- Field mission planning
+- Equipment recommendations  
+- Workflow guidance
+- Survey calculations
+- Troubleshooting
+Use professional surveying terminology. Be concise, actionable.` }, 
+    { role: 'user', content: 'Hi, help me plan a boundary survey.' }
+  ])
+  const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const handleCheck = () => {
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(scrollToBottom, [messages])
+
+  const handleSend = async () => {
+    if (!input.trim() || loading) return
+
+    const userMessage = { role: 'user' as const, content: input }
+    setMessages(prev => [...prev, userMessage])
+    setInput('')
     setLoading(true)
-    setTimeout(() => {
-      const res = checkSurveyPlan(input)
-      setResult(res)
+
+    try {
+      const response = await fetch('/api/ollama/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          model: 'llama3.1',
+          stream: true
+        }),
+      })
+
+      if (!response.ok) throw new Error('AI unavailable')
+
+      const reader = response.body!.getReader()
+      const decoder = new TextDecoder()
+      let assistantMessage = { role: 'assistant' as const, content: '' }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n').filter(line => line.startsWith('data: '))
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line.slice(6))
+            if (data.message?.content) {
+              assistantMessage.content += data.message.content
+              setMessages(prev => {
+                const updated = [...prev]
+                updated[updated.length - 1] = assistantMessage
+                return updated
+              })
+            }
+          } catch {}
+        }
+      }
+      setMessages(prev => [...prev, assistantMessage])
+    } catch (error) {
+      setMessages(prev => [...prev, { role: 'assistant' as const, content: 'Error: Ensure Ollama running (ollama serve). Model: llama3.1' }])
+    } finally {
       setLoading(false)
-    }, 500)
-  }
-
-  const addPoint = () => {
-    setInput({
-      ...input,
-      points: [...input.points, { name: '', easting: 0, northing: 0 }]
-    })
-  }
-
-  const updatePoint = (index: number, field: string, value: any) => {
-    const newPoints = [...input.points]
-    newPoints[index] = { ...newPoints[index], [field]: value }
-    setInput({ ...input, points: newPoints })
-  }
-
-  const removePoint = (index: number) => {
-    const newPoints = input.points.filter((_, i) => i !== index)
-    setInput({ ...input, points: newPoints })
-  }
-
-  const getGradeColor = (grade: string) => {
-    switch (grade) {
-      case 'excellent': return 'bg-green-100 text-green-800 border-green-300'
-      case 'good': return 'bg-blue-100 text-blue-800 border-blue-300'
-      case 'acceptable': return 'bg-yellow-100 text-yellow-800 border-yellow-300'
-      case 'needs_revision': return 'bg-orange-100 text-orange-800 border-orange-300'
-      case 'failed': return 'bg-red-100 text-red-800 border-red-300'
-      default: return 'bg-gray-100 text-gray-800'
+      scrollToBottom()
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Plan Checker</h1>
-        <p className="text-gray-600 mb-8">Automated survey plan validation and compliance checking</p>
+    <div className="min-h-screen bg-gray-950 flex flex-col max-w-4xl mx-auto p-4">
+      <div className="flex items-center gap-3 mb-8">
+        <Bot className="h-8 w-8 text-[#E8841A]" />
+        <h1 className="text-3xl font-bold text-gray-100">GeoNova AI Field Assistant</h1>
+      </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold mb-4">Survey Details</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-                <input
-                  type="text"
-                  value={input.projectName}
-                  onChange={(e) => setInput({ ...input, projectName: e.target.value })}
-                  placeholder="Enter project name"
-                  className="w-full p-2 border rounded-lg"
-                />
-              </div>
+      <div className="flex gap-2 mb-6 text-xs text-gray-500">
+        <button className="p-2 hover:text-gray-300 flex items-center gap-1">
+          <MapPin className="h-4 w-4" /> Plan mission
+        </button>
+        <button className="p-2 hover:text-gray-300 flex items-center gap-1">
+          <Ruler className="h-4 w-4" /> Workflow
+        </button>
+        <button className="p-2 hover:text-gray-300 flex items-center gap-1">
+          <Settings className="h-4 w-4" /> Equipment
+        </button>
+      </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Survey Type</label>
-                  <select
-                    value={input.surveyType}
-                    onChange={(e) => setInput({ ...input, surveyType: e.target.value as any })}
-                    className="w-full p-2 border rounded-lg"
-                  >
-                    <option value="traverse">Traverse</option>
-                    <option value="leveling">Leveling</option>
-                    <option value="boundary">Boundary</option>
-                    <option value="topographic">Topographic</option>
-                    <option value="engineering">Engineering</option>
-                    <option value="mining">Mining</option>
-                    <option value="hydrographic">Hydrographic</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                  <select
-                    value={input.country}
-                    onChange={(e) => setInput({ ...input, country: e.target.value as any })}
-                    className="w-full p-2 border rounded-lg"
-                  >
-                    <option value="kenya">Kenya</option>
-                    <option value="uganda">Uganda</option>
-                    <option value="tanzania">Tanzania</option>
-                    <option value="nigeria">Nigeria</option>
-                    <option value="ghana">Ghana</option>
-                    <option value="south_africa">South Africa</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Survey Points</label>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {input.points.map((point, i) => (
-                    <div key={i} className="flex gap-2 items-center">
-                      <input
-                        type="text"
-                        value={point.name}
-                        onChange={(e) => updatePoint(i, 'name', e.target.value)}
-                        placeholder="Name"
-                        className="w-20 p-2 border rounded-lg"
-                      />
-                      <input
-                        type="number"
-                        value={point.easting}
-                        onChange={(e) => updatePoint(i, 'easting', Number(e.target.value))}
-                        placeholder="Easting"
-                        className="w-28 p-2 border rounded-lg"
-                      />
-                      <input
-                        type="number"
-                        value={point.northing}
-                        onChange={(e) => updatePoint(i, 'northing', Number(e.target.value))}
-                        placeholder="Northing"
-                        className="w-28 p-2 border rounded-lg"
-                      />
-                      <button
-                        onClick={() => removePoint(i)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={addPoint}
-                  className="mt-2 text-sm text-blue-600 hover:text-blue-700"
-                >
-                  + Add Point
-                </button>
-              </div>
-
-              <button
-                onClick={handleCheck}
-                disabled={loading || !input.projectName}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
-              >
-                {loading ? 'Analyzing...' : 'Check Plan'}
-              </button>
+      <div className="flex-1 bg-gray-900/50 rounded-2xl border border-gray-800 p-6 overflow-auto mb-6 space-y-4">
+        {messages.map((msg, idx) => (
+          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-2xl p-4 rounded-2xl ${msg.role === 'user' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-100'}`}>
+              {msg.content}
             </div>
           </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
 
-          <div className="space-y-6">
-            {result && (
-              <>
-                <div className={`bg-white rounded-xl shadow-sm p-6 border-2 ${getGradeColor(result.grade)}`}>
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-semibold">Analysis Result</h2>
-                    <span className="text-2xl font-bold">{result.overallScore}/100</span>
-                  </div>
-                  <p className="text-lg font-medium mb-2">Grade: {result.grade.toUpperCase()}</p>
-                  <p className="text-sm">{result.summary}</p>
-                </div>
-
-                {result.issues.length > 0 && (
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <h3 className="font-semibold mb-4">Issues Found ({result.issues.length})</h3>
-                    <div className="space-y-3">
-                      {result.issues.map((issue, i) => (
-                        <div key={i} className={`p-3 rounded-lg border ${
-                          issue.severity === 'error' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'
-                        }`}>
-                          <div className="flex items-start gap-2">
-                            <span className={`text-xs px-2 py-0.5 rounded ${
-                              issue.severity === 'error' ? 'bg-red-200 text-red-800' : 'bg-yellow-200 text-yellow-800'
-                            }`}>
-                              {issue.severity.toUpperCase()}
-                            </span>
-                            <span className="text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-700">
-                              {issue.category}
-                            </span>
-                          </div>
-                          <h4 className="font-medium mt-2">{issue.title}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{issue.description}</p>
-                          <p className="text-sm text-blue-700 mt-2">💡 {issue.recommendation}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="font-semibold mb-4">Country Requirements</h3>
-                  <div className="text-sm text-gray-600">
-                    <p><strong>Minimum Precision:</strong> 1:{getCountryRequirements(input.country).precision}</p>
-                    <p><strong>Notes:</strong> {getCountryRequirements(input.country).notes}</p>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {!result && !loading && (
-              <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
-                <div className="text-4xl mb-3">🤖</div>
-                <p>Enter survey details and click "Check Plan" to analyze your survey</p>
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          placeholder="Ask about survey planning, equipment, workflows..."
+          className="flex-1 px-4 py-4 bg-gray-900 border border-gray-700 rounded-2xl focus:border-[#E8841A] focus:outline-none text-gray-100 placeholder-gray-500"
+          disabled={loading}
+        />
+        <Button onClick={handleSend} disabled={loading || !input.trim()} size="icon" className="h-16 w-16 rounded-2xl bg-[#E8841A] hover:bg-[#E8841A]/90">
+          {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
+        </Button>
       </div>
     </div>
   )
 }
+
