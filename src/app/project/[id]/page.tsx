@@ -85,6 +85,7 @@ export default function ProjectPage({ params }: PageProps) {
   const [showParcelBuilder, setShowParcelBuilder] = useState(false)
   const [syncStatus, setSyncStatus] = useState<'synced' | 'pending' | 'offline'>('synced')
   const [viewerCount, setViewerCount] = useState(1)
+  const [onlineUsers, setOnlineUsers] = useState<{ user_id: string; email?: string }[]>([])
   const [isOnline, setIsOnline] = useState(true)
 
   const supabase = createClient()
@@ -185,25 +186,34 @@ export default function ProjectPage({ params }: PageProps) {
     const channel = supabase.channel(`presence-${params.id}`)
     
     channel.on('presence', { event: 'sync' }, () => {
-      const state = channel.presenceState()
-      const userIds = Object.keys(state)
-      setViewerCount(userIds.length || 1)
+      const state = channel.presenceState() as Record<string, { user_id: string; email?: string }[]>
+      const users = Object.values(state).flat().filter(u => u?.user_id)
+      setViewerCount(users.length || 1)
+      setOnlineUsers(users)
     })
 
     channel.on('presence', { event: 'join' }, () => {
-      const state = channel.presenceState()
-      setViewerCount(Object.keys(state).length || 1)
+      const state = channel.presenceState() as Record<string, { user_id: string; email?: string }[]>
+      const users = Object.values(state).flat().filter(u => u?.user_id)
+      setViewerCount(users.length || 1)
+      setOnlineUsers(users)
     })
 
     channel.on('presence', { event: 'leave' }, () => {
-      const state = channel.presenceState()
-      setViewerCount(Object.keys(state).length || 1)
+      const state = channel.presenceState() as Record<string, { user_id: string; email?: string }[]>
+      const users = Object.values(state).flat().filter(u => u?.user_id)
+      setViewerCount(users.length || 1)
+      setOnlineUsers(users)
     })
 
-    // Track presence
+    // Track presence with user info
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        channel.track({ user_id: user.id, online_at: new Date().toISOString() })
+        channel.track({ 
+          user_id: user.id, 
+          email: user.email,
+          online_at: new Date().toISOString() 
+        })
       }
     })
 
@@ -622,7 +632,24 @@ export default function ProjectPage({ params }: PageProps) {
             <div className="flex items-center gap-4">
               {/* Collaboration indicators */}
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-gray-400">👥 {viewerCount} viewer{viewerCount !== 1 ? 's' : ''}</span>
+                {onlineUsers.length > 0 ? (
+                  <div className="flex items-center gap-1">
+                    <div className="flex -space-x-2">
+                      {onlineUsers.slice(0, 3).map((u, i) => (
+                        <div 
+                          key={i}
+                          className="w-6 h-6 rounded-full bg-blue-500 border-2 border-gray-800 flex items-center justify-center text-xs text-white"
+                          title={u.email}
+                        >
+                          {u.email?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-gray-400">{viewerCount} online</span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">👥 {viewerCount} viewer{viewerCount !== 1 ? 's' : ''}</span>
+                )}
                 <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
                 <span className="text-gray-500 text-xs">{isOnline ? 'Live' : 'Offline'}</span>
               </div>

@@ -1,0 +1,134 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { 
+  getAllEquipment, 
+  getCalibrationAlerts, 
+  getEquipmentTypes, 
+  getCalibrationSummary,
+  Equipment 
+} from '@/lib/integrations/equipment'
+
+export default function EquipmentPage() {
+  const [equipment, setEquipment] = useState<Equipment[]>([])
+  const [alerts, setAlerts] = useState<any[]>([])
+  const [summary, setSummary] = useState<any>(null)
+  const [selectedType, setSelectedType] = useState<string>('all')
+
+  useEffect(() => {
+    setEquipment(getAllEquipment())
+    setAlerts(getCalibrationAlerts())
+    setSummary(getCalibrationSummary())
+  }, [])
+
+  const types = getEquipmentTypes()
+  const filteredEquipment = selectedType === 'all' 
+    ? equipment 
+    : equipment.filter(e => e.type === selectedType)
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800'
+      case 'due': return 'bg-yellow-100 text-yellow-800'
+      case 'overdue': return 'bg-red-100 text-red-800'
+      case 'calibrating': return 'bg-blue-100 text-blue-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Equipment Calibration Tracker</h1>
+        <p className="text-gray-600 mb-8">Monitor and manage survey instrument calibration schedules</p>
+
+        {alerts.length > 0 && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h3 className="font-medium text-yellow-800 mb-2">⚠️ Calibration Alerts</h3>
+            <div className="space-y-1">
+              {alerts.map((alert, i) => (
+                <p key={i} className="text-sm text-yellow-700">
+                  {alert.equipment.name} ({alert.equipment.brand} {alert.equipment.model}) - 
+                  {alert.daysUntilDue < 0 
+                    ? ` Overdue by ${Math.abs(alert.daysUntilDue)} days`
+                    : ` Due in ${alert.daysUntilDue} days`
+                  }
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {summary && (
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <p className="text-2xl font-bold">{summary.total}</p>
+              <p className="text-sm text-gray-600">Total Equipment</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <p className="text-2xl font-bold text-green-600">{summary.active}</p>
+              <p className="text-sm text-gray-600">Active</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <p className="text-2xl font-bold text-yellow-600">{summary.due}</p>
+              <p className="text-sm text-gray-600">Due Soon</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <p className="text-2xl font-bold text-red-600">{summary.overdue}</p>
+              <p className="text-sm text-gray-600">Overdue</p>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Equipment Inventory</h2>
+            <select
+              value={selectedType}
+              onChange={e => setSelectedType(e.target.value)}
+              className="p-2 border rounded-lg"
+            >
+              <option value="all">All Types</option>
+              {types.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-3 px-4">Equipment</th>
+                  <th className="text-left py-3 px-4">Brand/Model</th>
+                  <th className="text-left py-3 px-4">Serial #</th>
+                  <th className="text-left py-3 px-4">Location</th>
+                  <th className="text-left py-3 px-4">Last Cal.</th>
+                  <th className="text-left py-3 px-4">Next Due</th>
+                  <th className="text-left py-3 px-4">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEquipment.map(eq => (
+                  <tr key={eq.id} className="border-b hover:bg-gray-50">
+                    <td className="py-3 px-4 font-medium">{eq.name}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600">{eq.brand} {eq.model}</td>
+                    <td className="py-3 px-4 text-sm font-mono">{eq.serialNumber}</td>
+                    <td className="py-3 px-4 text-sm">{eq.location || '-'}</td>
+                    <td className="py-3 px-4 text-sm">{eq.calibrationDate || '-'}</td>
+                    <td className="py-3 px-4 text-sm">{eq.nextCalibrationDate || '-'}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 text-xs rounded ${getStatusColor(eq.status)}`}>
+                        {eq.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

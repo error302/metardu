@@ -150,6 +150,7 @@
     "grade": "Grade",
     "coordinates": "Coordinates",
     "cogo": "COGO",
+    "gnss": "GNSS",
     "chainage": "Chainage",
     "tacheometry": "Tacheometry",
     "settingOut": "Setting Out",

@@ -42,6 +42,7 @@ export default function ToolsPage() {
             <ToolLink href="/tools/traverse" title="Traverse" />
             <ToolLink href="/tools/coordinates" title="Coordinates" />
             <ToolLink href="/tools/cogo" title="COGO" />
+            <ToolLink href="/tools/gnss" title="GNSS" />
           </div>
         </section>
 

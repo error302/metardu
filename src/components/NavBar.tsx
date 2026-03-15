@@ -21,6 +21,7 @@ const toolGroups = [
       { href: '/tools/traverse', labelKey: 'traverse.title' },
       { href: '/tools/coordinates', labelKey: 'tools.coordinates' },
       { href: '/tools/cogo', labelKey: 'tools.cogo' },
+      { href: '/tools/gnss', labelKey: 'tools.gnss' },
     ]
   },
   {
@@ -412,6 +413,29 @@ export default function NavBar() {
             >
               {t('nav.docs')}
             </Link>
+
+            {/* Online Services */}
+            <div className="relative group">
+              <button className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
+                Online ▾
+              </button>
+              <div className="absolute top-full left-0 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                <div className="bg-[#111118] border border-[#E8841A20] rounded-lg shadow-xl min-w-[200px] py-2">
+                  <Link href="/online" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
+                    Coordinate Services
+                  </Link>
+                  <Link href="/parcel" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
+                    Parcel Intelligence
+                  </Link>
+                  <Link href="/kencors" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
+                    KenCORS RTK
+                  </Link>
+                  <Link href="/equipment" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
+                    Equipment Tracker
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Right Side */}
