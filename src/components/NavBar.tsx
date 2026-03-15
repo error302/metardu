@@ -433,6 +433,9 @@ export default function NavBar() {
                   <Link href="/equipment" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
                     Equipment Tracker
                   </Link>
+                  <Link href="/digital-signature" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
+                    Digital Signature
+                  </Link>
                 </div>
               </div>
             </div>
