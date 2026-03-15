@@ -94,6 +94,9 @@ const communityGroups = [
       { href: '/community', labelKey: 'community.surveyCommunity' },
       { href: '/beacons', labelKey: 'community.controlPoints' },
       { href: '/marketplace', labelKey: 'community.marketplace' },
+      { href: '/peer-review', labelKey: 'community.peerReview' },
+      { href: '/cpd', labelKey: 'community.cpd' },
+      { href: '/ai-plan-checker', labelKey: 'community.aiChecker' },
     ]
   },
 ]
