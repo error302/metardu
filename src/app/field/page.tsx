@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { 
   MapPinIcon, 
   ArrowPathIcon, 
@@ -20,6 +21,7 @@ const STORAGE_KEY = 'geonova_pending_observations'
 
 export default function FieldPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<Tab>('traverse')
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('offline')
   const [projects, setProjects] = useState<any[]>([])
@@ -289,12 +291,12 @@ export default function FieldPage() {
           <div className="space-y-3">
             {/* Quick batch entry button */}
             <div className="flex justify-between items-center">
-              <h2 className="text-xs font-semibold text-white uppercase tracking-wide">Points</h2>
+              <h2 className="text-xs font-semibold text-white uppercase tracking-wide">{t('field.points')}</h2>
               <button
                 onClick={() => setShowBatch(!showBatch)}
                 className="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded flex items-center gap-1"
               >
-                {showBatch ? 'Hide Batch' : <><PlusIcon className="w-3 h-3" /> Batch CSV</>}
+                {showBatch ? t('common.close') : <><PlusIcon className="w-3 h-3" /> {t('field.batchCSV')}</>}
               </button>
             </div>
 
@@ -312,10 +314,10 @@ export default function FieldPage() {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={parseBatchCSV} className="flex-1 text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 py-1.5 rounded">
-                    Parse
+                    {t('field.parse')}
                   </button>
                   <button onClick={saveBatchPoints} disabled={batchParseResults.length === 0} className="flex-1 text-[10px] bg-[#E8841A] hover:bg-[#d67715] text-black py-1.5 rounded disabled:opacity-50">
-                    Save {batchParseResults.length}
+                    {t('common.save')} {batchParseResults.length}
                   </button>
                 </div>
                 {batchErrors.length > 0 && (
@@ -334,25 +336,25 @@ export default function FieldPage() {
             {/* Single point form */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-gray-500 mb-1 block">Name</label>
-                <input value={pName} onChange={e => setPName(e.target.value)} placeholder="P1" className={inputNumberClass} />
-              </div>
-              <div>
-                <label className="text-[10px] text-gray-500 mb-1 block">E (m)</label>
-                <input value={pE} onChange={e => setPE(e.target.value)} placeholder="500000" className={inputNumberClass} />
-              </div>
-              <div>
-                <label className="text-[10px] text-gray-500 mb-1 block">N (m)</label>
-                <input value={pN} onChange={e => setPN(e.target.value)} placeholder="4500000" className={inputNumberClass} />
-              </div>
-              <div>
-                <label className="text-[10px] text-gray-500 mb-1 block">Z (m)</label>
-                <input value={pZ} onChange={e => setPZ(e.target.value)} placeholder="0" className={inputNumberClass} />
-              </div>
+<label className="text-[10px] text-gray-500 mb-1 block">{t('field.name')}</label>
+              <input value={pName} onChange={e => setPName(e.target.value)} placeholder="P1" className={inputNumberClass} />
             </div>
+            <div>
+              <label className="text-[10px] text-gray-500 mb-1 block">{t('common.easting')}</label>
+              <input value={pE} onChange={e => setPE(e.target.value)} placeholder="500000" className={inputNumberClass} />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 mb-1 block">{t('common.northing')}</label>
+              <input value={pN} onChange={e => setPN(e.target.value)} placeholder="4500000" className={inputNumberClass} />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 mb-1 block">{t('common.elevation')}</label>
+              <input value={pZ} onChange={e => setPZ(e.target.value)} placeholder="0" className={inputNumberClass} />
+            </div>
+          </div>
 
-            <div className="flex items-center justify-between py-2 px-3 bg-gray-900/50 rounded border border-gray-800">
-              <label className="text-[10px] text-gray-400">Control point</label>
+          <div className="flex items-center justify-between py-2 px-3 bg-gray-900/50 rounded border border-gray-800">
+            <label className="text-[10px] text-gray-400">{t('field.controlPoint')}</label>
               <button
                 onClick={() => setPCtrl(!pCtrl)}
                 className={`w-8 h-4 rounded-full relative ${pCtrl ? 'bg-[#E8841A]' : 'bg-gray-600'}`}
@@ -366,7 +368,7 @@ export default function FieldPage() {
               disabled={!pName || !pE || !pN || !selectedProject}
               className="w-full py-2 bg-[#E8841A] hover:bg-[#d67715] text-black text-xs font-semibold rounded disabled:opacity-50"
             >
-              Save Point
+              {t('field.savePoint')}
             </button>
 
             {points.length > 0 && (
@@ -386,23 +388,23 @@ export default function FieldPage() {
         {activeTab === 'traverse' && (
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <h2 className="text-xs font-semibold text-white uppercase tracking-wide">Traverse</h2>
-              <span className="text-[10px] text-gray-500">Total: {traverseTotal.toFixed(2)} m</span>
+              <h2 className="text-xs font-semibold text-white uppercase tracking-wide">{t('field.traverse')}</h2>
+              <span className="text-[10px] text-gray-500">{t('field.total')}: {traverseTotal.toFixed(2)} m</span>
             </div>
             
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-gray-500 mb-1 block">To Station</label>
+                <label className="text-[10px] text-gray-500 mb-1 block">{t('field.traverse')} →</label>
                 <input value={tStation} onChange={e => setTStation(e.target.value)} placeholder="B" className={inputClass} />
               </div>
               <div>
-                <label className="text-[10px] text-gray-500 mb-1 block">Distance (m)</label>
+                <label className="text-[10px] text-gray-500 mb-1 block">{t('field.distance')}</label>
                 <input value={tDist} onChange={e => setTDist(e.target.value)} placeholder="100.00" className={inputNumberClass} />
               </div>
             </div>
 
             <div>
-              <label className="text-[10px] text-gray-500 mb-1 block">Bearing (DMS)</label>
+              <label className="text-[10px] text-gray-500 mb-1 block">{t('field.bearing')} (DMS)</label>
               <div className="grid grid-cols-3 gap-1.5">
                 <input 
                   value={tDeg} 
@@ -426,7 +428,7 @@ export default function FieldPage() {
             </div>
 
             <button onClick={addTraverseLeg} className="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium rounded">
-              + Add Leg
+              + {t('field.addLeg')}
             </button>
 
             {tLegs.length > 0 && (
