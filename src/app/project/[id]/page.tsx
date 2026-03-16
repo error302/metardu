@@ -9,6 +9,8 @@ import { generateSurveyReport, generateSurveyPlan } from '@/lib/reports/generate
 import { downloadLandXML } from '@/lib/export/generateLandXML'
 import { exportProject, importProject } from '@/lib/export/exportProject'
 import { downloadGeoJSON } from '@/lib/export/generateGeoJSON'
+import { coordinateAreaSolution } from '@/lib/solution/wrappers/area'
+import { bowditchAdjustmentSolutionFromResult } from '@/lib/solution/wrappers/traverse'
 import AddPointModal from '@/components/AddPointModal'
 import CSVUploadModal from '@/components/CSVUploadModal'
 import TraverseModal from '@/components/TraverseModal'
@@ -315,6 +317,19 @@ export default function ProjectPage({ params }: PageProps) {
       setReportLoading(false)
     }
     
+    const solutions = []
+    if (traverseResult?.legs?.length) {
+      try {
+        solutions.push(bowditchAdjustmentSolutionFromResult(traverseResult))
+      } catch {}
+    }
+    if (parcelData?.boundary_points && parcelData.boundary_points.length >= 3) {
+      try {
+        const pts = parcelData.boundary_points.map(p => ({ easting: p.easting, northing: p.northing }))
+        solutions.push(coordinateAreaSolution(pts).solution)
+      } catch {}
+    }
+
     generateSurveyReport({
       project: {
         name: project.name,
@@ -334,7 +349,8 @@ export default function ProjectPage({ params }: PageProps) {
         is_control: p.is_control
       })),
       traverse: traverseResult || undefined,
-      area: areaResult || undefined
+      area: areaResult || undefined,
+      solutions
     }, uploadToStorage)
   }
 

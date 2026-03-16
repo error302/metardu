@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { dmsToDecimal, decimalToDMS } from '@/lib/engine/angles';
+import SolutionRenderer from '@/components/SolutionRenderer'
+import type { Solution } from '@/lib/solution/schema'
+import { heightOfObjectSolution } from '@/lib/solution/wrappers/heightOfObject'
 
 export default function HeightOfObjectCalculator() {
   const [inputs, setInputs] = useState({
@@ -10,37 +12,29 @@ export default function HeightOfObjectCalculator() {
     angleBase: { d: '', m: '', s: '' },  // angle to base
     hi: ''            // height of instrument
   });
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<Solution | null>(null);
 
   const calculate = () => {
     const D = parseFloat(inputs.distance);
-    const alpha = dmsToDecimal({ degrees: parseInt(inputs.angleTop.d) || 0, minutes: parseInt(inputs.angleTop.m) || 0, seconds: parseFloat(inputs.angleTop.s) || 0, direction: 'N' });
-    const beta = dmsToDecimal({ degrees: parseInt(inputs.angleBase.d) || 0, minutes: parseInt(inputs.angleBase.m) || 0, seconds: parseFloat(inputs.angleBase.s) || 0, direction: 'N' });
     const HI = parseFloat(inputs.hi) || 0;
 
-    if (isNaN(D) || isNaN(alpha) || isNaN(beta)) return;
+    const degTop = parseFloat(inputs.angleTop.d) || 0
+    const minTop = parseFloat(inputs.angleTop.m) || 0
+    const secTop = parseFloat(inputs.angleTop.s) || 0
+    const degBase = parseFloat(inputs.angleBase.d) || 0
+    const minBase = parseFloat(inputs.angleBase.m) || 0
+    const secBase = parseFloat(inputs.angleBase.s) || 0
 
-    const alphaRad = alpha * Math.PI / 180;
-    const betaRad = beta * Math.PI / 180;
+    if (isNaN(D)) return;
 
-    const heightFromHI = D * (Math.tan(alphaRad) - Math.tan(betaRad));
-    const totalHeight = heightFromHI + HI;
-
-    setResult({
-      heightFromHI,
-      totalHeight,
-      HI,
-      formula: 'H = D×(tan(α) - tan(β)) + HI',
-      substitution: `H = ${D}×(tan(${alpha.toFixed(4)}°) - tan(${beta.toFixed(4)}°)) + ${HI}`,
-      steps: [
-        `α (top) = ${alpha.toFixed(4)}° = ${decimalToDMS(alpha, false)}`,
-        `β (base) = ${beta.toFixed(4)}° = ${decimalToDMS(beta, false)}`,
-        `tan(α) = ${Math.tan(alphaRad).toFixed(6)}`,
-        `tan(β) = ${Math.tan(betaRad).toFixed(6)}`,
-        `Height from HI = ${D}×(${Math.tan(alphaRad).toFixed(6)} - ${Math.tan(betaRad).toFixed(6)}) = ${heightFromHI.toFixed(4)} m`,
-        `Total Height = ${heightFromHI.toFixed(4)} + ${HI} = ${totalHeight.toFixed(4)} m`
-      ]
-    });
+    setResult(
+      heightOfObjectSolution({
+        horizontalDistance: D,
+        angleTop: { degrees: degTop, minutes: minTop, seconds: secTop, direction: 'N' },
+        angleBase: { degrees: degBase, minutes: minBase, seconds: secBase, direction: 'N' },
+        instrumentHeight: HI,
+      })
+    )
   };
 
   return (
@@ -80,31 +74,7 @@ export default function HeightOfObjectCalculator() {
           </div>
         </div>
 
-        {result && (
-          <div className="card">
-            <div className="card-header"><span className="label">Results</span></div>
-            <div className="card-body space-y-4">
-              <div className="text-center py-4">
-                <div className="text-sm text-gray-400 mb-2">Total Height of Object</div>
-                <div className="text-4xl font-mono text-[var(--accent)]">{result.totalHeight.toFixed(4)} m</div>
-              </div>
-              <div className="bg-gray-800 p-3 rounded">
-                <div className="text-sm text-gray-400">Height above instrument</div>
-                <div className="font-mono text-[var(--accent)]">{result.heightFromHI.toFixed(4)} m</div>
-              </div>
-              <div className="border-t border-gray-700 pt-4">
-                <div className="text-xs text-gray-500 mb-2">Formula</div>
-                <div className="text-xs font-mono text-gray-400">{result.formula}</div>
-              </div>
-              <div className="border-t border-gray-700 pt-4">
-                <div className="text-xs text-gray-500 mb-2">Calculation</div>
-                {result.steps.map((step: string, i: number) => (
-                  <div key={i} className="text-xs font-mono text-gray-400">{step}</div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        {result ? <SolutionRenderer solution={result} /> : null}
       </div>
     </div>
   );

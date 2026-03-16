@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { bowditchAdjustment, transitAdjustment } from '@/lib/engine/traverse';
+import SolutionRenderer from '@/components/SolutionRenderer'
+import type { Solution } from '@/lib/solution/schema'
+import { bowditchAdjustmentSolutionFromResult } from '@/lib/solution/wrappers/traverse'
 
 interface Leg {
   id: number;
@@ -21,6 +24,7 @@ export default function TraverseCalculator() {
   ]);
   const [method, setMethod] = useState<'bowditch' | 'transit'>('bowditch');
   const [result, setResult] = useState<any>(null);
+  const [solution, setSolution] = useState<Solution | null>(null)
 
   const addLeg = () => {
     const nextChar = String.fromCharCode(65 + legs.length);
@@ -44,6 +48,13 @@ export default function TraverseCalculator() {
         ? bowditchAdjustment({ points, distances, bearings })
         : transitAdjustment({ points, distances, bearings });
       setResult(r);
+      try {
+        const s = bowditchAdjustmentSolutionFromResult(r)
+        if (method === 'transit') s.title = 'Closed Traverse Adjustment (Transit Rule)'
+        setSolution(s)
+      } catch {
+        setSolution(null)
+      }
     }
   };
 
@@ -143,6 +154,12 @@ export default function TraverseCalculator() {
               </table>
             </div>
           </div>
+
+          {solution ? (
+            <div className="md:col-span-2">
+              <SolutionRenderer solution={solution} />
+            </div>
+          ) : null}
         </div>
       )}
     </div>

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { curveStakeout } from '@/lib/engine/curves';
+import SolutionRenderer from '@/components/SolutionRenderer'
+import type { Solution } from '@/lib/solution/schema'
+import { compoundCurveSolution, reverseCurveSolution, simpleCurveSolution } from '@/lib/solution/wrappers/curves'
 
 type CurveType = 'simple' | 'compound' | 'reverse';
 
@@ -23,33 +25,26 @@ export default function CurvesCalculator() {
     r2_rev: '300',
     abDistance: '150'
   });
-  const [result, setResult] = useState<any>(null);
-
-  const dmsToDecimal = (d: number, m: number, s: number) => d + m/60 + s/3600;
+  const [result, setResult] = useState<null | { type: CurveType; solution: Solution; stakePoints?: any[] }>(null);
 
   const calculate = () => {
     if (curveType === 'simple') {
       const R = parseFloat(input.radius);
-      const deflectionDec = dmsToDecimal(parseInt(input.defDeg)||0, parseInt(input.defMin)||0, parseFloat(input.defSec)||0);
       const piChainage = parseFloat(input.piChain);
       const interval = parseFloat(input.interval);
 
-      if (isNaN(R) || isNaN(deflectionDec)) return;
+      const deflectionDec = (parseFloat(input.defDeg) || 0) + (parseFloat(input.defMin) || 0) / 60 + (parseFloat(input.defSec) || 0) / 3600
 
-      const deltaRad = deflectionDec * Math.PI / 180;
-      const halfDelta = deltaRad / 2;
-      const PI = 3.14159265;
+      if (isNaN(R) || isNaN(deflectionDec) || isNaN(piChainage) || isNaN(interval)) return;
 
-      const T = R * Math.tan(halfDelta);
-      const L = (PI * R * deflectionDec) / 180;
-      const C = 2 * R * Math.sin(halfDelta);
-      const M = R * (1 - Math.cos(halfDelta));
-      const E = R * (1 / Math.cos(halfDelta) - 1);
-      const chainT1 = piChainage - T;
-      const chainT2 = chainT1 + L;
-      const stakePoints = curveStakeout(R, deflectionDec, chainT1, interval);
+      const { solution, stakeout } = simpleCurveSolution({
+        radius: R,
+        deflectionDeg: deflectionDec,
+        piChainage,
+        interval,
+      })
 
-      setResult({ type: 'simple', T: T.toFixed(4), L: L.toFixed(4), C: C.toFixed(4), M: M.toFixed(4), E: E.toFixed(4), chainT1: chainT1.toFixed(3), chainPI: piChainage.toFixed(3), chainT2: chainT2.toFixed(3), stakePoints });
+      setResult({ type: 'simple', solution, stakePoints: stakeout.points })
     } else if (curveType === 'compound') {
       const R1 = parseFloat(input.r1);
       const R2 = parseFloat(input.r2);
@@ -57,29 +52,17 @@ export default function CurvesCalculator() {
       const delta2 = parseFloat(input.delta2);
       const commonChainage = parseFloat(input.commonChainage);
 
-      if (isNaN(R1) || isNaN(R2)) return;
-
-      const t1 = R1 * Math.tan((delta1 * Math.PI / 180) / 2);
-      const t2 = R2 * Math.tan((delta2 * Math.PI / 180) / 2);
-      const l1 = (Math.PI * R1 * delta1) / 180;
-      const l2 = (Math.PI * R2 * delta2) / 180;
-      const totalLength = l1 + l2;
-      const chainJ = commonChainage;
-      const chainT1 = chainJ - t1;
-      const chainT2 = chainJ + t2;
-
-      setResult({ type: 'compound', R1, R2, delta1, delta2, t1: t1.toFixed(4), t2: t2.toFixed(4), l1: l1.toFixed(4), l2: l2.toFixed(4), totalLength: totalLength.toFixed(4), chainT1: chainT1.toFixed(3), chainJ: chainJ.toFixed(3), chainT2: chainT2.toFixed(3) });
+      if ([R1, R2, delta1, delta2, commonChainage].some(n => isNaN(n))) return;
+      const solution = compoundCurveSolution({ R1, R2, delta1Deg: delta1, delta2Deg: delta2, junctionChainage: commonChainage })
+      setResult({ type: 'compound', solution })
     } else if (curveType === 'reverse') {
       const R1 = parseFloat(input.r1_rev);
       const R2 = parseFloat(input.r2_rev);
       const AB = parseFloat(input.abDistance);
 
       if (isNaN(R1) || isNaN(R2) || isNaN(AB)) return;
-
-      const commonTangent = Math.sqrt(AB * AB - Math.pow(R2 - R1, 2));
-      const totalLength = (Math.PI * R1) + (Math.PI * R2);
-
-      setResult({ type: 'reverse', R1, R2, AB, commonTangent: commonTangent.toFixed(4), totalLength: totalLength.toFixed(4) });
+      const solution = reverseCurveSolution({ R1, R2, AB })
+      setResult({ type: 'reverse', solution })
     }
   };
 
@@ -143,61 +126,36 @@ export default function CurvesCalculator() {
 
         {result && (
           <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-            {result.type === 'simple' && (
-              <>
-                <h3 className="font-semibold text-gray-200 mb-4">Simple Curve Results</h3>
-                <ResultRow label="Tangent T" value={`${result.T} m`} />
-                <ResultRow label="Length L" value={`${result.L} m`} />
-                <ResultRow label="Chord C" value={`${result.C} m`} />
-                <ResultRow label="Mid-ord M" value={`${result.M} m`} />
-                <ResultRow label="Apex E" value={`${result.E} m`} />
-                <div className="border-t border-gray-700 my-3"></div>
-                <ResultRow label="Chainage T1" value={result.chainT1} />
-                <ResultRow label="Chainage PI" value={result.chainPI} />
-                <ResultRow label="Chainage T2" value={result.chainT2} />
-                <div className="border-t border-gray-700 my-3"></div>
-                <div className="max-h-48 overflow-y-auto text-sm">
-                  <table className="w-full"><thead><tr><th className="text-left">Chain</th><th className="text-right">Chord</th></tr></thead>
-                    <tbody>{result.stakePoints?.map((p: any, i: number) => (<tr key={i}><td>{p.chainage.toFixed(2)}</td><td className="text-right">{p.chord.toFixed(2)}</td></tr>))}</tbody>
+            <SolutionRenderer solution={result.solution} />
+
+            {result.type === 'simple' && result.stakePoints && result.stakePoints.length > 0 ? (
+              <div className="mt-6">
+                <h3 className="font-semibold text-gray-200 mb-3">Stakeout Table</h3>
+                <div className="max-h-56 overflow-y-auto text-sm border border-gray-800 rounded">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gray-950/40">
+                        <th className="text-left px-3 py-2">Chainage</th>
+                        <th className="text-right px-3 py-2">Chord (m)</th>
+                        <th className="text-right px-3 py-2">Deflection</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.stakePoints.map((p: any, i: number) => (
+                        <tr key={i} className="border-t border-gray-800">
+                          <td className="px-3 py-2 font-mono">{p.chainage.toFixed(3)}</td>
+                          <td className="px-3 py-2 text-right font-mono">{p.chordLength?.toFixed?.(3) ?? '—'}</td>
+                          <td className="px-3 py-2 text-right font-mono">{p.totalDeflection ?? p.deflectionAngle ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
-              </>
-            )}
-            {result.type === 'compound' && (
-              <>
-                <h3 className="font-semibold text-gray-200 mb-4">Compound Curve</h3>
-                <ResultRow label="R1" value={`${result.R1} m`} />
-                <ResultRow label="R2" value={`${result.R2} m`} />
-                <ResultRow label="Δ1" value={`${result.delta1}°`} />
-                <ResultRow label="Δ2" value={`${result.delta2}°`} />
-                <div className="border-t border-gray-700 my-3"></div>
-                <ResultRow label="t1" value={`${result.t1} m`} />
-                <ResultRow label="t2" value={`${result.t2} m`} />
-                <ResultRow label="Total" value={`${result.totalLength} m`} />
-                <div className="border-t border-gray-700 my-3"></div>
-                <ResultRow label="T1" value={result.chainT1} />
-                <ResultRow label="J" value={result.chainJ} />
-                <ResultRow label="T2" value={result.chainT2} />
-              </>
-            )}
-            {result.type === 'reverse' && (
-              <>
-                <h3 className="font-semibold text-gray-200 mb-4">Reverse Curve</h3>
-                <ResultRow label="R1" value={`${result.R1} m`} />
-                <ResultRow label="R2" value={`${result.R2} m`} />
-                <ResultRow label="AB" value={`${result.AB} m`} />
-                <div className="border-t border-gray-700 my-3"></div>
-                <ResultRow label="Tangent" value={`${result.commonTangent} m`} />
-                <ResultRow label="Total" value={`${result.totalLength} m`} />
-              </>
-            )}
+              </div>
+            ) : null}
           </div>
         )}
       </div>
     </div>
   );
-}
-
-function ResultRow({ label, value }: { label: string; value: string }) {
-  return <div className="flex justify-between py-1"><span className="text-gray-300 text-sm">{label}</span><span className="font-mono text-[#E8841A]">{value}</span></div>;
 }

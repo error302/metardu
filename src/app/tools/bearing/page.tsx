@@ -1,49 +1,31 @@
 'use client';
 
 import { useState } from 'react';
-import { distanceBearing, backBearing } from '@/lib/engine/distance';
-import { bearingToString, wcbToQuadrant, parseDMSString, normalizeBearing } from '@/lib/engine/angles';
+import SolutionRenderer from '@/components/SolutionRenderer';
+import type { Solution } from '@/lib/solution/schema';
+import { parseDMSString, normalizeBearing } from '@/lib/engine/angles';
+import { bearingSolutionFromCoords, backBearingSolution } from '@/lib/solution/wrappers/bearing';
 
 export default function BearingCalculator() {
   const [mode, setMode] = useState<'coords' | 'forward'>('coords');
   const [p1, setP1] = useState({ n: '', e: '' });
   const [p2, setP2] = useState({ n: '', e: '' });
   const [forward, setForward] = useState('');
-  const [result, setResult] = useState<any>(null);
+  const [solution, setSolution] = useState<Solution | null>(null);
 
   const calculate = () => {
     if (mode === 'coords') {
       const n1 = parseFloat(p1.n), e1 = parseFloat(p1.e);
       const n2 = parseFloat(p2.n), e2 = parseFloat(p2.e);
       if (isNaN(n1) || isNaN(e1) || isNaN(n2) || isNaN(e2)) return;
-      
-      const r = distanceBearing({ easting: e1, northing: n1 }, { easting: e2, northing: n2 });
-      const back = backBearing(r.bearing);
-      setResult({
-        type: 'coords',
-        forward: r.bearing,
-        forwardDMS: r.bearingDMS,
-        quadrant: r.quadrant,
-        back: back,
-        backDMS: bearingToString(back),
-        deltaN: r.deltaN,
-        deltaE: r.deltaE
-      });
+      setSolution(bearingSolutionFromCoords({ e1, n1, e2, n2 }))
     } else {
       let fb = parseDMSString(forward);
       if (fb === null) fb = parseFloat(forward);
       if (isNaN(fb)) return;
       
       fb = normalizeBearing(fb);
-      const back = backBearing(fb);
-      setResult({
-        type: 'back',
-        forward: fb,
-        forwardDMS: bearingToString(fb),
-        quadrant: wcbToQuadrant(fb),
-        back: back,
-        backDMS: bearingToString(back)
-      });
+      setSolution(backBearingSolution({ forwardBearingDeg: fb }))
     }
   };
 
@@ -54,13 +36,13 @@ export default function BearingCalculator() {
 
       <div className="flex gap-4 mb-6">
         <button 
-          onClick={() => { setMode('coords'); setResult(null); }}
+          onClick={() => { setMode('coords'); setSolution(null); }}
           className={`btn ${mode === 'coords' ? 'btn-primary' : 'btn-secondary'}`}
         >
           From Coordinates
         </button>
         <button 
-          onClick={() => { setMode('forward'); setResult(null); }}
+          onClick={() => { setMode('forward'); setSolution(null); }}
           className={`btn ${mode === 'forward' ? 'btn-primary' : 'btn-secondary'}`}
         >
           Back Bearing
@@ -122,36 +104,8 @@ export default function BearingCalculator() {
           </button>
         </div>
 
-        {result && (
-          <div className="card">
-            <div className="card-header">
-              <span className="label">Results</span>
-            </div>
-            <div className="card-body space-y-3">
-              <ResultRow label="Forward Bearing (WCB)" value={`${result.forward.toFixed(4)}°`} highlight />
-              <ResultRow label="DMS Format" value={result.forwardDMS} />
-              <ResultRow label="Quadrant Bearing" value={result.quadrant} />
-              <ResultRow label="Back Bearing (WCB)" value={`${result.back.toFixed(4)}°`} />
-              <ResultRow label="Back Bearing (DMS)" value={result.backDMS} />
-              {result.deltaN !== undefined && (
-                <>
-                  <ResultRow label="Δ Northing" value={`${result.deltaN.toFixed(4)} m`} />
-                  <ResultRow label="Δ Easting" value={`${result.deltaE.toFixed(4)} m`} />
-                </>
-              )}
-            </div>
-          </div>
-        )}
+        {solution ? <SolutionRenderer solution={solution} /> : null}
       </div>
-    </div>
-  );
-}
-
-function ResultRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="flex justify-between items-center py-2 border-b border-[var(--border-color)]">
-      <span className="text-sm text-[var(--text-secondary)]">{label}</span>
-      <span className={`font-mono font-semibold ${highlight ? 'result-accent' : ''}`}>{value}</span>
     </div>
   );
 }

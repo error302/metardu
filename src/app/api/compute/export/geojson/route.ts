@@ -1,24 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
-import { callPythonCompute } from '@/lib/compute/pythonService'
+import { generateGeoJSON } from '@/lib/export/generateGeoJSON'
+
+const requestSchema = z.object({
+  projectName: z.string().min(1),
+  utmZone: z.number().int().min(1).max(60).optional(),
+  hemisphere: z.enum(['N', 'S']).optional(),
+  points: z.array(
+    z.object({
+      id: z.string().optional(),
+      name: z.string().min(1),
+      easting: z.number(),
+      northing: z.number(),
+      elevation: z.number().nullable().optional(),
+      is_control: z.boolean().optional(),
+      control_order: z.string().optional(),
+    })
+  ),
+})
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
-  const python = await callPythonCompute<any>('/export/geojson', body, { timeoutMs: 30000 })
-  if (!python.ok) {
-    return NextResponse.json(
-      { error: python.error, fallback: python.fallback ?? true, details: python.details, python_required: true },
-      { status: python.status }
-    )
+  const parsed = requestSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid request.', issues: parsed.error.issues }, { status: 400 })
   }
-  return NextResponse.json(python.value)
+
+  const input = parsed.data
+  const geojson = generateGeoJSON(input.points, input.projectName, input.utmZone, input.hemisphere)
+  return NextResponse.json({
+    kind: 'geojson',
+    filename: `${input.projectName.replace(/\s+/g, '_')}.geojson`,
+    geojson,
+    python_required: false,
+  })
 }
 
 export async function GET() {
   return NextResponse.json({
     endpoint: '/api/compute/export/geojson',
-    description: 'GeoJSON export (Python compute service).',
-    python_required: true,
+    description: 'GeoJSON export (TypeScript-only).',
+    python_required: false,
   })
 }
-

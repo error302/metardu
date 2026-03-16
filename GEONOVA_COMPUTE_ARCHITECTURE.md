@@ -22,7 +22,6 @@ Examples:
 
 Used only for **heavy** geospatial/scientific workloads:
 - TIN / terrain modeling
-- surface cut/fill volumes (surface-to-surface)
 - raster/DEM analysis
 - bathymetric surface modeling
 - large network least squares / matrix-heavy adjustments
@@ -36,7 +35,7 @@ Set either environment variable:
 - `PYTHON_COMPUTE_URL` (preferred)
 - `PYTHON_SERVICE_URL` (legacy; still supported)
 
-If not set, compute endpoints return `503` with `python_required: true`.
+If not set, **Python-only** compute endpoints return `503` with `python_required: true`.
 
 ## Compute Gateway API (Next.js)
 
@@ -49,15 +48,14 @@ Body:
 ```
 
 ### Task endpoints
-- `POST /api/compute/volume` (TS cross-sections, Python surface volume)
+- `POST /api/compute/volume` (TypeScript-only: cross-sections + surface cut/fill by grid method)
 - `POST /api/compute/tin`
 - `POST /api/compute/contours`
 - `POST /api/compute/raster-analysis`
 - `POST /api/compute/seabed`
-- `POST /api/compute/export/dxf`
-- `POST /api/compute/export/geojson`
+- `POST /api/compute/export/dxf` (TypeScript-only: uses `dxf-writer`)
+- `POST /api/compute/export/geojson` (TypeScript-only)
 
 ### Backward compatibility
 
 Existing `/api/python/*` endpoints re-export the corresponding `/api/compute/*` handlers.
-

@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { riseAndFall, heightOfCollimation } from '@/lib/engine/leveling';
+import type { LevelingInput } from '@/lib/engine/leveling'
 import type { LevelingReading } from '@/lib/engine/types';
+import SolutionRenderer from '@/components/SolutionRenderer'
+import type { Solution } from '@/lib/solution/schema'
+import { levelingSolution } from '@/lib/solution/wrappers/leveling'
 
 interface Reading {
   id: number;
@@ -23,6 +27,7 @@ export default function LevelingCalculator() {
     { id: 4, station: '4', bs: '', fs: '1.789' },
   ]);
   const [result, setResult] = useState<any>(null);
+  const [solution, setSolution] = useState<Solution | null>(null)
   const [showProfile, setShowProfile] = useState(false);
 
   const addReading = () => {
@@ -44,9 +49,12 @@ export default function LevelingCalculator() {
       fs: r.fs ? parseFloat(r.fs) : undefined
     }));
 
-    const r = method === 'rf'
-      ? riseAndFall({ readings: obs, openingRL, closingRL: closing, method: 'rise_and_fall', distanceKm: parseFloat(distanceKm) || 1 })
-      : heightOfCollimation({ readings: obs, openingRL, method: 'height_of_collimation', distanceKm: parseFloat(distanceKm) || 1 });
+    const levelingInput: LevelingInput =
+      method === 'rf'
+        ? { readings: obs, openingRL, closingRL: closing, method: 'rise_and_fall', distanceKm: parseFloat(distanceKm) || 1 }
+        : { readings: obs, openingRL, closingRL: closing, method: 'height_of_collimation', distanceKm: parseFloat(distanceKm) || 1 }
+
+    const r = method === 'rf' ? riseAndFall(levelingInput) : heightOfCollimation(levelingInput);
 
     // BLOCK RESULTS if arithmetic check fails (Basak rule)
     if (!r.arithmeticCheck) {
@@ -55,6 +63,7 @@ export default function LevelingCalculator() {
     }
 
     setResult(r);
+    setSolution(levelingSolution(levelingInput, r))
   };
 
   return (
@@ -187,6 +196,12 @@ export default function LevelingCalculator() {
               )}
             </div>
           </div>
+
+          {solution ? (
+            <div className="md:col-span-2">
+              <SolutionRenderer solution={solution} />
+            </div>
+          ) : null}
 
           {result && result.readings.length > 0 && (
             <div className="mt-4">

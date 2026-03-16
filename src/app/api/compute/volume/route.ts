@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-import { cutFillVolumeFromSignedSections, volumeFromSections } from '@/lib/engine/volume'
-import { callPythonCompute } from '@/lib/compute/pythonService'
+import { cutFillVolumeFromSignedSections, surfaceCutFillVolumeGrid, volumeFromSections } from '@/lib/engine/volume'
 
 const crossSectionSchema = z.object({
   kind: z.literal('cross_section'),
@@ -19,8 +18,16 @@ const crossSectionSchema = z.object({
 
 const surfaceSchema = z.object({
   kind: z.literal('surface'),
-  // payload is forwarded to python (TIN/GRID comparisons, etc.)
-  payload: z.record(z.any()),
+  method: z.literal('grid_idw').default('grid_idw'),
+  gridSpacing: z.number().positive(),
+  power: z.number().positive().optional(),
+  maxDistance: z.number().positive().optional(),
+  existing: z
+    .array(z.object({ easting: z.number(), northing: z.number(), elevation: z.number() }))
+    .min(3),
+  design: z
+    .array(z.object({ easting: z.number(), northing: z.number(), elevation: z.number() }))
+    .min(3),
 })
 
 const requestSchema = z.union([crossSectionSchema, surfaceSchema])
@@ -57,21 +64,29 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const python = await callPythonCompute<any>('/surface/volume', input.payload, { timeoutMs: 15000 })
-  if (!python.ok) {
-    return NextResponse.json(
-      { error: python.error, fallback: python.fallback ?? true, details: python.details, python_required: true },
-      { status: python.status }
-    )
-  }
-  return NextResponse.json(python.value)
+  const r = surfaceCutFillVolumeGrid({
+    existing: input.existing,
+    design: input.design,
+    gridSpacing: input.gridSpacing,
+    power: input.power,
+    maxDistance: input.maxDistance,
+  })
+  return NextResponse.json({
+    kind: 'surface',
+    method: r.method,
+    cutVolume: r.cutVolume,
+    fillVolume: r.fillVolume,
+    netVolume: r.netVolume,
+    cellCount: r.cellCount,
+    bbox: r.bbox,
+    warnings: r.warnings,
+  })
 }
 
 export async function GET() {
   return NextResponse.json({
     endpoint: '/api/compute/volume',
-    description: 'Volume computation: TS cross-sections, optional Python surface cut/fill.',
-    python_optional: true,
+    description: 'Volume computation (TypeScript-only): cross-sections and surface cut/fill by grid method.',
+    python_optional: false,
   })
 }
-

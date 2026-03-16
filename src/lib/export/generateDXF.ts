@@ -1,11 +1,16 @@
 /**
- * DXF Export Generator
- * Generates DXF files from survey data for CAD import
- * 
- * GeoNova Calculation Standards: N.N. Basak
- * - Full floating point precision in calculations
- * - Round only at display/export layer
+ * DXF Export Generator (TypeScript-only)
+ *
+ * Blueprint alignment:
+ * - Core exports must not depend on Python services.
+ * - Uses the installed `dxf-writer` dependency to produce CAD-ready DXF.
+ *
+ * Notes:
+ * - Coordinates are exported in the project CRS (typically UTM metres).
+ * - No intermediate rounding is performed in calculations; DXF writer receives full JS float values.
  */
+
+import Drawing from 'dxf-writer'
 
 export interface SurveyPoint {
   name: string
@@ -31,348 +36,55 @@ export interface DXFExportOptions {
   includeElevations?: boolean
 }
 
-function escapeDxfString(str: string): string {
-  return str.replace(/[{}\\]/g, '\\$1')
-}
-
 export function generateDXF(options: DXFExportOptions): string {
-  const { 
-    points, 
-    traverseLegs = [], 
-    includeElevations = true 
-  } = options
+  const { points, traverseLegs = [], includeElevations = true } = options
 
-  let dxf = `  0
-SECTION
-  2
-HEADER
-  9
-$ACADVER
-  1
-AC1015
-  9
-$INSUNITS
- 70
-6
-  0
-ENDSEC
-  0
-SECTION
-  2
-TABLES
-  0
-TABLE
-  2
-LTYPE
- 70
-3
-  0
-LTYPE
-  2
-CONTINUOUS
- 70
-0
-  3
-Solid line
- 72
-65
- 73
-0
- 40
-0.0
-  0
-LTYPE
-  2
-DASHED
- 70
-0
-  3
-Dashed
- 72
-65
- 73
-2
- 40
-2.0
- 49
--1.0
- 49
-0.5
-  0
-LTYPE
-  2
-DOTTED
- 70
-0
-  3
-Dotted
- 72
-65
- 73
-2
- 40
-1.0
- 49
--0.5
- 49
-0.25
-  0
-  0
-ENDTAB
-  0
-TABLE
-  2
-LAYER
- 70
-6
-  0
-LAYER
-  2
-CONTROL_POINTS
- 70
-0
- 62
-1
-  6
-CONTINUOUS
-  0
-LAYER
-  2
-SURVEY_POINTS
- 70
-0
- 62
-7
-  6
-CONTINUOUS
-  0
-LAYER
-  2
-TRAVERSE_LINES
- 70
-0
- 62
-5
-  6
-CONTINUOUS
-  0
-LAYER
-  2
-POINT_LABELS
- 70
-0
- 62
-7
-  6
-CONTINUOUS
-  0
-LAYER
-  2
-ELEVATIONS
- 70
-0
- 62
-3
-  6
-CONTINUOUS
-  0
-  0
-ENDTAB
-  0
-ENDSEC
-  0
-SECTION
-  2
-ENTITIES
-`
+  const drawing = new Drawing()
+  drawing.setUnits('Meters')
 
-  const controlPoints = points.filter(p => p.is_control)
-  const surveyPoints = points.filter(p => !p.is_control)
+  drawing.addLineType('DASHED', 'Dashed', [-1.0, 0.5])
+  drawing.addLineType('DOTTED', 'Dotted', [-0.5, 0.25])
 
-  for (const pt of controlPoints) {
-    dxf += drawPointMarker(pt, 'CONTROL_POINTS')
-    dxf += addPointLabel(pt, 'POINT_LABELS')
-    if (includeElevations && pt.elevation !== undefined) {
-      dxf += addElevationLabel(pt, 'ELEVATIONS')
+  drawing.addLayer('POINTS_CONTROL', Drawing.ACI.RED, 'CONTINUOUS')
+  drawing.addLayer('POINTS_SURVEY', Drawing.ACI.YELLOW, 'CONTINUOUS')
+  drawing.addLayer('TRAVERSE', Drawing.ACI.CYAN, 'CONTINUOUS')
+  drawing.addLayer('LABELS', Drawing.ACI.WHITE, 'CONTINUOUS')
+
+  const byName = new Map(points.map(p => [p.name, p] as const))
+
+  // Points + labels
+  for (const p of points) {
+    drawing.setActiveLayer(p.is_control ? 'POINTS_CONTROL' : 'POINTS_SURVEY')
+    drawing.drawPoint(p.easting, p.northing)
+
+    drawing.setActiveLayer('LABELS')
+    const label =
+      includeElevations && typeof p.elevation === 'number' ? `${p.name} (${p.elevation})` : p.name
+    drawing.drawText(p.easting + 0.5, p.northing + 0.5, 1.5, 0, label)
+  }
+
+  // Traverse lines (if coordinates can be resolved)
+  if (traverseLegs.length > 0) {
+    drawing.setActiveLayer('TRAVERSE')
+    for (const leg of traverseLegs) {
+      const from = byName.get(leg.from)
+      const to = byName.get(leg.to)
+      if (!from || !to) continue
+      drawing.drawLine(from.easting, from.northing, to.easting, to.northing)
     }
   }
 
-  for (const pt of surveyPoints) {
-    dxf += drawPointMarker(pt, 'SURVEY_POINTS')
-    dxf += addPointLabel(pt, 'POINT_LABELS')
-    if (includeElevations && pt.elevation !== undefined) {
-      dxf += addElevationLabel(pt, 'ELEVATIONS')
-    }
-  }
-
-  for (const leg of traverseLegs) {
-    if (leg.adjEasting !== undefined && leg.adjNorthing !== undefined) {
-      const fromPoint = points.find(p => p.name === leg.from)
-      const toPoint = points.find(p => p.name === leg.to)
-      
-      if (fromPoint && toPoint) {
-        dxf += `  0
-LINE
-  8
-TRAVERSE_LINES
- 10
-${fromPoint.easting.toFixed(6)}
- 20
-${fromPoint.northing.toFixed(6)}
- 30
-0.0
- 11
-${toPoint.easting.toFixed(6)}
- 21
-${toPoint.northing.toFixed(6)}
- 31
-0.0
-`
-      }
-    }
-  }
-
-  dxf += `  0
-ENDSEC
-  0
-EOF
-`
-
-  return dxf
-}
-
-function drawPointMarker(pt: SurveyPoint, layer: string): string {
-  const size = 0.5
-
-  return `  0
-POLYLINE
-  8
-${layer}
- 66
-1
- 70
-0
-  0
-VERTEX
-  8
-${layer}
- 10
-${(pt.easting - size).toFixed(6)}
- 20
-${pt.northing.toFixed(6)}
- 30
-0.0
-  0
-VERTEX
-  8
-${layer}
- 10
-${(pt.easting + size).toFixed(6)}
- 20
-${pt.northing.toFixed(6)}
- 30
-0.0
-  0
-VERTEX
-  8
-${layer}
- 10
-${pt.easting.toFixed(6)}
- 20
-${(pt.northing - size).toFixed(6)}
- 30
-0.0
-  0
-VERTEX
-  8
-${layer}
- 10
-${pt.easting.toFixed(6)}
- 20
-${(pt.northing + size).toFixed(6)}
- 30
-0.0
-  0
-SEQEND
-  8
-${layer}
-  0
-CIRCLE
-  8
-${layer}
- 10
-${pt.easting.toFixed(6)}
- 20
-${pt.northing.toFixed(6)}
- 30
-0.0
- 40
-${(size * 0.3).toFixed(6)}
-`
-}
-
-function addPointLabel(pt: SurveyPoint, layer: string): string {
-  return `  0
-TEXT
-  8
-${layer}
- 10
-${(pt.easting + 1).toFixed(6)}
- 20
-${(pt.northing + 1).toFixed(6)}
- 30
-0.0
- 40
-1.0
-  1
-${escapeDxfString(pt.name)}
- 72
-1
- 11
-${(pt.easting + 1).toFixed(6)}
- 21
-${(pt.northing + 1).toFixed(6)}
- 31
-0.0
-`
-}
-
-function addElevationLabel(pt: SurveyPoint, layer: string): string {
-  if (pt.elevation === undefined) return ''
-  
-  return `  0
-TEXT
-  8
-${layer}
- 10
-${(pt.easting + 1).toFixed(6)}
- 20
-${(pt.northing - 1).toFixed(6)}
- 30
-0.0
- 40
-0.8
-  1
-RL:${pt.elevation.toFixed(3)}
- 72
-1
- 11
-${(pt.easting + 1).toFixed(6)}
- 21
-${(pt.northing - 1).toFixed(6)}
- 31
-0.0
-`
+  return drawing.toDxfString()
 }
 
 export function downloadDXF(options: DXFExportOptions): void {
   const dxfString = generateDXF(options)
   const blob = new Blob([dxfString], { type: 'application/dxf' })
   const url = URL.createObjectURL(blob)
-  
+
   const date = new Date().toISOString().split('T')[0]
-  const filename = `${options.projectName.replace(/\s+/g, '_')}_${date}.dxf`
-  
+  const filename = `${options.projectName.replace(/\\s+/g, '_')}_${date}.dxf`
+
   const a = document.createElement('a')
   a.href = url
   a.download = filename
@@ -397,13 +109,15 @@ export function generateDXFFromProject(
   return generateDXF({
     projectName,
     points,
-    traverseLegs: traverseResult?.legs.map(l => ({
-      from: l.from,
-      to: l.to,
-      distance: 0,
-      bearing: 0,
-      adjEasting: l.adjEasting,
-      adjNorthing: l.adjNorthing
-    })) || []
+    traverseLegs:
+      traverseResult?.legs.map(l => ({
+        from: l.from,
+        to: l.to,
+        distance: 0,
+        bearing: 0,
+        adjEasting: l.adjEasting,
+        adjNorthing: l.adjNorthing,
+      })) || [],
   })
 }
+

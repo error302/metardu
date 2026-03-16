@@ -10,7 +10,8 @@
  *
  * Notes:
  * - This module covers cross-section area vs chainage volumes (deterministic, offline-safe).
- * - Surface-to-surface cut/fill (TIN/DEM) belongs in the Python compute layer.
+ * - Surface-to-surface cut/fill can be computed deterministically in TS (e.g., grid method).
+ * - Advanced terrain modelling (full TIN/DEM ops, large datasets) can use the optional Python layer.
  */
 
 export type VolumeMethod = 'end_area' | 'prismoidal'
@@ -41,6 +42,32 @@ export interface CutFillVolumeResult {
   fillVolume: number
   netVolume: number
   segments: VolumeSegment[]
+}
+
+export type SurfacePoint = {
+  easting: number
+  northing: number
+  elevation: number
+}
+
+export interface SurfaceVolumeGridInput {
+  existing: SurfacePoint[]
+  design: SurfacePoint[]
+  gridSpacing: number // metres
+  /** IDW power, default 2 */
+  power?: number
+  /** Max influence radius (m). If not provided, uses 3×gridSpacing. */
+  maxDistance?: number
+}
+
+export interface SurfaceVolumeGridResult {
+  method: 'grid_idw'
+  cutVolume: number
+  fillVolume: number
+  netVolume: number
+  cellCount: number
+  bbox: { minE: number; minN: number; maxE: number; maxN: number }
+  warnings: string[]
 }
 
 function sortByChainage(sections: VolumeSection[]): VolumeSection[] {
@@ -112,4 +139,127 @@ export function cutFillVolumeFromSignedSections(sections: VolumeSection[]): CutF
   }
 
   return { cutVolume, fillVolume, netVolume: cutVolume - fillVolume, segments }
+}
+
+function bboxOf(points: SurfacePoint[]) {
+  let minE = Infinity
+  let minN = Infinity
+  let maxE = -Infinity
+  let maxN = -Infinity
+  for (const p of points) {
+    if (p.easting < minE) minE = p.easting
+    if (p.northing < minN) minN = p.northing
+    if (p.easting > maxE) maxE = p.easting
+    if (p.northing > maxN) maxN = p.northing
+  }
+  return { minE, minN, maxE, maxN }
+}
+
+function clampBboxIntersection(a: ReturnType<typeof bboxOf>, b: ReturnType<typeof bboxOf>) {
+  const minE = Math.max(a.minE, b.minE)
+  const minN = Math.max(a.minN, b.minN)
+  const maxE = Math.min(a.maxE, b.maxE)
+  const maxN = Math.min(a.maxN, b.maxN)
+  return { minE, minN, maxE, maxN }
+}
+
+function idwZ(points: SurfacePoint[], x: number, y: number, power: number, maxDist: number): number | null {
+  let wSum = 0
+  let wzSum = 0
+  let nearestD2 = Infinity
+  let nearestZ = 0
+
+  const maxD2 = maxDist * maxDist
+  for (const p of points) {
+    const dx = p.easting - x
+    const dy = p.northing - y
+    const d2 = dx * dx + dy * dy
+    if (d2 === 0) return p.elevation
+    if (d2 < nearestD2) {
+      nearestD2 = d2
+      nearestZ = p.elevation
+    }
+    if (d2 > maxD2) continue
+    const d = Math.sqrt(d2)
+    const w = 1 / Math.pow(d, power)
+    wSum += w
+    wzSum += w * p.elevation
+  }
+
+  if (wSum > 0) return wzSum / wSum
+  if (nearestD2 < Infinity) return nearestZ
+  return null
+}
+
+/**
+ * Surface cut/fill by deterministic grid method:
+ * - Interpolate both surfaces to grid cell centres (IDW)
+ * - Integrate (existing - design) over area
+ *
+ * Convention:
+ * - cut where existing > design
+ * - fill where design > existing
+ */
+export function surfaceCutFillVolumeGrid(input: SurfaceVolumeGridInput): SurfaceVolumeGridResult {
+  const warnings: string[] = []
+  const spacing = input.gridSpacing
+  if (!(spacing > 0)) {
+    throw new Error('gridSpacing must be > 0')
+  }
+  if (input.existing.length < 3 || input.design.length < 3) {
+    throw new Error('Both existing and design surfaces require at least 3 points.')
+  }
+
+  const power = input.power ?? 2
+  const maxDist = input.maxDistance ?? spacing * 3
+  const a = bboxOf(input.existing)
+  const b = bboxOf(input.design)
+  const bbox = clampBboxIntersection(a, b)
+
+  if (!(bbox.maxE > bbox.minE) || !(bbox.maxN > bbox.minN)) {
+    throw new Error('Surface extents do not overlap.')
+  }
+
+  // Snap to grid.
+  const startE = Math.ceil(bbox.minE / spacing) * spacing
+  const startN = Math.ceil(bbox.minN / spacing) * spacing
+  const endE = Math.floor(bbox.maxE / spacing) * spacing
+  const endN = Math.floor(bbox.maxN / spacing) * spacing
+
+  const cellArea = spacing * spacing
+  let cut = 0
+  let fill = 0
+  let cellCount = 0
+  let missing = 0
+
+  for (let e = startE; e <= endE; e += spacing) {
+    for (let n = startN; n <= endN; n += spacing) {
+      // Cell centre
+      const x = e + spacing / 2
+      const y = n + spacing / 2
+      const zExisting = idwZ(input.existing, x, y, power, maxDist)
+      const zDesign = idwZ(input.design, x, y, power, maxDist)
+      if (zExisting === null || zDesign === null) {
+        missing++
+        continue
+      }
+      const diff = zExisting - zDesign
+      if (diff > 0) cut += diff * cellArea
+      else if (diff < 0) fill += -diff * cellArea
+      cellCount++
+    }
+  }
+
+  if (cellCount === 0) throw new Error('No grid cells could be evaluated for volume.')
+  if (missing > 0) warnings.push(`Skipped ${missing} grid cell(s) due to missing interpolation support.`)
+
+  return {
+    method: 'grid_idw',
+    cutVolume: cut,
+    fillVolume: fill,
+    netVolume: cut - fill,
+    cellCount,
+    bbox: { minE: bbox.minE, minN: bbox.minN, maxE: bbox.maxE, maxN: bbox.maxN },
+    warnings,
+  }
 }

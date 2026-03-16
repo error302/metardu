@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { distanceBearing } from '@/lib/engine/distance';
-import { decimalToDMS } from '@/lib/engine/angles';
+import SolutionRenderer from '@/components/SolutionRenderer'
+import type { Solution } from '@/lib/solution/schema'
+import { chainageTableSolution, computeChainageTable, reverseChainageSolution } from '@/lib/solution/wrappers/chainage'
 
 interface AlignmentPoint {
   id: string;
@@ -31,6 +32,8 @@ export default function ChainageCalculator() {
   const [reverseChainage, setReverseChainage] = useState('');
   const [reverseResult, setReverseResult] = useState<{ easting: number; northing: number } | null>(null);
   const [results, setResults] = useState<ChainageResult[]>([]);
+  const [solution, setSolution] = useState<Solution | null>(null)
+  const [reverseSolutionState, setReverseSolutionState] = useState<Solution | null>(null)
 
   const addPoint = () => {
     const newId = Date.now().toString();
@@ -59,95 +62,29 @@ export default function ChainageCalculator() {
 
     if (isNaN(startE) || isNaN(startN)) return;
 
-    const computedResults: ChainageResult[] = [];
-    let totalChainage = startCh;
-    let prevE = startE;
-    let prevN = startN;
+    const alignment = alignmentPoints
+      .map(p => ({ name: p.name, easting: parseFloat(p.easting), northing: parseFloat(p.northing) }))
+      .filter(p => !isNaN(p.easting) && !isNaN(p.northing))
 
-    computedResults.push({
-      pointName: 'START',
-      easting: startE,
-      northing: startN,
-      chainage: startCh,
-      distance: 0
-    });
+    const table = computeChainageTable({
+      start: { easting: startE, northing: startN },
+      startChainage: startCh,
+      alignment,
+    })
 
-    alignmentPoints.forEach((point) => {
-      const e = parseFloat(point.easting);
-      const n = parseFloat(point.northing);
-
-      if (!isNaN(e) && !isNaN(n)) {
-        const dist = distanceBearing({ easting: prevE, northing: prevN }, { easting: e, northing: n });
-        totalChainage += dist.distance;
-
-        computedResults.push({
-          pointName: point.name,
-          easting: e,
-          northing: n,
-          chainage: totalChainage,
-          distance: dist.distance
-        });
-
-        prevE = e;
-        prevN = n;
-      }
-    });
-
-    setResults(computedResults);
+    setResults(table)
+    setSolution(chainageTableSolution({ startChainage: startCh, start: { easting: startE, northing: startN }, alignmentCount: alignment.length, table }))
+    setReverseResult(null)
+    setReverseSolutionState(null)
   };
 
   const calculateReverse = () => {
     const targetCh = parseFloat(reverseChainage);
     if (isNaN(targetCh) || results.length === 0) return;
 
-    const startE = parseFloat(startStation.easting);
-    const startN = parseFloat(startStation.northing);
-    const startCh = parseFloat(startChainage) || 0;
-
-    let currentCh = startCh;
-    let prevE = startE;
-    let prevN = startN;
-
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      const segmentStart = i === 0 ? startCh : results[i - 1].chainage;
-      const segmentEnd = result.chainage;
-
-      if (targetCh <= segmentEnd) {
-        const segmentLength = segmentEnd - segmentStart;
-        const ratio = segmentLength > 0 ? (targetCh - segmentStart) / segmentLength : 0;
-        
-        if (i === 0) {
-          const dist = distanceBearing({ easting: startE, northing: startN }, { easting: result.easting, northing: result.northing });
-          const r = dist.distance > 0 ? (targetCh - startCh) / dist.distance : 0;
-          setReverseResult({
-            easting: startE + r * (result.easting - startE),
-            northing: startN + r * (result.northing - startN)
-          });
-        } else {
-          const prevResult = results[i - 1];
-          const dist = distanceBearing(prevResult, result);
-          const ratio = dist.distance > 0 ? (targetCh - prevResult.chainage) / dist.distance : 0;
-          setReverseResult({
-            easting: prevResult.easting + ratio * (result.easting - prevResult.easting),
-            northing: prevResult.northing + ratio * (result.northing - prevResult.northing)
-          });
-        }
-        return;
-      }
-    }
-
-    const lastResult = results[results.length - 1];
-    const secondLast = results[results.length - 2];
-    if (secondLast && targetCh > lastResult.chainage) {
-      const dist = distanceBearing(secondLast, lastResult);
-      const extra = targetCh - lastResult.chainage;
-      const ratio = dist.distance > 0 ? extra / dist.distance : 0;
-      setReverseResult({
-        easting: lastResult.easting + ratio * (lastResult.easting - secondLast.easting),
-        northing: lastResult.northing + ratio * (lastResult.northing - secondLast.northing)
-      });
-    }
+    const r = reverseChainageSolution({ targetChainage: targetCh, table: results })
+    setReverseResult(r.point)
+    setReverseSolutionState(r.solution)
   };
 
   const formatChainage = (value: number): string => {
@@ -219,12 +156,22 @@ export default function ChainageCalculator() {
                   <p className="font-mono text-gray-200">N: {reverseResult.northing.toFixed(4)} m</p>
                 </div>
               )}
+              {reverseSolutionState ? (
+                <div className="mt-4">
+                  <SolutionRenderer solution={reverseSolutionState} />
+                </div>
+              ) : null}
             </div>
           )}
         </div>
 
         {results.length > 0 && (
           <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+            {solution ? (
+              <div className="mb-6">
+                <SolutionRenderer solution={solution} />
+              </div>
+            ) : null}
             <h3 className="font-semibold text-gray-200 mb-4">Chainage Table</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

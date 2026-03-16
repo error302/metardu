@@ -1,6 +1,8 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { bearingToString } from '../engine/angles'
+import type { Solution } from '@/lib/solution/schema'
+import { appendSolutionToPdf } from '@/lib/reports/solutionToPdf'
 
 interface ReportOptions {
   project: {
@@ -44,10 +46,11 @@ interface ReportOptions {
     acres: number
     perimeter: number
   }
+  solutions?: Solution[]
 }
 
 export function generateSurveyReport(options: ReportOptions, onBlob?: (blob: Blob, filename: string) => void): void {
-  const { project, points, traverse, area } = options
+  const { project, points, traverse, area, solutions } = options
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   
   const amber = [232, 132, 26] as [number, number, number]
@@ -230,6 +233,23 @@ export function generateSurveyReport(options: ReportOptions, onBlob?: (blob: Blo
     doc.setFont('helvetica', 'bold')
     doc.text(`Perimeter: ${area.perimeter.toFixed(4)} m`, 110, yPos + 15)
     yPos += 36
+  }
+
+  if (solutions && solutions.length > 0) {
+    if (yPos > 220) {
+      doc.addPage()
+      yPos = 20
+    }
+
+    doc.setTextColor(...dark)
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('CALCULATION WORKINGS', 15, yPos)
+    yPos += 6
+
+    for (const s of solutions) {
+      yPos = appendSolutionToPdf(doc, s, yPos)
+    }
   }
 
   const pageCount = doc.getNumberOfPages()

@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import SolutionRenderer from '@/components/SolutionRenderer'
+import type { Solution } from '@/lib/solution/schema'
+import { twoPegTestSolution } from '@/lib/solution/wrappers/twoPegTest'
 
 export default function TwoPegTestCalculator() {
   const [inputs, setInputs] = useState({
@@ -9,7 +12,7 @@ export default function TwoPegTestCalculator() {
     a2: '',  // Staff at A from position 2
     b2: ''   // Staff at B from position 2
   });
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<Solution | null>(null);
 
   const calculate = () => {
     const A1 = parseFloat(inputs.a1);
@@ -19,40 +22,7 @@ export default function TwoPegTestCalculator() {
 
     if (isNaN(A1) || isNaN(B1) || isNaN(A2) || isNaN(B2)) return;
 
-    // True difference in elevation (average of both setups)
-    const trueDiff = ((A1 - B1) + (A2 - B2)) / 2;
-    
-    // Observed differences
-    const obsDiff1 = A1 - B1;
-    const obsDiff2 = A2 - B2;
-    
-    // Collimation error (difference between observed and true)
-    const collimationError = (obsDiff1 - obsDiff2) / 2;
-    
-    // Collimation error per 100m (assuming 100m baseline)
-    const collimationPer100m = collimationError * 100 / 100; // per 100m
-    
-    // Pass/Fail based on acceptable error (typically 10mm per 100m)
-    const acceptableError = 0.010; // 10mm per 100m
-    const isPass = Math.abs(collimationPer100m) <= acceptableError;
-
-    setResult({
-      trueDiff,
-      obsDiff1,
-      obsDiff2,
-      collimationError,
-      collimationPer100m,
-      isPass,
-      formula: 'Error = (Obs₁ - Obs₂) / 2',
-      substitution: `Error = (${obsDiff1.toFixed(4)} - ${obsDiff2.toFixed(4)}) / 2`,
-      steps: [
-        `Setup 1: A - B = ${A1.toFixed(4)} - ${B1.toFixed(4)} = ${obsDiff1.toFixed(4)} m`,
-        `Setup 2: A - B = ${A2.toFixed(4)} - ${B2.toFixed(4)} = ${obsDiff2.toFixed(4)} m`,
-        `True diff = (${obsDiff1.toFixed(4)} + ${obsDiff2.toFixed(4)}) / 2 = ${trueDiff.toFixed(4)} m`,
-        `Collimation error = (${obsDiff1.toFixed(4)} - ${obsDiff2.toFixed(4)}) / 2 = ${collimationError.toFixed(4)} m`,
-        `Error per 100m = ${collimationError.toFixed(4)} × 100 / 100 = ${(collimationPer100m * 1000).toFixed(2)} mm/100m`
-      ]
-    });
+    setResult(twoPegTestSolution({ A1, B1, A2, B2 }));
   };
 
   return (
@@ -94,39 +64,7 @@ export default function TwoPegTestCalculator() {
           </div>
         </div>
 
-        {result && (
-          <div className="card">
-            <div className="card-header"><span className="label">Results</span></div>
-            <div className="card-body space-y-4">
-              <div className={`p-4 rounded text-center ${result.isPass ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'}`}>
-                <div className="text-sm text-gray-400 mb-2">Instrument Status</div>
-                <div className={`text-3xl font-bold ${result.isPass ? 'text-green-400' : 'text-red-400'}`}>
-                  {result.isPass ? '✓ PASS' : '✗ FAIL'}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-800 p-3 rounded">
-                  <div className="text-xs text-gray-400">True Elevation Diff</div>
-                  <div className="font-mono text-[var(--accent)]">{result.trueDiff.toFixed(4)} m</div>
-                </div>
-                <div className="bg-gray-800 p-3 rounded">
-                  <div className="text-xs text-gray-400">Collimation Error</div>
-                  <div className="font-mono text-[var(--accent)]">{(result.collimationPer100m * 1000).toFixed(2)} mm/100m</div>
-                </div>
-              </div>
-              <div className="text-xs text-gray-400">
-                <div>Setup 1 diff: {result.obsDiff1.toFixed(4)} m</div>
-                <div>Setup 2 diff: {result.obsDiff2.toFixed(4)} m</div>
-              </div>
-              <div className="border-t border-gray-700 pt-4">
-                <div className="text-xs text-gray-500 mb-2">{result.formula}</div>
-                {result.steps.map((step: string, i: number) => (
-                  <div key={i} className="text-xs font-mono text-gray-400">{step}</div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        {result ? <SolutionRenderer solution={result} /> : null}
       </div>
     </div>
   );

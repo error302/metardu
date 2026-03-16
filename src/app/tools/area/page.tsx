@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { coordinateArea, trapezoidalArea, simpsonsArea } from '@/lib/engine/area';
 import { Point2D } from '@/lib/engine/types';
+import SolutionRenderer from '@/components/SolutionRenderer';
+import type { Solution } from '@/lib/solution/schema';
+import { coordinateAreaSolution, offsetAreaSolution } from '@/lib/solution/wrappers/area';
 
 interface PointInput {
   id: number;
@@ -20,7 +22,7 @@ export default function AreaCalculator() {
   const [method, setMethod] = useState<'coordinate' | 'trapezoidal' | 'simpsons'>('coordinate');
   const [offsets, setOffsets] = useState('10, 15, 18, 22, 20, 16');
   const [interval, setInterval] = useState('20');
-  const [result, setResult] = useState<any>(null);
+  const [solution, setSolution] = useState<Solution | null>(null);
 
   const addPoint = () => {
     setPoints([...points, { id: Date.now(), n: '', e: '' }]);
@@ -43,21 +45,14 @@ export default function AreaCalculator() {
         .filter(p => !isNaN(p.northing) && !isNaN(p.easting));
       
       if (pts.length >= 3) {
-        const r = coordinateArea(pts);
-        setResult(r);
+        const out = coordinateAreaSolution(pts)
+        setSolution(out.solution)
       }
     } else {
       const ord = offsets.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
       const int = parseFloat(interval);
-      
-      let r;
-      if (method === 'trapezoidal') {
-        r = trapezoidalArea(ord, int);
-      } else {
-        r = simpsonsArea(ord, int);
-      }
-      r.method = method === 'trapezoidal' ? 'Trapezoidal Rule' : "Simpson's Rule";
-      setResult(r);
+      const out = offsetAreaSolution({ ordinates: ord, interval: int, method: method === 'trapezoidal' ? 'trapezoidal' : 'simpsons' })
+      setSolution(out.solution)
     }
   };
 
@@ -68,19 +63,19 @@ export default function AreaCalculator() {
 
       <div className="flex gap-4 mb-6 flex-wrap">
         <button 
-          onClick={() => { setMethod('coordinate'); setResult(null); }}
+          onClick={() => { setMethod('coordinate'); setSolution(null); }}
           className={`btn ${method === 'coordinate' ? 'btn-primary' : 'btn-secondary'}`}
         >
           Coordinate Method
         </button>
         <button 
-          onClick={() => { setMethod('trapezoidal'); setResult(null); }}
+          onClick={() => { setMethod('trapezoidal'); setSolution(null); }}
           className={`btn ${method === 'trapezoidal' ? 'btn-primary' : 'btn-secondary'}`}
         >
           Trapezoidal
         </button>
         <button 
-          onClick={() => { setMethod('simpsons'); setResult(null); }}
+          onClick={() => { setMethod('simpsons'); setSolution(null); }}
           className={`btn ${method === 'simpsons' ? 'btn-primary' : 'btn-secondary'}`}
         >
           Simpson's Rule
@@ -142,54 +137,10 @@ export default function AreaCalculator() {
           </button>
         </div>
 
-        {result && (
-          <div className="space-y-6">
-            <div className="card">
-              <div className="card-header">
-                <span className="label">Results — {result.method}</span>
-              </div>
-              <div className="card-body">
-                <div className="text-center py-6">
-                  <div className="text-5xl font-bold result-accent mb-2">
-                    {result.areaSqm.toFixed(4)}
-                  </div>
-                  <div className="text-sm text-[var(--text-muted)]">Square Metres (m²)</div>
-                </div>
-                <div className="space-y-3 mt-6">
-                  <ResultRow label="Area (m²)" value={result.areaSqm.toFixed(4)} />
-                  <ResultRow label="Area (ha)" value={result.areaHa.toFixed(6)} />
-                  <ResultRow label="Area (acres)" value={result.areaAcres.toFixed(4)} />
-                  {result.perimeter > 0 && <ResultRow label="Perimeter (m)" value={result.perimeter.toFixed(4)} />}
-                  {result.centroid && (
-                    <ResultRow label="Centroid" value={`E: ${result.centroid.easting.toFixed(2)}, N: ${result.centroid.northing.toFixed(2)}`} />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="working-box">
-              <h4 className="text-sm font-semibold mb-3" style={{ color: 'var(--accent)' }}>Working — {result.method}</h4>
-              <div className="working-step">
-                <div className="text-[var(--text-muted)]">Formula:</div>
-                <div className="working-formula">A = 0.5 × |Σ(EᵢNᵢ₊₁ − Eᵢ₊₁Nᵢ)|</div>
-              </div>
-              <div className="working-step">
-                <div className="text-[var(--text-muted)]">Check:</div>
-                <div className="working-formula">Clockwise order gives negative area — using absolute value</div>
-              </div>
-            </div>
-          </div>
-        )}
+        {solution ? <SolutionRenderer solution={solution} /> : null}
       </div>
     </div>
   );
 }
 
-function ResultRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between items-center py-2 border-b border-[var(--border-color)]">
-      <span className="text-sm text-[var(--text-secondary)]">{label}</span>
-      <span className="font-mono">{value}</span>
-    </div>
-  );
-}
+ 

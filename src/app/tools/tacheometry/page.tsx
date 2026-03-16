@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { dmsToDecimal } from '@/lib/engine/angles';
+import SolutionRenderer from '@/components/SolutionRenderer'
+import type { Solution } from '@/lib/solution/schema'
+import { tacheometrySolution } from '@/lib/solution/wrappers/tacheometry'
 
 export default function TacheometryCalculator() {
   const [inputs, setInputs] = useState({
@@ -15,59 +17,33 @@ export default function TacheometryCalculator() {
     k: '100',         // multiplying constant
     c: '0'            // additive constant
   });
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<Solution | null>(null);
 
   const calculate = () => {
     const HI = parseFloat(inputs.hi);
     const upper = parseFloat(inputs.upper);
     const middle = parseFloat(inputs.middle);
     const lower = parseFloat(inputs.lower);
-    const vertAngle = dmsToDecimal({ 
-      degrees: parseInt(inputs.vertDeg) || 0, 
-      minutes: parseInt(inputs.vertMin) || 0, 
-      seconds: parseFloat(inputs.vertSec) || 0,
-      direction: 'N'
-    });
     const K = parseFloat(inputs.k) || 100;
     const C = parseFloat(inputs.c) || 0;
 
-    if (isNaN(HI) || isNaN(upper) || isNaN(middle) || isNaN(lower) || isNaN(vertAngle)) return;
+    const deg = parseFloat(inputs.vertDeg) || 0
+    const min = parseFloat(inputs.vertMin) || 0
+    const sec = parseFloat(inputs.vertSec) || 0
 
-    const S = upper - lower; // staff intercept
-    const rad = vertAngle * Math.PI / 180;
+    if (isNaN(HI) || isNaN(upper) || isNaN(middle) || isNaN(lower)) return;
 
-    // Tacheometry formulas
-    const horizDist = K * S * Math.pow(Math.cos(rad), 2) + C;
-    const vertDist = 0.5 * K * S * Math.sin(2 * rad);
-    const elevOfStaff = HI + vertDist - middle;
-
-    setResult({
-      S,
-      vertAngle,
-      horizDist,
-      vertDist,
-      elevOfStaff,
-      HI,
-      middle,
-      formulas: {
-        horiz: 'D = K×S×cos²(θ)',
-        vert: 'V = ½K×S×sin(2θ)',
-        elev: 'RL = HI + V - middle'
-      },
-      substitution: {
-        horiz: `D = ${K}×${S.toFixed(4)}×cos²(${vertAngle.toFixed(4)}°)`,
-        vert: `V = 0.5×${K}×${S.toFixed(4)}×sin(2×${vertAngle.toFixed(4)}°)`
-      },
-      steps: [
-        `Staff Intercept S = ${upper.toFixed(4)} - ${lower.toFixed(4)} = ${S.toFixed(4)} m`,
-        `θ = ${vertAngle.toFixed(4)}°`,
-        `cos²(θ) = ${Math.pow(Math.cos(rad), 2).toFixed(6)}`,
-        `Horizontal Distance = ${K} × ${S.toFixed(4)} × ${Math.pow(Math.cos(rad), 2).toFixed(6)} = ${horizDist.toFixed(4)} m`,
-        `sin(2θ) = ${Math.sin(2 * rad).toFixed(6)}`,
-        `Vertical Distance = 0.5 × ${K} × ${S.toFixed(4)} × ${Math.sin(2 * rad).toFixed(6)} = ${vertDist.toFixed(4)} m`,
-        `Staff Station RL = ${HI.toFixed(4)} + ${vertDist.toFixed(4)} - ${middle.toFixed(4)} = ${elevOfStaff.toFixed(4)} m`
-      ]
-    });
+    setResult(
+      tacheometrySolution({
+        instrumentHeight: HI,
+        upper,
+        middle,
+        lower,
+        verticalAngle: { degrees: deg, minutes: min, seconds: sec, direction: 'N' },
+        K,
+        C,
+      })
+    )
   };
 
   return (
@@ -119,39 +95,7 @@ export default function TacheometryCalculator() {
           </div>
         </div>
 
-        {result && (
-          <div className="card">
-            <div className="card-header"><span className="label">Results</span></div>
-            <div className="card-body space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-800 p-4 rounded text-center">
-                  <div className="text-sm text-gray-400">Horizontal Distance</div>
-                  <div className="text-2xl font-mono text-[var(--accent)]">{result.horizDist.toFixed(4)} m</div>
-                </div>
-                <div className="bg-gray-800 p-4 rounded text-center">
-                  <div className="text-sm text-gray-400">Elevation</div>
-                  <div className="text-2xl font-mono text-[var(--accent)]">{result.elevOfStaff.toFixed(4)} m</div>
-                </div>
-              </div>
-              <div className="bg-gray-800 p-3 rounded">
-                <div className="text-sm text-gray-400 mb-1">Vertical Distance</div>
-                <div className="font-mono text-[var(--accent)]">{result.vertDist >= 0 ? '+' : ''}{result.vertDist.toFixed(4)} m</div>
-              </div>
-              <div className="border-t border-gray-700 pt-4">
-                <div className="text-xs text-gray-500 mb-2">Formulas</div>
-                <div className="text-xs font-mono text-gray-400">D = {result.formulas.horiz}</div>
-                <div className="text-xs font-mono text-gray-400">V = {result.formulas.vert}</div>
-                <div className="text-xs font-mono text-gray-400">RL = {result.formulas.elev}</div>
-              </div>
-              <div className="border-t border-gray-700 pt-4">
-                <div className="text-xs text-gray-500 mb-2">Calculation</div>
-                {result.steps.map((step: string, i: number) => (
-                  <div key={i} className="text-xs font-mono text-gray-400">{step}</div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        {result ? <SolutionRenderer solution={result} /> : null}
       </div>
     </div>
   );
