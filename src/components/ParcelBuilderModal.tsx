@@ -93,7 +93,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
     if (!isSelecting) return;
 
     if (selectedPoints.length > 0 && selectedPoints[0].id === point.id) {
-      setIsSelecting(false);
+      if (selectedPoints.length >= 3) setIsSelecting(false);
       return;
     }
 
@@ -173,25 +173,38 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                   <p className="text-gray-500 text-sm">No points available</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
-                    {points.filter(p => !p.locked).map(point => (
-                      <button
-                        key={point.id}
-                        onClick={() => handlePointClick(point)}
-                        disabled={!isSelecting || selectedPoints.find(p => p.id === point.id) !== undefined}
-                        className={`px-3 py-2 rounded text-sm font-mono text-left transition-colors ${
-                          selectedPoints.find(p => p.id === point.id)
-                            ? 'bg-[#E8841A] text-black'
-                            : isSelecting
-                              ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                              : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        {point.name}
-                        <span className="text-xs text-gray-400 ml-1 block">
-                          {point.easting.toFixed(0)}, {point.northing.toFixed(0)}
-                        </span>
-                      </button>
-                    ))}
+                    {points.filter(p => !p.locked).map(point => {
+                      const isAlreadySelected = selectedPoints.some(p => p.id === point.id)
+                      const isFirst = selectedPoints.length > 0 && selectedPoints[0].id === point.id
+                      const canClose = isFirst && selectedPoints.length >= 3
+                      const disabled = !isSelecting || (isAlreadySelected && !canClose)
+
+                      return (
+                        <button
+                          key={point.id}
+                          onClick={() => handlePointClick(point)}
+                          disabled={disabled}
+                          className={`px-3 py-2 rounded text-sm font-mono text-left transition-colors ${
+                            isAlreadySelected
+                              ? canClose
+                                ? 'bg-green-900/40 border border-green-700 text-green-200 hover:bg-green-900/60'
+                                : 'bg-[#E8841A] text-black'
+                              : isSelecting
+                                ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                                : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                          }`}
+                          title={canClose ? 'Click to close boundary' : undefined}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span>{point.name}</span>
+                            {canClose ? <span className="text-xs font-sans">Close</span> : null}
+                          </div>
+                          <span className="text-xs text-gray-400 ml-1 block">
+                            {point.easting.toFixed(0)}, {point.northing.toFixed(0)}
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -206,6 +219,20 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                         {idx < selectedPoints.length - 1 && ' → '}
                       </span>
                     ))}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (selectedPoints.length >= 3) setIsSelecting(false)
+                      }}
+                      disabled={selectedPoints.length < 3}
+                      className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm disabled:opacity-50"
+                    >
+                      Close boundary
+                    </button>
+                    <span className="text-xs text-gray-500">
+                      or click the first point again
+                    </span>
                   </div>
                 </div>
               )}

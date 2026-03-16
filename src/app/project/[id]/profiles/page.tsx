@@ -347,16 +347,27 @@ export default function ProfilesPage({ params }: PageProps) {
                 <h2 className="text-lg font-semibold">Longitudinal Profile - {selectedAlignment.name}</h2>
                 <button
                   onClick={() => {
-                    const svg = document.getElementById('profile-svg');
-                    if (svg) {
-                      const svgData = new XMLSerializer().serializeToString(svg);
-                      const blob = new Blob([svgData], { type: 'image/svg+xml' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `${selectedAlignment.name}_profile.svg`;
-                      a.click();
-                    }
+                    const svg = document.getElementById('profile-svg') as SVGSVGElement | null
+                    if (!svg) return
+
+                    const clone = svg.cloneNode(true) as SVGSVGElement
+                    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+                    clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+                    clone.setAttribute('shape-rendering', 'geometricPrecision')
+                    clone.removeAttribute('class')
+
+                    // Export at a higher resolution while preserving the same viewBox.
+                    clone.setAttribute('width', '1600')
+                    clone.setAttribute('height', '600')
+
+                    const svgData = `<?xml version="1.0" encoding="UTF-8"?>\n` + new XMLSerializer().serializeToString(clone)
+                    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `${selectedAlignment.name}_profile.svg`
+                    a.click()
+                    URL.revokeObjectURL(url)
                   }}
                   className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm"
                 >
@@ -475,11 +486,13 @@ function ProfileChart({ points }: { points: ChainagePoint[] }) {
   const elevations = points.map(p => p.elevation);
   const minElev = Math.min(...elevations);
   const maxElev = Math.max(...elevations);
+  const minCh = Math.min(...points.map(p => p.chainage));
   const maxCh = Math.max(...points.map(p => p.chainage));
+  const chRange = maxCh - minCh || 1;
   const elevRange = maxElev - minElev || 1;
 
   function toX(ch: number) {
-    return padding + (ch / maxCh) * (width - padding * 2);
+    return padding + ((ch - minCh) / chRange) * (width - padding * 2);
   }
 
   function toY(elev: number) {
@@ -491,13 +504,19 @@ function ProfileChart({ points }: { points: ChainagePoint[] }) {
     .join(' ');
 
   return (
-    <svg id="profile-svg" width={width} height={height} className="bg-gray-900 rounded border border-amber-500/30 w-full">
+    <svg
+      id="profile-svg"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMidYMid meet"
+      className="bg-gray-900 rounded border border-amber-500/30 w-full"
+    >
       <defs>
         <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5"/>
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.6" />
         </pattern>
       </defs>
-      <rect width={width} height={height} fill="url(#grid)"/>
+      <rect width={width} height={height} fill="#0b1020" />
+      <rect width={width} height={height} fill="url(#grid)" />
       
       <path d={pathData} stroke="#E8841A" strokeWidth={2} fill="none"/>
       

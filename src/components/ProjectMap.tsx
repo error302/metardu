@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Tooltip, Polyline, useMapEvents, useMap, LayersControl } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
@@ -177,6 +177,20 @@ export default function ProjectMap({
     setLocalAreaPoints(areaPoints)
   }, [areaPoints])
 
+  const uniquePoints = useMemo(() => {
+    const seen = new Set<string>()
+    const out: SurveyPoint[] = []
+    for (const p of points) {
+      const key =
+        p.id ??
+        `${p.name}|${p.easting}|${p.northing}|${p.elevation ?? ''}|${p.is_control ? 'c' : 'p'}|${p.control_order ?? ''}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(p)
+    }
+    return out
+  }, [points])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -194,39 +208,22 @@ export default function ProjectMap({
     return () => window.removeEventListener('keydown', handleKey)
   }, [onModeChange])
 
-  console.log('ProjectMap received points:', points.length, 'zone:', utmZone, 'hemisphere:', hemisphere)
-  
-  const markers = points.map(point => {
-    let lat = point.lat
-    let lon = point.lon
-    
-    console.log('Processing point:', point.name, 'lat:', lat, 'lon:', lon)
-    
-    if (!lat || !lon) {
-      const result = utmToGeographic(
-        Number(point.easting),
-        Number(point.northing),
-        Number(utmZone),
-        hemisphere as 'N' | 'S'
-      )
+  const markers = useMemo(() => {
+    return uniquePoints
+      .map((point) => {
+        let lat = point.lat
+        let lon = point.lon
 
-      console.log(
-        point.name,
-        'lat:', result.lat,
-        'lon:', result.lon
-      )
+        if (lat === undefined || lon === undefined) {
+          const result = utmToGeographic(Number(point.easting), Number(point.northing), Number(utmZone), hemisphere as 'N' | 'S')
+          lat = result.lat
+          lon = result.lon
+        }
 
-      lat = result.lat
-      lon = result.lon
-      console.log('Using for marker:', point.name, '=', lat, lon)
-    }
-    
-    return {
-      ...point,
-      lat,
-      lon
-    }
-  }).filter(p => p.lat !== undefined && p.lon !== undefined)
+        return { ...point, lat, lon }
+      })
+      .filter((p) => p.lat !== undefined && p.lon !== undefined)
+  }, [uniquePoints, utmZone, hemisphere])
 
   const handleMapClick = (lat: number, lon: number) => {
     if (mode === 'idle' && onMapClick) {
@@ -402,7 +399,7 @@ export default function ProjectMap({
             
             return (
               <Marker
-              key={point.id || idx}
+              key={point.id ?? `${point.name}-${point.easting}-${point.northing}-${idx}`}
               position={[point.lat!, point.lon!]}
               icon={icon}
               eventHandlers={{

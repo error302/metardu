@@ -692,7 +692,7 @@ export default function ProjectPage({ params }: PageProps) {
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Easting (m)</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Northing (m)</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Elevation (m)</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300"></th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -717,12 +717,30 @@ export default function ProjectPage({ params }: PageProps) {
                         <td className="px-4 py-3 font-mono text-gray-300">{point.northing.toFixed(4)}</td>
                         <td className="px-4 py-3 font-mono text-gray-300">{point.elevation?.toFixed(3) ?? '—'}</td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleCopyCoords(point)}
-                            className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
-                          >
-                            {copiedId === point.id ? 'Copied!' : 'Copy'}
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleCopyCoords(point)}
+                              className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+                            >
+                              {copiedId === point.id ? 'Copied!' : 'Copy'}
+                            </button>
+                            <button
+                              onClick={() => handleEditPoint(point)}
+                              className="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Delete point "${point.name}"?`)) handleDeletePoint(point)
+                              }}
+                              disabled={!!point.locked}
+                              className="text-xs px-2 py-1 bg-red-900/40 hover:bg-red-900/60 text-red-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={point.locked ? 'Locked control points cannot be deleted' : 'Delete point'}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -816,6 +834,8 @@ export default function ProjectPage({ params }: PageProps) {
               northing: p.northing,
               elevation: p.elevation || undefined
             }))}
+            utmZone={project.utm_zone}
+            hemisphere={project.hemisphere}
             onComplete={() => {}}
           />
         </div>

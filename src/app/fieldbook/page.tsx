@@ -37,6 +37,11 @@ type ControlRow = {
   slopeDistance: string
   remarks: string
 }
+type ControlSetup = {
+  id: string
+  station: { name: string; e: string; n: string; z: string }
+  rows: ControlRow[]
+}
 type HydroRow = { id: string; soundingId: string; easting: string; northing: string; depth: string; tide: string; remarks: string }
 type MiningRow = { id: string; pointId: string; bearing: string; verticalAngle: string; slopeDistance: string; remarks: string }
 
@@ -75,7 +80,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
       onClick={onClick}
       className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
         active ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-gray-900/40 border-gray-800 text-gray-300 hover:border-amber-500/30'
-      }`}
+      } whitespace-nowrap`}
     >
       {children}
     </button>
@@ -116,10 +121,39 @@ export default function DigitalFieldBookPage() {
     { id: crypto.randomUUID(), station: 'A', bearing: `200° 00' 00"`, distance: '95.000', remarks: '' },
   ])
 
-  const [controlStation, setControlStation] = useState({ name: 'STN', e: '500000.0000', n: '0.0000', z: '100.0000' })
-  const [controlRows, setControlRows] = useState<ControlRow[]>([
-    { id: crypto.randomUUID(), pointId: 'P1', instrumentHeight: '1.500', targetHeight: '1.500', bearing: `025° 30' 00"`, verticalAngle: '0', slopeDistance: '20.000', remarks: '' },
+  const initialControlSetupId = useRef<string>(crypto.randomUUID()).current
+  const [controlSetups, setControlSetups] = useState<ControlSetup[]>([
+    {
+      id: initialControlSetupId,
+      station: { name: 'STN', e: '500000.0000', n: '0.0000', z: '100.0000' },
+      rows: [{ id: crypto.randomUUID(), pointId: 'P1', instrumentHeight: '1.500', targetHeight: '1.500', bearing: `025° 30' 00"`, verticalAngle: '0', slopeDistance: '20.000', remarks: '' }],
+    },
   ])
+  const [activeControlSetupId, setActiveControlSetupId] = useState<string>(initialControlSetupId)
+  const activeControlSetup = useMemo(() => {
+    return controlSetups.find((s) => s.id === activeControlSetupId) ?? controlSetups[0]
+  }, [controlSetups, activeControlSetupId])
+
+  const controlStation = activeControlSetup?.station ?? { name: 'STN', e: '500000.0000', n: '0.0000', z: '100.0000' }
+  const controlRows = activeControlSetup?.rows ?? []
+  const setControlStation = (next: { name: string; e: string; n: string; z: string } | ((p: { name: string; e: string; n: string; z: string }) => { name: string; e: string; n: string; z: string })) => {
+    setControlSetups((prev) =>
+      prev.map((s) => {
+        if (s.id !== activeControlSetupId) return s
+        const station = typeof next === 'function' ? (next as any)(s.station) : next
+        return { ...s, station }
+      })
+    )
+  }
+  const setControlRows = (next: ControlRow[] | ((p: ControlRow[]) => ControlRow[])) => {
+    setControlSetups((prev) =>
+      prev.map((s) => {
+        if (s.id !== activeControlSetupId) return s
+        const rows = typeof next === 'function' ? (next as any)(s.rows) : next
+        return { ...s, rows }
+      })
+    )
+  }
 
   const [hydroRows, setHydroRows] = useState<HydroRow[]>([
     { id: crypto.randomUUID(), soundingId: 'S1', easting: '500000.0000', northing: '0.0000', depth: '4.250', tide: '-0.120', remarks: '' },
@@ -347,7 +381,7 @@ export default function DigitalFieldBookPage() {
   function currentDataPayload() {
     if (type === 'leveling') return { method: levelMethod, openingRL, closingRL, distanceKm, rows: levelRows }
     if (type === 'traverse') return { mode: travMode, startStation, startE, startN, closeE, closeN, rows: travRows }
-    if (type === 'control') return { station: controlStation, rows: controlRows }
+    if (type === 'control') return { activeSetupId: activeControlSetupId, setups: controlSetups }
     if (type === 'hydrographic') return { rows: hydroRows }
     return { station: miningStation, rows: miningRows }
   }
@@ -380,13 +414,38 @@ export default function DigitalFieldBookPage() {
       setCloseN(String(data.closeN ?? ''))
       setTravRows((data.rows ?? travRows).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })))
     } else if (entry.type === 'control') {
-      setControlStation({
-        name: String(data.station?.name ?? controlStation.name),
-        e: String(data.station?.e ?? controlStation.e),
-        n: String(data.station?.n ?? controlStation.n),
-        z: String(data.station?.z ?? controlStation.z),
-      })
-      setControlRows((data.rows ?? controlRows).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })))
+      const setupsRaw = Array.isArray(data.setups) ? data.setups : null
+      if (setupsRaw && setupsRaw.length > 0) {
+        const setups: ControlSetup[] = setupsRaw.map((s: any) => ({
+          id: String(s.id || crypto.randomUUID()),
+          station: {
+            name: String(s.station?.name ?? 'STN'),
+            e: String(s.station?.e ?? '500000.0000'),
+            n: String(s.station?.n ?? '0.0000'),
+            z: String(s.station?.z ?? '100.0000'),
+          },
+          rows: (s.rows ?? []).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })),
+        }))
+        setControlSetups(setups)
+        const preferred = String(data.activeSetupId ?? setups[0].id)
+        setActiveControlSetupId(setups.some((x) => x.id === preferred) ? preferred : setups[0].id)
+      } else {
+        // Backward compatibility: older payloads stored a single station + rows.
+        const id = crypto.randomUUID()
+        setControlSetups([
+          {
+            id,
+            station: {
+              name: String(data.station?.name ?? 'STN'),
+              e: String(data.station?.e ?? '500000.0000'),
+              n: String(data.station?.n ?? '0.0000'),
+              z: String(data.station?.z ?? '100.0000'),
+            },
+            rows: (data.rows ?? []).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })),
+          },
+        ])
+        setActiveControlSetupId(id)
+      }
     } else if (entry.type === 'hydrographic') {
       setHydroRows((data.rows ?? hydroRows).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })))
     } else if (entry.type === 'mining') {
@@ -475,7 +534,18 @@ export default function DigitalFieldBookPage() {
      } else if (type === 'traverse') {
        rows = travRows.map((r) => ({ Station: r.station, Bearing: r.bearing, Distance: r.distance, Remarks: r.remarks }))
      } else if (type === 'control') {
-       rows = controlRows.map((r) => ({ PointID: r.pointId, IH: r.instrumentHeight, TH: r.targetHeight, Bearing: r.bearing, VAngle: r.verticalAngle, SlopeDist: r.slopeDistance, Remarks: r.remarks }))
+       rows = controlSetups.flatMap((setup) =>
+         setup.rows.map((r) => ({
+           Station: setup.station.name,
+           PointID: r.pointId,
+           IH: r.instrumentHeight,
+           TH: r.targetHeight,
+           Bearing: r.bearing,
+           VAngle: r.verticalAngle,
+           SlopeDist: r.slopeDistance,
+           Remarks: r.remarks,
+         }))
+       )
      } else if (type === 'hydrographic') {
        rows = hydroRows.map((r) => ({ SoundingID: r.soundingId, Easting: r.easting, Northing: r.northing, Depth: r.depth, Tide: r.tide, Remarks: r.remarks }))
      } else {
@@ -511,7 +581,69 @@ export default function DigitalFieldBookPage() {
     } else if (type === 'hydrographic') {
       autoTable(doc, { startY: 32, head: [['Sounding', 'Easting', 'Northing', 'Depth', 'Tide', 'Corrected', 'Remarks']], body: hydroComputed.ok ? hydroComputed.rows.map((r: any) => [r.soundingId, r.easting, r.northing, r.depth, r.tide, r.corrected ?? '', r.remarks]) : [], styles: { fontSize: 8 } })
     } else if (type === 'control') {
-      autoTable(doc, { startY: 32, head: [['Point', 'IH', 'TH', 'Bearing', 'V.Ang', 'Slope', 'Easting', 'Northing', 'RL', 'Remarks']], body: controlComputed.ok ? controlComputed.rows.map((r: any) => [r.pointId, r.instrumentHeight, r.targetHeight, r.bearingNum !== null && r.bearingNum !== undefined ? bearingToString(r.bearingNum) : r.bearing, r.verticalAngle, r.slopeDistance, r.computed ? r.computed.easting : '', r.computed ? r.computed.northing : '', r.computed ? r.computed.elevation : '', r.remarks]) : [], styles: { fontSize: 8 } })
+      let y = 32
+      for (const setup of controlSetups) {
+        const e0 = asNumber(setup.station.e)
+        const n0 = asNumber(setup.station.n)
+        const z0 = asNumber(setup.station.z)
+
+        doc.setFontSize(10)
+        doc.text(
+          `Station: ${setup.station.name}   E: ${setup.station.e}   N: ${setup.station.n}   RL: ${setup.station.z}`,
+          14,
+          y
+        )
+        y += 4
+
+        const body = (() => {
+          if (e0 === null || n0 === null || z0 === null) return []
+          return setup.rows.map((r) => {
+            const b = asBearing(r.bearing)
+            const v = asNumber(r.verticalAngle)
+            const s = asNumber(r.slopeDistance)
+            const hi = asNumber(r.instrumentHeight)
+            const ht = asNumber(r.targetHeight)
+            const computed =
+              b !== null && v !== null && s !== null && hi !== null && ht !== null
+                ? polar3DWithHeights({
+                    station: { easting: e0, northing: n0, elevation: z0 },
+                    bearing: b,
+                    verticalAngle: v,
+                    slopeDistance: s,
+                    instrumentHeight: hi,
+                    targetHeight: ht,
+                  })
+                : null
+            const bearingOut = b !== null ? bearingToString(b) : r.bearing
+            return [
+              r.pointId,
+              r.instrumentHeight,
+              r.targetHeight,
+              bearingOut,
+              r.verticalAngle,
+              r.slopeDistance,
+              computed ? computed.easting : '',
+              computed ? computed.northing : '',
+              computed ? computed.elevation : '',
+              r.remarks,
+            ]
+          })
+        })()
+
+        autoTable(doc, {
+          startY: y,
+          head: [['Point', 'IH', 'TH', 'Bearing', 'V.Ang', 'Slope', 'Easting', 'Northing', 'RL', 'Remarks']],
+          body,
+          styles: { fontSize: 8 },
+        })
+
+        const lastY = (doc as any).lastAutoTable?.finalY
+        y = (typeof lastY === 'number' ? lastY : y) + 8
+        if (y > 270) {
+          doc.addPage()
+          y = 20
+        }
+      }
     } else {
       autoTable(doc, { startY: 32, head: [['Point', 'Bearing', 'V.Ang', 'Slope', 'Easting', 'Northing', 'RL', 'Remarks']], body: miningComputed.ok ? miningComputed.rows.map((r: any) => [r.pointId, r.bearingNum !== null && r.bearingNum !== undefined ? bearingToString(r.bearingNum) : r.bearing, r.verticalAngle, r.slopeDistance, r.computed ? r.computed.easting : '', r.computed ? r.computed.northing : '', r.computed ? r.computed.elevation : '', r.remarks]) : [], styles: { fontSize: 8 } })
     }
@@ -620,7 +752,7 @@ export default function DigitalFieldBookPage() {
         </div>
 
         <div className="lg:col-span-9 space-y-4">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             <TabButton active={type === 'leveling'} onClick={() => resetForType('leveling')}>
               {t('leveling.title')}
             </TabButton>
@@ -685,7 +817,79 @@ export default function DigitalFieldBookPage() {
           )}
 
           {type === 'control' && (
-            <ControlBook t={t} station={controlStation} setStation={setControlStation as any} rows={controlRows as any} setRows={setControlRows as any} computed={controlComputed as any} />
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-400">Setup</span>
+                  <select
+                    className="input h-9 py-1"
+                    value={activeControlSetupId}
+                    onChange={(e) => setActiveControlSetupId(e.target.value)}
+                  >
+                    {controlSetups.map((s, idx) => (
+                      <option key={s.id} value={s.id}>
+                        {s.station.name || `STN${idx + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const id = crypto.randomUUID()
+                      const suffix = controlSetups.length + 1
+                      const template = controlStation
+                      setControlSetups((prev) => [
+                        ...prev,
+                        {
+                          id,
+                          station: { ...template, name: template.name ? `${template.name}_${suffix}` : `STN${suffix}` },
+                          rows: [
+                            {
+                              id: crypto.randomUUID(),
+                              pointId: `P1`,
+                              instrumentHeight: '1.500',
+                              targetHeight: '1.500',
+                              bearing: '',
+                              verticalAngle: '0',
+                              slopeDistance: '',
+                              remarks: '',
+                            },
+                          ],
+                        },
+                      ])
+                      setActiveControlSetupId(id)
+                    }}
+                  >
+                    + Add setup
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    disabled={controlSetups.length <= 1}
+                    onClick={() => {
+                      if (controlSetups.length <= 1) return
+                      if (!confirm('Remove this setup?')) return
+                      const next = controlSetups.filter((s) => s.id !== activeControlSetupId)
+                      const nextActive = next[0]?.id ?? controlSetups[0]?.id
+                      setControlSetups(next.length ? next : controlSetups)
+                      if (nextActive) setActiveControlSetupId(nextActive)
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+
+              <ControlBook
+                t={t}
+                station={controlStation}
+                setStation={setControlStation as any}
+                rows={controlRows as any}
+                setRows={setControlRows as any}
+                computed={controlComputed as any}
+              />
+            </div>
           )}
           {type === 'hydrographic' && <HydroBook t={t} rows={hydroRows as any} setRows={setHydroRows as any} computed={hydroComputed as any} />}
           {type === 'mining' && (

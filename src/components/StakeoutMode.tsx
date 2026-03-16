@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { distanceBearing } from '@/lib/engine/distance'
+import { bearingToString } from '@/lib/engine/angles'
+import { geographicToUTM } from '@/lib/engine/coordinates'
 
 interface StakeoutPoint {
   id: string
@@ -13,18 +15,22 @@ interface StakeoutPoint {
 
 interface StakeoutModeProps {
   points: StakeoutPoint[]
+  utmZone: number
+  hemisphere: 'N' | 'S'
   onComplete?: (pointId: string) => void
 }
 
-export default function StakeoutMode({ points, onComplete }: StakeoutModeProps) {
+export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }: StakeoutModeProps) {
   const [currentPointIndex, setCurrentPointIndex] = useState(0)
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null)
   const [distance, setDistance] = useState<number | null>(null)
   const [bearing, setBearing] = useState<number | null>(null)
+  const [deltaE, setDeltaE] = useState<number | null>(null)
+  const [deltaN, setDeltaN] = useState<number | null>(null)
   const [isOnPoint, setIsOnPoint] = useState(false)
-  const [watchId, setWatchId] = useState<number | null>(null)
   const [stakedPoints, setStakedPoints] = useState<Set<string>>(new Set())
   const [audioEnabled, setAudioEnabled] = useState(true)
+  const [gpsWarning, setGpsWarning] = useState<string | null>(null)
   const lastBeepTime = useRef<number>(0)
   const audioContextRef = useRef<AudioContext | null>(null)
 
@@ -80,67 +86,40 @@ export default function StakeoutMode({ points, onComplete }: StakeoutModeProps) 
     }
   }, [audioEnabled, getAudioContext])
 
-  const utmToLatLon = (easting: number, northing: number, zone: number, hemisphere: 'N' | 'S'): { lat: number; lon: number } => {
-    const k0 = 0.9996
-    const e = 0.081819191
-    const ePrimeSq = 0.006739497
-    const FalseEasting = 500000
-    const FalseNorthing = hemisphere === 'S' ? 10000000 : 0
-    
-    const x = easting - FalseEasting
-    const y = northing - FalseNorthing
-    
-    const M = y / k0
-    const mu = M / (6367449.145823 * (1 - e * e / 4 - 3 * e * e * e * e / 64))
-    
-    const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e))
-    const phi1 = mu + (3 * e1 / 2 - 27 * e1 * e1 * e1 / 32) * Math.sin(2 * mu)
-      + (21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32) * Math.sin(4 * mu)
-      + (151 * e1 * e1 * e1 / 96) * Math.sin(6 * mu)
-    
-    const N1 = 6367449.145823 * (1 - e * e) / Math.pow(1 - e * e * Math.sin(phi1) * Math.sin(phi1), 1.5)
-    const T1 = Math.tan(phi1) * Math.tan(phi1)
-    const C1 = ePrimeSq * Math.cos(phi1) * Math.cos(phi1)
-    const R1 = 6367449.145823 * (1 - e * e) / Math.pow(1 - e * e * Math.sin(phi1) * Math.sin(phi1), 2.5)
-    const D = x / (N1 * k0)
-    
-    const lat = phi1 - (N1 * Math.tan(phi1) / R1) * (
-      D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ePrimeSq) * D * D * D * D / 24
-      + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ePrimeSq - 3 * C1 * C1) * D * D * D * D * D * D / 720
-    )
-    
-    const lon = (D - (1 + 2 * T1 + C1) * D * D * D / 6 + 
-      (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ePrimeSq + 24 * T1 * T1) * D * D * D * D * D / 120) / Math.cos(phi1)
-    
-    const latDeg = lat * 180 / Math.PI
-    const lonDeg = (zone * 6 - 180 + 3 + lon * 180 / Math.PI)
-    
-    return { lat: latDeg, lon: lonDeg }
-  }
-
   const calculateDistanceAndBearing = useCallback(() => {
     if (!userLocation || !currentPoint) return
 
-    const target = utmToLatLon(currentPoint.easting, currentPoint.northing, 36, 'N')
-    
+    const userUtm = geographicToUTM(userLocation.lat, userLocation.lon, utmZone)
+    if (userUtm.hemisphere !== hemisphere) {
+      setGpsWarning(`GPS hemisphere (${userUtm.hemisphere}) does not match project hemisphere (${hemisphere}).`)
+      setDistance(null)
+      setBearing(null)
+      setDeltaE(null)
+      setDeltaN(null)
+      setIsOnPoint(false)
+      return
+    }
+
+    setGpsWarning(null)
     const result = distanceBearing(
-      { easting: userLocation.lon, northing: userLocation.lat },
-      { easting: target.lon, northing: target.lat }
+      { easting: userUtm.easting, northing: userUtm.northing },
+      { easting: currentPoint.easting, northing: currentPoint.northing }
     )
-    
-    const distMeters = result.distance * 111320
-    setDistance(distMeters)
+
+    setDistance(result.distance)
     setBearing(result.bearing)
-    
-    playProximityBeep(distMeters)
-    
-    if (distMeters < 0.1) {
+    setDeltaE(result.deltaE)
+    setDeltaN(result.deltaN)
+
+    playProximityBeep(result.distance)
+
+    if (result.distance < 0.1) {
       setIsOnPoint(true)
       playProximityBeep(0)
     } else {
       setIsOnPoint(false)
     }
-  }, [userLocation, currentPoint, playProximityBeep])
+  }, [userLocation, currentPoint, playProximityBeep, utmZone, hemisphere])
 
   useEffect(() => {
     if (userLocation && currentPoint) {
@@ -166,12 +145,9 @@ export default function StakeoutMode({ points, onComplete }: StakeoutModeProps) 
           maximumAge: 0
         }
       )
-      setWatchId(id)
 
       return () => {
-        if (watchId !== null) {
-          navigator.geolocation.clearWatch(watchId)
-        }
+        navigator.geolocation.clearWatch(id)
       }
     }
   }, [])
@@ -216,6 +192,15 @@ export default function StakeoutMode({ points, onComplete }: StakeoutModeProps) 
   }
 
   const progress = `${stakedPoints.size} of ${points.length} points staked`
+  const moveInstruction = (() => {
+    if (deltaE === null || deltaN === null) return null
+    const eDir = deltaE >= 0 ? 'E' : 'W'
+    const nDir = deltaN >= 0 ? 'N' : 'S'
+    return {
+      eText: `${eDir} ${Math.abs(deltaE).toFixed(2)} m`,
+      nText: `${nDir} ${Math.abs(deltaN).toFixed(2)} m`,
+    }
+  })()
 
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col">
@@ -261,6 +246,11 @@ export default function StakeoutMode({ points, onComplete }: StakeoutModeProps) 
           </div>
 
           <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md">
+            {gpsWarning ? (
+              <div className="mb-4 p-3 rounded border border-yellow-700 bg-yellow-900/20 text-yellow-200 text-sm">
+                {gpsWarning}
+              </div>
+            ) : null}
             <div className="text-center mb-6">
               <div className="text-sm text-gray-500 uppercase tracking-wider mb-2">Distance</div>
               <div className="text-5xl font-bold text-[#E8841A]">
@@ -271,9 +261,38 @@ export default function StakeoutMode({ points, onComplete }: StakeoutModeProps) 
             <div className="text-center">
               <div className="text-sm text-gray-500 uppercase tracking-wider mb-2">Bearing</div>
               <div className="text-2xl font-mono text-gray-200">
-                {bearing !== null ? `${bearing.toFixed(1)}°` : '—'}
+                {bearing !== null ? bearingToString(bearing) : '—'}
               </div>
             </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 text-xs font-mono">
+              <div className="p-3 rounded bg-gray-950/40 border border-gray-800">
+                <div className="text-gray-500">ΔE (m)</div>
+                <div className={deltaE !== null && deltaE >= 0 ? 'text-green-300' : 'text-red-300'}>
+                  {deltaE !== null ? deltaE.toFixed(4) : '—'}
+                </div>
+              </div>
+              <div className="p-3 rounded bg-gray-950/40 border border-gray-800">
+                <div className="text-gray-500">ΔN (m)</div>
+                <div className={deltaN !== null && deltaN >= 0 ? 'text-green-300' : 'text-red-300'}>
+                  {deltaN !== null ? deltaN.toFixed(4) : '—'}
+                </div>
+              </div>
+            </div>
+
+            {moveInstruction ? (
+              <div className="mt-3 p-3 rounded bg-gray-950/40 border border-gray-800">
+                <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Move</div>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="text-gray-300">East/West</div>
+                  <div className="font-mono text-gray-100">{moveInstruction.eText}</div>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-1">
+                  <div className="text-gray-300">North/South</div>
+                  <div className="font-mono text-gray-100">{moveInstruction.nText}</div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="mt-6 flex justify-center">
               <div className="relative w-32 h-32">

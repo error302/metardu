@@ -265,7 +265,7 @@ export default function FieldPage() {
       <header className="bg-[#111118] border-b border-gray-800 p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-sm font-bold text-white">Field</h1>
+            <h1 className="text-sm font-bold text-white">{t('field.fieldMode')}</h1>
             <select
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
@@ -287,6 +287,25 @@ export default function FieldPage() {
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto p-3 pb-20">
+        <div className="mb-3 rounded-lg border border-gray-800 bg-gray-900/20 p-3">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500">Workflow</div>
+          <div className="text-sm text-gray-200 mt-1">Field Mode = quick capture (phone/tablet). Field Book = textbook tables + checks + exports.</div>
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => router.push('/fieldbook')}
+              className="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-200 px-2 py-1.5 rounded"
+            >
+              Open Field Book
+            </button>
+            <button
+              onClick={() => router.push('/guide')}
+              className="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-200 px-2 py-1.5 rounded"
+            >
+              Field Guides
+            </button>
+          </div>
+        </div>
+
         {activeTab === 'points' && (
           <div className="space-y-3">
             {/* Quick batch entry button */}

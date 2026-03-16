@@ -54,14 +54,10 @@ const fieldGroups = [
     titleKey: 'nav.field',
     items: [
       { href: '/field', labelKey: 'field.fieldMode' },
-      { href: '/tools/setting-out', labelKey: 'tools.settingOut' },
-    ]
-  },
-  {
-    titleKey: 'nav.field',
-    items: [
       { href: '/fieldbook', labelKey: 'field.fieldBook' },
+      { href: '/tools/setting-out', labelKey: 'tools.settingOut' },
       { href: '/process', labelKey: 'field.processNotes' },
+      { href: '/guide', labelKey: 'guides.title' },
     ]
   },
 ]
@@ -73,16 +69,6 @@ const importGroups = [
       { href: '/import', labelKey: 'import.totalStation' },
       { href: '/process', labelKey: 'import.csvUpload' },
       { href: '/instruments', labelKey: 'import.instruments' },
-    ]
-  },
-]
-
-const aiGroups = [
-  {
-    titleKey: 'nav.ai',
-    items: [
-      { href: '/guide', labelKey: 'guides.title' },
-      { href: '/fieldbook', labelKey: 'field.fieldBook' },
     ]
   },
 ]
@@ -383,20 +369,6 @@ export default function NavBar() {
               </div>
             </div>
 
-            {/* AI Dropdown */}
-            <div className="relative group">
-              <button className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
-                {t('nav.ai')} ▾
-              </button>
-              <div className="absolute top-full left-0 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                <div className="bg-[#111118] border border-[#E8841A20] rounded-lg shadow-xl min-w-[180px] py-2">
-                  {aiGroups.map((group, idx) => (
-                    <DropdownGroup key={idx} titleKey={group.titleKey} items={group.items} t={t} />
-                  ))}
-                </div>
-              </div>
-            </div>
-
             {/* Community Link */}
             <div className="relative group">
               <button className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
@@ -407,6 +379,27 @@ export default function NavBar() {
                   {communityGroups.map((group, idx) => (
                     <DropdownGroup key={idx} titleKey={group.titleKey} items={group.items} t={t} />
                   ))}
+                  <div className="border-t border-white/5 my-2" />
+                  <div className="px-4 py-2">
+                    <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">
+                      {t('nav.online')}
+                    </div>
+                    <Link href="/online" className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                      Coordinate Services
+                    </Link>
+                    <Link href="/parcel" className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                      Parcel Intelligence
+                    </Link>
+                    <Link href="/kencors" className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                      KenCORS RTK
+                    </Link>
+                    <Link href="/equipment" className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                      Equipment Tracker
+                    </Link>
+                    <Link href="/digital-signature" className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                      Digital Signature
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
@@ -418,32 +411,6 @@ export default function NavBar() {
             >
               {t('nav.docs')}
             </Link>
-
-            {/* Online Services */}
-            <div className="relative group">
-              <button className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
-                Online ▾
-              </button>
-              <div className="absolute top-full left-0 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                <div className="bg-[#111118] border border-[#E8841A20] rounded-lg shadow-xl min-w-[200px] py-2">
-                  <Link href="/online" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
-                    Coordinate Services
-                  </Link>
-                  <Link href="/parcel" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
-                    Parcel Intelligence
-                  </Link>
-                  <Link href="/kencors" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
-                    KenCORS RTK
-                  </Link>
-                  <Link href="/equipment" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
-                    Equipment Tracker
-                  </Link>
-                  <Link href="/digital-signature" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-[var(--accent)]">
-                    Digital Signature
-                  </Link>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Right Side */}
