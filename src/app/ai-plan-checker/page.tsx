@@ -35,15 +35,29 @@ Use professional surveying terminology. Be concise, actionable.` },
     setLoading(true)
 
     try {
-      const response = await fetch('/api/ollama/chat', {
+      // Try OpenAI first (for production), then fallback to Ollama (local)
+      let response = await fetch('/api/openai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [...messages, userMessage],
-          model: 'llama3.1',
+          model: 'gpt-4o-mini',
           stream: true
         }),
       })
+
+      // Fallback to Ollama if OpenAI fails
+      if (!response.ok) {
+        response = await fetch('/api/ollama/chat/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [...messages, userMessage],
+            model: 'llama3.1',
+            stream: true
+          }),
+        })
+      }
 
       if (!response.ok) throw new Error('AI unavailable')
 
