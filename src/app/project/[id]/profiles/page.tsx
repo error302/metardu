@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
+import { computeChainageTable } from '@/lib/engine/chainage'
 
 interface PageProps {
   params: { id: string }
@@ -127,32 +128,29 @@ export default function ProfilesPage({ params }: PageProps) {
 
       if (error) throw error;
 
-      const chainageData: any[] = [];
-      let totalChainage = 0;
-      let prevPoint = selectedPoints[0];
+      const first = selectedPoints[0]
+      const table = computeChainageTable({
+        start: { easting: first.easting, northing: first.northing },
+        startName: first.name,
+        startChainage: 0,
+        alignment: selectedPoints.slice(1).map((p) => ({ name: p.name, easting: p.easting, northing: p.northing })),
+      })
 
-      for (let i = 0; i < selectedPoints.length; i++) {
-        const point = selectedPoints[i];
-        if (i > 0) {
-          const dx = point.easting - prevPoint.easting;
-          const dy = point.northing - prevPoint.northing;
-          totalChainage += Math.sqrt(dx * dx + dy * dy);
-        }
-
-        chainageData.push({
+      const byName = new Map(selectedPoints.map((p) => [p.name, p]))
+      const chainageData = table.map((row) => {
+        const source = byName.get(row.pointName)
+        return {
           alignment_id: alignment.id,
           project_id: params.id,
-          point_name: point.name,
-          chainage: totalChainage,
-          easting: point.easting,
-          northing: point.northing,
-          elevation: point.elevation || 0
-        });
+          point_name: row.pointName,
+          chainage: row.chainage,
+          easting: row.easting,
+          northing: row.northing,
+          elevation: source?.elevation ?? 0,
+        }
+      })
 
-        prevPoint = point;
-      }
-
-      await supabase.from('chainage_points').insert(chainageData);
+      await supabase.from('chainage_points').insert(chainageData)
 
       setNewAlignmentName('');
       setSelectedPoints([]);
@@ -354,11 +352,15 @@ export default function ProfilesPage({ params }: PageProps) {
                     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
                     clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
                     clone.setAttribute('shape-rendering', 'geometricPrecision')
+                    const vb = svg.getAttribute('viewBox')
+                    if (vb) clone.setAttribute('viewBox', vb)
+                    clone.setAttribute('preserveAspectRatio', svg.getAttribute('preserveAspectRatio') || 'xMidYMid meet')
                     clone.removeAttribute('class')
 
                     // Export at a higher resolution while preserving the same viewBox.
                     clone.setAttribute('width', '1600')
                     clone.setAttribute('height', '600')
+                    clone.setAttribute('style', 'background-color:#0b1020')
 
                     const svgData = `<?xml version="1.0" encoding="UTF-8"?>\n` + new XMLSerializer().serializeToString(clone)
                     const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
@@ -508,11 +510,12 @@ function ProfileChart({ points }: { points: ChainagePoint[] }) {
       id="profile-svg"
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="xMidYMid meet"
+      fontFamily={'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'}
       className="bg-gray-900 rounded border border-amber-500/30 w-full"
     >
       <defs>
         <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.6" />
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" strokeOpacity="0.08" strokeWidth="0.6" />
         </pattern>
       </defs>
       <rect width={width} height={height} fill="#0b1020" />

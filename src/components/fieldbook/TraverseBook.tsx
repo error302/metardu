@@ -65,25 +65,25 @@ export function TraverseBook({
         <div className="grid md:grid-cols-4 gap-3">
           <div>
             <label className="label">{t('common.startStation')}</label>
-            <input className="input" value={startStation} onChange={(e) => setStartStation(e.target.value)} />
+            <input className="input input-sm" value={startStation} onChange={(e) => setStartStation(e.target.value)} />
           </div>
           <div>
             <label className="label">{t('common.startEasting')}</label>
-            <input inputMode="decimal" className="input" value={startE} onChange={(e) => setStartE(e.target.value)} />
+            <input inputMode="decimal" className="input input-sm" value={startE} onChange={(e) => setStartE(e.target.value)} />
           </div>
           <div>
             <label className="label">{t('common.startNorthing')}</label>
-            <input inputMode="decimal" className="input" value={startN} onChange={(e) => setStartN(e.target.value)} />
+            <input inputMode="decimal" className="input input-sm" value={startN} onChange={(e) => setStartN(e.target.value)} />
           </div>
           {travMode === 'link' ? (
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="label">{t('traverse.closeE')}</label>
-                <input inputMode="decimal" className="input" value={closeE} onChange={(e) => setCloseE(e.target.value)} />
+                <input inputMode="decimal" className="input input-sm" value={closeE} onChange={(e) => setCloseE(e.target.value)} />
               </div>
               <div>
                 <label className="label">{t('traverse.closeN')}</label>
-                <input inputMode="decimal" className="input" value={closeN} onChange={(e) => setCloseN(e.target.value)} />
+                <input inputMode="decimal" className="input input-sm" value={closeN} onChange={(e) => setCloseN(e.target.value)} />
               </div>
             </div>
           ) : (
@@ -118,14 +118,14 @@ export function TraverseBook({
 
                 return (
                   <tr key={r.id}>
-                    <td className="text-left"><input className="input" value={r.station} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, station: e.target.value } : x)))} /></td>
-                    <td className="text-left"><input className="input font-mono" value={r.bearing} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, bearing: e.target.value } : x)))} placeholder={`082° 12' 00"`} /></td>
-                    <td className="text-left"><input inputMode="decimal" className="input font-mono" value={r.distance} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, distance: e.target.value } : x)))} placeholder="100.000" /></td>
+                    <td className="text-left"><input className="input input-sm" value={r.station} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, station: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input className="input input-sm font-mono" value={r.bearing} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, bearing: e.target.value } : x)))} placeholder={`082° 12' 00"`} /></td>
+                    <td className="text-left"><input inputMode="decimal" className="input input-sm font-mono" value={r.distance} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, distance: e.target.value } : x)))} placeholder="100.000" /></td>
                     <td className="font-mono text-right">{lat !== null ? Number(lat).toFixed(4) : '—'}</td>
                     <td className="font-mono text-right">{dep !== null ? Number(dep).toFixed(4) : '—'}</td>
                     <td className="font-mono text-right">{ee !== null ? Number(ee).toFixed(4) : '—'}</td>
                     <td className="font-mono text-right">{nn !== null ? Number(nn).toFixed(4) : '—'}</td>
-                    <td className="text-left"><input className="input" value={r.remarks} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input className="input input-sm" value={r.remarks} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
                     <td><button className="btn btn-secondary text-xs" onClick={() => setTravRows((p) => p.filter((x) => x.id !== r.id))}>{t('common.remove')}</button></td>
                   </tr>
                 )
@@ -164,4 +164,3 @@ export function TraverseBook({
     </div>
   )
 }
-

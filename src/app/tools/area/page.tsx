@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Point2D } from '@/lib/engine/types';
 import SolutionRenderer from '@/components/SolutionRenderer';
 import type { Solution } from '@/lib/solution/schema';
-import { coordinateAreaSolution, offsetAreaSolution } from '@/lib/solution/wrappers/area';
+import { coordinateAreaSolution, offsetAreaSolution } from '@/lib/engine/solution/wrappers/area';
 
 interface PointInput {
   id: number;

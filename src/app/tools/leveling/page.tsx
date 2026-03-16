@@ -6,7 +6,7 @@ import type { LevelingInput } from '@/lib/engine/leveling'
 import type { LevelingReading } from '@/lib/engine/types';
 import SolutionRenderer from '@/components/SolutionRenderer'
 import type { Solution } from '@/lib/solution/schema'
-import { levelingSolution } from '@/lib/solution/wrappers/leveling'
+import { levelingSolution } from '@/lib/engine/solution/wrappers/leveling'
 
 interface Reading {
   id: number;

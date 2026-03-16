@@ -446,34 +446,69 @@ export default function NavBar() {
             {loading ? (
               <div className="w-20 h-8 bg-gray-800 animate-pulse rounded"></div>
             ) : user ? (
-              <div className="hidden md:flex items-center gap-3">
-                <Link 
-                  href="/pricing" 
-                  className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
-                >
-                  {t('nav.pricing')}
-                </Link>
-                <Link 
-                  href="/white-label" 
-                  className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
-                >
-                  White Label
-                </Link>
-                <Link 
-                  href="/api-docs" 
-                  className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
-                >
-                  API
-                </Link>
-                <Link href="/dashboard" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
-                  {t('nav.dashboard')}
-                </Link>
+              <div className="hidden md:block relative">
                 <button
-                  onClick={handleSignOut}
-                  className="px-3 py-1.5 text-sm border border-gray-600 text-gray-300 rounded hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+                  onClick={() => handleDropdownToggle('user')}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-gray-800 bg-gray-900/40 hover:border-[var(--accent)] transition-colors"
                 >
-                  {t('nav.signOut')}
+                  <span className="w-8 h-8 rounded-full bg-[#E8841A]/20 border border-[#E8841A]/30 text-[#E8841A] flex items-center justify-center font-bold">
+                    {(user.email || 'U').slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="hidden lg:inline text-sm text-gray-200 max-w-[180px] truncate">{user.email}</span>
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
+
+                {openDropdown === 'user' && (
+                  <div className="absolute top-full right-0 pt-2 z-50">
+                    <div className="bg-[#111118] border border-[#E8841A20] rounded-lg shadow-xl min-w-[220px] py-2">
+                      <div className="px-4 py-2">
+                        <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">{t('nav.dashboard')}</div>
+                        <Link
+                          href="/dashboard"
+                          onClick={() => setOpenDropdown(null)}
+                          className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded"
+                        >
+                          {t('nav.dashboard')}
+                        </Link>
+                        <Link
+                          href="/pricing"
+                          onClick={() => setOpenDropdown(null)}
+                          className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded"
+                        >
+                          {t('nav.pricing')}
+                        </Link>
+                        <Link
+                          href="/white-label"
+                          onClick={() => setOpenDropdown(null)}
+                          className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded"
+                        >
+                          White Label
+                        </Link>
+                        <Link
+                          href="/api-docs"
+                          onClick={() => setOpenDropdown(null)}
+                          className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded"
+                        >
+                          API
+                        </Link>
+                      </div>
+                      <div className="border-t border-white/5 my-2" />
+                      <div className="px-4">
+                        <button
+                          onClick={() => {
+                            setOpenDropdown(null)
+                            handleSignOut()
+                          }}
+                          className="w-full text-left px-2 py-2 text-sm text-red-200 hover:bg-white/5 rounded"
+                        >
+                          {t('nav.signOut')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="hidden md:flex items-center gap-2">

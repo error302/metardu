@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { distanceBearing } from '@/lib/engine/distance'
 import { bearingToString } from '@/lib/engine/angles'
 import { geographicToUTM } from '@/lib/engine/coordinates'
+import { getUTMZoneFromLatLng } from '@/lib/engine/utmZones'
 
 interface StakeoutPoint {
   id: string
@@ -23,6 +24,7 @@ interface StakeoutModeProps {
 export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }: StakeoutModeProps) {
   const [currentPointIndex, setCurrentPointIndex] = useState(0)
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null)
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null)
   const [distance, setDistance] = useState<number | null>(null)
   const [bearing, setBearing] = useState<number | null>(null)
   const [deltaE, setDeltaE] = useState<number | null>(null)
@@ -31,6 +33,7 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
   const [stakedPoints, setStakedPoints] = useState<Set<string>>(new Set())
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [gpsWarning, setGpsWarning] = useState<string | null>(null)
+  const [gpsNotice, setGpsNotice] = useState<string | null>(null)
   const lastBeepTime = useRef<number>(0)
   const audioContextRef = useRef<AudioContext | null>(null)
 
@@ -89,6 +92,13 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
   const calculateDistanceAndBearing = useCallback(() => {
     if (!userLocation || !currentPoint) return
 
+    const detected = getUTMZoneFromLatLng(userLocation.lat, userLocation.lon)
+    if (detected.zone !== utmZone) {
+      setGpsNotice(`GPS zone (${detected.zone}) differs from project zone (${utmZone}). Check project zone/hemisphere or your location.`)
+    } else {
+      setGpsNotice(null)
+    }
+
     const userUtm = geographicToUTM(userLocation.lat, userLocation.lon, utmZone)
     if (userUtm.hemisphere !== hemisphere) {
       setGpsWarning(`GPS hemisphere (${userUtm.hemisphere}) does not match project hemisphere (${hemisphere}).`)
@@ -135,6 +145,7 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
             lat: position.coords.latitude,
             lon: position.coords.longitude
           })
+          setGpsAccuracy(Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null)
         },
         (error) => {
           console.error('GPS error:', error)
@@ -192,6 +203,11 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
   }
 
   const progress = `${stakedPoints.size} of ${points.length} points staked`
+  const formatDistance = (m: number | null) => {
+    if (m === null) return '—'
+    if (m >= 10000) return `${(m / 1000).toFixed(2)} km`
+    return `${m.toFixed(2)} m`
+  }
   const moveInstruction = (() => {
     if (deltaE === null || deltaN === null) return null
     const eDir = deltaE >= 0 ? 'E' : 'W'
@@ -237,31 +253,54 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
         </div>
       ) : (
         <main className="flex-1 flex flex-col items-center justify-center p-6">
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🎯</div>
-            <h2 className="text-2xl font-bold text-gray-100 mb-2">{currentPoint.name}</h2>
-            <p className="text-gray-400">
-              E: {currentPoint.easting.toFixed(4)} m | N: {currentPoint.northing.toFixed(4)} m
+          <div className="text-center mb-6">
+            <div className="text-6xl mb-3">🎯</div>
+            <h2 className="text-2xl font-bold text-gray-100">{currentPoint.name}</h2>
+            <p className="text-gray-400 mt-1 font-mono text-sm">
+              E {currentPoint.easting.toFixed(4)} m · N {currentPoint.northing.toFixed(4)} m
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Project UTM: Zone {utmZone}{hemisphere} {gpsAccuracy !== null ? `· GPS ±${gpsAccuracy.toFixed(0)} m` : ''}
             </p>
           </div>
 
-          <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md">
+          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-xl border border-gray-800 shadow-xl">
             {gpsWarning ? (
               <div className="mb-4 p-3 rounded border border-yellow-700 bg-yellow-900/20 text-yellow-200 text-sm">
                 {gpsWarning}
               </div>
             ) : null}
-            <div className="text-center mb-6">
-              <div className="text-sm text-gray-500 uppercase tracking-wider mb-2">Distance</div>
-              <div className="text-5xl font-bold text-[#E8841A]">
-                {distance !== null ? `${distance.toFixed(2)} m` : '—'}
+            {gpsNotice ? (
+              <div className="mb-4 p-3 rounded border border-amber-700/50 bg-amber-900/10 text-amber-200 text-sm">
+                {gpsNotice}
               </div>
-            </div>
+            ) : null}
 
-            <div className="text-center">
-              <div className="text-sm text-gray-500 uppercase tracking-wider mb-2">Bearing</div>
-              <div className="text-2xl font-mono text-gray-200">
-                {bearing !== null ? bearingToString(bearing) : '—'}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="rounded-xl bg-gray-950/40 border border-gray-800 p-4 text-center">
+                <div className="text-xs text-gray-500 uppercase tracking-wider">Distance</div>
+                <div className="mt-1 text-5xl font-bold text-[#E8841A] tabular-nums">{formatDistance(distance)}</div>
+                {distance !== null && distance > 5000 ? (
+                  <div className="mt-2 text-xs text-gray-500">Very large distance — double-check project zone/hemisphere and GPS.</div>
+                ) : null}
+              </div>
+              <div className="rounded-xl bg-gray-950/40 border border-gray-800 p-4 text-center">
+                <div className="text-xs text-gray-500 uppercase tracking-wider">Bearing (WCB)</div>
+                <div className="mt-2 text-2xl font-mono text-gray-100">{bearing !== null ? bearingToString(bearing) : '—'}</div>
+
+                <div className="mt-4 flex items-center justify-center">
+                  <div className="relative w-28 h-28 rounded-full border border-gray-700 bg-gray-950/30">
+                    <div className="absolute inset-x-0 top-2 text-center text-[10px] text-gray-400">N</div>
+                    <div className="absolute inset-y-0 right-2 flex items-center text-[10px] text-gray-400">E</div>
+                    <div className="absolute inset-x-0 bottom-2 text-center text-[10px] text-gray-400">S</div>
+                    <div className="absolute inset-y-0 left-2 flex items-center text-[10px] text-gray-400">W</div>
+                    <div
+                      className="absolute left-1/2 top-1/2 w-1 h-10 bg-[#E8841A] rounded origin-bottom"
+                      style={{ transform: `translate(-50%, -100%) rotate(${bearing ?? 0}deg)` }}
+                    />
+                    <div className="absolute left-1/2 top-1/2 w-2.5 h-2.5 bg-[#E8841A] rounded-full -translate-x-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -293,19 +332,6 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
                 </div>
               </div>
             ) : null}
-
-            <div className="mt-6 flex justify-center">
-              <div className="relative w-32 h-32">
-                <div className="absolute inset-0 border-4 border-gray-700 rounded-full"></div>
-                <div 
-                  className="absolute inset-0 border-4 border-[#E8841A] rounded-full"
-                  style={{
-                    clipPath: bearing !== null ? `polygon(50% 50%, 50% 0%, ${50 + 50 * Math.sin(bearing * Math.PI / 180)}% ${50 - 50 * Math.cos(bearing * Math.PI / 180)}%)` : 'none'
-                  }}
-                ></div>
-                <div className="absolute top-1/2 left-1/2 w-4 h-4 bg-[#E8841A] rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-              </div>
-            </div>
           </div>
 
           <div className="mt-6 flex gap-4">

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import SolutionRenderer from '@/components/SolutionRenderer';
 import type { Solution } from '@/lib/solution/schema';
-import { distanceBearingSolutionFromCoords, slopeReductionSolution } from '@/lib/solution/wrappers/distance';
+import { distanceBearingSolutionFromCoords, slopeReductionSolution } from '@/lib/engine/solution/wrappers/distance';
 
 export default function DistanceCalculator() {
   const [mode, setMode] = useState<'coords' | 'slope'>('coords');

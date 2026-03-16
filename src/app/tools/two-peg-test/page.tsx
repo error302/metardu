@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import SolutionRenderer from '@/components/SolutionRenderer'
 import type { Solution } from '@/lib/solution/schema'
-import { twoPegTestSolution } from '@/lib/solution/wrappers/twoPegTest'
+import { twoPegTestSolution } from '@/lib/engine/solution/wrappers/twoPegTest'
 
 export default function TwoPegTestCalculator() {
   const [inputs, setInputs] = useState({

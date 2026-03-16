@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import SolutionRenderer from '@/components/SolutionRenderer'
 import type { Solution } from '@/lib/solution/schema'
-import { tacheometrySolution } from '@/lib/solution/wrappers/tacheometry'
+import { tacheometrySolution } from '@/lib/engine/solution/wrappers/tacheometry'
 
 export default function TacheometryCalculator() {
   const [inputs, setInputs] = useState({

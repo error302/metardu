@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import SolutionRenderer from '@/components/SolutionRenderer'
 import type { Solution } from '@/lib/solution/schema'
-import { dmsToDecimalSolution, geographicToUtmSolution, utmToGeographicSolution, decimalToDmsSolution } from '@/lib/solution/wrappers/coordinates'
+import { dmsToDecimalSolution, geographicToUtmSolution, utmToGeographicSolution, decimalToDmsSolution } from '@/lib/engine/solution/wrappers/coordinates'
 
 export default function CoordinatesCalculator() {
   const [tab, setTab] = useState<'utm-to-geo' | 'geo-to-utm' | 'dms-dec'>('utm-to-geo');

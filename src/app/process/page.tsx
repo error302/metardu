@@ -4,9 +4,9 @@ import { useState, useRef, useEffect } from 'react'
 import { interpretCSV, CSVInterpretResult } from '@/lib/parsers/csvSurveyInterpreter'
 import SolutionRenderer from '@/components/SolutionRenderer'
 import type { Solution } from '@/lib/solution/schema'
-import { bowditchAdjustmentSolutionFromResult } from '@/lib/solution/wrappers/traverse'
-import { levelingSolution } from '@/lib/solution/wrappers/leveling'
-import { radiationSolution } from '@/lib/solution/wrappers/radiation'
+import { bowditchAdjustmentSolutionFromResult } from '@/lib/engine/solution/wrappers/traverse'
+import { levelingSolution } from '@/lib/engine/solution/wrappers/leveling'
+import { radiationSolution } from '@/lib/engine/solution/wrappers/radiation'
 import { 
   detectSurveyType, 
   runWorkflow, 

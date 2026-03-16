@@ -32,19 +32,19 @@ export function MiningBook({
         <div className="grid md:grid-cols-4 gap-3">
           <div>
             <label className="label">{t('common.station')}</label>
-            <input className="input" value={station.name} onChange={(e) => setStation((p) => ({ ...p, name: e.target.value }))} />
+            <input className="input input-sm" value={station.name} onChange={(e) => setStation((p) => ({ ...p, name: e.target.value }))} />
           </div>
           <div>
             <label className="label">{t('common.easting')}</label>
-            <input inputMode="decimal" className="input" value={station.e} onChange={(e) => setStation((p) => ({ ...p, e: e.target.value }))} />
+            <input inputMode="decimal" className="input input-sm" value={station.e} onChange={(e) => setStation((p) => ({ ...p, e: e.target.value }))} />
           </div>
           <div>
             <label className="label">{t('common.northing')}</label>
-            <input inputMode="decimal" className="input" value={station.n} onChange={(e) => setStation((p) => ({ ...p, n: e.target.value }))} />
+            <input inputMode="decimal" className="input input-sm" value={station.n} onChange={(e) => setStation((p) => ({ ...p, n: e.target.value }))} />
           </div>
           <div>
             <label className="label">{t('common.elevation')}</label>
-            <input inputMode="decimal" className="input" value={station.z} onChange={(e) => setStation((p) => ({ ...p, z: e.target.value }))} />
+            <input inputMode="decimal" className="input input-sm" value={station.z} onChange={(e) => setStation((p) => ({ ...p, z: e.target.value }))} />
           </div>
         </div>
 
@@ -68,14 +68,14 @@ export function MiningBook({
                 const out = outRows[idx]
                 return (
                   <tr key={r.id}>
-                    <td className="text-left"><input className="input" value={r.pointId} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, pointId: e.target.value } : x)))} /></td>
-                    <td className="text-left"><input className="input font-mono" value={r.bearing} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, bearing: e.target.value } : x)))} /></td>
-                    <td className="text-left"><input inputMode="decimal" className="input font-mono" value={r.verticalAngle} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, verticalAngle: e.target.value } : x)))} /></td>
-                    <td className="text-left"><input inputMode="decimal" className="input font-mono" value={r.slopeDistance} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, slopeDistance: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input className="input input-sm" value={r.pointId} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, pointId: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input className="input input-sm font-mono" value={r.bearing} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, bearing: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input inputMode="decimal" className="input input-sm font-mono" value={r.verticalAngle} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, verticalAngle: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input inputMode="decimal" className="input input-sm font-mono" value={r.slopeDistance} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, slopeDistance: e.target.value } : x)))} /></td>
                     <td className="font-mono text-right">{out?.computed ? Number(out.computed.easting).toFixed(4) : '—'}</td>
                     <td className="font-mono text-right">{out?.computed ? Number(out.computed.northing).toFixed(4) : '—'}</td>
                     <td className="font-mono text-right">{out?.computed ? Number(out.computed.elevation).toFixed(4) : '—'}</td>
-                    <td className="text-left"><input className="input" value={r.remarks} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input className="input input-sm" value={r.remarks} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
                     <td><button className="btn btn-secondary text-xs" onClick={() => setRows((p) => p.filter((x) => x.id !== r.id))}>{t('common.remove')}</button></td>
                   </tr>
                 )
@@ -91,4 +91,3 @@ export function MiningBook({
     </div>
   )
 }
-

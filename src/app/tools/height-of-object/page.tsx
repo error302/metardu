@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import SolutionRenderer from '@/components/SolutionRenderer'
 import type { Solution } from '@/lib/solution/schema'
-import { heightOfObjectSolution } from '@/lib/solution/wrappers/heightOfObject'
+import { heightOfObjectSolution } from '@/lib/engine/solution/wrappers/heightOfObject'
 
 export default function HeightOfObjectCalculator() {
   const [inputs, setInputs] = useState({

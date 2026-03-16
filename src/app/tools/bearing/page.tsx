@@ -4,7 +4,7 @@ import { useState } from 'react';
 import SolutionRenderer from '@/components/SolutionRenderer';
 import type { Solution } from '@/lib/solution/schema';
 import { parseDMSString, normalizeBearing } from '@/lib/engine/angles';
-import { bearingSolutionFromCoords, backBearingSolution } from '@/lib/solution/wrappers/bearing';
+import { bearingSolutionFromCoords, backBearingSolution } from '@/lib/engine/solution/wrappers/bearing';
 
 export default function BearingCalculator() {
   const [mode, setMode] = useState<'coords' | 'forward'>('coords');

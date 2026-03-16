@@ -60,6 +60,12 @@ h1, h2, h3, h4 {
   transition: border-color 0.15s;
 }
 
+.input-sm {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 4px;
+}
+
 .input:focus {
   outline: none;
   border-color: var(--accent);

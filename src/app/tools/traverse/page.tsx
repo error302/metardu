@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { bowditchAdjustment, transitAdjustment } from '@/lib/engine/traverse';
 import SolutionRenderer from '@/components/SolutionRenderer'
 import type { Solution } from '@/lib/solution/schema'
-import { bowditchAdjustmentSolutionFromResult } from '@/lib/solution/wrappers/traverse'
+import { bowditchAdjustmentSolutionFromResult } from '@/lib/engine/solution/wrappers/traverse'
 
 interface Leg {
   id: number;

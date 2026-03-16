@@ -44,13 +44,13 @@ export function HydroBook({
                 const out = outRows[idx]
                 return (
                   <tr key={r.id}>
-                    <td className="text-left"><input className="input" value={r.soundingId} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, soundingId: e.target.value } : x)))} /></td>
-                    <td><input inputMode="decimal" className="input font-mono" value={r.easting} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, easting: e.target.value } : x)))} /></td>
-                    <td><input inputMode="decimal" className="input font-mono" value={r.northing} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, northing: e.target.value } : x)))} /></td>
-                    <td><input inputMode="decimal" className="input font-mono" value={r.depth} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, depth: e.target.value } : x)))} /></td>
-                    <td><input inputMode="decimal" className="input font-mono" value={r.tide} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, tide: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input className="input input-sm" value={r.soundingId} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, soundingId: e.target.value } : x)))} /></td>
+                    <td><input inputMode="decimal" className="input input-sm font-mono" value={r.easting} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, easting: e.target.value } : x)))} /></td>
+                    <td><input inputMode="decimal" className="input input-sm font-mono" value={r.northing} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, northing: e.target.value } : x)))} /></td>
+                    <td><input inputMode="decimal" className="input input-sm font-mono" value={r.depth} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, depth: e.target.value } : x)))} /></td>
+                    <td><input inputMode="decimal" className="input input-sm font-mono" value={r.tide} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, tide: e.target.value } : x)))} /></td>
                     <td className="font-mono text-right">{out?.corrected !== null && out?.corrected !== undefined ? Number(out.corrected).toFixed(3) : '—'}</td>
-                    <td className="text-left"><input className="input" value={r.remarks} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input className="input input-sm" value={r.remarks} onChange={(e) => setRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
                     <td><button className="btn btn-secondary text-xs" onClick={() => setRows((p) => p.filter((x) => x.id !== r.id))}>{t('common.remove')}</button></td>
                   </tr>
                 )
@@ -65,4 +65,3 @@ export function HydroBook({
     </div>
   )
 }
-

@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 import SolutionRenderer from '@/components/SolutionRenderer'
 import type { Solution } from '@/lib/solution/schema'
-import { pegFromStationSolution, bearingDistanceSolution } from '@/lib/solution/wrappers/settingOut'
+import { pegFromStationSolution, bearingDistanceSolution } from '@/lib/engine/solution/wrappers/settingOut'
 
 export default function SettingOutCalculator() {
   const [mode, setMode] = useState<'coords' | 'bearing'>('coords')

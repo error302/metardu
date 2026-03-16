@@ -56,15 +56,15 @@ export function LevelingBook({
         <div className="grid md:grid-cols-3 gap-3">
           <div>
             <label className="label">{t('leveling.openingRl')}</label>
-            <input inputMode="decimal" className="input" value={openingRL} onChange={(e) => setOpeningRL(e.target.value)} />
+            <input inputMode="decimal" className="input input-sm" value={openingRL} onChange={(e) => setOpeningRL(e.target.value)} />
           </div>
           <div>
             <label className="label">{t('leveling.closingRl')}</label>
-            <input inputMode="decimal" className="input" value={closingRL} onChange={(e) => setClosingRL(e.target.value)} placeholder={t('common.optional')} />
+            <input inputMode="decimal" className="input input-sm" value={closingRL} onChange={(e) => setClosingRL(e.target.value)} placeholder={t('common.optional')} />
           </div>
           <div>
             <label className="label">{t('leveling.distanceKm')}</label>
-            <input inputMode="decimal" className="input" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} />
+            <input inputMode="decimal" className="input input-sm" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} />
           </div>
         </div>
 
@@ -88,14 +88,14 @@ export function LevelingBook({
                 const out = outRows[idx]
                 return (
                   <tr key={r.id}>
-                    <td className="text-left"><input className="input" value={r.station} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, station: e.target.value } : x)))} /></td>
-                    <td><input inputMode="decimal" className="input" value={r.bs} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, bs: e.target.value } : x)))} /></td>
-                    <td><input inputMode="decimal" className="input" value={r.is} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, is: e.target.value } : x)))} /></td>
-                    <td><input inputMode="decimal" className="input" value={r.fs} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, fs: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input className="input input-sm" value={r.station} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, station: e.target.value } : x)))} /></td>
+                    <td><input inputMode="decimal" className="input input-sm" value={r.bs} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, bs: e.target.value } : x)))} /></td>
+                    <td><input inputMode="decimal" className="input input-sm" value={r.is} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, is: e.target.value } : x)))} /></td>
+                    <td><input inputMode="decimal" className="input input-sm" value={r.fs} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, fs: e.target.value } : x)))} /></td>
                     <td className="font-mono text-right">{out?.rise !== undefined ? Number(out.rise).toFixed(3) : '—'}</td>
                     <td className="font-mono text-right">{out?.fall !== undefined ? Number(out.fall).toFixed(3) : '—'}</td>
                     <td className="font-mono text-right">{out?.reducedLevel !== undefined ? Number(out.reducedLevel).toFixed(4) : '—'}</td>
-                    <td className="text-left"><input className="input" value={r.remarks} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input className="input input-sm" value={r.remarks} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
                     <td><button className="btn btn-secondary text-xs" onClick={() => setLevelRows((p) => p.filter((x) => x.id !== r.id))}>{t('common.remove')}</button></td>
                   </tr>
                 )
@@ -131,4 +131,3 @@ export function LevelingBook({
     </div>
   )
 }
-

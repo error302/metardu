@@ -187,9 +187,9 @@ export default function ProjectMap({
     const seen = new Set<string>()
     const out: SurveyPoint[] = []
     for (const p of points) {
-      const key =
-        p.id ??
-        `${p.name}|${p.easting}|${p.northing}|${p.elevation ?? ''}|${p.is_control ? 'c' : 'p'}|${p.control_order ?? ''}`
+      // Dedupe by survey meaning (name + coordinates + control flags), not by DB id.
+      // This prevents UI duplicate markers when a point is accidentally inserted twice with different ids.
+      const key = `${p.name}|${p.easting}|${p.northing}|${p.elevation ?? ''}|${p.is_control ? 'c' : 'p'}|${p.control_order ?? ''}`
       if (seen.has(key)) continue
       seen.add(key)
       out.push(p)

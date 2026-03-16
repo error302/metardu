@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import SolutionRenderer from '@/components/SolutionRenderer'
 import type { Solution } from '@/lib/solution/schema'
-import { distanceBearingSolutionFromCoords } from '@/lib/solution/wrappers/distance'
+import { distanceBearingSolutionFromCoords } from '@/lib/engine/solution/wrappers/distance'
 
 export default function MissingLineCalculator() {
   const [pointA, setPointA] = useState({ e: '', n: '' });

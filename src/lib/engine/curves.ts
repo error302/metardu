@@ -145,3 +145,74 @@ export function verticalCurve(
   
   return results.sort((a, b) => a.chainage - b.chainage);
 }
+
+export type CompoundCurveElements = {
+  R1: number
+  R2: number
+  delta1Deg: number
+  delta2Deg: number
+  t1: number
+  t2: number
+  l1: number
+  l2: number
+  totalLength: number
+  chainT1: number
+  chainJ: number
+  chainT2: number
+}
+
+/**
+ * Compound curve elements (basic).
+ * Uses standard simple-curve element formulas for each arc.
+ */
+export function compoundCurveElements(input: {
+  R1: number
+  R2: number
+  delta1Deg: number
+  delta2Deg: number
+  junctionChainage: number
+}): CompoundCurveElements {
+  const toRad = (deg: number) => toRadians(deg)
+
+  const t1 = input.R1 * Math.tan(toRad(input.delta1Deg) / 2)
+  const t2 = input.R2 * Math.tan(toRad(input.delta2Deg) / 2)
+  const l1 = input.R1 * toRad(input.delta1Deg)
+  const l2 = input.R2 * toRad(input.delta2Deg)
+
+  const chainJ = input.junctionChainage
+  const chainT1 = chainJ - t1
+  const chainT2 = chainJ + t2
+
+  return {
+    R1: input.R1,
+    R2: input.R2,
+    delta1Deg: input.delta1Deg,
+    delta2Deg: input.delta2Deg,
+    t1,
+    t2,
+    l1,
+    l2,
+    totalLength: l1 + l2,
+    chainT1,
+    chainJ,
+    chainT2,
+  }
+}
+
+export type ReverseCurveApprox = {
+  R1: number
+  R2: number
+  AB: number
+  commonTangent: number
+  totalLength: number
+}
+
+/**
+ * Reverse curve (approx.) helper used by the UI tool.
+ */
+export function reverseCurveApprox(input: { R1: number; R2: number; AB: number }): ReverseCurveApprox {
+  const diff = input.R2 - input.R1
+  const commonTangent = Math.sqrt(Math.max(0, input.AB * input.AB - diff * diff))
+  const totalLength = Math.PI * input.R1 + Math.PI * input.R2
+  return { ...input, commonTangent, totalLength }
+}
