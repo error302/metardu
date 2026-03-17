@@ -5,8 +5,10 @@ import { useState } from 'react'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { pegFromStationSolved, bearingDistanceSolved } from '@/lib/engine/solution/wrappers/settingOut'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function SettingOutCalculator() {
+  const { t } = useLanguage()
   const [mode, setMode] = useState<'coords' | 'bearing'>('coords')
 
   const [station, setStation] = useState({ e: '', n: '' })
@@ -45,16 +47,36 @@ export default function SettingOutCalculator() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Setting Out (Stakeout)</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Blueprint format: Given → To Find → Solution → Check → Result</p>
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">{t('tools.settingOut')}</h1>
+          <p className="text-sm text-[var(--text-muted)]">
+            Field-ready stakeout calculator with full working (Given → To Find → Solution → Check → Result).
+          </p>
+        </div>
 
-      <div className="flex gap-4 mb-6 flex-wrap">
-        <button onClick={() => { setMode('coords'); setSteps(null); setSolutionTitle(undefined) }} className={`btn ${mode === 'coords' ? 'btn-primary' : 'btn-secondary'}`}>
-          Station + Bearing → Peg
-        </button>
-        <button onClick={() => { setMode('bearing'); setSteps(null); setSolutionTitle(undefined) }} className={`btn ${mode === 'bearing' ? 'btn-primary' : 'btn-secondary'}`}>
-          Station → Target
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setMode('coords')
+              setSteps(null)
+              setSolutionTitle(undefined)
+            }}
+            className={`btn ${mode === 'coords' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            Station + Bearing → Peg
+          </button>
+          <button
+            onClick={() => {
+              setMode('bearing')
+              setSteps(null)
+              setSolutionTitle(undefined)
+            }}
+            className={`btn ${mode === 'bearing' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            Station → Target
+          </button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
@@ -67,26 +89,26 @@ export default function SettingOutCalculator() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Station Easting (m)</label>
-                  <input className="input" value={station.e} onChange={(e) => setStation({ ...station, e: e.target.value })} placeholder="500000.0000" />
+                  <input className="input input-sm font-mono" inputMode="decimal" value={station.e} onChange={(e) => setStation({ ...station, e: e.target.value })} placeholder="500000.0000" />
                 </div>
                 <div>
                   <label className="label">Station Northing (m)</label>
-                  <input className="input" value={station.n} onChange={(e) => setStation({ ...station, n: e.target.value })} placeholder="9500000.0000" />
+                  <input className="input input-sm font-mono" inputMode="decimal" value={station.n} onChange={(e) => setStation({ ...station, n: e.target.value })} placeholder="9500000.0000" />
                 </div>
               </div>
 
               <div>
                 <label className="label">Bearing (WCB) — DMS</label>
                 <div className="grid grid-cols-3 gap-2">
-                  <input className="input font-mono" value={bearing.d} onChange={(e) => setBearing({ ...bearing, d: e.target.value })} placeholder="082" />
-                  <input className="input font-mono" value={bearing.m} onChange={(e) => setBearing({ ...bearing, m: e.target.value })} placeholder="12" />
-                  <input className="input font-mono" value={bearing.s} onChange={(e) => setBearing({ ...bearing, s: e.target.value })} placeholder="00.000" />
+                  <input className="input input-sm font-mono" inputMode="numeric" value={bearing.d} onChange={(e) => setBearing({ ...bearing, d: e.target.value })} placeholder="082" />
+                  <input className="input input-sm font-mono" inputMode="numeric" value={bearing.m} onChange={(e) => setBearing({ ...bearing, m: e.target.value })} placeholder="12" />
+                  <input className="input input-sm font-mono" inputMode="decimal" value={bearing.s} onChange={(e) => setBearing({ ...bearing, s: e.target.value })} placeholder="00.000" />
                 </div>
               </div>
 
               <div>
                 <label className="label">Distance (m)</label>
-                <input className="input font-mono" inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="100.000" />
+                <input className="input input-sm font-mono" inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="100.000" />
               </div>
 
               <button onClick={calculatePegCoords} className="btn btn-primary w-full">Compute</button>
@@ -101,21 +123,21 @@ export default function SettingOutCalculator() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Station Easting (m)</label>
-                  <input className="input" value={station.e} onChange={(e) => setStation({ ...station, e: e.target.value })} placeholder="500000.0000" />
+                  <input className="input input-sm font-mono" inputMode="decimal" value={station.e} onChange={(e) => setStation({ ...station, e: e.target.value })} placeholder="500000.0000" />
                 </div>
                 <div>
                   <label className="label">Station Northing (m)</label>
-                  <input className="input" value={station.n} onChange={(e) => setStation({ ...station, n: e.target.value })} placeholder="9500000.0000" />
+                  <input className="input input-sm font-mono" inputMode="decimal" value={station.n} onChange={(e) => setStation({ ...station, n: e.target.value })} placeholder="9500000.0000" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Target Easting (m)</label>
-                  <input className="input" value={target.e} onChange={(e) => setTarget({ ...target, e: e.target.value })} placeholder="500025.0000" />
+                  <input className="input input-sm font-mono" inputMode="decimal" value={target.e} onChange={(e) => setTarget({ ...target, e: e.target.value })} placeholder="500025.0000" />
                 </div>
                 <div>
                   <label className="label">Target Northing (m)</label>
-                  <input className="input" value={target.n} onChange={(e) => setTarget({ ...target, n: e.target.value })} placeholder="9500018.0000" />
+                  <input className="input input-sm font-mono" inputMode="decimal" value={target.n} onChange={(e) => setTarget({ ...target, n: e.target.value })} placeholder="9500018.0000" />
                 </div>
               </div>
               <button onClick={calculateBearingDistance} className="btn btn-primary w-full">Compute</button>
