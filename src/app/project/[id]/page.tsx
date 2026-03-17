@@ -251,12 +251,27 @@ export default function ProjectPage({ params }: PageProps) {
   }
 
   const handleDeletePoint = async (point: any) => {
+    if (!point?.id) return
     if (point.locked) {
       alert('This control point is locked and cannot be deleted.')
       return
     }
-    await supabase.from('survey_points').delete().eq('id', point.id)
-    fetchData()
+
+    let snapshot: Point[] | null = null
+    setPoints((prev) => {
+      snapshot = prev
+      return prev.filter((p) => p.id !== point.id)
+    })
+    setAreaPoints((prev) => prev.filter((p: any) => p?.id !== point.id))
+
+    try {
+      const { error } = await supabase.from('survey_points').delete().eq('id', point.id)
+      if (error) throw error
+    } catch (err: any) {
+      console.error('Delete failed:', err)
+      if (snapshot) setPoints(snapshot)
+      alert(`Failed to delete point: ${err?.message ?? 'Unknown error'}`)
+    }
   }
 
   const handleEditPoint = (point: any) => {
@@ -795,9 +810,7 @@ export default function ProjectPage({ params }: PageProps) {
                               Edit
                             </button>
                             <button
-                              onClick={() => {
-                                if (confirm(`Delete point "${point.name}"?`)) handleDeletePoint(point)
-                              }}
+                              onClick={() => handleDeletePoint(point)}
                               disabled={!!point.locked}
                               className="text-xs px-2 py-1 bg-red-900/40 hover:bg-red-900/60 text-red-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               title={point.locked ? 'Locked control points cannot be deleted' : 'Delete point'}

@@ -603,12 +603,13 @@ export default function ProjectMap({
             </button>
             <button
               onClick={() => {
-                if (confirm(`Delete point "${contextMenu.point.name}"?`)) {
-                  onDeletePoint?.(contextMenu.point)
-                }
+                if (contextMenu.point.locked) return
+                onDeletePoint?.(contextMenu.point)
                 setContextMenu(null)
               }}
-              className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-700"
+              disabled={!!contextMenu.point.locked}
+              title={contextMenu.point.locked ? 'Locked control points cannot be deleted' : 'Delete point'}
+              className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Delete Point
             </button>
