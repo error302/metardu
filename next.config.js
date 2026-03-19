@@ -1,15 +1,11 @@
-const withPWA = require('@ducanh2912/next-pwa').default({
+const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
   skipWaiting: true,
   disable:
     process.env.NODE_ENV === 'development' ||
     process.env.DISABLE_PWA === 'true' ||
-    (process.platform === 'win32' && process.env.ENABLE_PWA_ON_WINDOWS !== 'true'),
-  // App Router compatible service worker
-  workboxOptions: {
-    disableDevLogs: true,
-  },
+    (process.platform === 'win32' && process.env.ENABLE_PWA_ON_WINDOWS !== 'true')
 })
 
 /** @type {import('next').NextConfig} */
