@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-type-check:
+    name: Lint & type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - name: Type check
+        run: npx tsc --noEmit
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --coverage --passWithNoTests
+        env:
+          # Tests run against the engine only — no Supabase needed
+          NODE_ENV: test
+
+  build:
+    name: Build check
+    runs-on: ubuntu-latest
+    needs: [lint-and-type-check, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: npm run build
+        env:
+          # Provide dummy values so Next.js build doesn't fail on missing env vars.
+          # Real values live in Vercel environment variables — never commit secrets.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+          NEXT_PUBLIC_APP_URL: https://geonova-henna.vercel.app
+          # Disable PWA during CI to avoid sw.js generation issues
+          DISABLE_PWA: 'true'
+          # Allow build to complete even with type errors in CI
+          # (type errors are caught in the lint-and-type-check job)
+          NEXT_STRICT_CHECKS: 'false'
