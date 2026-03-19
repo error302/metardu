@@ -4,7 +4,7 @@ import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 export async function POST(req: NextRequest) {
   try {
     const identifier = getClientIdentifier(req)
-    const { allowed, remaining } = rateLimit(identifier, 30, 60000)
+    const { allowed, remaining } = await rateLimit(identifier, 30, 60000)
     
     if (!allowed) {
       return new NextResponse(

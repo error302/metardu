@@ -16,13 +16,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     let mounted = true
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return
-      if (data.session) router.replace('/dashboard')
+      if (data.user) router.replace('/dashboard')
     })
-    return () => {
-      mounted = false
-    }
+    return () => { mounted = false }
   }, [router, supabase])
 
   const handleSubmit = async (e: React.FormEvent) => {

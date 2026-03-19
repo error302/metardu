@@ -229,7 +229,7 @@ function ContourMap({ points, contours }: { points: SpotHeight[]; contours: Cont
     return `rgb(${r},${g},${b})`
   }
 
-  const majorInterval = interval => interval % 5 === 0
+  const majorInterval = (elev: number) => elev % 5 === 0
 
   const handleExportDXF = async () => {
     const res = await fetch('/api/compute', {

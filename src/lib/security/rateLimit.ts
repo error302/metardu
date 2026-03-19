@@ -67,16 +67,16 @@ function inMemoryRateLimit(
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export function rateLimit(
+export async function rateLimit(
   identifier: string,
   maxRequests = 60,
   windowMs = 60000
-): { allowed: boolean; remaining: number } | Promise<{ allowed: boolean; remaining: number }> {
+): Promise<{ allowed: boolean; remaining: number }> {
   if (
     process.env.UPSTASH_REDIS_REST_URL &&
     process.env.UPSTASH_REDIS_REST_TOKEN
   ) {
-    return upstashRateLimit(identifier, maxRequests, windowMs)
+    return await upstashRateLimit(identifier, maxRequests, windowMs)
   }
 
   if (process.env.NODE_ENV === 'production') {
@@ -86,7 +86,7 @@ export function rateLimit(
     )
   }
 
-  return inMemoryRateLimit(identifier, maxRequests, windowMs)
+  return Promise.resolve(inMemoryRateLimit(identifier, maxRequests, windowMs))
 }
 
 export function getClientIdentifier(request: Request): string {

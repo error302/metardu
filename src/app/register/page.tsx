@@ -36,16 +36,15 @@ export default function RegisterPage() {
       setError(error.message)
       setLoading(false)
     } else if (data.user) {
-      // Create trial subscription for new user
-      await supabase.from('user_subscriptions').insert({
-        user_id: data.user.id,
-        plan_id: 'pro',
-        status: 'trial',
-        trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        current_period_start: new Date().toISOString(),
-        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      
+      // Create trial subscription + send welcome email server-side
+      await Promise.allSettled([
+        fetch('/api/auth/register-complete', { method: 'POST' }),
+        fetch('/api/emails/welcome', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name: fullName }),
+        }),
+      ])
       setSuccess(true)
       setLoading(false)
     }

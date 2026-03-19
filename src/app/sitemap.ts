@@ -1,7 +1,9 @@
 import { MetadataRoute } from 'next'
 
+const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://geonova-henna.vercel.app'
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://geonova-henna.vercel.app'
+  const baseUrl = BASE
   
   return [
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },

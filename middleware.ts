@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
 
   if (isApiRoute) {
     const identifier = getClientIdentifier(request)
-    const { allowed, remaining } = rateLimit(identifier, API_RATE_LIMIT, API_RATE_WINDOW)
+    const { allowed, remaining } = await rateLimit(identifier, API_RATE_LIMIT, API_RATE_WINDOW)
 
     if (!allowed) {
       return NextResponse.json(

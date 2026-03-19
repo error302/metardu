@@ -2,13 +2,13 @@ import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/security/rateLimit'
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_123456789')
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: NextRequest) {
   try {
     const { email, name } = await req.json()
 
-    const { allowed, remaining } = rateLimit(email || 'anonymous', 5, 3600000)
+    const { allowed, remaining } = await rateLimit(email || 'anonymous', 5, 3600000)
     if (!allowed) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
     }
