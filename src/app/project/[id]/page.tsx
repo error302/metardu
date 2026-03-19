@@ -22,6 +22,7 @@ import StakeoutMode from '@/components/StakeoutMode'
 import NearbyBeaconsModal from '@/components/NearbyBeaconsModal'
 import ParcelBuilderModal from '@/components/ParcelBuilderModal'
 import WorkspaceShell from '@/components/organisms/WorkspaceShell'
+import PythonEngineStatus from '@/components/PythonEngineStatus'
 import SolutionRenderer from '@/components/SolutionRenderer'
 
 const ProjectMap = dynamic(() => import('@/components/ProjectMap'), {
@@ -555,7 +556,8 @@ export default function ProjectPage({ params }: PageProps) {
 
   return (
     <>
-      <WorkspaceShell
+      <PythonEngineStatus />
+    <WorkspaceShell
         bottomTitle={bottomTab === 'log' ? 'Calculation Log' : 'Field Notes'}
         left={
           <div className="p-3">

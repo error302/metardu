@@ -26,12 +26,19 @@ from processing.export import (
 
 app = FastAPI(title="GeoNova Geospatial Engine")
 
+import os
+
+# Restrict CORS to the Next.js origin. Set ALLOWED_ORIGINS env var in production.
+# Example: ALLOWED_ORIGINS=https://geonova-henna.vercel.app,https://app.geonova.app
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 

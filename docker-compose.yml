@@ -1,0 +1,20 @@
+version: '3.9'
+
+services:
+  python-engine:
+    build:
+      context: ./services/geospatial-engine
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ALLOWED_ORIGINS=http://localhost:3000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Run `npm run dev` separately — Next.js hot reload doesn't work well in Docker
+  # Set PYTHON_COMPUTE_URL=http://localhost:8000 in your .env.local
