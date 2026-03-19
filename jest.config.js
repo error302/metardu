@@ -19,5 +19,12 @@ module.exports = {
       lines: 70,
       statements: 70,
     },
+    // The math engine produces professional survey results — hold it higher
+    './src/lib/engine/': {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
   },
 }
