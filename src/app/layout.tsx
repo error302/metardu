@@ -35,10 +35,10 @@ export const metadata: Metadata = {
     description: 'Complete surveying platform for professional land surveyors across Africa and beyond.',
     images: [
       {
-        url: '/og-image.png',
+        url: '/opengraph-image',
         width: 1200,
         height: 630,
-        alt: 'GeoNova Surveying Platform'
+        alt: 'GeoNova — Professional Surveying Platform'
       }
     ]
   },
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'GeoNova — Professional Surveying Platform',
     description: 'Complete surveying platform for professional land surveyors.',
-    images: ['/og-image.png']
+    images: ['/opengraph-image']
   },
   robots: {
     index: true,
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
     }
   },
   verification: {
-    google: 'add-google-verification-code-here'
+    google: process.env.GOOGLE_SITE_VERIFICATION,
   }
 };
 

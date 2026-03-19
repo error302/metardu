@@ -1,5 +1,5 @@
 {
-  "name": "GeoNova — Professional Surveying",
+  "name": "GeoNova \u2014 Professional Surveying",
   "short_name": "GeoNova",
   "description": "Professional surveying calculations and project management",
   "start_url": "/",
@@ -12,15 +12,66 @@
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["productivity", "utilities"],
-  "screenshots": []
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
+  "screenshots": [],
+  "id": "/",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+  "shortcuts": [
+    {
+      "name": "Quick Tools",
+      "short_name": "Tools",
+      "description": "Open the calculation tools",
+      "url": "/tools",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My Projects",
+      "short_name": "Projects",
+      "description": "Open your survey projects",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
 }

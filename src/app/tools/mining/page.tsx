@@ -76,6 +76,7 @@ export default function MiningSurveyPage() {
     { id: 3, chainage: '100', area: '28.4' },
   ]);
   const [volumeResult, setVolumeResult] = useState<any>(null);
+  const [surfaceVolumeLoading, setSurfaceVolumeLoading] = useState(false);
   
   const [subsidencePoints, setSubsidencePoints] = useState<SubsidencePoint[]>([
     { id: 1, pointName: 'P1', epoch1E: '1000.000', epoch1N: '2000.000', epoch1Z: '50.000', epoch2E: '1000.003', epoch2N: '1999.998', epoch2Z: '49.991' },
@@ -518,6 +519,31 @@ export default function MiningSurveyPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'volume' && volumeResult?.pythonSurface && (
+        <div className="card mb-6">
+          <div className="card-header flex items-center justify-between">
+            <span className="label">Surface Cut/Fill (Python Engine)</span>
+            <span className="text-xs text-green-400 border border-green-500/20 bg-green-500/10 px-2 py-0.5 rounded">Python engine</span>
+          </div>
+          <div className="card-body grid grid-cols-3 gap-4">
+            <div className="metric">
+              <div className="metric-label">Cut volume</div>
+              <div className="metric-value">{volumeResult.cutVolume?.toFixed(2)} m³</div>
+            </div>
+            <div className="metric">
+              <div className="metric-label">Fill volume</div>
+              <div className="metric-value">{volumeResult.fillVolume?.toFixed(2)} m³</div>
+            </div>
+            <div className="metric">
+              <div className="metric-label">Net volume</div>
+              <div className={`metric-value ${volumeResult.netVolume > 0 ? 'result-accent' : 'result-negative'}`}>
+                {volumeResult.netVolume?.toFixed(2)} m³
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

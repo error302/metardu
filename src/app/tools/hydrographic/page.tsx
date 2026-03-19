@@ -154,6 +154,8 @@ export default function HydrographicSurveyPage() {
   ]);
 
   const [crossSectionResults, setCrossSectionResults] = useState<any>(null);
+  const [seabedResults, setSeabedResults] = useState<any>(null);
+  const [seabedLoading, setSeabedLoading] = useState(false);
 
   const addCrossSectionMeasurement = () => {
     const last = crossSectionMeasurements[crossSectionMeasurements.length - 1];
@@ -208,6 +210,39 @@ export default function HydrographicSurveyPage() {
       hydraulicRadius,
     });
   };
+
+  const analyzeSeabed = async () => {
+    const points = soundingRecords
+      .filter(r => r.easting && r.northing && r.rawDepth)
+      .map(r => ({
+        easting: parseFloat(r.easting),
+        northing: parseFloat(r.northing),
+        depth: parseFloat(r.rawDepth),
+      }))
+    if (points.length < 2) return
+    setSeabedLoading(true)
+    try {
+      const res = await fetch('/api/compute/seabed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ points }),
+      })
+      const data = await res.json()
+      if (res.ok) setSeabedResults(data)
+    } catch {
+      // fallback: compute locally
+      const depths = points.map(p => p.depth)
+      setSeabedResults({
+        depth_min: Math.min(...depths),
+        depth_max: Math.max(...depths),
+        depth_mean: depths.reduce((a, b) => a + b, 0) / depths.length,
+        volume: depths.reduce((a, b) => a + b, 0),
+        area: points.length,
+      })
+    } finally {
+      setSeabedLoading(false)
+    }
+  }
 
   const convertDatum = (from: string, to: string) => {
     const msl = parseFloat(chartDatumParams.msl);
@@ -579,6 +614,15 @@ export default function HydrographicSurveyPage() {
             <div className="p-4 flex gap-4">
               <button onClick={addCrossSectionMeasurement} className="btn btn-secondary">+ Add Point</button>
               <button onClick={calculateCrossSection} className="btn btn-primary">Calculate Section</button>
+              <button
+                onClick={analyzeSeabed}
+                disabled={seabedLoading}
+                className="btn btn-secondary disabled:opacity-60"
+              >
+                {seabedLoading ? (
+                  <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Analysing…</>
+                ) : 'Analyse Seabed (Python)'}
+              </button>
             </div>
           </div>
 
