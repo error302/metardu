@@ -26,6 +26,7 @@ export default function TraverseCalculator() {
   const [result, setResult] = useState<any>(null);
   const [steps, setSteps] = useState<SolutionStep[] | null>(null)
   const [solutionTitle, setSolutionTitle] = useState<string | undefined>(undefined)
+  const [calcError, setCalcError] = useState<string | null>(null)
 
   const addLeg = () => {
     const nextChar = String.fromCharCode(65 + legs.length);
@@ -37,15 +38,21 @@ export default function TraverseCalculator() {
   };
 
   const calculate = () => {
-    const points = legs
-      .filter(l => l.n && l.e)
-      .map(l => ({ name: l.name, northing: parseFloat(l.n), easting: parseFloat(l.e) }));
-    
-    const distances = legs.map(l => parseFloat(l.dist)).filter(d => !isNaN(d));
-    const bearings = legs.map(l => parseFloat(l.bearing)).filter(b => !isNaN(b));
-    
-    if (points.length >= 2 && distances.length >= 2 && bearings.length >= 2) {
-      const r = method === 'bowditch' 
+    setCalcError(null)
+    try {
+      const points = legs
+        .filter(l => l.n && l.e)
+        .map(l => ({ name: l.name, northing: parseFloat(l.n), easting: parseFloat(l.e) }));
+
+      const distances = legs.map(l => parseFloat(l.dist)).filter(d => !isNaN(d));
+      const bearings = legs.map(l => parseFloat(l.bearing)).filter(b => !isNaN(b));
+
+      if (points.length < 2 || distances.length < 2 || bearings.length < 2) {
+        setCalcError('Please enter at least 2 legs with valid distances, bearings, and at least one known coordinate.')
+        return
+      }
+
+      const r = method === 'bowditch'
         ? bowditchAdjustment({ points, distances, bearings })
         : transitAdjustment({ points, distances, bearings });
       setResult(r);
@@ -57,6 +64,10 @@ export default function TraverseCalculator() {
         setSteps(null)
         setSolutionTitle(undefined)
       }
+    } catch (err: any) {
+      setCalcError(err?.message || 'Calculation failed. Check your inputs.')
+      setResult(null)
+      setSteps(null)
     }
   };
 
@@ -110,6 +121,13 @@ export default function TraverseCalculator() {
 
         <button onClick={calculate} className="btn btn-primary">Calculate Adjustment</button>
       </div>
+
+      {calcError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 mb-6 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+          <p className="font-semibold">Error</p>
+          <p>{calcError}</p>
+        </div>
+      )}
 
       {result && (
         <div className="grid md:grid-cols-2 gap-6">
