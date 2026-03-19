@@ -5,22 +5,34 @@ import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 const API_RATE_LIMIT = 60
 const API_RATE_WINDOW = 60000
 
+const SECURITY_HEADERS: Record<string, string> = {
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
+}
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  // Apply security headers to every response
+  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
+    supabaseResponse.headers.set(key, value)
+  })
+
   const isApiRoute = request.nextUrl.pathname.startsWith('/api/')
-  
+
   if (isApiRoute) {
     const identifier = getClientIdentifier(request)
     const { allowed, remaining } = rateLimit(identifier, API_RATE_LIMIT, API_RATE_WINDOW)
-    
+
     if (!allowed) {
       return NextResponse.json(
         { error: 'Too many requests', retryAfter: Math.ceil(API_RATE_WINDOW / 1000) },
         { status: 429, headers: { 'X-RateLimit-Remaining': '0', 'Retry-After': String(Math.ceil(API_RATE_WINDOW / 1000)) } }
       )
     }
-    
+
     supabaseResponse.headers.set('X-RateLimit-Remaining', String(remaining))
   }
 
@@ -34,6 +46,10 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
+          // Re-apply security headers after response is recreated
+          Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
+            supabaseResponse.headers.set(key, value)
+          })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options))
         },
@@ -41,15 +57,10 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Prefer session from cookies to avoid false negatives when the edge runtime
-  // cannot reach Supabase for `getUser()` (which performs a network call).
-  const { data: { session } } = await supabase.auth.getSession()
-  const sessionUser = session?.user ?? null
-
-  // Fallback to validating the token with Supabase when possible.
-  const { data: { user } } = sessionUser
-    ? { data: { user: sessionUser } }
-    : await supabase.auth.getUser()
+  // SECURITY: Always verify the JWT with Supabase — never trust the cookie alone.
+  // getSession() reads from the cookie without verifying it, allowing cookie forgery.
+  // getUser() performs a network call to validate the token with the Supabase auth server.
+  const { data: { user } } = await supabase.auth.getUser()
 
   const authRoutes = ['/login', '/register']
   const isAuthRoute = authRoutes.some(route => request.nextUrl.pathname.startsWith(route))
