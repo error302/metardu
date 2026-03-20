@@ -3,10 +3,10 @@ import { distanceBearing } from "./distance";
 
 // ─── AREA PRECISION FORMATTING (Kenya Survey Regs Reg 84) ─────────────────────
 // Kenya Reg 84 — decimal places for area computation:
-//   ≤1 ha     → 4 decimal places  (0.0001 ha = 1 m²)
-//   1–10 ha   → 3 decimal places
-//   10–100 ha → 2 decimal places
-//   >100 ha   → 1 decimal place
+//   ≤1 ha       → 4 decimal places  (0.0001 ha = 1 m²)
+//   1–10 ha     → 3 decimal places
+//   10–1,000 ha → 2 decimal places
+//   >1,000 ha   → 1 decimal place
 
 export type AreaPrecision = 1 | 2 | 3 | 4;
 
@@ -45,7 +45,7 @@ export function formatAreaForDisplay(
     decimals = 3;
     value = unit === "ha" ? sqHa : unit === "m2" ? sqM : sqAcres;
     formattedValue = `${parseFloat(value.toFixed(decimals)).toLocaleString()} ${unit === "ha" ? "ha" : unit === "m2" ? "m²" : "ac"}`;
-  } else if (sqHa <= 100) {
+  } else if (sqHa <= 1000) {
     decimals = 2;
     value = unit === "ha" ? sqHa : unit === "m2" ? sqM : sqAcres;
     formattedValue = `${parseFloat(value.toFixed(decimals)).toLocaleString()} ${unit === "ha" ? "ha" : unit === "m2" ? "m²" : "ac"}`;
@@ -62,7 +62,7 @@ export function formatAreaForDisplay(
   const label =
     decimals === 4 ? "≤ 1 ha" :
     decimals === 3 ? "1 – 10 ha" :
-    decimals === 2 ? "10 – 100 ha" : "> 100 ha";
+    decimals === 2 ? "10 – 1,000 ha" : "> 1,000 ha";
 
   return {
     hectares: sqHa,

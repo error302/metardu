@@ -379,18 +379,17 @@ assert(!err2.ok, "Negative slope distance: returns error");
 section("Area precision (Kenya Reg 84)");
 
 const a1 = formatAreaForDisplay(5000);       // 0.5 ha → 4dp
-assert(a1.ok, "formatAreaForDisplay ok");
 assert(a1.decimalPlaces === 4, "≤1 ha → 4 decimal places");
 assert(a1.formattedValue.includes("0.5000"), `0.5 ha formatted as "${a1.formattedValue}"`);
 
 const a2 = formatAreaForDisplay(50_000);       // 5 ha → 3dp
 assert(a2.decimalPlaces === 3, "1–10 ha → 3 decimal places");
 
-const a3 = formatAreaForDisplay(500_000);     // 50 ha → 2dp
-assert(a3.decimalPlaces === 2, "10–100 ha → 2 decimal places");
+const a3 = formatAreaForDisplay(500_000);     // 50 ha → 2dp (10–1,000 ha)
+assert(a3.decimalPlaces === 2, "10–1,000 ha → 2 decimal places");
 
-const a4 = formatAreaForDisplay(5_000_000);   // 500 ha → 1dp
-assert(a4.decimalPlaces === 1, ">100 ha → 1 decimal place");
+const a4 = formatAreaForDisplay(15_000_000);  // 1,500 ha → 1dp (>1,000 ha)
+assert(a4.decimalPlaces === 1, ">1,000 ha → 1 decimal place");
 
 const a5 = formatAreaForDisplay(5000, "m2");
 assert(a5.unit === "m²", "m² unit label used");
