@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useCountry } from '@/lib/country'
+import RegistryIndexMap from './RegistryIndexMap'
 import { formatAreaByCountry, getTraverseValidation } from '@/lib/engine/country-math'
 import type { SurveyEnvironment } from '@/lib/country'
 
@@ -103,8 +104,11 @@ export default function SurveyReport({
   const [supervisorName, setSupervisorName] = useState('')
   const [validated, setValidated] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [showRIM, setShowRIM] = useState(false)
 
   if (!isOpen) return null
+
+  const rimData = { district: '', location: '', parcels: [] as any[] }
 
   const areaResult = parcelAreaSqM > 0 ? formatAreaByCountry(country, parcelAreaSqM) : null
 
@@ -454,7 +458,17 @@ export default function SurveyReport({
             />
           </div>
 
-          <SectionHeader>{t('surveyReport.areaSection', 'Area')}</SectionHeader>
+          <div className="flex items-center justify-between">
+            <SectionHeader>{t('surveyReport.areaSection', 'Area')}</SectionHeader>
+            {country === 'kenya' && parcelAreaSqM > 0 && (
+              <button
+                onClick={() => setShowRIM(true)}
+                className="px-3 py-1 text-xs bg-amber-100 text-amber-800 border border-amber-300 rounded hover:bg-amber-200 flex items-center gap-1"
+              >
+                📋 Generate RIM (Kenya)
+              </button>
+            )}
+          </div>
           {areaResult ? (
             <div className="grid grid-cols-4 gap-4">
               <div>
@@ -617,6 +631,27 @@ export default function SurveyReport({
           </div>
         </div>
       </div>
+
+      <RegistryIndexMap
+        isOpen={showRIM}
+        onClose={() => setShowRIM(false)}
+        initialData={{
+          district: 'KAJIADO',
+          location: locationMethod || 'ILKISONGO',
+          registrationUnit: jobNo || 'ENTARARA',
+          sheetNumber: '1',
+          edition: '1ST EDITION',
+          scale: '1:2,500',
+          parcels: parcelAreaSqM > 0 ? [{
+            id: crypto.randomUUID(),
+            number: '1',
+            x: 40, y: 40, width: 180, height: 120,
+            area: (parcelAreaSqM / 10_000).toFixed(4),
+            description: parcelDescription || 'Parcel 1',
+            color: '#fef3c7',
+          }] : [],
+        }}
+      />
     </div>
   )
 }

@@ -17,7 +17,8 @@
  */
 
 export type SurveyingCountry =
-  | 'kenya' | 'uganda' | 'tanzania' | 'nigeria' | 'ghana' | 'south_africa'
+  | 'kenya' | 'uganda' | 'tanzania' | 'rwanda' | 'burundi' | 'south_sudan'
+  | 'nigeria' | 'ghana' | 'south_africa' | 'zambia'
   | 'bahrain' | 'saudi_arabia' | 'oman' | 'uae'
   | 'new_zealand' | 'uk' | 'us' | 'australia' | 'india'
   | 'indonesia' | 'brazil' | 'other'
@@ -402,6 +403,187 @@ const NZ_STD: CountrySurveyStandard = {
     'Pre-validation required per LINZS70000 lodgement standard',
     'Templates exist: Word/PDF and automated versions available from LINZ',
     'LINZS70000 lodgement standard governs digital submission format',
+  ],
+}
+
+const RWANDA_STD: CountrySurveyStandard = {
+  country: 'rwanda',
+  name: 'Rwanda',
+  isoCode: 'RW',
+  currency: 'RWF',
+  datum: 'WGS84 / Arc 1960',
+  ellipsoid: 'GRS80 / Clarke 1880',
+  utmZones: [35, 36],
+  utmHemisphere: 'S',
+  traverseOrders: [
+    {
+      order: 'geodetic',
+      minPrecision: 50_000,
+      description: 'Geodetic control — EAC harmonized standard',
+      regulation: 'EAC Survey Harmonization Framework / RNRA (Rwanda Natural Resources Authority)',
+    },
+    {
+      order: 'cadastral',
+      minPrecision: 10_000,
+      description: 'Cadastral surveys — EAC standard (aligned with Kenya Reg 60)',
+      regulation: 'EAC Survey Harmonization / Rwanda Land Law No. 27/2012',
+    },
+  ],
+  defaultTraverseOrder: 'cadastral',
+  areaPrecision: [
+    { maxHa: 1,    decimalPlaces: 4, unit: 'ha',  regulation: 'EAC harmonized — ≤1ha: 4dp' },
+    { maxHa: 10,   decimalPlaces: 3, unit: 'ha',  regulation: 'EAC harmonized — 1-10ha: 3dp' },
+    { maxHa: 100,  decimalPlaces: 2, unit: 'ha',  regulation: 'EAC harmonized — 10-100ha: 2dp' },
+    { maxHa: Infinity, decimalPlaces: 1, unit: 'ha', regulation: 'EAC harmonized — >100ha: 1dp' },
+  ],
+  slopeCorrection: { required: true, maxSlopeSingleFace: 10, tempCorrection: true, pressureCorrection: true, sagCorrection: true, regulation: 'EAC / RNRA survey standards' },
+  curvilinearBoundary: { maxTacheometricDistance: 200, maxOffsetSmall: 50, maxOffsetLarge: 75, regulation: 'EAC standard (Kenya Reg framework)' },
+  beacon: { mustReferenceUnderground: true, verifyWithKnownPoints: true, verifyMethod: 'traverse', regulation: 'Rwanda Land Law / EAC cadastral standards' },
+  fieldNoteRules: { noErasures: true, correctionsMethod: 'single_line', regulation: 'RNRA — field note rules aligned with Commonwealth practice' },
+  surveyorReport: { required: true, mustInclude: ['Parcel identification', 'Method of survey', 'Control used', 'Boundary decisions with reasoning', 'Accuracies achieved', 'Field checks'], counterSignRequired: false, regulation: 'EAC cadastral framework / Rwanda Land Law' },
+  parcelMinArea: { sqMetres: 1, regulation: 'Rwanda Land Law / RNRA' },
+  generalNotes: [
+    'EAC member state — harmonized cadastral standards with Kenya, Uganda, Tanzania',
+    'Arc 1960 (Clarke 1880) used historically; modern surveys reference WGS84 via GNSS',
+    'Cadastral surveys governed by Land Law No. 27/2012 and implementing regulations',
+    'RNRA: Rwanda Natural Resources Authority — surveying authority',
+    'EAC surveyor mobility: Kenyan licensed surveyors recognized under mutual recognition agreement',
+    'Coordinate precision: 0.0001m (4 decimal places) for registered parcels',
+  ],
+}
+
+const BURUNDI_STD: CountrySurveyStandard = {
+  country: 'burundi',
+  name: 'Burundi',
+  isoCode: 'BI',
+  currency: 'BIF',
+  datum: 'Arc 1960',
+  ellipsoid: 'Clarke 1880',
+  utmZones: [35, 36],
+  utmHemisphere: 'S',
+  traverseOrders: [
+    {
+      order: 'geodetic',
+      minPrecision: 50_000,
+      description: 'Geodetic control — EAC harmonized standard',
+      regulation: 'EAC Survey Harmonization Framework',
+    },
+    {
+      order: 'cadastral',
+      minPrecision: 10_000,
+      description: 'Cadastral surveys — EAC standard (aligned with Kenya Reg 60)',
+      regulation: 'EAC Survey Harmonization / Burundi land law',
+    },
+  ],
+  defaultTraverseOrder: 'cadastral',
+  areaPrecision: [
+    { maxHa: 1,    decimalPlaces: 4, unit: 'ha',  regulation: 'EAC harmonized — ≤1ha: 4dp' },
+    { maxHa: 10,   decimalPlaces: 3, unit: 'ha',  regulation: 'EAC harmonized — 1-10ha: 3dp' },
+    { maxHa: 100,  decimalPlaces: 2, unit: 'ha',  regulation: 'EAC harmonized — 10-100ha: 2dp' },
+    { maxHa: Infinity, decimalPlaces: 1, unit: 'ha', regulation: 'EAC harmonized — >100ha: 1dp' },
+  ],
+  slopeCorrection: { required: true, maxSlopeSingleFace: 10, tempCorrection: true, pressureCorrection: true, sagCorrection: true, regulation: 'EAC survey standards' },
+  curvilinearBoundary: { maxTacheometricDistance: 200, maxOffsetSmall: 50, maxOffsetLarge: 75, regulation: 'EAC standard' },
+  beacon: { mustReferenceUnderground: true, verifyWithKnownPoints: true, verifyMethod: 'traverse', regulation: 'Burundi cadastre / EAC standards' },
+  fieldNoteRules: { noErasures: true, correctionsMethod: 'single_line', regulation: 'Burundi national cadastre authority' },
+  surveyorReport: { required: true, mustInclude: ['Parcel identification', 'Method of survey', 'Control used', 'Accuracies achieved', 'Field checks'], counterSignRequired: false, regulation: 'EAC cadastral framework' },
+  parcelMinArea: { sqMetres: 1, regulation: 'Burundi land law' },
+  generalNotes: [
+    'EAC member state — Arc 1960 datum',
+    'Cadastral system being modernized under EAC framework',
+    'EAC surveyor mobility applies — Kenyan licensed surveyors recognized',
+    'Reference to WGS84 for modern GNSS surveys',
+  ],
+}
+
+const SOUTH_SUDAN_STD: CountrySurveyStandard = {
+  country: 'south_sudan',
+  name: 'South Sudan',
+  isoCode: 'SS',
+  currency: 'SSP',
+  datum: 'WGS84',
+  ellipsoid: 'WGS84',
+  utmZones: [35, 36],
+  utmHemisphere: 'N',
+  traverseOrders: [
+    {
+      order: 'geodetic',
+      minPrecision: 50_000,
+      description: 'Geodetic control — EAC harmonized standard',
+      regulation: 'EAC Survey Harmonization Framework / Ministry of Land',
+    },
+    {
+      order: 'cadastral',
+      minPrecision: 10_000,
+      description: 'Cadastral surveys — EAC standard (aligned with Kenya Reg 60)',
+      regulation: 'EAC Survey Harmonization / South Sudan Land Policy',
+    },
+  ],
+  defaultTraverseOrder: 'cadastral',
+  areaPrecision: [
+    { maxHa: 1,    decimalPlaces: 4, unit: 'ha',  regulation: 'EAC harmonized — ≤1ha: 4dp' },
+    { maxHa: 10,   decimalPlaces: 3, unit: 'ha',  regulation: 'EAC harmonized — 1-10ha: 3dp' },
+    { maxHa: 100,  decimalPlaces: 2, unit: 'ha',  regulation: 'EAC harmonized — 10-100ha: 2dp' },
+    { maxHa: Infinity, decimalPlaces: 1, unit: 'ha', regulation: 'EAC harmonized — >100ha: 1dp' },
+  ],
+  slopeCorrection: { required: true, maxSlopeSingleFace: 10, tempCorrection: true, pressureCorrection: true, sagCorrection: true, regulation: 'EAC survey standards / South Sudan Ministry of Land' },
+  curvilinearBoundary: { maxTacheometricDistance: 200, maxOffsetSmall: 50, maxOffsetLarge: 75, regulation: 'EAC standard' },
+  beacon: { mustReferenceUnderground: true, verifyWithKnownPoints: true, verifyMethod: 'traverse', regulation: 'South Sudan cadastre / EAC standards' },
+  fieldNoteRules: { noErasures: true, correctionsMethod: 'single_line', regulation: 'South Sudan Land Commission' },
+  surveyorReport: { required: true, mustInclude: ['Parcel identification', 'Method of survey', 'Control used', 'Accuracies achieved', 'Field checks'], counterSignRequired: false, regulation: 'EAC cadastral framework' },
+  parcelMinArea: { sqMetres: 1, regulation: 'South Sudan Land Policy' },
+  generalNotes: [
+    'EAC member state — datum transitioning to WGS84 for GNSS surveys',
+    'Cadastral system developing under EAC harmonization',
+    'EAC surveyor mobility: Kenyan licensed surveyors recognized',
+    'Ministry of Housing and Physical Planning — surveying authority',
+  ],
+}
+
+const ZAMBIA_STD: CountrySurveyStandard = {
+  country: 'zambia',
+  name: 'Zambia',
+  isoCode: 'ZM',
+  currency: 'ZMW',
+  datum: 'Arc 1960',
+  ellipsoid: 'Clarke 1880',
+  utmZones: [33, 34, 35, 36],
+  utmHemisphere: 'S',
+  traverseOrders: [
+    {
+      order: 'primary_control',
+      minPrecision: 50_000,
+      description: 'Primary geodetic control',
+      regulation: 'Survey Act Cap 299 / Surveyors Registration Act',
+    },
+    {
+      order: 'cadastral',
+      minPrecision: 10_000,
+      description: 'Cadastral surveys — Commonwealth standard (British framework)',
+      regulation: 'Survey Act Cap 299 / Surveyors Registration Board of Zambia (SRBZ)',
+    },
+  ],
+  defaultTraverseOrder: 'cadastral',
+  areaPrecision: [
+    { maxHa: 1,    decimalPlaces: 4, unit: 'ha',  regulation: 'Survey Act Cap 299 — ≤1ha: 4dp' },
+    { maxHa: 10,   decimalPlaces: 3, unit: 'ha',  regulation: 'Survey Act Cap 299 — 1-10ha: 3dp' },
+    { maxHa: 100,  decimalPlaces: 2, unit: 'ha',  regulation: 'Survey Act Cap 299 — 10-100ha: 2dp' },
+    { maxHa: Infinity, decimalPlaces: 1, unit: 'ha', regulation: 'Survey Act Cap 299 — >100ha: 1dp' },
+  ],
+  slopeCorrection: { required: true, maxSlopeSingleFace: 10, tempCorrection: true, pressureCorrection: true, sagCorrection: true, regulation: 'Survey Act Cap 299 / SRBZ standards' },
+  curvilinearBoundary: { maxTacheometricDistance: 200, maxOffsetSmall: 50, maxOffsetLarge: 75, regulation: 'Survey Act / Commonwealth cadastral practice' },
+  beacon: { mustReferenceUnderground: true, verifyWithKnownPoints: true, verifyMethod: 'traverse', regulation: 'Survey Act Cap 299 / SRBZ' },
+  fieldNoteRules: { noErasures: true, correctionsMethod: 'single_line', regulation: 'SRBZ — Commonwealth field note standards' },
+  surveyorReport: { required: true, mustInclude: ['Parcel identification', 'Method of survey', 'Control used', 'Accuracies achieved', 'Field checks'], counterSignRequired: false, regulation: 'Survey Act Cap 299 / SRBZ' },
+  parcelMinArea: { sqMetres: 1, regulation: 'Survey Act Cap 299 / Land Act' },
+  generalNotes: [
+    'Survey Act Cap 299 — primary surveying legislation',
+    'Surveyors Registration Board of Zambia (SRBZ) — professional licensing authority',
+    'Arc 1960 datum (Clarke 1880) — same as Kenya/Uganda/Tanzania',
+    'Commonwealth system — British-based training aligns with Kenyan surveyors',
+    'Local registration with SRBZ required — mutual recognition with ISK (Kenya)',
+    'Cadastral surveys follow Commonwealth cadastral best practice',
+    'UTM zones 33-36 covering Zambia territory',
   ],
 }
 
@@ -871,9 +1053,13 @@ const COUNTRY_REGISTRY: Record<SurveyingCountry, CountrySurveyStandard> = {
   kenya:        KENYA_STD,
   uganda:       UGANDA_STD,
   tanzania:     TANZANIA_STD,
+  rwanda:       RWANDA_STD,
+  burundi:      BURUNDI_STD,
+  south_sudan:  SOUTH_SUDAN_STD,
   nigeria:      NIGERIA_STD,
   ghana:        GHANA_STD,
   south_africa: SOUTH_AFRICA_STD,
+  zambia:       ZAMBIA_STD,
   bahrain:      BAHRAIN_STD,
   saudi_arabia: SAUDI_ARABIA_STD,
   oman:         OMAN_STD,
@@ -892,9 +1078,13 @@ export const ALL_COUNTRIES: { id: SurveyingCountry; name: string; isoCode: strin
   { id: 'kenya',        name: 'Kenya',         isoCode: 'KE', flag: '🇰🇪' },
   { id: 'uganda',       name: 'Uganda',        isoCode: 'UG', flag: '🇺🇬' },
   { id: 'tanzania',     name: 'Tanzania',      isoCode: 'TZ', flag: '🇹🇿' },
+  { id: 'rwanda',       name: 'Rwanda',        isoCode: 'RW', flag: '🇷🇼' },
+  { id: 'burundi',      name: 'Burundi',       isoCode: 'BI', flag: '🇧🇮' },
+  { id: 'south_sudan',  name: 'South Sudan',   isoCode: 'SS', flag: '🇸🇸' },
   { id: 'nigeria',      name: 'Nigeria',       isoCode: 'NG', flag: '🇳🇬' },
   { id: 'ghana',        name: 'Ghana',         isoCode: 'GH', flag: '🇬🇭' },
   { id: 'south_africa', name: 'South Africa',  isoCode: 'ZA', flag: '🇿🇦' },
+  { id: 'zambia',       name: 'Zambia',       isoCode: 'ZM', flag: '🇿🇲' },
   { id: 'bahrain',      name: 'Bahrain',         isoCode: 'BH', flag: '🇧🇭' },
   { id: 'saudi_arabia', name: 'Saudi Arabia',   isoCode: 'SA', flag: '🇸🇦' },
   { id: 'oman',         name: 'Oman',           isoCode: 'OM', flag: '🇴🇲' },
@@ -946,6 +1136,11 @@ export function getTraverseOrderForEnvironment(
   if (country === 'south_africa') {
     if (environment === 'detail') return orders.find(o => o.order === 'cadastral')
     return orders.find(o => o.order === 'cadastral')
+  }
+
+  if (country === 'rwanda' || country === 'burundi' || country === 'south_sudan' || country === 'zambia') {
+    if (environment === 'first_order' || environment === 'geodetic') return orders.find(o => o.order === 'geodetic' || o.order === 'primary_control')
+    return orders.find(o => o.order === 'cadastral') ?? orders[0]
   }
 
   if (country === 'us') {
