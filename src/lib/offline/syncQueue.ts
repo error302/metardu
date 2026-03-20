@@ -279,10 +279,10 @@ export function startBackgroundSync(supabase: any, options?: { interval?: number
     const results = await syncPendingOperations(supabase, { onConflict: options?.onConflict })
     
     if (results.synced > 0) {
-      console.log(`[Sync] Synced ${results.synced} operations`)
+      if (process.env.NODE_ENV !== 'production') console.log(`[Sync] Synced ${results.synced} operations`)
     }
     if (results.conflicts > 0) {
-      console.log(`[Sync] Resolved ${results.conflicts} conflicts`)
+      if (process.env.NODE_ENV !== 'production') console.log(`[Sync] Resolved ${results.conflicts} conflicts`)
     }
   }, interval)
 }
@@ -350,13 +350,13 @@ export async function setupOnlineListener(onOnline: () => void): Promise<() => v
   if (typeof window === 'undefined') return () => {}
   
   const handleOnline = async () => {
-    console.log('[Sync] Back online - starting sync...')
+    if (process.env.NODE_ENV !== 'production') console.log('[Sync] Back online - starting sync...')
     onOnline()
   }
   
   window.addEventListener('online', handleOnline)
   window.addEventListener('offline', () => {
-    console.log('[Sync] Offline mode - changes stored locally')
+    if (process.env.NODE_ENV !== 'production') console.log('[Sync] Offline mode - changes stored locally')
   })
   
   return () => {

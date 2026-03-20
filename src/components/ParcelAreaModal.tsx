@@ -64,7 +64,7 @@ export default function ParcelAreaModal({ isOpen, onClose, points, onAreaResult 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70" onClick={onClose}></div>
-      <div className="relative bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-md">
+      <div className="relative bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6 w-full max-w-md">
         <h2 className="text-xl font-bold text-gray-100 mb-4">Compute Parcel Area</h2>
 
         <p className="text-gray-400 text-sm mb-4">
@@ -86,7 +86,7 @@ export default function ParcelAreaModal({ isOpen, onClose, points, onAreaResult 
             {selectedPoints.map((p, i) => (
               <span
                 key={p.id}
-                className="px-2 py-1 bg-gray-800 rounded text-xs font-mono text-gray-100"
+                className="px-2 py-1 bg-[var(--bg-tertiary)] rounded text-xs font-mono text-gray-100"
               >
                 {i + 1}. {p.name}
               </span>
@@ -96,7 +96,7 @@ export default function ParcelAreaModal({ isOpen, onClose, points, onAreaResult 
 
         {/* Result */}
         {result && (
-          <div className="mb-4 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+          <div className="mb-4 p-4 bg-gray-800/50 rounded-lg border border-[var(--border-color)]">
             <h3 className="text-lg font-semibold text-[#E8841A] mb-3">Parcel Area</h3>
             <div className="space-y-2 font-mono">
               <div className="flex justify-between">
@@ -111,7 +111,7 @@ export default function ParcelAreaModal({ isOpen, onClose, points, onAreaResult 
                 <span className="text-gray-400">Acres:</span>
                 <span className="text-gray-100">{result.areaAcres.toFixed(6)} acres</span>
               </div>
-              <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between">
+              <div className="border-t border-[var(--border-color)] pt-2 mt-2 flex justify-between">
                 <span className="text-gray-400">Perimeter:</span>
                 <span className="text-[#E8841A] font-semibold">{result.perimeter.toFixed(4)} m</span>
               </div>
@@ -122,7 +122,7 @@ export default function ParcelAreaModal({ isOpen, onClose, points, onAreaResult 
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded"
+            className="px-6 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 rounded"
           >
             Close
           </button>

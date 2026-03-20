@@ -244,12 +244,12 @@ export default function FieldPage() {
     </button>
   )
 
-  const inputClass = "w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-gray-100 focus:border-[#E8841A] focus:outline-none"
+  const inputClass = "w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-sm text-gray-100 focus:border-[#E8841A] focus:outline-none"
   const inputNumberClass = `${inputClass} font-mono text-right`
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-gray-400 text-sm">Loading...</div>
       </div>
     )
@@ -260,16 +260,16 @@ export default function FieldPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-[#111118] border-b border-gray-800 p-3">
+      <header className="bg-[#111118] border-b border-[var(--border-color)] p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-sm font-bold text-white">{t('field.fieldMode')}</h1>
             <select
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 w-36"
+              className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-gray-300 w-36"
             >
               <option value="">Select Project</option>
               {projects.map(p => (
@@ -287,19 +287,19 @@ export default function FieldPage() {
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto p-3 pb-20">
-        <div className="mb-3 rounded-lg border border-gray-800 bg-gray-900/20 p-3">
+        <div className="mb-3 rounded-lg border border-[var(--border-color)] bg-gray-900/20 p-3">
           <div className="text-[10px] uppercase tracking-wider text-gray-500">Workflow</div>
           <div className="text-sm text-gray-200 mt-1">Field Mode = quick capture (phone/tablet). Field Book = textbook tables + checks + exports.</div>
           <div className="mt-2 flex gap-2">
             <button
               onClick={() => router.push('/fieldbook')}
-              className="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-200 px-2 py-1.5 rounded"
+              className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 px-2 py-1.5 rounded"
             >
               Open Field Book
             </button>
             <button
               onClick={() => router.push('/guide')}
-              className="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-200 px-2 py-1.5 rounded"
+              className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 px-2 py-1.5 rounded"
             >
               Field Guides
             </button>
@@ -313,7 +313,7 @@ export default function FieldPage() {
               <h2 className="text-xs font-semibold text-white uppercase tracking-wide">{t('field.points')}</h2>
               <button
                 onClick={() => setShowBatch(!showBatch)}
-                className="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded flex items-center gap-1"
+                className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 px-2 py-1 rounded flex items-center gap-1"
               >
                 {showBatch ? t('common.close') : <><PlusIcon className="w-3 h-3" /> {t('field.batchCSV')}</>}
               </button>
@@ -321,7 +321,7 @@ export default function FieldPage() {
 
             {/* Batch CSV input */}
             {showBatch && (
-              <div className="bg-gray-900/50 border border-gray-800 rounded p-3 space-y-2">
+              <div className="bg-gray-900/50 border border-[var(--border-color)] rounded p-3 space-y-2">
                 <div>
                   <label className="text-[10px] text-gray-500">CSV: Name, Easting, Northing, Elevation (optional)</label>
                   <textarea
@@ -332,7 +332,7 @@ export default function FieldPage() {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={parseBatchCSV} className="flex-1 text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 py-1.5 rounded">
+                  <button onClick={parseBatchCSV} className="flex-1 text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 py-1.5 rounded">
                     {t('field.parse')}
                   </button>
                   <button onClick={saveBatchPoints} disabled={batchParseResults.length === 0} className="flex-1 text-[10px] bg-[#E8841A] hover:bg-[#d67715] text-black py-1.5 rounded disabled:opacity-50">
@@ -372,7 +372,7 @@ export default function FieldPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between py-2 px-3 bg-gray-900/50 rounded border border-gray-800">
+          <div className="flex items-center justify-between py-2 px-3 bg-gray-900/50 rounded border border-[var(--border-color)]">
             <label className="text-[10px] text-gray-400">{t('field.controlPoint')}</label>
               <button
                 onClick={() => setPCtrl(!pCtrl)}
@@ -446,7 +446,7 @@ export default function FieldPage() {
               </div>
             </div>
 
-            <button onClick={addTraverseLeg} className="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium rounded">
+            <button onClick={addTraverseLeg} className="w-full py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 text-xs font-medium rounded">
               + {t('field.addLeg')}
             </button>
 
@@ -458,7 +458,7 @@ export default function FieldPage() {
                     <span className="text-gray-200 font-mono">{leg.distance.toFixed(1)}m {leg.bearing.deg}°{leg.bearing.min}'{leg.bearing.sec.toFixed(0)}"</span>
                   </div>
                 ))}
-                <div className="text-[10px] text-[#E8841A] text-right pt-1 border-t border-gray-800 font-mono">
+                <div className="text-[10px] text-[#E8841A] text-right pt-1 border-t border-[var(--border-color)] font-mono">
                   TOTAL: {traverseTotal.toFixed(2)} m
                 </div>
               </div>
@@ -481,7 +481,7 @@ export default function FieldPage() {
                   key={type}
                   onClick={() => setLType(type)}
                   className={`py-2 text-xs font-medium rounded ${
-                    lType === type ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'
+                    lType === type ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-gray-300'
                   }`}
                 >
                   {type}
@@ -522,7 +522,7 @@ export default function FieldPage() {
             {lReadings.length > 0 && (
               <div className="bg-gray-900/50 rounded overflow-hidden text-[10px]">
                 <table className="w-full">
-                  <thead className="bg-gray-800">
+                  <thead className="bg-[var(--bg-tertiary)]">
                     <tr>
                       <th className="px-2 py-1 text-left text-gray-400">Stn</th>
                       <th className="px-2 py-1 text-right text-gray-400">BS</th>
@@ -532,7 +532,7 @@ export default function FieldPage() {
                   </thead>
                   <tbody>
                     {lReadings.map((r, i) => (
-                      <tr key={r.id} className="border-t border-gray-800">
+                      <tr key={r.id} className="border-t border-[var(--border-color)]">
                         <td className="px-2 py-1 text-gray-300">{r.station}</td>
                         <td className="px-2 py-1 text-right font-mono text-gray-300">{r.bs?.toFixed(3) || ''}</td>
                         <td className="px-2 py-1 text-right font-mono text-gray-300">{r.is?.toFixed(3) || ''}</td>
@@ -563,7 +563,7 @@ export default function FieldPage() {
               <input value={rInstH} onChange={e => setRInstH(e.target.value)} placeholder="1.500" className={inputNumberClass} />
             </div>
 
-            <div className="border-t border-gray-800 pt-3 mt-3">
+            <div className="border-t border-[var(--border-color)] pt-3 mt-3">
               <label className="text-[10px] text-gray-500 mb-1 block">Point Name</label>
               <input value={rNewName} onChange={e => setRNewName(e.target.value)} placeholder="P1" className={inputClass} />
 
@@ -592,7 +592,7 @@ export default function FieldPage() {
                   setRBearingSec('')
                   setRDist('')
                 }}
-                className="w-full mt-2 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded"
+                className="w-full mt-2 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 text-xs rounded"
               >
                 + Add Point
               </button>
@@ -616,7 +616,7 @@ export default function FieldPage() {
       </main>
 
       {/* Bottom Tabs */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#111118] border-t border-gray-800">
+      <div className="fixed bottom-0 left-0 right-0 bg-[#111118] border-t border-[var(--border-color)]">
         <div className="flex">
           {renderTabButton('points', MapPinIcon, 'Points')}
           {renderTabButton('traverse', ArrowPathIcon, 'Traverse')}

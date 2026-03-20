@@ -109,7 +109,7 @@ export default async function Image() {
 
         {/* URL */}
         <div style={{ position: 'absolute', bottom: 32, color: '#444', fontSize: 14 }}>
-          geonova-henna.vercel.app
+{process.env.NEXT_PUBLIC_APP_URL?.replace('https://', '') || 'geonova-henna.vercel.app'}
         </div>
       </div>
     ),

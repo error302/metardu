@@ -11,7 +11,7 @@ import FeedbackWidget from '@/components/FeedbackWidget';
 import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://geonova-henna.vercel.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://geonova-henna.vercel.app'),
   title: 'GeoNova — Professional Surveying Platform',
   description: 'Professional surveying platform for land surveyors worldwide. Traverse adjustment, leveling, COGO, GPS stakeout, PDF reports. Supports all 60 UTM zones. Built in Africa, used globally.',
   keywords: [
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://geonova-henna.vercel.app',
+    url: process.env.NEXT_PUBLIC_APP_URL || 'https://geonova-henna.vercel.app',
     siteName: 'GeoNova',
     title: 'GeoNova — Professional Surveying Platform',
     description: 'Complete surveying platform for professional land surveyors across Africa and beyond.',

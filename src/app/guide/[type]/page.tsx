@@ -1294,7 +1294,7 @@ export default function GuideTypePage({ params }: PageProps) {
 
   if (!guide) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
+      <div className="min-h-screen text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-xl mb-4">Guide not found</p>
           <Link href="/guide" className="text-[#E8841A] hover:underline">
@@ -1308,8 +1308,8 @@ export default function GuideTypePage({ params }: PageProps) {
   const allComplete = completedSteps.length === guide.steps.length;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <div className="border-b border-gray-800 bg-gray-900/50">
+    <div className="min-h-screen text-white">
+      <div className="border-b border-[var(--border-color)] bg-gray-900/50">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
@@ -1322,7 +1322,7 @@ export default function GuideTypePage({ params }: PageProps) {
             </div>
             
             <div className="flex items-center gap-4">
-              <div className="flex bg-gray-800 rounded-lg p-1">
+              <div className="flex bg-[var(--bg-tertiary)] rounded-lg p-1">
                 <button
                   onClick={() => setMode('junior')}
                   className={`px-3 py-1 rounded text-sm ${
@@ -1359,7 +1359,7 @@ export default function GuideTypePage({ params }: PageProps) {
 
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {(guide.fieldChecklist || guide.stopRules) && (
-          <div className="bg-gray-900/30 border border-gray-800 rounded-xl p-6">
+          <div className="bg-gray-900/30 border border-[var(--border-color)] rounded-xl p-6">
             {guide.fieldChecklist && (
               <div className="mb-6">
                 <h2 className="text-lg font-semibold mb-3">Field Checklist (Supervisor-Free)</h2>
@@ -1403,7 +1403,7 @@ export default function GuideTypePage({ params }: PageProps) {
             <div
               key={step.id}
               className={`bg-gray-900/50 border rounded-xl p-6 transition-all ${
-                isComplete ? 'border-green-500/30' : 'border-gray-800'
+                isComplete ? 'border-green-500/30' : 'border-[var(--border-color)]'
               }`}
             >
               <div className="flex items-start gap-4">
@@ -1434,7 +1434,7 @@ export default function GuideTypePage({ params }: PageProps) {
                   </pre>
                   
                   {mode === 'junior' && (
-                    <div className="mt-4 pt-4 border-t border-gray-800">
+                    <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
                       <Link 
                         href={toolLink.href}
                         className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-[#E8841A] transition-colors"
@@ -1460,7 +1460,7 @@ export default function GuideTypePage({ params }: PageProps) {
             <div className="flex justify-center gap-4">
               <Link 
                 href="/guide"
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded text-gray-200"
+                className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 rounded text-gray-200"
               >
                 ← Back to Guides
               </Link>

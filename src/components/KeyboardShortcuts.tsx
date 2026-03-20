@@ -47,10 +47,10 @@ export default function KeyboardShortcuts() {
       onClick={() => setShow(false)}
     >
       <div 
-        className="bg-gray-900 border border-gray-700 rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto"
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="p-6 border-b border-gray-800">
+        <div className="p-6 border-b border-[var(--border-color)]">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-white">⌨️ Keyboard Shortcuts</h2>
             <button
@@ -73,7 +73,7 @@ export default function KeyboardShortcuts() {
                 {items.map((s, i) => (
                   <div key={i} className="flex items-center justify-between">
                     <span className="text-gray-300">{s.description}</span>
-                    <kbd className="px-2 py-1 bg-gray-800 border border-gray-600 rounded text-sm font-mono text-amber-400">
+                    <kbd className="px-2 py-1 bg-[var(--bg-tertiary)] border border-gray-600 rounded text-sm font-mono text-amber-400">
                       {s.key}
                     </kbd>
                   </div>
@@ -83,7 +83,7 @@ export default function KeyboardShortcuts() {
           ))}
         </div>
 
-        <div className="p-4 border-t border-gray-800 text-center">
+        <div className="p-4 border-t border-[var(--border-color)] text-center">
           <Link href="/docs" className="text-sm text-amber-400 hover:underline">
             View full documentation →
           </Link>

@@ -176,7 +176,7 @@ export default function FieldBookAIPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
+    <div className="min-h-screen text-gray-100">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex items-start justify-between gap-4 mb-8">
           <div>
@@ -185,24 +185,24 @@ export default function FieldBookAIPage() {
           </div>
           <a
             href="/fieldbook"
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm"
+            className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded text-sm"
           >
             ← Digital Field Book
           </a>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+          <div className="bg-gray-900/50 border border-[var(--border-color)] rounded-xl p-6">
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setInputMethod('text')}
-                className={`px-4 py-2 rounded text-sm ${inputMethod === 'text' ? 'bg-[#E8841A] text-black font-semibold' : 'bg-gray-800 text-gray-300'}`}
+                className={`px-4 py-2 rounded text-sm ${inputMethod === 'text' ? 'bg-[#E8841A] text-black font-semibold' : 'bg-[var(--bg-tertiary)] text-gray-300'}`}
               >
                 Text Notes
               </button>
               <button
                 onClick={() => setInputMethod('photo')}
-                className={`px-4 py-2 rounded text-sm ${inputMethod === 'photo' ? 'bg-[#E8841A] text-black font-semibold' : 'bg-gray-800 text-gray-300'}`}
+                className={`px-4 py-2 rounded text-sm ${inputMethod === 'photo' ? 'bg-[#E8841A] text-black font-semibold' : 'bg-[var(--bg-tertiary)] text-gray-300'}`}
               >
                 Photo
               </button>
@@ -213,12 +213,12 @@ export default function FieldBookAIPage() {
                 <textarea
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
-                  className="w-full h-64 p-4 bg-gray-900 border border-gray-700 rounded text-gray-100 font-mono text-sm"
+                  className="w-full h-64 p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-gray-100 font-mono text-sm"
                   placeholder={`Example (Traverse):\nA to B, 045°30'00\", 100.000\nB to C, 120°15'00\", 85.000\n\nExample (Leveling):\nBM1 BS 1.245\nTP1 FS 2.335\nTP1 BS 0.845\nBM2 FS 2.115`}
                 />
               </div>
             ) : (
-              <div className="border-2 border-dashed border-gray-700 rounded-lg p-8 text-center">
+              <div className="border-2 border-dashed border-[var(--border-color)] rounded-lg p-8 text-center">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -228,7 +228,7 @@ export default function FieldBookAIPage() {
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-200"
+                  className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 rounded-lg text-gray-200"
                 >
                   {file ? file.name : 'Select Photo'}
                 </button>
@@ -255,7 +255,7 @@ export default function FieldBookAIPage() {
 
           <div>
             {result ? (
-              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+              <div className="bg-gray-900/50 border border-[var(--border-color)] rounded-xl p-6">
                 <h3 className="font-semibold text-gray-200 mb-4">INTERPRETED OBSERVATIONS</h3>
 
                 <div className="mb-4 p-3 bg-gray-800/50 rounded">
@@ -266,7 +266,7 @@ export default function FieldBookAIPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-700">
+                      <tr className="border-b border-[var(--border-color)]">
                         <th className="text-left py-2 text-gray-400">From</th>
                         <th className="text-left py-2 text-gray-400">To</th>
                         <th className="text-right py-2 text-gray-400">Bearing</th>
@@ -281,7 +281,7 @@ export default function FieldBookAIPage() {
                     </thead>
                     <tbody>
                       {result.stations.map((obs, i) => (
-                        <tr key={i} className="border-b border-gray-800">
+                        <tr key={i} className="border-b border-[var(--border-color)]">
                           <td className="py-2 text-gray-200">{obs.from}</td>
                           <td className="py-2 text-gray-200">{obs.to}</td>
                           <td className="py-2 text-right font-mono text-gray-300">{obs.bearing || '—'}</td>
@@ -303,7 +303,7 @@ export default function FieldBookAIPage() {
                   </div>
                 )}
 
-                <div className="mt-6 pt-4 border-t border-gray-700 space-y-3">
+                <div className="mt-6 pt-4 border-t border-[var(--border-color)] space-y-3">
                   <div>
                     <label className="label">Save to Project</label>
                     <select
@@ -327,7 +327,7 @@ export default function FieldBookAIPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-gray-900/30 border border-gray-800 rounded-xl p-6 text-center">
+              <div className="bg-gray-900/30 border border-[var(--border-color)] rounded-xl p-6 text-center">
                 <p className="text-gray-500">Results will appear here</p>
               </div>
             )}

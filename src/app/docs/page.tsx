@@ -51,7 +51,7 @@ const sections = [
 
 export default function DocsPage() {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] py-16">
+    <div className="min-h-screen py-16">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">

@@ -161,8 +161,8 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-800 flex justify-between items-center">
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-[var(--border-color)] flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-white">Build Parcel</h2>
             <p className="text-sm text-gray-400">Click points in boundary order. Click first point to close.</p>
@@ -174,7 +174,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <h3 className="font-semibold text-gray-200 mb-3">Available Points</h3>
-              <div className="bg-gray-800 rounded-lg p-3 max-h-64 overflow-y-auto">
+              <div className="bg-[var(--bg-tertiary)] rounded-lg p-3 max-h-64 overflow-y-auto">
                 {points.filter(p => !p.locked).length === 0 ? (
                   <p className="text-gray-500 text-sm">No points available</p>
                 ) : (
@@ -197,7 +197,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                                 : 'bg-[#E8841A] text-black'
                               : isSelecting
                                 ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                                : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                                : 'bg-[var(--bg-tertiary)] text-gray-500 cursor-not-allowed'
                           }`}
                           title={canClose ? 'Click to close boundary' : undefined}
                         >
@@ -232,7 +232,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                         if (selectedPoints.length >= 3) setIsSelecting(false)
                       }}
                       disabled={selectedPoints.length < 3}
-                      className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm disabled:opacity-50"
+                      className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded text-sm disabled:opacity-50"
                     >
                       Close boundary
                     </button>
@@ -246,14 +246,14 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
 
             <div>
               {areaResult ? (
-                <div className="bg-gray-800 rounded-xl p-6">
+                <div className="bg-[var(--bg-tertiary)] rounded-xl p-6">
                   <h3 className="font-bold text-white text-lg mb-4">PARCEL SUMMARY</h3>
                   {isSelecting ? (
                     <div className="mb-3 rounded border border-amber-700/50 bg-amber-900/10 px-3 py-2 text-xs text-amber-200">
                       Preview only — close the boundary (click the first point again) to enter a name and save.
                     </div>
                   ) : null}
-                  <div className="border-b border-gray-700 pb-2 mb-3">
+                  <div className="border-b border-[var(--border-color)] pb-2 mb-3">
                     <span className="text-gray-400 text-sm">Boundary: </span>
                     <span className="text-gray-200">
                       {selectedPoints.map(p => p.name).join(' → ')}
@@ -262,7 +262,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
 
                   <table className="w-full text-sm mb-4">
                     <thead>
-                      <tr className="border-b border-gray-700">
+                      <tr className="border-b border-[var(--border-color)]">
                         <th className="text-left py-2 text-gray-400">Line</th>
                         <th className="text-right py-2 text-gray-400">Bearing</th>
                         <th className="text-right py-2 text-gray-400">Distance</th>
@@ -270,7 +270,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                     </thead>
                     <tbody>
                       {boundaryLines.map((line, idx) => (
-                        <tr key={idx} className="border-b border-gray-800">
+                        <tr key={idx} className="border-b border-[var(--border-color)]">
                           <td className="py-2 text-gray-300">{line.from}→{line.to}</td>
                           <td className="py-2 text-right font-mono text-gray-300">{line.bearing}</td>
                           <td className="py-2 text-right font-mono text-gray-300">{line.distance.toFixed(3)} m</td>
@@ -279,7 +279,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                     </tbody>
                   </table>
 
-                  <div className="space-y-2 pt-4 border-t border-gray-700">
+                  <div className="space-y-2 pt-4 border-t border-[var(--border-color)]">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Area:</span>
                       <span className="font-mono text-white">{areaResult.areaSqm.toFixed(4)} m²</span>
@@ -292,7 +292,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                       <span className="text-gray-400"></span>
                       <span className="font-mono text-white">{areaResult.areaAcres.toFixed(4)} acres</span>
                     </div>
-                    <div className="flex justify-between pt-2 border-t border-gray-700">
+                    <div className="flex justify-between pt-2 border-t border-[var(--border-color)]">
                       <span className="text-gray-400">Perimeter:</span>
                       <span className="font-mono text-white">{areaResult.perimeter.toFixed(3)} m</span>
                     </div>
@@ -311,7 +311,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
           </div>
 
           {!isSelecting && areaResult && (
-            <div className="border-t border-gray-800 pt-6">
+            <div className="border-t border-[var(--border-color)] pt-6">
               <div className="max-w-md">
                 <label className="label">Parcel Name</label>
                 <input
@@ -325,11 +325,11 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
           )}
         </div>
 
-        <div className="p-6 border-t border-gray-800 flex gap-3 justify-end">
-          <button onClick={handleReset} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded">
+        <div className="p-6 border-t border-[var(--border-color)] flex gap-3 justify-end">
+          <button onClick={handleReset} className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 rounded">
             Reset
           </button>
-          <button onClick={onClose} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded">
+          <button onClick={onClose} className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 rounded">
             Cancel
           </button>
           {!isSelecting && areaResult && (

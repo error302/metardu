@@ -88,7 +88,7 @@ export default function ProcessPage() {
       
       if (result.ok && result.dataset) {
         const detected = detectSurveyTypeFromDataset(result.dataset)
-        console.log('Detected survey type:', detected)
+        // survey type detected
       }
     }
   }
@@ -332,7 +332,7 @@ export default function ProcessPage() {
             className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
               dragActive 
                 ? 'border-[#E8841A] bg-[#E8841A]/10' 
-                : 'border-gray-700 hover:border-gray-600'
+                : 'border-[var(--border-color)] hover:border-gray-600'
             }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -356,16 +356,16 @@ export default function ProcessPage() {
             />
           </div>
 
-          <div className="mt-8 p-6 bg-gray-900/50 rounded-xl border border-gray-800">
+          <div className="mt-8 p-6 bg-gray-900/50 rounded-xl border border-[var(--border-color)]">
             <h3 className="text-sm font-semibold text-gray-400 mb-4">Download Sample Files</h3>
             <div className="flex flex-wrap gap-3">
-              <a href="/sample-files/traverse_sample.csv" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm">
+              <a href="/sample-files/traverse_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded text-sm">
                 📄 Traverse Sample
               </a>
-              <a href="/sample-files/leveling_sample.csv" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm">
+              <a href="/sample-files/leveling_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded text-sm">
                 📄 Leveling Sample
               </a>
-              <a href="/sample-files/radiation_sample.csv" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm">
+              <a href="/sample-files/radiation_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded text-sm">
                 📄 Radiation Sample
               </a>
             </div>
@@ -373,7 +373,7 @@ export default function ProcessPage() {
         </>
       ) : interpretResult?.ok && interpretResult.dataset ? (
         <div className="space-y-6">
-          <div className="card bg-gray-900/50 border border-gray-800">
+          <div className="card bg-gray-900/50 border border-[var(--border-color)]">
             <div className="card-header flex items-center gap-3">
               <span className="text-2xl">✓</span>
               <span className="font-semibold">
@@ -385,7 +385,7 @@ export default function ProcessPage() {
                 {interpretResult.dataset!.observations.length} observations found
               </p>
 
-              <div className="bg-gray-800 rounded p-3 overflow-x-auto">
+              <div className="bg-[var(--bg-tertiary)] rounded p-3 overflow-x-auto">
                 <table className="text-xs w-full">
                   <thead>
                     <tr className="text-gray-500">
@@ -396,7 +396,7 @@ export default function ProcessPage() {
                   </thead>
                   <tbody>
                     {interpretResult.dataset!.observations.slice(0, 5).map((obs: any, i: number) => (
-                      <tr key={i} className="border-t border-gray-700">
+                      <tr key={i} className="border-t border-[var(--border-color)]">
                         <td className="px-2 py-1">{obs.station}</td>
                         <td className="px-2 py-1 text-[#E8841A]">{obs.type}</td>
                         <td className="px-2 py-1 text-right font-mono">{obs.value1}</td>
@@ -426,7 +426,7 @@ export default function ProcessPage() {
                           className={`p-3 rounded-lg border text-left transition-colors ${
                             selectedProfile === profile
                               ? 'border-[#E8841A] bg-[#E8841A]/10'
-                              : 'border-gray-700 hover:border-gray-600'
+                              : 'border-[var(--border-color)] hover:border-gray-600'
                           }`}
                         >
                           <div className="font-medium text-gray-200 capitalize">{getToleranceConfig(profile).name}</div>
@@ -454,7 +454,7 @@ export default function ProcessPage() {
                         setWorkflowSolutions([])
                         setToleranceResult(null)
                       }}
-                      className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg"
+                      className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded-lg"
                     >
                       Upload Different File
                     </button>
@@ -478,7 +478,7 @@ export default function ProcessPage() {
                 </div>
                 <div className="card-body">
                   {toleranceResult?.checks.map((check, i) => (
-                    <div key={i} className={`flex items-center justify-between py-2 border-b border-gray-800 last:border-0 ${check.passed ? 'text-green-400' : 'text-red-400'}`}>
+                    <div key={i} className={`flex items-center justify-between py-2 border-b border-[var(--border-color)] last:border-0 ${check.passed ? 'text-green-400' : 'text-red-400'}`}>
                       <span>{check.passed ? '✓' : '✗'} {check.name}</span>
                       <span className="text-sm">{check.message}</span>
                     </div>
@@ -504,14 +504,14 @@ export default function ProcessPage() {
               ) : null}
 
               {workflowResult.surveyType === 'traverse' && workflowResult.results?.legs && (
-                <div className="card bg-gray-900/50 border border-gray-800">
+                <div className="card bg-gray-900/50 border border-[var(--border-color)]">
                   <div className="card-header">
                     <span className="font-semibold">Gale's Table</span>
                   </div>
                   <div className="card-body overflow-x-auto">
                     <table className="text-xs w-full">
                       <thead>
-                        <tr className="text-gray-500 border-b border-gray-700">
+                        <tr className="text-gray-500 border-b border-[var(--border-color)]">
                           <th className="px-2 py-2 text-left">From</th>
                           <th className="px-2 py-2 text-left">To</th>
                           <th className="px-2 py-2 text-right">Dist</th>
@@ -522,7 +522,7 @@ export default function ProcessPage() {
                       </thead>
                       <tbody>
                         {workflowResult.results.legs.map((leg: any, i: number) => (
-                          <tr key={i} className="border-b border-gray-800">
+                          <tr key={i} className="border-b border-[var(--border-color)]">
                             <td className="px-2 py-2">{leg.from}</td>
                             <td className="px-2 py-2">{leg.to}</td>
                             <td className="px-2 py-2 text-right font-mono">{leg.distance?.toFixed(3)}</td>
@@ -538,14 +538,14 @@ export default function ProcessPage() {
               )}
 
               {workflowResult.surveyType === 'leveling' && workflowResult.results?.readings && (
-                <div className="card bg-gray-900/50 border border-gray-800">
+                <div className="card bg-gray-900/50 border border-[var(--border-color)]">
                   <div className="card-header">
                     <span className="font-semibold">Leveling Results</span>
                   </div>
                   <div className="card-body overflow-x-auto">
                     <table className="text-xs w-full">
                       <thead>
-                        <tr className="text-gray-500 border-b border-gray-700">
+                        <tr className="text-gray-500 border-b border-[var(--border-color)]">
                           <th className="px-2 py-2 text-left">Station</th>
                           <th className="px-2 py-2 text-right">BS</th>
                           <th className="px-2 py-2 text-right">IS</th>
@@ -557,7 +557,7 @@ export default function ProcessPage() {
                       </thead>
                       <tbody>
                         {workflowResult.results.readings.map((r: any, i: number) => (
-                          <tr key={i} className="border-b border-gray-800">
+                          <tr key={i} className="border-b border-[var(--border-color)]">
                             <td className="px-2 py-2">{r.station}</td>
                             <td className="px-2 py-2 text-right font-mono">{r.bs?.toFixed(3) || '—'}</td>
                             <td className="px-2 py-2 text-right font-mono">{r.is?.toFixed(3) || '—'}</td>
@@ -573,7 +573,7 @@ export default function ProcessPage() {
                 </div>
               )}
 
-              <div className="card bg-gray-900/50 border border-gray-800">
+              <div className="card bg-gray-900/50 border border-[var(--border-color)]">
                 <div className="card-body space-y-4">
                   <h3 className="font-semibold">Save to Project</h3>
                   
@@ -581,7 +581,7 @@ export default function ProcessPage() {
                     <select
                       value={selectedProjectId}
                       onChange={(e) => setSelectedProjectId(e.target.value)}
-                      className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200"
+                      className="flex-1 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200"
                     >
                       <option value="">Select a project...</option>
                       {projects.map(p => (
@@ -599,10 +599,10 @@ export default function ProcessPage() {
                   </div>
 
                   <div className="flex gap-3 pt-2">
-                    <Link href="/dashboard" className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg text-center">
+                    <Link href="/dashboard" className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded-lg text-center">
                       View Projects
                     </Link>
-                    <button className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg">
+                    <button className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded-lg">
                       Generate PDF Report
                     </button>
                   </div>
@@ -624,7 +624,7 @@ export default function ProcessPage() {
               <p key={i} className="text-sm text-yellow-400">⚠ {w}</p>
             ))}
             
-            <div className="mt-6 p-4 bg-gray-800 rounded">
+            <div className="mt-6 p-4 bg-[var(--bg-tertiary)] rounded">
               <p className="text-sm text-gray-400 mb-3">Or select survey type manually:</p>
               <select
                 value={manualType}

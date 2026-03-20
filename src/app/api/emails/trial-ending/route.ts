@@ -1,10 +1,20 @@
 import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_123456789')
+
+const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://geonova-henna.vercel.app'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: NextRequest) {
   try {
+    // Internal endpoint — only callable with service role key header
+    const authHeader = req.headers.get('authorization')
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceKey || authHeader !== `Bearer ${serviceKey}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { email, name, trialEndDate } = await req.json()
 
     if (!email) {
@@ -59,7 +69,7 @@ export async function POST(req: NextRequest) {
             </ul>
             
             <div style="text-align: center; margin: 32px 0;">
-              <a href="https://geonova-henna.vercel.app/pricing"
+              <a href="${BASE}/pricing"
                 style="background: #E8841A; color: #000; padding: 14px 32px;
                 border-radius: 6px; text-decoration: none; font-weight: bold;
                 font-size: 16px; display: inline-block;">
@@ -69,7 +79,7 @@ export async function POST(req: NextRequest) {
             
             <p style="color: #888; font-size: 14px;">
               Questions? Reply to this email or visit our 
-              <a href="https://geonova-henna.vercel.app/docs" 
+              <a href="${BASE}/docs" 
                 style="color: #E8841A;">documentation</a>.
             </p>
           </div>

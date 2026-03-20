@@ -95,9 +95,9 @@ export default function NearbyBeaconsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-950 flex">
-      <div className="w-96 bg-gray-900 border-r border-gray-800 flex flex-col">
-        <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 bg-[var(--bg-primary)] flex">
+      <div className="w-96 bg-[var(--bg-secondary)] border-r border-[var(--border-color)] flex flex-col">
+        <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-100">Nearby Beacons</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">×</button>
         </div>
@@ -118,7 +118,7 @@ export default function NearbyBeaconsModal({
                   className={`w-full p-3 rounded-lg text-left transition-colors ${
                     selectedBeacon?.id === beacon.id 
                       ? 'bg-[#E8841A]/20 border border-[#E8841A]' 
-                      : 'bg-gray-800 hover:bg-gray-700 border border-transparent'
+                      : 'bg-[var(--bg-tertiary)] hover:bg-gray-700 border border-transparent'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -139,7 +139,7 @@ export default function NearbyBeaconsModal({
         </div>
 
         {selectedBeacon && (
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-[var(--border-color)]">
             <button
               onClick={handleImport}
               className="w-full py-3 bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold rounded-lg"
@@ -151,7 +151,7 @@ export default function NearbyBeaconsModal({
       </div>
 
       <div className="flex-1 relative">
-        <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
+        <div className="absolute inset-0 bg-[var(--bg-tertiary)] flex items-center justify-center">
           <p className="text-gray-500">Map view would show beacon locations</p>
         </div>
       </div>

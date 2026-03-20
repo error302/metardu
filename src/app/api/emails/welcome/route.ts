@@ -2,6 +2,9 @@ import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/security/rateLimit'
 
+
+const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://geonova-henna.vercel.app'
+
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: NextRequest) {
@@ -53,7 +56,7 @@ export async function POST(req: NextRequest) {
             </div>
             
             <div style="text-align: center; margin: 32px 0;">
-              <a href="https://geonova-henna.vercel.app/dashboard"
+              <a href="${BASE}/dashboard"
                 style="background: #E8841A; color: #000; padding: 14px 32px;
                 border-radius: 6px; text-decoration: none; font-weight: bold;
                 font-size: 16px; display: inline-block;">
@@ -63,7 +66,7 @@ export async function POST(req: NextRequest) {
             
             <p style="color: #888; font-size: 14px;">
               Questions? Reply to this email or visit our 
-              <a href="https://geonova-henna.vercel.app/docs" 
+              <a href="${BASE}/docs" 
                 style="color: #E8841A;">documentation</a>.
             </p>
           </div>

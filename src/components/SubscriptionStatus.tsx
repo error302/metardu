@@ -32,14 +32,14 @@ export default function SubscriptionStatus({ subscription }: { subscription: any
       )
     }
     return (
-      <span className="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded">
+      <span className="text-xs bg-[var(--bg-tertiary)] text-gray-400 px-2 py-1 rounded">
         Free Plan
       </span>
     )
   }
 
   return (
-    <div className="flex items-center justify-between mb-6 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
+    <div className="flex items-center justify-between mb-6 p-4 bg-gray-900/50 rounded-lg border border-[var(--border-color)]">
       <div className="flex items-center gap-3">
         {getBadge()}
       </div>

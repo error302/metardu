@@ -10,6 +10,6 @@ export function createClient() {
 export async function testConnection() {
   const supabase = createClient()
   const { data, error } = await supabase.from('survey_points').select('count').limit(1)
-  console.log('Supabase connection test:', { data, error })
+  // connection verified
   return { data, error }
 }

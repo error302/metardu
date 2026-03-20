@@ -134,8 +134,8 @@ export default function GuidePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <div className="border-b border-gray-800 bg-gray-900/50">
+    <div className="min-h-screen text-white">
+      <div className="border-b border-[var(--border-color)] bg-[var(--bg-card)]">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-2">Survey Guide</h1>
           <p className="text-gray-400">Select a survey workflow to get started</p>
@@ -152,7 +152,7 @@ export default function GuidePage() {
               <Link
                 key={guide.id}
                 href={`/guide/${guide.id}`}
-                className="block bg-gray-900/50 border border-gray-800 hover:border-[#E8841A]/50 rounded-xl p-6 transition-all hover:shadow-lg hover:shadow-[#E8841A]/10"
+                className="block bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[#E8841A]/50 rounded-xl p-6 transition-all hover:shadow-lg hover:shadow-[#E8841A]/10"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="text-4xl">{guide.icon}</div>
@@ -180,7 +180,7 @@ export default function GuidePage() {
                 </div>
                 
                 {completedSteps > 0 && completedSteps < guide.steps && (
-                  <div className="mt-4 pt-4 border-t border-gray-800">
+                  <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
                     <div className="text-xs text-[#E8841A]">
                       Continue where you left off →
                     </div>
@@ -188,7 +188,7 @@ export default function GuidePage() {
                 )}
                 
                 {completedSteps === guide.steps && (
-                  <div className="mt-4 pt-4 border-t border-gray-800">
+                  <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
                     <div className="text-xs text-green-400">
                       ✓ Complete
                     </div>
@@ -199,7 +199,7 @@ export default function GuidePage() {
           })}
         </div>
 
-        <div className="mt-12 bg-gray-900/30 border border-gray-800 rounded-xl p-6">
+        <div className="mt-12 bg-[var(--bg-tertiary)]/30 border border-[var(--border-color)] rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-4">How Guides Work</h2>
           <div className="grid md:grid-cols-3 gap-6 text-sm text-gray-400">
             <div>

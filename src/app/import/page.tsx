@@ -142,7 +142,7 @@ export default function ImportPage() {
   const projectName = projects.find(p => p.id === selectedProject)?.name
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] py-12">
+    <div className="min-h-screen py-12">
       <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-3xl font-bold text-white mb-2">Total Station Import</h1>
         <p className="text-gray-400 mb-8">
@@ -246,7 +246,7 @@ export default function ImportPage() {
                       key={i}
                       onClick={() => togglePoint(i)}
                       className={`flex items-center gap-3 p-2 rounded cursor-pointer ${
-                        p.selected ? 'bg-amber-500/10' : 'bg-gray-900/50'
+                        p.selected ? 'bg-amber-500/10' : 'bg-[var(--bg-card)]'
                       }`}
                     >
                       <input
@@ -274,7 +274,7 @@ export default function ImportPage() {
                   <select
                     value={selectedProject}
                     onChange={(e) => setSelectedProject(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"
+                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-4 py-2 text-white"
                   >
                     <option value="">Select a project...</option>
                     {projects.map(proj => (

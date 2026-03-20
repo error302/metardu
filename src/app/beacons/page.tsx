@@ -128,8 +128,8 @@ export default function BeaconsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
-      <header className="bg-gray-900 border-b border-gray-800 px-4 py-4">
+    <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col">
+      <header className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -140,7 +140,7 @@ export default function BeaconsPage() {
               <button
                 onClick={() => setView('beacons')}
                 className={`px-4 py-2 rounded-lg font-medium ${
-                  view === 'beacons' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'
+                  view === 'beacons' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-gray-300'
                 }`}
               >
                 Beacons
@@ -148,7 +148,7 @@ export default function BeaconsPage() {
               <button
                 onClick={() => setView('activity')}
                 className={`px-4 py-2 rounded-lg font-medium ${
-                  view === 'activity' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'
+                  view === 'activity' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-gray-300'
                 }`}
               >
                 Survey Activity
@@ -163,7 +163,7 @@ export default function BeaconsPage() {
                 placeholder="Search by name or authority..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200"
+                className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200"
               />
               <div className="flex gap-2">
                 {['all', 'trig', 'control', 'boundary', 'benchmark'].map(f => (
@@ -171,7 +171,7 @@ export default function BeaconsPage() {
                     key={f}
                     onClick={() => setFilter(f)}
                     className={`px-3 py-2 rounded text-sm capitalize ${
-                      filter === f ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'
+                      filter === f ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-gray-300'
                     }`}
                   >
                     {f}
@@ -274,7 +274,7 @@ export default function BeaconsPage() {
       {/* Import Modal */}
       {importBeacon && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-bold text-gray-100 mb-4">Import Beacon</h3>
             <p className="text-gray-300 mb-4">
               Import {importBeacon.name} as a locked Primary control point?
@@ -285,7 +285,7 @@ export default function BeaconsPage() {
               <select
                 value={importProject}
                 onChange={e => setImportProject(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200"
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-200"
               >
                 <option value="">Choose project...</option>
                 {projects.map(p => (
@@ -297,7 +297,7 @@ export default function BeaconsPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setImportBeacon(null)}
-                className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded"
+                className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] text-gray-300 rounded"
               >
                 Cancel
               </button>

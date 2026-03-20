@@ -22,7 +22,7 @@ export default function APIDocsPage() {
             <p className="text-gray-600 mb-4">
               All API requests require an API key passed in the header:
             </p>
-            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+            <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto">
               <pre className="text-green-400 text-sm">
 {`curl -H "Authorization: Bearer gnv_xxxxxxxxxxxx" \\
      https://api.geonova.app/v1/coordinates/transform`}
@@ -34,7 +34,7 @@ export default function APIDocsPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Coordinate Transformation</h2>
             <p className="text-gray-600 mb-4">Transform coordinates between WGS84 and UTM</p>
             
-            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto mb-4">
+            <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto mb-4">
               <pre className="text-green-400 text-sm">
 {`POST /v1/coordinates/transform
 Content-Type: application/json
@@ -49,7 +49,7 @@ Content-Type: application/json
             </div>
 
             <h3 className="font-medium text-gray-800 mb-2">Response</h3>
-            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+            <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto">
               <pre className="text-blue-400 text-sm">
 {`{
   "success": true,
@@ -66,14 +66,14 @@ Content-Type: application/json
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Benchmark Lookup</h2>
             <p className="text-gray-600 mb-4">Search for benchmark data by name or location</p>
             
-            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto mb-4">
+            <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto mb-4">
               <pre className="text-green-400 text-sm">
 {`GET /v1/benchmarks/search?query=Nairobi&country=kenya`}
               </pre>
             </div>
 
             <h3 className="font-medium text-gray-800 mb-2">Response</h3>
-            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+            <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto">
               <pre className="text-blue-400 text-sm">
 {`{
   "success": true,
@@ -95,7 +95,7 @@ Content-Type: application/json
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Weather/EDM Correction</h2>
             <p className="text-gray-600 mb-4">Get atmospheric correction parameters for EDM</p>
             
-            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto mb-4">
+            <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto mb-4">
               <pre className="text-green-400 text-sm">
 {`POST /v1/weather/edm-correction
 Content-Type: application/json
@@ -110,7 +110,7 @@ Content-Type: application/json
             </div>
 
             <h3 className="font-medium text-gray-800 mb-2">Response</h3>
-            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+            <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto">
               <pre className="text-blue-400 text-sm">
 {`{
   "success": true,
@@ -155,7 +155,7 @@ Content-Type: application/json
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Error Handling</h2>
             <p className="text-gray-600 mb-4">All errors return standard HTTP status codes</p>
-            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+            <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto">
               <pre className="text-blue-400 text-sm">
 {`{
   "success": false,

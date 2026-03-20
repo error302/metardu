@@ -79,7 +79,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     <button
       onClick={onClick}
       className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
-        active ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-gray-900/40 border-gray-800 text-gray-300 hover:border-amber-500/30'
+        active ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-gray-900/40 border-[var(--border-color)] text-gray-300 hover:border-amber-500/30'
       } whitespace-nowrap`}
     >
       {children}
@@ -717,7 +717,7 @@ export default function DigitalFieldBookPage() {
               </p>
             )}
 
-            <div className="pt-2 border-t border-gray-800 flex gap-2">
+            <div className="pt-2 border-t border-[var(--border-color)] flex gap-2">
               <button onClick={exportPDF} className="btn btn-secondary flex-1">
                 {t('common.exportPdf')}
               </button>
@@ -744,7 +744,7 @@ export default function DigitalFieldBookPage() {
                     key={fb.id}
                     onClick={() => loadFieldbook(fb)}
                     className={`w-full text-left px-3 py-2 rounded border ${
-                      fieldbookId === fb.id ? 'border-amber-500/50 bg-amber-500/10' : 'border-gray-800 bg-gray-950/30 hover:border-amber-500/20'
+                      fieldbookId === fb.id ? 'border-amber-500/50 bg-amber-500/10' : 'border-[var(--border-color)] bg-gray-950/30 hover:border-amber-500/20'
                     }`}
                   >
                     <div className="text-sm text-gray-200 truncate">{fb.name || fb.id}</div>
@@ -834,7 +834,7 @@ export default function DigitalFieldBookPage() {
                           key={s.id}
                           onClick={() => setActiveControlSetupId(s.id)}
                           className={`px-3 py-2 rounded-lg text-sm border whitespace-nowrap transition-colors ${
-                            active ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-gray-900/40 border-gray-800 text-gray-300 hover:border-amber-500/30'
+                            active ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-gray-900/40 border-[var(--border-color)] text-gray-300 hover:border-amber-500/30'
                           }`}
                         >
                           {label}
@@ -843,7 +843,7 @@ export default function DigitalFieldBookPage() {
                     })}
 
                     <button
-                      className="px-3 py-2 rounded-lg text-sm border bg-gray-900/40 border-gray-800 text-gray-300 hover:border-amber-500/30 whitespace-nowrap"
+                      className="px-3 py-2 rounded-lg text-sm border bg-gray-900/40 border-[var(--border-color)] text-gray-300 hover:border-amber-500/30 whitespace-nowrap"
                       onClick={() => {
                         const id = crypto.randomUUID()
                         const suffix = controlSetups.length + 1

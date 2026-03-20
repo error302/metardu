@@ -56,8 +56,8 @@ export default function SubmitBeaconPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-8 text-center">
           <div className="text-6xl mb-4">✓</div>
           <h1 className="text-2xl font-bold text-green-400 mb-4">Beacon Submitted!</h1>
           <p className="text-gray-300 mb-6">
@@ -76,7 +76,7 @@ export default function SubmitBeaconPage() {
                 utmZone: '37', hemisphere: 'S', authority: '',
                 beaconType: 'control', description: ''
               })}}
-              className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg"
+              className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded-lg"
             >
               Submit Another
             </button>
@@ -87,7 +87,7 @@ export default function SubmitBeaconPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 py-12 px-4">
+    <div className="min-h-screen bg-[var(--bg-primary)] py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <Link href="/beacons" className="text-[#E8841A] hover:underline mb-4 inline-block">
           ← Back to Beacons Map
@@ -105,7 +105,7 @@ export default function SubmitBeaconPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
             <h2 className="text-lg font-semibold text-gray-200 mb-4">Beacon Details</h2>
             
             <div className="grid md:grid-cols-2 gap-4">
@@ -117,7 +117,7 @@ export default function SubmitBeaconPage() {
                   value={form.name}
                   onChange={e => setForm({...form, name: e.target.value})}
                   placeholder="KWL-102, TRIG-54"
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200"
+                  className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200"
                 />
               </div>
               
@@ -126,7 +126,7 @@ export default function SubmitBeaconPage() {
                 <select
                   value={form.beaconType}
                   onChange={e => setForm({...form, beaconType: e.target.value})}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200"
+                  className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200"
                 >
                   <option value="trig">Trig Beacon</option>
                   <option value="control">Control Point</option>
@@ -143,7 +143,7 @@ export default function SubmitBeaconPage() {
               <select
                 value={form.authority}
                 onChange={e => setForm({...form, authority: e.target.value})}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200"
+                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200"
               >
                 <option value="">Select authority...</option>
                 <option value="Survey of Kenya">Survey of Kenya</option>
@@ -155,7 +155,7 @@ export default function SubmitBeaconPage() {
             </div>
           </div>
 
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
             <h2 className="text-lg font-semibold text-gray-200 mb-4">Coordinates</h2>
             
             <div className="grid md:grid-cols-2 gap-4">
@@ -168,7 +168,7 @@ export default function SubmitBeaconPage() {
                   value={form.easting}
                   onChange={e => setForm({...form, easting: e.target.value})}
                   placeholder="500000.0000"
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 font-mono"
+                  className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200 font-mono"
                 />
               </div>
               
@@ -181,7 +181,7 @@ export default function SubmitBeaconPage() {
                   value={form.northing}
                   onChange={e => setForm({...form, northing: e.target.value})}
                   placeholder="4500000.0000"
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 font-mono"
+                  className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200 font-mono"
                 />
               </div>
             </div>
@@ -195,7 +195,7 @@ export default function SubmitBeaconPage() {
                   value={form.elevation}
                   onChange={e => setForm({...form, elevation: e.target.value})}
                   placeholder="0.000"
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 font-mono"
+                  className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200 font-mono"
                 />
               </div>
               
@@ -204,7 +204,7 @@ export default function SubmitBeaconPage() {
                 <select
                   value={form.utmZone}
                   onChange={e => setForm({...form, utmZone: e.target.value})}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200"
+                  className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200"
                 >
                   {[35,36,37,38,39,40,41,42,43,44,45,46,47,48].map(z => (
                     <option key={z} value={z}>{z}</option>
@@ -217,7 +217,7 @@ export default function SubmitBeaconPage() {
                 <select
                   value={form.hemisphere}
                   onChange={e => setForm({...form, hemisphere: e.target.value})}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200"
+                  className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200"
                 >
                   <option value="N">Northern</option>
                   <option value="S">Southern</option>
@@ -226,7 +226,7 @@ export default function SubmitBeaconPage() {
             </div>
           </div>
 
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
             <h2 className="text-lg font-semibold text-gray-200 mb-4">Additional Information</h2>
             
             <div>
@@ -236,7 +236,7 @@ export default function SubmitBeaconPage() {
                 onChange={e => setForm({...form, description: e.target.value})}
                 placeholder="Any additional details about this beacon..."
                 rows={4}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200"
+                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200"
               />
             </div>
           </div>

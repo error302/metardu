@@ -229,8 +229,8 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
   })()
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
-      <header className="bg-gray-900 border-b border-gray-800 p-4">
+    <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col">
+      <header className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] p-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-100">GPS Stakeout</h1>
@@ -242,7 +242,7 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
             <span className="text-sm text-gray-400">{progress}</span>
             <button
               onClick={() => setShowSettings(true)}
-              className="px-3 py-1 rounded text-sm bg-gray-800 hover:bg-gray-700 text-gray-200"
+              className="px-3 py-1 rounded text-sm bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200"
             >
               ⚙ Settings
             </button>
@@ -260,21 +260,21 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
 
       {showSettings ? (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setShowSettings(false)}>
-          <div className="w-full max-w-lg rounded-2xl border border-gray-800 bg-gray-900 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-lg rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <div className="text-lg font-semibold text-gray-100">Stakeout Settings</div>
-              <button onClick={() => setShowSettings(false)} className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200">
+              <button onClick={() => setShowSettings(false)} className="px-3 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200">
                 ✕
               </button>
             </div>
 
             <div className="grid gap-4">
-              <div className="rounded-xl bg-gray-950/40 border border-gray-800 p-4">
+              <div className="rounded-xl bg-[var(--bg-primary)]/40 border border-[var(--border-color)] p-4">
                 <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Tolerance (on-point)</div>
                 <div className="flex items-center gap-3">
                   <input
                     inputMode="decimal"
-                    className="w-28 bg-gray-950/40 border border-gray-800 rounded px-3 py-2 text-gray-100 font-mono"
+                    className="w-28 bg-[var(--bg-primary)]/40 border border-[var(--border-color)] rounded px-3 py-2 text-gray-100 font-mono"
                     value={toleranceM}
                     onChange={(e) => setToleranceM(Math.max(0.01, Number(e.target.value) || 0.1))}
                   />
@@ -282,12 +282,12 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
                 </div>
               </div>
 
-              <div className="rounded-xl bg-gray-950/40 border border-gray-800 p-4">
+              <div className="rounded-xl bg-[var(--bg-primary)]/40 border border-[var(--border-color)] p-4">
                 <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">GPS quality gate</div>
                 <div className="flex items-center gap-3">
                   <input
                     inputMode="decimal"
-                    className="w-28 bg-gray-950/40 border border-gray-800 rounded px-3 py-2 text-gray-100 font-mono"
+                    className="w-28 bg-[var(--bg-primary)]/40 border border-[var(--border-color)] rounded px-3 py-2 text-gray-100 font-mono"
                     value={maxStakeAccuracyM}
                     onChange={(e) => setMaxStakeAccuracyM(Math.max(1, Number(e.target.value) || 3))}
                   />
@@ -340,7 +340,7 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
             </p>
           </div>
 
-          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-xl border border-gray-800 shadow-xl">
+          <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 w-full max-w-xl border border-[var(--border-color)] shadow-xl">
             {gpsWarning ? (
               <div className="mb-4 p-3 rounded border border-yellow-700 bg-yellow-900/20 text-yellow-200 text-sm">
                 {gpsWarning}
@@ -353,19 +353,19 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
             ) : null}
 
             <div className="grid md:grid-cols-2 gap-4">
-              <div className="rounded-xl bg-gray-950/40 border border-gray-800 p-4 text-center">
+              <div className="rounded-xl bg-[var(--bg-primary)]/40 border border-[var(--border-color)] p-4 text-center">
                 <div className="text-xs text-gray-500 uppercase tracking-wider">Distance</div>
                 <div className="mt-1 text-5xl font-bold text-[#E8841A] tabular-nums">{formatDistance(distance)}</div>
                 {distance !== null && distance > 5000 ? (
                   <div className="mt-2 text-xs text-gray-500">Very large distance — double-check project zone/hemisphere and GPS.</div>
                 ) : null}
               </div>
-              <div className="rounded-xl bg-gray-950/40 border border-gray-800 p-4 text-center">
+              <div className="rounded-xl bg-[var(--bg-primary)]/40 border border-[var(--border-color)] p-4 text-center">
                 <div className="text-xs text-gray-500 uppercase tracking-wider">Bearing (WCB)</div>
                 <div className="mt-2 text-2xl font-mono text-gray-100">{bearing !== null ? bearingToString(bearing) : '—'}</div>
 
                 <div className="mt-4 flex items-center justify-center">
-                  <div className="relative w-28 h-28 rounded-full border border-gray-700 bg-gray-950/30">
+                  <div className="relative w-28 h-28 rounded-full border border-[var(--border-color)] bg-[var(--bg-primary)]/30">
                     <div className="absolute inset-x-0 top-2 text-center text-[10px] text-gray-400">N</div>
                     <div className="absolute inset-y-0 right-2 flex items-center text-[10px] text-gray-400">E</div>
                     <div className="absolute inset-x-0 bottom-2 text-center text-[10px] text-gray-400">S</div>
@@ -381,13 +381,13 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-xs font-mono">
-              <div className="p-3 rounded bg-gray-950/40 border border-gray-800">
+              <div className="p-3 rounded bg-[var(--bg-primary)]/40 border border-[var(--border-color)]">
                 <div className="text-gray-500">ΔE (m)</div>
                 <div className={deltaE !== null && deltaE >= 0 ? 'text-green-300' : 'text-red-300'}>
                   {deltaE !== null ? deltaE.toFixed(4) : '—'}
                 </div>
               </div>
-              <div className="p-3 rounded bg-gray-950/40 border border-gray-800">
+              <div className="p-3 rounded bg-[var(--bg-primary)]/40 border border-[var(--border-color)]">
                 <div className="text-gray-500">ΔN (m)</div>
                 <div className={deltaN !== null && deltaN >= 0 ? 'text-green-300' : 'text-red-300'}>
                   {deltaN !== null ? deltaN.toFixed(4) : '—'}
@@ -396,7 +396,7 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
             </div>
 
             {moveInstruction ? (
-              <div className="mt-3 p-3 rounded bg-gray-950/40 border border-gray-800">
+              <div className="mt-3 p-3 rounded bg-[var(--bg-primary)]/40 border border-[var(--border-color)]">
                 <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Move</div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="text-gray-300">East/West</div>
@@ -414,14 +414,14 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
             <button
               onClick={handlePrevPoint}
               disabled={currentPointIndex === 0}
-              className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg disabled:opacity-50"
+              className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded-lg disabled:opacity-50"
             >
               ← Previous
             </button>
             <button
               onClick={handleNextPoint}
               disabled={currentPointIndex === points.length - 1}
-              className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg disabled:opacity-50"
+              className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded-lg disabled:opacity-50"
             >
               Next →
             </button>
@@ -429,7 +429,7 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
         </main>
       )}
 
-      <div className="bg-gray-900 border-t border-gray-800 p-4">
+      <div className="bg-[var(--bg-secondary)] border-t border-[var(--border-color)] p-4">
         <div className="flex gap-2 overflow-x-auto pb-2">
           {points.map((pt, idx) => (
             <button
@@ -443,7 +443,7 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
                   ? 'bg-[#E8841A] text-black font-bold' 
                   : stakedPoints.has(pt.id)
                     ? 'bg-green-900 text-green-400'
-                    : 'bg-gray-800 text-gray-300'
+                    : 'bg-[var(--bg-tertiary)] text-gray-300'
               }`}
             >
               {stakedPoints.has(pt.id) && '✓ '}{pt.name}

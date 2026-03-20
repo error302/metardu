@@ -25,7 +25,7 @@ export default function CommunityPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] py-16">
+    <div className="min-h-screen py-16">
       <div className="max-w-4xl mx-auto px-6">
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
@@ -93,7 +93,7 @@ export default function CommunityPage() {
           </ul>
         </div>
 
-        <div className="bg-gray-900 rounded-xl p-6 mb-12">
+        <div className="bg-[var(--bg-secondary)] rounded-xl p-6 mb-12">
           <h3 className="text-amber-500 font-bold mb-2">Stay Updated</h3>
           <p className="text-gray-400 text-sm mb-4">Get weekly surveying tips and GeoNova updates</p>
           {subscribed ? (
@@ -105,7 +105,7 @@ export default function CommunityPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
-                className="flex-1 bg-gray-800 text-white px-3 py-2 rounded text-sm"
+                className="flex-1 bg-[var(--bg-tertiary)] text-white px-3 py-2 rounded text-sm"
               />
               <button
                 type="submit"

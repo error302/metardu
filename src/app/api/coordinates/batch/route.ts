@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 import { transformCoordinates, getSupportedSystems, CoordinateSystem } from '@/lib/online/coordinates'
 
 interface CoordinatePoint {
@@ -36,6 +37,9 @@ interface TransformResult {
 }
 
 export async function POST(request: NextRequest) {
+  const { allowed } = await rateLimit(getClientIdentifier(request), 120, 60000)
+  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+
   try {
     const body: BatchTransformRequest = await request.json()
     const { points, fromSystem, toSystem } = body

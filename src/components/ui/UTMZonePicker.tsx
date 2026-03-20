@@ -54,7 +54,7 @@ export default function UTMZonePicker({
             max={60}
             value={value}
             onChange={e => onChange(Number(e.target.value), hemisphere)}
-            className="w-20 bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 font-mono"
+            className="w-20 bg-[var(--bg-tertiary)] text-white px-3 py-2 rounded border border-[var(--border-color)] font-mono"
           />
         </div>
         <div>
@@ -62,7 +62,7 @@ export default function UTMZonePicker({
           <select
             value={hemisphere}
             onChange={e => onChange(value, e.target.value as 'N' | 'S')}
-            className="bg-gray-800 text-white px-3 py-2 rounded border border-gray-700"
+            className="bg-[var(--bg-tertiary)] text-white px-3 py-2 rounded border border-[var(--border-color)]"
           >
             <option value="N">N — Northern</option>
             <option value="S">S — Southern</option>
@@ -86,7 +86,7 @@ export default function UTMZonePicker({
               className={`text-xs px-2 py-1 rounded border transition ${
                 value === cz.zone
                   ? 'bg-amber-500 text-black border-amber-500'
-                  : 'bg-gray-800 text-gray-300 border-gray-700 hover:border-amber-500'
+                  : 'bg-[var(--bg-tertiary)] text-gray-300 border-[var(--border-color)] hover:border-amber-500'
               }`}
             >
               {cz.zone} — {cz.label}
@@ -103,7 +103,7 @@ export default function UTMZonePicker({
             className={`flex-none w-6 h-8 text-xs rounded transition ${
               value === zone
                 ? 'bg-amber-500 text-black font-bold'
-                : 'bg-gray-800 text-gray-500 hover:bg-gray-700'
+                : 'bg-[var(--bg-tertiary)] text-gray-500 hover:bg-gray-700'
             }`}
           >
             {zone % 10 === 0 ? zone : ''}

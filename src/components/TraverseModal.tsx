@@ -93,7 +93,7 @@ function TraverseDiagram({ stations, closingError }: {
   }))
 
   return (
-    <svg width={width} height={height} className="bg-gray-900 rounded border border-amber-500/30 w-full">
+    <svg width={width} height={height} className="bg-[var(--bg-secondary)] rounded border border-amber-500/30 w-full">
       {points.slice(0, -1).map((p, i) => (
         <line
           key={i}
@@ -458,13 +458,7 @@ export default function TraverseModal({
         distances.push(dist)
         bearings.push(bearing)
         
-        // DEBUG: Verify bearing calculation
-        console.log('Leg test:', {
-          bearing: bearing,
-          distance: dist,
-          deltaE: dist * Math.sin(bearing * Math.PI / 180),
-          deltaN: dist * Math.cos(bearing * Math.PI / 180)
-        })
+
         
         // Calculate next point position using this leg's bearing
         const rad = bearing * Math.PI / 180
@@ -641,7 +635,7 @@ export default function TraverseModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70" onClick={handleClose}></div>
-      <div className="relative bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-bold text-gray-100 mb-4">Run Traverse</h2>
 
         {error && (
@@ -653,7 +647,7 @@ export default function TraverseModal({
         {step === 'input' && (
           <div className="space-y-6">
             {/* Traverse Type Selector */}
-            <div className="border border-gray-700 rounded-lg p-4">
+            <div className="border border-[var(--border-color)] rounded-lg p-4">
               <h3 className="text-lg font-semibold text-gray-100 mb-4">Traverse Type</h3>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -663,7 +657,7 @@ export default function TraverseModal({
                   className={`p-3 rounded-lg border text-center transition-colors ${
                     traverseType === 'closed' 
                       ? 'border-[#E8841A] bg-[#E8841A]/10' 
-                      : 'border-gray-700 hover:border-gray-600'
+                      : 'border-[var(--border-color)] hover:border-gray-600'
                   }`}
                 >
                   <div className="font-medium text-gray-200">Closed Loop</div>
@@ -674,7 +668,7 @@ export default function TraverseModal({
                   className={`p-3 rounded-lg border text-center transition-colors ${
                     traverseType === 'link' 
                       ? 'border-[#E8841A] bg-[#E8841A]/10' 
-                      : 'border-gray-700 hover:border-gray-600'
+                      : 'border-[var(--border-color)] hover:border-gray-600'
                   }`}
                 >
                   <div className="font-medium text-gray-200">Link</div>
@@ -685,7 +679,7 @@ export default function TraverseModal({
                   className={`p-3 rounded-lg border text-center transition-colors ${
                     traverseType === 'open' 
                       ? 'border-[#E8841A] bg-[#E8841A]/10' 
-                      : 'border-gray-700 hover:border-gray-600'
+                      : 'border-[var(--border-color)] hover:border-gray-600'
                   }`}
                 >
                   <div className="font-medium text-gray-200">Open</div>
@@ -696,7 +690,7 @@ export default function TraverseModal({
                   className={`p-3 rounded-lg border text-center transition-colors ${
                     traverseType === 'radial' 
                       ? 'border-[#E8841A] bg-[#E8841A]/10' 
-                      : 'border-gray-700 hover:border-gray-600'
+                      : 'border-[var(--border-color)] hover:border-gray-600'
                   }`}
                 >
                   <div className="font-medium text-gray-200">Radial</div>
@@ -713,7 +707,7 @@ export default function TraverseModal({
 
             {/* Radial Survey Input */}
             {traverseType === 'radial' && (
-              <div className="border border-gray-700 rounded-lg p-4">
+              <div className="border border-[var(--border-color)] rounded-lg p-4">
                 <h3 className="text-lg font-semibold text-gray-100 mb-4">Radial Survey</h3>
                 
                 <div className="mb-4">
@@ -721,7 +715,7 @@ export default function TraverseModal({
                   <select
                     value={radialStationId}
                     onChange={(e) => setRadialStationId(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-200"
                   >
                     <option value="">Select station...</option>
                     {controlPoints.map(p => (
@@ -743,7 +737,7 @@ export default function TraverseModal({
                             updated[idx].pointName = e.target.value
                             setRadialObservations(updated)
                           }}
-                          className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm"
+                          className="w-full px-2 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-200 text-sm"
                           placeholder="P1"
                         />
                       </div>
@@ -757,7 +751,7 @@ export default function TraverseModal({
                             updated[idx].bearingDeg = e.target.value
                             setRadialObservations(updated)
                           }}
-                          className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm"
+                          className="w-full px-2 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-200 text-sm"
                           placeholder="000"
                         />
                       </div>
@@ -771,7 +765,7 @@ export default function TraverseModal({
                             updated[idx].bearingMin = e.target.value
                             setRadialObservations(updated)
                           }}
-                          className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm"
+                          className="w-full px-2 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-200 text-sm"
                           placeholder="00"
                         />
                       </div>
@@ -785,7 +779,7 @@ export default function TraverseModal({
                             updated[idx].bearingSec = e.target.value
                             setRadialObservations(updated)
                           }}
-                          className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm"
+                          className="w-full px-2 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-200 text-sm"
                           placeholder="00"
                         />
                       </div>
@@ -800,7 +794,7 @@ export default function TraverseModal({
                               updated[idx].distance = e.target.value
                               setRadialObservations(updated)
                             }}
-                            className="flex-1 px-2 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm"
+                            className="flex-1 px-2 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-200 text-sm"
                             placeholder="0.000"
                           />
                           {radialObservations.length > 1 && (
@@ -828,7 +822,7 @@ export default function TraverseModal({
                     bearingSec: '', 
                     distance: '' 
                   }])}
-                  className="mt-3 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm"
+                  className="mt-3 px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 rounded text-sm"
                 >
                   + Add Point
                 </button>
@@ -837,7 +831,7 @@ export default function TraverseModal({
 
             {/* Section 1: Opening Control Point */}
             {traverseType !== 'radial' && (
-            <div className="border border-gray-700 rounded-lg p-4">
+            <div className="border border-[var(--border-color)] rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold text-gray-100">Opening Control Point</h3>
                 {process.env.NODE_ENV === 'development' && (
@@ -876,7 +870,7 @@ export default function TraverseModal({
                 <select
                   value={openingPointId}
                   onChange={(e) => setOpeningPointId(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100"
+                  className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100"
                 >
                   {controlPoints.map(p => (
                     <option key={p.id} value={p.id}>{p.name} (E: {p.easting.toFixed(4)}, N: {p.northing.toFixed(4)})</option>
@@ -889,21 +883,21 @@ export default function TraverseModal({
                     placeholder="Point Name"
                     value={openingName}
                     onChange={(e) => setOpeningName(e.target.value)}
-                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                    className="px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                   />
                   <input
                     type="number"
                     placeholder="Easting"
                     value={openingEasting}
                     onChange={(e) => setOpeningEasting(e.target.value)}
-                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                    className="px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                   />
                   <input
                     type="number"
                     placeholder="Northing"
                     value={openingNorthing}
                     onChange={(e) => setOpeningNorthing(e.target.value)}
-                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                    className="px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                   />
                 </div>
               )}
@@ -912,13 +906,13 @@ export default function TraverseModal({
             )}
 
             {/* Section 2: Traverse Legs */}
-            <div className="border border-gray-700 rounded-lg p-4">
+            <div className="border border-[var(--border-color)] rounded-lg p-4">
               <h3 className="text-lg font-semibold text-gray-100 mb-3">Traverse Legs</h3>
               
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-700">
+                    <tr className="border-b border-[var(--border-color)]">
                       <th className="px-2 py-2 text-left text-gray-300">Station</th>
                       <th className="px-2 py-2 text-left text-gray-300">Distance (m)</th>
                       <th className="px-2 py-2 text-left text-gray-300" colSpan={3}>Bearing (DMS)</th>
@@ -927,14 +921,14 @@ export default function TraverseModal({
                   </thead>
                   <tbody>
                     {legs.map((leg) => (
-                      <tr key={leg.id} className="border-b border-gray-700/50">
+                      <tr key={leg.id} className="border-b border-[var(--border-color)]/50">
                         <td className="px-2 py-2">
                           <input
                             type="text"
                             value={leg.stationName}
                             onChange={(e) => updateLeg(leg.id, 'stationName', e.target.value)}
                             placeholder="TP01"
-                            className="w-full px-2 py-1 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                            className="w-full px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -943,7 +937,7 @@ export default function TraverseModal({
                             step="0.001"
                             value={leg.distance}
                             onChange={(e) => updateLeg(leg.id, 'distance', e.target.value)}
-                            className="w-28 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                            className="w-28 px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                           />
                         </td>
                         <td className="px-1 py-2">
@@ -952,7 +946,7 @@ export default function TraverseModal({
                             placeholder="D"
                             value={leg.bearingDeg}
                             onChange={(e) => updateLeg(leg.id, 'bearingDeg', e.target.value)}
-                            className="w-14 px-1 py-1 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                            className="w-14 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                           />
                         </td>
                         <td className="px-1 py-2">
@@ -961,7 +955,7 @@ export default function TraverseModal({
                             placeholder="M"
                             value={leg.bearingMin}
                             onChange={(e) => updateLeg(leg.id, 'bearingMin', e.target.value)}
-                            className="w-12 px-1 py-1 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                            className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                           />
                         </td>
                         <td className="px-1 py-2">
@@ -970,7 +964,7 @@ export default function TraverseModal({
                             placeholder="S"
                             value={leg.bearingSec}
                             onChange={(e) => updateLeg(leg.id, 'bearingSec', e.target.value)}
-                            className="w-14 px-1 py-1 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                            className="w-14 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -991,7 +985,7 @@ export default function TraverseModal({
 
               <button
                 onClick={addLeg}
-                className="mt-3 px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 text-gray-300 rounded"
+                className="mt-3 px-3 py-1 text-sm bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 rounded"
               >
                 + Add Row
               </button>
@@ -999,7 +993,7 @@ export default function TraverseModal({
 
             {/* Section 3: Closing Control - only for closed/link */}
             {(traverseType === 'closed' || traverseType === 'link') && (
-            <div className="border border-gray-700 rounded-lg p-4">
+            <div className="border border-[var(--border-color)] rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
                 <input
                   type="checkbox"
@@ -1037,7 +1031,7 @@ export default function TraverseModal({
                     <select
                       value={closingPointId}
                       onChange={(e) => setClosingPointId(e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100"
+                      className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100"
                     >
                       {controlPoints.map(p => (
                         <option key={p.id} value={p.id}>{p.name}</option>
@@ -1050,21 +1044,21 @@ export default function TraverseModal({
                         placeholder="Point Name"
                         value={closingName}
                         onChange={(e) => setClosingName(e.target.value)}
-                        className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                        className="px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                       />
                       <input
                         type="number"
                         placeholder="Easting"
                         value={closingEasting}
                         onChange={(e) => setClosingEasting(e.target.value)}
-                        className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                        className="px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                       />
                       <input
                         type="number"
                         placeholder="Northing"
                         value={closingNorthing}
                         onChange={(e) => setClosingNorthing(e.target.value)}
-                        className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono"
+                        className="px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-100 font-mono"
                       />
                     </div>
                   )}
@@ -1080,7 +1074,7 @@ export default function TraverseModal({
             <div className="flex gap-3">
               <button
                 onClick={handleClose}
-                className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded"
+                className="px-6 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 rounded"
               >
                 Cancel
               </button>
@@ -1143,7 +1137,7 @@ export default function TraverseModal({
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-gray-700 bg-gray-800/50">
+                  <tr className="border-b border-[var(--border-color)] bg-gray-800/50">
                     <th className="px-2 py-2 text-left text-gray-300">Line</th>
                     <th className="px-2 py-2 text-right text-gray-300">Distance</th>
                     <th className="px-2 py-2 text-left text-gray-300">Bearing</th>
@@ -1160,7 +1154,7 @@ export default function TraverseModal({
                     const blunder = blunderResults[idx]
                     const isBlunderRow = blunder?.isBlunder || blunder?.distanceMismatch
                     return (
-                      <tr key={idx} className={`border-b border-gray-700/50 ${isBlunderRow ? 'bg-red-900/30' : ''}`}>
+                      <tr key={idx} className={`border-b border-[var(--border-color)]/50 ${isBlunderRow ? 'bg-red-900/30' : ''}`}>
                         <td className={`px-2 py-2 font-mono ${isBlunderRow ? 'text-red-400' : 'text-gray-100'}`}>
                           {leg.from} → {leg.to}
                           {isBlunderRow && <span className="ml-2 text-red-400">⚠</span>}
@@ -1195,7 +1189,7 @@ export default function TraverseModal({
 
             {/* Blunder Analysis */}
             {blunderResults.length > 0 && (
-              <div className="mt-4 p-3 bg-gray-800/50 rounded border border-gray-700">
+              <div className="mt-4 p-3 bg-gray-800/50 rounded border border-[var(--border-color)]">
                 <h3 className="text-sm font-semibold text-gray-200 mb-2">Blunder Detection Analysis</h3>
                 <div className="space-y-2">
                   {blunderResults.map((b, i) => (
@@ -1214,7 +1208,7 @@ export default function TraverseModal({
                   ))}
                 </div>
                 {blunderResults.some(b => b.warning) && (
-                  <div className="mt-3 pt-2 border-t border-gray-700">
+                  <div className="mt-3 pt-2 border-t border-[var(--border-color)]">
                     <p className="text-xs text-gray-400 mb-1">Warnings:</p>
                     {blunderResults.filter(b => b.warning).map((b, i) => (
                       <p key={i} className="text-xs text-red-400">• {b.warning}</p>
@@ -1230,7 +1224,7 @@ export default function TraverseModal({
                   setStep('input')
                   setSaveMessage(null)
                 }}
-                className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded"
+                className="px-6 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 rounded"
               >
                 Back
               </button>

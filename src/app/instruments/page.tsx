@@ -54,7 +54,7 @@ export default function InstrumentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] py-12">
+    <div className="min-h-screen py-12">
       <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-4xl font-bold text-white mb-2">Compatible Instruments</h1>
         <p className="text-gray-400 text-lg mb-12">
@@ -83,14 +83,14 @@ export default function InstrumentsPage() {
                 {inst.models.map(model => (
                   <span
                     key={model}
-                    className="px-2 py-1 bg-gray-800 text-gray-300 text-xs rounded"
+                    className="px-2 py-1 bg-[var(--bg-tertiary)] text-gray-300 text-xs rounded"
                   >
                     {model}
                   </span>
                 ))}
               </div>
 
-              <div className="bg-gray-900/50 rounded p-3">
+              <div className="bg-[var(--bg-card)] rounded p-3">
                 <p className="text-gray-500 text-xs mb-1">How to export:</p>
                 <p className="text-white text-sm font-mono">{inst.export}</p>
               </div>

@@ -87,7 +87,7 @@ export function TraverseBook({
               </div>
             </div>
           ) : (
-            <div className="p-3 bg-gray-950/40 border border-gray-800 rounded text-xs text-[var(--text-muted)] flex items-center">
+            <div className="p-3 bg-[var(--bg-primary)]/40 border border-[var(--border-color)] rounded text-xs text-[var(--text-muted)] flex items-center">
               {travMode === 'closed' ? t('traverse.closedHint') : t('traverse.openHint')}
             </div>
           )}
@@ -140,19 +140,19 @@ export function TraverseBook({
 
         {computed.ok && computed.mode !== 'open' && (
           <div className="grid md:grid-cols-4 gap-3">
-            <div className="p-3 bg-gray-950/40 border border-gray-800 rounded">
+            <div className="p-3 bg-[var(--bg-primary)]/40 border border-[var(--border-color)] rounded">
               <div className="text-xs text-[var(--text-muted)]">{t('traverse.closingErrorE')}</div>
               <div className="font-mono">{Number(computed.adjusted.closingErrorE).toFixed(4)} m</div>
             </div>
-            <div className="p-3 bg-gray-950/40 border border-gray-800 rounded">
+            <div className="p-3 bg-[var(--bg-primary)]/40 border border-[var(--border-color)] rounded">
               <div className="text-xs text-[var(--text-muted)]">{t('traverse.closingErrorN')}</div>
               <div className="font-mono">{Number(computed.adjusted.closingErrorN).toFixed(4)} m</div>
             </div>
-            <div className="p-3 bg-gray-950/40 border border-gray-800 rounded">
+            <div className="p-3 bg-[var(--bg-primary)]/40 border border-[var(--border-color)] rounded">
               <div className="text-xs text-[var(--text-muted)]">{t('traverse.linearError')}</div>
               <div className="font-mono">{Number(computed.adjusted.linearError).toFixed(4)} m</div>
             </div>
-            <div className="p-3 bg-gray-950/40 border border-gray-800 rounded">
+            <div className="p-3 bg-[var(--bg-primary)]/40 border border-[var(--border-color)] rounded">
               <div className="text-xs text-[var(--text-muted)]">{t('traverse.precision')}</div>
               <div className="font-mono">
                 1 : {Math.max(1, Math.round(Number(computed.adjusted.totalDistance) / Math.max(1e-12, Number(computed.adjusted.linearError)))).toLocaleString()}
