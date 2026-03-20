@@ -29,7 +29,6 @@ const nextConfig = {
   },
   
   // Performance settings
-  trailingSlash: true,
   compress: true,
   poweredByHeader: false,
   generateEtags: true,

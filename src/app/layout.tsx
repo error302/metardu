@@ -1,7 +1,4 @@
 import type { Metadata } from 'next';
-import { initSentry } from '@/lib/monitoring/sentry';
-
-initSentry();
 import './globals.css';
 import NavBar from '@/components/NavBar';
 import MobileNav from '@/components/MobileNav';

@@ -1,12 +1,18 @@
 import { Resend } from 'resend'
+
+function getResend() {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return null
+  return new Resend(key)
+}
 import { NextRequest, NextResponse } from 'next/server'
 
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://geonova-henna.vercel.app'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: NextRequest) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   try {
     // Internal endpoint — only callable with service role key header
     const authHeader = req.headers.get('authorization')
@@ -27,6 +33,8 @@ export async function POST(req: NextRequest) {
       year: 'numeric'
     })
 
+    const resend = getResend()
+    if (!resend) return NextResponse.json({ error: 'Email service not configured' }, { status: 503 })
     await resend.emails.send({
       from: 'GeoNova <hello@geonova.app>',
       to: email,
