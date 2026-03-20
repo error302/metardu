@@ -172,9 +172,9 @@ export default function ProjectPage({ params }: PageProps) {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
-        // Save the current URL so login can bounce back here
-        localStorage.setItem('auth:redirect', window.location.pathname)
-        window.location.replace('/login')
+        // Use ?next= param so login page can hard-redirect back after sign-in
+        const next = encodeURIComponent(window.location.pathname)
+        window.location.replace('/login?next=' + next)
       }
     })
   }, [])

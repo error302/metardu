@@ -1,65 +1,64 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
-export default function LoginPage() {
+function LoginForm() {
   const { t } = useLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
+  // Get where to send the user after login — prefer ?next= URL param
+  const nextPath = searchParams.get('next') || localStorage.getItem('auth:redirect') || '/dashboard'
+
+  // If already signed in, go straight there
   useEffect(() => {
     let mounted = true
     supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return
       if (data.user) {
-        // If there's a pending redirect, go there; otherwise dashboard
-        const pending = typeof window !== 'undefined' ? localStorage.getItem('auth:redirect') : null
-        if (pending) {
-          localStorage.removeItem('auth:redirect')
-          router.replace(pending)
-        } else {
-          router.replace('/dashboard')
-        }
+        localStorage.removeItem('auth:redirect')
+        // Hard redirect so fresh session cookies are read
+        window.location.replace(nextPath)
       }
     })
     return () => { mounted = false }
-  }, [router, supabase])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      setError(error.message)
+    if (signInError) {
+      setError(signInError.message)
       setLoading(false)
-    } else {
-      // Redirect to the page the user was trying to access, or dashboard by default
-      const redirectTo = typeof window !== 'undefined' ? localStorage.getItem('auth:redirect') : null
-      localStorage.removeItem('auth:redirect')
-      router.replace(redirectTo || '/dashboard')
+      return
     }
+
+    // Clear any stored redirect
+    localStorage.removeItem('auth:redirect')
+
+    // Hard redirect — forces full page load so Supabase session cookies are
+    // read fresh by the destination page. SPA navigation (router.push/replace)
+    // can hit a race condition where getUser() returns null briefly.
+    window.location.href = nextPath
   }
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-[var(--accent)]">
-            GEONOVA
-          </h1>
+          <h1 className="text-4xl font-bold mb-2 text-[var(--accent)]">GEONOVA</h1>
           <p className="text-[var(--text-secondary)]">{t('auth.loginSubtitle')}</p>
         </div>
 
@@ -78,6 +77,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[var(--accent)] focus:outline-none text-[var(--text-primary)]"
               required
+              autoComplete="email"
             />
           </div>
 
@@ -89,6 +89,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[var(--accent)] focus:outline-none text-[var(--text-primary)]"
               required
+              autoComplete="current-password"
             />
           </div>
 
@@ -97,7 +98,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded transition-colors disabled:opacity-50"
           >
-            {loading ? t('common.loading') : t('auth.loginButton')}
+            {loading ? 'Signing in…' : t('auth.loginButton')}
           </button>
         </form>
 
@@ -109,5 +110,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }

@@ -76,7 +76,7 @@ export default function FieldPage() {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        localStorage.setItem('auth:redirect', '/field'); router.replace('/login')
+        window.location.replace('/login?next=%2Ffield')
         return
       }
       setUser(user)
@@ -93,7 +93,7 @@ export default function FieldPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         setUser(null)
-        localStorage.setItem('auth:redirect', '/field'); router.replace('/login')
+        window.location.replace('/login?next=%2Ffield')
       } else {
         setUser(session.user)
       }

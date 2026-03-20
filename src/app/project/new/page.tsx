@@ -65,7 +65,7 @@ export default function NewProjectPage() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      localStorage.setItem('auth:redirect', '/project/new'); router.replace('/login')
+      window.location.replace('/login?next=%2Fproject%2Fnew')
       return
     }
 
