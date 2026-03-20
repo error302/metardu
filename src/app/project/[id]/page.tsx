@@ -685,6 +685,12 @@ export default function ProjectPage({ params }: PageProps) {
           >
             {t('reports.exportProject')}
           </button>
+          <Link
+            href={`/project/${params.id}/documents`}
+            className="w-full px-4 py-2 bg-[var(--accent)]/10 border border-[var(--accent)]/30 hover:bg-[var(--accent)]/20 text-[var(--accent)] rounded text-sm transition-colors text-center block font-medium"
+          >
+            📋 Document package
+          </Link>
           <button
             onClick={() => setShowStakeout(true)}
             disabled={points.length === 0}

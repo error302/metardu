@@ -1,0 +1,530 @@
+/**
+ * Survey Document Package Generator
+ * Generates all standard documents a surveyor must deliver per survey type.
+ * Uses project data already in GeoNova — surveyor fills remaining fields then prints.
+ */
+
+export type SurveyDocType =
+  | 'cover_letter'
+  | 'field_notes'
+  | 'computation_sheet'
+  | 'area_certificate'
+  | 'beacon_descriptions'
+  | 'mutation_form'
+  | 'completion_certificate'
+  | 'leveling_summary'
+  | 'control_submission'
+  | 'as_built_certificate'
+
+export interface DocumentDef {
+  id: SurveyDocType
+  title: string
+  description: string
+  required: boolean
+}
+
+// Which documents are required per survey type
+export const DOCS_BY_TYPE: Record<string, DocumentDef[]> = {
+  boundary: [
+    { id: 'cover_letter',        title: 'Cover letter to client',         description: 'Transmittal letter enclosing the survey documents',             required: true },
+    { id: 'field_notes',         title: 'Field notes summary',            description: 'Summary of field observations, beacon descriptions, methods',   required: true },
+    { id: 'computation_sheet',   title: 'Computation sheet',              description: 'Traverse adjustment, closure, precision ratio',                 required: true },
+    { id: 'area_certificate',    title: 'Area certificate',               description: 'Certified statement of parcel area signed by licensed surveyor', required: true },
+    { id: 'beacon_descriptions', title: 'Beacon descriptions',            description: 'Written description and location of each boundary beacon',       required: true },
+    { id: 'mutation_form',       title: 'Mutation form (3 copies)',        description: 'Standard mutation form for boundary changes / subdivision',      required: true },
+  ],
+  traverse: [
+    { id: 'cover_letter',      title: 'Cover letter',               description: 'Transmittal letter to client or authority',                      required: true },
+    { id: 'field_notes',       title: 'Field notes summary',        description: 'Summary of field observations, instrument settings, methods',    required: true },
+    { id: 'computation_sheet', title: 'Computation sheet',          description: 'Full traverse adjustment with Bowditch/Transit method',          required: true },
+    { id: 'control_submission','title': 'Control submission (Form C22)', description: 'Submit new control points to Survey of Kenya for registration', required: false },
+  ],
+  leveling: [
+    { id: 'cover_letter',      title: 'Cover letter',               description: 'Transmittal letter to client',                                   required: true },
+    { id: 'field_notes',       title: 'Field notes summary',        description: 'Leveling route, BM descriptions, weather, instrument used',     required: true },
+    { id: 'leveling_summary',  title: 'Level book summary',         description: 'Reduced levels, arithmetic check, misclosure, correction',      required: true },
+    { id: 'computation_sheet', title: 'Misclosure computation',     description: 'Formal misclosure vs allowable, correction applied',             required: true },
+  ],
+  topographic: [
+    { id: 'cover_letter',      title: 'Cover letter',               description: 'Transmittal with description of survey scope and outputs',       required: true },
+    { id: 'field_notes',       title: 'Field notes summary',        description: 'Methods, control used, features captured, instrument settings',  required: true },
+    { id: 'computation_sheet', title: 'Control computation',        description: 'Traverse/control adjustment supporting the topo survey',         required: true },
+  ],
+  engineering: [
+    { id: 'cover_letter',          title: 'Cover letter',               description: 'Transmittal to engineer / contractor',                           required: true },
+    { id: 'computation_sheet',     title: 'Setting out data sheet',     description: 'Computed setout data — coordinates, bearings, distances',        required: true },
+    { id: 'completion_certificate','title': 'Completion certificate',   description: 'Surveyor certifies setout is complete and within tolerance',      required: true },
+    { id: 'as_built_certificate',  title: 'As-built statement',        description: 'As-built survey confirming constructed positions',                required: false },
+  ],
+  stakeout: [
+    { id: 'cover_letter',          title: 'Cover letter',               description: 'Transmittal to client / contractor',                             required: true },
+    { id: 'computation_sheet',     title: 'Setting out data sheet',     description: 'All setout points with design vs measured comparison',           required: true },
+    { id: 'completion_certificate','title': 'Completion certificate',   description: 'Surveyor certifies pegs placed within tolerance',                 required: true },
+  ],
+  gnss_baseline: [
+    { id: 'cover_letter',      title: 'Cover letter',               description: 'Transmittal and executive summary',                               required: true },
+    { id: 'field_notes',       title: 'Field notes',                description: 'Session log, antenna heights, occupation times, PDOP values',    required: true },
+    { id: 'computation_sheet', title: 'Baseline computation',       description: 'Baseline vectors, network adjustment, final coordinates',        required: true },
+    { id: 'control_submission','title': 'Control submission',       description: 'Submit new GNSS control to national network (if applicable)',    required: false },
+  ],
+  mining: [
+    { id: 'cover_letter',      title: 'Cover letter to mine manager', description: 'Monthly progress report transmittal',                          required: true },
+    { id: 'field_notes',       title: 'Field notes summary',          description: 'Areas surveyed, methods, safety briefing reference',           required: true },
+    { id: 'computation_sheet', title: 'Volume computation',           description: 'Volume of material moved, stope dimensions',                  required: true },
+  ],
+  hydrographic: [
+    { id: 'cover_letter',      title: 'Cover letter',               description: 'Transmittal with chart description and datum used',              required: true },
+    { id: 'field_notes',       title: 'Field notes',                description: 'Sounding log, tide readings, equipment used, weather',          required: true },
+    { id: 'computation_sheet', title: 'Sounding computation',       description: 'Reduced soundings, chart datum corrections',                   required: true },
+  ],
+}
+
+// Default to boundary docs for unknown types
+export function getDocsForType(surveyType?: string): DocumentDef[] {
+  const type = (surveyType || 'boundary').toLowerCase()
+  return DOCS_BY_TYPE[type] ?? DOCS_BY_TYPE.boundary
+}
+
+// ── HTML template generators ──────────────────────────────────────────────────
+// Each returns a complete HTML string ready to print/save as PDF via browser
+
+export interface ProjectData {
+  name: string
+  location: string
+  utm_zone: number
+  hemisphere: string
+  survey_type?: string
+  client_name?: string | null
+  surveyor_name?: string | null
+  created_at: string
+}
+
+export interface PointData {
+  name: string
+  easting: number
+  northing: number
+  elevation?: number
+  is_control: boolean
+}
+
+export interface TraverseData {
+  totalDistance: number
+  closingErrorE: number
+  closingErrorN: number
+  linearError: number
+  precisionRatio: number
+  precisionGrade: string
+  legs: Array<{
+    fromName: string
+    toName: string
+    distance: number
+    rawBearing?: number
+    adjEasting?: number
+    adjNorthing?: number
+  }>
+}
+
+export interface AreaData {
+  squareMeters: number
+  hectares: number
+  acres: number
+  perimeter: number
+}
+
+function docHeader(title: string, project: ProjectData, surveyorDetails: Record<string,string>): string {
+  const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
+  return `
+  <div style="border-bottom:2px solid #E8841A;padding-bottom:12px;margin-bottom:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div style="font-size:22px;font-weight:700;color:#E8841A;letter-spacing:1px;">GEONOVA</div>
+        <div style="font-size:11px;color:#666;margin-top:2px;">Professional Surveying Platform</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#444;">
+        <div style="font-weight:600;">${surveyorDetails.firm || surveyorDetails.name || ''}</div>
+        ${surveyorDetails.licence ? `<div>Licence: ${surveyorDetails.licence}</div>` : ''}
+        ${surveyorDetails.phone ? `<div>${surveyorDetails.phone}</div>` : ''}
+        ${surveyorDetails.email ? `<div>${surveyorDetails.email}</div>` : ''}
+      </div>
+    </div>
+    <div style="margin-top:16px;">
+      <div style="font-size:16px;font-weight:700;color:#111;">${title}</div>
+      <div style="font-size:11px;color:#555;margin-top:4px;">
+        Project: <strong>${project.name}</strong> &nbsp;|&nbsp;
+        Date: ${today} &nbsp;|&nbsp;
+        UTM: Zone ${project.utm_zone}${project.hemisphere}
+      </div>
+    </div>
+  </div>`
+}
+
+function signatureBlock(surveyorName: string, licenceNo: string, role: string = 'Licensed Surveyor'): string {
+  return `
+  <div style="margin-top:40px;display:flex;gap:60px;">
+    <div style="flex:1;">
+      <div style="border-bottom:1px solid #333;margin-bottom:6px;height:36px;"></div>
+      <div style="font-size:11px;font-weight:600;">${surveyorName || 'Surveyor Name'}</div>
+      <div style="font-size:10px;color:#555;">${role}</div>
+      ${licenceNo ? `<div style="font-size:10px;color:#555;">Licence No: ${licenceNo}</div>` : ''}
+    </div>
+    <div style="flex:1;">
+      <div style="border-bottom:1px solid #333;margin-bottom:6px;height:36px;"></div>
+      <div style="font-size:11px;font-weight:600;">Date</div>
+    </div>
+    <div style="flex:1;">
+      <div style="border-bottom:1px solid #333;margin-bottom:6px;height:36px;"></div>
+      <div style="font-size:11px;font-weight:600;">Seal / Stamp</div>
+    </div>
+  </div>`
+}
+
+function pageStyles(): string {
+  return `<style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #111; margin: 0; padding: 24px 32px; max-width: 800px; }
+    h2 { font-size: 13px; font-weight: 700; color: #111; margin: 20px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 8px 0; }
+    th { background: #f0f0f0; padding: 6px 8px; text-align: left; font-weight: 600; border: 1px solid #ccc; }
+    td { padding: 5px 8px; border: 1px solid #ddd; vertical-align: top; }
+    tr:nth-child(even) td { background: #fafafa; }
+    .label { font-size: 11px; color: #555; margin-bottom: 2px; }
+    .value { font-size: 12px; font-weight: 600; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 12px 0; }
+    .box { border: 1px solid #ddd; border-radius: 4px; padding: 10px 12px; }
+    .highlight { background: #fff8f0; border-left: 3px solid #E8841A; padding: 8px 12px; margin: 10px 0; font-size: 11px; }
+    .pass { color: #16a34a; font-weight: 700; }
+    .fail { color: #dc2626; font-weight: 700; }
+    @media print { body { padding: 10px; } }
+  </style>`
+}
+
+// ── Individual document generators ────────────────────────────────────────────
+
+export function generateCoverLetter(
+  project: ProjectData,
+  surveyorDetails: Record<string,string>,
+  extraFields: Record<string,string>
+): string {
+  const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
+  const typeLabel = (project.survey_type || 'Survey').charAt(0).toUpperCase() + (project.survey_type || 'survey').slice(1)
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cover Letter</title>${pageStyles()}</head><body>
+  ${docHeader('Cover Letter', project, surveyorDetails)}
+
+  <p>${today}</p>
+  <p>
+    <strong>${project.client_name || extraFields.clientName || '[Client Name]'}</strong><br>
+    ${extraFields.clientAddress || '[Client Address]'}
+  </p>
+
+  <p>Dear ${project.client_name || extraFields.clientName || 'Sir/Madam'},</p>
+
+  <p><strong>RE: ${typeLabel.toUpperCase()} SURVEY — ${project.name.toUpperCase()}</strong></p>
+
+  <p>We are pleased to submit herewith the survey documents for the above-referenced survey conducted at 
+  <strong>${project.location || '[Location]'}</strong>.</p>
+
+  <p>The following documents are enclosed:</p>
+  <ol style="font-size:12px;line-height:1.8;">
+    ${(extraFields.enclosures || 'Survey plan\nField notes\nComputation sheet').split('\n').map(e => `<li>${e.trim()}</li>`).join('')}
+  </ol>
+
+  <p>The survey was carried out in accordance with the applicable national standards and regulations. 
+  All computations have been independently checked. ${extraFields.closureNote || ''}</p>
+
+  <p>Should you require any clarification or additional information, please do not hesitate to contact us.</p>
+
+  <p>Yours faithfully,</p>
+  ${signatureBlock(project.surveyor_name || surveyorDetails.name || '', surveyorDetails.licence || '')}
+  </body></html>`
+}
+
+export function generateComputationSheet(
+  project: ProjectData,
+  surveyorDetails: Record<string,string>,
+  points: PointData[],
+  traverse?: TraverseData,
+  area?: AreaData
+): string {
+  const typeLabel = (project.survey_type || 'Survey').charAt(0).toUpperCase() + (project.survey_type || 'survey').slice(1)
+
+  const coordTable = `
+  <h2>Survey Coordinates — UTM Zone ${project.utm_zone}${project.hemisphere}</h2>
+  <table>
+    <thead><tr>
+      <th>Pt</th><th>Easting (m)</th><th>Northing (m)</th><th>Elevation (m)</th><th>Type</th>
+    </tr></thead>
+    <tbody>
+      ${points.map(p => `<tr>
+        <td><strong>${p.name}</strong></td>
+        <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
+        <td style="font-family:monospace">${p.northing.toFixed(4)}</td>
+        <td style="font-family:monospace">${p.elevation != null ? p.elevation.toFixed(3) : '—'}</td>
+        <td>${p.is_control ? 'Control' : 'Detail'}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`
+
+  const traverseSection = traverse ? `
+  <h2>Traverse Adjustment — ${typeLabel}</h2>
+  <div class="grid3">
+    <div class="box"><div class="label">Total distance</div><div class="value">${traverse.totalDistance.toFixed(4)} m</div></div>
+    <div class="box"><div class="label">Linear misclosure</div><div class="value">${traverse.linearError.toFixed(6)} m</div></div>
+    <div class="box"><div class="label">Precision ratio</div><div class="value">1 : ${Math.round(1/traverse.precisionRatio).toLocaleString()}</div></div>
+    <div class="box"><div class="label">Closing error E</div><div class="value">${traverse.closingErrorE >= 0 ? '+' : ''}${traverse.closingErrorE.toFixed(6)} m</div></div>
+    <div class="box"><div class="label">Closing error N</div><div class="value">${traverse.closingErrorN >= 0 ? '+' : ''}${traverse.closingErrorN.toFixed(6)} m</div></div>
+    <div class="box"><div class="label">Grade</div><div class="value ${traverse.precisionGrade === 'Excellent' || traverse.precisionGrade === 'Good' ? 'pass' : ''}">${traverse.precisionGrade}</div></div>
+  </div>` : ''
+
+  const areaSection = area ? `
+  <h2>Area Computation</h2>
+  <div class="grid3">
+    <div class="box"><div class="label">Area (m²)</div><div class="value">${area.squareMeters.toFixed(2)} m²</div></div>
+    <div class="box"><div class="label">Area (ha)</div><div class="value">${area.hectares.toFixed(4)} ha</div></div>
+    <div class="box"><div class="label">Area (acres)</div><div class="value">${area.acres.toFixed(4)} ac</div></div>
+    <div class="box"><div class="label">Perimeter</div><div class="value">${area.perimeter.toFixed(3)} m</div></div>
+  </div>` : ''
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Computation Sheet</title>${pageStyles()}</head><body>
+  ${docHeader('Survey Computation Sheet', project, surveyorDetails)}
+  <div class="grid2">
+    <div>
+      <div class="label">Project</div><div class="value">${project.name}</div>
+    </div>
+    <div>
+      <div class="label">Location</div><div class="value">${project.location || '—'}</div>
+    </div>
+    <div>
+      <div class="label">Survey type</div><div class="value">${typeLabel}</div>
+    </div>
+    <div>
+      <div class="label">Client</div><div class="value">${project.client_name || '—'}</div>
+    </div>
+  </div>
+  ${coordTable}
+  ${traverseSection}
+  ${areaSection}
+  <div class="highlight">
+    I certify that the above computations are correct and have been independently checked.
+  </div>
+  ${signatureBlock(project.surveyor_name || surveyorDetails.name || '', surveyorDetails.licence || '')}
+  </body></html>`
+}
+
+export function generateAreaCertificate(
+  project: ProjectData,
+  surveyorDetails: Record<string,string>,
+  area?: AreaData,
+  extraFields?: Record<string,string>
+): string {
+  const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Area Certificate</title>${pageStyles()}</head><body>
+  ${docHeader('Area Certificate', project, surveyorDetails)}
+
+  <div style="text-align:center;margin:30px 0 20px;">
+    <div style="font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:2px;">Certificate of Area</div>
+  </div>
+
+  <p>I, <strong>${project.surveyor_name || surveyorDetails.name || '[Surveyor Name]'}</strong>,
+  ${surveyorDetails.licence ? `Licensed Surveyor No. <strong>${surveyorDetails.licence}</strong>,` : ''}
+  hereby certify that I have surveyed the land known as:</p>
+
+  <div class="box" style="margin:16px 0;text-align:center;">
+    <div style="font-size:14px;font-weight:700;">${project.name}</div>
+    <div style="font-size:12px;color:#555;margin-top:4px;">${project.location || ''}</div>
+    ${extraFields?.parcelRef ? `<div style="font-size:11px;color:#555;">Parcel Ref: ${extraFields.parcelRef}</div>` : ''}
+  </div>
+
+  <p>and that the area of the said land, as determined from survey coordinates in UTM Zone 
+  <strong>${project.utm_zone}${project.hemisphere}</strong>, is as follows:</p>
+
+  ${area ? `
+  <div class="grid3" style="margin:20px 0;">
+    <div class="box" style="text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#E8841A;">${area.squareMeters.toFixed(2)}</div>
+      <div class="label">Square metres (m²)</div>
+    </div>
+    <div class="box" style="text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#E8841A;">${area.hectares.toFixed(4)}</div>
+      <div class="label">Hectares (ha)</div>
+    </div>
+    <div class="box" style="text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#E8841A;">${area.acres.toFixed(4)}</div>
+      <div class="label">Acres</div>
+    </div>
+  </div>
+  <p>Perimeter: <strong>${area.perimeter.toFixed(3)} m</strong></p>` 
+  : '<div class="box" style="text-align:center;padding:24px;">[Area to be computed and entered here]</div>'}
+
+  <p>This certificate is issued on <strong>${today}</strong> and is valid for purposes of 
+  property registration, valuation, and legal documentation.</p>
+
+  <div class="highlight">
+    This area was computed from survey coordinates obtained by field observation. 
+    All measurements were taken in accordance with applicable survey standards.
+  </div>
+
+  ${signatureBlock(project.surveyor_name || surveyorDetails.name || '', surveyorDetails.licence || '', 'Licensed Surveyor / Registered Surveyor')}
+  </body></html>`
+}
+
+export function generateFieldNotes(
+  project: ProjectData,
+  surveyorDetails: Record<string,string>,
+  points: PointData[],
+  extraFields: Record<string,string>
+): string {
+  const typeLabel = (project.survey_type || 'Survey').charAt(0).toUpperCase() + (project.survey_type || 'survey').slice(1)
+  const controlPts = points.filter(p => p.is_control)
+  const detailPts  = points.filter(p => !p.is_control)
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Field Notes</title>${pageStyles()}</head><body>
+  ${docHeader('Field Notes Summary', project, surveyorDetails)}
+
+  <h2>Survey Information</h2>
+  <div class="grid2">
+    <div class="box"><div class="label">Project</div><div class="value">${project.name}</div></div>
+    <div class="box"><div class="label">Survey type</div><div class="value">${typeLabel}</div></div>
+    <div class="box"><div class="label">Location</div><div class="value">${project.location || '—'}</div></div>
+    <div class="box"><div class="label">Client</div><div class="value">${project.client_name || '—'}</div></div>
+    <div class="box"><div class="label">Field date</div><div class="value">${extraFields.fieldDate || '—'}</div></div>
+    <div class="box"><div class="label">Weather</div><div class="value">${extraFields.weather || '—'}</div></div>
+    <div class="box"><div class="label">Instrument</div><div class="value">${extraFields.instrument || '—'}</div></div>
+    <div class="box"><div class="label">Serial number</div><div class="value">${extraFields.serial || '—'}</div></div>
+    <div class="box"><div class="label">Team members</div><div class="value">${extraFields.team || '—'}</div></div>
+    <div class="box"><div class="label">UTM zone / Datum</div><div class="value">Zone ${project.utm_zone}${project.hemisphere} / ${extraFields.datum || 'Arc 1960'}</div></div>
+  </div>
+
+  <h2>Control Points Used (${controlPts.length})</h2>
+  <table>
+    <thead><tr><th>Point</th><th>Easting (m)</th><th>Northing (m)</th><th>Description</th></tr></thead>
+    <tbody>
+      ${controlPts.length > 0
+        ? controlPts.map(p => `<tr>
+            <td><strong>${p.name}</strong></td>
+            <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
+            <td style="font-family:monospace">${p.northing.toFixed(4)}</td>
+            <td>${extraFields[`beacon_${p.name}`] || 'Existing beacon — found and used'}</td>
+          </tr>`).join('')
+        : '<tr><td colspan="4" style="text-align:center;color:#888;">No control points recorded</td></tr>'}
+    </tbody>
+  </table>
+
+  <h2>Detail Points (${detailPts.length})</h2>
+  <table>
+    <thead><tr><th>Point</th><th>Easting (m)</th><th>Northing (m)</th><th>Elevation (m)</th><th>Remarks</th></tr></thead>
+    <tbody>
+      ${detailPts.length > 0
+        ? detailPts.map(p => `<tr>
+            <td>${p.name}</td>
+            <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
+            <td style="font-family:monospace">${p.northing.toFixed(4)}</td>
+            <td style="font-family:monospace">${p.elevation != null ? p.elevation.toFixed(3) : '—'}</td>
+            <td>${extraFields[`remark_${p.name}`] || ''}</td>
+          </tr>`).join('')
+        : '<tr><td colspan="5" style="text-align:center;color:#888;">No detail points recorded</td></tr>'}
+    </tbody>
+  </table>
+
+  ${extraFields.observations ? `<h2>Observations and Remarks</h2><p>${extraFields.observations}</p>` : ''}
+
+  ${signatureBlock(project.surveyor_name || surveyorDetails.name || '', surveyorDetails.licence || '', 'Surveyor in Charge')}
+  </body></html>`
+}
+
+export function generateBeaconDescriptions(
+  project: ProjectData,
+  surveyorDetails: Record<string,string>,
+  points: PointData[],
+  extraFields: Record<string,string>
+): string {
+  const beacons = points.filter(p => p.is_control)
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Beacon Descriptions</title>${pageStyles()}</head><body>
+  ${docHeader('Beacon Descriptions', project, surveyorDetails)}
+
+  <p>The following boundary beacons were found and/or placed during the survey of 
+  <strong>${project.name}</strong> at <strong>${project.location || '[Location]'}</strong>.</p>
+
+  ${beacons.length === 0 
+    ? '<div class="box" style="text-align:center;padding:24px;color:#888;">No control/boundary points recorded in this project.</div>'
+    : beacons.map((pt, i) => `
+  <div class="box" style="margin:12px 0;page-break-inside:avoid;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <strong style="font-size:14px;">Beacon ${pt.name}</strong>
+      <span style="font-size:11px;color:#555;">Point ${i+1} of ${beacons.length}</span>
+    </div>
+    <div class="grid2">
+      <div><div class="label">Easting</div><div style="font-family:monospace;font-weight:600;">${pt.easting.toFixed(4)} m</div></div>
+      <div><div class="label">Northing</div><div style="font-family:monospace;font-weight:600;">${pt.northing.toFixed(4)} m</div></div>
+      ${pt.elevation != null ? `<div><div class="label">Elevation</div><div style="font-family:monospace;font-weight:600;">${pt.elevation.toFixed(3)} m</div></div>` : ''}
+    </div>
+    <div style="margin-top:8px;">
+      <div class="label">Beacon type and condition</div>
+      <div style="border:1px solid #ddd;min-height:24px;padding:4px 8px;margin-top:2px;font-size:11px;">
+        ${extraFields[`beacon_type_${pt.name}`] || 'Concrete beacon with iron pin — [condition]'}
+      </div>
+    </div>
+    <div style="margin-top:8px;">
+      <div class="label">Physical description and access</div>
+      <div style="border:1px solid #ddd;min-height:40px;padding:4px 8px;margin-top:2px;font-size:11px;">
+        ${extraFields[`beacon_desc_${pt.name}`] || ''}
+      </div>
+    </div>
+  </div>`).join('')}
+
+  ${signatureBlock(project.surveyor_name || surveyorDetails.name || '', surveyorDetails.licence || '')}
+  </body></html>`
+}
+
+export function generateCompletionCertificate(
+  project: ProjectData,
+  surveyorDetails: Record<string,string>,
+  extraFields: Record<string,string>
+): string {
+  const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
+  const typeLabel = (project.survey_type || 'Survey').charAt(0).toUpperCase() + (project.survey_type || 'survey').slice(1)
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Completion Certificate</title>${pageStyles()}</head><body>
+  ${docHeader('Certificate of Completion', project, surveyorDetails)}
+
+  <div style="text-align:center;margin:30px 0 20px;">
+    <div style="font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:2px;">Certificate of Survey Completion</div>
+  </div>
+
+  <p>I, <strong>${project.surveyor_name || surveyorDetails.name || '[Surveyor Name]'}</strong>
+  ${surveyorDetails.licence ? `, Licensed Surveyor No. <strong>${surveyorDetails.licence}</strong>,` : ''}
+  hereby certify that the <strong>${typeLabel} Survey</strong> for the project:</p>
+
+  <div class="box" style="margin:16px 0;text-align:center;">
+    <div style="font-size:14px;font-weight:700;">${project.name}</div>
+    <div style="font-size:12px;color:#555;margin-top:4px;">${project.location || ''}</div>
+  </div>
+
+  <p>has been completed in accordance with the applicable national survey standards and regulations. 
+  The survey was conducted on <strong>${extraFields.fieldDate || '[Field Date]'}</strong> and the following 
+  has been verified:</p>
+
+  <div style="margin:16px 0;">
+    ${(extraFields.completionItems || 
+      'All survey points established and recorded\nField observations independently checked\nComputations verified and within acceptable limits\nSurvey documents prepared and certified').split('\n').map(item => `
+    <div style="display:flex;align-items:flex-start;gap:8px;margin:6px 0;">
+      <span style="color:#E8841A;font-weight:700;font-size:14px;">✓</span>
+      <span>${item.trim()}</span>
+    </div>`).join('')}
+  </div>
+
+  ${extraFields.notes ? `<div class="highlight">${extraFields.notes}</div>` : ''}
+
+  <p>This certificate is issued on <strong>${today}</strong>.</p>
+
+  <div style="display:flex;gap:40px;margin-top:40px;">
+    <div style="flex:1;">
+      ${signatureBlock(project.surveyor_name || surveyorDetails.name || '', surveyorDetails.licence || '', 'Surveyor in Charge')}
+    </div>
+    ${project.client_name ? `
+    <div style="flex:1;">
+      ${signatureBlock(project.client_name, '', 'Client / Authorised Representative')}
+    </div>` : ''}
+  </div>
+  </body></html>`
+}
