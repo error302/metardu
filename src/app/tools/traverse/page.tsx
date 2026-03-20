@@ -29,6 +29,7 @@ export default function TraverseCalculator() {
   const [solutionTitle, setSolutionTitle] = useState<string | undefined>(undefined)
   const [calcError, setCalcError] = useState<string | null>(null)
   const [calculating, setCalculating] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const addLeg = () => {
     const nextChar = String.fromCharCode(65 + legs.length);
@@ -38,6 +39,26 @@ export default function TraverseCalculator() {
   const updateLeg = (id: number, field: keyof Leg, value: string) => {
     setLegs(legs.map(l => l.id === id ? { ...l, [field]: value } : l));
   };
+
+
+  const copyResults = () => {
+    if (!result) return
+    const header = [
+      `GeoNova Traverse — ${method === 'bowditch' ? 'Bowditch' : 'Transit'} Method`,
+      `Total Distance: ${result.totalDistance.toFixed(4)} m`,
+      `Linear Error: ${result.linearError.toFixed(6)} m`,
+      `Precision Ratio: 1 : ${Math.round(1 / result.precisionRatio)}`,
+      `Grade: ${result.precisionGrade}`,
+      '',
+      'Adjusted Coordinates:',
+    ]
+    const rows = result.legs.map((l: any) =>
+      `  ${l.pointName ?? '—'}  E: ${l.adjEasting?.toFixed(4) ?? '—'}  N: ${l.adjNorthing?.toFixed(4) ?? '—'}`
+    )
+    navigator.clipboard.writeText([...header, ...rows].join('\n'))
+      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+      .catch(() => {})
+  }
 
   const calculate = () => {
     setCalcError(null)
@@ -153,9 +174,17 @@ export default function TraverseCalculator() {
           <div className="card">
             <div className="card-header flex justify-between items-center">
               <span className="label">Error Analysis</span>
-              <span className={`badge ${result.isClosed ? 'badge-success' : 'badge-warning'}`}>
-                {result.isClosed ? 'Closed' : 'Not Closed'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`badge ${result.isClosed ? 'badge-success' : 'badge-warning'}`}>
+                  {result.isClosed ? 'Closed' : 'Not Closed'}
+                </span>
+                <button
+                  onClick={copyResults}
+                  className="text-xs text-[var(--accent)] hover:text-[var(--accent-dim)] transition-colors"
+                >
+                  {copied ? '✓ Copied' : 'Copy'}
+                </button>
+              </div>
             </div>
             <div className="card-body space-y-3">
               <ResultRow label="Method" value={method === 'bowditch' ? 'Bowditch Rule' : 'Transit Rule'} />

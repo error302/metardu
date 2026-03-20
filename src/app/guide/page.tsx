@@ -134,7 +134,7 @@ export default function GuidePage() {
   };
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-[var(--text-primary)]">
       <div className="border-b border-[var(--border-color)] bg-[var(--bg-card)]">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-2">Survey Guide</h1>

@@ -32,6 +32,7 @@ export default function LevelingCalculator() {
   const [solutionTitle, setSolutionTitle] = useState<string | undefined>(undefined)
   const [showProfile, setShowProfile] = useState(false);
   const [calcError, setCalcError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false)
   const [calculating, setCalculating] = useState(false);
 
   const addReading = () => {
@@ -41,6 +42,24 @@ export default function LevelingCalculator() {
   const updateReading = (id: number, field: 'bs' | 'fs', value: string) => {
     setReadings(readings.map(r => r.id === id ? { ...r, [field]: value } : r));
   };
+
+
+  const copyResults = () => {
+    if (!result) return
+    const lines = [
+      `GeoNova Leveling — ${method === 'rf' ? 'Rise & Fall' : 'HOC'}`,
+      `Opening RL: ${bm} m`,
+      `Misclosure: ${result.misclosure.toFixed(6)} m`,
+      `Check: ${result.isAcceptable ? 'PASS' : 'FAIL'}`,
+      '',
+      ...result.readings.map((r: any) =>
+        `${r.station.padEnd(8)} ${r.reducedLevel !== undefined ? r.reducedLevel.toFixed(4) : '      '}${r.adjustedRL !== undefined ? ` (adj ${r.adjustedRL.toFixed(4)})` : ''}`
+      ),
+    ]
+    navigator.clipboard.writeText(lines.join('\n'))
+      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+      .catch(() => {})
+  }
 
   const calculate = () => {
     setCalculating(true);
@@ -183,9 +202,17 @@ export default function LevelingCalculator() {
           <div className="card">
             <div className="card-header flex justify-between items-center">
               <span className="label">Results</span>
-              <span className={`badge ${result.isAcceptable ? 'badge-success' : 'badge-error'}`}>
-                {result.isAcceptable ? 'Acceptable' : 'Unacceptable'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`badge ${result.isAcceptable ? 'badge-success' : 'badge-error'}`}>
+                  {result.isAcceptable ? 'Acceptable' : 'Unacceptable'}
+                </span>
+                <button
+                  onClick={copyResults}
+                  className="text-xs text-[var(--accent)] hover:text-[var(--accent-dim)] transition-colors"
+                >
+                  {copied ? '✓ Copied' : 'Copy'}
+                </button>
+              </div>
             </div>
             <div className="card-body space-y-3">
               <ResultRow label="Method" value={method === 'rf' ? 'Rise & Fall' : 'Height of Collimation'} />

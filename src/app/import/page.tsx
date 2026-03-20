@@ -225,7 +225,7 @@ export default function ImportPage() {
                     </button>
                     <button
                       onClick={() => toggleAll(false)}
-                      className="text-sm text-[var(--text-secondary)] hover:text-white"
+                      className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
                       Deselect All
                     </button>
@@ -274,7 +274,7 @@ export default function ImportPage() {
                   <select
                     value={selectedProject}
                     onChange={(e) => setSelectedProject(e.target.value)}
-                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-4 py-2 text-white"
+                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-4 py-2 text-[var(--text-primary)]"
                   >
                     <option value="">Select a project...</option>
                     {projects.map(proj => (

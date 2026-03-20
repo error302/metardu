@@ -29,10 +29,10 @@ export default function Home() {
                   <span className="text-[var(--text-primary)]">Professional </span>
                   <span className="text-[var(--accent)]">Surveying</span>
                 </h1>
-                <h1 className="text-5xl md:text-7xl font-bold mb-6 text-white">Made Simple</h1>
+                <h1 className="text-5xl md:text-7xl font-bold mb-6 text-[var(--text-primary)]">Made Simple</h1>
               </>
             ) : (
-              <h1 className="text-5xl md:text-7xl font-bold mb-6 text-white">
+              <h1 className="text-5xl md:text-7xl font-bold mb-6 text-[var(--text-primary)]">
                 {t('landing.hero')}
               </h1>
             )}
@@ -456,14 +456,14 @@ export default function Home() {
                   <div className="p-4 pt-8">
                     <div className="text-xs text-[var(--accent)] mb-2">Field Mode</div>
                     <div className="space-y-2">
-                      <div className="bg-[var(--bg-tertiary)] p-2 rounded text-xs text-white">Points</div>
-                      <div className="bg-[var(--bg-tertiary)] p-2 rounded text-xs text-white">Traverse</div>
-                      <div className="bg-[var(--bg-tertiary)] p-2 rounded text-xs text-white">Leveling</div>
-                      <div className="bg-[var(--bg-tertiary)] p-2 rounded text-xs text-white">Radiation</div>
+                      <div className="bg-[var(--bg-tertiary)] p-2 rounded text-xs text-[var(--text-primary)]">Points</div>
+                      <div className="bg-[var(--bg-tertiary)] p-2 rounded text-xs text-[var(--text-primary)]">Traverse</div>
+                      <div className="bg-[var(--bg-tertiary)] p-2 rounded text-xs text-[var(--text-primary)]">Leveling</div>
+                      <div className="bg-[var(--bg-tertiary)] p-2 rounded text-xs text-[var(--text-primary)]">Radiation</div>
                     </div>
                     <div className="absolute bottom-4 left-4 right-4">
                       <div className="bg-[var(--accent)] text-black text-center py-2 rounded-lg text-sm font-medium">
-                        📲 Add to Home Screen
+                        Add to Home Screen
                       </div>
                     </div>
                   </div>
@@ -481,10 +481,10 @@ export default function Home() {
             <div>
               <h3 className="text-[var(--text-primary)] font-bold text-lg mb-4">GeoNova</h3>
               <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
-                <li><a href="#" className="hover:text-[var(--accent)]">About</a></li>
-                <li><a href="#" className="hover:text-[var(--accent)]">Blog</a></li>
-                <li><a href="#" className="hover:text-[var(--accent)]">Careers</a></li>
-                <li><a href="#" className="hover:text-[var(--accent)]">Contact</a></li>
+                <li><a href="/docs" className="hover:text-[var(--accent)]">About</a></li>
+                <li><a href="/guide" className="hover:text-[var(--accent)]">Blog</a></li>
+                
+                <li><a href="mailto:support@geonova.app" className="hover:text-[var(--accent)]">Contact</a></li>
               </ul>
             </div>
             
@@ -505,7 +505,7 @@ export default function Home() {
                 <li><a href="/guide" className="hover:text-[var(--accent)]">Field Guide</a></li>
                 <li><a href="/docs" className="hover:text-[var(--accent)]">Documentation</a></li>
                 <li><a href="/docs/csv-import" className="hover:text-[var(--accent)]">Sample Files</a></li>
-                <li><a href="#" className="hover:text-[var(--accent)]">Basak Standards</a></li>
+                <li><a href="/guide/leveling" className="hover:text-[var(--accent)]">Basak Standards</a></li>
               </ul>
             </div>
             
@@ -514,8 +514,8 @@ export default function Home() {
               <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>support@geonova.app</li>
                 <li><a href="/community" className="hover:text-[var(--accent)]">WhatsApp Community</a></li>
-                <li><a href="/community" className="hover:text-[var(--accent)]">Twitter/X</a></li>
-                <li><a href="/community" className="hover:text-[var(--accent)]">LinkedIn</a></li>
+                
+                
               </ul>
             </div>
           </div>

@@ -124,7 +124,7 @@ export default function ContoursPage({ params }: { params: Promise<{ id: string 
     <div className="min-h-screen bg-[var(--bg-primary)] py-12 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-start justify-between mb-2">
-          <h1 className="text-3xl font-bold text-white">Contour Map</h1>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Contour Map</h1>
           {engineMode && (
             <span className={`text-xs px-2 py-1 rounded font-medium ${
               engineMode === 'python'

@@ -217,7 +217,7 @@ export default function ProfilesPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-white">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
       <div className="border-b border-[var(--border-color)] bg-[var(--bg-card)]">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -367,7 +367,7 @@ export default function ProfilesPage({ params }: PageProps) {
                     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setSvgModalOpen(false)}>
                       <div className="w-full max-w-2xl rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
-                          <div className="text-lg font-semibold text-white">Export profile SVG (to-scale)</div>
+                          <div className="text-lg font-semibold text-[var(--text-primary)]">Export profile SVG (to-scale)</div>
                           <button onClick={() => setSvgModalOpen(false)} className="px-3 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)]">
                             ✕
                           </button>

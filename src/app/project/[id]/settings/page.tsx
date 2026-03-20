@@ -105,7 +105,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
     <div className="min-h-screen bg-[var(--bg-primary)] py-12">
       <div className="max-w-2xl mx-auto px-6">
         <div className="flex items-center gap-4 mb-8">
-          <a href={`/project/${projectId}`} className="text-[var(--text-secondary)] hover:text-white">
+          <a href={`/project/${projectId}`} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
             ← Back to Project
           </a>
         </div>
@@ -129,7 +129,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-white"
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
             />
           </div>
 
@@ -138,7 +138,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
             <textarea
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-white h-24"
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] h-24"
             />
           </div>
 
@@ -159,7 +159,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
             <select
               value={surveyType}
               onChange={(e) => setSurveyType(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-white"
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
             >
               <option value="boundary">Boundary Survey</option>
               <option value="topographic">Topographic Survey</option>
@@ -178,7 +178,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                 type="text"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-white"
+                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
               />
             </div>
             <div>
@@ -187,7 +187,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                 type="text"
                 value={surveyorName}
                 onChange={(e) => setSurveyorName(e.target.value)}
-                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-white"
+                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
               />
             </div>
           </div>

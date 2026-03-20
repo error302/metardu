@@ -266,7 +266,7 @@ export default function FieldPage() {
       <header className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-sm font-bold text-white">{t('field.fieldMode')}</h1>
+            <h1 className="text-sm font-bold text-[var(--text-primary)]">{t('field.fieldMode')}</h1>
             <select
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}

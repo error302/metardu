@@ -90,7 +90,7 @@ export default function AccountPage() {
                   type="password"
                   required
                   minLength={6}
-                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-4 py-2 text-white"
+                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-4 py-2 text-[var(--text-primary)]"
                 />
               </div>
               <button

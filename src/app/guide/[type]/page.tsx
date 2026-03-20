@@ -1308,7 +1308,7 @@ export default function GuideTypePage({ params }: PageProps) {
   const allComplete = completedSteps.length === guide.steps.length;
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-[var(--text-primary)]">
       <div className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">

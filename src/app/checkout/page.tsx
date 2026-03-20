@@ -129,7 +129,7 @@ export default function CheckoutPage() {
                   setCountry(c)
                   setCurrency(getCurrencyForCountry(c))
                 }}
-                className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-white"
+                className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)]"
               >
                 <option value="Kenya">Kenya</option>
                 <option value="Uganda">Uganda</option>
@@ -189,7 +189,7 @@ export default function CheckoutPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-white"
+                  className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)]"
                 />
               </div>
               <div>
@@ -199,7 +199,7 @@ export default function CheckoutPage() {
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="e.g. 254712345678"
-                  className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-white"
+                  className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)]"
                 />
                 <p className="text-xs text-[var(--text-muted)] mt-2">Required only for M-Pesa STK Push.</p>
               </div>
