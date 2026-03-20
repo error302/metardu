@@ -1,4 +1,5 @@
 'use client'
+import React from 'react'
 
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
@@ -33,6 +34,7 @@ interface Project {
 }
 
 export default function BeaconsPage() {
+  const [importMsg, setImportMsg] = React.useState<{text:string;ok:boolean}|null>(null)
   const [view, setView] = useState<'beacons' | 'activity'>('beacons')
   const [beacons, setBeacons] = useState<Beacon[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -117,11 +119,11 @@ export default function BeaconsPage() {
 
       if (error) throw error
       
-      alert('Beacon imported successfully!')
+      setImportMsg({text:'Beacon imported successfully!', ok:true}); setTimeout(()=>setImportMsg(null),3000)
       setImportBeacon(null)
       setImportProject('')
     } catch (err: any) {
-      alert('Error: ' + err.message)
+      setImportMsg({text:'Error: '+err.message, ok:false}); setTimeout(()=>setImportMsg(null),4000)
     }
     
     setImportLoading(false)

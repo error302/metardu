@@ -1372,7 +1372,7 @@ export default function GuideTypePage({ params }: PageProps) {
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleFieldChecklist(idx)}
-                          className="mt-1 h-4 w-4 accent-[#E8841A]"
+                          className="mt-1 h-4 w-4 accent-[var(--accent)]"
                         />
                         <span className={checked ? 'line-through text-[var(--text-muted)]' : ''}>{item}</span>
                       </label>

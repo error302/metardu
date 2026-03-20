@@ -54,7 +54,7 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2" style={{ color: '#E8841A' }}>
+          <h1 className="text-4xl font-bold mb-2 text-[var(--accent)]">
             GEONOVA
           </h1>
           <p className="text-[var(--text-secondary)]">{t('auth.registerSubtitle')}</p>

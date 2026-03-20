@@ -51,6 +51,7 @@ interface CrossSection {
 
 export default function ProfilesPage({ params }: PageProps) {
   const supabase = createClient();
+  const [profileError, setProfileError] = useState<string|null>(null)
   const [project, setProject] = useState<Project | null>(null);
   const [points, setPoints] = useState<SurveyPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -167,7 +168,7 @@ export default function ProfilesPage({ params }: PageProps) {
       setActiveTab('profile');
     } catch (err) {
       console.error('Error creating alignment:', err);
-      alert('Failed to create alignment');
+      setProfileError('Failed to create alignment. Please try again.');
     }
   };
 

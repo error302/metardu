@@ -14,7 +14,7 @@ export default function Home() {
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#E8841A" strokeWidth="0.5"/>
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--accent)" strokeWidth="0.5"/>
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#grid)" />
@@ -73,15 +73,15 @@ export default function Home() {
           
           <div className="hidden lg:block">
             <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-r from-[#E8841A] to-[#E8841A]/20 rounded-2xl blur-3xl"></div>
+              <div className="absolute -inset-4 bg-gradient-to-r from-[var(--accent)] to-[#E8841A]/20 rounded-2xl blur-3xl"></div>
               <div className="relative bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-4 shadow-2xl">
                 <div className="aspect-video bg-[var(--bg-primary)] rounded-lg overflow-hidden relative">
                   <svg className="w-full h-full" viewBox="0 0 400 225" xmlns="http://www.w3.org/2000/svg">
                     <rect fill="#0f172a" width="400" height="225"/>
-                    <path d="M0 120 Q100 80 200 100 T400 90" stroke="#E8841A" strokeWidth="2" fill="none" opacity="0.8"/>
-                    <circle cx="100" cy="90" r="6" fill="#E8841A"/>
-                    <circle cx="200" cy="100" r="6" fill="#E8841A"/>
-                    <circle cx="300" cy="95" r="6" fill="#E8841A"/>
+                    <path d="M0 120 Q100 80 200 100 T400 90" stroke="var(--accent)" strokeWidth="2" fill="none" opacity="0.8"/>
+                    <circle cx="100" cy="90" r="6" fill="var(--accent)"/>
+                    <circle cx="200" cy="100" r="6" fill="var(--accent)"/>
+                    <circle cx="300" cy="95" r="6" fill="var(--accent)"/>
                     <circle cx="100" cy="160" r="5" fill="#22c55e"/>
                     <circle cx="200" cy="170" r="5" fill="#22c55e"/>
                     <circle cx="300" cy="165" r="5" fill="#22c55e"/>
@@ -435,7 +435,7 @@ export default function Home() {
       {/* Section 9: Mobile App Banner */}
       <section className="py-20 bg-[var(--bg-primary)]">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="bg-gradient-to-r from-[#E8841A]/20 to-transparent rounded-2xl p-12 border border-[var(--accent)]/30">
+          <div className="bg-gradient-to-r from-[var(--accent)]/20 to-transparent rounded-2xl p-12 border border-[var(--accent)]/30">
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
                 <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
@@ -452,7 +452,7 @@ export default function Home() {
               
               <div className="flex justify-center">
                 <div className="w-48 h-80 bg-[var(--bg-secondary)] rounded-3xl border-4 border-[var(--border-color)] relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-b from-[#E8841A]/10 to-transparent"></div>
+                  <div className="absolute inset-0 bg-gradient-to-b from-[var(--accent)]/10 to-transparent"></div>
                   <div className="p-4 pt-8">
                     <div className="text-xs text-[var(--accent)] mb-2">Field Mode</div>
                     <div className="space-y-2">

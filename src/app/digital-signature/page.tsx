@@ -12,6 +12,7 @@ import {
 } from '@/lib/integrations/digitalSignature'
 
 export default function DigitalSignaturePage() {
+  const [validationMsg, setValidationMsg] = useState<string|null>(null)
   const [activeTab, setActiveTab] = useState<'sign' | 'verify'>('sign')
   const [signForm, setSignForm] = useState({
     documentId: '',
@@ -30,7 +31,7 @@ export default function DigitalSignaturePage() {
 
   const handleSign = async () => {
     if (!signForm.documentId || !signForm.content || !signForm.signerId || !signForm.secret) {
-      alert('Please fill all fields')
+      setValidationMsg('Please fill all required fields.'); return
       return
     }
     const signed = await signDocument(
@@ -45,7 +46,7 @@ export default function DigitalSignaturePage() {
 
   const handleVerify = async () => {
     if (!verifyForm.qrPayload || !verifyForm.originalContent || !verifyForm.secret) {
-      alert('Please fill all fields')
+      setValidationMsg('Please fill all required fields.'); return
       return
     }
     const parsed = parseQRPayload(verifyForm.qrPayload)
@@ -63,7 +64,7 @@ export default function DigitalSignaturePage() {
 
   const handleSurveySign = async () => {
     if (!signForm.signerId || !signForm.secret) {
-      alert('Please enter signer ID and secret')
+      setValidationMsg('Please enter your signer ID and secret key.'); return
       return
     }
     const measurements: Record<string, number> = {

@@ -147,7 +147,7 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <header className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50">
         <div className="max-w-3xl mx-auto px-4 h-16 flex items-center">
-          <a href="/dashboard" className="text-2xl font-bold" style={{ color: '#E8841A' }}>
+          <a href="/dashboard" className="text-2xl font-bold text-[var(--accent)]">
             GEONOVA
           </a>
           <span className="ml-4 text-[var(--text-secondary)]">/ Profile</span>

@@ -167,7 +167,7 @@ export default function FieldBookAIPage() {
       if (error) {
         setError('Failed to save to project');
       } else {
-        alert('Saved observations to project!');
+        // Saved - user sees data in the list
       }
     } catch (e) {
       setError('Failed to save to project');
