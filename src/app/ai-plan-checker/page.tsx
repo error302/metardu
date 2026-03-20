@@ -29,18 +29,23 @@ const COUNTRIES: { id: Country; label: string }[] = [
   { id: 'nigeria',      label: 'Nigeria' },
   { id: 'ghana',        label: 'Ghana' },
   { id: 'south_africa', label: 'South Africa' },
+  { id: 'bahrain',      label: 'Bahrain' },
+  { id: 'new_zealand',  label: 'New Zealand' },
   { id: 'other',        label: 'Other' },
 ]
 
 const DATUMS: Record<Country, string> = {
   kenya: 'Arc 1960', uganda: 'Arc 1960', tanzania: 'Arc 1960',
   nigeria: 'Minna Datum', ghana: 'Accra Datum',
-  south_africa: 'Hartebeesthoek94 (WGS84)', other: 'WGS84',
+  south_africa: 'Hartebeesthoek94 (WGS84)',
+  bahrain: 'Ain Al-Abd 1970', new_zealand: 'NZGD2000',
+  other: 'WGS84',
 }
 
 const DEFAULT_ZONE: Record<Country, string> = {
   kenya: '37S', uganda: '36N', tanzania: '37S',
-  nigeria: '32N', ghana: '30N', south_africa: '35S', other: '',
+  nigeria: '32N', ghana: '30N', south_africa: '35S',
+  bahrain: '39N', new_zealand: '59S', other: '',
 }
 
 function fmtDate(iso: string) {
