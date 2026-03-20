@@ -2,31 +2,36 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 function LoginForm() {
   const { t } = useLanguage()
-  const [email, setEmail] = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
   const searchParams = useSearchParams()
   const supabase = createClient()
 
-  // Get where to send the user after login — prefer ?next= URL param
-  const nextPath = searchParams.get('next') || localStorage.getItem('auth:redirect') || '/dashboard'
+  // Read next path only on client — never during SSR
+  const getNext = () => {
+    const param = searchParams.get('next')
+    if (param) return decodeURIComponent(param)
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('auth:redirect') || '/dashboard'
+    }
+    return '/dashboard'
+  }
 
-  // If already signed in, go straight there
+  // If already signed in, go straight to destination
   useEffect(() => {
     let mounted = true
     supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return
       if (data.user) {
         localStorage.removeItem('auth:redirect')
-        // Hard redirect so fresh session cookies are read
-        window.location.replace(nextPath)
+        window.location.replace(getNext())
       }
     })
     return () => { mounted = false }
@@ -45,26 +50,25 @@ function LoginForm() {
       return
     }
 
-    // Clear any stored redirect
     localStorage.removeItem('auth:redirect')
-
-    // Hard redirect — forces full page load so Supabase session cookies are
-    // read fresh by the destination page. SPA navigation (router.push/replace)
-    // can hit a race condition where getUser() returns null briefly.
-    window.location.href = nextPath
+    // Hard redirect — full page load ensures session cookies are read fresh
+    // before any JS runs, preventing the getUser() race condition
+    window.location.href = getNext()
   }
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-[var(--accent)]">GEONOVA</h1>
+          <a href="/" className="text-4xl font-bold mb-2 text-[var(--accent)] block hover:opacity-80 transition-opacity">
+            GEONOVA
+          </a>
           <p className="text-[var(--text-secondary)]">{t('auth.loginSubtitle')}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
+            <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-red-400 text-sm">
               {error}
             </div>
           )}
@@ -74,10 +78,10 @@ function LoginForm() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[var(--accent)] focus:outline-none text-[var(--text-primary)]"
-              required
+              onChange={e => setEmail(e.target.value)}
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg focus:border-[var(--accent)] focus:outline-none text-[var(--text-primary)]"
               autoComplete="email"
+              required
             />
           </div>
 
@@ -86,17 +90,17 @@ function LoginForm() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[var(--accent)] focus:outline-none text-[var(--text-primary)]"
-              required
+              onChange={e => setPassword(e.target.value)}
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg focus:border-[var(--accent)] focus:outline-none text-[var(--text-primary)]"
               autoComplete="current-password"
+              required
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded transition-colors disabled:opacity-50"
+            className="w-full py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded-lg transition-colors disabled:opacity-50"
           >
             {loading ? 'Signing in…' : t('auth.loginButton')}
           </button>
