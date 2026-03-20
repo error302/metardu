@@ -425,7 +425,7 @@ export default function ProjectMap({
             <Popup>
               <div className="text-sm">
                 <strong className="text-gray-900">{p.name || 'Parcel'}</strong>
-                <div className="text-gray-600">{p.positions.length} vertices</div>
+                <div className="text-[var(--text-muted)]">{p.positions.length} vertices</div>
               </div>
             </Popup>
           </Polygon>
@@ -500,13 +500,13 @@ export default function ProjectMap({
                   <strong className="text-gray-900">{point.name}</strong>
                   {point.locked && <span className="text-gray-900"> 🔒</span>}
                   <br />
-                  <span className="text-gray-600">E: {point.easting.toFixed(4)}</span>
+                  <span className="text-[var(--text-muted)]">E: {point.easting.toFixed(4)}</span>
                   <br />
-                  <span className="text-gray-600">N: {point.northing.toFixed(4)}</span>
+                  <span className="text-[var(--text-muted)]">N: {point.northing.toFixed(4)}</span>
                   {point.elevation !== undefined && (
                     <>
                       <br />
-                      <span className="text-gray-600">Elev: {point.elevation.toFixed(3)}</span>
+                      <span className="text-[var(--text-muted)]">Elev: {point.elevation.toFixed(3)}</span>
                     </>
                   )}
                   {point.is_control && (
@@ -529,42 +529,42 @@ export default function ProjectMap({
 
       {/* Mode indicator */}
       {mode !== 'idle' && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-gray-900/95 border border-[#E8841A] rounded-lg px-4 py-2">
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-[var(--bg-secondary)]/95 border border-[#E8841A] rounded-lg px-4 py-2">
           <span className="text-sm text-[#E8841A] font-semibold">{getModeLabel()}</span>
-          <span className="text-xs text-gray-500 ml-2">(Esc to cancel)</span>
+          <span className="text-xs text-[var(--text-muted)] ml-2">(Esc to cancel)</span>
         </div>
       )}
 
       {/* Distance info panel */}
       {distanceInfo && (
-        <div className="absolute top-4 right-4 z-[1000] bg-gray-900/95 border border-gray-700 rounded-lg p-3 shadow-lg min-w-[220px]">
+        <div className="absolute top-4 right-4 z-[1000] bg-[var(--bg-secondary)]/95 border border-[var(--border-color)] rounded-lg p-3 shadow-lg min-w-[220px]">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-semibold text-gray-100">
+            <span className="text-sm font-semibold text-[var(--text-primary)]">
               {distancePoints[0]?.name} → {distancePoints[1]?.name}
             </span>
-            <button onClick={clearDistanceSelection} className="text-gray-400 hover:text-white text-lg">×</button>
+            <button onClick={clearDistanceSelection} className="text-[var(--text-secondary)] hover:text-white text-lg">×</button>
           </div>
           <div className="space-y-1 text-xs font-mono">
             <div className="flex justify-between">
-              <span className="text-gray-400">Distance:</span>
+              <span className="text-[var(--text-secondary)]">Distance:</span>
               <span className="text-[#E8841A]">{distanceInfo.distance.toFixed(4)} m</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Bearing:</span>
-              <span className="text-gray-100">{distanceInfo.bearing}</span>
+              <span className="text-[var(--text-secondary)]">Bearing:</span>
+              <span className="text-[var(--text-primary)]">{distanceInfo.bearing}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Back Bearing:</span>
-              <span className="text-gray-300">{distanceInfo.backBearing}</span>
+              <span className="text-[var(--text-secondary)]">Back Bearing:</span>
+              <span className="text-[var(--text-primary)]">{distanceInfo.backBearing}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">ΔE:</span>
+              <span className="text-[var(--text-secondary)]">ΔE:</span>
               <span className={distanceInfo.deltaE >= 0 ? 'text-green-400' : 'text-red-400'}>
                 {distanceInfo.deltaE.toFixed(4)} m
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">ΔN:</span>
+              <span className="text-[var(--text-secondary)]">ΔN:</span>
               <span className={distanceInfo.deltaN >= 0 ? 'text-green-400' : 'text-red-400'}>
                 {distanceInfo.deltaN.toFixed(4)} m
               </span>
@@ -575,16 +575,16 @@ export default function ProjectMap({
 
       {/* Area info panel */}
       {mode === 'area' && localAreaPoints.length > 0 && (
-        <div className="absolute top-4 left-4 z-[1000] bg-gray-900/95 border border-purple-500 rounded-lg p-3 shadow-lg min-w-[200px]">
+        <div className="absolute top-4 left-4 z-[1000] bg-[var(--bg-secondary)]/95 border border-purple-500 rounded-lg p-3 shadow-lg min-w-[200px]">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm font-semibold text-purple-400">Area Selection</span>
-            <button onClick={clearAreaSelection} className="text-gray-400 hover:text-white text-lg">×</button>
+            <button onClick={clearAreaSelection} className="text-[var(--text-secondary)] hover:text-white text-lg">×</button>
           </div>
           <div className="space-y-1 text-xs">
             {localAreaPoints.map((p, i) => (
               <div key={i} className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-purple-600 text-black text-xs flex items-center justify-center font-bold">{i + 1}</span>
-                <span className="font-mono text-gray-100">{p.name}</span>
+                <span className="font-mono text-[var(--text-primary)]">{p.name}</span>
               </div>
             ))}
           </div>
@@ -599,7 +599,7 @@ export default function ProjectMap({
             onClick={() => setContextMenu(null)}
           />
           <div 
-            className="fixed z-[1200] bg-gray-800 border border-gray-600 rounded-lg shadow-xl py-1 min-w-[150px]"
+            className="fixed z-[1200] bg-[var(--bg-tertiary)] border border-gray-600 rounded-lg shadow-xl py-1 min-w-[150px]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
@@ -607,7 +607,7 @@ export default function ProjectMap({
                 onEditPoint?.(contextMenu.point)
                 setContextMenu(null)
               }}
-              className="w-full px-4 py-2 text-left text-sm text-gray-100 hover:bg-gray-700"
+              className="w-full px-4 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-gray-700"
             >
               Edit Point
             </button>

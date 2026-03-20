@@ -122,7 +122,7 @@ export function OfflineStatus() {
       <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
       <span>{isOnline ? 'Online' : 'Offline'}</span>
       {cacheStats.cached > 0 && (
-        <span className="text-gray-400">| {cacheStats.cached} tiles</span>
+        <span className="text-[var(--text-secondary)]">| {cacheStats.cached} tiles</span>
       )}
     </div>
   )

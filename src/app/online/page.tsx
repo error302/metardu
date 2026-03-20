@@ -86,7 +86,7 @@ export default function OnlineServicesPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Online Services</h1>
-        <p className="text-gray-600 mb-8">Live coordinate transformations, benchmark lookup, and atmospheric corrections</p>
+        <p className="text-[var(--text-muted)] mb-8">Live coordinate transformations, benchmark lookup, and atmospheric corrections</p>
 
         <div className="flex space-x-4 mb-6">
           {[
@@ -100,7 +100,7 @@ export default function OnlineServicesPage() {
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 activeTab === tab.id
                   ? 'bg-sky-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  : 'bg-white text-[var(--text-muted)] hover:bg-gray-100'
               }`}
             >
               {tab.label}
@@ -113,7 +113,7 @@ export default function OnlineServicesPage() {
             <h2 className="text-xl font-semibold mb-4">Coordinate Transformation</h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">From System</label>
+                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">From System</label>
                 <select
                   value={transformInput.fromSystem}
                   onChange={e => setTransformInput({ ...transformInput, fromSystem: e.target.value })}
@@ -128,7 +128,7 @@ export default function OnlineServicesPage() {
                   {transformInput.fromSystem === 'WGS84' ? (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+                        <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Latitude</label>
                         <input
                           type="number"
                           step="any"
@@ -139,7 +139,7 @@ export default function OnlineServicesPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+                        <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Longitude</label>
                         <input
                           type="number"
                           step="any"
@@ -153,7 +153,7 @@ export default function OnlineServicesPage() {
                   ) : (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Easting (m)</label>
+                        <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Easting (m)</label>
                         <input
                           type="number"
                           step="any"
@@ -164,7 +164,7 @@ export default function OnlineServicesPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Northing (m)</label>
+                        <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Northing (m)</label>
                         <input
                           type="number"
                           step="any"
@@ -176,7 +176,7 @@ export default function OnlineServicesPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">UTM Zone</label>
+                          <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">UTM Zone</label>
                           <input
                             type="number"
                             value={transformInput.zone}
@@ -186,7 +186,7 @@ export default function OnlineServicesPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Hemisphere</label>
+                          <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Hemisphere</label>
                           <select
                             value={transformInput.hemisphere}
                             onChange={e => setTransformInput({ ...transformInput, hemisphere: e.target.value as 'N' | 'S' })}
@@ -203,7 +203,7 @@ export default function OnlineServicesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">To System</label>
+                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">To System</label>
                 <select
                   value={transformInput.toSystem}
                   onChange={e => setTransformInput({ ...transformInput, toSystem: e.target.value })}
@@ -227,7 +227,7 @@ export default function OnlineServicesPage() {
                     {transformResult.success ? (
                       <div>
                         <h3 className="font-medium text-green-600 mb-2">Transformation Successful</h3>
-                        <p className="text-sm text-gray-600">Precision: {transformResult.precision}</p>
+                        <p className="text-sm text-[var(--text-muted)]">Precision: {transformResult.precision}</p>
                         {transformResult.result?.latitude && (
                           <p className="text-sm">Lat: {transformResult.result.latitude.toFixed(6)}°</p>
                         )}
@@ -259,7 +259,7 @@ export default function OnlineServicesPage() {
             <h2 className="text-xl font-semibold mb-4">Benchmark Database Lookup</h2>
             <div className="grid md:grid-cols-3 gap-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Country</label>
                 <select
                   value={benchmarkSearch.country}
                   onChange={e => setBenchmarkSearch({ ...benchmarkSearch, country: e.target.value })}
@@ -272,7 +272,7 @@ export default function OnlineServicesPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Type</label>
                 <select
                   value={benchmarkSearch.type}
                   onChange={e => setBenchmarkSearch({ ...benchmarkSearch, type: e.target.value as any })}
@@ -302,12 +302,12 @@ export default function OnlineServicesPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium">{bm.name}</h3>
-                        <p className="text-sm text-gray-600">{bm.region}, {bm.country}</p>
+                        <p className="text-sm text-[var(--text-muted)]">{bm.region}, {bm.country}</p>
                         <p className="text-sm">Type: {bm.type} | Datum: {bm.datum}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-medium">{bm.elevation.toFixed(3)} m</p>
-                        <p className="text-xs text-gray-500">RL</p>
+                        <p className="text-xs text-[var(--text-muted)]">RL</p>
                       </div>
                     </div>
                   </div>
@@ -323,7 +323,7 @@ export default function OnlineServicesPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Temperature (°C)</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Temperature (°C)</label>
                   <input
                     type="number"
                     step="any"
@@ -333,7 +333,7 @@ export default function OnlineServicesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pressure (hPa)</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Pressure (hPa)</label>
                   <input
                     type="number"
                     step="any"
@@ -343,7 +343,7 @@ export default function OnlineServicesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Humidity (%)</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Humidity (%)</label>
                   <input
                     type="number"
                     step="any"
@@ -353,7 +353,7 @@ export default function OnlineServicesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Elevation (m) - Optional</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Elevation (m) - Optional</label>
                   <input
                     type="number"
                     step="any"

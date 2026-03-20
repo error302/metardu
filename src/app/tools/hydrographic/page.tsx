@@ -300,7 +300,7 @@ export default function HydrographicSurveyPage() {
             <div className="card-header">
               <span className="label">Tide Gauge Readings</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Enter tide gauge readings at known times to interpolate water levels at sounding times.
             </p>
             <div className="overflow-x-auto">
@@ -330,7 +330,7 @@ export default function HydrographicSurveyPage() {
             <div className="card-header">
               <span className="label">Sounding Data</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Enter sounding records. Tide height will be interpolated from gauge readings.
             </p>
             <div className="overflow-x-auto">
@@ -407,12 +407,12 @@ export default function HydrographicSurveyPage() {
             <div className="card-header">
               <span className="label">Local Tidal Parameters</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Enter the local tidal parameters for your survey area.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Mean Sea Level (MSL)</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Mean Sea Level (MSL)</label>
                 <input 
                   className="input" 
                   type="number"
@@ -421,7 +421,7 @@ export default function HydrographicSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Lowest Astron. Tide (LAT)</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Lowest Astron. Tide (LAT)</label>
                 <input 
                   className="input" 
                   type="number"
@@ -430,7 +430,7 @@ export default function HydrographicSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Highest Astron. Tide (HAT)</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Highest Astron. Tide (HAT)</label>
                 <input 
                   className="input" 
                   type="number"
@@ -439,7 +439,7 @@ export default function HydrographicSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Mean High Water Springs</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Mean High Water Springs</label>
                 <input 
                   className="input" 
                   type="number"
@@ -456,7 +456,7 @@ export default function HydrographicSurveyPage() {
             </div>
             <div className="flex gap-4 items-end flex-wrap">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">From</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">From</label>
                 <select className="input" onChange={e => convertDatum(e.target.value, (document.getElementById('datumTo') as HTMLSelectElement)?.value || 'MSL')}>
                   <option value="MSL">MSL</option>
                   <option value="LAT">LAT</option>
@@ -466,7 +466,7 @@ export default function HydrographicSurveyPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">To</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">To</label>
                 <select className="input" id="datumTo" onChange={e => convertDatum((document.querySelector('select') as HTMLSelectElement)?.value || 'MSL', e.target.value)}>
                   <option value="MSL">MSL</option>
                   <option value="LAT">LAT</option>
@@ -488,9 +488,9 @@ export default function HydrographicSurveyPage() {
             </div>
 
             {datumConversion && (
-              <div className="mt-4 p-4 bg-gray-800 rounded">
+              <div className="mt-4 p-4 bg-[var(--bg-tertiary)] rounded">
                 <div className="text-center">
-                  <span className="text-gray-400">Conversion: </span>
+                  <span className="text-[var(--text-secondary)]">Conversion: </span>
                   <span className="font-semibold">{datumConversion.from} → {datumConversion.to}</span>
                   <div className="text-2xl font-mono mt-2">{formatNumber(datumConversion.result, 3)} m</div>
                 </div>
@@ -543,7 +543,7 @@ export default function HydrographicSurveyPage() {
             <div className="card-header">
               <span className="label">Sounding Record Entry</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Full sounding record with position, depth, and reduced level calculation.
             </p>
             <div className="overflow-x-auto">
@@ -569,8 +569,8 @@ export default function HydrographicSurveyPage() {
                       <td><input className="input w-24" value={s.easting} onChange={e => updateSoundingRecord(s.id, 'easting', e.target.value)} /></td>
                       <td><input className="input w-24" value={s.northing} onChange={e => updateSoundingRecord(s.id, 'northing', e.target.value)} /></td>
                       <td><input className="input w-24" value={s.rawDepth} onChange={e => updateSoundingRecord(s.id, 'rawDepth', e.target.value)} /></td>
-                      <td className="text-gray-400">—</td>
-                      <td className="text-gray-400">—</td>
+                      <td className="text-[var(--text-secondary)]">—</td>
+                      <td className="text-[var(--text-secondary)]">—</td>
                     </tr>
                   ))}
                 </tbody>
@@ -590,7 +590,7 @@ export default function HydrographicSurveyPage() {
             <div className="card-header">
               <span className="label">River Cross Section Measurements</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Enter distance from bank and depth at regular intervals across the river.
             </p>
             <div className="overflow-x-auto">
@@ -633,7 +633,7 @@ export default function HydrographicSurveyPage() {
               </div>
               
               <div className="mb-6">
-                <svg viewBox="0 0 500 200" className="w-full h-48 bg-gray-800 rounded">
+                <svg viewBox="0 0 500 200" className="w-full h-48 bg-[var(--bg-tertiary)] rounded">
                   {crossSectionResults.measurements.map((m: any, i: number) => {
                     const maxDist = Math.max(...crossSectionResults.measurements.map((x: any) => x.distance));
                     const maxDepth = Math.max(...crossSectionResults.measurements.map((x: any) => x.depth));
@@ -661,22 +661,22 @@ export default function HydrographicSurveyPage() {
                 </svg>
               </div>
 
-              <div className="grid grid-cols-3 gap-4 p-4 bg-gray-800 rounded">
+              <div className="grid grid-cols-3 gap-4 p-4 bg-[var(--bg-tertiary)] rounded">
                 <div>
-                  <span className="text-gray-400">Cross Sectional Area</span>
+                  <span className="text-[var(--text-secondary)]">Cross Sectional Area</span>
                   <div className="font-mono text-xl">{formatNumber(crossSectionResults.area, 2)} m²</div>
                 </div>
                 <div>
-                  <span className="text-gray-400">Wetted Perimeter</span>
+                  <span className="text-[var(--text-secondary)]">Wetted Perimeter</span>
                   <div className="font-mono text-xl">{formatNumber(crossSectionResults.wettedPerimeter, 2)} m</div>
                 </div>
                 <div>
-                  <span className="text-gray-400">Hydraulic Radius</span>
+                  <span className="text-[var(--text-secondary)]">Hydraulic Radius</span>
                   <div className="font-mono text-xl">{formatNumber(crossSectionResults.hydraulicRadius, 2)} m</div>
                 </div>
               </div>
 
-              <p className="text-sm text-gray-400 mt-4">
+              <p className="text-sm text-[var(--text-secondary)] mt-4">
                 <strong>Formula:</strong> Q = A × V (Discharge = Area × Velocity)<br/>
                 Enter velocity data to calculate discharge.
               </p>

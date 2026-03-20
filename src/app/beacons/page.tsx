@@ -133,14 +133,14 @@ export default function BeaconsPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-100">Community Beacons</h1>
-              <p className="text-sm text-gray-400">East Africa Control Network</p>
+              <h1 className="text-2xl font-bold text-[var(--text-primary)]">Community Beacons</h1>
+              <p className="text-sm text-[var(--text-secondary)]">East Africa Control Network</p>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setView('beacons')}
                 className={`px-4 py-2 rounded-lg font-medium ${
-                  view === 'beacons' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-gray-300'
+                  view === 'beacons' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                 }`}
               >
                 Beacons
@@ -148,7 +148,7 @@ export default function BeaconsPage() {
               <button
                 onClick={() => setView('activity')}
                 className={`px-4 py-2 rounded-lg font-medium ${
-                  view === 'activity' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-gray-300'
+                  view === 'activity' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                 }`}
               >
                 Survey Activity
@@ -163,7 +163,7 @@ export default function BeaconsPage() {
                 placeholder="Search by name or authority..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200"
+                className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)]"
               />
               <div className="flex gap-2">
                 {['all', 'trig', 'control', 'boundary', 'benchmark'].map(f => (
@@ -171,7 +171,7 @@ export default function BeaconsPage() {
                     key={f}
                     onClick={() => setFilter(f)}
                     className={`px-3 py-2 rounded text-sm capitalize ${
-                      filter === f ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-gray-300'
+                      filter === f ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                     }`}
                   >
                     {f}
@@ -219,17 +219,17 @@ export default function BeaconsPage() {
                           {icon} {beacon.name}
                         </div>
                         {beacon.authority && (
-                          <div className="text-gray-600 mt-1">Authority: {beacon.authority}</div>
+                          <div className="text-[var(--text-muted)] mt-1">Authority: {beacon.authority}</div>
                         )}
-                        <div className="text-gray-600 capitalize">Type: {beacon.beacon_type}</div>
+                        <div className="text-[var(--text-muted)] capitalize">Type: {beacon.beacon_type}</div>
                         <div className="font-mono mt-2">
                           E: {beacon.easting.toFixed(4)}<br/>
                           N: {beacon.northing.toFixed(4)}
                         </div>
                         {beacon.elevation && (
-                          <div className="text-gray-600">Elev: {beacon.elevation.toFixed(3)} m</div>
+                          <div className="text-[var(--text-muted)]">Elev: {beacon.elevation.toFixed(3)} m</div>
                         )}
-                        <div className="text-gray-500 text-xs mt-1">
+                        <div className="text-[var(--text-muted)] text-xs mt-1">
                           UTM Zone {beacon.utm_zone}{beacon.hemisphere}
                         </div>
                       </div>
@@ -257,9 +257,9 @@ export default function BeaconsPage() {
                         <div className="font-bold text-lg">
                           {icons[project.survey_type || 'other']} {project.survey_type}
                         </div>
-                        <div className="text-gray-600">Active Survey</div>
+                        <div className="text-[var(--text-muted)]">Active Survey</div>
                         {project.location && (
-                          <div className="text-gray-500 mt-1">Area: {project.location}</div>
+                          <div className="text-[var(--text-muted)] mt-1">Area: {project.location}</div>
                         )}
                       </div>
                     </Popup>
@@ -275,17 +275,17 @@ export default function BeaconsPage() {
       {importBeacon && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-100 mb-4">Import Beacon</h3>
-            <p className="text-gray-300 mb-4">
+            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">Import Beacon</h3>
+            <p className="text-[var(--text-primary)] mb-4">
               Import {importBeacon.name} as a locked Primary control point?
             </p>
             
             <div className="mb-4">
-              <label className="block text-sm text-gray-400 mb-2">Select Project</label>
+              <label className="block text-sm text-[var(--text-secondary)] mb-2">Select Project</label>
               <select
                 value={importProject}
                 onChange={e => setImportProject(e.target.value)}
-                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-gray-200"
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
               >
                 <option value="">Choose project...</option>
                 {projects.map(p => (
@@ -297,7 +297,7 @@ export default function BeaconsPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setImportBeacon(null)}
-                className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] text-gray-300 rounded"
+                className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded"
               >
                 Cancel
               </button>

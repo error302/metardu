@@ -104,7 +104,7 @@ export default function SubscriptionSuccessPage({
           </Link>
           <Link
             href="/checkout"
-            className="flex-1 text-center py-3 border border-[#333] text-gray-200 rounded-lg hover:bg-[#0f172a]"
+            className="flex-1 text-center py-3 border border-[#333] text-[var(--text-primary)] rounded-lg hover:bg-[#0f172a]"
           >
             Back to Checkout
           </Link>

@@ -16,13 +16,13 @@ export default function WhiteLabelPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">White-Label Settings</h1>
-        <p className="text-gray-600 mb-8">Customize GeoNova for your organization</p>
+        <p className="text-[var(--text-muted)] mb-8">Customize GeoNova for your organization</p>
 
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold">Enable White-Label</h2>
-              <p className="text-sm text-gray-500">Customize the platform with your brand</p>
+              <p className="text-sm text-[var(--text-muted)]">Customize the platform with your brand</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input 
@@ -39,7 +39,7 @@ export default function WhiteLabelPage() {
             <>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Organization Name</label>
                   <input
                     type="text"
                     value={config.organizationName}
@@ -49,7 +49,7 @@ export default function WhiteLabelPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Logo URL</label>
                   <input
                     type="url"
                     value={config.logoUrl || ''}
@@ -60,7 +60,7 @@ export default function WhiteLabelPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Favicon URL</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Favicon URL</label>
                   <input
                     type="url"
                     value={config.faviconUrl || ''}
@@ -71,7 +71,7 @@ export default function WhiteLabelPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Primary Color</label>
                   <div className="flex gap-4">
                     <input
                       type="color"
@@ -89,7 +89,7 @@ export default function WhiteLabelPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Custom CSS</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Custom CSS</label>
                   <textarea
                     value={config.customCss || ''}
                     onChange={(e) => setConfig({...config, customCss: e.target.value})}
@@ -100,7 +100,7 @@ export default function WhiteLabelPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Custom Domain</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Custom Domain</label>
                   <input
                     type="text"
                     value={config.customDomain || ''}
@@ -108,13 +108,13 @@ export default function WhiteLabelPage() {
                     placeholder="survey.yourcompany.com"
                     className="w-full p-2 border rounded-lg"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
                     Configure CNAME record to point to GeoNova
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Footer</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Email Footer</label>
                   <textarea
                     value={config.emailFooter || ''}
                     onChange={(e) => setConfig({...config, emailFooter: e.target.value})}

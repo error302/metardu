@@ -88,7 +88,7 @@ export default function DigitalSignaturePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Digital Signature & QR Verification</h1>
-        <p className="text-gray-600 mb-8">Sign survey documents and verify signatures with QR codes</p>
+        <p className="text-[var(--text-muted)] mb-8">Sign survey documents and verify signatures with QR codes</p>
 
         <div className="flex gap-2 mb-6">
           <button
@@ -272,7 +272,7 @@ export default function DigitalSignaturePage() {
                   {verificationResult.valid ? '✓ Signature Verified' : '✗ Verification Failed'}
                 </h3>
                 <p className="text-sm">{verificationResult.message}</p>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-[var(--text-muted)] mt-2">
                   Verified at: {new Date(verificationResult.verifiedAt).toLocaleString()}
                 </p>
                 

@@ -46,7 +46,7 @@ export default function QuickStartPage() {
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">{step.title}</h2>
-                <p className="text-gray-400">{step.desc}</p>
+                <p className="text-[var(--text-secondary)]">{step.desc}</p>
               </div>
             </div>
           ))}
@@ -54,7 +54,7 @@ export default function QuickStartPage() {
 
         <div className="mt-12 p-6 bg-[var(--bg-secondary)] rounded-xl border border-[#222]">
           <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">That's It!</h3>
-          <p className="text-gray-400 mb-4">
+          <p className="text-[var(--text-secondary)] mb-4">
             Your first survey is complete. You've created a project, added points, run a traverse, and generated a report.
           </p>
           <Link
@@ -73,28 +73,28 @@ export default function QuickStartPage() {
               className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[#222] hover:border-[#E8841A] transition-colors"
             >
               <h4 className="text-[var(--text-primary)] font-semibold mb-1">Learn CSV Import</h4>
-              <p className="text-gray-400 text-sm">Import your field notes automatically</p>
+              <p className="text-[var(--text-secondary)] text-sm">Import your field notes automatically</p>
             </Link>
             <Link
               href="/guide"
               className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[#222] hover:border-[#E8841A] transition-colors"
             >
               <h4 className="text-[var(--text-primary)] font-semibold mb-1">Field Guide</h4>
-              <p className="text-gray-400 text-sm">Step-by-step survey workflows</p>
+              <p className="text-[var(--text-secondary)] text-sm">Step-by-step survey workflows</p>
             </Link>
             <Link
               href="/tools/leveling"
               className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[#222] hover:border-[#E8841A] transition-colors"
             >
               <h4 className="text-[var(--text-primary)] font-semibold mb-1">Leveling Calculator</h4>
-              <p className="text-gray-400 text-sm">Calculate elevations with arithmetic checks</p>
+              <p className="text-[var(--text-secondary)] text-sm">Calculate elevations with arithmetic checks</p>
             </Link>
             <Link
               href="/community"
               className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[#222] hover:border-[#E8841A] transition-colors"
             >
               <h4 className="text-[var(--text-primary)] font-semibold mb-1">Join Community</h4>
-              <p className="text-gray-400 text-sm">Connect with other surveyors</p>
+              <p className="text-[var(--text-secondary)] text-sm">Connect with other surveyors</p>
             </Link>
           </div>
         </div>

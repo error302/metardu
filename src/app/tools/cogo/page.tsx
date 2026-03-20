@@ -242,7 +242,7 @@ export default function COGOCalculator() {
         <input className="input" value={value.m} onChange={e => onChange({...value, m: e.target.value})} placeholder="00" />
         <input className="input" value={value.s} onChange={e => onChange({...value, s: e.target.value})} placeholder="00.000" />
       </div>
-      <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mt-1">
+      <div className="grid grid-cols-3 gap-2 text-xs text-[var(--text-muted)] mt-1">
         <span className="text-center">DEG</span>
         <span className="text-center">MIN</span>
         <span className="text-center">SEC</span>
@@ -253,21 +253,21 @@ export default function COGOCalculator() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">COGO Tools</h1>
-      <p className="text-sm text-gray-500 mb-8">Coordinate Geometry calculations</p>
+      <p className="text-sm text-[var(--text-muted)] mb-8">Coordinate Geometry calculations</p>
 
       <div className="flex gap-2 mb-6 flex-wrap">
-        <button onClick={() => { setMode('radiation'); setResult(null); setWarnings([]); }} className={`px-4 py-2 rounded-lg font-medium ${mode === 'radiation' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'}`}>Radiation</button>
-        <button onClick={() => { setMode('forward-intersection'); setResult(null); setWarnings([]); }} className={`px-4 py-2 rounded-lg font-medium ${mode === 'forward-intersection' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'}`}>Forward Intersection</button>
-        <button onClick={() => { setMode('backward-intersection'); setResult(null); setWarnings([]); }} className={`px-4 py-2 rounded-lg font-medium ${mode === 'backward-intersection' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'}`}>Backward Intersection</button>
-        <button onClick={() => { setMode('missing-line'); setResult(null); setWarnings([]); }} className={`px-4 py-2 rounded-lg font-medium ${mode === 'missing-line' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'}`}>Missing Line</button>
-        <button onClick={() => { setMode('side-shot'); setResult(null); setWarnings([]); }} className={`px-4 py-2 rounded-lg font-medium ${mode === 'side-shot' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'}`}>Side Shot</button>
+        <button onClick={() => { setMode('radiation'); setResult(null); setWarnings([]); }} className={`px-4 py-2 rounded-lg font-medium ${mode === 'radiation' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Radiation</button>
+        <button onClick={() => { setMode('forward-intersection'); setResult(null); setWarnings([]); }} className={`px-4 py-2 rounded-lg font-medium ${mode === 'forward-intersection' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Forward Intersection</button>
+        <button onClick={() => { setMode('backward-intersection'); setResult(null); setWarnings([]); }} className={`px-4 py-2 rounded-lg font-medium ${mode === 'backward-intersection' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Backward Intersection</button>
+        <button onClick={() => { setMode('missing-line'); setResult(null); setWarnings([]); }} className={`px-4 py-2 rounded-lg font-medium ${mode === 'missing-line' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Missing Line</button>
+        <button onClick={() => { setMode('side-shot'); setResult(null); setWarnings([]); }} className={`px-4 py-2 rounded-lg font-medium ${mode === 'side-shot' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Side Shot</button>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="space-y-6">
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+          <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-xl p-6">
             <div className="mb-4">
-              <span className="font-semibold text-gray-200">
+              <span className="font-semibold text-[var(--text-primary)]">
                 {mode === 'radiation' ? 'Instrument Station → New Point' : 
                  mode === 'forward-intersection' ? 'Two Known Points + Bearings → Unknown Point' :
                  mode === 'backward-intersection' ? 'Unknown Station → Three Known Points' :
@@ -290,14 +290,14 @@ export default function COGOCalculator() {
               
               {mode === 'forward-intersection' && (
                 <>
-                  <div className="text-sm text-gray-400 mb-2">Point A (known)</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2">Point A (known)</div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="label">A Northing</label><input className="input" value={input.fwdAN} onChange={e => setInput({...input, fwdAN: e.target.value})} /></div>
                     <div><label className="label">A Easting</label><input className="input" value={input.fwdAE} onChange={e => setInput({...input, fwdAE: e.target.value})} /></div>
                   </div>
                   {renderDMSInput(input.fwdBearingA, v => setInput({...input, fwdBearingA: v}), 'Bearing A → P')}
                   
-                  <div className="text-sm text-gray-400 mb-2 mt-4">Point B (known)</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2 mt-4">Point B (known)</div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="label">B Northing</label><input className="input" value={input.fwdBN} onChange={e => setInput({...input, fwdBN: e.target.value})} /></div>
                     <div><label className="label">B Easting</label><input className="input" value={input.fwdBE} onChange={e => setInput({...input, fwdBE: e.target.value})} /></div>
@@ -310,25 +310,25 @@ export default function COGOCalculator() {
               
               {mode === 'backward-intersection' && (
                 <>
-                  <div className="text-sm text-gray-400 mb-2">Control Point A</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2">Control Point A</div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="label">A Northing</label><input className="input" value={input.bwdP1N} onChange={e => setInput({...input, bwdP1N: e.target.value})} /></div>
                     <div><label className="label">A Easting</label><input className="input" value={input.bwdP1E} onChange={e => setInput({...input, bwdP1E: e.target.value})} /></div>
                   </div>
                   
-                  <div className="text-sm text-gray-400 mb-2 mt-4">Control Point B</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2 mt-4">Control Point B</div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="label">B Northing</label><input className="input" value={input.bwdP2N} onChange={e => setInput({...input, bwdP2N: e.target.value})} /></div>
                     <div><label className="label">B Easting</label><input className="input" value={input.bwdP2E} onChange={e => setInput({...input, bwdP2E: e.target.value})} /></div>
                   </div>
                   
-                  <div className="text-sm text-gray-400 mb-2 mt-4">Control Point C</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2 mt-4">Control Point C</div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="label">C Northing</label><input className="input" value={input.bwdP3N} onChange={e => setInput({...input, bwdP3N: e.target.value})} /></div>
                     <div><label className="label">C Easting</label><input className="input" value={input.bwdP3E} onChange={e => setInput({...input, bwdP3E: e.target.value})} /></div>
                   </div>
                   
-                  <div className="text-sm text-gray-400 mb-2 mt-4">Measured Angles</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2 mt-4">Measured Angles</div>
                   {renderDMSInput(input.bwdAngle1, v => setInput({...input, bwdAngle1: v}), 'Angle APB')}
                   {renderDMSInput(input.bwdAngle2, v => setInput({...input, bwdAngle2: v}), 'Angle BPC')}
                   
@@ -338,7 +338,7 @@ export default function COGOCalculator() {
               
               {mode === 'missing-line' && (
                 <>
-                  <div className="text-sm text-gray-400 mb-2">Point A → Point B</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2">Point A → Point B</div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="label">A Northing</label><input className="input" value={input.missAN} onChange={e => setInput({...input, missAN: e.target.value})} placeholder="500000.0000" /></div>
                     <div><label className="label">A Easting</label><input className="input" value={input.missAE} onChange={e => setInput({...input, missAE: e.target.value})} placeholder="300000.0000" /></div>
@@ -352,13 +352,13 @@ export default function COGOCalculator() {
 
               {mode === 'side-shot' && (
                 <>
-                  <div className="text-sm text-gray-400 mb-2">Line Start A</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2">Line Start A</div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="label">A Northing</label><input className="input" value={input.ssAN} onChange={e => setInput({...input, ssAN: e.target.value})} placeholder="500000.0000" /></div>
                     <div><label className="label">A Easting</label><input className="input" value={input.ssAE} onChange={e => setInput({...input, ssAE: e.target.value})} placeholder="300000.0000" /></div>
                   </div>
                   
-                  <div className="text-sm text-gray-400 mb-2 mt-4">Line End B</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2 mt-4">Line End B</div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="label">B Northing</label><input className="input" value={input.ssBN} onChange={e => setInput({...input, ssBN: e.target.value})} placeholder="500100.0000" /></div>
                     <div><label className="label">B Easting</label><input className="input" value={input.ssBE} onChange={e => setInput({...input, ssBE: e.target.value})} placeholder="300100.0000" /></div>
@@ -374,11 +374,11 @@ export default function COGOCalculator() {
                     <div className="flex gap-4 mt-2">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="ssDirection" checked={input.ssDirection === 'Left'} onChange={() => setInput({...input, ssDirection: 'Left'})} className="w-4 h-4 accent-[#E8841A]" />
-                        <span className="text-gray-300">Left</span>
+                        <span className="text-[var(--text-primary)]">Left</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="ssDirection" checked={input.ssDirection === 'Right'} onChange={() => setInput({...input, ssDirection: 'Right'})} className="w-4 h-4 accent-[#E8841A]" />
-                        <span className="text-gray-300">Right</span>
+                        <span className="text-[var(--text-primary)]">Right</span>
                       </label>
                     </div>
                   </div>
@@ -390,8 +390,8 @@ export default function COGOCalculator() {
         </div>
 
         {result && !result.error && (
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-            <div className="mb-4"><span className="font-semibold text-gray-200">Results</span></div>
+          <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-xl p-6">
+            <div className="mb-4"><span className="font-semibold text-[var(--text-primary)]">Results</span></div>
             <div className="space-y-3">
               {result.type === 'radiation' && (
                 <>
@@ -399,7 +399,7 @@ export default function COGOCalculator() {
                   <ResultRow label="Easting" value={`${result.point.easting.toFixed(4)} m`} />
                   <ResultRow label="Northing" value={`${result.point.northing.toFixed(4)} m`} />
                   <div className="border-t border-[var(--border-color)] my-3"></div>
-                  <div className="text-xs text-gray-500 font-mono">
+                  <div className="text-xs text-[var(--text-muted)] font-mono">
                     Formula: E₂ = E₁ + d×sin(θ), N₂ = N₁ + d×cos(θ)<br/>
                     E = {parseFloat(input.radStationE).toFixed(4)} + {result.distance}×sin({result.bearing.toFixed(4)}°)<br/>
                     N = {parseFloat(input.radStationN).toFixed(4)} + {result.distance}×cos({result.bearing.toFixed(4)}°)
@@ -413,15 +413,15 @@ export default function COGOCalculator() {
                   <ResultRow label="Easting" value={`${result.point.easting.toFixed(4)} m`} />
                   <ResultRow label="Northing" value={`${result.point.northing.toFixed(4)} m`} />
                   <div className="border-t border-[var(--border-color)] my-3"></div>
-                  <div className="text-sm text-gray-400 mb-2">Check Distances:</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2">Check Distances:</div>
                   <ResultRow label="AP" value={`${result.distA.toFixed(4)} m`} />
                   <ResultRow label="BP" value={`${result.distB.toFixed(4)} m`} />
                   <div className="border-t border-[var(--border-color)] my-3"></div>
-                  <div className="text-sm text-gray-400 mb-2">Angles:</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2">Angles:</div>
                   <ResultRow label="∠APB" value={result.angleA.toFixed(3) + '°'} />
                   <ResultRow label="∠BPA" value={result.angleB.toFixed(3) + '°'} />
                   <div className="border-t border-[var(--border-color)] my-3"></div>
-                  <div className="text-xs text-gray-500 font-mono">
+                  <div className="text-xs text-[var(--text-muted)] font-mono">
                     Formula: {result.formula}
                   </div>
                 </>
@@ -433,12 +433,12 @@ export default function COGOCalculator() {
                   <ResultRow label="Easting" value={`${result.point.easting.toFixed(4)} m`} />
                   <ResultRow label="Northing" value={`${result.point.northing.toFixed(4)} m`} />
                   <div className="border-t border-[var(--border-color)] my-3"></div>
-                  <div className="text-sm text-gray-400 mb-2">Check Distances:</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2">Check Distances:</div>
                   <ResultRow label="P to A" value={`${result.d1.toFixed(4)} m`} />
                   <ResultRow label="P to B" value={`${result.d2.toFixed(4)} m`} />
                   <ResultRow label="P to C" value={`${result.d3.toFixed(4)} m`} />
                   <div className="border-t border-[var(--border-color)] my-3"></div>
-                  <div className="text-sm text-gray-400 mb-2">Check Bearings:</div>
+                  <div className="text-sm text-[var(--text-secondary)] mb-2">Check Bearings:</div>
                   <ResultRow label="P → A" value={result.bearingToP1} />
                   <ResultRow label="P → B" value={result.bearingToP2} />
                   <ResultRow label="P → C" value={result.bearingToP3} />
@@ -468,7 +468,7 @@ export default function COGOCalculator() {
                   <ResultRow label="Bearing AB" value={result.bearingAB} />
                   <ResultRow label="Bearing to P" value={result.offsetBearing} />
                   <div className="border-t border-[var(--border-color)] my-3"></div>
-                  <div className="text-xs text-gray-500 font-mono">
+                  <div className="text-xs text-[var(--text-muted)] font-mono">
                     Formula: Bearing_AB = atan2(ΔE_AB, ΔN_AB)<br/>
                     P = A + chainage×sin(θ_AB) + offset×sin(θ_AB±90°)
                   </div>
@@ -498,9 +498,9 @@ export default function COGOCalculator() {
 
 function ResultRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between items-center py-2 border-b border-gray-800">
-      <span className="text-sm text-gray-400">{label}</span>
-      <span className="font-mono text-gray-200">{value}</span>
+    <div className="flex justify-between items-center py-2 border-b border-[var(--border-color)]">
+      <span className="text-sm text-[var(--text-secondary)]">{label}</span>
+      <span className="font-mono text-[var(--text-primary)]">{value}</span>
     </div>
   );
 }

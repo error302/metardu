@@ -3,7 +3,7 @@ export default function APIDocsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">GeoNova API Documentation</h1>
-        <p className="text-gray-600 mb-8">Integrate GeoNova into your applications</p>
+        <p className="text-[var(--text-muted)] mb-8">Integrate GeoNova into your applications</p>
 
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
           <h2 className="text-lg font-semibold text-blue-900 mb-2">API Access</h2>
@@ -11,7 +11,7 @@ export default function APIDocsPage() {
             API access is available on Professional and Enterprise plans. Get your API key from your account settings.
           </p>
           <div className="bg-white rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Base URL</p>
+            <p className="text-sm text-[var(--text-muted)] mb-1">Base URL</p>
             <code className="text-sm bg-gray-100 px-2 py-1 rounded">https://api.geonova.app/v1</code>
           </div>
         </div>
@@ -19,7 +19,7 @@ export default function APIDocsPage() {
         <div className="space-y-8">
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Authentication</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-[var(--text-muted)] mb-4">
               All API requests require an API key passed in the header:
             </p>
             <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto">
@@ -32,7 +32,7 @@ export default function APIDocsPage() {
 
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Coordinate Transformation</h2>
-            <p className="text-gray-600 mb-4">Transform coordinates between WGS84 and UTM</p>
+            <p className="text-[var(--text-muted)] mb-4">Transform coordinates between WGS84 and UTM</p>
             
             <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto mb-4">
               <pre className="text-green-400 text-sm">
@@ -64,7 +64,7 @@ Content-Type: application/json
 
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Benchmark Lookup</h2>
-            <p className="text-gray-600 mb-4">Search for benchmark data by name or location</p>
+            <p className="text-[var(--text-muted)] mb-4">Search for benchmark data by name or location</p>
             
             <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto mb-4">
               <pre className="text-green-400 text-sm">
@@ -93,7 +93,7 @@ Content-Type: application/json
 
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Weather/EDM Correction</h2>
-            <p className="text-gray-600 mb-4">Get atmospheric correction parameters for EDM</p>
+            <p className="text-[var(--text-muted)] mb-4">Get atmospheric correction parameters for EDM</p>
             
             <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto mb-4">
               <pre className="text-green-400 text-sm">
@@ -154,7 +154,7 @@ Content-Type: application/json
 
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Error Handling</h2>
-            <p className="text-gray-600 mb-4">All errors return standard HTTP status codes</p>
+            <p className="text-[var(--text-muted)] mb-4">All errors return standard HTTP status codes</p>
             <div className="bg-[var(--bg-secondary)] rounded-lg p-4 overflow-x-auto">
               <pre className="text-blue-400 text-sm">
 {`{

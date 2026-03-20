@@ -57,7 +57,7 @@ export default function InstrumentsPage() {
     <div className="min-h-screen py-12">
       <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-4xl font-bold text-[var(--text-primary)] mb-2">Compatible Instruments</h1>
-        <p className="text-gray-400 text-lg mb-12">
+        <p className="text-[var(--text-secondary)] text-lg mb-12">
           GeoNova imports data from all major total station brands
         </p>
 
@@ -65,7 +65,7 @@ export default function InstrumentsPage() {
           {instruments.map((inst) => (
             <div
               key={inst.brand}
-              className="bg-[var(--bg-secondary)] rounded-xl border border-[#222] p-6"
+              className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-6"
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -74,7 +74,7 @@ export default function InstrumentsPage() {
                   </span>
                 </div>
                 <div className="text-right">
-                  <p className="text-gray-400 text-xs">Format</p>
+                  <p className="text-[var(--text-secondary)] text-xs">Format</p>
                   <p className="text-amber-500 text-sm font-mono">{inst.format}</p>
                 </div>
               </div>
@@ -83,7 +83,7 @@ export default function InstrumentsPage() {
                 {inst.models.map(model => (
                   <span
                     key={model}
-                    className="px-2 py-1 bg-[var(--bg-tertiary)] text-gray-300 text-xs rounded"
+                    className="px-2 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] text-xs rounded"
                   >
                     {model}
                   </span>
@@ -91,14 +91,14 @@ export default function InstrumentsPage() {
               </div>
 
               <div className="bg-[var(--bg-card)] rounded p-3">
-                <p className="text-gray-500 text-xs mb-1">How to export:</p>
+                <p className="text-[var(--text-muted)] text-xs mb-1">How to export:</p>
                 <p className="text-[var(--text-primary)] text-sm font-mono">{inst.export}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[#222] p-6">
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-6">
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">How to Export from Your Instrument</h2>
           
           <div className="space-y-4">
@@ -132,7 +132,7 @@ function ExportStep({ number, title, children }: { number: string; title: string
       </div>
       <div>
         <h3 className="text-[var(--text-primary)] font-medium">{title}</h3>
-        <p className="text-gray-400 text-sm">{children}</p>
+        <p className="text-[var(--text-secondary)] text-sm">{children}</p>
       </div>
     </div>
   )

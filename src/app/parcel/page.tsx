@@ -48,7 +48,7 @@ export default function ParcelSearchPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Parcel Intelligence</h1>
-        <p className="text-gray-600 mb-8">Search land registries and get legal boundary guidance</p>
+        <p className="text-[var(--text-muted)] mb-8">Search land registries and get legal boundary guidance</p>
 
         <div className="flex space-x-4 mb-6">
           <button
@@ -56,7 +56,7 @@ export default function ParcelSearchPage() {
             className={`px-4 py-2 rounded-lg font-medium transition ${
               activeTab === 'search'
                 ? 'bg-sky-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                : 'bg-white text-[var(--text-muted)] hover:bg-gray-100'
             }`}
           >
             Parcel Search
@@ -66,7 +66,7 @@ export default function ParcelSearchPage() {
             className={`px-4 py-2 rounded-lg font-medium transition ${
               activeTab === 'legal'
                 ? 'bg-sky-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                : 'bg-white text-[var(--text-muted)] hover:bg-gray-100'
             }`}
           >
             Land Law Advisor
@@ -78,7 +78,7 @@ export default function ParcelSearchPage() {
             <h2 className="text-xl font-semibold mb-4">Search Land Registry</h2>
             <div className="grid md:grid-cols-4 gap-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Country</label>
                 <select
                   value={searchParams.country}
                   onChange={e => setSearchParams({ ...searchParams, country: e.target.value as any })}
@@ -90,7 +90,7 @@ export default function ParcelSearchPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">
                   {searchParams.country === 'Kenya' ? 'Parcel ID' : searchParams.country === 'Uganda' ? 'Title Number' : 'Plot Number'}
                 </label>
                 <input
@@ -102,7 +102,7 @@ export default function ParcelSearchPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">
                   {searchParams.country === 'Tanzania' ? 'Region' : 'County/District'}
                 </label>
                 <input
@@ -128,13 +128,13 @@ export default function ParcelSearchPage() {
 
             {parcels.length > 0 && (
               <div className="space-y-4">
-                <h3 className="font-medium text-gray-700">Found {parcels.length} Parcel(s)</h3>
+                <h3 className="font-medium text-[var(--text-muted)]">Found {parcels.length} Parcel(s)</h3>
                 {parcels.map((parcel, i) => (
                   <div key={i} className="p-4 border rounded-lg hover:bg-gray-50">
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="font-medium text-lg">{parcel.parcelId}</h4>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-[var(--text-muted)]">
                           {parcel.registrySource} | {parcel.country}
                         </p>
                         <div className="mt-2 space-y-1">
@@ -151,7 +151,7 @@ export default function ParcelSearchPage() {
                       )}
                     </div>
                     {parcel.coordinates && (
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-[var(--text-muted)] mt-2">
                         Coordinates: {parcel.coordinates.latitude?.toFixed(5)}, {parcel.coordinates.longitude?.toFixed(5)}
                       </p>
                     )}
@@ -165,7 +165,7 @@ export default function ParcelSearchPage() {
         {activeTab === 'legal' && (
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold mb-4">Land Law Advisory System</h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-[var(--text-muted)] mb-6">
               Get professional guidance on boundary situations based on cadastral surveying principles.
               References: Brown's Boundary Control and Legal Principles
             </p>
@@ -207,7 +207,7 @@ export default function ParcelSearchPage() {
                     <h4 className="font-medium mb-2">Principles</h4>
                     <ul className="text-sm space-y-1">
                       {legalGuidance.principles.map((p: string, i: number) => (
-                        <li key={i} className="text-gray-600">• {p}</li>
+                        <li key={i} className="text-[var(--text-muted)]">• {p}</li>
                       ))}
                     </ul>
                   </div>
@@ -216,7 +216,7 @@ export default function ParcelSearchPage() {
                     <h4 className="font-medium mb-2">Recommendations</h4>
                     <ul className="text-sm space-y-1">
                       {legalGuidance.recommendations.map((r: string, i: number) => (
-                        <li key={i} className="text-gray-700">✓ {r}</li>
+                        <li key={i} className="text-[var(--text-muted)]">✓ {r}</li>
                       ))}
                     </ul>
                   </div>
@@ -224,7 +224,7 @@ export default function ParcelSearchPage() {
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <h4 className="font-medium mb-2 text-sm">References</h4>
                     {legalGuidance.references.map((ref: any, i: number) => (
-                      <p key={i} className="text-xs text-gray-600">
+                      <p key={i} className="text-xs text-[var(--text-muted)]">
                         {ref.book}, Chapter: {ref.chapter}
                       </p>
                     ))}

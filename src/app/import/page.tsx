@@ -145,7 +145,7 @@ export default function ImportPage() {
     <div className="min-h-screen py-12">
       <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Total Station Import</h1>
-        <p className="text-gray-400 mb-8">
+        <p className="text-[var(--text-secondary)] mb-8">
           Import data directly from your total station
         </p>
 
@@ -155,7 +155,7 @@ export default function ImportPage() {
             <h2 className="text-xl font-bold text-green-400 mb-2">
               {imported} points imported
             </h2>
-            <p className="text-gray-400 mb-6">
+            <p className="text-[var(--text-secondary)] mb-6">
               Successfully imported to {projectName}
             </p>
             <div className="flex gap-4 justify-center">
@@ -191,7 +191,7 @@ export default function ImportPage() {
                     <p className="text-[var(--text-primary)] font-medium mb-2">
                       {file ? file.name : 'Drop your file here or click to browse'}
                     </p>
-                    <p className="text-gray-500 text-sm">
+                    <p className="text-[var(--text-muted)] text-sm">
                       Supported: .gsi, .job, .jxl, .sdr, .csv
                     </p>
                   </div>
@@ -212,7 +212,7 @@ export default function ImportPage() {
                     <h3 className="text-[var(--text-primary)] font-semibold">
                       Format detected: {formatNames[format]}
                     </h3>
-                    <p className="text-gray-400 text-sm">
+                    <p className="text-[var(--text-secondary)] text-sm">
                       {points.length} points found
                     </p>
                   </div>
@@ -225,7 +225,7 @@ export default function ImportPage() {
                     </button>
                     <button
                       onClick={() => toggleAll(false)}
-                      className="text-sm text-gray-400 hover:text-white"
+                      className="text-sm text-[var(--text-secondary)] hover:text-white"
                     >
                       Deselect All
                     </button>
@@ -257,7 +257,7 @@ export default function ImportPage() {
                       />
                       <span className="text-[var(--text-primary)] font-mono text-sm w-16">{p.pointId}</span>
                       {p.easting !== undefined ? (
-                        <span className="text-gray-400 text-xs">
+                        <span className="text-[var(--text-secondary)] text-xs">
                           E: {p.easting.toFixed(4)} N: {p.northing?.toFixed(4)} Z: {p.elevation?.toFixed(3)}
                         </span>
                       ) : (
@@ -268,7 +268,7 @@ export default function ImportPage() {
                 </div>
 
                 <div className="mb-6">
-                  <label className="block text-sm text-gray-400 mb-2">
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">
                     Import to project:
                   </label>
                   <select

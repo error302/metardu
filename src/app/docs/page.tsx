@@ -57,7 +57,7 @@ export default function DocsPage() {
           <h1 className="text-4xl md:text-5xl font-bold text-[var(--text-primary)] mb-4">
             GeoNova Documentation
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-[var(--text-secondary)] text-lg">
             Everything you need to know about GeoNova
           </p>
         </div>
@@ -71,7 +71,7 @@ export default function DocsPage() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="text-gray-400 hover:text-[#E8841A] text-sm transition-colors"
+                      className="text-[var(--text-secondary)] hover:text-[#E8841A] text-sm transition-colors"
                     >
                       {item.label}
                     </Link>
@@ -84,7 +84,7 @@ export default function DocsPage() {
 
         <div className="mt-16 bg-gradient-to-r from-[#E8841A]/20 to-transparent border border-[#E8841A]/30 rounded-xl p-8 text-center">
           <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">Need More Help?</h2>
-          <p className="text-gray-400 mb-6">
+          <p className="text-[var(--text-secondary)] mb-6">
             Can't find what you're looking for? Join our WhatsApp community or contact support.
           </p>
           <div className="flex gap-4 justify-center">

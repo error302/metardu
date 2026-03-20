@@ -1326,7 +1326,7 @@ export default function GuideTypePage({ params }: PageProps) {
                 <button
                   onClick={() => setMode('junior')}
                   className={`px-3 py-1 rounded text-sm ${
-                    mode === 'junior' ? 'bg-[#E8841A] text-black' : 'text-gray-400'
+                    mode === 'junior' ? 'bg-[#E8841A] text-black' : 'text-[var(--text-secondary)]'
                   }`}
                 >
                   👨‍🎓 Junior
@@ -1334,7 +1334,7 @@ export default function GuideTypePage({ params }: PageProps) {
                 <button
                   onClick={() => setMode('senior')}
                   className={`px-3 py-1 rounded text-sm ${
-                    mode === 'senior' ? 'bg-[#E8841A] text-black' : 'text-gray-400'
+                    mode === 'senior' ? 'bg-[#E8841A] text-black' : 'text-[var(--text-secondary)]'
                   }`}
                 >
                   ⚡ Senior
@@ -1350,7 +1350,7 @@ export default function GuideTypePage({ params }: PageProps) {
                 style={{ width: `${(completedSteps.length / guide.steps.length) * 100}%` }}
               />
             </div>
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-[var(--text-secondary)]">
               {completedSteps.length}/{guide.steps.length} steps
             </span>
           </div>
@@ -1367,14 +1367,14 @@ export default function GuideTypePage({ params }: PageProps) {
                   {guide.fieldChecklist.map((item, idx) => {
                     const checked = fieldChecklistDone.includes(idx)
                     return (
-                      <label key={idx} className="flex items-start gap-3 text-sm text-gray-300 cursor-pointer select-none">
+                      <label key={idx} className="flex items-start gap-3 text-sm text-[var(--text-primary)] cursor-pointer select-none">
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleFieldChecklist(idx)}
                           className="mt-1 h-4 w-4 accent-[#E8841A]"
                         />
-                        <span className={checked ? 'line-through text-gray-500' : ''}>{item}</span>
+                        <span className={checked ? 'line-through text-[var(--text-muted)]' : ''}>{item}</span>
                       </label>
                     )
                   })}
@@ -1385,7 +1385,7 @@ export default function GuideTypePage({ params }: PageProps) {
             {guide.stopRules && (
               <div>
                 <h2 className="text-lg font-semibold mb-3 text-red-300">Stop Rules</h2>
-                <ul className="list-disc pl-6 space-y-1 text-sm text-gray-300">
+                <ul className="list-disc pl-6 space-y-1 text-sm text-[var(--text-primary)]">
                   {guide.stopRules.map((rule, idx) => (
                     <li key={idx}>{rule}</li>
                   ))}
@@ -1402,7 +1402,7 @@ export default function GuideTypePage({ params }: PageProps) {
           return (
             <div
               key={step.id}
-              className={`bg-gray-900/50 border rounded-xl p-6 transition-all ${
+              className={`bg-[var(--bg-secondary)]/50 border rounded-xl p-6 transition-all ${
                 isComplete ? 'border-green-500/30' : 'border-[var(--border-color)]'
               }`}
             >
@@ -1420,7 +1420,7 @@ export default function GuideTypePage({ params }: PageProps) {
                 
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-gray-500">STEP {step.id}</span>
+                    <span className="text-xs text-[var(--text-muted)]">STEP {step.id}</span>
                     {isComplete && (
                       <span className="text-xs text-green-400">✓ Complete</span>
                     )}
@@ -1428,7 +1428,7 @@ export default function GuideTypePage({ params }: PageProps) {
                   <h3 className="text-lg font-semibold mb-3">{step.title}</h3>
                   
                   <pre className={`whitespace-pre-wrap font-mono text-sm ${
-                    mode === 'junior' ? 'text-gray-300' : 'text-[#E8841A]'
+                    mode === 'junior' ? 'text-[var(--text-primary)]' : 'text-[#E8841A]'
                   }`}>
                     {content}
                   </pre>
@@ -1437,7 +1437,7 @@ export default function GuideTypePage({ params }: PageProps) {
                     <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
                       <Link 
                         href={toolLink.href}
-                        className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-[#E8841A] transition-colors"
+                        className="inline-flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[#E8841A] transition-colors"
                       >
                         <span className="text-xs">🔗</span>
                         {toolLink.label}
@@ -1454,13 +1454,13 @@ export default function GuideTypePage({ params }: PageProps) {
           <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-6 text-center">
             <div className="text-4xl mb-4">🎉</div>
             <h2 className="text-xl font-bold text-green-400 mb-2">Survey Complete!</h2>
-            <p className="text-gray-400 mb-4">
+            <p className="text-[var(--text-secondary)] mb-4">
               You've completed the {guide.title} workflow guide.
             </p>
             <div className="flex justify-center gap-4">
               <Link 
                 href="/guide"
-                className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 rounded text-gray-200"
+                className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 rounded text-[var(--text-primary)]"
               >
                 ← Back to Guides
               </Link>

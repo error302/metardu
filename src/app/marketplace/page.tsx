@@ -51,7 +51,7 @@ export default function MarketplacePage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Surveyor Marketplace</h1>
-          <p className="text-gray-600">Templates, tools, and professional services for surveyors</p>
+          <p className="text-[var(--text-muted)]">Templates, tools, and professional services for surveyors</p>
         </div>
 
         <div className="flex gap-2 mb-6">
@@ -60,7 +60,7 @@ export default function MarketplacePage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               activeTab === 'templates' 
                 ? 'bg-blue-600 text-white' 
-                : 'bg-white text-gray-700 border'
+                : 'bg-white text-[var(--text-muted)] border'
             }`}
           >
             Templates
@@ -70,7 +70,7 @@ export default function MarketplacePage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               activeTab === 'surveyors' 
                 ? 'bg-blue-600 text-white' 
-                : 'bg-white text-gray-700 border'
+                : 'bg-white text-[var(--text-muted)] border'
             }`}
           >
             Find Surveyors
@@ -112,13 +112,13 @@ export default function MarketplacePage() {
                       <span className="font-bold text-green-600">{formatPrice(tpl.price, tpl.currency)}</span>
                     </div>
                     <h3 className="font-semibold text-gray-900 mb-1">{tpl.name}</h3>
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{tpl.description}</p>
+                    <p className="text-sm text-[var(--text-muted)] mb-3 line-clamp-2">{tpl.description}</p>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">{tpl.downloads} downloads</span>
+                      <span className="text-[var(--text-muted)]">{tpl.downloads} downloads</span>
                       <div className="flex items-center gap-1">
                         <span className="text-yellow-500">★</span>
                         <span>{tpl.rating}</span>
-                        <span className="text-gray-400">({tpl.reviews})</span>
+                        <span className="text-[var(--text-secondary)]">({tpl.reviews})</span>
                       </div>
                     </div>
                   </div>
@@ -138,10 +138,10 @@ export default function MarketplacePage() {
                       <span className="font-bold text-green-600">{formatPrice(tpl.price, tpl.currency)}</span>
                     </div>
                     <h3 className="font-semibold text-gray-900 mb-1">{tpl.name}</h3>
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{tpl.description}</p>
+                    <p className="text-sm text-[var(--text-muted)] mb-3 line-clamp-2">{tpl.description}</p>
                     <div className="flex flex-wrap gap-1 mb-3">
                       {tpl.tags.slice(0, 3).map(tag => (
-                        <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                        <span key={tag} className="text-xs bg-gray-100 text-[var(--text-muted)] px-2 py-0.5 rounded">
                           {tag}
                         </span>
                       ))}
@@ -149,7 +149,7 @@ export default function MarketplacePage() {
                     <div className="flex items-center justify-between text-sm border-t pt-3">
                       <div className="flex items-center gap-1">
                         {tpl.author.verified && <span className="text-blue-500">✓</span>}
-                        <span className="text-gray-600">{tpl.author.name}</span>
+                        <span className="text-[var(--text-muted)]">{tpl.author.name}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-yellow-500">★</span>
@@ -176,7 +176,7 @@ export default function MarketplacePage() {
                           <h3 className="font-semibold text-gray-900">{surveyor.name}</h3>
                           {surveyor.verified && <span className="text-blue-500 text-sm">✓ Verified</span>}
                         </div>
-                        <p className="text-sm text-gray-600">{surveyor.title}</p>
+                        <p className="text-sm text-[var(--text-muted)]">{surveyor.title}</p>
                       </div>
                       <span className={`px-2 py-1 text-xs rounded ${
                         surveyor.availability === 'available' ? 'bg-green-100 text-green-800' :
@@ -186,16 +186,16 @@ export default function MarketplacePage() {
                         {surveyor.availability}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3">{surveyor.bio}</p>
+                    <p className="text-sm text-[var(--text-muted)] mb-3">{surveyor.bio}</p>
                     <div className="flex flex-wrap gap-1 mb-3">
                       {surveyor.specialties.map(sp => (
-                        <span key={sp} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                        <span key={sp} className="text-xs bg-gray-100 text-[var(--text-muted)] px-2 py-0.5 rounded">
                           {sp}
                         </span>
                       ))}
                     </div>
                     <div className="flex items-center justify-between border-t pt-3">
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-4 text-sm text-[var(--text-muted)]">
                         <span>📁 {surveyor.projects} projects</span>
                         <span className="flex items-center gap-1">
                           <span className="text-yellow-500">★</span> {surveyor.rating}
@@ -220,12 +220,12 @@ export default function MarketplacePage() {
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-gray-900">{surveyor.name}</h3>
                         {surveyor.verified && <span className="text-blue-500 text-sm">✓</span>}
-                        <span className="text-sm text-gray-500">• {surveyor.country}</span>
+                        <span className="text-sm text-[var(--text-muted)]">• {surveyor.country}</span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{surveyor.title} • License: {surveyor.license}</p>
+                      <p className="text-sm text-[var(--text-muted)] mb-2">{surveyor.title} • License: {surveyor.license}</p>
                       <div className="flex flex-wrap gap-1">
                         {surveyor.specialties.map(sp => (
-                          <span key={sp} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                          <span key={sp} className="text-xs bg-gray-100 text-[var(--text-muted)] px-2 py-0.5 rounded">
                             {sp}
                           </span>
                         ))}
@@ -236,7 +236,7 @@ export default function MarketplacePage() {
                         <span className="text-yellow-500">★</span>
                         <span className="font-medium">{surveyor.rating}</span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{surveyor.projects} projects</p>
+                      <p className="text-sm text-[var(--text-muted)] mb-2">{surveyor.projects} projects</p>
                       <p className="font-semibold text-green-600">${surveyor.hourlyRate}/hr</p>
                     </div>
                   </div>

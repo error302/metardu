@@ -235,14 +235,14 @@ export default function LevelingCalculator() {
             <div className="mt-4">
               <button 
                 onClick={() => setShowProfile(!showProfile)}
-                className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded"
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded"
               >
                 {showProfile ? 'Hide Profile' : 'View Profile'}
               </button>
               
               {showProfile && (
-                <div className="mt-4 bg-gray-900/50 border border-gray-800 rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-200 mb-4">Longitudinal Profile</h3>
+                <div className="mt-4 bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-xl p-4">
+                  <h3 className="font-semibold text-[var(--text-primary)] mb-4">Longitudinal Profile</h3>
                   <LevelingProfile readings={result.readings} />
                 </div>
               )}
@@ -287,7 +287,7 @@ function LevelingProfile({ readings }: { readings: any[] }) {
   }).join(' ');
 
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} className="bg-gray-900 rounded border border-amber-500/30">
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} className="bg-[var(--bg-secondary)] rounded border border-amber-500/30">
       <defs>
         <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
           <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5"/>

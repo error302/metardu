@@ -58,14 +58,14 @@ export default function GNSSBaselinePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">GNSS Baseline Processing</h1>
-        <p className="text-gray-600 mb-8">Upload RINEX or proprietary GNSS baseline files for processing</p>
+        <p className="text-[var(--text-muted)] mb-8">Upload RINEX or proprietary GNSS baseline files for processing</p>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm p-4">
             <h3 className="font-semibold text-gray-800 mb-3">Base Station Coordinates</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Easting (m)</label>
+                <label className="block text-sm text-[var(--text-muted)] mb-1">Easting (m)</label>
                 <input
                   type="number"
                   value={baseCoords.easting}
@@ -74,7 +74,7 @@ export default function GNSSBaselinePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Northing (m)</label>
+                <label className="block text-sm text-[var(--text-muted)] mb-1">Northing (m)</label>
                 <input
                   type="number"
                   value={baseCoords.northing}
@@ -83,7 +83,7 @@ export default function GNSSBaselinePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Elevation (m)</label>
+                <label className="block text-sm text-[var(--text-muted)] mb-1">Elevation (m)</label>
                 <input
                   type="number"
                   value={baseCoords.elevation}
@@ -96,7 +96,7 @@ export default function GNSSBaselinePage() {
 
           <div className="bg-white rounded-xl shadow-sm p-4">
             <h3 className="font-semibold text-gray-800 mb-3">Supported Formats</h3>
-            <ul className="text-sm text-gray-600 space-y-2">
+            <ul className="text-sm text-[var(--text-muted)] space-y-2">
               <li>✓ RINEX (.rnx, .obs)</li>
               <li>✓ Topcon (.top, .tps)</li>
               <li>✓ Trimble (.tin, .tnx)</li>
@@ -124,8 +124,8 @@ export default function GNSSBaselinePage() {
             className="hidden"
           />
           <div className="text-4xl mb-3">📡</div>
-          <p className="text-gray-700 mb-2">Drag & drop GNSS baseline file here</p>
-          <p className="text-gray-500 text-sm mb-4">or</p>
+          <p className="text-[var(--text-muted)] mb-2">Drag & drop GNSS baseline file here</p>
+          <p className="text-[var(--text-muted)] text-sm mb-4">or</p>
           <button
             onClick={() => inputRef.current?.click()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -139,15 +139,15 @@ export default function GNSSBaselinePage() {
             <h3 className="font-semibold text-gray-800 mb-4">Uploaded File</h3>
             <div className="grid md:grid-cols-3 gap-4 text-sm">
               <div>
-                <span className="text-gray-500">Filename:</span>
+                <span className="text-[var(--text-muted)]">Filename:</span>
                 <p className="font-medium">{file.filename}</p>
               </div>
               <div>
-                <span className="text-gray-500">Format:</span>
+                <span className="text-[var(--text-muted)]">Format:</span>
                 <p className="font-medium uppercase">{file.format}</p>
               </div>
               <div>
-                <span className="text-gray-500">Status:</span>
+                <span className="text-[var(--text-muted)]">Status:</span>
                 <p className={`font-medium ${
                   file.status === 'completed' ? 'text-green-600' :
                   file.status === 'failed' ? 'text-red-600' :
@@ -182,16 +182,16 @@ export default function GNSSBaselinePage() {
             
             <div className="grid md:grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-500">Solution Type</p>
+                <p className="text-sm text-[var(--text-muted)]">Solution Type</p>
                 <p className="text-lg font-bold text-blue-600">{result.solutionType.toUpperCase()}</p>
-                <p className="text-xs text-gray-500 mt-1">{getSolutionQualityDescription(result.solutionType)}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">{getSolutionQualityDescription(result.solutionType)}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-500">PDOP</p>
+                <p className="text-sm text-[var(--text-muted)]">PDOP</p>
                 <p className="text-lg font-bold">{result.pdop.toFixed(2)}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-500">RMS</p>
+                <p className="text-sm text-[var(--text-muted)]">RMS</p>
                 <p className="text-lg font-bold">{(result.rms * 100).toFixed(1)} cm</p>
               </div>
             </div>

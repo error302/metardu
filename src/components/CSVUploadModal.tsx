@@ -113,7 +113,7 @@ export default function CSVUploadModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70" onClick={handleClose}></div>
       <div className="relative bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-        <h2 className="text-xl font-bold text-gray-100 mb-4">Upload CSV</h2>
+        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Upload CSV</h2>
 
         {error && (
           <div className="mb-4 p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
@@ -123,7 +123,7 @@ export default function CSVUploadModal({
 
         {step === 'upload' && (
           <div className="space-y-4">
-            <p className="text-gray-400 text-sm">
+            <p className="text-[var(--text-secondary)] text-sm">
               Upload a CSV file with columns: Point Name, Easting, Northing, Elevation (optional)
             </p>
             <div className="border-2 border-dashed border-[var(--border-color)] rounded-lg p-8 text-center">
@@ -141,10 +141,10 @@ export default function CSVUploadModal({
               >
                 {loading ? 'Parsing...' : 'Choose File'}
               </label>
-              <p className="text-gray-500 text-sm mt-2">or drag and drop</p>
+              <p className="text-[var(--text-muted)] text-sm mt-2">or drag and drop</p>
             </div>
-            <div className="text-xs text-gray-500">
-              <p className="font-semibold text-gray-400 mb-1">Expected format:</p>
+            <div className="text-xs text-[var(--text-muted)]">
+              <p className="font-semibold text-[var(--text-secondary)] mb-1">Expected format:</p>
               <code className="block bg-[var(--bg-tertiary)] p-2 rounded">
                 POINT,EASTING,NORTHING,ELEVATION<br />
                 TP01,123456.7890,9876543.210,100.5<br />
@@ -157,12 +157,12 @@ export default function CSVUploadModal({
         {step === 'preview' && (
           <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
             <div className="flex items-center justify-between">
-              <p className="text-gray-300">
+              <p className="text-[var(--text-primary)]">
                 Found <span className="text-[#E8841A] font-bold">{parsedPoints.length}</span> points
               </p>
               <button
                 onClick={handleClose}
-                className="text-gray-400 hover:text-gray-200"
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               >
                 ×
               </button>
@@ -184,25 +184,25 @@ export default function CSVUploadModal({
               <table className="w-full text-sm">
                 <thead className="bg-[var(--bg-tertiary)] sticky top-0">
                   <tr>
-                    <th className="px-3 py-2 text-left text-gray-300 font-semibold">Point</th>
-                    <th className="px-3 py-2 text-left text-gray-300 font-semibold">Easting</th>
-                    <th className="px-3 py-2 text-left text-gray-300 font-semibold">Northing</th>
-                    <th className="px-3 py-2 text-left text-gray-300 font-semibold">Elevation</th>
+                    <th className="px-3 py-2 text-left text-[var(--text-primary)] font-semibold">Point</th>
+                    <th className="px-3 py-2 text-left text-[var(--text-primary)] font-semibold">Easting</th>
+                    <th className="px-3 py-2 text-left text-[var(--text-primary)] font-semibold">Northing</th>
+                    <th className="px-3 py-2 text-left text-[var(--text-primary)] font-semibold">Elevation</th>
                   </tr>
                 </thead>
                 <tbody>
                   {parsedPoints.slice(0, 50).map((point, idx) => (
                     <tr key={idx} className="border-t border-[var(--border-color)]">
-                      <td className="px-3 py-2 font-mono text-gray-100">{point.name}</td>
-                      <td className="px-3 py-2 font-mono text-gray-300">{point.easting.toFixed(4)}</td>
-                      <td className="px-3 py-2 font-mono text-gray-300">{point.northing.toFixed(4)}</td>
-                      <td className="px-3 py-2 font-mono text-gray-300">{point.elevation.toFixed(3)}</td>
+                      <td className="px-3 py-2 font-mono text-[var(--text-primary)]">{point.name}</td>
+                      <td className="px-3 py-2 font-mono text-[var(--text-primary)]">{point.easting.toFixed(4)}</td>
+                      <td className="px-3 py-2 font-mono text-[var(--text-primary)]">{point.northing.toFixed(4)}</td>
+                      <td className="px-3 py-2 font-mono text-[var(--text-primary)]">{point.elevation.toFixed(3)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               {parsedPoints.length > 50 && (
-                <p className="text-center text-gray-500 py-2 text-sm">
+                <p className="text-center text-[var(--text-muted)] py-2 text-sm">
                   ...and {parsedPoints.length - 50} more points
                 </p>
               )}
@@ -211,7 +211,7 @@ export default function CSVUploadModal({
             <div className="flex gap-3">
               <button
                 onClick={handleClose}
-                className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 rounded transition-colors"
+                className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded transition-colors"
               >
                 Cancel
               </button>
@@ -229,7 +229,7 @@ export default function CSVUploadModal({
         {step === 'importing' && (
           <div className="py-12 text-center">
             <div className="animate-spin w-8 h-8 border-2 border-[#E8841A] border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-gray-300">Importing points...</p>
+            <p className="text-[var(--text-primary)]">Importing points...</p>
           </div>
         )}
       </div>

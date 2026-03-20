@@ -218,12 +218,12 @@ export default function DroneSurveyPage() {
             <div className="card-header">
               <span className="label">Survey Area Boundary</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Enter the survey area boundaries. GeoNova will suggest optimal GCP distribution.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Min Easting</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Min Easting</label>
                 <input 
                   className="input" 
                   type="number"
@@ -232,7 +232,7 @@ export default function DroneSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Max Easting</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Max Easting</label>
                 <input 
                   className="input" 
                   type="number"
@@ -241,7 +241,7 @@ export default function DroneSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Min Northing</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Min Northing</label>
                 <input 
                   className="input" 
                   type="number"
@@ -250,7 +250,7 @@ export default function DroneSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Max Northing</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Max Northing</label>
                 <input 
                   className="input" 
                   type="number"
@@ -267,7 +267,7 @@ export default function DroneSurveyPage() {
             </div>
             <div className="flex gap-4 items-end mb-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Number of GCPs (min 5)</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Number of GCPs (min 5)</label>
                 <input 
                   className="input w-32" 
                   type="number"
@@ -321,7 +321,7 @@ export default function DroneSurveyPage() {
                 </table>
               </div>
 
-              <div className="mt-4 p-4 bg-gray-800 rounded">
+              <div className="mt-4 p-4 bg-[var(--bg-tertiary)] rounded">
                 <h4 className="font-semibold mb-2">GCP Distribution Map</h4>
                 <svg viewBox="0 0 400 250" className="w-full h-48 bg-[var(--bg-secondary)] rounded">
                   <rect x="20" y="20" width="360" height="210" fill="none" stroke="#444" strokeWidth="2" />
@@ -352,22 +352,22 @@ export default function DroneSurveyPage() {
             <div className="card-header">
               <span className="label">GCP Setting Out</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Navigate to each GCP position and mark the physical target on the ground.
             </p>
 
             {gcps.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-[var(--text-secondary)]">
                 <p>No GCPs planned yet.</p>
                 <p className="text-sm">Go to GCP Planning to generate points.</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {gcps.filter(g => g.status !== 'measured').map((g, idx) => (
-                  <div key={g.id} className="p-4 bg-gray-800 rounded flex justify-between items-center">
+                  <div key={g.id} className="p-4 bg-[var(--bg-tertiary)] rounded flex justify-between items-center">
                     <div>
                       <div className="font-semibold text-lg">{g.name}</div>
-                      <div className="font-mono text-sm text-gray-400">
+                      <div className="font-mono text-sm text-[var(--text-secondary)]">
                         E: {g.easting} m | N: {g.northing} m
                       </div>
                     </div>
@@ -397,7 +397,7 @@ export default function DroneSurveyPage() {
             <div className="card-header">
               <span className="label">Accuracy Check Points</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Enter independently surveyed coordinates and drone-computed coordinates to compare.
             </p>
             <div className="overflow-x-auto">
@@ -450,14 +450,14 @@ export default function DroneSurveyPage() {
                   className={`px-4 py-2 rounded text-sm ${
                     selectedClass.name === c.name 
                       ? 'bg-[var(--accent)] text-white' 
-                      : 'bg-gray-800'
+                      : 'bg-[var(--bg-tertiary)]'
                   }`}
                 >
                   {c.name} ({c.scale})
                 </button>
               ))}
             </div>
-            <div className="mt-4 text-sm text-gray-400">
+            <div className="mt-4 text-sm text-[var(--text-secondary)]">
               <div>Horizontal limit: ≤ {selectedClass.horizontal} m</div>
               <div>Vertical limit: ≤ {selectedClass.vertical} m</div>
             </div>
@@ -503,25 +503,25 @@ export default function DroneSurveyPage() {
                 </table>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-800 rounded">
+              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-[var(--bg-tertiary)] rounded">
                 <div>
-                  <span className="text-gray-400 text-sm">Horizontal RMSE</span>
+                  <span className="text-[var(--text-secondary)] text-sm">Horizontal RMSE</span>
                   <div className={`font-mono text-xl ${accuracyResults.horizontalPass ? 'text-green-400' : 'text-red-400'}`}>
                     {formatNumber(accuracyResults.hRMSE, 4)} m
                   </div>
                 </div>
                 <div>
-                  <span className="text-gray-400 text-sm">Vertical RMSE</span>
+                  <span className="text-[var(--text-secondary)] text-sm">Vertical RMSE</span>
                   <div className={`font-mono text-xl ${accuracyResults.verticalPass ? 'text-green-400' : 'text-red-400'}`}>
                     {formatNumber(accuracyResults.vRMSE, 4)} m
                   </div>
                 </div>
                 <div>
-                  <span className="text-gray-400 text-sm">Max Horizontal</span>
+                  <span className="text-[var(--text-secondary)] text-sm">Max Horizontal</span>
                   <div className="font-mono text-xl">{formatNumber(accuracyResults.maxHorizontal, 4)} m</div>
                 </div>
                 <div>
-                  <span className="text-gray-400 text-sm">Max 3D Error</span>
+                  <span className="text-[var(--text-secondary)] text-sm">Max 3D Error</span>
                   <div className="font-mono text-xl">{formatNumber(accuracyResults.max3D, 4)} m</div>
                 </div>
               </div>
@@ -542,72 +542,72 @@ export default function DroneSurveyPage() {
             <div className="card-header">
               <span className="label">Drone Survey Report</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Generate a professional drone survey report with GCP list, accuracy check, and statistics.
             </p>
 
             <div className="space-y-4">
-              <div className="p-4 bg-gray-800 rounded">
+              <div className="p-4 bg-[var(--bg-tertiary)] rounded">
                 <h4 className="font-semibold mb-2">1. GCP Summary</h4>
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-400">Total GCPs:</span>
+                    <span className="text-[var(--text-secondary)]">Total GCPs:</span>
                     <span className="ml-2">{gcps.length || '—'}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">Measured:</span>
+                    <span className="text-[var(--text-secondary)]">Measured:</span>
                     <span className="ml-2">{gcps.filter(g => g.status === 'measured').length}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">Planned:</span>
+                    <span className="text-[var(--text-secondary)]">Planned:</span>
                     <span className="ml-2">{gcps.filter(g => g.status === 'planned').length}</span>
                   </div>
                 </div>
               </div>
 
               {accuracyResults && (
-                <div className="p-4 bg-gray-800 rounded">
+                <div className="p-4 bg-[var(--bg-tertiary)] rounded">
                   <h4 className="font-semibold mb-2">2. Accuracy Assessment</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                     <div>
-                      <span className="text-gray-400">Accuracy Class:</span>
+                      <span className="text-[var(--text-secondary)]">Accuracy Class:</span>
                       <span className="ml-2">{selectedClass.name} ({selectedClass.scale})</span>
                     </div>
                     <div>
-                      <span className="text-gray-400">Result:</span>
+                      <span className="text-[var(--text-secondary)]">Result:</span>
                       <span className={`ml-2 font-semibold ${accuracyResults.pass ? 'text-green-400' : 'text-red-400'}`}>
                         {accuracyResults.pass ? 'PASS' : 'FAIL'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-400">Horizontal RMSE:</span>
+                      <span className="text-[var(--text-secondary)]">Horizontal RMSE:</span>
                       <span className="ml-2">{formatNumber(accuracyResults.hRMSE, 4)} m</span>
                     </div>
                     <div>
-                      <span className="text-gray-400">Vertical RMSE:</span>
+                      <span className="text-[var(--text-secondary)]">Vertical RMSE:</span>
                       <span className="ml-2">{formatNumber(accuracyResults.vRMSE, 4)} m</span>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="p-4 bg-gray-800 rounded">
+              <div className="p-4 bg-[var(--bg-tertiary)] rounded">
                 <h4 className="font-semibold mb-2">3. Flight Parameters</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <label className="block text-gray-400 mb-1">Flying Height (m)</label>
+                    <label className="block text-[var(--text-secondary)] mb-1">Flying Height (m)</label>
                     <input className="input" type="number" placeholder="120" />
                   </div>
                   <div>
-                    <label className="block text-gray-400 mb-1">GSD (cm/px)</label>
+                    <label className="block text-[var(--text-secondary)] mb-1">GSD (cm/px)</label>
                     <input className="input" type="number" placeholder="3.0" />
                   </div>
                   <div>
-                    <label className="block text-gray-400 mb-1">Overlap Front (%)</label>
+                    <label className="block text-[var(--text-secondary)] mb-1">Overlap Front (%)</label>
                     <input className="input" type="number" placeholder="80" />
                   </div>
                   <div>
-                    <label className="block text-gray-400 mb-1">Overlap Side (%)</label>
+                    <label className="block text-[var(--text-secondary)] mb-1">Overlap Side (%)</label>
                     <input className="input" type="number" placeholder="70" />
                   </div>
                 </div>

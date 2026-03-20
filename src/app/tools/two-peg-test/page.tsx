@@ -38,8 +38,8 @@ export default function TwoPegTestCalculator() {
         <div className="card">
           <div className="card-header"><span className="label">Staff Readings</span></div>
           <div className="card-body space-y-4">
-            <div className="border-b border-gray-700 pb-4 mb-4">
-              <div className="text-sm text-gray-400 mb-3">Instrument Position 1</div>
+            <div className="border-b border-[var(--border-color)] pb-4 mb-4">
+              <div className="text-sm text-[var(--text-secondary)] mb-3">Instrument Position 1</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Staff at A (m)</label>
@@ -52,7 +52,7 @@ export default function TwoPegTestCalculator() {
               </div>
             </div>
             <div>
-              <div className="text-sm text-gray-400 mb-3">Instrument Position 2</div>
+              <div className="text-sm text-[var(--text-secondary)] mb-3">Instrument Position 2</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Staff at A (m)</label>

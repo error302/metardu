@@ -106,17 +106,17 @@ export default function NewProjectPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
-      <header className="border-b border-gray-800 bg-[var(--bg-card)]">
+      <header className="border-b border-[var(--border-color)] bg-[var(--bg-card)]">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center">
           <a href="/dashboard" className="text-2xl font-bold" style={{ color: '#E8841A' }}>
             GEONOVA
           </a>
-          <span className="ml-4 text-gray-400">/ New Project</span>
+          <span className="ml-4 text-[var(--text-secondary)]">/ New Project</span>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-100 mb-8">Create New Project</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-8">Create New Project</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
@@ -130,35 +130,35 @@ export default function NewProjectPage() {
           )}
 
           <div>
-            <label className="block text-sm text-gray-300 mb-2">Project Name *</label>
+            <label className="block text-sm text-[var(--text-primary)] mb-2">Project Name *</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)]"
               required
               placeholder="My Survey Project"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-300 mb-2">Location / Description</label>
+            <label className="block text-sm text-[var(--text-primary)] mb-2">Location / Description</label>
             <textarea
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100 h-24 resize-none"
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)] h-24 resize-none"
               placeholder="Project location or description..."
             />
           </div>
 
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm text-gray-300 mb-2">UTM Zone (1-60)</label>
+              <label className="block text-sm text-[var(--text-primary)] mb-2">UTM Zone (1-60)</label>
               <input
                 type="number"
                 value={utmZone}
                 onChange={(e) => setUtmZone(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)]"
                 min={1}
                 max={60}
                 required
@@ -171,11 +171,11 @@ export default function NewProjectPage() {
             </div>
 
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Hemisphere</label>
+              <label className="block text-sm text-[var(--text-primary)] mb-2">Hemisphere</label>
               <select
                 value={hemisphere}
                 onChange={(e) => setHemisphere(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)]"
               >
                 <option value="N">N — Northern</option>
                 <option value="S">S — Southern</option>
@@ -194,11 +194,11 @@ export default function NewProjectPage() {
           </button>
 
           <div>
-            <label className="block text-sm text-gray-300 mb-2">Survey Type</label>
+            <label className="block text-sm text-[var(--text-primary)] mb-2">Survey Type</label>
             <select
               value={surveyType}
               onChange={(e) => setSurveyType(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)]"
             >
               <option value="boundary">Boundary Survey</option>
               <option value="topographic">Topographic Survey</option>
@@ -216,23 +216,23 @@ export default function NewProjectPage() {
 
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Client Name</label>
+              <label className="block text-sm text-[var(--text-primary)] mb-2">Client Name</label>
               <input
                 type="text"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)]"
                 placeholder="e.g., Kenya National Highways Authority"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Surveyor Name</label>
+              <label className="block text-sm text-[var(--text-primary)] mb-2">Surveyor Name</label>
               <input
                 type="text"
                 value={surveyorName}
                 onChange={(e) => setSurveyorName(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)]"
                 placeholder="Your name or company"
               />
             </div>
@@ -241,7 +241,7 @@ export default function NewProjectPage() {
           <div className="flex gap-4 pt-4">
             <a
               href="/dashboard"
-              className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
+              className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded transition-colors"
             >
               Cancel
             </a>
@@ -255,9 +255,9 @@ export default function NewProjectPage() {
           </div>
         </form>
 
-        <div className="mt-12 p-4 bg-[var(--bg-card)] rounded-lg border border-gray-800">
-          <h3 className="text-gray-400 text-sm font-medium mb-3">UTM Zone Reference</h3>
-          <div className="grid grid-cols-4 gap-2 text-xs text-gray-500">
+        <div className="mt-12 p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)]">
+          <h3 className="text-[var(--text-secondary)] text-sm font-medium mb-3">UTM Zone Reference</h3>
+          <div className="grid grid-cols-4 gap-2 text-xs text-[var(--text-muted)]">
             <div><span className="text-amber-500">28-30</span> West Africa</div>
             <div><span className="text-amber-500">31-32</span> Central Africa</div>
             <div><span className="text-amber-500">33-37</span> East Africa</div>

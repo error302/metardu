@@ -322,7 +322,7 @@ export default function ProcessPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-3xl font-bold mb-2">Process Field Notes</h1>
-      <p className="text-sm text-gray-500 mb-8">
+      <p className="text-sm text-[var(--text-muted)] mb-8">
         Upload your CSV field notes — GeoNova detects the survey type and processes automatically
       </p>
 
@@ -341,10 +341,10 @@ export default function ProcessPage() {
             onClick={() => fileInputRef.current?.click()}
           >
             <div className="text-6xl mb-4">📋</div>
-            <p className="text-lg font-semibold text-gray-200 mb-2">
+            <p className="text-lg font-semibold text-[var(--text-primary)] mb-2">
               Drop your field notes here or click to upload
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[var(--text-muted)]">
               Accepts: .csv, .txt files
             </p>
             <input
@@ -357,15 +357,15 @@ export default function ProcessPage() {
           </div>
 
           <div className="mt-8 p-6 bg-[var(--bg-secondary)]/50 rounded-xl border border-[var(--border-color)]">
-            <h3 className="text-sm font-semibold text-gray-400 mb-4">Download Sample Files</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-4">Download Sample Files</h3>
             <div className="flex flex-wrap gap-3">
-              <a href="/sample-files/traverse_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded text-sm">
+              <a href="/sample-files/traverse_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm">
                 📄 Traverse Sample
               </a>
-              <a href="/sample-files/leveling_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded text-sm">
+              <a href="/sample-files/leveling_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm">
                 📄 Leveling Sample
               </a>
-              <a href="/sample-files/radiation_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded text-sm">
+              <a href="/sample-files/radiation_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm">
                 📄 Radiation Sample
               </a>
             </div>
@@ -381,14 +381,14 @@ export default function ProcessPage() {
               </span>
             </div>
             <div className="card-body">
-              <p className="text-sm text-gray-300 mb-4">
+              <p className="text-sm text-[var(--text-primary)] mb-4">
                 {interpretResult.dataset!.observations.length} observations found
               </p>
 
               <div className="bg-[var(--bg-tertiary)] rounded p-3 overflow-x-auto">
                 <table className="text-xs w-full">
                   <thead>
-                    <tr className="text-gray-500">
+                    <tr className="text-[var(--text-muted)]">
                       <th className="px-2 py-1 text-left">Station</th>
                       <th className="px-2 py-1 text-left">Type</th>
                       <th className="px-2 py-1 text-right">Value</th>
@@ -417,7 +417,7 @@ export default function ProcessPage() {
               {!processed && (
                 <>
                   <div className="mt-6">
-                    <label className="block text-sm text-gray-400 mb-2">Tolerance Profile</label>
+                    <label className="block text-sm text-[var(--text-secondary)] mb-2">Tolerance Profile</label>
                     <div className="grid grid-cols-3 gap-3">
                       {getAllToleranceProfiles().map(profile => (
                         <button
@@ -429,9 +429,9 @@ export default function ProcessPage() {
                               : 'border-[var(--border-color)] hover:border-gray-600'
                           }`}
                         >
-                          <div className="font-medium text-gray-200 capitalize">{getToleranceConfig(profile).name}</div>
-                          <div className="text-xs text-gray-500 mt-1">{getToleranceConfig(profile).description}</div>
-                          <div className="text-xs text-gray-600 mt-2">1:{getToleranceConfig(profile).linearPrecision}</div>
+                          <div className="font-medium text-[var(--text-primary)] capitalize">{getToleranceConfig(profile).name}</div>
+                          <div className="text-xs text-[var(--text-muted)] mt-1">{getToleranceConfig(profile).description}</div>
+                          <div className="text-xs text-[var(--text-muted)] mt-2">1:{getToleranceConfig(profile).linearPrecision}</div>
                         </button>
                       ))}
                     </div>
@@ -454,7 +454,7 @@ export default function ProcessPage() {
                         setWorkflowSolutions([])
                         setToleranceResult(null)
                       }}
-                      className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded-lg"
+                      className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded-lg"
                     >
                       Upload Different File
                     </button>
@@ -472,7 +472,7 @@ export default function ProcessPage() {
                   <span className="font-semibold">
                     Tolerance Check: {toleranceResult?.passed ? 'PASS' : 'FAIL'}
                   </span>
-                  <span className="text-sm text-gray-500 ml-auto">
+                  <span className="text-sm text-[var(--text-muted)] ml-auto">
                     {toleranceResult?.precisionGrade}
                   </span>
                 </div>
@@ -511,7 +511,7 @@ export default function ProcessPage() {
                   <div className="card-body overflow-x-auto">
                     <table className="text-xs w-full">
                       <thead>
-                        <tr className="text-gray-500 border-b border-[var(--border-color)]">
+                        <tr className="text-[var(--text-muted)] border-b border-[var(--border-color)]">
                           <th className="px-2 py-2 text-left">From</th>
                           <th className="px-2 py-2 text-left">To</th>
                           <th className="px-2 py-2 text-right">Dist</th>
@@ -545,7 +545,7 @@ export default function ProcessPage() {
                   <div className="card-body overflow-x-auto">
                     <table className="text-xs w-full">
                       <thead>
-                        <tr className="text-gray-500 border-b border-[var(--border-color)]">
+                        <tr className="text-[var(--text-muted)] border-b border-[var(--border-color)]">
                           <th className="px-2 py-2 text-left">Station</th>
                           <th className="px-2 py-2 text-right">BS</th>
                           <th className="px-2 py-2 text-right">IS</th>
@@ -581,7 +581,7 @@ export default function ProcessPage() {
                     <select
                       value={selectedProjectId}
                       onChange={(e) => setSelectedProjectId(e.target.value)}
-                      className="flex-1 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-gray-200"
+                      className="flex-1 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)]"
                     >
                       <option value="">Select a project...</option>
                       {projects.map(p => (
@@ -599,10 +599,10 @@ export default function ProcessPage() {
                   </div>
 
                   <div className="flex gap-3 pt-2">
-                    <Link href="/dashboard" className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded-lg text-center">
+                    <Link href="/dashboard" className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded-lg text-center">
                       View Projects
                     </Link>
-                    <button className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 rounded-lg">
+                    <button className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded-lg">
                       Generate PDF Report
                     </button>
                   </div>
@@ -617,7 +617,7 @@ export default function ProcessPage() {
             <span className="font-semibold text-red-400">Upload Failed</span>
           </div>
           <div className="card-body">
-            <p className="text-gray-300 mb-4">
+            <p className="text-[var(--text-primary)] mb-4">
               {interpretResult?.error || 'Could not parse the uploaded file'}
             </p>
             {interpretResult?.warnings.map((w, i) => (
@@ -625,7 +625,7 @@ export default function ProcessPage() {
             ))}
             
             <div className="mt-6 p-4 bg-[var(--bg-tertiary)] rounded">
-              <p className="text-sm text-gray-400 mb-3">Or select survey type manually:</p>
+              <p className="text-sm text-[var(--text-secondary)] mb-3">Or select survey type manually:</p>
               <select
                 value={manualType}
                 onChange={(e) => setManualType(e.target.value)}

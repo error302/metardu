@@ -63,7 +63,7 @@ export default function FeedbackWidget() {
     <div className="fixed bottom-6 right-6 bg-[var(--bg-secondary)] border border-[#222] rounded-xl shadow-2xl w-80 z-50 overflow-hidden">
       <div className="bg-[#E8841A] px-4 py-3 flex justify-between items-center">
         <h3 className="text-black font-bold">Feedback</h3>
-        <button onClick={() => setIsOpen(false)} className="text-black hover:text-gray-700">
+        <button onClick={() => setIsOpen(false)} className="text-black hover:text-[var(--text-muted)]">
           ✕
         </button>
       </div>
@@ -75,7 +75,7 @@ export default function FeedbackWidget() {
               <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
             </div>
             <p className="text-green-500 font-medium">Thank you!</p>
-            <p className="text-gray-400 text-sm">Your feedback has been submitted.</p>
+            <p className="text-[var(--text-secondary)] text-sm">Your feedback has been submitted.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -88,7 +88,7 @@ export default function FeedbackWidget() {
                   className={`flex-1 py-2 rounded text-xs font-medium capitalize transition-colors ${
                     type === t
                       ? 'bg-[#E8841A] text-black'
-                      : 'bg-[#1e293b] text-gray-400 hover:text-white'
+                      : 'bg-[#1e293b] text-[var(--text-secondary)] hover:text-white'
                   }`}
                 >
                   {t === 'bug' ? 'Bug report' : t === 'feature' ? 'Feature idea' : 'General'}

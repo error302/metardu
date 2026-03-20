@@ -201,7 +201,7 @@ export default function AddPointModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70" onClick={onClose}></div>
       <div className="relative bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold text-gray-100 mb-4">
+        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">
           {isEditMode ? 'Edit Survey Point' : 'Add Survey Point'}
         </h2>
         
@@ -213,12 +213,12 @@ export default function AddPointModal({
           )}
 
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Point Name *</label>
+            <label className="block text-sm text-[var(--text-primary)] mb-1">Point Name *</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-gray-100 font-mono"
+              className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)] font-mono"
               placeholder="e.g., TP01, BM1"
               required
             />
@@ -226,37 +226,37 @@ export default function AddPointModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Easting (m) *</label>
+              <label className="block text-sm text-[var(--text-primary)] mb-1">Easting (m) *</label>
               <input
                 type="number"
                 step="0.0001"
                 value={easting}
                 onChange={(e) => setEasting(e.target.value)}
-                className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-gray-100 font-mono"
+                className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)] font-mono"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Northing (m) *</label>
+              <label className="block text-sm text-[var(--text-primary)] mb-1">Northing (m) *</label>
               <input
                 type="number"
                 step="0.0001"
                 value={northing}
                 onChange={(e) => setNorthing(e.target.value)}
-                className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-gray-100 font-mono"
+                className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)] font-mono"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Elevation (m)</label>
+            <label className="block text-sm text-[var(--text-primary)] mb-1">Elevation (m)</label>
             <input
               type="number"
               step="0.001"
               value={elevation}
               onChange={(e) => setElevation(e.target.value)}
-              className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-gray-100 font-mono"
+              className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)] font-mono"
             />
           </div>
 
@@ -268,7 +268,7 @@ export default function AddPointModal({
               onChange={(e) => setIsControl(e.target.checked)}
               className="w-4 h-4 rounded bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[#E8841A] focus:ring-[#E8841A]"
             />
-            <label htmlFor="isControl" className="text-sm text-gray-300">
+            <label htmlFor="isControl" className="text-sm text-[var(--text-primary)]">
               This is a control point
             </label>
           </div>
@@ -276,11 +276,11 @@ export default function AddPointModal({
           {isControl && (
             <div className="pl-6 space-y-3 border-l-2 border-[var(--border-color)]">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Control Classification</label>
+                <label className="block text-sm text-[var(--text-primary)] mb-1">Control Classification</label>
                 <select
                   value={controlOrder}
                   onChange={(e) => setControlOrder(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-gray-100"
+                  className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[#E8841A] focus:outline-none text-[var(--text-primary)]"
                 >
                   <option value="primary">Primary Control</option>
                   <option value="secondary">Secondary Control</option>
@@ -295,7 +295,7 @@ export default function AddPointModal({
                   onChange={(e) => setLocked(e.target.checked)}
                   className="w-4 h-4 rounded bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[#E8841A] focus:ring-[#E8841A]"
                 />
-                <label htmlFor="locked" className="text-sm text-gray-300">
+                <label htmlFor="locked" className="text-sm text-[var(--text-primary)]">
                   🔒 Lock this point (prevent edit/delete)
                 </label>
               </div>
@@ -312,7 +312,7 @@ export default function AddPointModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 rounded transition-colors"
+              className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded transition-colors"
             >
               Cancel
             </button>
@@ -321,7 +321,7 @@ export default function AddPointModal({
                 type="button"
                 onClick={handleSaveAndAddAnother}
                 disabled={loading || !name || !easting || !northing}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-[var(--text-primary)] rounded transition-colors disabled:opacity-50"
               >
                 Save & Add Another
               </button>

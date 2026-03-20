@@ -74,7 +74,7 @@ export default function KencorsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">KenCORS RTK Corrections</h1>
-        <p className="text-gray-600 mb-8">Real-time corrections from Kenya's CORS network</p>
+        <p className="text-[var(--text-muted)] mb-8">Real-time corrections from Kenya's CORS network</p>
 
         <div className="grid md:grid-cols-3 gap-4 mb-6">
           {networkStatus.map(net => (
@@ -101,7 +101,7 @@ export default function KencorsPage() {
           <h2 className="text-xl font-semibold mb-4">Get RTK Corrections</h2>
           <div className="grid md:grid-cols-4 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+              <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Latitude</label>
               <input
                 type="number"
                 step="any"
@@ -111,7 +111,7 @@ export default function KencorsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+              <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Longitude</label>
               <input
                 type="number"
                 step="any"
@@ -121,7 +121,7 @@ export default function KencorsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Network</label>
+              <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Network</label>
               <select
                 value={gpsInput.network}
                 onChange={e => setGpsInput({ ...gpsInput, network: e.target.value })}
@@ -160,8 +160,8 @@ export default function KencorsPage() {
                       <span className="font-medium">{station.id}</span>
                       <span className={`w-2 h-2 rounded-full ${getStatusColor(station.status)}`} />
                     </div>
-                    <p className="text-sm text-gray-600">{station.name}</p>
-                    <p className="text-xs text-gray-500">{station.location}</p>
+                    <p className="text-sm text-[var(--text-muted)]">{station.name}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{station.location}</p>
                   </div>
                 ))}
               </div>
@@ -188,15 +188,15 @@ export default function KencorsPage() {
 
                 <div className="grid md:grid-cols-3 gap-4">
                   <div className="p-3 border rounded-lg">
-                    <p className="text-sm text-gray-600">Distance to Base</p>
+                    <p className="text-sm text-[var(--text-muted)]">Distance to Base</p>
                     <p className="font-medium">{rtkResult.corrections.distanceToBase} m</p>
                   </div>
                   <div className="p-3 border rounded-lg">
-                    <p className="text-sm text-gray-600">Data Age</p>
+                    <p className="text-sm text-[var(--text-muted)]">Data Age</p>
                     <p className="font-medium">{rtkResult.corrections.age} s</p>
                   </div>
                   <div className="p-3 border rounded-lg">
-                    <p className="text-sm text-gray-600">Ionospheric Condition</p>
+                    <p className="text-sm text-[var(--text-muted)]">Ionospheric Condition</p>
                     <p className={`font-medium capitalize ${
                       rtkResult.corrections.ionosphericCondition === 'normal' ? 'text-green-600' :
                       rtkResult.corrections.ionosphericCondition === 'elevated' ? 'text-yellow-600' :
@@ -218,7 +218,7 @@ export default function KencorsPage() {
                     {rtkResult.corrections.nearestStations.map((s: CORSStation) => (
                       <div key={s.id} className="flex justify-between text-sm">
                         <span>{s.name} ({s.id})</span>
-                        <span className="text-gray-500">{s.location}</span>
+                        <span className="text-[var(--text-muted)]">{s.location}</span>
                       </div>
                     ))}
                   </div>

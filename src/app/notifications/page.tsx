@@ -103,7 +103,7 @@ export default function NotificationsPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
-            <p className="text-gray-600">You have {unreadCount} unread notifications</p>
+            <p className="text-[var(--text-muted)]">You have {unreadCount} unread notifications</p>
           </div>
           <button
             onClick={markAllAsRead}
@@ -117,7 +117,7 @@ export default function NotificationsPage() {
           <button
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg font-medium ${
-              filter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'
+              filter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-[var(--text-muted)] border'
             }`}
           >
             All
@@ -125,7 +125,7 @@ export default function NotificationsPage() {
           <button
             onClick={() => setFilter('unread')}
             className={`px-4 py-2 rounded-lg font-medium ${
-              filter === 'unread' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'
+              filter === 'unread' ? 'bg-blue-600 text-white' : 'bg-white text-[var(--text-muted)] border'
             }`}
           >
             Unread ({unreadCount})
@@ -148,9 +148,9 @@ export default function NotificationsPage() {
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <h3 className="font-semibold text-gray-900">{notification.title}</h3>
-                    <span className="text-xs text-gray-500">{notification.time}</span>
+                    <span className="text-xs text-[var(--text-muted)]">{notification.time}</span>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                  <p className="text-sm text-[var(--text-muted)] mt-1">{notification.message}</p>
                   {notification.actionUrl && (
                     <a
                       href={notification.actionUrl}
@@ -170,7 +170,7 @@ export default function NotificationsPage() {
         </div>
 
         {filteredNotifications.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-[var(--text-muted)]">
             <div className="text-4xl mb-3">🔔</div>
             <p>No notifications</p>
           </div>

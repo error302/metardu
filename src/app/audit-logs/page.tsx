@@ -121,7 +121,7 @@ export default function AuditLogsPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Audit Logs</h1>
-          <p className="text-gray-600">Track all activities in your account</p>
+          <p className="text-[var(--text-muted)]">Track all activities in your account</p>
         </div>
 
         <div className="flex flex-wrap gap-4 mb-6">
@@ -151,12 +151,12 @@ export default function AuditLogsPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Action</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Resource</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">User</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Details</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">IP Address</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Timestamp</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--text-muted)]">Action</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--text-muted)]">Resource</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--text-muted)]">User</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--text-muted)]">Details</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--text-muted)]">IP Address</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--text-muted)]">Timestamp</th>
               </tr>
             </thead>
             <tbody>
@@ -169,13 +169,13 @@ export default function AuditLogsPage() {
                   </td>
                   <td className="py-3 px-4 text-sm">{log.resource}</td>
                   <td className="py-3 px-4 text-sm">{log.user}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600 max-w-xs truncate">
+                  <td className="py-3 px-4 text-sm text-[var(--text-muted)] max-w-xs truncate">
                     {log.details}
                   </td>
-                  <td className="py-3 px-4 text-sm font-mono text-gray-500">
+                  <td className="py-3 px-4 text-sm font-mono text-[var(--text-muted)]">
                     {log.ipAddress}
                   </td>
-                  <td className="py-3 px-4 text-sm text-gray-500">
+                  <td className="py-3 px-4 text-sm text-[var(--text-muted)]">
                     {log.timestamp}
                   </td>
                 </tr>
@@ -185,12 +185,12 @@ export default function AuditLogsPage() {
         </div>
 
         {filteredLogs.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-[var(--text-muted)]">
             <p>No logs found matching your criteria</p>
           </div>
         )}
 
-        <div className="mt-4 text-sm text-gray-500">
+        <div className="mt-4 text-sm text-[var(--text-muted)]">
           Showing {filteredLogs.length} of {logs.length} log entries
         </div>
       </div>

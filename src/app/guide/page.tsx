@@ -129,7 +129,7 @@ export default function GuidePage() {
       case 'Beginner': return 'text-green-400';
       case 'Intermediate': return 'text-yellow-400';
       case 'Advanced': return 'text-red-400';
-      default: return 'text-gray-400';
+      default: return 'text-[var(--text-secondary)]';
     }
   };
 
@@ -138,7 +138,7 @@ export default function GuidePage() {
       <div className="border-b border-[var(--border-color)] bg-[var(--bg-card)]">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-2">Survey Guide</h1>
-          <p className="text-gray-400">Select a survey workflow to get started</p>
+          <p className="text-[var(--text-secondary)]">Select a survey workflow to get started</p>
         </div>
       </div>
 
@@ -164,16 +164,16 @@ export default function GuidePage() {
                           style={{ width: `${progressPercent}%` }}
                         />
                       </div>
-                      <span className="text-xs text-gray-400">{completedSteps}/{guide.steps}</span>
+                      <span className="text-xs text-[var(--text-secondary)]">{completedSteps}/{guide.steps}</span>
                     </div>
                   )}
                 </div>
                 
                 <h3 className="text-xl font-semibold mb-2">{guide.name}</h3>
-                <p className="text-gray-400 text-sm mb-4">{guide.description}</p>
+                <p className="text-[var(--text-secondary)] text-sm mb-4">{guide.description}</p>
                 
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-500">{guide.time}</span>
+                  <span className="text-[var(--text-muted)]">{guide.time}</span>
                   <span className={getDifficultyColor(guide.difficulty)}>
                     {guide.difficulty}
                   </span>
@@ -201,7 +201,7 @@ export default function GuidePage() {
 
         <div className="mt-12 bg-[var(--bg-tertiary)]/30 border border-[var(--border-color)] rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-4">How Guides Work</h2>
-          <div className="grid md:grid-cols-3 gap-6 text-sm text-gray-400">
+          <div className="grid md:grid-cols-3 gap-6 text-sm text-[var(--text-secondary)]">
             <div>
               <div className="text-xl mb-2">👨‍🎓 👴</div>
               <h3 className="font-medium text-[var(--text-primary)] mb-1">Two Modes</h3>

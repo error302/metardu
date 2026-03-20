@@ -143,7 +143,7 @@ function DropdownGroup({
 }) {
   return (
     <div className="px-4 py-2">
-      <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">
+      <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-2">
         {t(titleKey)}
       </div>
       {items.map(item => (
@@ -151,7 +151,7 @@ function DropdownGroup({
           key={item.href}
           href={item.href}
           onClick={onSelect}
-          className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded"
+          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
         >
           <span className="inline-flex items-center gap-2">
             {item.icon ? <span aria-hidden>{item.icon}</span> : null}
@@ -236,7 +236,7 @@ function GlobalSearch({ t }: { t: Translator }) {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/50 border border-gray-700 rounded-lg text-sm text-gray-400 hover:border-[var(--accent)] transition-colors"
+        className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-tertiary)]/50 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:border-[var(--accent)] transition-colors"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -251,11 +251,11 @@ function GlobalSearch({ t }: { t: Translator }) {
           onClick={() => { setIsOpen(false); setQuery(''); }}
         >
           <div 
-            className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-xl shadow-2xl"
+            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl w-full max-w-xl shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3 p-4 border-b border-gray-800">
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-3 p-4 border-b border-[var(--border-color)]">
+              <svg className="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -266,11 +266,11 @@ function GlobalSearch({ t }: { t: Translator }) {
                 placeholder={t('nav.search')}
                 className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none"
               />
-              <kbd className="px-2 py-1 text-xs bg-gray-800 text-gray-400 rounded">ESC</kbd>
+              <kbd className="px-2 py-1 text-xs bg-[var(--bg-tertiary)] text-[var(--text-secondary)] rounded">ESC</kbd>
             </div>
             <div className="max-h-[60vh] overflow-y-auto p-2">
               {filtered.length === 0 ? (
-                <div className="p-4 text-sm text-gray-400">{t('common.noResults')}</div>
+                <div className="p-4 text-sm text-[var(--text-secondary)]">{t('common.noResults')}</div>
               ) : (
                 <div className="space-y-1">
                   {filtered.map((item) => (
@@ -281,10 +281,10 @@ function GlobalSearch({ t }: { t: Translator }) {
                         setIsOpen(false)
                         setQuery('')
                       }}
-                      className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-[var(--accent)] rounded-lg"
+                      className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] rounded-lg"
                     >
                       <span>{item.label}</span>
-                      <span className="text-xs text-gray-500">{item.group}</span>
+                      <span className="text-xs text-[var(--text-muted)]">{item.group}</span>
                     </Link>
                   ))}
                 </div>
@@ -431,30 +431,30 @@ export default function NavBar() {
               ))}
               <div className="border-t border-white/5 my-1" />
               <div className="px-4 py-2">
-                <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">{t('nav.online')}</div>
-                <Link href="/online" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-2">{t('nav.online')}</div>
+                <Link href="/online" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded">
                   {t('online.coordinateServices')}
                 </Link>
-                <Link href="/parcel" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                <Link href="/parcel" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded">
                   {t('online.parcelIntelligence')}
                 </Link>
-                <Link href="/kencors" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                <Link href="/kencors" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded">
                   {t('online.kencorsRtk')}
                 </Link>
-                <Link href="/equipment" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                <Link href="/equipment" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded">
                   {t('online.equipmentTracker')}
                 </Link>
-                <Link href="/digital-signature" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                <Link href="/digital-signature" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded">
                   {t('online.digitalSignature')}
                 </Link>
               </div>
               <div className="border-t border-white/5 my-1" />
               <div className="px-4 py-2">
-                <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">{t('nav.docs')}</div>
-                <Link href="/docs" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-2">{t('nav.docs')}</div>
+                <Link href="/docs" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded">
                   {t('nav.docs')}
                 </Link>
-                <Link href="/pricing" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded">
+                <Link href="/pricing" onClick={() => setOpenDropdown(null)} className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded">
                   {t('nav.pricing')}
                 </Link>
               </div>
@@ -473,7 +473,7 @@ export default function NavBar() {
               onToggle={() => handleDropdownToggle('lang')}
               align="right"
               panelClassName="min-w-[180px] py-1"
-              buttonClassName="flex items-center gap-2 px-2 py-1 text-sm text-gray-400 hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
+              buttonClassName="flex items-center gap-2 px-2 py-1 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
             >
               {languages.map((lang) => (
                 <button
@@ -483,7 +483,7 @@ export default function NavBar() {
                     setOpenDropdown(null)
                   }}
                   className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 ${
-                    language === lang.code ? 'text-[var(--accent)]' : 'text-gray-300'
+                    language === lang.code ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
                   }`}
                 >
                   {lang.flag} {lang.name}
@@ -492,20 +492,20 @@ export default function NavBar() {
             </Dropdown>
 
             {loading ? (
-              <div className="w-20 h-8 bg-gray-800 animate-pulse rounded"></div>
+              <div className="w-20 h-8 bg-[var(--bg-tertiary)] animate-pulse rounded"></div>
             ) : user ? (
               <div className="hidden md:block relative">
                 <button
                   onClick={() => handleDropdownToggle('user')}
                   aria-expanded={openDropdown === 'user'}
                   aria-haspopup="menu"
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-gray-800 bg-gray-900/40 hover:border-[var(--accent)] transition-colors"
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]/40 hover:border-[var(--accent)] transition-colors"
                 >
                   <span className="w-8 h-8 rounded-full bg-[#E8841A]/20 border border-[#E8841A]/30 text-[#E8841A] flex items-center justify-center font-bold">
                     {(user.email || 'U').slice(0, 1).toUpperCase()}
                   </span>
-                  <span className="hidden lg:inline text-sm text-gray-200 max-w-[180px] truncate">{user.email}</span>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="hidden lg:inline text-sm text-[var(--text-primary)] max-w-[180px] truncate">{user.email}</span>
+                  <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
@@ -514,32 +514,32 @@ export default function NavBar() {
                   <div className="absolute top-full right-0 pt-2 z-50">
                     <div className="bg-[#111118] border border-[#E8841A20] rounded-lg shadow-xl min-w-[220px] py-2">
                       <div className="px-4 py-2">
-                        <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">{t('nav.dashboard')}</div>
+                        <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-2">{t('nav.dashboard')}</div>
                         <Link
                           href="/dashboard"
                           onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded"
+                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
                         >
                           {t('nav.dashboard')}
                         </Link>
                         <Link
                           href="/pricing"
                           onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded"
+                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
                         >
                           {t('nav.pricing')}
                         </Link>
                         <Link
                           href="/white-label"
                           onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded"
+                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
                         >
                           White Label
                         </Link>
                         <Link
                           href="/api-docs"
                           onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-gray-300 hover:text-[var(--accent)] hover:bg-white/5 rounded"
+                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
                         >
                           API
                         </Link>
@@ -575,7 +575,7 @@ export default function NavBar() {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-              className="md:hidden p-2 text-gray-300"
+              className="md:hidden p-2 text-[var(--text-primary)]"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {mobileMenuOpen ? (
@@ -590,38 +590,38 @@ export default function NavBar() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[#0a0a0f] border-t border-gray-800 max-h-[80vh] overflow-y-auto pb-4">
+          <div className="md:hidden bg-[#0a0a0f] border-t border-[var(--border-color)] max-h-[80vh] overflow-y-auto pb-4">
             <div className="py-2">
               {/* Quick Links */}
-              <Link href="/dashboard" className="block px-4 py-2 text-gray-300 hover:text-[var(--accent)]">
+              <Link href="/dashboard" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {t('nav.projects')}
               </Link>
-              <Link href="/tools" className="block px-4 py-2 text-gray-300 hover:text-[var(--accent)]">
+              <Link href="/tools" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {t('nav.tools')}
               </Link>
-              <Link href="/field" className="block px-4 py-2 text-gray-300 hover:text-[var(--accent)]">
+              <Link href="/field" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {t('field.fieldMode')}
               </Link>
-              <Link href="/guide" className="block px-4 py-2 text-gray-300 hover:text-[var(--accent)]">
+              <Link href="/guide" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {t('guides.title')}
               </Link>
-              <Link href="/community" className="block px-4 py-2 text-gray-300 hover:text-[var(--accent)]">
+              <Link href="/community" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {t('nav.community')}
               </Link>
-              <Link href="/docs" className="block px-4 py-2 text-gray-300 hover:text-[var(--accent)]">
+              <Link href="/docs" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {t('nav.docs')}
               </Link>
               
               {user && (
                 <>
-                  <div className="border-t border-gray-800 my-2"></div>
-                  <Link href="/profile" className="block px-4 py-2 text-gray-300 hover:text-[var(--accent)]">
+                  <div className="border-t border-[var(--border-color)] my-2"></div>
+                  <Link href="/profile" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     {t('nav.profile')}
                   </Link>
-                  <Link href="/account" className="block px-4 py-2 text-gray-300 hover:text-[var(--accent)]">
+                  <Link href="/account" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     {t('nav.account')}
                   </Link>
-                  <button onClick={handleSignOut} className="block w-full text-left px-4 py-2 text-gray-300 hover:text-[var(--accent)]">
+                  <button onClick={handleSignOut} className="block w-full text-left px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     {t('nav.signOut')}
                   </button>
                 </>
@@ -629,7 +629,7 @@ export default function NavBar() {
               
               {!user && (
                 <>
-                  <div className="border-t border-gray-800 my-2"></div>
+                  <div className="border-t border-[var(--border-color)] my-2"></div>
                   <Link href="/login" className="block px-4 py-2 text-[#E8841A]">
                     {t('nav.login')}
                   </Link>

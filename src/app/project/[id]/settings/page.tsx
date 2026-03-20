@@ -105,7 +105,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
     <div className="min-h-screen bg-[var(--bg-primary)] py-12">
       <div className="max-w-2xl mx-auto px-6">
         <div className="flex items-center gap-4 mb-8">
-          <a href={`/project/${projectId}`} className="text-gray-400 hover:text-white">
+          <a href={`/project/${projectId}`} className="text-[var(--text-secondary)] hover:text-white">
             ← Back to Project
           </a>
         </div>
@@ -124,26 +124,26 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
 
         <div className="space-y-6">
           <div>
-            <label className="block text-sm text-gray-300 mb-2">Project Name</label>
+            <label className="block text-sm text-[var(--text-primary)] mb-2">Project Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded text-white"
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-white"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-300 mb-2">Location</label>
+            <label className="block text-sm text-[var(--text-primary)] mb-2">Location</label>
             <textarea
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded text-white h-24"
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-white h-24"
             />
           </div>
 
-          <div className="bg-gray-900 p-4 rounded border border-gray-700">
-            <label className="block text-sm text-gray-300 mb-3">UTM Zone</label>
+          <div className="bg-[var(--bg-secondary)] p-4 rounded border border-[var(--border-color)]">
+            <label className="block text-sm text-[var(--text-primary)] mb-3">UTM Zone</label>
             <UTMZonePicker
               value={utmZone}
               hemisphere={hemisphere}
@@ -155,11 +155,11 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
           </div>
 
           <div>
-            <label className="block text-sm text-gray-300 mb-2">Survey Type</label>
+            <label className="block text-sm text-[var(--text-primary)] mb-2">Survey Type</label>
             <select
               value={surveyType}
               onChange={(e) => setSurveyType(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded text-white"
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-white"
             >
               <option value="boundary">Boundary Survey</option>
               <option value="topographic">Topographic Survey</option>
@@ -173,21 +173,21 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Client Name</label>
+              <label className="block text-sm text-[var(--text-primary)] mb-2">Client Name</label>
               <input
                 type="text"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded text-white"
+                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-white"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Surveyor Name</label>
+              <label className="block text-sm text-[var(--text-primary)] mb-2">Surveyor Name</label>
               <input
                 type="text"
                 value={surveyorName}
                 onChange={(e) => setSurveyorName(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded text-white"
+                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-white"
               />
             </div>
           </div>

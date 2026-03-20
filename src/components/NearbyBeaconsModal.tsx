@@ -98,8 +98,8 @@ export default function NearbyBeaconsModal({
     <div className="fixed inset-0 z-50 bg-[var(--bg-primary)] flex">
       <div className="w-96 bg-[var(--bg-secondary)] border-r border-[var(--border-color)] flex flex-col">
         <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-100">Nearby Beacons</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-[var(--text-primary)] text-xl">×</button>
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Nearby Beacons</h2>
+          <button onClick={onClose} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xl">×</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
@@ -108,7 +108,7 @@ export default function NearbyBeaconsModal({
               <div className="animate-spin w-6 h-6 border-2 border-[#E8841A] border-t-transparent rounded-full"></div>
             </div>
           ) : beacons.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No verified beacons found</p>
+            <p className="text-[var(--text-muted)] text-center py-8">No verified beacons found</p>
           ) : (
             <div className="space-y-2">
               {beacons.map(beacon => (
@@ -122,14 +122,14 @@ export default function NearbyBeaconsModal({
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-100">
+                    <span className="font-medium text-[var(--text-primary)]">
                       {getMarkerIcon(beacon.beacon_type)} {beacon.name}
                     </span>
                     <span className="text-sm text-[#E8841A]">
                       {(beacon.distance / 1000).toFixed(1)} km
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500 mt-1 capitalize">
+                  <div className="text-xs text-[var(--text-muted)] mt-1 capitalize">
                     {beacon.beacon_type} {beacon.authority && `• ${beacon.authority}`}
                   </div>
                 </button>
@@ -152,7 +152,7 @@ export default function NearbyBeaconsModal({
 
       <div className="flex-1 relative">
         <div className="absolute inset-0 bg-[var(--bg-tertiary)] flex items-center justify-center">
-          <p className="text-gray-500">Map view would show beacon locations</p>
+          <p className="text-[var(--text-muted)]">Map view would show beacon locations</p>
         </div>
       </div>
     </div>

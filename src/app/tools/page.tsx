@@ -7,7 +7,7 @@ export default function ToolsPage() {
       <div className="space-y-8">
         {/* FIELD LAYOUT */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Field Layout</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Field Layout</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ToolLink href="/tools/setting-out" title="Setting Out" />
             <ToolLink href="/tools/missing-line" title="Missing Line" />
@@ -16,7 +16,7 @@ export default function ToolsPage() {
 
         {/* LEVELING */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Leveling</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Leveling</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ToolLink href="/tools/leveling" title="Leveling" />
             <ToolLink href="/tools/two-peg-test" title="Two Peg Test" />
@@ -26,7 +26,7 @@ export default function ToolsPage() {
 
         {/* CALCULATIONS */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Calculations</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Calculations</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ToolLink href="/tools/distance" title="Distance & Bearing" />
             <ToolLink href="/tools/bearing" title="Bearing" />
@@ -37,7 +37,7 @@ export default function ToolsPage() {
 
         {/* TRAVERSE & ADJUSTMENT */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Traverse & Adjustment</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Traverse & Adjustment</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ToolLink href="/tools/traverse" title="Traverse" />
             <ToolLink href="/tools/coordinates" title="Coordinates" />
@@ -48,7 +48,7 @@ export default function ToolsPage() {
 
         {/* CURVES */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Curves</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Curves</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ToolLink href="/tools/curves" title="Horizontal Curves" />
             <ToolLink href="/tools/tacheometry" title="Tacheometry" />
@@ -57,7 +57,7 @@ export default function ToolsPage() {
 
         {/* SPECIALIZED SURVEYS */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Specialized Surveys</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Specialized Surveys</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ToolLink href="/tools/mining" title="⛏ Mining Survey" />
             <ToolLink href="/tools/hydrographic" title="🌊 Hydrographic" />

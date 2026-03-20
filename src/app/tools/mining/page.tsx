@@ -311,7 +311,7 @@ export default function MiningSurveyPage() {
             <div className="card-header">
               <span className="label">3D Inclined Traverse — Underground Survey</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               For underground surveys where legs are inclined. Enter slope distance, vertical angle, and horizontal angle.
             </p>
             <div className="overflow-x-auto">
@@ -379,27 +379,27 @@ export default function MiningSurveyPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="mt-4 p-4 bg-gray-800 rounded">
+              <div className="mt-4 p-4 bg-[var(--bg-tertiary)] rounded">
                 <h4 className="font-semibold mb-2">3D Misclosure</h4>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-400">Total SD:</span>
+                    <span className="text-[var(--text-secondary)]">Total SD:</span>
                     <div className="font-mono">{formatNumber(traverseResults.totalSD, 3)} m</div>
                   </div>
                   <div>
-                    <span className="text-gray-400">ΔE:</span>
+                    <span className="text-[var(--text-secondary)]">ΔE:</span>
                     <div className="font-mono">{formatNumber(traverseResults.closingE, 4)} m</div>
                   </div>
                   <div>
-                    <span className="text-gray-400">ΔN:</span>
+                    <span className="text-[var(--text-secondary)]">ΔN:</span>
                     <div className="font-mono">{formatNumber(traverseResults.closingN, 4)} m</div>
                   </div>
                   <div>
-                    <span className="text-gray-400">ΔZ:</span>
+                    <span className="text-[var(--text-secondary)]">ΔZ:</span>
                     <div className="font-mono">{formatNumber(traverseResults.closingZ, 4)} m</div>
                   </div>
                   <div>
-                    <span className="text-gray-400">3D Precision:</span>
+                    <span className="text-[var(--text-secondary)]">3D Precision:</span>
                     <div className="font-mono">1 : {formatNumber(traverseResults.precisionRatio, 0)}</div>
                   </div>
                 </div>
@@ -494,25 +494,25 @@ export default function MiningSurveyPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="mt-4 p-4 bg-gray-800 rounded">
+              <div className="mt-4 p-4 bg-[var(--bg-tertiary)] rounded">
                 {volumeResult.method === 'crossSection' ? (
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-400">Cut Volume:</span>
+                      <span className="text-[var(--text-secondary)]">Cut Volume:</span>
                       <div className="font-mono text-green-400">{formatNumber(volumeResult.cutVolume, 2)} m³</div>
                     </div>
                     <div>
-                      <span className="text-gray-400">Fill Volume:</span>
+                      <span className="text-[var(--text-secondary)]">Fill Volume:</span>
                       <div className="font-mono text-red-400">{formatNumber(volumeResult.fillVolume, 2)} m³</div>
                     </div>
                     <div>
-                      <span className="text-gray-400">Net Volume:</span>
+                      <span className="text-[var(--text-secondary)]">Net Volume:</span>
                       <div className="font-mono">{formatNumber(volumeResult.totalVolume, 2)} m³</div>
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <span className="text-gray-400">Total Volume:</span>
+                    <span className="text-[var(--text-secondary)]">Total Volume:</span>
                     <div className="font-mono text-xl">{formatNumber(volumeResult.totalVolume, 2)} m³</div>
                   </div>
                 )}
@@ -553,7 +553,7 @@ export default function MiningSurveyPage() {
             <div className="card-header">
               <span className="label">Subsidence Monitoring — Movement Between Epochs</span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Track point movement over time for subsidence monitoring. Enter coordinates from two survey epochs.
             </p>
             <div className="overflow-x-auto">
@@ -636,14 +636,14 @@ export default function MiningSurveyPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="mt-4 p-4 bg-gray-800 rounded">
+              <div className="mt-4 p-4 bg-[var(--bg-tertiary)] rounded">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-400">Average Movement:</span>
+                    <span className="text-[var(--text-secondary)]">Average Movement:</span>
                     <div className="font-mono">{formatNumber(subsidenceResults.avgMovement, 4)} m</div>
                   </div>
                   <div>
-                    <span className="text-gray-400">Maximum Movement:</span>
+                    <span className="text-[var(--text-secondary)]">Maximum Movement:</span>
                     <div className="font-mono">{formatNumber(subsidenceResults.maxMovement, 4)} m</div>
                   </div>
                 </div>
@@ -661,7 +661,7 @@ export default function MiningSurveyPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Pattern Type</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Pattern Type</label>
                 <select 
                   className="input"
                   value={blastPattern.type}
@@ -673,7 +673,7 @@ export default function MiningSurveyPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Burden (m)</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Burden (m)</label>
                 <input 
                   className="input" 
                   type="number" 
@@ -682,7 +682,7 @@ export default function MiningSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Spacing (m)</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Spacing (m)</label>
                 <input 
                   className="input" 
                   type="number" 
@@ -691,7 +691,7 @@ export default function MiningSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Pattern Bearing</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Pattern Bearing</label>
                 <input 
                   className="input" 
                   value={blastPattern.bearing}
@@ -699,7 +699,7 @@ export default function MiningSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Start Easting</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Start Easting</label>
                 <input 
                   className="input" 
                   type="number"
@@ -708,7 +708,7 @@ export default function MiningSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Start Northing</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Start Northing</label>
                 <input 
                   className="input" 
                   type="number"
@@ -717,7 +717,7 @@ export default function MiningSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Number of Rows</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Number of Rows</label>
                 <input 
                   className="input" 
                   type="number"
@@ -726,7 +726,7 @@ export default function MiningSurveyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Holes per Row</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Holes per Row</label>
                 <input 
                   className="input" 
                   type="number"

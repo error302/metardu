@@ -50,7 +50,7 @@ export default function AnalyticsPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
-            <p className="text-gray-600">Track your GeoNova usage</p>
+            <p className="text-[var(--text-muted)]">Track your GeoNova usage</p>
           </div>
           <select
             value={period}
@@ -66,22 +66,22 @@ export default function AnalyticsPage() {
 
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <p className="text-sm text-gray-500 mb-1">Total Projects</p>
+            <p className="text-sm text-[var(--text-muted)] mb-1">Total Projects</p>
             <p className="text-3xl font-bold">{data.totalProjects}</p>
             <p className="text-xs text-green-600 mt-1">↑ 12% from last month</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <p className="text-sm text-gray-500 mb-1">Active Projects</p>
+            <p className="text-sm text-[var(--text-muted)] mb-1">Active Projects</p>
             <p className="text-3xl font-bold">{data.activeProjects}</p>
             <p className="text-xs text-green-600 mt-1">↑ 5% from last month</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <p className="text-sm text-gray-500 mb-1">Completed Surveys</p>
+            <p className="text-sm text-[var(--text-muted)] mb-1">Completed Surveys</p>
             <p className="text-3xl font-bold">{data.completedSurveys}</p>
             <p className="text-xs text-green-600 mt-1">↑ 23% from last month</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <p className="text-sm text-gray-500 mb-1">API Calls</p>
+            <p className="text-sm text-[var(--text-muted)] mb-1">API Calls</p>
             <p className="text-3xl font-bold">{(data.apiCalls / 1000).toFixed(1)}K</p>
             <p className="text-xs text-green-600 mt-1">↑ 18% from last month</p>
           </div>
@@ -97,7 +97,7 @@ export default function AnalyticsPage() {
                     className="w-full bg-blue-500 rounded-t"
                     style={{ height: `${(d.count / maxActivity) * 100}%` }}
                   />
-                  <span className="text-xs text-gray-400 mt-1">
+                  <span className="text-xs text-[var(--text-secondary)] mt-1">
                     {new Date(d.date).getDate()}
                   </span>
                 </div>
@@ -114,7 +114,7 @@ export default function AnalyticsPage() {
                   <div key={i}>
                     <div className="flex justify-between text-sm mb-1">
                       <span>{pt.type}</span>
-                      <span className="text-gray-500">{pt.count}</span>
+                      <span className="text-[var(--text-muted)]">{pt.count}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
@@ -139,7 +139,7 @@ export default function AnalyticsPage() {
                   style={{ width: `${(data.storageUsed / 5) * 100}%` }}
                 />
               </div>
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-[var(--text-muted)] mt-2">
                 {data.storageUsed} GB of 5 GB used
               </p>
             </div>
@@ -154,7 +154,7 @@ export default function AnalyticsPage() {
                   style={{ width: `${(data.apiCalls / 50000) * 100}%` }}
                 />
               </div>
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-[var(--text-muted)] mt-2">
                 {data.apiCalls.toLocaleString()} of 50,000 calls
               </p>
             </div>
@@ -163,7 +163,7 @@ export default function AnalyticsPage() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold mb-2">Team Members</h2>
             <p className="text-3xl font-bold">5</p>
-            <p className="text-sm text-gray-600">of 10 seats used</p>
+            <p className="text-sm text-[var(--text-muted)]">of 10 seats used</p>
             <button className="mt-4 text-sm text-blue-600 hover:underline">
               Manage team →
             </button>

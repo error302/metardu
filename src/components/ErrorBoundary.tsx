@@ -28,7 +28,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
           <div className="text-center max-w-md p-8">
             <h1 className="text-amber-500 text-2xl font-bold mb-4">
               GEONOVA
@@ -36,7 +36,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             <p className="text-[var(--text-primary)] text-lg mb-2">
               Something went wrong
             </p>
-            <p className="text-gray-400 text-sm mb-6">
+            <p className="text-[var(--text-secondary)] text-sm mb-6">
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>
             <button
@@ -45,7 +45,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             >
               Reload Page
             </button>
-            <p className="text-gray-500 text-xs mt-4">
+            <p className="text-[var(--text-muted)] text-xs mt-4">
               If this keeps happening please use the feedback button
             </p>
           </div>

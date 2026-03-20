@@ -45,7 +45,7 @@ export default function CSVImportPage() {
         </Link>
 
         <h1 className="text-4xl font-bold text-[var(--text-primary)] mb-4">CSV Import Guide</h1>
-        <p className="text-gray-400 text-lg mb-12">
+        <p className="text-[var(--text-secondary)] text-lg mb-12">
           Import your field notes automatically. GeoNova detects the survey type from your CSV format.
         </p>
 
@@ -55,14 +55,14 @@ export default function CSVImportPage() {
             {formats.map((format) => (
               <div key={format.type} className="bg-[var(--bg-secondary)] rounded-xl border border-[#222] p-6">
                 <h3 className="text-xl font-semibold text-[#E8841A] mb-2">{format.type}</h3>
-                <p className="text-gray-400 text-sm mb-4">{format.description}</p>
+                <p className="text-[var(--text-secondary)] text-sm mb-4">{format.description}</p>
                 <div className="bg-[var(--bg-primary)] rounded-lg p-4 mb-4">
-                  <div className="text-gray-500 text-xs mb-2">Headers:</div>
+                  <div className="text-[var(--text-muted)] text-xs mb-2">Headers:</div>
                   <code className="text-green-400 text-sm">{format.headers}</code>
                 </div>
                 <div className="bg-[var(--bg-primary)] rounded-lg p-4">
-                  <div className="text-gray-500 text-xs mb-2">Example:</div>
-                  <pre className="text-gray-300 text-sm whitespace-pre-wrap">{format.example}</pre>
+                  <div className="text-[var(--text-muted)] text-xs mb-2">Example:</div>
+                  <pre className="text-[var(--text-primary)] text-sm whitespace-pre-wrap">{format.example}</pre>
                 </div>
               </div>
             ))}
@@ -74,12 +74,12 @@ export default function CSVImportPage() {
           <div className="grid md:grid-cols-2 gap-4">
             <div className="bg-[var(--bg-secondary)] rounded-lg border border-[#222] p-4">
               <h4 className="text-[var(--text-primary)] font-semibold mb-2">Sample Traverse CSV</h4>
-              <p className="text-gray-400 text-sm mb-3">Example traverse data with 5 legs</p>
+              <p className="text-[var(--text-secondary)] text-sm mb-3">Example traverse data with 5 legs</p>
               <button className="text-[#E8841A] text-sm hover:underline">Download sample.csv</button>
             </div>
             <div className="bg-[var(--bg-secondary)] rounded-lg border border-[#222] p-4">
               <h4 className="text-[var(--text-primary)] font-semibold mb-2">Sample Leveling CSV</h4>
-              <p className="text-gray-400 text-sm mb-3">Example leveling run with BS/FS</p>
+              <p className="text-[var(--text-secondary)] text-sm mb-3">Example leveling run with BS/FS</p>
               <button className="text-[#E8841A] text-sm hover:underline">Download sample.csv</button>
             </div>
           </div>
@@ -89,7 +89,7 @@ export default function CSVImportPage() {
           <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Tips for Success</h2>
           <ul className="space-y-3">
             {tips.map((tip, i) => (
-              <li key={i} className="flex items-start gap-3 text-gray-400">
+              <li key={i} className="flex items-start gap-3 text-[var(--text-secondary)]">
                 <span className="text-[#E8841A]">✓</span>
                 {tip}
               </li>
@@ -102,15 +102,15 @@ export default function CSVImportPage() {
           <div className="space-y-4">
             <div>
               <p className="text-[var(--text-primary)] font-medium">"Cannot detect survey type"</p>
-              <p className="text-gray-400 text-sm">Check your headers match one of the supported formats</p>
+              <p className="text-[var(--text-secondary)] text-sm">Check your headers match one of the supported formats</p>
             </div>
             <div>
               <p className="text-[var(--text-primary)] font-medium">"Invalid bearing format"</p>
-              <p className="text-gray-400 text-sm">Use DDD°MM'SS" or decimal degrees (e.g., 82.25)</p>
+              <p className="text-[var(--text-secondary)] text-sm">Use DDD°MM'SS" or decimal degrees (e.g., 82.25)</p>
             </div>
             <div>
               <p className="text-[var(--text-primary)] font-medium">"Point already exists"</p>
-              <p className="text-gray-400 text-sm">Enable "Overwrite existing points" or rename duplicate points</p>
+              <p className="text-[var(--text-secondary)] text-sm">Enable "Overwrite existing points" or rename duplicate points</p>
             </div>
           </div>
         </section>

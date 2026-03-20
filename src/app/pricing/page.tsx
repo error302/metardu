@@ -122,7 +122,7 @@ export default function PricingPage() {
           <h1 className="text-4xl md:text-5xl font-bold text-[var(--text-primary)] mb-4">
             Simple, Transparent Pricing
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-[var(--text-secondary)] text-lg">
             Start free, upgrade when you need more
           </p>
         </div>
@@ -136,7 +136,7 @@ export default function PricingPage() {
                 className={`px-3 py-2 rounded-md text-xs font-medium transition-colors ${
                   currency === curr
                     ? 'bg-[#E8841A] text-black'
-                    : 'text-gray-400 hover:text-white'
+                    : 'text-[var(--text-secondary)] hover:text-white'
                 }`}
               >
                 {curr}
@@ -150,7 +150,7 @@ export default function PricingPage() {
             <div
               key={plan.id}
               className={`bg-[var(--bg-secondary)] rounded-2xl border ${
-                plan.popular ? 'border-[#E8841A]' : 'border-[#222]'
+                plan.popular ? 'border-[#E8841A]' : 'border-[var(--border-color)]'
               } p-8 relative`}
             >
               {plan.popular && (
@@ -164,7 +164,7 @@ export default function PricingPage() {
                 <span className="text-[#E8841A] text-4xl font-bold">
                   {formatPrice(plan.prices[currency])}
                 </span>
-                <span className="text-gray-500">/{currency === 'USD' ? 'mo' : 'month'}</span>
+                <span className="text-[var(--text-muted)]">/{currency === 'USD' ? 'mo' : 'month'}</span>
               </div>
 
               <ul className="space-y-3 mb-8">
@@ -172,12 +172,12 @@ export default function PricingPage() {
                   <li
                     key={i}
                     className={`flex items-center gap-3 text-sm ${
-                      feature.included ? 'text-gray-300' : 'text-gray-600'
+                      feature.included ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
                     }`}
                   >
                     <span
                       className={`text-lg ${
-                        feature.included ? 'text-[#E8841A]' : 'text-gray-700'
+                        feature.included ? 'text-[#E8841A]' : 'text-[var(--text-muted)]'
                       }`}
                     >
                       {feature.included ? '✓' : '✗'}
@@ -192,7 +192,7 @@ export default function PricingPage() {
                 className={`block w-full py-3 rounded-lg font-medium text-center transition-colors ${
                   plan.popular
                     ? 'bg-[#E8841A] text-black hover:bg-[#d47619]'
-                    : 'bg-[#1e293b] text-white hover:bg-[#334155]'
+                    : 'bg-[var(--bg-tertiary)] text-white hover:bg-[#334155]'
                 }`}
               >
                 {plan.cta}
@@ -208,15 +208,15 @@ export default function PricingPage() {
 
           <div className="space-y-6">
             {faqs.map((faq, i) => (
-              <div key={i} className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[#222]">
+              <div key={i} className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[var(--border-color)]">
                 <h3 className="text-[var(--text-primary)] font-semibold mb-2">{faq.q}</h3>
-                <p className="text-gray-400">{faq.a}</p>
+                <p className="text-[var(--text-secondary)]">{faq.a}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="text-center mt-12 text-gray-500 text-sm">
+        <div className="text-center mt-12 text-[var(--text-muted)] text-sm">
           <p>All prices include applicable taxes.</p>
           <p>Need a custom enterprise plan? Contact us at support@geonova.app</p>
         </div>

@@ -217,7 +217,7 @@ export default function ProfilesPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-white">
-      <div className="border-b border-gray-800 bg-[var(--bg-card)]">
+      <div className="border-b border-[var(--border-color)] bg-[var(--bg-card)]">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -225,13 +225,13 @@ export default function ProfilesPage({ params }: PageProps) {
                 ← Back to Project
               </Link>
               <h1 className="text-2xl font-bold mt-1">Profile Generator</h1>
-              <p className="text-gray-500 text-sm">{project?.name}</p>
+              <p className="text-[var(--text-muted)] text-sm">{project?.name}</p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setActiveTab('create')}
                 className={`px-4 py-2 rounded text-sm font-medium ${
-                  activeTab === 'create' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'
+                  activeTab === 'create' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                 }`}
               >
                 Create Alignment
@@ -240,7 +240,7 @@ export default function ProfilesPage({ params }: PageProps) {
                 onClick={() => setActiveTab('profile')}
                 disabled={!selectedAlignment}
                 className={`px-4 py-2 rounded text-sm font-medium ${
-                  activeTab === 'profile' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'
+                  activeTab === 'profile' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                 } disabled:opacity-50`}
               >
                 Longitudinal Profile
@@ -249,7 +249,7 @@ export default function ProfilesPage({ params }: PageProps) {
                 onClick={() => setActiveTab('cross-sections')}
                 disabled={!selectedAlignment}
                 className={`px-4 py-2 rounded text-sm font-medium ${
-                  activeTab === 'cross-sections' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'
+                  activeTab === 'cross-sections' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                 } disabled:opacity-50`}
               >
                 Cross Sections
@@ -262,7 +262,7 @@ export default function ProfilesPage({ params }: PageProps) {
       <div className="max-w-7xl mx-auto px-4 py-6">
         {activeTab === 'create' && (
           <div className="space-y-6">
-            <div className="bg-[var(--bg-card)] border border-gray-800 rounded-xl p-6">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4">Create New Alignment</h2>
               <div className="grid md:grid-cols-3 gap-4">
                 <div>
@@ -286,9 +286,9 @@ export default function ProfilesPage({ params }: PageProps) {
               </div>
             </div>
 
-            <div className="bg-[var(--bg-card)] border border-gray-800 rounded-xl p-6">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
               <h3 className="font-semibold mb-4">Select Points for Alignment (in order)</h3>
-              <p className="text-sm text-gray-500 mb-4">Click points in the order they appear along the centerline</p>
+              <p className="text-sm text-[var(--text-muted)] mb-4">Click points in the order they appear along the centerline</p>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-64 overflow-y-auto">
                 {points.map(point => (
                   <button
@@ -297,7 +297,7 @@ export default function ProfilesPage({ params }: PageProps) {
                     className={`p-3 rounded text-left transition-colors ${
                       selectedPoints.find(p => p.id === point.id)
                         ? 'bg-[#E8841A] text-black'
-                        : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+                        : 'bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)]'
                     }`}
                   >
                     <div className="font-medium">{point.name}</div>
@@ -316,8 +316,8 @@ export default function ProfilesPage({ params }: PageProps) {
                 ))}
               </div>
               {selectedPoints.length > 0 && (
-                <div className="mt-4 p-3 bg-gray-800/50 rounded">
-                  <span className="text-sm text-gray-400">Selected: </span>
+                <div className="mt-4 p-3 bg-[var(--bg-tertiary)]/50 rounded">
+                  <span className="text-sm text-[var(--text-secondary)]">Selected: </span>
                   <span className="text-[#E8841A]">
                     {selectedPoints.map(p => p.name).join(' → ')}
                   </span>
@@ -326,14 +326,14 @@ export default function ProfilesPage({ params }: PageProps) {
             </div>
 
             {alignments.length > 0 && (
-              <div className="bg-[var(--bg-card)] border border-gray-800 rounded-xl p-6">
+              <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
                 <h3 className="font-semibold mb-4">Existing Alignments</h3>
                 <div className="space-y-2">
                   {alignments.map(alignment => (
                     <button
                       key={alignment.id}
                       onClick={() => handleAlignmentSelect(alignment)}
-                      className="w-full p-3 bg-gray-800 hover:bg-gray-700 rounded text-left flex justify-between items-center"
+                      className="w-full p-3 bg-[var(--bg-tertiary)] hover:bg-gray-700 rounded text-left flex justify-between items-center"
                     >
                       <span className="font-medium">{alignment.name}</span>
                       <span className="text-[#E8841A]">View →</span>
@@ -347,12 +347,12 @@ export default function ProfilesPage({ params }: PageProps) {
 
         {activeTab === 'profile' && selectedAlignment && (
           <div className="space-y-6">
-            <div className="bg-[var(--bg-card)] border border-gray-800 rounded-xl p-6">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Longitudinal Profile - {selectedAlignment.name}</h2>
                 <button
                   onClick={() => setSvgModalOpen(true)}
-                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm"
+                  className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm"
                 >
                   Export SVG
                 </button>
@@ -364,48 +364,48 @@ export default function ProfilesPage({ params }: PageProps) {
 
                   {svgModalOpen && (
                     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setSvgModalOpen(false)}>
-                      <div className="w-full max-w-2xl rounded-2xl border border-gray-800 bg-gray-900 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                      <div className="w-full max-w-2xl rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                           <div className="text-lg font-semibold text-white">Export profile SVG (to-scale)</div>
-                          <button onClick={() => setSvgModalOpen(false)} className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200">
+                          <button onClick={() => setSvgModalOpen(false)} className="px-3 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)]">
                             ✕
                           </button>
                         </div>
 
                         <div className="grid md:grid-cols-2 gap-4">
-                          <div className="rounded-xl bg-[var(--bg-primary)]/40 border border-gray-800 p-4">
-                            <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Page</div>
+                          <div className="rounded-xl bg-[var(--bg-primary)]/40 border border-[var(--border-color)] p-4">
+                            <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-2">Page</div>
                             <div className="flex gap-2">
-                              <select value={svgPage} onChange={(e) => setSvgPage(e.target.value as any)} className="flex-1 bg-gray-900 border border-gray-800 rounded px-3 py-2 text-gray-200">
+                              <select value={svgPage} onChange={(e) => setSvgPage(e.target.value as any)} className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)]">
                                 <option value="A3">A3</option>
                                 <option value="A4">A4</option>
                               </select>
-                              <select value={svgOrientation} onChange={(e) => setSvgOrientation(e.target.value as any)} className="flex-1 bg-gray-900 border border-gray-800 rounded px-3 py-2 text-gray-200">
+                              <select value={svgOrientation} onChange={(e) => setSvgOrientation(e.target.value as any)} className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)]">
                                 <option value="landscape">Landscape</option>
                                 <option value="portrait">Portrait</option>
                               </select>
                             </div>
-                            <p className="text-xs text-gray-500 mt-2">Print at 100% for true scale.</p>
+                            <p className="text-xs text-[var(--text-muted)] mt-2">Print at 100% for true scale.</p>
                           </div>
 
-                          <div className="rounded-xl bg-[var(--bg-primary)]/40 border border-gray-800 p-4">
-                            <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Scales</div>
+                          <div className="rounded-xl bg-[var(--bg-primary)]/40 border border-[var(--border-color)] p-4">
+                            <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-2">Scales</div>
                             <div className="grid grid-cols-2 gap-2">
-                              <label className="text-xs text-gray-400">
+                              <label className="text-xs text-[var(--text-secondary)]">
                                 Horizontal (1:)
-                                <input inputMode="numeric" value={svgHScale} onChange={(e) => setSvgHScale(parseInt(e.target.value || '1000', 10) || 1000)} className="mt-1 w-full bg-gray-900 border border-gray-800 rounded px-3 py-2 text-gray-200 font-mono" />
+                                <input inputMode="numeric" value={svgHScale} onChange={(e) => setSvgHScale(parseInt(e.target.value || '1000', 10) || 1000)} className="mt-1 w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] font-mono" />
                               </label>
-                              <label className="text-xs text-gray-400">
+                              <label className="text-xs text-[var(--text-secondary)]">
                                 Vertical (1:)
-                                <input inputMode="numeric" value={svgVScale} onChange={(e) => setSvgVScale(parseInt(e.target.value || '100', 10) || 100)} className="mt-1 w-full bg-gray-900 border border-gray-800 rounded px-3 py-2 text-gray-200 font-mono" />
+                                <input inputMode="numeric" value={svgVScale} onChange={(e) => setSvgVScale(parseInt(e.target.value || '100', 10) || 100)} className="mt-1 w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] font-mono" />
                               </label>
                             </div>
-                            <p className="text-xs text-gray-500 mt-2">If a scale won’t fit, GeoNova will auto-fit to the nearest standard scale.</p>
+                            <p className="text-xs text-[var(--text-muted)] mt-2">If a scale won’t fit, GeoNova will auto-fit to the nearest standard scale.</p>
                           </div>
                         </div>
 
                         <div className="mt-5 flex items-center justify-end gap-2">
-                          <button onClick={() => setSvgModalOpen(false)} className="px-4 py-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-200">
+                          <button onClick={() => setSvgModalOpen(false)} className="px-4 py-2 rounded bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)]">
                             Cancel
                           </button>
                           <button
@@ -440,54 +440,54 @@ export default function ProfilesPage({ params }: PageProps) {
                   )}
                   
                   <div className="mt-6 grid grid-cols-4 gap-4">
-                    <div className="bg-gray-800/50 p-3 rounded">
-                      <div className="text-xs text-gray-500">Start Chainage</div>
+                    <div className="bg-[var(--bg-tertiary)]/50 p-3 rounded">
+                      <div className="text-xs text-[var(--text-muted)]">Start Chainage</div>
                       <div className="text-[#E8841A] font-mono">{formatChainage(chainagePoints[0]?.chainage || 0)}</div>
                     </div>
-                    <div className="bg-gray-800/50 p-3 rounded">
-                      <div className="text-xs text-gray-500">End Chainage</div>
+                    <div className="bg-[var(--bg-tertiary)]/50 p-3 rounded">
+                      <div className="text-xs text-[var(--text-muted)]">End Chainage</div>
                       <div className="text-[#E8841A] font-mono">{formatChainage(chainagePoints[chainagePoints.length - 1]?.chainage || 0)}</div>
                     </div>
-                    <div className="bg-gray-800/50 p-3 rounded">
-                      <div className="text-xs text-gray-500">Lowest Point</div>
-                      <div className="text-gray-200 font-mono">
+                    <div className="bg-[var(--bg-tertiary)]/50 p-3 rounded">
+                      <div className="text-xs text-[var(--text-muted)]">Lowest Point</div>
+                      <div className="text-[var(--text-primary)] font-mono">
                         {Math.min(...chainagePoints.map(p => p.elevation)).toFixed(3)} m
                       </div>
                     </div>
-                    <div className="bg-gray-800/50 p-3 rounded">
-                      <div className="text-xs text-gray-500">Highest Point</div>
-                      <div className="text-gray-200 font-mono">
+                    <div className="bg-[var(--bg-tertiary)]/50 p-3 rounded">
+                      <div className="text-xs text-[var(--text-muted)]">Highest Point</div>
+                      <div className="text-[var(--text-primary)] font-mono">
                         {Math.max(...chainagePoints.map(p => p.elevation)).toFixed(3)} m
                       </div>
                     </div>
                   </div>
                 </>
               ) : (
-                <p className="text-gray-500">No chainage points found</p>
+                <p className="text-[var(--text-muted)]">No chainage points found</p>
               )}
             </div>
 
-            <div className="bg-[var(--bg-card)] border border-gray-800 rounded-xl p-6">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
               <h3 className="font-semibold mb-4">Chainage Points Table</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="text-left py-2 text-gray-400">Point</th>
-                      <th className="text-right py-2 text-gray-400">Chainage</th>
-                      <th className="text-right py-2 text-gray-400">Easting</th>
-                      <th className="text-right py-2 text-gray-400">Northing</th>
-                      <th className="text-right py-2 text-gray-400">Elevation</th>
+                    <tr className="border-b border-[var(--border-color)]">
+                      <th className="text-left py-2 text-[var(--text-secondary)]">Point</th>
+                      <th className="text-right py-2 text-[var(--text-secondary)]">Chainage</th>
+                      <th className="text-right py-2 text-[var(--text-secondary)]">Easting</th>
+                      <th className="text-right py-2 text-[var(--text-secondary)]">Northing</th>
+                      <th className="text-right py-2 text-[var(--text-secondary)]">Elevation</th>
                     </tr>
                   </thead>
                   <tbody>
                     {chainagePoints.map((cp, idx) => (
-                      <tr key={cp.id} className="border-b border-gray-800">
-                        <td className="py-2 text-gray-200">{cp.point_name}</td>
+                      <tr key={cp.id} className="border-b border-[var(--border-color)]">
+                        <td className="py-2 text-[var(--text-primary)]">{cp.point_name}</td>
                         <td className="py-2 text-right font-mono text-[#E8841A]">{formatChainage(cp.chainage)}</td>
-                        <td className="py-2 text-right font-mono text-gray-300">{cp.easting.toFixed(3)}</td>
-                        <td className="py-2 text-right font-mono text-gray-300">{cp.northing.toFixed(3)}</td>
-                        <td className="py-2 text-right font-mono text-gray-300">{cp.elevation.toFixed(3)}</td>
+                        <td className="py-2 text-right font-mono text-[var(--text-primary)]">{cp.easting.toFixed(3)}</td>
+                        <td className="py-2 text-right font-mono text-[var(--text-primary)]">{cp.northing.toFixed(3)}</td>
+                        <td className="py-2 text-right font-mono text-[var(--text-primary)]">{cp.elevation.toFixed(3)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -499,9 +499,9 @@ export default function ProfilesPage({ params }: PageProps) {
 
         {activeTab === 'cross-sections' && selectedAlignment && (
           <div className="space-y-6">
-            <div className="bg-[var(--bg-card)] border border-gray-800 rounded-xl p-6">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4">Cross Sections - {selectedAlignment.name}</h2>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-[var(--text-muted)] mb-4">
                 Select a chainage station to add cross section observations
               </p>
 
@@ -515,7 +515,7 @@ export default function ProfilesPage({ params }: PageProps) {
                       className={`p-3 rounded text-center transition-colors ${
                         hasCrossSection
                           ? 'bg-green-900/30 border border-green-700 text-green-400'
-                          : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+                          : 'bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)]'
                       }`}
                     >
                       <div className="font-mono text-[#E8841A]">{formatChainage(cp.chainage)}</div>
@@ -569,7 +569,7 @@ function ProfileChart({ points }: { points: ChainagePoint[] }) {
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="xMidYMid meet"
       fontFamily={'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'}
-      className="bg-gray-900 rounded border border-amber-500/30 w-full"
+      className="bg-[var(--bg-secondary)] rounded border border-amber-500/30 w-full"
     >
       <defs>
         <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -628,7 +628,7 @@ function CrossSectionTable({ crossSections, chainagePoints }: { crossSections: C
 
   if (Object.keys(groupedSections).length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="text-center py-8 text-[var(--text-muted)]">
         <p>No cross sections added yet.</p>
         <p className="text-sm">Click on a chainage station above to add cross section data.</p>
       </div>
@@ -643,27 +643,27 @@ function CrossSectionTable({ crossSections, chainagePoints }: { crossSections: C
         const right = sections.find(s => s.offset_direction === 'right');
         
         return (
-          <div key={ch} className="bg-gray-800/50 rounded-lg p-4">
+          <div key={ch} className="bg-[var(--bg-tertiary)]/50 rounded-lg p-4">
             <h4 className="text-[#E8841A] font-mono mb-2">{formatChainage(parseFloat(ch))}</h4>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left py-1 text-gray-400">Position</th>
-                  <th className="text-right py-1 text-gray-400">Offset (m)</th>
-                  <th className="text-right py-1 text-gray-400">Elevation (m)</th>
+                <tr className="border-b border-[var(--border-color)]">
+                  <th className="text-left py-1 text-[var(--text-secondary)]">Position</th>
+                  <th className="text-right py-1 text-[var(--text-secondary)]">Offset (m)</th>
+                  <th className="text-right py-1 text-[var(--text-secondary)]">Elevation (m)</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-gray-800">
-                  <td className="py-1 text-gray-300">Left</td>
-                  <td className="py-1 text-right font-mono text-gray-300">
+                <tr className="border-b border-[var(--border-color)]">
+                  <td className="py-1 text-[var(--text-primary)]">Left</td>
+                  <td className="py-1 text-right font-mono text-[var(--text-primary)]">
                     {left ? left.offset_distance.toFixed(3) : '—'}
                   </td>
-                  <td className="py-1 text-right font-mono text-gray-300">
+                  <td className="py-1 text-right font-mono text-[var(--text-primary)]">
                     {left ? left.elevation.toFixed(3) : '—'}
                   </td>
                 </tr>
-                <tr className="border-b border-gray-800 bg-[#E8841A]/10">
+                <tr className="border-b border-[var(--border-color)] bg-[#E8841A]/10">
                   <td className="py-1 text-[#E8841A] font-medium">Center</td>
                   <td className="py-1 text-right font-mono text-[#E8841A]">0.000</td>
                   <td className="py-1 text-right font-mono text-[#E8841A]">
@@ -671,11 +671,11 @@ function CrossSectionTable({ crossSections, chainagePoints }: { crossSections: C
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-1 text-gray-300">Right</td>
-                  <td className="py-1 text-right font-mono text-gray-300">
+                  <td className="py-1 text-[var(--text-primary)]">Right</td>
+                  <td className="py-1 text-right font-mono text-[var(--text-primary)]">
                     {right ? right.offset_distance.toFixed(3) : '—'}
                   </td>
-                  <td className="py-1 text-right font-mono text-gray-300">
+                  <td className="py-1 text-right font-mono text-[var(--text-primary)]">
                     {right ? right.elevation.toFixed(3) : '—'}
                   </td>
                 </tr>

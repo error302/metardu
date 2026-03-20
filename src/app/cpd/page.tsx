@@ -37,10 +37,10 @@ export default function CPDPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">CPD Certificates</h1>
-        <p className="text-gray-600 mb-8">Continuing Professional Development tracking and certificates</p>
+        <p className="text-[var(--text-muted)] mb-8">Continuing Professional Development tracking and certificates</p>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Select Country</label>
+          <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">Select Country</label>
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
@@ -64,22 +64,22 @@ export default function CPDPage() {
         {summary && (
           <div className="grid md:grid-cols-4 gap-4 mb-8">
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <p className="text-sm text-gray-600">Total Hours</p>
+              <p className="text-sm text-[var(--text-muted)]">Total Hours</p>
               <p className="text-2xl font-bold">{summary.totalHours}</p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <p className="text-sm text-gray-600">Required</p>
+              <p className="text-sm text-[var(--text-muted)]">Required</p>
               <p className="text-2xl font-bold">{summary.requirementHours}</p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <p className="text-sm text-gray-600">Compliance</p>
+              <p className="text-sm text-[var(--text-muted)]">Compliance</p>
               <p className={`text-2xl font-bold ${
                 summary.status === 'compliant' ? 'text-green-600' :
                 summary.status === 'at_risk' ? 'text-yellow-600' : 'text-red-600'
               }`}>{summary.compliancePercentage.toFixed(0)}%</p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <p className="text-sm text-gray-600">Status</p>
+              <p className="text-sm text-[var(--text-muted)]">Status</p>
               <p className={`text-lg font-bold ${
                 summary.status === 'compliant' ? 'text-green-600' :
                 summary.status === 'at_risk' ? 'text-yellow-600' : 'text-red-600'
@@ -139,7 +139,7 @@ export default function CPDPage() {
               <div key={activity.id} className="flex items-center justify-between border-b pb-3">
                 <div>
                   <h4 className="font-medium">{activity.title}</h4>
-                  <p className="text-sm text-gray-500">{activity.provider} • {new Date(activity.date).toLocaleDateString()}</p>
+                  <p className="text-sm text-[var(--text-muted)]">{activity.provider} • {new Date(activity.date).toLocaleDateString()}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-semibold">{activity.hours} hours</p>

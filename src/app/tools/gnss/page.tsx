@@ -224,34 +224,34 @@ export default function GNSSProcessor() {
                   <div className="bg-[var(--bg)] p-3 rounded">
                     <h4 className="text-sm font-medium mb-2">Baseline Vector</h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div><span className="text-gray-400">From:</span> {result.baseline.from}</div>
-                      <div><span className="text-gray-400">To:</span> {result.baseline.to}</div>
-                      <div><span className="text-gray-400">ΔX:</span> {result.baseline.deltaX.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">ΔY:</span> {result.baseline.deltaY.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">ΔZ:</span> {result.baseline.deltaZ.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">Distance 3D:</span> {result.baseline.distance3D.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">Distance 2D:</span> {result.baseline.distance2D.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">Azimuth:</span> {result.baseline.azimuth.toFixed(4)}°</div>
-                      <div><span className="text-gray-400">Elev. Angle:</span> {result.baseline.elevationAngle.toFixed(4)}°</div>
-                      <div><span className="text-gray-400">Sigma:</span> ±{result.baseline.sigma.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">From:</span> {result.baseline.from}</div>
+                      <div><span className="text-[var(--text-secondary)]">To:</span> {result.baseline.to}</div>
+                      <div><span className="text-[var(--text-secondary)]">ΔX:</span> {result.baseline.deltaX.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">ΔY:</span> {result.baseline.deltaY.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">ΔZ:</span> {result.baseline.deltaZ.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">Distance 3D:</span> {result.baseline.distance3D.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">Distance 2D:</span> {result.baseline.distance2D.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">Azimuth:</span> {result.baseline.azimuth.toFixed(4)}°</div>
+                      <div><span className="text-[var(--text-secondary)]">Elev. Angle:</span> {result.baseline.elevationAngle.toFixed(4)}°</div>
+                      <div><span className="text-[var(--text-secondary)]">Sigma:</span> ±{result.baseline.sigma.toFixed(4)} m</div>
                     </div>
                   </div>
 
                   <div className="bg-[var(--bg)] p-3 rounded">
                     <h4 className="text-sm font-medium mb-2">Local ENU Coordinates</h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div><span className="text-gray-400">Easting:</span> {result.enu.easting.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">Northing:</span> {result.enu.northing.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">Up:</span> {result.enu.up.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">Easting:</span> {result.enu.easting.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">Northing:</span> {result.enu.northing.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">Up:</span> {result.enu.up.toFixed(4)} m</div>
                     </div>
                   </div>
 
                   <div className="bg-[var(--bg)] p-3 rounded">
                     <h4 className="text-sm font-medium mb-2">ECEF Coordinates</h4>
                     <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div><span className="text-gray-400">X:</span> {result.obsECEF.x.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">Y:</span> {result.obsECEF.y.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">Z:</span> {result.obsECEF.z.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">X:</span> {result.obsECEF.x.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">Y:</span> {result.obsECEF.y.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">Z:</span> {result.obsECEF.z.toFixed(4)} m</div>
                     </div>
                   </div>
                 </div>
@@ -263,7 +263,7 @@ export default function GNSSProcessor() {
                     <h4 className="text-sm font-medium mb-2">Adjusted Points</h4>
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-left text-gray-400">
+                        <tr className="text-left text-[var(--text-secondary)]">
                           <th className="pb-2">Name</th>
                           <th className="pb-2">Easting</th>
                           <th className="pb-2">Northing</th>
@@ -288,9 +288,9 @@ export default function GNSSProcessor() {
                   <div className="bg-[var(--bg)] p-3 rounded">
                     <h4 className="text-sm font-medium mb-2">Adjustment Statistics</h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div><span className="text-gray-400">RMS:</span> {result.adjustmentStats.rms.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">Max Residual:</span> {result.adjustmentStats.maxResidual.toFixed(4)} m</div>
-                      <div><span className="text-gray-400">DoF:</span> {result.adjustmentStats.degreesOfFreedom}</div>
+                      <div><span className="text-[var(--text-secondary)]">RMS:</span> {result.adjustmentStats.rms.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">Max Residual:</span> {result.adjustmentStats.maxResidual.toFixed(4)} m</div>
+                      <div><span className="text-[var(--text-secondary)]">DoF:</span> {result.adjustmentStats.degreesOfFreedom}</div>
                     </div>
                   </div>
                 </div>

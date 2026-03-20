@@ -65,16 +65,16 @@ export default function ParcelAreaModal({ isOpen, onClose, points, onAreaResult 
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70" onClick={onClose}></div>
       <div className="relative bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold text-gray-100 mb-4">Compute Parcel Area</h2>
+        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Compute Parcel Area</h2>
 
-        <p className="text-gray-400 text-sm mb-4">
+        <p className="text-[var(--text-secondary)] text-sm mb-4">
           Click points on the map in boundary order. Click the first point again to close the polygon.
         </p>
 
         {/* Selected points list */}
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-gray-300">Selected Points ({selectedPoints.length})</span>
+            <span className="text-sm text-[var(--text-primary)]">Selected Points ({selectedPoints.length})</span>
             <button
               onClick={clearSelection}
               className="text-xs text-red-400 hover:text-red-300"
@@ -86,7 +86,7 @@ export default function ParcelAreaModal({ isOpen, onClose, points, onAreaResult 
             {selectedPoints.map((p, i) => (
               <span
                 key={p.id}
-                className="px-2 py-1 bg-[var(--bg-tertiary)] rounded text-xs font-mono text-gray-100"
+                className="px-2 py-1 bg-[var(--bg-tertiary)] rounded text-xs font-mono text-[var(--text-primary)]"
               >
                 {i + 1}. {p.name}
               </span>
@@ -96,23 +96,23 @@ export default function ParcelAreaModal({ isOpen, onClose, points, onAreaResult 
 
         {/* Result */}
         {result && (
-          <div className="mb-4 p-4 bg-gray-800/50 rounded-lg border border-[var(--border-color)]">
+          <div className="mb-4 p-4 bg-[var(--bg-tertiary)]/50 rounded-lg border border-[var(--border-color)]">
             <h3 className="text-lg font-semibold text-[#E8841A] mb-3">Parcel Area</h3>
             <div className="space-y-2 font-mono">
               <div className="flex justify-between">
-                <span className="text-gray-400">Area:</span>
-                <span className="text-gray-100">{result.areaSqm.toFixed(4)} m²</span>
+                <span className="text-[var(--text-secondary)]">Area:</span>
+                <span className="text-[var(--text-primary)]">{result.areaSqm.toFixed(4)} m²</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Hectares:</span>
-                <span className="text-gray-100">{result.areaHa.toFixed(6)} ha</span>
+                <span className="text-[var(--text-secondary)]">Hectares:</span>
+                <span className="text-[var(--text-primary)]">{result.areaHa.toFixed(6)} ha</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Acres:</span>
-                <span className="text-gray-100">{result.areaAcres.toFixed(6)} acres</span>
+                <span className="text-[var(--text-secondary)]">Acres:</span>
+                <span className="text-[var(--text-primary)]">{result.areaAcres.toFixed(6)} acres</span>
               </div>
               <div className="border-t border-[var(--border-color)] pt-2 mt-2 flex justify-between">
-                <span className="text-gray-400">Perimeter:</span>
+                <span className="text-[var(--text-secondary)]">Perimeter:</span>
                 <span className="text-[#E8841A] font-semibold">{result.perimeter.toFixed(4)} m</span>
               </div>
             </div>
@@ -122,7 +122,7 @@ export default function ParcelAreaModal({ isOpen, onClose, points, onAreaResult 
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 rounded"
+            className="px-6 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded"
           >
             Close
           </button>

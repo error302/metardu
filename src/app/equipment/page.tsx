@@ -40,7 +40,7 @@ export default function EquipmentPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Equipment Calibration Tracker</h1>
-        <p className="text-gray-600 mb-8">Monitor and manage survey instrument calibration schedules</p>
+        <p className="text-[var(--text-muted)] mb-8">Monitor and manage survey instrument calibration schedules</p>
 
         {alerts.length > 0 && (
           <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -63,19 +63,19 @@ export default function EquipmentPage() {
           <div className="grid grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-lg shadow-sm">
               <p className="text-2xl font-bold">{summary.total}</p>
-              <p className="text-sm text-gray-600">Total Equipment</p>
+              <p className="text-sm text-[var(--text-muted)]">Total Equipment</p>
             </div>
             <div className="bg-white p-4 rounded-lg shadow-sm">
               <p className="text-2xl font-bold text-green-600">{summary.active}</p>
-              <p className="text-sm text-gray-600">Active</p>
+              <p className="text-sm text-[var(--text-muted)]">Active</p>
             </div>
             <div className="bg-white p-4 rounded-lg shadow-sm">
               <p className="text-2xl font-bold text-yellow-600">{summary.due}</p>
-              <p className="text-sm text-gray-600">Due Soon</p>
+              <p className="text-sm text-[var(--text-muted)]">Due Soon</p>
             </div>
             <div className="bg-white p-4 rounded-lg shadow-sm">
               <p className="text-2xl font-bold text-red-600">{summary.overdue}</p>
-              <p className="text-sm text-gray-600">Overdue</p>
+              <p className="text-sm text-[var(--text-muted)]">Overdue</p>
             </div>
           </div>
         )}
@@ -112,7 +112,7 @@ export default function EquipmentPage() {
                 {filteredEquipment.map(eq => (
                   <tr key={eq.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4 font-medium">{eq.name}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{eq.brand} {eq.model}</td>
+                    <td className="py-3 px-4 text-sm text-[var(--text-muted)]">{eq.brand} {eq.model}</td>
                     <td className="py-3 px-4 text-sm font-mono">{eq.serialNumber}</td>
                     <td className="py-3 px-4 text-sm">{eq.location || '-'}</td>
                     <td className="py-3 px-4 text-sm">{eq.calibrationDate || '-'}</td>

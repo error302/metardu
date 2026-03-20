@@ -36,7 +36,7 @@ export default function Home() {
                 {t('landing.hero')}
               </h1>
             )}
-            <p className="text-xl text-gray-400 mb-8 max-w-xl">
+            <p className="text-xl text-[var(--text-secondary)] mb-8 max-w-xl">
               {t('landing.subtitle')}
             </p>
             <div className="flex flex-wrap gap-4">
@@ -53,7 +53,7 @@ export default function Home() {
                 {t('tools.quickTools')}
               </a>
             </div>
-            <p className="mt-8 text-sm text-gray-500">
+            <p className="mt-8 text-sm text-[var(--text-muted)]">
               Built in Africa. Used worldwide.
             </p>
             <div className="flex gap-3 mt-4">
@@ -95,11 +95,11 @@ export default function Home() {
                 </div>
                 <div className="flex gap-2 mt-3">
                   <div className="h-8 flex-1 bg-[#1e293b] rounded flex items-center px-3">
-                    <span className="text-xs text-gray-400">Precision</span>
+                    <span className="text-xs text-[var(--text-secondary)]">Precision</span>
                     <span className="ml-auto text-[#E8841A] text-xs font-mono">1:12,500</span>
                   </div>
                   <div className="h-8 flex-1 bg-[#1e293b] rounded flex items-center px-3">
-                    <span className="text-xs text-gray-400">Misclosure</span>
+                    <span className="text-xs text-[var(--text-secondary)]">Misclosure</span>
                     <span className="ml-auto text-green-500 text-xs font-mono">0.052m</span>
                   </div>
                 </div>
@@ -124,21 +124,21 @@ export default function Home() {
                 <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               </div>
               <h3 className="text-[var(--text-primary)] font-semibold mb-2">Hours of Manual Computation</h3>
-              <p className="text-gray-400 text-sm">Complex traverse calculations done entirely by hand</p>
+              <p className="text-[var(--text-secondary)] text-sm">Complex traverse calculations done entirely by hand</p>
             </div>
             <div className="bg-[var(--bg-primary)] p-6 rounded-xl border border-[#222] border-l-2 border-l-yellow-500/50">
               <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center mb-4">
                 <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               </div>
               <h3 className="text-[var(--text-primary)] font-semibold mb-2">Error-Prone Arithmetic Checks</h3>
-              <p className="text-gray-400 text-sm">Manual leveling checks that can fail silently</p>
+              <p className="text-[var(--text-secondary)] text-sm">Manual leveling checks that can fail silently</p>
             </div>
             <div className="bg-[var(--bg-primary)] p-6 rounded-xl border border-[#222] border-l-2 border-l-orange-500/50">
               <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4">
                 <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
               </div>
               <h3 className="text-[var(--text-primary)] font-semibold mb-2">Time-Consuming Report Writing</h3>
-              <p className="text-gray-400 text-sm">Creating professional reports entirely from scratch</p>
+              <p className="text-[var(--text-secondary)] text-sm">Creating professional reports entirely from scratch</p>
             </div>
           </div>
           
@@ -156,7 +156,7 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] text-center mb-4">
             Everything You Need
           </h2>
-          <p className="text-gray-400 text-center mb-12">Professional surveying tools in one platform</p>
+          <p className="text-[var(--text-secondary)] text-center mb-12">Professional surveying tools in one platform</p>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureCard
@@ -226,7 +226,7 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] text-center mb-4">
             Powerful Tools
           </h2>
-          <p className="text-gray-400 text-center mb-12">Professional calculators following N.N. Basak standards</p>
+          <p className="text-[var(--text-secondary)] text-center mb-12">Professional calculators following N.N. Basak standards</p>
           
           <div className="flex flex-wrap justify-center gap-2 mb-8">
             {['traverse', 'leveling', 'cogo', 'curves'].map((tool) => (
@@ -236,7 +236,7 @@ export default function Home() {
                 className={`px-6 py-3 rounded-lg font-medium transition-colors ${
                   activeTab === tool
                     ? 'bg-[#E8841A] text-black'
-                    : 'bg-[#1e293b] text-gray-400 hover:text-white'
+                    : 'bg-[#1e293b] text-[var(--text-secondary)] hover:text-white'
                 }`}
               >
                 {tool.charAt(0).toUpperCase() + tool.slice(1)}
@@ -249,9 +249,9 @@ export default function Home() {
               <div>
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Traverse Adjustment</h3>
                 <div className="font-mono text-sm bg-[var(--bg-primary)] p-4 rounded-lg">
-                  <div className="text-gray-400 mb-2">Input:</div>
+                  <div className="text-[var(--text-secondary)] mb-2">Input:</div>
                   <div className="text-white">5 stations, 1234.56m total distance</div>
-                  <div className="text-gray-400 mt-4 mb-2">Output:</div>
+                  <div className="text-[var(--text-secondary)] mt-4 mb-2">Output:</div>
                   <div className="text-green-400">Precision: 1 : 12,500</div>
                   <div className="text-green-400">Misclosure E: 0.042m</div>
                   <div className="text-green-400">Misclosure N: 0.031m</div>
@@ -263,9 +263,9 @@ export default function Home() {
               <div>
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Leveling Calculator</h3>
                 <div className="font-mono text-sm bg-[var(--bg-primary)] p-4 rounded-lg">
-                  <div className="text-gray-400 mb-2">Input:</div>
+                  <div className="text-[var(--text-secondary)] mb-2">Input:</div>
                   <div className="text-white">6 stations, 1.245km total</div>
-                  <div className="text-gray-400 mt-4 mb-2">Output:</div>
+                  <div className="text-[var(--text-secondary)] mt-4 mb-2">Output:</div>
                   <div className="text-green-400">ΣBS - ΣFS = 2.345m</div>
                   <div className="text-green-400">Last RL - First RL = 2.345m</div>
                   <div className="text-[#E8841A] mt-2">✓ Arithmetic check PASSED</div>
@@ -277,7 +277,7 @@ export default function Home() {
               <div>
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">COGO Tools</h3>
                 <div className="font-mono text-sm bg-[var(--bg-primary)] p-4 rounded-lg">
-                  <div className="text-gray-400 mb-2">Available Functions:</div>
+                  <div className="text-[var(--text-secondary)] mb-2">Available Functions:</div>
                   <div className="text-white">• Radiation</div>
                   <div className="text-white">• Intersection (Forward/Backward)</div>
                   <div className="text-white">• Traverse</div>
@@ -292,9 +292,9 @@ export default function Home() {
               <div>
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Horizontal Curves</h3>
                 <div className="font-mono text-sm bg-[var(--bg-primary)] p-4 rounded-lg">
-                  <div className="text-gray-400 mb-2">Input:</div>
+                  <div className="text-[var(--text-secondary)] mb-2">Input:</div>
                   <div className="text-white">R = 300m, Δ = 45°</div>
-                  <div className="text-gray-400 mt-4 mb-2">Output:</div>
+                  <div className="text-[var(--text-secondary)] mt-4 mb-2">Output:</div>
                   <div className="text-green-400">Tangent: 267.95m</div>
                   <div className="text-green-400">Length: 235.62m</div>
                   <div className="text-green-400">External: 95.26m</div>
@@ -312,7 +312,7 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] text-center mb-4">
             What Surveyors Say
           </h2>
-          <p className="text-gray-400 text-center mb-12">Join thousands of professionals</p>
+          <p className="text-[var(--text-secondary)] text-center mb-12">Join thousands of professionals</p>
           
           <div className="grid md:grid-cols-3 gap-6">
             <TestimonialCard
@@ -343,7 +343,7 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] text-center mb-4">
             Simple Pricing
           </h2>
-          <p className="text-gray-400 text-center mb-12">Start free, upgrade when you need</p>
+          <p className="text-[var(--text-secondary)] text-center mb-12">Start free, upgrade when you need</p>
           
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <PricingCard
@@ -389,7 +389,7 @@ export default function Home() {
             />
           </div>
           
-          <p className="text-center text-gray-500 text-sm mt-8">
+          <p className="text-center text-[var(--text-muted)] text-sm mt-8">
             Pricing also available in UGX, TZS, NGN. All plans include 14-day free trial.
           </p>
         </div>
@@ -401,7 +401,7 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] text-center mb-4">
             AI Field Guide
           </h2>
-          <p className="text-gray-400 text-center mb-12">New to a survey type? GeoNova guides you step by step</p>
+          <p className="text-[var(--text-secondary)] text-center mb-12">New to a survey type? GeoNova guides you step by step</p>
           
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-8">
             <GuideCard
@@ -441,11 +441,11 @@ export default function Home() {
                 <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
                   Take GeoNova to the field
                 </h2>
-                <p className="text-gray-400 mb-8">
+                <p className="text-[var(--text-secondary)] mb-8">
                   Install GeoNova on your Android phone. Works offline. Syncs when you are back online.
                 </p>
                 <div className="bg-[#1e293b] p-4 rounded-lg inline-block">
-                  <p className="text-sm text-gray-400 mb-2">Add to Home Screen:</p>
+                  <p className="text-sm text-[var(--text-secondary)] mb-2">Add to Home Screen:</p>
                   <p className="text-[var(--text-primary)] text-sm">Open in Chrome → Menu → Add to Home Screen</p>
                 </div>
               </div>
@@ -480,7 +480,7 @@ export default function Home() {
           <div className="grid md:grid-cols-4 gap-8 mb-12">
             <div>
               <h3 className="text-[var(--text-primary)] font-bold text-lg mb-4">GeoNova</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
+              <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li><a href="#" className="hover:text-[#E8841A]">About</a></li>
                 <li><a href="#" className="hover:text-[#E8841A]">Blog</a></li>
                 <li><a href="#" className="hover:text-[#E8841A]">Careers</a></li>
@@ -490,7 +490,7 @@ export default function Home() {
             
             <div>
               <h3 className="text-[var(--text-primary)] font-bold text-lg mb-4">Tools</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
+              <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li><a href="/tools/distance" className="hover:text-[#E8841A]">Distance & Bearing</a></li>
                 <li><a href="/tools/traverse" className="hover:text-[#E8841A]">Traverse</a></li>
                 <li><a href="/tools/leveling" className="hover:text-[#E8841A]">Leveling</a></li>
@@ -501,7 +501,7 @@ export default function Home() {
             
             <div>
               <h3 className="text-[var(--text-primary)] font-bold text-lg mb-4">Resources</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
+              <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li><a href="/guide" className="hover:text-[#E8841A]">Field Guide</a></li>
                 <li><a href="/docs" className="hover:text-[#E8841A]">Documentation</a></li>
                 <li><a href="/docs/csv-import" className="hover:text-[#E8841A]">Sample Files</a></li>
@@ -511,7 +511,7 @@ export default function Home() {
             
             <div>
               <h3 className="text-[var(--text-primary)] font-bold text-lg mb-4">Connect</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
+              <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>support@geonova.app</li>
                 <li><a href="/community" className="hover:text-[#E8841A]">WhatsApp Community</a></li>
                 <li><a href="/community" className="hover:text-[#E8841A]">Twitter/X</a></li>
@@ -521,12 +521,12 @@ export default function Home() {
           </div>
           
           <div className="border-t border-[#222] pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[var(--text-muted)]">
               © 2026 GeoNova. Built for surveyors, by a surveyor.
             </p>
             <div className="flex gap-2">
-              <span className="text-sm text-gray-500">Language:</span>
-              <select className="bg-transparent text-gray-400 text-sm border-none focus:ring-0">
+              <span className="text-sm text-[var(--text-muted)]">Language:</span>
+              <select className="bg-transparent text-[var(--text-secondary)] text-sm border-none focus:ring-0">
                 <option value="en">English</option>
                 <option value="sw">Kiswahili</option>
                 <option value="fr">Français</option>
@@ -549,7 +549,7 @@ function FeatureCard({ icon, title, desc }: { icon: string; title: string; desc:
     <div className="bg-[#111] p-6 rounded-xl border border-[#222] hover:border-[#E8841A] transition-colors">
       <div className="text-3xl mb-4">{icon}</div>
       <h3 className="text-[var(--text-primary)] font-semibold mb-2">{title}</h3>
-      <p className="text-gray-400 text-sm">{desc}</p>
+      <p className="text-[var(--text-secondary)] text-sm">{desc}</p>
     </div>
   )
 }
@@ -561,7 +561,7 @@ function StepCard({ number, title, desc }: { number: string; title: string; desc
         {number}
       </div>
       <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">{title}</h3>
-      <p className="text-gray-400">{desc}</p>
+      <p className="text-[var(--text-secondary)]">{desc}</p>
     </div>
   )
 }
@@ -569,12 +569,12 @@ function StepCard({ number, title, desc }: { number: string; title: string; desc
 function TestimonialCard({ quote, name, title, country }: { quote: string; name: string; title: string; country: string }) {
   return (
     <div className="bg-[var(--bg-primary)] p-6 rounded-xl border border-[#222]">
-      <p className="text-gray-400 mb-4 italic">"{quote}"</p>
+      <p className="text-[var(--text-secondary)] mb-4 italic">"{quote}"</p>
       <div className="flex items-center gap-3">
         <span className="text-2xl">{country}</span>
         <div>
           <p className="text-[var(--text-primary)] font-medium">{name}</p>
-          <p className="text-gray-500 text-sm">{title}</p>
+          <p className="text-[var(--text-muted)] text-sm">{title}</p>
         </div>
       </div>
     </div>
@@ -599,7 +599,7 @@ function PricingCard({ tier, price, features, cta, popular }: {
       <p className="text-[#E8841A] text-2xl font-bold mb-4">{price}</p>
       <ul className="space-y-2 mb-6">
         {features.map((feature, i) => (
-          <li key={i} className="text-gray-400 text-sm flex items-center gap-2">
+          <li key={i} className="text-[var(--text-secondary)] text-sm flex items-center gap-2">
             <span className="text-[#E8841A]">✓</span> {feature}
           </li>
         ))}
@@ -620,7 +620,7 @@ function GuideCard({ icon, title, steps }: { icon: string; title: string; steps:
     <div className="bg-[var(--bg-primary)] p-6 rounded-xl border border-[#222] hover:border-[#E8841A] transition-colors text-center">
       <div className="text-4xl mb-3">{icon}</div>
       <h3 className="text-[var(--text-primary)] font-semibold mb-1">{title}</h3>
-      <p className="text-gray-500 text-sm">{steps}</p>
+      <p className="text-[var(--text-muted)] text-sm">{steps}</p>
     </div>
   )
 }

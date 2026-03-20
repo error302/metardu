@@ -109,7 +109,7 @@ export default function ContoursPage({ params }: { params: Promise<{ id: string 
           <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-4">Contour Map</h1>
           <div className="bg-[var(--bg-secondary)] border border-red-500/30 rounded-xl p-8">
             <p className="text-red-400 mb-2">Need at least 3 points with elevations to generate contours.</p>
-            <p className="text-gray-500 text-sm">Current points with elevation: {points.length}</p>
+            <p className="text-[var(--text-muted)] text-sm">Current points with elevation: {points.length}</p>
           </div>
         </div>
       </div>
@@ -135,11 +135,11 @@ export default function ContoursPage({ params }: { params: Promise<{ id: string 
             </span>
           )}
         </div>
-        <p className="text-gray-400 mb-8">Generate contours from spot heights using Delaunay triangulation</p>
+        <p className="text-[var(--text-secondary)] mb-8">Generate contours from spot heights using Delaunay triangulation</p>
 
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[#222] p-6 mb-8">
           <div className="flex items-center gap-4 mb-6 flex-wrap">
-            <label className="text-gray-400 text-sm">Contour interval</label>
+            <label className="text-[var(--text-secondary)] text-sm">Contour interval</label>
             <select
               value={interval}
               onChange={e => setInterval(Number(e.target.value))}
@@ -177,7 +177,7 @@ export default function ContoursPage({ params }: { params: Promise<{ id: string 
               { label: 'Contour lines', value: contours.length },
             ].map(item => (
               <div key={item.label} className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[#1e1e1e]">
-                <p className="text-gray-500 text-xs mb-1">{item.label}</p>
+                <p className="text-[var(--text-muted)] text-xs mb-1">{item.label}</p>
                 <p className="text-[var(--text-primary)] font-semibold font-mono">{item.value}</p>
               </div>
             ))}

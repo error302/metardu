@@ -236,7 +236,7 @@ export default function FieldPage() {
     <button
       onClick={() => setActiveTab(tab)}
       className={`flex-1 py-2 text-xs font-medium flex flex-col items-center gap-1 ${
-        activeTab === tab ? 'text-[#E8841A]' : 'text-gray-500 hover:text-gray-300'
+        activeTab === tab ? 'text-[#E8841A]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
       }`}
     >
       <Icon className="w-5 h-5" />
@@ -244,13 +244,13 @@ export default function FieldPage() {
     </button>
   )
 
-  const inputClass = "w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-sm text-gray-100 focus:border-[#E8841A] focus:outline-none"
+  const inputClass = "w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] focus:border-[#E8841A] focus:outline-none"
   const inputNumberClass = `${inputClass} font-mono text-right`
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-400 text-sm">Loading...</div>
+        <div className="text-[var(--text-secondary)] text-sm">Loading...</div>
       </div>
     )
   }
@@ -269,7 +269,7 @@ export default function FieldPage() {
             <select
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
-              className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-gray-300 w-36"
+              className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-[var(--text-primary)] w-36"
             >
               <option value="">Select Project</option>
               {projects.map(p => (
@@ -280,26 +280,26 @@ export default function FieldPage() {
           <div className="flex items-center gap-2">
             {syncStatus === 'synced' && <CheckCircleSolidIcon className="w-4 h-4 text-green-400" />}
             {syncStatus === 'pending' && <ArrowPathIcon className="w-4 h-4 text-yellow-400 animate-spin" />}
-            {syncStatus === 'offline' && <XMarkIcon className="w-4 h-4 text-gray-500" />}
+            {syncStatus === 'offline' && <XMarkIcon className="w-4 h-4 text-[var(--text-muted)]" />}
           </div>
         </div>
       </header>
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto p-3 pb-20">
-        <div className="mb-3 rounded-lg border border-[var(--border-color)] bg-gray-900/20 p-3">
-          <div className="text-[10px] uppercase tracking-wider text-gray-500">Workflow</div>
-          <div className="text-sm text-gray-200 mt-1">Field Mode = quick capture (phone/tablet). Field Book = textbook tables + checks + exports.</div>
+        <div className="mb-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]/20 p-3">
+          <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Workflow</div>
+          <div className="text-sm text-[var(--text-primary)] mt-1">Field Mode = quick capture (phone/tablet). Field Book = textbook tables + checks + exports.</div>
           <div className="mt-2 flex gap-2">
             <button
               onClick={() => router.push('/fieldbook')}
-              className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 px-2 py-1.5 rounded"
+              className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] px-2 py-1.5 rounded"
             >
               Open Field Book
             </button>
             <button
               onClick={() => router.push('/guide')}
-              className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 px-2 py-1.5 rounded"
+              className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] px-2 py-1.5 rounded"
             >
               Field Guides
             </button>
@@ -313,7 +313,7 @@ export default function FieldPage() {
               <h2 className="text-xs font-semibold text-white uppercase tracking-wide">{t('field.points')}</h2>
               <button
                 onClick={() => setShowBatch(!showBatch)}
-                className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 px-2 py-1 rounded flex items-center gap-1"
+                className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] px-2 py-1 rounded flex items-center gap-1"
               >
                 {showBatch ? t('common.close') : <><PlusIcon className="w-3 h-3" /> {t('field.batchCSV')}</>}
               </button>
@@ -321,9 +321,9 @@ export default function FieldPage() {
 
             {/* Batch CSV input */}
             {showBatch && (
-              <div className="bg-gray-900/50 border border-[var(--border-color)] rounded p-3 space-y-2">
+              <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded p-3 space-y-2">
                 <div>
-                  <label className="text-[10px] text-gray-500">CSV: Name, Easting, Northing, Elevation (optional)</label>
+                  <label className="text-[10px] text-[var(--text-muted)]">CSV: Name, Easting, Northing, Elevation (optional)</label>
                   <textarea
                     value={batchCSV}
                     onChange={(e) => setBatchCSV(e.target.value)}
@@ -332,7 +332,7 @@ export default function FieldPage() {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={parseBatchCSV} className="flex-1 text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-300 py-1.5 rounded">
+                  <button onClick={parseBatchCSV} className="flex-1 text-[10px] bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] py-1.5 rounded">
                     {t('field.parse')}
                   </button>
                   <button onClick={saveBatchPoints} disabled={batchParseResults.length === 0} className="flex-1 text-[10px] bg-[#E8841A] hover:bg-[#d67715] text-black py-1.5 rounded disabled:opacity-50">
@@ -355,25 +355,25 @@ export default function FieldPage() {
             {/* Single point form */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-<label className="text-[10px] text-gray-500 mb-1 block">{t('field.name')}</label>
+<label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('field.name')}</label>
               <input value={pName} onChange={e => setPName(e.target.value)} placeholder="P1" className={inputNumberClass} />
             </div>
             <div>
-              <label className="text-[10px] text-gray-500 mb-1 block">{t('common.easting')}</label>
+              <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('common.easting')}</label>
               <input value={pE} onChange={e => setPE(e.target.value)} placeholder="500000" className={inputNumberClass} />
             </div>
             <div>
-              <label className="text-[10px] text-gray-500 mb-1 block">{t('common.northing')}</label>
+              <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('common.northing')}</label>
               <input value={pN} onChange={e => setPN(e.target.value)} placeholder="4500000" className={inputNumberClass} />
             </div>
             <div>
-              <label className="text-[10px] text-gray-500 mb-1 block">{t('common.elevation')}</label>
+              <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('common.elevation')}</label>
               <input value={pZ} onChange={e => setPZ(e.target.value)} placeholder="0" className={inputNumberClass} />
             </div>
           </div>
 
-          <div className="flex items-center justify-between py-2 px-3 bg-gray-900/50 rounded border border-[var(--border-color)]">
-            <label className="text-[10px] text-gray-400">{t('field.controlPoint')}</label>
+          <div className="flex items-center justify-between py-2 px-3 bg-[var(--bg-secondary)]/50 rounded border border-[var(--border-color)]">
+            <label className="text-[10px] text-[var(--text-secondary)]">{t('field.controlPoint')}</label>
               <button
                 onClick={() => setPCtrl(!pCtrl)}
                 className={`w-8 h-4 rounded-full relative ${pCtrl ? 'bg-[#E8841A]' : 'bg-gray-600'}`}
@@ -392,11 +392,11 @@ export default function FieldPage() {
 
             {points.length > 0 && (
               <div className="space-y-1">
-                <div className="text-[10px] text-gray-500">Recent:</div>
+                <div className="text-[10px] text-[var(--text-muted)]">Recent:</div>
                 {points.slice(0, 5).map(p => (
-                  <div key={p.id} className="bg-gray-900/50 rounded px-2 py-1.5 flex justify-between items-center text-[10px]">
-                    <span className="text-gray-200">{p.name}</span>
-                    <span className="text-gray-500 font-mono">{p.easting.toFixed(0)}, {p.northing.toFixed(0)}</span>
+                  <div key={p.id} className="bg-[var(--bg-secondary)]/50 rounded px-2 py-1.5 flex justify-between items-center text-[10px]">
+                    <span className="text-[var(--text-primary)]">{p.name}</span>
+                    <span className="text-[var(--text-muted)] font-mono">{p.easting.toFixed(0)}, {p.northing.toFixed(0)}</span>
                   </div>
                 ))}
               </div>
@@ -408,22 +408,22 @@ export default function FieldPage() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <h2 className="text-xs font-semibold text-white uppercase tracking-wide">{t('field.traverse')}</h2>
-              <span className="text-[10px] text-gray-500">{t('field.total')}: {traverseTotal.toFixed(2)} m</span>
+              <span className="text-[10px] text-[var(--text-muted)]">{t('field.total')}: {traverseTotal.toFixed(2)} m</span>
             </div>
             
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-gray-500 mb-1 block">{t('field.traverse')} →</label>
+                <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('field.traverse')} →</label>
                 <input value={tStation} onChange={e => setTStation(e.target.value)} placeholder="B" className={inputClass} />
               </div>
               <div>
-                <label className="text-[10px] text-gray-500 mb-1 block">{t('field.distance')}</label>
+                <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('field.distance')}</label>
                 <input value={tDist} onChange={e => setTDist(e.target.value)} placeholder="100.00" className={inputNumberClass} />
               </div>
             </div>
 
             <div>
-              <label className="text-[10px] text-gray-500 mb-1 block">{t('field.bearing')} (DMS)</label>
+              <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('field.bearing')} (DMS)</label>
               <div className="grid grid-cols-3 gap-1.5">
                 <input 
                   value={tDeg} 
@@ -446,16 +446,16 @@ export default function FieldPage() {
               </div>
             </div>
 
-            <button onClick={addTraverseLeg} className="w-full py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 text-xs font-medium rounded">
+            <button onClick={addTraverseLeg} className="w-full py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] text-xs font-medium rounded">
               + {t('field.addLeg')}
             </button>
 
             {tLegs.length > 0 && (
               <div className="space-y-1 max-h-64 overflow-y-auto">
                 {tLegs.map((leg, i) => (
-                  <div key={leg.id} className="bg-gray-900/50 rounded px-2 py-1.5 flex justify-between items-center text-[10px]">
-                    <span className="text-gray-400">#{i + 1} {leg.fromStation} → {leg.toStation}</span>
-                    <span className="text-gray-200 font-mono">{leg.distance.toFixed(1)}m {leg.bearing.deg}°{leg.bearing.min}'{leg.bearing.sec.toFixed(0)}"</span>
+                  <div key={leg.id} className="bg-[var(--bg-secondary)]/50 rounded px-2 py-1.5 flex justify-between items-center text-[10px]">
+                    <span className="text-[var(--text-secondary)]">#{i + 1} {leg.fromStation} → {leg.toStation}</span>
+                    <span className="text-[var(--text-primary)] font-mono">{leg.distance.toFixed(1)}m {leg.bearing.deg}°{leg.bearing.min}'{leg.bearing.sec.toFixed(0)}"</span>
                   </div>
                 ))}
                 <div className="text-[10px] text-[#E8841A] text-right pt-1 border-t border-[var(--border-color)] font-mono">
@@ -471,7 +471,7 @@ export default function FieldPage() {
             <h2 className="text-xs font-semibold text-white uppercase tracking-wide">Leveling</h2>
             
             <div>
-              <label className="text-[10px] text-gray-500 mb-1 block">Station</label>
+              <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Station</label>
               <input value={lStation} onChange={e => setLStation(e.target.value)} placeholder="TP1" className={inputClass} />
             </div>
 
@@ -481,7 +481,7 @@ export default function FieldPage() {
                   key={type}
                   onClick={() => setLType(type)}
                   className={`py-2 text-xs font-medium rounded ${
-                    lType === type ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-gray-300'
+                    lType === type ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                   }`}
                 >
                   {type}
@@ -520,23 +520,23 @@ export default function FieldPage() {
             )}
 
             {lReadings.length > 0 && (
-              <div className="bg-gray-900/50 rounded overflow-hidden text-[10px]">
+              <div className="bg-[var(--bg-secondary)]/50 rounded overflow-hidden text-[10px]">
                 <table className="w-full">
                   <thead className="bg-[var(--bg-tertiary)]">
                     <tr>
-                      <th className="px-2 py-1 text-left text-gray-400">Stn</th>
-                      <th className="px-2 py-1 text-right text-gray-400">BS</th>
-                      <th className="px-2 py-1 text-right text-gray-400">IS</th>
-                      <th className="px-2 py-1 text-right text-gray-400">FS</th>
+                      <th className="px-2 py-1 text-left text-[var(--text-secondary)]">Stn</th>
+                      <th className="px-2 py-1 text-right text-[var(--text-secondary)]">BS</th>
+                      <th className="px-2 py-1 text-right text-[var(--text-secondary)]">IS</th>
+                      <th className="px-2 py-1 text-right text-[var(--text-secondary)]">FS</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lReadings.map((r, i) => (
                       <tr key={r.id} className="border-t border-[var(--border-color)]">
-                        <td className="px-2 py-1 text-gray-300">{r.station}</td>
-                        <td className="px-2 py-1 text-right font-mono text-gray-300">{r.bs?.toFixed(3) || ''}</td>
-                        <td className="px-2 py-1 text-right font-mono text-gray-300">{r.is?.toFixed(3) || ''}</td>
-                        <td className="px-2 py-1 text-right font-mono text-gray-300">{r.fs?.toFixed(3) || ''}</td>
+                        <td className="px-2 py-1 text-[var(--text-primary)]">{r.station}</td>
+                        <td className="px-2 py-1 text-right font-mono text-[var(--text-primary)]">{r.bs?.toFixed(3) || ''}</td>
+                        <td className="px-2 py-1 text-right font-mono text-[var(--text-primary)]">{r.is?.toFixed(3) || ''}</td>
+                        <td className="px-2 py-1 text-right font-mono text-[var(--text-primary)]">{r.fs?.toFixed(3) || ''}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -551,7 +551,7 @@ export default function FieldPage() {
             <h2 className="text-xs font-semibold text-white uppercase tracking-wide">Radiation</h2>
             
             <div>
-              <label className="text-[10px] text-gray-500 mb-1 block">Instrument Station</label>
+              <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Instrument Station</label>
               <select value={rStation} onChange={e => setRStation(e.target.value)} className={inputClass}>
                 <option value="">Select...</option>
                 {points.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
@@ -559,22 +559,22 @@ export default function FieldPage() {
             </div>
 
             <div>
-              <label className="text-[10px] text-gray-500 mb-1 block">Instrument Height (m)</label>
+              <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Instrument Height (m)</label>
               <input value={rInstH} onChange={e => setRInstH(e.target.value)} placeholder="1.500" className={inputNumberClass} />
             </div>
 
             <div className="border-t border-[var(--border-color)] pt-3 mt-3">
-              <label className="text-[10px] text-gray-500 mb-1 block">Point Name</label>
+              <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Point Name</label>
               <input value={rNewName} onChange={e => setRNewName(e.target.value)} placeholder="P1" className={inputClass} />
 
-              <label className="text-[10px] text-gray-500 mb-1 block mt-2">Bearing</label>
+              <label className="text-[10px] text-[var(--text-muted)] mb-1 block mt-2">Bearing</label>
               <div className="grid grid-cols-3 gap-1.5 mb-2">
                 <input value={rBearingDeg} onChange={e => setRBearingDeg(e.target.value)} placeholder="000" className={`${inputClass} text-center text-sm`} />
                 <input value={rBearingMin} onChange={e => setRBearingMin(e.target.value)} placeholder="00" className={`${inputClass} text-center text-sm`} />
                 <input value={rBearingSec} onChange={e => setRBearingSec(e.target.value)} placeholder="00.0" className={`${inputClass} text-center font-mono text-sm`} />
               </div>
 
-              <label className="text-[10px] text-gray-500 mb-1 block">Distance (m)</label>
+              <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Distance (m)</label>
               <input value={rDist} onChange={e => setRDist(e.target.value)} placeholder="50.00" className={inputNumberClass} />
 
               <button
@@ -592,7 +592,7 @@ export default function FieldPage() {
                   setRBearingSec('')
                   setRDist('')
                 }}
-                className="w-full mt-2 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-gray-200 text-xs rounded"
+                className="w-full mt-2 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] text-xs rounded"
               >
                 + Add Point
               </button>
@@ -601,9 +601,9 @@ export default function FieldPage() {
             {rPoints.length > 0 && (
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {rPoints.map(p => (
-                  <div key={p.id} className="bg-gray-900/50 rounded px-2 py-1.5 flex justify-between items-center text-[10px]">
-                    <span className="text-gray-200">{p.pointName}</span>
-                    <span className="text-gray-500 font-mono">
+                  <div key={p.id} className="bg-[var(--bg-secondary)]/50 rounded px-2 py-1.5 flex justify-between items-center text-[10px]">
+                    <span className="text-[var(--text-primary)]">{p.pointName}</span>
+                    <span className="text-[var(--text-muted)] font-mono">
                       {p.bearing.deg}°{p.bearing.min}'{p.bearing.sec}"
                       <br />{p.distance.toFixed(1)}m
                     </span>

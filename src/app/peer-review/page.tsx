@@ -43,13 +43,13 @@ export default function PeerReviewPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Peer Review Network</h1>
-        <p className="text-gray-600 mb-8">Get your survey plans reviewed by certified professionals</p>
+        <p className="text-[var(--text-muted)] mb-8">Get your survey plans reviewed by certified professionals</p>
 
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => setActiveTab('browse')}
             className={`px-4 py-2 rounded-lg font-medium ${
-              activeTab === 'browse' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'
+              activeTab === 'browse' ? 'bg-blue-600 text-white' : 'bg-white text-[var(--text-muted)] border'
             }`}
           >
             Browse Reviewers
@@ -57,7 +57,7 @@ export default function PeerReviewPage() {
           <button
             onClick={() => setActiveTab('submit')}
             className={`px-4 py-2 rounded-lg font-medium ${
-              activeTab === 'submit' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'
+              activeTab === 'submit' ? 'bg-blue-600 text-white' : 'bg-white text-[var(--text-muted)] border'
             }`}
           >
             Submit for Review
@@ -67,7 +67,7 @@ export default function PeerReviewPage() {
         {activeTab === 'browse' && (
           <>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Specialty</label>
+              <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">Filter by Specialty</label>
               <select
                 value={selectedSpecialty}
                 onChange={(e) => setSelectedSpecialty(e.target.value)}
@@ -88,19 +88,19 @@ export default function PeerReviewPage() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-semibold text-gray-900">{reviewer.name}</h3>
-                      <p className="text-sm text-gray-600">{reviewer.title}</p>
+                      <p className="text-sm text-[var(--text-muted)]">{reviewer.title}</p>
                     </div>
                     {reviewer.verified && (
                       <span className="text-blue-500 text-sm">✓ Verified</span>
                     )}
                   </div>
                   
-                  <p className="text-sm text-gray-500 mb-2">📍 {reviewer.country}</p>
-                  <p className="text-xs text-gray-400 mb-3">License: {reviewer.license}</p>
+                  <p className="text-sm text-[var(--text-muted)] mb-2">📍 {reviewer.country}</p>
+                  <p className="text-xs text-[var(--text-secondary)] mb-3">License: {reviewer.license}</p>
                   
                   <div className="flex flex-wrap gap-1 mb-3">
                     {reviewer.specializations.map(sp => (
-                      <span key={sp} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                      <span key={sp} className="text-xs bg-gray-100 text-[var(--text-muted)] px-2 py-1 rounded">
                         {sp}
                       </span>
                     ))}
@@ -110,9 +110,9 @@ export default function PeerReviewPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-yellow-500">★</span>
                       <span className="font-medium">{reviewer.averageRating}</span>
-                      <span className="text-gray-400">({reviewer.reviewsCompleted} reviews)</span>
+                      <span className="text-[var(--text-secondary)]">({reviewer.reviewsCompleted} reviews)</span>
                     </div>
-                    <span className="text-gray-500">{reviewer.responseTime}</span>
+                    <span className="text-[var(--text-muted)]">{reviewer.responseTime}</span>
                   </div>
                   
                   <button className="w-full mt-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
@@ -137,7 +137,7 @@ export default function PeerReviewPage() {
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Project Name</label>
                   <input
                     type="text"
                     value={submitForm.projectName}
@@ -148,7 +148,7 @@ export default function PeerReviewPage() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Survey Type</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Survey Type</label>
                   <select
                     value={submitForm.surveyType}
                     onChange={(e) => setSubmitForm({ ...submitForm, surveyType: e.target.value as any })}
@@ -163,14 +163,14 @@ export default function PeerReviewPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Review Categories</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">Review Categories</label>
                   <div className="space-y-2">
                     {categories.map(cat => (
                       <div key={cat.id} className="flex items-start gap-2">
                         <input type="checkbox" className="mt-1" />
                         <div>
                           <p className="text-sm font-medium">{cat.name}</p>
-                          <p className="text-xs text-gray-500">{cat.description}</p>
+                          <p className="text-xs text-[var(--text-muted)]">{cat.description}</p>
                         </div>
                       </div>
                     ))}

@@ -56,7 +56,7 @@ export default function MobileNav() {
               key={item.href}
               href={item.href}
               className={`flex flex-col items-center justify-center gap-1 px-3 py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
-                isActive ? 'text-[#E8841A]' : 'text-gray-500 hover:text-gray-300'
+                isActive ? 'text-[#E8841A]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
               }`}
             >
               <span className={`w-5 h-5 transition-colors ${isActive ? 'text-[#E8841A]' : ''}`}>

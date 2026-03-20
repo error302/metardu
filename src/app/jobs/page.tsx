@@ -48,7 +48,7 @@ export default function JobMarketplacePage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Survey Job Marketplace</h1>
-          <p className="text-gray-600">Find survey jobs or hire professional surveyors</p>
+          <p className="text-[var(--text-muted)]">Find survey jobs or hire professional surveyors</p>
         </div>
 
         <div className="bg-blue-600 rounded-xl p-6 mb-8 text-white">
@@ -112,18 +112,18 @@ export default function JobMarketplacePage() {
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
-                  <p className="text-sm text-gray-500">{job.clientName} • {job.location}</p>
+                  <p className="text-sm text-[var(--text-muted)]">{job.clientName} • {job.location}</p>
                 </div>
                 <span className={`px-3 py-1 text-sm rounded ${getStatusColor(job.status)}`}>
                   {job.status.replace('_', ' ').toUpperCase()}
                 </span>
               </div>
               
-              <p className="text-gray-600 mb-4 line-clamp-2">{job.description}</p>
+              <p className="text-[var(--text-muted)] mb-4 line-clamp-2">{job.description}</p>
               
               <div className="flex flex-wrap gap-2 mb-4">
                 {job.requiredSkills.map(skill => (
-                  <span key={skill} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  <span key={skill} className="text-xs bg-gray-100 text-[var(--text-muted)] px-2 py-1 rounded">
                     {skill}
                   </span>
                 ))}
@@ -132,8 +132,8 @@ export default function JobMarketplacePage() {
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-4">
                   <span className="font-semibold text-green-600">{formatBudget(job.budget, job.currency)}</span>
-                  <span className="text-gray-500">📅 {new Date(job.deadline).toLocaleDateString()}</span>
-                  <span className="text-gray-500">📂 {job.proposals} proposals</span>
+                  <span className="text-[var(--text-muted)]">📅 {new Date(job.deadline).toLocaleDateString()}</span>
+                  <span className="text-[var(--text-muted)]">📂 {job.proposals} proposals</span>
                 </div>
                 <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   View Details
@@ -143,7 +143,7 @@ export default function JobMarketplacePage() {
           ))}
           
           {jobs.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-[var(--text-muted)]">
               <div className="text-4xl mb-3">🔍</div>
               <p>No jobs found matching your criteria</p>
             </div>

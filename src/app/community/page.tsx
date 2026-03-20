@@ -8,16 +8,24 @@ export default function CommunityPage() {
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
-    
-    // In production, save to Supabase
+    try {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      await supabase.from('newsletter_subscribers').upsert(
+        { email, source: 'community_page' },
+        { onConflict: 'email' }
+      )
+    } catch {
+      // Non-fatal
+    }
     setSubscribed(true)
   }
 
   const channels = [
-    { flag: '🇰🇪', name: 'Kenya Surveyors', desc: 'Connect with Kenyan surveyors' },
-    { flag: '🇺🇬', name: 'Uganda Surveyors', desc: 'Uganda surveying community' },
-    { flag: '🇹🇿', name: 'Tanzania Surveyors', desc: 'Tanzania land surveyors' },
-    { flag: '🇳🇬', name: 'Nigeria Surveyors', desc: 'West Africa surveyors' },
+    { flag: 'KE', name: 'Kenya Surveyors', desc: 'Connect with Kenyan surveyors' },
+    { flag: 'UG', name: 'Uganda Surveyors', desc: 'Uganda surveying community' },
+    { flag: 'TZ', name: 'Tanzania Surveyors', desc: 'Tanzania land surveyors' },
+    { flag: 'NG', name: 'Nigeria Surveyors', desc: 'West Africa surveyors' },
     { flag: '🌍', name: 'General Discussion', desc: 'All survey topics' },
     { flag: '💡', name: 'Tips & Tricks', desc: 'Share knowledge' },
     { flag: '🆘', name: 'Support', desc: 'Get help from community' },
@@ -31,27 +39,27 @@ export default function CommunityPage() {
           <h1 className="text-4xl md:text-5xl font-bold text-[var(--text-primary)] mb-4">
             Join the GeoNova Community
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-[var(--text-secondary)] text-lg">
             Connect with surveyors across Africa and beyond
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 mb-12">
-          <div className="bg-[var(--bg-secondary)] rounded-xl border border-[#222] p-8 text-center">
+          <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-8 text-center">
             <div className="text-6xl mb-4">💬</div>
             <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">WhatsApp Community</h2>
-            <p className="text-gray-400 mb-6">
+            <p className="text-[var(--text-secondary)] mb-6">
               Join thousands of surveyors sharing tips, asking questions, and helping each other grow.
             </p>
             <a
-              href="https://wa.me/254700000000"
+              href={`https://wa.me/254700000000?text=${encodeURIComponent('Hello! I want to join the GeoNova Surveyors community.')}`}
               className="inline-block px-8 py-4 bg-[#E8841A] text-black font-bold rounded-lg hover:bg-[#d47619] transition-colors"
             >
               Join GeoNova Surveyors →
             </a>
           </div>
 
-          <div className="bg-[var(--bg-secondary)] rounded-xl border border-[#222] p-8">
+          <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-8">
             <h2 className="text-xl font-bold text-[var(--text-primary)] mb-6">Community Channels</h2>
             <div className="space-y-3">
               {channels.map((channel) => (
@@ -59,7 +67,7 @@ export default function CommunityPage() {
                   <span className="text-2xl">{channel.flag}</span>
                   <div>
                     <p className="text-[var(--text-primary)] font-medium text-sm">{channel.name}</p>
-                    <p className="text-gray-500 text-xs">{channel.desc}</p>
+                    <p className="text-[var(--text-muted)] text-xs">{channel.desc}</p>
                   </div>
                 </div>
               ))}
@@ -67,9 +75,9 @@ export default function CommunityPage() {
           </div>
         </div>
 
-        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[#222] p-8 mb-12">
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-8 mb-12">
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Community Guidelines</h2>
-          <ul className="space-y-3 text-gray-400">
+          <ul className="space-y-3 text-[var(--text-secondary)]">
             <li className="flex items-start gap-3">
               <span className="text-[#E8841A]">✓</span>
               Share knowledge freely — help others learn
@@ -95,7 +103,7 @@ export default function CommunityPage() {
 
         <div className="bg-[var(--bg-secondary)] rounded-xl p-6 mb-12">
           <h3 className="text-amber-500 font-bold mb-2">Stay Updated</h3>
-          <p className="text-gray-400 text-sm mb-4">Get weekly surveying tips and GeoNova updates</p>
+          <p className="text-[var(--text-secondary)] text-sm mb-4">Get weekly surveying tips and GeoNova updates</p>
           {subscribed ? (
             <p className="text-green-500">Thanks for subscribing!</p>
           ) : (
@@ -122,18 +130,18 @@ export default function CommunityPage() {
           <div className="flex justify-center gap-6">
             <div className="text-center">
               <div className="text-3xl mb-2">𝕏</div>
-              <p className="text-gray-400 text-sm">Twitter/X</p>
-              <p className="text-gray-600 text-xs">Coming soon</p>
+              <p className="text-[var(--text-secondary)] text-sm">Twitter/X</p>
+              <p className="text-[var(--text-muted)] text-xs">Coming soon</p>
             </div>
             <div className="text-center">
               <div className="text-3xl mb-2">in</div>
-              <p className="text-gray-400 text-sm">LinkedIn</p>
-              <p className="text-gray-600 text-xs">Coming soon</p>
+              <p className="text-[var(--text-secondary)] text-sm">LinkedIn</p>
+              <p className="text-[var(--text-muted)] text-xs">Coming soon</p>
             </div>
             <div className="text-center">
               <div className="text-3xl mb-2">▶</div>
-              <p className="text-gray-400 text-sm">YouTube</p>
-              <p className="text-gray-600 text-xs">Coming soon</p>
+              <p className="text-[var(--text-secondary)] text-sm">YouTube</p>
+              <p className="text-[var(--text-muted)] text-xs">Coming soon</p>
             </div>
           </div>
         </div>

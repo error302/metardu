@@ -747,7 +747,7 @@ export default function DigitalFieldBookPage() {
                       fieldbookId === fb.id ? 'border-amber-500/50 bg-amber-500/10' : 'border-[var(--border-color)] bg-[var(--bg-primary)]/30 hover:border-amber-500/20'
                     }`}
                   >
-                    <div className="text-sm text-gray-200 truncate">{fb.name || fb.id}</div>
+                    <div className="text-sm text-[var(--text-primary)] truncate">{fb.name || fb.id}</div>
                      <div className="text-xs text-[var(--text-muted)]">{fb.updated_at ?? fb.created_at ? new Date(fb.updated_at ?? fb.created_at as string | number | Date).toLocaleString() : ''}</div>
                   </button>
                 ))
@@ -912,8 +912,8 @@ export default function DigitalFieldBookPage() {
                   </div>
                 </div>
 
-                <div className="text-xs text-gray-500">
-                  A “setup” is one instrument station (HI) with multiple shots/points in the table below. Use <span className="text-gray-300 font-semibold">Add Row</span> to record more than one control/detail point.
+                <div className="text-xs text-[var(--text-muted)]">
+                  A “setup” is one instrument station (HI) with multiple shots/points in the table below. Use <span className="text-[var(--text-primary)] font-semibold">Add Row</span> to record more than one control/detail point.
                 </div>
               </div>
 

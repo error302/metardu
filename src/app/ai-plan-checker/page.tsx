@@ -65,7 +65,7 @@ export default function AIPlanCheckerPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Plan Checker</h1>
-        <p className="text-gray-600 mb-8">Automated survey plan validation and compliance checking</p>
+        <p className="text-[var(--text-muted)] mb-8">Automated survey plan validation and compliance checking</p>
 
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl shadow-sm p-6">
@@ -73,7 +73,7 @@ export default function AIPlanCheckerPage() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Project Name</label>
                 <input
                   type="text"
                   value={input.projectName}
@@ -85,7 +85,7 @@ export default function AIPlanCheckerPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Survey Type</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Survey Type</label>
                   <select
                     value={input.surveyType}
                     onChange={(e) => setInput({ ...input, surveyType: e.target.value as any })}
@@ -101,7 +101,7 @@ export default function AIPlanCheckerPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                  <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Country</label>
                   <select
                     value={input.country}
                     onChange={(e) => setInput({ ...input, country: e.target.value as any })}
@@ -118,7 +118,7 @@ export default function AIPlanCheckerPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Survey Points</label>
+                <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">Survey Points</label>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {input.points.map((point, i) => (
                     <div key={i} className="flex gap-2 items-center">
@@ -196,12 +196,12 @@ export default function AIPlanCheckerPage() {
                             }`}>
                               {issue.severity.toUpperCase()}
                             </span>
-                            <span className="text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-700">
+                            <span className="text-xs px-2 py-0.5 rounded bg-gray-200 text-[var(--text-muted)]">
                               {issue.category}
                             </span>
                           </div>
                           <h4 className="font-medium mt-2">{issue.title}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{issue.description}</p>
+                          <p className="text-sm text-[var(--text-muted)] mt-1">{issue.description}</p>
                           <p className="text-sm text-blue-700 mt-2">💡 {issue.recommendation}</p>
                         </div>
                       ))}
@@ -211,7 +211,7 @@ export default function AIPlanCheckerPage() {
 
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <h3 className="font-semibold mb-4">Country Requirements</h3>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-[var(--text-muted)]">
                     <p><strong>Minimum Precision:</strong> 1:{getCountryRequirements(input.country).precision}</p>
                     <p><strong>Notes:</strong> {getCountryRequirements(input.country).notes}</p>
                   </div>
@@ -220,7 +220,7 @@ export default function AIPlanCheckerPage() {
             )}
 
             {!result && !loading && (
-              <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
+              <div className="bg-white rounded-xl shadow-sm p-6 text-center text-[var(--text-muted)]">
                 <div className="text-4xl mb-3">🤖</div>
                 <p>Enter survey details and click "Check Plan" to analyze your survey</p>
               </div>

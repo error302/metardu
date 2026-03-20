@@ -102,12 +102,12 @@ export default function ChainageCalculator() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Chainage Calculator</h1>
-      <p className="text-sm text-gray-500 mb-8">Calculate chainage along an alignment (road/pipeline surveys)</p>
+      <p className="text-sm text-[var(--text-muted)] mb-8">Calculate chainage along an alignment (road/pipeline surveys)</p>
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="space-y-6">
-          <div className="bg-[var(--bg-card)] border border-gray-800 rounded-xl p-6">
-            <h3 className="font-semibold text-gray-200 mb-4">Starting Station</h3>
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
+            <h3 className="font-semibold text-[var(--text-primary)] mb-4">Starting Station</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Easting (m)</label>
@@ -124,10 +124,10 @@ export default function ChainageCalculator() {
             </div>
           </div>
 
-          <div className="bg-[var(--bg-card)] border border-gray-800 rounded-xl p-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-gray-200">Alignment Points</h3>
-              <button onClick={addPoint} className="text-sm px-3 py-1 bg-gray-800 text-gray-300 rounded hover:bg-gray-700">+ Add Point</button>
+              <h3 className="font-semibold text-[var(--text-primary)]">Alignment Points</h3>
+              <button onClick={addPoint} className="text-sm px-3 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded hover:bg-gray-700">+ Add Point</button>
             </div>
             <div className="space-y-3">
               {alignmentPoints.map((point, idx) => (
@@ -148,18 +148,18 @@ export default function ChainageCalculator() {
           </button>
 
           {results.length > 0 && (
-            <div className="bg-[var(--bg-card)] border border-gray-800 rounded-xl p-6">
-              <h3 className="font-semibold text-gray-200 mb-4">Reverse Calculation</h3>
-              <p className="text-xs text-gray-500 mb-3">Find coordinates at a given chainage</p>
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-4">Reverse Calculation</h3>
+              <p className="text-xs text-[var(--text-muted)] mb-3">Find coordinates at a given chainage</p>
               <div className="flex gap-2">
                 <input className="input flex-1" value={reverseChainage} onChange={e => setReverseChainage(e.target.value)} placeholder="Chainage (m)" />
-                <button onClick={calculateReverse} className="px-4 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700">Find</button>
+                <button onClick={calculateReverse} className="px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded hover:bg-gray-700">Find</button>
               </div>
               {reverseResult && (
-                <div className="mt-4 p-3 bg-gray-800/50 rounded-lg">
-                  <p className="text-sm text-gray-400">Coordinates at {reverseChainage}m:</p>
-                  <p className="font-mono text-gray-200">E: {reverseResult.easting.toFixed(4)} m</p>
-                  <p className="font-mono text-gray-200">N: {reverseResult.northing.toFixed(4)} m</p>
+                <div className="mt-4 p-3 bg-[var(--bg-tertiary)]/50 rounded-lg">
+                  <p className="text-sm text-[var(--text-secondary)]">Coordinates at {reverseChainage}m:</p>
+                  <p className="font-mono text-[var(--text-primary)]">E: {reverseResult.easting.toFixed(4)} m</p>
+                  <p className="font-mono text-[var(--text-primary)]">N: {reverseResult.northing.toFixed(4)} m</p>
                 </div>
               )}
               {reverseSteps ? (
@@ -172,32 +172,32 @@ export default function ChainageCalculator() {
         </div>
 
         {results.length > 0 && (
-          <div className="bg-[var(--bg-card)] border border-gray-800 rounded-xl p-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
             {steps ? (
               <div className="mb-6">
                 <SolutionStepsRenderer title={solutionTitle} steps={steps} />
               </div>
             ) : null}
-            <h3 className="font-semibold text-gray-200 mb-4">Chainage Table</h3>
+            <h3 className="font-semibold text-[var(--text-primary)] mb-4">Chainage Table</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left py-2 text-gray-400">Point</th>
-                    <th className="text-right py-2 text-gray-400">Easting</th>
-                    <th className="text-right py-2 text-gray-400">Northing</th>
-                    <th className="text-right py-2 text-gray-400">Chainage</th>
-                    <th className="text-right py-2 text-gray-400">Distance</th>
+                  <tr className="border-b border-[var(--border-color)]">
+                    <th className="text-left py-2 text-[var(--text-secondary)]">Point</th>
+                    <th className="text-right py-2 text-[var(--text-secondary)]">Easting</th>
+                    <th className="text-right py-2 text-[var(--text-secondary)]">Northing</th>
+                    <th className="text-right py-2 text-[var(--text-secondary)]">Chainage</th>
+                    <th className="text-right py-2 text-[var(--text-secondary)]">Distance</th>
                   </tr>
                 </thead>
                 <tbody>
                   {results.map((r, idx) => (
-                    <tr key={idx} className="border-b border-gray-800">
-                      <td className="py-2 text-gray-200 font-medium">{r.pointName}</td>
-                      <td className="py-2 text-right font-mono text-gray-300">{r.easting.toFixed(3)}</td>
-                      <td className="py-2 text-right font-mono text-gray-300">{r.northing.toFixed(3)}</td>
+                    <tr key={idx} className="border-b border-[var(--border-color)]">
+                      <td className="py-2 text-[var(--text-primary)] font-medium">{r.pointName}</td>
+                      <td className="py-2 text-right font-mono text-[var(--text-primary)]">{r.easting.toFixed(3)}</td>
+                      <td className="py-2 text-right font-mono text-[var(--text-primary)]">{r.northing.toFixed(3)}</td>
                       <td className="py-2 text-right font-mono text-[#E8841A]">{formatChainage(r.chainage)}</td>
-                      <td className="py-2 text-right font-mono text-gray-400">
+                      <td className="py-2 text-right font-mono text-[var(--text-secondary)]">
                         {r.distance > 0 ? r.distance.toFixed(3) + ' m' : '—'}
                       </td>
                     </tr>
@@ -206,17 +206,17 @@ export default function ChainageCalculator() {
               </table>
             </div>
 
-            <div className="mt-6 p-4 bg-gray-800/30 rounded-lg">
-              <h4 className="text-sm font-semibold text-gray-300 mb-2">Summary</h4>
+            <div className="mt-6 p-4 bg-[var(--bg-tertiary)]/30 rounded-lg">
+              <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Summary</h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <span className="text-gray-400">Total Points:</span>
-                <span className="text-gray-200 font-mono">{results.length}</span>
-                <span className="text-gray-400">Start Chainage:</span>
-                <span className="text-gray-200 font-mono">{formatChainage(results[0].chainage)}</span>
-                <span className="text-gray-400">End Chainage:</span>
-                <span className="text-gray-200 font-mono">{formatChainage(results[results.length - 1].chainage)}</span>
-                <span className="text-gray-400">Total Length:</span>
-                <span className="text-gray-200 font-mono">{(results[results.length - 1].chainage - results[0].chainage).toFixed(3)} m</span>
+                <span className="text-[var(--text-secondary)]">Total Points:</span>
+                <span className="text-[var(--text-primary)] font-mono">{results.length}</span>
+                <span className="text-[var(--text-secondary)]">Start Chainage:</span>
+                <span className="text-[var(--text-primary)] font-mono">{formatChainage(results[0].chainage)}</span>
+                <span className="text-[var(--text-secondary)]">End Chainage:</span>
+                <span className="text-[var(--text-primary)] font-mono">{formatChainage(results[results.length - 1].chainage)}</span>
+                <span className="text-[var(--text-secondary)]">Total Length:</span>
+                <span className="text-[var(--text-primary)] font-mono">{(results[results.length - 1].chainage - results[0].chainage).toFixed(3)} m</span>
               </div>
             </div>
           </div>

@@ -30,9 +30,9 @@ function StepBody({ step }: { step: SolutionStep }) {
     return items.length ? (
       <div className="grid md:grid-cols-2 gap-2">
         {items.map((it, idx) => (
-          <div key={idx} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-gray-800">
+          <div key={idx} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
             <div className="text-xs text-[var(--text-muted)]">{it.left}</div>
-            <div className="font-mono text-sm text-gray-200 text-right">{it.right}</div>
+            <div className="font-mono text-sm text-[var(--text-primary)] text-right">{it.right}</div>
           </div>
         ))}
       </div>
@@ -48,7 +48,7 @@ function StepBody({ step }: { step: SolutionStep }) {
       .filter(Boolean)
       .map((l) => (l.startsWith('•') ? l.replace(/^•\s*/, '') : l))
     return items.length ? (
-      <ul className="list-disc pl-5 text-sm text-gray-200 space-y-1">
+      <ul className="list-disc pl-5 text-sm text-[var(--text-primary)] space-y-1">
         {items.map((x, idx) => (
           <li key={idx}>{x}</li>
         ))}
@@ -71,10 +71,10 @@ function StepBody({ step }: { step: SolutionStep }) {
             <div
               key={idx}
               className={`flex items-baseline justify-between gap-3 p-2 rounded border ${
-                ok === true ? 'border-green-700 bg-green-900/10' : ok === false ? 'border-red-700 bg-red-900/10' : 'border-gray-800 bg-gray-950/30'
+                ok === true ? 'border-green-700 bg-green-900/10' : ok === false ? 'border-red-700 bg-red-900/10' : 'border-[var(--border-color)] bg-gray-950/30'
               }`}
             >
-              <div className="font-mono text-sm text-gray-200">{l}</div>
+              <div className="font-mono text-sm text-[var(--text-primary)]">{l}</div>
             </div>
           )
         })}
@@ -89,7 +89,7 @@ function StepBody({ step }: { step: SolutionStep }) {
     return items.length ? (
       <div className="space-y-2">
         {items.map((it, idx) => (
-          <div key={idx} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-gray-800">
+          <div key={idx} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
             <div className="text-xs text-[var(--text-muted)]">{it.left}</div>
             <div className="font-mono text-sm text-amber-200 text-right">{it.right}</div>
           </div>
@@ -128,13 +128,13 @@ function parsePairs(text: string | undefined, sep: '=' | ':') {
 
 function FallbackText({ text, highlight }: { text?: string; highlight?: boolean }) {
   const value = text?.trim() ? text : '—'
-  return <div className={`font-mono text-sm whitespace-pre-wrap ${highlight ? 'text-amber-200 font-semibold' : 'text-gray-200'}`}>{value}</div>
+  return <div className={`font-mono text-sm whitespace-pre-wrap ${highlight ? 'text-amber-200 font-semibold' : 'text-[var(--text-primary)]'}`}>{value}</div>
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-wider text-gray-400 mb-2">{title}</div>
+      <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-2">{title}</div>
       {children}
     </div>
   )
@@ -144,7 +144,7 @@ function Row({ label, value, highlight }: { label: string; value: string; highli
   return (
     <div className="grid grid-cols-[110px_1fr] gap-3 text-sm">
       <div className="text-[var(--text-muted)]">{label}</div>
-      <div className={`font-mono whitespace-pre-wrap ${highlight ? 'text-amber-200 font-semibold' : 'text-gray-200'}`}>{value}</div>
+      <div className={`font-mono whitespace-pre-wrap ${highlight ? 'text-amber-200 font-semibold' : 'text-[var(--text-primary)]'}`}>{value}</div>
     </div>
   )
 }

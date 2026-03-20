@@ -27,7 +27,7 @@ export default function UpgradePrompt({ type }: { type: UpgradeType }) {
   return (
     <div className="bg-amber-900/20 border border-amber-500 rounded-xl p-6 text-center mb-6">
       <p className="text-amber-500 text-lg font-bold mb-2">{title}</p>
-      <p className="text-gray-300 mb-4">{desc}</p>
+      <p className="text-[var(--text-primary)] mb-4">{desc}</p>
       <div className="flex gap-3 justify-center">
         <Link
           href="/pricing"
@@ -35,7 +35,7 @@ export default function UpgradePrompt({ type }: { type: UpgradeType }) {
         >
           View Plans
         </Link>
-        <span className="text-gray-400 text-sm self-center">
+        <span className="text-[var(--text-secondary)] text-sm self-center">
           From KES 500/month
         </span>
       </div>

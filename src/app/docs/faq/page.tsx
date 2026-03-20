@@ -96,7 +96,7 @@ export default function FAQPage() {
         </Link>
 
         <h1 className="text-4xl font-bold text-[var(--text-primary)] mb-4">Frequently Asked Questions</h1>
-        <p className="text-gray-400 text-lg mb-12">
+        <p className="text-[var(--text-secondary)] text-lg mb-12">
           Find answers to common questions about GeoNova
         </p>
 
@@ -113,7 +113,7 @@ export default function FAQPage() {
                     <summary className="px-6 py-4 cursor-pointer text-[var(--text-primary)] font-medium hover:bg-[var(--bg-tertiary)]">
                       {faq.q}
                     </summary>
-                    <div className="px-6 pb-4 text-gray-400">
+                    <div className="px-6 pb-4 text-[var(--text-secondary)]">
                       {faq.a}
                     </div>
                   </details>
@@ -125,7 +125,7 @@ export default function FAQPage() {
 
         <div className="mt-16 bg-gradient-to-r from-[#E8841A]/20 to-transparent border border-[#E8841A]/30 rounded-xl p-8 text-center">
           <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">Still Have Questions?</h2>
-          <p className="text-gray-400 mb-6">
+          <p className="text-[var(--text-secondary)] mb-6">
             Can't find what you're looking for? We're here to help.
           </p>
           <div className="flex gap-4 justify-center">

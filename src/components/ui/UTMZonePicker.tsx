@@ -47,7 +47,7 @@ export default function UTMZonePicker({
     <div className="space-y-4">
       <div className="flex gap-4 items-end">
         <div>
-          <label className="block text-sm text-gray-400 mb-1">UTM Zone</label>
+          <label className="block text-sm text-[var(--text-secondary)] mb-1">UTM Zone</label>
           <input
             type="number"
             min={1}
@@ -58,7 +58,7 @@ export default function UTMZonePicker({
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Hemisphere</label>
+          <label className="block text-sm text-[var(--text-secondary)] mb-1">Hemisphere</label>
           <select
             value={hemisphere}
             onChange={e => onChange(value, e.target.value as 'N' | 'S')}
@@ -69,7 +69,7 @@ export default function UTMZonePicker({
           </select>
         </div>
         <div className="flex-1">
-          <label className="block text-sm text-gray-400 mb-1">Coverage</label>
+          <label className="block text-sm text-[var(--text-secondary)] mb-1">Coverage</label>
           <p className="text-amber-500 text-sm">
             Zone {value}{hemisphere} — {(value - 1) * 6 - 180}° to {value * 6 - 180}°
           </p>
@@ -77,7 +77,7 @@ export default function UTMZonePicker({
       </div>
 
       <div>
-        <p className="text-gray-500 text-xs mb-2">Quick select:</p>
+        <p className="text-[var(--text-muted)] text-xs mb-2">Quick select:</p>
         <div className="flex flex-wrap gap-2">
           {commonZones.map(cz => (
             <button
@@ -86,7 +86,7 @@ export default function UTMZonePicker({
               className={`text-xs px-2 py-1 rounded border transition ${
                 value === cz.zone
                   ? 'bg-amber-500 text-black border-amber-500'
-                  : 'bg-[var(--bg-tertiary)] text-gray-300 border-[var(--border-color)] hover:border-amber-500'
+                  : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] border-[var(--border-color)] hover:border-amber-500'
               }`}
             >
               {cz.zone} — {cz.label}
@@ -103,7 +103,7 @@ export default function UTMZonePicker({
             className={`flex-none w-6 h-8 text-xs rounded transition ${
               value === zone
                 ? 'bg-amber-500 text-black font-bold'
-                : 'bg-[var(--bg-tertiary)] text-gray-500 hover:bg-gray-700'
+                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-gray-700'
             }`}
           >
             {zone % 10 === 0 ? zone : ''}

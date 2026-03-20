@@ -69,17 +69,17 @@ export default function CurvesCalculator() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Curve Calculator</h1>
-      <p className="text-sm text-gray-500 mb-8">Horizontal curve calculations</p>
+      <p className="text-sm text-[var(--text-muted)] mb-8">Horizontal curve calculations</p>
 
       <div className="flex gap-2 mb-6 flex-wrap">
-        <button onClick={() => { setCurveType('simple'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'simple' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'}`}>Simple Curve</button>
-        <button onClick={() => { setCurveType('compound'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'compound' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'}`}>Compound Curve</button>
-        <button onClick={() => { setCurveType('reverse'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'reverse' ? 'bg-[#E8841A] text-black' : 'bg-gray-800 text-gray-300'}`}>Reverse Curve</button>
+        <button onClick={() => { setCurveType('simple'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'simple' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Simple Curve</button>
+        <button onClick={() => { setCurveType('compound'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'compound' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Compound Curve</button>
+        <button onClick={() => { setCurveType('reverse'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'reverse' ? 'bg-[#E8841A] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Reverse Curve</button>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="space-y-6">
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+          <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-xl p-6">
             {curveType === 'simple' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
@@ -125,13 +125,13 @@ export default function CurvesCalculator() {
         </div>
 
         {result && (
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+          <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-xl p-6">
             <SolutionStepsRenderer title={result.title} steps={result.steps} />
 
             {result.type === 'simple' && result.stakePoints && result.stakePoints.length > 0 ? (
               <div className="mt-6">
-                <h3 className="font-semibold text-gray-200 mb-3">Stakeout Table</h3>
-                <div className="max-h-56 overflow-y-auto text-sm border border-gray-800 rounded">
+                <h3 className="font-semibold text-[var(--text-primary)] mb-3">Stakeout Table</h3>
+                <div className="max-h-56 overflow-y-auto text-sm border border-[var(--border-color)] rounded">
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-950/40">
@@ -142,7 +142,7 @@ export default function CurvesCalculator() {
                     </thead>
                     <tbody>
                       {result.stakePoints.map((p: any, i: number) => (
-                        <tr key={i} className="border-t border-gray-800">
+                        <tr key={i} className="border-t border-[var(--border-color)]">
                           <td className="px-3 py-2 font-mono">{p.chainage.toFixed(3)}</td>
                           <td className="px-3 py-2 text-right font-mono">{p.chordLength?.toFixed?.(3) ?? '—'}</td>
                           <td className="px-3 py-2 text-right font-mono">{p.totalDeflection ?? p.deflectionAngle ?? '—'}</td>

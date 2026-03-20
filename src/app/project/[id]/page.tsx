@@ -29,8 +29,8 @@ import SolutionRenderer from '@/components/SolutionRenderer'
 const ProjectMap = dynamic(() => import('@/components/ProjectMap'), {
   ssr: false,
   loading: () => (
-    <div className="h-[500px] bg-gray-900/30 rounded-lg flex items-center justify-center">
-      <p className="text-gray-500">Loading map...</p>
+    <div className="h-[500px] bg-[var(--bg-secondary)]/30 rounded-lg flex items-center justify-center">
+      <p className="text-[var(--text-muted)]">Loading map...</p>
     </div>
   )
 })
@@ -548,7 +548,7 @@ export default function ProjectPage({ params }: PageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-[#E8841A] border-t-transparent rounded-full"></div>
       </div>
     )
@@ -575,13 +575,13 @@ export default function ProjectPage({ params }: PageProps) {
           </button>
           <button
             onClick={() => setShowCSVUpload(true)}
-            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors"
+            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm transition-colors"
           >
             {t('points.uploadCSV')}
           </button>
           <button
             onClick={() => setShowTraverse(true)}
-            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors"
+            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm transition-colors"
           >
             {t('traverse.runTraverse')}
           </button>
@@ -593,7 +593,7 @@ export default function ProjectPage({ params }: PageProps) {
             className={`w-full px-4 py-2 rounded text-sm transition-colors ${
               mapMode === 'distance' 
                 ? 'bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold' 
-                : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+                : 'bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)]'
             }`}
             title="Press D to activate"
           >
@@ -607,7 +607,7 @@ export default function ProjectPage({ params }: PageProps) {
             className={`w-full px-4 py-2 rounded text-sm transition-colors ${
               mapMode === 'area' 
                 ? 'bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold' 
-                : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+                : 'bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)]'
             }`}
             title="Press A to activate"
           >
@@ -623,7 +623,7 @@ export default function ProjectPage({ params }: PageProps) {
           <button
             onClick={handleGenerateSurveyPlan}
             disabled={reportLoading || points.length === 0}
-            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold rounded text-sm transition-colors disabled:opacity-50"
+            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] font-semibold rounded text-sm transition-colors disabled:opacity-50"
           >
             {t('workspace.generateSurveyPlan')}
           </button>
@@ -648,7 +648,7 @@ export default function ProjectPage({ params }: PageProps) {
               }
             }}
             disabled={points.length === 0}
-            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors disabled:opacity-50"
+            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
           >
             {t('reports.exportLandXML')}
           </button>
@@ -668,7 +668,7 @@ export default function ProjectPage({ params }: PageProps) {
               )
             }}
             disabled={points.length === 0}
-            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors disabled:opacity-50"
+            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
           >
             {t('reports.exportGeoJSON')}
           </button>
@@ -677,33 +677,33 @@ export default function ProjectPage({ params }: PageProps) {
               await exportProject(params.id, supabase)
             }}
             disabled={points.length === 0}
-            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors disabled:opacity-50"
+            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
           >
             {t('reports.exportProject')}
           </button>
           <button
             onClick={() => setShowStakeout(true)}
             disabled={points.length === 0}
-            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors disabled:opacity-50"
+            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
           >
             {t('workspace.stakeoutAllPoints')}
           </button>
           <button
             onClick={() => setShowNearbyBeacons(true)}
-            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors"
+            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm transition-colors"
           >
             {t('workspace.nearbyBeacons')}
           </button>
           <Link
             href={`/project/${params.id}/profiles`}
-            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors text-center block"
+            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm transition-colors text-center block"
           >
             {t('workspace.profiles')}
           </Link>
           <button
             onClick={() => setShowParcelBuilder(true)}
             disabled={points.length < 3}
-            className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm transition-colors disabled:opacity-50"
+            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
           >
             {t('workspace.buildParcel')}
           </button>
@@ -715,7 +715,7 @@ export default function ProjectPage({ params }: PageProps) {
                   type="text"
                   readOnly
                   value={shareUrl}
-                  className="flex-1 px-2 py-1 text-xs bg-gray-800 border border-gray-600 rounded text-gray-300 font-mono"
+                  className="flex-1 px-2 py-1 text-xs bg-[var(--bg-tertiary)] border border-gray-600 rounded text-[var(--text-primary)] font-mono"
                 />
                 <button
                   onClick={() => {
@@ -727,19 +727,19 @@ export default function ProjectPage({ params }: PageProps) {
                   {t('common.copy')}
                 </button>
               </div>
-              <div className="text-xs text-gray-500 mt-1">Link expires in 7 days</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1">Link expires in 7 days</div>
             </div>
           )}
           
           {/* Sync status indicator */}
-          <div className="mt-4 pt-4 border-t border-gray-800">
+          <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
             <div className="flex items-center gap-2 text-xs">
               <div className={`w-2 h-2 rounded-full ${
                 syncStatus === 'synced' ? 'bg-green-500' :
                 syncStatus === 'pending' ? 'bg-yellow-500 animate-pulse' :
                 'bg-red-500'
               }`} />
-              <span className="text-gray-400">
+              <span className="text-[var(--text-secondary)]">
                 {syncStatus === 'synced' ? 'All changes saved' :
                  syncStatus === 'pending' ? 'Saving...' :
                  'Offline — changes queued'}
@@ -751,11 +751,11 @@ export default function ProjectPage({ params }: PageProps) {
         }
         center={
           <div className="h-full flex flex-col min-h-0">
-        <header className="border-b border-gray-800 bg-gray-900/30 px-6 py-4">
+        <header className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/30 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-gray-100">{project.name}</h1>
-              <p className="text-sm text-gray-400">
+              <h1 className="text-xl font-bold text-[var(--text-primary)]">{project.name}</h1>
+              <p className="text-sm text-[var(--text-secondary)]">
                 UTM Zone {project.utm_zone} {project.hemisphere}
                 {project.location && ` — ${project.location}`}
               </p>
@@ -769,20 +769,20 @@ export default function ProjectPage({ params }: PageProps) {
                       {onlineUsers.slice(0, 3).map((u, i) => (
                         <div 
                           key={i}
-                          className="w-6 h-6 rounded-full bg-blue-500 border-2 border-gray-800 flex items-center justify-center text-xs text-white"
+                          className="w-6 h-6 rounded-full bg-blue-500 border-2 border-[var(--border-color)] flex items-center justify-center text-xs text-white"
                           title={u.email}
                         >
                           {u.email?.charAt(0).toUpperCase() || '?'}
                         </div>
                       ))}
                     </div>
-                    <span className="text-gray-400">{viewerCount} online</span>
+                    <span className="text-[var(--text-secondary)]">{viewerCount} online</span>
                   </div>
                 ) : (
-                  <span className="text-gray-400">👥 {viewerCount} viewer{viewerCount !== 1 ? 's' : ''}</span>
+                  <span className="text-[var(--text-secondary)]">👥 {viewerCount} viewer{viewerCount !== 1 ? 's' : ''}</span>
                 )}
                 <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-                <span className="text-gray-500 text-xs">{isOnline ? 'Live' : 'Offline'}</span>
+                <span className="text-[var(--text-muted)] text-xs">{isOnline ? 'Live' : 'Offline'}</span>
               </div>
             </div>
           </div>
@@ -819,21 +819,21 @@ export default function ProjectPage({ params }: PageProps) {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-100 mb-4">{t('workspace.coordinates')}</h2>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">{t('workspace.coordinates')}</h2>
             {pointActionError && (
               <div className="mb-3 rounded border border-red-900/40 bg-red-900/10 px-3 py-2 text-sm text-red-200">
                 {pointActionError}
               </div>
             )}
-            <div className="border border-gray-800 bg-gray-900/30 rounded-lg overflow-hidden">
+            <div className="border border-[var(--border-color)] bg-[var(--bg-secondary)]/30 rounded-lg overflow-hidden">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-800">
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">{t('points.pointName')}</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">{t('points.easting')}</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">{t('points.northing')}</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">{t('points.elevation')}</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">{t('common.actions')}</th>
+                  <tr className="border-b border-[var(--border-color)]">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)]">{t('points.pointName')}</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)]">{t('points.easting')}</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)]">{t('points.northing')}</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)]">{t('points.elevation')}</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-[var(--text-primary)]">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -842,9 +842,9 @@ export default function ProjectPage({ params }: PageProps) {
                       <tr
                         key={point.id}
                         onClick={() => setSelectedPointId(point.id)}
-                        className={`border-b border-gray-800/50 ${selectedPointId === point.id ? 'bg-[var(--accent-subtle)]' : 'hover:bg-white/5'}`}
+                        className={`border-b border-[var(--border-color)]/50 ${selectedPointId === point.id ? 'bg-[var(--accent-subtle)]' : 'hover:bg-white/5'}`}
                       >
-                        <td className="px-4 py-3 font-mono text-gray-100">
+                        <td className="px-4 py-3 font-mono text-[var(--text-primary)]">
                           {point.name}
                           {point.locked && <span className="ml-1">🔒</span>}
                           {point.is_control && (
@@ -858,20 +858,20 @@ export default function ProjectPage({ params }: PageProps) {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 font-mono text-gray-300">{point.easting.toFixed(4)}</td>
-                        <td className="px-4 py-3 font-mono text-gray-300">{point.northing.toFixed(4)}</td>
-                        <td className="px-4 py-3 font-mono text-gray-300">{point.elevation?.toFixed(3) ?? '—'}</td>
+                        <td className="px-4 py-3 font-mono text-[var(--text-primary)]">{point.easting.toFixed(4)}</td>
+                        <td className="px-4 py-3 font-mono text-[var(--text-primary)]">{point.northing.toFixed(4)}</td>
+                        <td className="px-4 py-3 font-mono text-[var(--text-primary)]">{point.elevation?.toFixed(3) ?? '—'}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleCopyCoords(point)}
-                              className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+                              className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-[var(--text-primary)] rounded transition-colors"
                             >
                               {copiedId === point.id ? t('common.copied') : t('common.copy')}
                             </button>
                             <button
                               onClick={() => handleEditPoint(point)}
-                              className="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
+                              className="text-xs px-2 py-1 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded transition-colors"
                             >
                               {t('common.edit')}
                             </button>
@@ -889,7 +889,7 @@ export default function ProjectPage({ params }: PageProps) {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={5} className="px-4 py-8 text-center text-[var(--text-muted)]">
                         {t('workspace.noPointsHint')}
                       </td>
                     </tr>
@@ -904,46 +904,46 @@ export default function ProjectPage({ params }: PageProps) {
         right={
           <div className="p-3 space-y-3">
             <div className="rounded border border-white/5 bg-gray-950/20 p-3">
-              <div className="text-xs uppercase tracking-wider text-gray-400 mb-2">Inspector</div>
+              <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-2">Inspector</div>
               {selectedPoint ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="font-mono text-lg text-gray-100">{selectedPoint.name}</div>
-                    <button onClick={() => setSelectedPointId(null)} className="text-xs text-gray-400 hover:text-gray-200">
+                    <div className="font-mono text-lg text-[var(--text-primary)]">{selectedPoint.name}</div>
+                    <button onClick={() => setSelectedPointId(null)} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                       Clear
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded bg-gray-950/30 border border-gray-800 p-2">
-                      <div className="text-gray-500">E</div>
-                      <div className="font-mono text-gray-200">{selectedPoint.easting.toFixed(4)}</div>
+                    <div className="rounded bg-gray-950/30 border border-[var(--border-color)] p-2">
+                      <div className="text-[var(--text-muted)]">E</div>
+                      <div className="font-mono text-[var(--text-primary)]">{selectedPoint.easting.toFixed(4)}</div>
                     </div>
-                    <div className="rounded bg-gray-950/30 border border-gray-800 p-2">
-                      <div className="text-gray-500">N</div>
-                      <div className="font-mono text-gray-200">{selectedPoint.northing.toFixed(4)}</div>
+                    <div className="rounded bg-gray-950/30 border border-[var(--border-color)] p-2">
+                      <div className="text-[var(--text-muted)]">N</div>
+                      <div className="font-mono text-[var(--text-primary)]">{selectedPoint.northing.toFixed(4)}</div>
                     </div>
-                    <div className="rounded bg-gray-950/30 border border-gray-800 p-2">
-                      <div className="text-gray-500">Z</div>
-                      <div className="font-mono text-gray-200">
+                    <div className="rounded bg-gray-950/30 border border-[var(--border-color)] p-2">
+                      <div className="text-[var(--text-muted)]">Z</div>
+                      <div className="font-mono text-[var(--text-primary)]">
                         {selectedPoint.elevation !== null ? selectedPoint.elevation.toFixed(3) : '-'}
                       </div>
                     </div>
-                    <div className="rounded bg-gray-950/30 border border-gray-800 p-2">
-                      <div className="text-gray-500">Type</div>
-                      <div className="text-gray-200">{selectedPoint.is_control ? 'Control' : 'Detail'}</div>
+                    <div className="rounded bg-gray-950/30 border border-[var(--border-color)] p-2">
+                      <div className="text-[var(--text-muted)]">Type</div>
+                      <div className="text-[var(--text-primary)]">{selectedPoint.is_control ? 'Control' : 'Detail'}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleCopyCoords(selectedPoint)}
-                      className="flex-1 px-3 py-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm"
+                      className="flex-1 px-3 py-2 rounded bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] text-sm"
                     >
                       {copiedId === selectedPoint.id ? t('common.copied') : t('common.copy')}
                     </button>
                     <button
                       onClick={() => handleEditPoint(selectedPoint)}
                       disabled={!!selectedPoint.locked}
-                      className="flex-1 px-3 py-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm disabled:opacity-50"
+                      className="flex-1 px-3 py-2 rounded bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] text-sm disabled:opacity-50"
                     >
                       {t('common.edit')}
                     </button>
@@ -957,21 +957,21 @@ export default function ProjectPage({ params }: PageProps) {
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-gray-500">Select a point on the map or in the table.</div>
+                <div className="text-sm text-[var(--text-muted)]">Select a point on the map or in the table.</div>
               )}
             </div>
 
-            <div className="rounded border border-white/5 bg-gray-950/20 p-3 text-sm text-gray-200 space-y-2">
+            <div className="rounded border border-white/5 bg-gray-950/20 p-3 text-sm text-[var(--text-primary)] space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">Points</span>
+                <span className="text-[var(--text-secondary)]">Points</span>
                 <span className="font-mono">{points.length}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">Parcels</span>
+                <span className="text-[var(--text-secondary)]">Parcels</span>
                 <span className="font-mono">{parcels.length}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">Map mode</span>
+                <span className="text-[var(--text-secondary)]">Map mode</span>
                 <span className="font-mono">{mapMode}</span>
               </div>
             </div>
@@ -985,7 +985,7 @@ export default function ProjectPage({ params }: PageProps) {
                 className={`px-3 py-1.5 rounded text-sm ${
                   bottomTab === 'log'
                     ? 'bg-[var(--accent)] text-black font-semibold'
-                    : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+                    : 'bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)]'
                 }`}
               >
                 Calculation Log
@@ -995,7 +995,7 @@ export default function ProjectPage({ params }: PageProps) {
                 className={`px-3 py-1.5 rounded text-sm ${
                   bottomTab === 'fieldbook'
                     ? 'bg-[var(--accent)] text-black font-semibold'
-                    : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+                    : 'bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)]'
                 }`}
               >
                 Field Notes
@@ -1003,8 +1003,8 @@ export default function ProjectPage({ params }: PageProps) {
             </div>
 
             {bottomTab === 'fieldbook' ? (
-              <div className="p-3 space-y-2 text-sm text-gray-200">
-                <div className="text-gray-400">
+              <div className="p-3 space-y-2 text-sm text-[var(--text-primary)]">
+                <div className="text-[var(--text-secondary)]">
                   Field Notes stores structured observations (leveling, traverse, control) in textbook-style tables and keeps an audit trail.
                 </div>
                 <div className="flex items-center gap-2">
@@ -1014,7 +1014,7 @@ export default function ProjectPage({ params }: PageProps) {
                   >
                     Open Field Book
                   </Link>
-                  <Link href="/field" className="px-4 py-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-200">
+                  <Link href="/field" className="px-4 py-2 rounded bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)]">
                     Open Field Mode
                   </Link>
                 </div>
@@ -1022,7 +1022,7 @@ export default function ProjectPage({ params }: PageProps) {
             ) : (
               <div className="p-3 grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-3">
                 <div className="space-y-2">
-                  <div className="text-xs uppercase tracking-wider text-gray-400">Recent</div>
+                  <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Recent</div>
                   {calcLog.length ? (
                     calcLog.map((s, i) => (
                       <button
@@ -1031,17 +1031,17 @@ export default function ProjectPage({ params }: PageProps) {
                         className={`w-full text-left px-3 py-2 rounded border ${
                           i === activeSolutionIndex
                             ? 'border-[var(--accent)] bg-[var(--accent-subtle)]'
-                            : 'border-gray-800 bg-gray-950/20 hover:bg-white/5'
+                            : 'border-[var(--border-color)] bg-gray-950/20 hover:bg-white/5'
                         }`}
                       >
-                        <div className="text-sm text-gray-200 truncate">{s.title ?? 'Solution'}</div>
-                        <div className="text-xs text-gray-500 truncate">
+                        <div className="text-sm text-[var(--text-primary)] truncate">{s.title ?? 'Solution'}</div>
+                        <div className="text-xs text-[var(--text-muted)] truncate">
                           {s.result?.[0]?.label ? `${s.result[0].label}: ${s.result[0].value}` : `${s.result?.length ?? 0} result(s)`}
                         </div>
                       </button>
                     ))
                   ) : (
-                    <div className="text-sm text-gray-500">Run a traverse, compute an area, or build a parcel to see solutions here.</div>
+                    <div className="text-sm text-[var(--text-muted)]">Run a traverse, compute an area, or build a parcel to see solutions here.</div>
                   )}
                 </div>
 
@@ -1049,7 +1049,7 @@ export default function ProjectPage({ params }: PageProps) {
                   {calcLog[activeSolutionIndex] ? (
                     <SolutionRenderer solution={calcLog[activeSolutionIndex]} />
                   ) : (
-                    <div className="rounded border border-gray-800 bg-gray-950/20 p-4 text-sm text-gray-500">No solution selected.</div>
+                    <div className="rounded border border-[var(--border-color)] bg-gray-950/20 p-4 text-sm text-[var(--text-muted)]">No solution selected.</div>
                   )}
                 </div>
               </div>
@@ -1128,11 +1128,11 @@ export default function ProjectPage({ params }: PageProps) {
       />
 
       {showStakeout && (
-        <div className="fixed inset-0 z-50 bg-gray-950">
+        <div className="fixed inset-0 z-50 bg-[var(--bg-primary)]">
           <div className="absolute top-4 right-4 z-50">
             <button
               onClick={() => setShowStakeout(false)}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg"
+              className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-gray-700 text-[var(--text-primary)] rounded-lg"
             >
               ✕ Close
             </button>
