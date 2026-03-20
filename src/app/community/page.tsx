@@ -52,7 +52,7 @@ export default function CommunityPage() {
               Join thousands of surveyors sharing tips, asking questions, and helping each other grow.
             </p>
             <a
-              href={`https://wa.me/254700000000?text=${encodeURIComponent('Hello! I want to join the GeoNova Surveyors community.')}`}
+              href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '254700000000'}?text=${encodeURIComponent('Hello! I want to join the GeoNova Surveyors community.')}`}
               className="inline-block px-8 py-4 bg-[#E8841A] text-black font-bold rounded-lg hover:bg-[#d47619] transition-colors"
             >
               Join GeoNova Surveyors →

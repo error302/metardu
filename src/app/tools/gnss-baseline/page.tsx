@@ -57,12 +57,12 @@ export default function GNSSBaselinePage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">GNSS Baseline Processing</h1>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">GNSS Baseline Processing</h1>
         <p className="text-[var(--text-muted)] mb-8">Upload RINEX or proprietary GNSS baseline files for processing</p>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-4">
-            <h3 className="font-semibold text-gray-800 mb-3">Base Station Coordinates</h3>
+            <h3 className="font-semibold text-[var(--text-primary)] mb-3">Base Station Coordinates</h3>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm text-[var(--text-muted)] mb-1">Easting (m)</label>
@@ -95,7 +95,7 @@ export default function GNSSBaselinePage() {
           </div>
 
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-4">
-            <h3 className="font-semibold text-gray-800 mb-3">Supported Formats</h3>
+            <h3 className="font-semibold text-[var(--text-primary)] mb-3">Supported Formats</h3>
             <ul className="text-sm text-[var(--text-muted)] space-y-2">
               <li>✓ RINEX (.rnx, .obs)</li>
               <li>✓ Topcon (.top, .tps)</li>
@@ -123,7 +123,9 @@ export default function GNSSBaselinePage() {
             onChange={handleInput}
             className="hidden"
           />
-          <div className="text-4xl mb-3">📡</div>
+          <div className="w-12 h-12 mx-auto mb-3 text-[var(--text-muted)]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-full h-full"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75l3 3m0 0l3-3m-3 3v-7.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
           <p className="text-[var(--text-muted)] mb-2">Drag & drop GNSS baseline file here</p>
           <p className="text-[var(--text-muted)] text-sm mb-4">or</p>
           <button
@@ -136,7 +138,7 @@ export default function GNSSBaselinePage() {
 
         {file && (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6 mb-6">
-            <h3 className="font-semibold text-gray-800 mb-4">Uploaded File</h3>
+            <h3 className="font-semibold text-[var(--text-primary)] mb-4">Uploaded File</h3>
             <div className="grid md:grid-cols-3 gap-4 text-sm">
               <div>
                 <span className="text-[var(--text-muted)]">Filename:</span>
@@ -178,7 +180,7 @@ export default function GNSSBaselinePage() {
 
         {result && (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">Processing Results</h3>
+            <h3 className="font-semibold text-[var(--text-primary)] mb-4">Processing Results</h3>
             
             <div className="grid md:grid-cols-3 gap-4 mb-6">
               <div className="bg-[var(--bg-secondary)] rounded-lg p-4">
@@ -196,7 +198,7 @@ export default function GNSSBaselinePage() {
               </div>
             </div>
 
-            <h4 className="font-medium text-gray-800 mb-3">Baseline Vectors</h4>
+            <h4 className="font-medium text-[var(--text-primary)] mb-3">Baseline Vectors</h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

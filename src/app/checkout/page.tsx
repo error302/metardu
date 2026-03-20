@@ -198,7 +198,7 @@ export default function CheckoutPage() {
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="+254700000000"
+                  placeholder="e.g. 254712345678"
                   className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-white"
                 />
                 <p className="text-xs text-[var(--text-muted)] mt-2">Required only for M-Pesa STK Push.</p>

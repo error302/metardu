@@ -105,7 +105,7 @@ export default function PeerReviewPage() {
                     )}
                   </div>
                   
-                  <p className="text-sm text-[var(--text-muted)] mb-2">📍 {reviewer.country}</p>
+                  <p className="text-sm text-[var(--text-muted)] mb-2">{reviewer.country}</p>
                   <p className="text-xs text-[var(--text-secondary)] mb-3">License: {reviewer.license}</p>
                   
                   <div className="flex flex-wrap gap-1 mb-3">

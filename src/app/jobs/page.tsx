@@ -118,7 +118,7 @@ export default function JobMarketplacePage() {
 
         <div className="space-y-4">
           {jobs.map(job => (
-            <div key={job.id} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] border p-6 hover:shadow-md transition">
+            <div key={job.id} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] border p-6 hover:border-[var(--border-hover)] transition">
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="text-lg font-semibold text-[var(--text-primary)]">{job.title}</h3>

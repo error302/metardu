@@ -78,7 +78,7 @@ export default function KencorsPage() {
 
         <div className="grid md:grid-cols-3 gap-4 mb-6">
           {networkStatus.map(net => (
-            <div key={net.network} className="bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-lg shadow-sm">
+            <div key={net.network} className="bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-lg">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="font-medium">{net.network}</h3>
                 <span className={`px-2 py-1 text-xs rounded ${

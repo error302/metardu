@@ -114,7 +114,7 @@ export default function MarketplacePage() {
               <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Popular Templates</h2>
               <div className="grid md:grid-cols-3 gap-4">
                 {getTopTemplates(3).map(tpl => (
-                  <div key={tpl.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-4 hover:shadow-md transition">
+                  <div key={tpl.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-4 hover:border-[var(--border-hover)] transition">
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                         {tpl.category}
@@ -140,7 +140,7 @@ export default function MarketplacePage() {
               <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">All Templates</h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {templates.map(tpl => (
-                  <div key={tpl.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-4 hover:shadow-md transition">
+                  <div key={tpl.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-4 hover:border-[var(--border-hover)] transition">
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                         {tpl.category}
@@ -179,7 +179,7 @@ export default function MarketplacePage() {
               <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Featured Surveyors</h2>
               <div className="grid md:grid-cols-2 gap-4">
                 {surveyors.slice(0, 2).map(surveyor => (
-                  <div key={surveyor.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-6 hover:shadow-md transition">
+                  <div key={surveyor.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-6 hover:border-[var(--border-hover)] transition">
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <div className="flex items-center gap-2">
@@ -206,7 +206,7 @@ export default function MarketplacePage() {
                     </div>
                     <div className="flex items-center justify-between border-t pt-3">
                       <div className="flex items-center gap-4 text-sm text-[var(--text-muted)]">
-                        <span>📁 {surveyor.projects} projects</span>
+                        <span>{surveyor.projects} projects</span>
                         <span className="flex items-center gap-1">
                           <span className="text-yellow-500">★</span> {surveyor.rating}
                         </span>
@@ -222,9 +222,9 @@ export default function MarketplacePage() {
               <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">All Surveyors</h2>
               <div className="space-y-4">
                 {surveyors.map(surveyor => (
-                  <div key={surveyor.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-4 flex gap-4 hover:shadow-md transition">
+                  <div key={surveyor.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-4 flex gap-4 hover:border-[var(--border-hover)] transition">
                     <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl">
-                      👷
+                      
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
