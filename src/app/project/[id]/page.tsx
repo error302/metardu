@@ -170,9 +170,11 @@ export default function ProjectPage({ params }: PageProps) {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        window.location.href = '/login'
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        // Save the current URL so login can bounce back here
+        localStorage.setItem('auth:redirect', window.location.pathname)
+        window.location.replace('/login')
       }
     })
   }, [])

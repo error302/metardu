@@ -1,319 +1,162 @@
 /**
  * Survey Job Marketplace
- * Phase 9 - Community Features
- * Job board for surveyors with 5% commission
+ * User-posted jobs persisted in localStorage.
+ * 5% commission model when completed.
  */
+
+export type SurveyJobType = 'boundary' | 'topographic' | 'engineering' | 'mining' | 'hydrographic' | 'drone' | 'cadastral' | 'traverse' | 'leveling' | 'gnss' | 'stakeout' | 'other'
+export type JobStatus = 'open' | 'in_progress' | 'completed' | 'cancelled'
+export type Currency = 'KES' | 'UGX' | 'TZS' | 'NGN' | 'USD' | 'GHS' | 'ZAR'
 
 export interface SurveyJob {
   id: string
   title: string
   description: string
-  clientName: string
-  clientId: string
+  surveyType: SurveyJobType
   country: string
   location: string
-  surveyType: 'boundary' | 'topographic' | 'engineering' | 'mining' | 'hydrographic' | 'drone' | 'cadastral' | 'control_network'
   budget: number
-  currency: string
-  deadline: number
-  status: 'open' | 'in_progress' | 'completed' | 'cancelled'
-  postedAt: number
-  proposals: number
+  currency: Currency
+  deadline: string        // ISO date
   requiredSkills: string[]
-  projectDocuments?: string[]
+  clientName: string
+  clientContact: string   // phone or email
+  status: JobStatus
+  proposals: number
+  postedAt: string        // ISO timestamp
+  postedBy: string        // user ID or 'anonymous'
 }
 
 export interface JobProposal {
   id: string
   jobId: string
-  surveyorId: string
   surveyorName: string
-  surveyorRating: number
-  proposedAmount: number
-  currency: string
-  coverLetter: string
-  estimatedDuration: string
-  submittedAt: number
-  status: 'pending' | 'accepted' | 'rejected'
+  contact: string
+  message: string
+  quotedAmount: number
+  currency: Currency
+  submittedAt: string
 }
 
-export interface JobCommission {
-  jobId: string
-  jobTitle: string
-  amount: number
-  currency: string
-  commissionRate: number
-  commissionAmount: number
-  status: 'pending' | 'paid' | 'refunded'
-  paidAt?: number
+const JOB_KEY = 'geonova_jobs'
+const PROP_KEY = 'geonova_proposals'
+
+function loadJobs(): SurveyJob[] {
+  if (typeof window === 'undefined') return []
+  try { return JSON.parse(localStorage.getItem(JOB_KEY) || '[]') } catch { return [] }
+}
+function saveJobs(jobs: SurveyJob[]) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(JOB_KEY, JSON.stringify(jobs))
+}
+function loadProposals(): JobProposal[] {
+  if (typeof window === 'undefined') return []
+  try { return JSON.parse(localStorage.getItem(PROP_KEY) || '[]') } catch { return [] }
+}
+function saveProposals(p: JobProposal[]) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(PROP_KEY, JSON.stringify(p))
 }
 
-const jobs: SurveyJob[] = [
-  {
-    id: 'job-001',
-    title: 'Residential Subdivision Survey',
-    description: 'Need a surveyor to conduct boundary survey for a 5-acre residential subdivision in Karen, Nairobi. 12 plots to be surveyed.',
-    clientName: 'Karen Development Ltd',
-    clientId: 'client-001',
-    country: 'Kenya',
-    location: 'Karen, Nairobi',
-    surveyType: 'cadastral',
-    budget: 150000,
-    currency: 'KES',
-    deadline: Date.now() + 30 * 24 * 60 * 60 * 1000,
-    status: 'open',
-    postedAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
-    proposals: 5,
-    requiredSkills: ['Boundary Surveys', 'Subdivision', 'Kenya Land Registry'],
-  },
-  {
-    id: 'job-002',
-    title: 'Topographic Survey for Road Design',
-    description: '2km road corridor topographic survey needed. Requires detail survey with contours at 0.5m interval.',
-    clientName: 'Ministry of Roads',
-    clientId: 'client-002',
-    country: 'Uganda',
-    location: 'Kampala-Entebbe Road',
-    surveyType: 'topographic',
-    budget: 85000,
-    currency: 'USD',
-    deadline: Date.now() + 45 * 24 * 60 * 60 * 1000,
-    status: 'open',
-    postedAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
-    proposals: 3,
-    requiredSkills: ['Topographic Survey', 'DTM Generation', 'Road Design'],
-  },
-  {
-    id: 'job-003',
-    title: 'Hydrographic Survey for Port Extension',
-    description: 'Bathymetric survey for proposed port extension in Dar es Salaam. Area: 50 hectares, depth range 5-25m.',
-    clientName: 'Tanzania Ports Authority',
-    clientId: 'client-003',
-    country: 'Tanzania',
-    location: 'Dar es Salaam Port',
-    surveyType: 'hydrographic',
-    budget: 120000,
-    currency: 'USD',
-    deadline: Date.now() + 60 * 24 * 60 * 60 * 1000,
-    status: 'open',
-    postedAt: Date.now() - 2 * 24 * 60 * 60 * 1000,
-    proposals: 2,
-    requiredSkills: ['Hydrographic Survey', 'Bathymetry', 'Marine Surveys'],
-  },
-  {
-    id: 'job-004',
-    title: 'Control Network Establishment',
-    description: 'Establish GPS control network for mining project. 20 points across 1000ha area.',
-    clientName: 'African Mining Corp',
-    clientId: 'client-004',
-    country: 'Ghana',
-    location: 'Ashanti Region',
-    surveyType: 'control_network',
-    budget: 95000,
-    currency: 'USD',
-    deadline: Date.now() + 21 * 24 * 60 * 60 * 1000,
-    status: 'open',
-    postedAt: Date.now() - 1 * 24 * 60 * 60 * 1000,
-    proposals: 4,
-    requiredSkills: ['GNSS', 'Control Networks', 'Least Squares'],
-  },
-  {
-    id: 'job-005',
-    title: 'Drone Survey for Construction Site',
-    description: 'Aerial survey of 20-acre construction site. Need orthomosaic, DSM, and volume calculations.',
-    clientName: 'BuildTech Kenya',
-    clientId: 'client-005',
-    country: 'Kenya',
-    location: 'Mombasa Road, Nairobi',
-    surveyType: 'drone',
-    budget: 75000,
-    currency: 'KES',
-    deadline: Date.now() + 14 * 24 * 60 * 60 * 1000,
-    status: 'open',
-    postedAt: Date.now() - 4 * 24 * 60 * 60 * 1000,
-    proposals: 7,
-    requiredSkills: ['UAV Survey', 'Photogrammetry', 'Volume Calculation'],
-  },
-]
-
-const proposals: JobProposal[] = []
-const commissions: JobCommission[] = []
-const COMMISSION_RATE = 0.05 // 5%
-
-export function getJobs(filters?: {
-  country?: string
-  surveyType?: string
-  status?: string
-}): SurveyJob[] {
-  let result = [...jobs]
-  
-  if (filters?.country) {
-    result = result.filter(j => j.country.toLowerCase() === filters.country?.toLowerCase())
-  }
-  if (filters?.surveyType) {
-    result = result.filter(j => j.surveyType === filters.surveyType)
-  }
-  if (filters?.status) {
-    result = result.filter(j => j.status === filters.status)
-  }
-  
-  return result.sort((a, b) => b.postedAt - a.postedAt)
+export function getJobs(filters?: { country?: string; surveyType?: string; status?: JobStatus }): SurveyJob[] {
+  let jobs = loadJobs().sort((a, b) => b.postedAt.localeCompare(a.postedAt))
+  if (filters?.country) jobs = jobs.filter(j => j.country === filters.country)
+  if (filters?.surveyType) jobs = jobs.filter(j => j.surveyType === filters.surveyType)
+  if (filters?.status) jobs = jobs.filter(j => j.status === filters.status)
+  return jobs
 }
 
-export function getJobById(jobId: string): SurveyJob | undefined {
-  return jobs.find(j => j.id === jobId)
+export function getJobById(id: string): SurveyJob | undefined {
+  return loadJobs().find(j => j.id === id)
 }
 
 export function searchJobs(query: string): SurveyJob[] {
   const q = query.toLowerCase()
-  return jobs.filter(j => 
+  return loadJobs().filter(j =>
     j.title.toLowerCase().includes(q) ||
     j.description.toLowerCase().includes(q) ||
     j.location.toLowerCase().includes(q) ||
-    j.country.toLowerCase().includes(q)
+    j.surveyType.includes(q)
   )
 }
 
-export function postJob(
-  title: string,
-  description: string,
-  clientName: string,
-  clientId: string,
-  country: string,
-  location: string,
-  surveyType: SurveyJob['surveyType'],
-  budget: number,
-  currency: string,
-  deadline: number,
-  requiredSkills: string[]
-): SurveyJob {
+export function postJob(data: Omit<SurveyJob, 'id' | 'proposals' | 'postedAt' | 'status'>): SurveyJob {
+  const jobs = loadJobs()
   const job: SurveyJob = {
-    id: `job-${Date.now()}`,
-    title,
-    description,
-    clientName,
-    clientId,
-    country,
-    location,
-    surveyType,
-    budget,
-    currency,
-    deadline,
+    ...data,
+    id: `job_${Date.now()}`,
     status: 'open',
-    postedAt: Date.now(),
     proposals: 0,
-    requiredSkills,
+    postedAt: new Date().toISOString(),
   }
-  
-  jobs.push(job)
+  saveJobs([job, ...jobs])
   return job
 }
 
-export function submitProposal(
-  jobId: string,
-  surveyorId: string,
-  surveyorName: string,
-  surveyorRating: number,
-  proposedAmount: number,
-  currency: string,
-  coverLetter: string,
-  estimatedDuration: string
-): JobProposal {
-  const proposal: JobProposal = {
-    id: `prop-${Date.now()}`,
-    jobId,
-    surveyorId,
-    surveyorName,
-    surveyorRating,
-    proposedAmount,
-    currency,
-    coverLetter,
-    estimatedDuration,
-    submittedAt: Date.now(),
-    status: 'pending',
-  }
-  
-  proposals.push(proposal)
-  
-  const job = jobs.find(j => j.id === jobId)
-  if (job) job.proposals++
-  
+export function updateJobStatus(id: string, status: JobStatus): boolean {
+  const jobs = loadJobs()
+  const idx = jobs.findIndex(j => j.id === id)
+  if (idx === -1) return false
+  jobs[idx] = { ...jobs[idx], status }
+  saveJobs(jobs)
+  return true
+}
+
+export function deleteJob(id: string) {
+  saveJobs(loadJobs().filter(j => j.id !== id))
+}
+
+export function submitProposal(data: Omit<JobProposal, 'id' | 'submittedAt'>): JobProposal {
+  const proposals = loadProposals()
+  const proposal: JobProposal = { ...data, id: `prop_${Date.now()}`, submittedAt: new Date().toISOString() }
+  saveProposals([...proposals, proposal])
+  // Increment proposal count on job
+  const jobs = loadJobs()
+  const idx = jobs.findIndex(j => j.id === data.jobId)
+  if (idx !== -1) { jobs[idx] = { ...jobs[idx], proposals: jobs[idx].proposals + 1 }; saveJobs(jobs) }
   return proposal
 }
 
 export function getProposalsForJob(jobId: string): JobProposal[] {
-  return proposals.filter(p => p.jobId === jobId)
+  return loadProposals().filter(p => p.jobId === jobId).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
 }
 
-export function acceptProposal(proposalId: string): boolean {
-  const proposal = proposals.find(p => p.id === proposalId)
-  if (!proposal) return false
-  
-  proposal.status = 'accepted'
-  
-  const job = jobs.find(j => j.id === proposal.jobId)
-  if (job) {
-    job.status = 'in_progress'
-    
-    const commissionAmount = proposal.proposedAmount * COMMISSION_RATE
-    commissions.push({
-      jobId: job.id,
-      jobTitle: job.title,
-      amount: proposal.proposedAmount,
-      currency: proposal.currency,
-      commissionRate: COMMISSION_RATE,
-      commissionAmount,
-      status: 'pending',
-    })
+export const JOB_TYPES: { id: SurveyJobType; label: string }[] = [
+  { id: 'boundary',    label: 'Boundary Survey' },
+  { id: 'topographic', label: 'Topographic Survey' },
+  { id: 'cadastral',   label: 'Cadastral Survey' },
+  { id: 'traverse',    label: 'Traverse / Control' },
+  { id: 'leveling',    label: 'Leveling' },
+  { id: 'engineering', label: 'Engineering Setout' },
+  { id: 'stakeout',    label: 'Stakeout' },
+  { id: 'gnss',        label: 'GNSS Baseline' },
+  { id: 'mining',      label: 'Mine Survey' },
+  { id: 'hydrographic',label: 'Hydrographic Survey' },
+  { id: 'drone',       label: 'Drone / UAV Survey' },
+  { id: 'other',       label: 'Other' },
+]
+
+export const CURRENCIES: { id: Currency; symbol: string; country: string }[] = [
+  { id: 'KES', symbol: 'KSh', country: 'Kenya' },
+  { id: 'UGX', symbol: 'USh', country: 'Uganda' },
+  { id: 'TZS', symbol: 'TSh', country: 'Tanzania' },
+  { id: 'NGN', symbol: '₦',   country: 'Nigeria' },
+  { id: 'GHS', symbol: 'GH₵', country: 'Ghana' },
+  { id: 'ZAR', symbol: 'R',   country: 'South Africa' },
+  { id: 'USD', symbol: '$',   country: 'International' },
+]
+
+export const COUNTRIES = ['Kenya','Uganda','Tanzania','Nigeria','Ghana','South Africa','Rwanda','Ethiopia','Zambia','Zimbabwe','Other']
+
+export const COMMON_SKILLS = [
+  'Total Station','GNSS/GPS','Leveling','AutoCAD','LandXML','DXF Export','Boundary Survey','Contours','Setting Out','Mine Survey','Drone Piloting','QGIS','Trimble Access','Leica','Topcon'
+]
+
+export function formatBudget(amount: number, currency: Currency): string {
+  const c = CURRENCIES.find(c => c.id === currency)
+  const sym = c?.symbol ?? currency
+  if (currency === 'KES' || currency === 'UGX' || currency === 'TZS' || currency === 'NGN') {
+    return `${sym} ${amount.toLocaleString()}`
   }
-  
-  proposals.forEach(p => {
-    if (p.id !== proposalId && p.jobId === proposal.jobId) {
-      p.status = 'rejected'
-    }
-  })
-  
-  return true
-}
-
-export function completeJob(jobId: string): boolean {
-  const job = jobs.find(j => j.id === jobId)
-  if (!job) return false
-  
-  job.status = 'completed'
-  
-  const comm = commissions.find(c => c.jobId === jobId)
-  if (comm) {
-    comm.status = 'paid'
-    comm.paidAt = Date.now()
-  }
-  
-  return true
-}
-
-export function getCommissions(): JobCommission[] {
-  return commissions
-}
-
-export function getTotalCommissionEarned(): number {
-  return commissions
-    .filter(c => c.status === 'paid')
-    .reduce((sum, c) => sum + c.commissionAmount, 0)
-}
-
-export function getJobCategories() {
-  return [
-    { id: 'boundary', name: 'Boundary Survey', icon: '📐' },
-    { id: 'topographic', name: 'Topographic Survey', icon: '🏔' },
-    { id: 'engineering', name: 'Engineering Survey', icon: '🏗' },
-    { id: 'mining', name: 'Mining Survey', icon: '⛏' },
-    { id: 'hydrographic', name: 'Hydrographic Survey', icon: '🌊' },
-    { id: 'drone', name: 'Drone/UAV Survey', icon: '🚁' },
-    { id: 'cadastral', name: 'Cadastral Survey', icon: '🏠' },
-    { id: 'control_network', name: 'Control Network', icon: '📡' },
-  ]
-}
-
-export function getCountries() {
-  return ['Kenya', 'Uganda', 'Tanzania', 'Ghana', 'Nigeria', 'South Africa']
+  return `${sym}${amount.toLocaleString()}`
 }

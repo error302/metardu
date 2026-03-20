@@ -39,7 +39,7 @@ export default function ProfilePage() {
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        router.push('/login')
+        localStorage.setItem('auth:redirect', '/profile'); router.replace('/login')
         return
       }
 

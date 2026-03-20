@@ -18,7 +18,16 @@ export default function LoginPage() {
     let mounted = true
     supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return
-      if (data.user) router.replace('/dashboard')
+      if (data.user) {
+        // If there's a pending redirect, go there; otherwise dashboard
+        const pending = typeof window !== 'undefined' ? localStorage.getItem('auth:redirect') : null
+        if (pending) {
+          localStorage.removeItem('auth:redirect')
+          router.replace(pending)
+        } else {
+          router.replace('/dashboard')
+        }
+      }
     })
     return () => { mounted = false }
   }, [router, supabase])
@@ -40,7 +49,7 @@ export default function LoginPage() {
       // Redirect to the page the user was trying to access, or dashboard by default
       const redirectTo = typeof window !== 'undefined' ? localStorage.getItem('auth:redirect') : null
       localStorage.removeItem('auth:redirect')
-      router.push(redirectTo || '/dashboard')
+      router.replace(redirectTo || '/dashboard')
     }
   }
 
