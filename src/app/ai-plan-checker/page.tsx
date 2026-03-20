@@ -57,18 +57,18 @@ export default function AIPlanCheckerPage() {
       case 'acceptable': return 'bg-yellow-100 text-yellow-800 border-yellow-300'
       case 'needs_revision': return 'bg-orange-100 text-orange-800 border-orange-300'
       case 'failed': return 'bg-red-100 text-red-800 border-red-300'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Plan Checker</h1>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">AI Plan Checker</h1>
         <p className="text-[var(--text-muted)] mb-8">Automated survey plan validation and compliance checking</p>
 
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-lg font-semibold mb-4">Survey Details</h2>
             
             <div className="space-y-4">
@@ -173,7 +173,7 @@ export default function AIPlanCheckerPage() {
           <div className="space-y-6">
             {result && (
               <>
-                <div className={`bg-white rounded-xl shadow-sm p-6 border-2 ${getGradeColor(result.grade)}`}>
+                <div className={`bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6 border-2 ${getGradeColor(result.grade)}`}>
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-semibold">Analysis Result</h2>
                     <span className="text-2xl font-bold">{result.overallScore}/100</span>
@@ -183,7 +183,7 @@ export default function AIPlanCheckerPage() {
                 </div>
 
                 {result.issues.length > 0 && (
-                  <div className="bg-white rounded-xl shadow-sm p-6">
+                  <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
                     <h3 className="font-semibold mb-4">Issues Found ({result.issues.length})</h3>
                     <div className="space-y-3">
                       {result.issues.map((issue, i) => (
@@ -209,7 +209,7 @@ export default function AIPlanCheckerPage() {
                   </div>
                 )}
 
-                <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
                   <h3 className="font-semibold mb-4">Country Requirements</h3>
                   <div className="text-sm text-[var(--text-muted)]">
                     <p><strong>Minimum Precision:</strong> 1:{getCountryRequirements(input.country).precision}</p>
@@ -220,7 +220,7 @@ export default function AIPlanCheckerPage() {
             )}
 
             {!result && !loading && (
-              <div className="bg-white rounded-xl shadow-sm p-6 text-center text-[var(--text-muted)]">
+              <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6 text-center text-[var(--text-muted)]">
                 <div className="text-4xl mb-3">🤖</div>
                 <p>Enter survey details and click "Check Plan" to analyze your survey</p>
               </div>

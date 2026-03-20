@@ -47,10 +47,10 @@ export default function MarketplacePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Surveyor Marketplace</h1>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Surveyor Marketplace</h1>
           <p className="text-[var(--text-muted)]">Templates, tools, and professional services for surveyors</p>
         </div>
 
@@ -60,7 +60,7 @@ export default function MarketplacePage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               activeTab === 'templates' 
                 ? 'bg-blue-600 text-white' 
-                : 'bg-white text-[var(--text-muted)] border'
+                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]'
             }`}
           >
             Templates
@@ -70,7 +70,7 @@ export default function MarketplacePage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               activeTab === 'surveyors' 
                 ? 'bg-blue-600 text-white' 
-                : 'bg-white text-[var(--text-muted)] border'
+                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]'
             }`}
           >
             Find Surveyors
@@ -101,17 +101,17 @@ export default function MarketplacePage() {
         {activeTab === 'templates' && (
           <>
             <div className="mb-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Popular Templates</h2>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Popular Templates</h2>
               <div className="grid md:grid-cols-3 gap-4">
                 {getTopTemplates(3).map(tpl => (
-                  <div key={tpl.id} className="bg-white rounded-lg shadow-sm border p-4 hover:shadow-md transition">
+                  <div key={tpl.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-4 hover:shadow-md transition">
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                         {tpl.category}
                       </span>
                       <span className="font-bold text-green-600">{formatPrice(tpl.price, tpl.currency)}</span>
                     </div>
-                    <h3 className="font-semibold text-gray-900 mb-1">{tpl.name}</h3>
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-1">{tpl.name}</h3>
                     <p className="text-sm text-[var(--text-muted)] mb-3 line-clamp-2">{tpl.description}</p>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-[var(--text-muted)]">{tpl.downloads} downloads</span>
@@ -127,21 +127,21 @@ export default function MarketplacePage() {
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">All Templates</h2>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">All Templates</h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {templates.map(tpl => (
-                  <div key={tpl.id} className="bg-white rounded-lg shadow-sm border p-4 hover:shadow-md transition">
+                  <div key={tpl.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-4 hover:shadow-md transition">
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                         {tpl.category}
                       </span>
                       <span className="font-bold text-green-600">{formatPrice(tpl.price, tpl.currency)}</span>
                     </div>
-                    <h3 className="font-semibold text-gray-900 mb-1">{tpl.name}</h3>
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-1">{tpl.name}</h3>
                     <p className="text-sm text-[var(--text-muted)] mb-3 line-clamp-2">{tpl.description}</p>
                     <div className="flex flex-wrap gap-1 mb-3">
                       {tpl.tags.slice(0, 3).map(tag => (
-                        <span key={tag} className="text-xs bg-gray-100 text-[var(--text-muted)] px-2 py-0.5 rounded">
+                        <span key={tag} className="text-xs bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-2 py-0.5 rounded">
                           {tag}
                         </span>
                       ))}
@@ -166,14 +166,14 @@ export default function MarketplacePage() {
         {activeTab === 'surveyors' && (
           <>
             <div className="mb-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Featured Surveyors</h2>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Featured Surveyors</h2>
               <div className="grid md:grid-cols-2 gap-4">
                 {surveyors.slice(0, 2).map(surveyor => (
-                  <div key={surveyor.id} className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition">
+                  <div key={surveyor.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-6 hover:shadow-md transition">
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900">{surveyor.name}</h3>
+                          <h3 className="font-semibold text-[var(--text-primary)]">{surveyor.name}</h3>
                           {surveyor.verified && <span className="text-blue-500 text-sm">✓ Verified</span>}
                         </div>
                         <p className="text-sm text-[var(--text-muted)]">{surveyor.title}</p>
@@ -181,7 +181,7 @@ export default function MarketplacePage() {
                       <span className={`px-2 py-1 text-xs rounded ${
                         surveyor.availability === 'available' ? 'bg-green-100 text-green-800' :
                         surveyor.availability === 'busy' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
+                        'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                       }`}>
                         {surveyor.availability}
                       </span>
@@ -189,7 +189,7 @@ export default function MarketplacePage() {
                     <p className="text-sm text-[var(--text-muted)] mb-3">{surveyor.bio}</p>
                     <div className="flex flex-wrap gap-1 mb-3">
                       {surveyor.specialties.map(sp => (
-                        <span key={sp} className="text-xs bg-gray-100 text-[var(--text-muted)] px-2 py-0.5 rounded">
+                        <span key={sp} className="text-xs bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-2 py-0.5 rounded">
                           {sp}
                         </span>
                       ))}
@@ -209,23 +209,23 @@ export default function MarketplacePage() {
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">All Surveyors</h2>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">All Surveyors</h2>
               <div className="space-y-4">
                 {surveyors.map(surveyor => (
-                  <div key={surveyor.id} className="bg-white rounded-lg shadow-sm border p-4 flex gap-4 hover:shadow-md transition">
+                  <div key={surveyor.id} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] border p-4 flex gap-4 hover:shadow-md transition">
                     <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl">
                       👷
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-gray-900">{surveyor.name}</h3>
+                        <h3 className="font-semibold text-[var(--text-primary)]">{surveyor.name}</h3>
                         {surveyor.verified && <span className="text-blue-500 text-sm">✓</span>}
                         <span className="text-sm text-[var(--text-muted)]">• {surveyor.country}</span>
                       </div>
                       <p className="text-sm text-[var(--text-muted)] mb-2">{surveyor.title} • License: {surveyor.license}</p>
                       <div className="flex flex-wrap gap-1">
                         {surveyor.specialties.map(sp => (
-                          <span key={sp} className="text-xs bg-gray-100 text-[var(--text-muted)] px-2 py-0.5 rounded">
+                          <span key={sp} className="text-xs bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-2 py-0.5 rounded">
                             {sp}
                           </span>
                         ))}

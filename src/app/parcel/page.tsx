@@ -45,9 +45,9 @@ export default function ParcelSearchPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Parcel Intelligence</h1>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Parcel Intelligence</h1>
         <p className="text-[var(--text-muted)] mb-8">Search land registries and get legal boundary guidance</p>
 
         <div className="flex space-x-4 mb-6">
@@ -56,7 +56,7 @@ export default function ParcelSearchPage() {
             className={`px-4 py-2 rounded-lg font-medium transition ${
               activeTab === 'search'
                 ? 'bg-sky-600 text-white'
-                : 'bg-white text-[var(--text-muted)] hover:bg-gray-100'
+                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)]'
             }`}
           >
             Parcel Search
@@ -66,7 +66,7 @@ export default function ParcelSearchPage() {
             className={`px-4 py-2 rounded-lg font-medium transition ${
               activeTab === 'legal'
                 ? 'bg-sky-600 text-white'
-                : 'bg-white text-[var(--text-muted)] hover:bg-gray-100'
+                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)]'
             }`}
           >
             Land Law Advisor
@@ -74,7 +74,7 @@ export default function ParcelSearchPage() {
         </div>
 
         {activeTab === 'search' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-xl font-semibold mb-4">Search Land Registry</h2>
             <div className="grid md:grid-cols-4 gap-4 mb-6">
               <div>
@@ -130,7 +130,7 @@ export default function ParcelSearchPage() {
               <div className="space-y-4">
                 <h3 className="font-medium text-[var(--text-muted)]">Found {parcels.length} Parcel(s)</h3>
                 {parcels.map((parcel, i) => (
-                  <div key={i} className="p-4 border rounded-lg hover:bg-gray-50">
+                  <div key={i} className="p-4 border rounded-lg hover:bg-[var(--bg-secondary)]">
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="font-medium text-lg">{parcel.parcelId}</h4>
@@ -163,7 +163,7 @@ export default function ParcelSearchPage() {
         )}
 
         {activeTab === 'legal' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-xl font-semibold mb-4">Land Law Advisory System</h2>
             <p className="text-[var(--text-muted)] mb-6">
               Get professional guidance on boundary situations based on cadastral surveying principles.
@@ -178,7 +178,7 @@ export default function ParcelSearchPage() {
                     <button
                       key={scenario.id}
                       onClick={() => handleLegalGuidance(scenario.id)}
-                      className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 hover:border-sky-300 transition"
+                      className="w-full text-left p-3 border rounded-lg hover:bg-[var(--bg-secondary)] hover:border-sky-300 transition"
                     >
                       {scenario.label}
                     </button>
@@ -221,7 +221,7 @@ export default function ParcelSearchPage() {
                     </ul>
                   </div>
 
-                  <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
                     <h4 className="font-medium mb-2 text-sm">References</h4>
                     {legalGuidance.references.map((ref: any, i: number) => (
                       <p key={i} className="text-xs text-[var(--text-muted)]">

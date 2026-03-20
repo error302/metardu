@@ -83,9 +83,9 @@ export default function OnlineServicesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Online Services</h1>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Online Services</h1>
         <p className="text-[var(--text-muted)] mb-8">Live coordinate transformations, benchmark lookup, and atmospheric corrections</p>
 
         <div className="flex space-x-4 mb-6">
@@ -100,7 +100,7 @@ export default function OnlineServicesPage() {
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 activeTab === tab.id
                   ? 'bg-sky-600 text-white'
-                  : 'bg-white text-[var(--text-muted)] hover:bg-gray-100'
+                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)]'
               }`}
             >
               {tab.label}
@@ -109,7 +109,7 @@ export default function OnlineServicesPage() {
         </div>
 
         {activeTab === 'transform' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-xl font-semibold mb-4">Coordinate Transformation</h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div>
@@ -223,7 +223,7 @@ export default function OnlineServicesPage() {
                 </button>
 
                 {transformResult && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="mt-4 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
                     {transformResult.success ? (
                       <div>
                         <h3 className="font-medium text-green-600 mb-2">Transformation Successful</h3>
@@ -255,7 +255,7 @@ export default function OnlineServicesPage() {
         )}
 
         {activeTab === 'benchmarks' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-xl font-semibold mb-4">Benchmark Database Lookup</h2>
             <div className="grid md:grid-cols-3 gap-4 mb-6">
               <div>
@@ -298,7 +298,7 @@ export default function OnlineServicesPage() {
             {benchmarkResults.length > 0 && (
               <div className="space-y-3">
                 {benchmarkResults.map(bm => (
-                  <div key={bm.id} className="p-4 border rounded-lg hover:bg-gray-50">
+                  <div key={bm.id} className="p-4 border rounded-lg hover:bg-[var(--bg-secondary)]">
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium">{bm.name}</h3>
@@ -318,7 +318,7 @@ export default function OnlineServicesPage() {
         )}
 
         {activeTab === 'weather' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-xl font-semibold mb-4">EDM Atmospheric Correction</h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-4">

@@ -85,9 +85,9 @@ export default function DigitalSignaturePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Digital Signature & QR Verification</h1>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Digital Signature & QR Verification</h1>
         <p className="text-[var(--text-muted)] mb-8">Sign survey documents and verify signatures with QR codes</p>
 
         <div className="flex gap-2 mb-6">
@@ -96,7 +96,7 @@ export default function DigitalSignaturePage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               activeTab === 'sign' 
                 ? 'bg-blue-600 text-white' 
-                : 'bg-white text-gray-700 border'
+                : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-color)]'
             }`}
           >
             Sign Document
@@ -106,7 +106,7 @@ export default function DigitalSignaturePage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               activeTab === 'verify' 
                 ? 'bg-blue-600 text-white' 
-                : 'bg-white text-gray-700 border'
+                : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-color)]'
             }`}
           >
             Verify Signature
@@ -114,12 +114,12 @@ export default function DigitalSignaturePage() {
         </div>
 
         {activeTab === 'sign' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-xl font-semibold mb-4">Sign a Document</h2>
             
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   Document ID
                 </label>
                 <input
@@ -131,7 +131,7 @@ export default function DigitalSignaturePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   Document Content
                 </label>
                 <textarea
@@ -143,7 +143,7 @@ export default function DigitalSignaturePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   Signer ID (License Number)
                 </label>
                 <input
@@ -155,7 +155,7 @@ export default function DigitalSignaturePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   Secret Key
                 </label>
                 <input
@@ -195,12 +195,12 @@ export default function DigitalSignaturePage() {
                 </div>
                 
                 {qrCode && (
-                  <div className="mt-4 p-4 bg-white rounded-lg">
-                    <p className="text-sm font-medium text-gray-700 mb-2">QR Payload (Base64):</p>
+                  <div className="mt-4 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+                    <p className="text-sm font-medium text-[var(--text-secondary)] mb-2">QR Payload (Base64):</p>
                     <textarea
                       readOnly
                       value={qrCode}
-                      className="w-full p-2 text-xs font-mono border rounded bg-gray-50"
+                      className="w-full p-2 text-xs font-mono border rounded bg-[var(--bg-secondary)] text-[var(--text-primary)]"
                       rows={3}
                     />
                   </div>
@@ -211,12 +211,12 @@ export default function DigitalSignaturePage() {
         )}
 
         {activeTab === 'verify' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-xl font-semibold mb-4">Verify a Signature</h2>
             
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   QR Payload (Base64)
                 </label>
                 <textarea
@@ -228,7 +228,7 @@ export default function DigitalSignaturePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   Original Document Content
                 </label>
                 <textarea
@@ -240,7 +240,7 @@ export default function DigitalSignaturePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   Secret Key
                 </label>
                 <input

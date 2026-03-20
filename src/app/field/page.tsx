@@ -378,7 +378,7 @@ export default function FieldPage() {
                 onClick={() => setPCtrl(!pCtrl)}
                 className={`w-8 h-4 rounded-full relative ${pCtrl ? 'bg-[#E8841A]' : 'bg-gray-600'}`}
               >
-                <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded transition-transform ${pCtrl ? 'left-4' : 'left-0.5'}`} />
+                <div className={`absolute top-0.5 w-3.5 h-3.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded transition-transform ${pCtrl ? 'left-4' : 'left-0.5'}`} />
               </button>
             </div>
 

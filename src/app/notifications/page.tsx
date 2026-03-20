@@ -98,11 +98,11 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
+            <h1 className="text-3xl font-bold text-[var(--text-primary)]">Notifications</h1>
             <p className="text-[var(--text-muted)]">You have {unreadCount} unread notifications</p>
           </div>
           <button
@@ -117,7 +117,7 @@ export default function NotificationsPage() {
           <button
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg font-medium ${
-              filter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-[var(--text-muted)] border'
+              filter === 'all' ? 'bg-blue-600 text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]'
             }`}
           >
             All
@@ -125,7 +125,7 @@ export default function NotificationsPage() {
           <button
             onClick={() => setFilter('unread')}
             className={`px-4 py-2 rounded-lg font-medium ${
-              filter === 'unread' ? 'bg-blue-600 text-white' : 'bg-white text-[var(--text-muted)] border'
+              filter === 'unread' ? 'bg-blue-600 text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]'
             }`}
           >
             Unread ({unreadCount})
@@ -137,7 +137,7 @@ export default function NotificationsPage() {
             <div
               key={notification.id}
               onClick={() => markAsRead(notification.id)}
-              className={`bg-white rounded-xl shadow-sm border p-4 cursor-pointer hover:shadow-md transition ${
+              className={`bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] border p-4 cursor-pointer hover:shadow-md transition ${
                 !notification.read ? 'border-l-4 border-l-blue-500' : ''
               }`}
             >
@@ -147,7 +147,7 @@ export default function NotificationsPage() {
                 </span>
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
-                    <h3 className="font-semibold text-gray-900">{notification.title}</h3>
+                    <h3 className="font-semibold text-[var(--text-primary)]">{notification.title}</h3>
                     <span className="text-xs text-[var(--text-muted)]">{notification.time}</span>
                   </div>
                   <p className="text-sm text-[var(--text-muted)] mt-1">{notification.message}</p>

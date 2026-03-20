@@ -55,13 +55,13 @@ export default function GNSSBaselinePage() {
   const validation = result ? validateBaseline(result.baselineVectors) : null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">GNSS Baseline Processing</h1>
         <p className="text-[var(--text-muted)] mb-8">Upload RINEX or proprietary GNSS baseline files for processing</p>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-4">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-4">
             <h3 className="font-semibold text-gray-800 mb-3">Base Station Coordinates</h3>
             <div className="space-y-3">
               <div>
@@ -94,7 +94,7 @@ export default function GNSSBaselinePage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-4">
             <h3 className="font-semibold text-gray-800 mb-3">Supported Formats</h3>
             <ul className="text-sm text-[var(--text-muted)] space-y-2">
               <li>✓ RINEX (.rnx, .obs)</li>
@@ -135,7 +135,7 @@ export default function GNSSBaselinePage() {
         </div>
 
         {file && (
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6 mb-6">
             <h3 className="font-semibold text-gray-800 mb-4">Uploaded File</h3>
             <div className="grid md:grid-cols-3 gap-4 text-sm">
               <div>
@@ -177,20 +177,20 @@ export default function GNSSBaselinePage() {
         )}
 
         {result && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h3 className="font-semibold text-gray-800 mb-4">Processing Results</h3>
             
             <div className="grid md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-[var(--bg-secondary)] rounded-lg p-4">
                 <p className="text-sm text-[var(--text-muted)]">Solution Type</p>
                 <p className="text-lg font-bold text-blue-600">{result.solutionType.toUpperCase()}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-1">{getSolutionQualityDescription(result.solutionType)}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-[var(--bg-secondary)] rounded-lg p-4">
                 <p className="text-sm text-[var(--text-muted)]">PDOP</p>
                 <p className="text-lg font-bold">{result.pdop.toFixed(2)}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-[var(--bg-secondary)] rounded-lg p-4">
                 <p className="text-sm text-[var(--text-muted)]">RMS</p>
                 <p className="text-lg font-bold">{(result.rms * 100).toFixed(1)} cm</p>
               </div>

@@ -40,16 +40,16 @@ export default function PeerReviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Peer Review Network</h1>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Peer Review Network</h1>
         <p className="text-[var(--text-muted)] mb-8">Get your survey plans reviewed by certified professionals</p>
 
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => setActiveTab('browse')}
             className={`px-4 py-2 rounded-lg font-medium ${
-              activeTab === 'browse' ? 'bg-blue-600 text-white' : 'bg-white text-[var(--text-muted)] border'
+              activeTab === 'browse' ? 'bg-blue-600 text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]'
             }`}
           >
             Browse Reviewers
@@ -57,7 +57,7 @@ export default function PeerReviewPage() {
           <button
             onClick={() => setActiveTab('submit')}
             className={`px-4 py-2 rounded-lg font-medium ${
-              activeTab === 'submit' ? 'bg-blue-600 text-white' : 'bg-white text-[var(--text-muted)] border'
+              activeTab === 'submit' ? 'bg-blue-600 text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]'
             }`}
           >
             Submit for Review
@@ -84,10 +84,10 @@ export default function PeerReviewPage() {
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {reviewers.map(reviewer => (
-                <div key={reviewer.id} className="bg-white rounded-xl shadow-sm p-6">
+                <div key={reviewer.id} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="font-semibold text-gray-900">{reviewer.name}</h3>
+                      <h3 className="font-semibold text-[var(--text-primary)]">{reviewer.name}</h3>
                       <p className="text-sm text-[var(--text-muted)]">{reviewer.title}</p>
                     </div>
                     {reviewer.verified && (
@@ -100,7 +100,7 @@ export default function PeerReviewPage() {
                   
                   <div className="flex flex-wrap gap-1 mb-3">
                     {reviewer.specializations.map(sp => (
-                      <span key={sp} className="text-xs bg-gray-100 text-[var(--text-muted)] px-2 py-1 rounded">
+                      <span key={sp} className="text-xs bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-2 py-1 rounded">
                         {sp}
                       </span>
                     ))}
@@ -125,7 +125,7 @@ export default function PeerReviewPage() {
         )}
 
         {activeTab === 'submit' && (
-          <div className="bg-white rounded-xl shadow-sm p-6 max-w-xl">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6 max-w-xl">
             <h2 className="text-lg font-semibold mb-4">Submit Survey for Review</h2>
             
             {submitted ? (

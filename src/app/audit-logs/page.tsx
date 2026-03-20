@@ -109,18 +109,18 @@ export default function AuditLogsPage() {
       case 'UPDATE': return 'bg-blue-100 text-blue-800'
       case 'DELETE': return 'bg-red-100 text-red-800'
       case 'EXPORT': return 'bg-purple-100 text-purple-800'
-      case 'LOGIN': return 'bg-gray-100 text-gray-800'
+      case 'LOGIN': return 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
       case 'SIGN': return 'bg-yellow-100 text-yellow-800'
       case 'API_CALL': return 'bg-cyan-100 text-cyan-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Audit Logs</h1>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Audit Logs</h1>
           <p className="text-[var(--text-muted)]">Track all activities in your account</p>
         </div>
 
@@ -147,9 +147,9 @@ export default function AuditLogsPage() {
           </select>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-[var(--bg-primary)] border-b">
               <tr>
                 <th className="text-left py-3 px-4 text-sm font-medium text-[var(--text-muted)]">Action</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-[var(--text-muted)]">Resource</th>
@@ -161,7 +161,7 @@ export default function AuditLogsPage() {
             </thead>
             <tbody>
               {filteredLogs.map(log => (
-                <tr key={log.id} className="border-b hover:bg-gray-50">
+                <tr key={log.id} className="border-b hover:bg-[var(--bg-secondary)]">
                   <td className="py-3 px-4">
                     <span className={`px-2 py-1 text-xs rounded ${getActionColor(log.action)}`}>
                       {log.action}

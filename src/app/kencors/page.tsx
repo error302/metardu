@@ -66,19 +66,19 @@ export default function KencorsPage() {
       case 'online': return 'bg-green-500'
       case 'offline': return 'bg-red-500'
       case 'maintenance': return 'bg-yellow-500'
-      default: return 'bg-gray-500'
+      default: return 'bg-[var(--text-muted)]'
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">KenCORS RTK Corrections</h1>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">KenCORS RTK Corrections</h1>
         <p className="text-[var(--text-muted)] mb-8">Real-time corrections from Kenya's CORS network</p>
 
         <div className="grid md:grid-cols-3 gap-4 mb-6">
           {networkStatus.map(net => (
-            <div key={net.network} className="bg-white p-4 rounded-lg shadow-sm">
+            <div key={net.network} className="bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-lg shadow-sm">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="font-medium">{net.network}</h3>
                 <span className={`px-2 py-1 text-xs rounded ${
@@ -97,7 +97,7 @@ export default function KencorsPage() {
           ))}
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Get RTK Corrections</h2>
           <div className="grid md:grid-cols-4 gap-4 mb-4">
             <div>
@@ -170,7 +170,7 @@ export default function KencorsPage() {
         </div>
 
         {rtkResult && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-xl font-semibold mb-4">RTK Correction Results</h2>
             
             {rtkResult.success ? (

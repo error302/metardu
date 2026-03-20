@@ -45,11 +45,11 @@ export default function AnalyticsPage() {
   const maxActivity = Math.max(...data.userActivity.map(d => d.count))
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
+            <h1 className="text-3xl font-bold text-[var(--text-primary)]">Analytics</h1>
             <p className="text-[var(--text-muted)]">Track your GeoNova usage</p>
           </div>
           <select
@@ -65,22 +65,22 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="grid md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <p className="text-sm text-[var(--text-muted)] mb-1">Total Projects</p>
             <p className="text-3xl font-bold">{data.totalProjects}</p>
             <p className="text-xs text-green-600 mt-1">↑ 12% from last month</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <p className="text-sm text-[var(--text-muted)] mb-1">Active Projects</p>
             <p className="text-3xl font-bold">{data.activeProjects}</p>
             <p className="text-xs text-green-600 mt-1">↑ 5% from last month</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <p className="text-sm text-[var(--text-muted)] mb-1">Completed Surveys</p>
             <p className="text-3xl font-bold">{data.completedSurveys}</p>
             <p className="text-xs text-green-600 mt-1">↑ 23% from last month</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <p className="text-sm text-[var(--text-muted)] mb-1">API Calls</p>
             <p className="text-3xl font-bold">{(data.apiCalls / 1000).toFixed(1)}K</p>
             <p className="text-xs text-green-600 mt-1">↑ 18% from last month</p>
@@ -88,7 +88,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-lg font-semibold mb-4">User Activity</h2>
             <div className="flex items-end gap-1 h-40">
               {data.userActivity.map((d, i) => (
@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-lg font-semibold mb-4">Projects by Type</h2>
             <div className="space-y-3">
               {data.projectTypes.map((pt, i) => {
@@ -130,7 +130,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-lg font-semibold mb-2">Storage</h2>
             <div className="relative pt-4">
               <div className="w-full bg-gray-200 rounded-full h-4">
@@ -145,7 +145,7 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-lg font-semibold mb-2">API Usage</h2>
             <div className="relative pt-4">
               <div className="w-full bg-gray-200 rounded-full h-4">
@@ -160,7 +160,7 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-lg font-semibold mb-2">Team Members</h2>
             <p className="text-3xl font-bold">5</p>
             <p className="text-sm text-[var(--text-muted)]">of 10 seats used</p>

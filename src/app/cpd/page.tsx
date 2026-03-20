@@ -29,14 +29,14 @@ export default function CPDPage() {
       case 'approved': return 'bg-green-100 text-green-800'
       case 'pending': return 'bg-yellow-100 text-yellow-800'
       case 'rejected': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">CPD Certificates</h1>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">CPD Certificates</h1>
         <p className="text-[var(--text-muted)] mb-8">Continuing Professional Development tracking and certificates</p>
 
         <div className="mb-6">
@@ -63,22 +63,22 @@ export default function CPDPage() {
 
         {summary && (
           <div className="grid md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] p-4">
               <p className="text-sm text-[var(--text-muted)]">Total Hours</p>
               <p className="text-2xl font-bold">{summary.totalHours}</p>
             </div>
-            <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] p-4">
               <p className="text-sm text-[var(--text-muted)]">Required</p>
               <p className="text-2xl font-bold">{summary.requirementHours}</p>
             </div>
-            <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] p-4">
               <p className="text-sm text-[var(--text-muted)]">Compliance</p>
               <p className={`text-2xl font-bold ${
                 summary.status === 'compliant' ? 'text-green-600' :
                 summary.status === 'at_risk' ? 'text-yellow-600' : 'text-red-600'
               }`}>{summary.compliancePercentage.toFixed(0)}%</p>
             </div>
-            <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] p-4">
               <p className="text-sm text-[var(--text-muted)]">Status</p>
               <p className={`text-lg font-bold ${
                 summary.status === 'compliant' ? 'text-green-600' :
@@ -88,7 +88,7 @@ export default function CPDPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">Category Breakdown</h2>
           {summary && (
             <div className="space-y-3">
@@ -132,7 +132,7 @@ export default function CPDPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] p-6">
           <h2 className="text-lg font-semibold mb-4">My Activities</h2>
           <div className="space-y-3">
             {activities.map(activity => (

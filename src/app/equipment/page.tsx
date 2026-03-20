@@ -32,14 +32,14 @@ export default function EquipmentPage() {
       case 'due': return 'bg-yellow-100 text-yellow-800'
       case 'overdue': return 'bg-red-100 text-red-800'
       case 'calibrating': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Equipment Calibration Tracker</h1>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Equipment Calibration Tracker</h1>
         <p className="text-[var(--text-muted)] mb-8">Monitor and manage survey instrument calibration schedules</p>
 
         {alerts.length > 0 && (
@@ -61,26 +61,26 @@ export default function EquipmentPage() {
 
         {summary && (
           <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-lg shadow-sm">
               <p className="text-2xl font-bold">{summary.total}</p>
               <p className="text-sm text-[var(--text-muted)]">Total Equipment</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-lg shadow-sm">
               <p className="text-2xl font-bold text-green-600">{summary.active}</p>
               <p className="text-sm text-[var(--text-muted)]">Active</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-lg shadow-sm">
               <p className="text-2xl font-bold text-yellow-600">{summary.due}</p>
               <p className="text-sm text-[var(--text-muted)]">Due Soon</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-lg shadow-sm">
               <p className="text-2xl font-bold text-red-600">{summary.overdue}</p>
               <p className="text-sm text-[var(--text-muted)]">Overdue</p>
             </div>
           </div>
         )}
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Equipment Inventory</h2>
             <select
@@ -110,7 +110,7 @@ export default function EquipmentPage() {
               </thead>
               <tbody>
                 {filteredEquipment.map(eq => (
-                  <tr key={eq.id} className="border-b hover:bg-gray-50">
+                  <tr key={eq.id} className="border-b hover:bg-[var(--bg-secondary)]">
                     <td className="py-3 px-4 font-medium">{eq.name}</td>
                     <td className="py-3 px-4 text-sm text-[var(--text-muted)]">{eq.brand} {eq.model}</td>
                     <td className="py-3 px-4 text-sm font-mono">{eq.serialNumber}</td>

@@ -38,23 +38,23 @@ export default function JobMarketplacePage() {
     switch (status) {
       case 'open': return 'bg-green-100 text-green-800'
       case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'completed': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'completed': return 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
+      default: return 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Survey Job Marketplace</h1>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Survey Job Marketplace</h1>
           <p className="text-[var(--text-muted)]">Find survey jobs or hire professional surveyors</p>
         </div>
 
         <div className="bg-blue-600 rounded-xl p-6 mb-8 text-white">
           <h2 className="text-xl font-semibold mb-2">Earn with GeoNova</h2>
           <p className="mb-4">Complete surveys through our marketplace. We charge 5% commission on all completed jobs.</p>
-          <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50">
+          <button className="bg-[var(--bg-secondary)] text-blue-400 px-4 py-2 rounded-lg font-medium hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
             Post a Job
           </button>
         </div>
@@ -97,7 +97,7 @@ export default function JobMarketplacePage() {
               className={`p-4 rounded-lg text-left transition ${
                 selectedType === cat.id 
                   ? 'bg-blue-100 border-2 border-blue-500' 
-                  : 'bg-white border border-gray-200 hover:border-blue-300'
+                  : 'bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-blue-300'
               }`}
             >
               <span className="text-2xl">{cat.icon}</span>
@@ -108,10 +108,10 @@ export default function JobMarketplacePage() {
 
         <div className="space-y-4">
           {jobs.map(job => (
-            <div key={job.id} className="bg-white rounded-xl shadow-sm border p-6 hover:shadow-md transition">
+            <div key={job.id} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] border p-6 hover:shadow-md transition">
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">{job.title}</h3>
                   <p className="text-sm text-[var(--text-muted)]">{job.clientName} • {job.location}</p>
                 </div>
                 <span className={`px-3 py-1 text-sm rounded ${getStatusColor(job.status)}`}>
@@ -123,7 +123,7 @@ export default function JobMarketplacePage() {
               
               <div className="flex flex-wrap gap-2 mb-4">
                 {job.requiredSkills.map(skill => (
-                  <span key={skill} className="text-xs bg-gray-100 text-[var(--text-muted)] px-2 py-1 rounded">
+                  <span key={skill} className="text-xs bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-2 py-1 rounded">
                     {skill}
                   </span>
                 ))}

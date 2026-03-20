@@ -13,12 +13,12 @@ export default function WhiteLabelPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">White-Label Settings</h1>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">White-Label Settings</h1>
         <p className="text-[var(--text-muted)] mb-8">Customize GeoNova for your organization</p>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold">Enable White-Label</h2>
@@ -31,7 +31,7 @@ export default function WhiteLabelPage() {
                 onChange={(e) => setConfig({...config, enabled: e.target.checked})}
                 className="sr-only peer" 
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--border-hover)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
 
@@ -125,8 +125,8 @@ export default function WhiteLabelPage() {
                 </div>
               </div>
 
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-medium text-gray-800 mb-2">Preview</h3>
+              <div className="mt-6 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+                <h3 className="font-medium text-[var(--text-primary)] mb-2">Preview</h3>
                 <div className="flex items-center gap-3">
                   <div 
                     className="w-10 h-10 rounded-lg"

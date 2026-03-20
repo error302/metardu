@@ -26,7 +26,7 @@ export default function Home() {
             {language === 'en' ? (
               <>
                 <h1 className="text-5xl md:text-7xl font-bold mb-4">
-                  <span className="text-white">Professional </span>
+                  <span className="text-[var(--text-primary)]">Professional </span>
                   <span className="text-[#E8841A]">Surveying</span>
                 </h1>
                 <h1 className="text-5xl md:text-7xl font-bold mb-6 text-white">Made Simple</h1>
@@ -250,7 +250,7 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Traverse Adjustment</h3>
                 <div className="font-mono text-sm bg-[var(--bg-primary)] p-4 rounded-lg">
                   <div className="text-[var(--text-secondary)] mb-2">Input:</div>
-                  <div className="text-white">5 stations, 1234.56m total distance</div>
+                  <div className="text-[var(--text-primary)]">5 stations, 1234.56m total distance</div>
                   <div className="text-[var(--text-secondary)] mt-4 mb-2">Output:</div>
                   <div className="text-green-400">Precision: 1 : 12,500</div>
                   <div className="text-green-400">Misclosure E: 0.042m</div>
@@ -264,7 +264,7 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Leveling Calculator</h3>
                 <div className="font-mono text-sm bg-[var(--bg-primary)] p-4 rounded-lg">
                   <div className="text-[var(--text-secondary)] mb-2">Input:</div>
-                  <div className="text-white">6 stations, 1.245km total</div>
+                  <div className="text-[var(--text-primary)]">6 stations, 1.245km total</div>
                   <div className="text-[var(--text-secondary)] mt-4 mb-2">Output:</div>
                   <div className="text-green-400">ΣBS - ΣFS = 2.345m</div>
                   <div className="text-green-400">Last RL - First RL = 2.345m</div>
@@ -278,12 +278,12 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">COGO Tools</h3>
                 <div className="font-mono text-sm bg-[var(--bg-primary)] p-4 rounded-lg">
                   <div className="text-[var(--text-secondary)] mb-2">Available Functions:</div>
-                  <div className="text-white">• Radiation</div>
-                  <div className="text-white">• Intersection (Forward/Backward)</div>
-                  <div className="text-white">• Traverse</div>
-                  <div className="text-white">• Side Shot</div>
-                  <div className="text-white">• Offset</div>
-                  <div className="text-white">• Missing Line</div>
+                  <div className="text-[var(--text-primary)]">• Radiation</div>
+                  <div className="text-[var(--text-primary)]">• Intersection (Forward/Backward)</div>
+                  <div className="text-[var(--text-primary)]">• Traverse</div>
+                  <div className="text-[var(--text-primary)]">• Side Shot</div>
+                  <div className="text-[var(--text-primary)]">• Offset</div>
+                  <div className="text-[var(--text-primary)]">• Missing Line</div>
                   <div className="text-[#E8841A] mt-2">✓ Full working shown</div>
                 </div>
               </div>
@@ -293,7 +293,7 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Horizontal Curves</h3>
                 <div className="font-mono text-sm bg-[var(--bg-primary)] p-4 rounded-lg">
                   <div className="text-[var(--text-secondary)] mb-2">Input:</div>
-                  <div className="text-white">R = 300m, Δ = 45°</div>
+                  <div className="text-[var(--text-primary)]">R = 300m, Δ = 45°</div>
                   <div className="text-[var(--text-secondary)] mt-4 mb-2">Output:</div>
                   <div className="text-green-400">Tangent: 267.95m</div>
                   <div className="text-green-400">Length: 235.62m</div>
