@@ -256,7 +256,7 @@ const BAHRAIN_STD: CountrySurveyStandard = {
     'UTM Zone 39 North, CM Scale Factor 0.9996, origin: 0°N 51°E, False Northing 0m, False Easting 500000m',
     'PRN: 8 GNSS reference stations covering all Bahrain (Diyar Al Muharraq, King Fahd Causeway, Scout Camp, Durrat, Jauu, Budaiya, Hawar, Umm Al Hassam)',
     'RTK GPS: Max 3D Quality ≤0.05m; coordinate std dev ≤20mm; min 6 satellites, PDOP <6',
-    'Traverse field rounds: T2 <30" angular, T16 <1'' angular; spread <10" (T2) / <40" (T16)',
+    'Traverse field rounds: T2 <30" angular, T16 <1 min angular; spread <10" (T2) / <40" (T16)',
     'EDM repeatability: <0.02m to hard detail or survey mark',
     'Tape repeatability: <100m <0.01m; 100-200m <0.02m',
     'Coordinate residuals: <5cm acceptable; >10cm requires re-observation and supervisor endorsement',
