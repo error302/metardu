@@ -63,20 +63,29 @@ export default async function DashboardPage() {
 
   if (!user) redirect('/login')
 
+  const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
+  const isAdmin = ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? '')
+
   let projects: any[] | null = null
   let subscription: any | null = null
-  try {
-    const [pRes, sRes] = await Promise.all([
-      supabase.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('user_subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
-    ])
-    projects = pRes.data
-    subscription = sRes.data
-  } catch {
-    // Queries failed — render with empty data rather than crashing
+  if (!isAdmin) {
+    try {
+      const [pRes, sRes] = await Promise.all([
+        supabase.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('user_subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
+      ])
+      if (pRes.error) throw pRes.error
+      if (sRes.error && sRes.error.code !== 'PGRST116') throw sRes.error
+      projects = pRes.data ?? []
+      subscription = sRes.data ?? null
+    } catch (err) {
+      console.error('Dashboard query failed:', err)
+      projects = []
+      subscription = null
+    }
   }
 
-  const canCreateProject = subscription?.plan_id !== 'free' || (projects?.length || 0) < 1
+  const canCreateProject = isAdmin || subscription?.plan_id !== 'free' || (projects?.length || 0) < 1
   const daysLeft = subscription?.trial_ends_at
     ? Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - Date.now()) / 86400000))
     : null
