@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -106,7 +106,15 @@ export default function ProjectPage({ params }: PageProps) {
   const [isOnline, setIsOnline] = useState(true)
   const [pointActionError, setPointActionError] = useState<string | null>(null)
 
-  const supabase = createClient()
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
+
+  const getSupabase = () => {
+    if (typeof window === 'undefined') return null
+    if (!supabaseRef.current) supabaseRef.current = createClient()
+    return supabaseRef.current
+  }
+
+  const supabase = getSupabase()
 
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null)
   const [bottomTab, setBottomTab] = useState<'fieldbook' | 'log'>('log')
@@ -141,10 +149,12 @@ export default function ProjectPage({ params }: PageProps) {
   }
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const sb = getSupabase()
+    if (!sb) return
+    const { data: { user } } = await sb.auth.getUser()
     if (!user) return
 
-    const { data: projectData } = await supabase
+    const { data: projectData } = await sb
       .from('projects')
       .select('*')
       .eq('id', params.id)
@@ -158,7 +168,7 @@ export default function ProjectPage({ params }: PageProps) {
 
     setProject(projectData)
 
-    const { data: pointsData } = await supabase
+    const { data: pointsData } = await sb
       .from('survey_points')
       .select('*')
       .eq('project_id', params.id)
