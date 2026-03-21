@@ -11,7 +11,7 @@ import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://metardu-henna.vercel.app'),
-  title: 'METARDU — Measure the earth. Precisely.',
+  title: 'METARDU — Precise earth measurements.',
   description: 'Professional surveying platform for land surveyors worldwide. Traverse adjustment, leveling, COGO, GPS stakeout, PDF reports. Supports all 60 UTM zones. Built in Africa, used globally.',
   keywords: [
     'surveying software', 'traverse calculation', 'leveling calculator',
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: process.env.NEXT_PUBLIC_APP_URL || 'https://metardu-henna.vercel.app',
     siteName: 'METARDU',
-    title: 'METARDU — Measure the earth. Precisely.',
+    title: 'METARDU — Precise earth measurements.',
     description: 'Complete surveying platform for professional land surveyors across Africa and beyond.',
     images: [
       {
