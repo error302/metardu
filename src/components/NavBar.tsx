@@ -307,9 +307,12 @@ export default function NavBar() {
   const [showInstall, setShowInstall] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
   const navRef = useRef<HTMLDivElement>(null)
 
-  const { language, setLanguage, t } = useLanguage()
+  const { language, setLanguage, t, hydrated } = useLanguage()
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -378,6 +381,12 @@ export default function NavBar() {
   }, [])
 
   const currentLang = languages.find(l => l.code === language) || languages[0]
+
+  if (!mounted) {
+    return (
+      <div className="h-16 border-b border-[var(--border-color)] bg-[#0a0a0f]" />
+    )
+  }
 
   return (
     <nav className="border-b border-[var(--border-color)] bg-[#0a0a0f] sticky top-0 z-50">

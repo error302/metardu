@@ -8,13 +8,15 @@ interface LanguageContextType {
   t: (key: string, values?: Record<string, string | number>) => string
   setLanguage: (lang: Language) => void
   isRTL: boolean
+  hydrated: boolean
 }
 
 const LanguageContext = createContext<LanguageContextType>({
   language: defaultLanguage,
   t: (key) => key,
   setLanguage: () => {},
-  isRTL: false
+  isRTL: false,
+  hydrated: false
 })
 
 function setLanguageCookie(lang: Language) {
@@ -25,6 +27,7 @@ function setLanguageCookie(lang: Language) {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(defaultLanguage)
   const [isRTL, setIsRTL] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
     const savedRaw = localStorage.getItem('geonova_language')
@@ -41,6 +44,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = initial
     localStorage.setItem('geonova_language', initial)
     setLanguageCookie(initial)
+    setHydrated(true)
   }, [])
 
   const setLanguage = (lang: Language) => {
@@ -55,7 +59,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const t = createTranslator(language)
 
   return (
-    <LanguageContext.Provider value={{ language, t, setLanguage, isRTL }}>
+    <LanguageContext.Provider value={{ language, t, setLanguage, isRTL, hydrated }}>
       {children}
     </LanguageContext.Provider>
   )

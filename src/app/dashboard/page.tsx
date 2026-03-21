@@ -68,7 +68,14 @@ export default async function DashboardPage() {
 
   let projects: any[] | null = null
   let subscription: any | null = null
-  if (!isAdmin) {
+
+  if (isAdmin) {
+    subscription = { plan_id: 'premium', trial_ends_at: null }
+    try {
+      const { data, error } = await supabase.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+      if (!error) projects = data ?? []
+    } catch {}
+  } else {
     try {
       const [pRes, sRes] = await Promise.all([
         supabase.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
