@@ -256,8 +256,11 @@ export default function DocumentsPage({ params }: PageProps) {
 
   const load = useCallback(async () => {
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { window.location.replace(`/login?next=/project/${params.id}/documents`); return }
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      window.location.replace(`/login?next=/project/${params.id}/documents`)
+      return
+    }
 
     const [{ data: proj }, { data: pts }] = await Promise.all([
       supabase.from('projects').select('*').eq('id', params.id).single(),

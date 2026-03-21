@@ -149,8 +149,14 @@ export default function ProjectPage({ params }: PageProps) {
   const fetchData = async () => {
     const sb = getSupabase()
     if (!sb) return
-    const { data: { user } } = await sb.auth.getUser()
-    if (!user) return
+
+    const { data: { session } } = await sb.auth.getSession()
+    const user = session?.user ?? null
+    if (!user) {
+      const next = encodeURIComponent(window.location.pathname)
+      window.location.replace('/login?next=' + next)
+      return
+    }
 
     const { data: projectData } = await sb
       .from('projects')
@@ -178,9 +184,8 @@ export default function ProjectPage({ params }: PageProps) {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        // Use ?next= param so login page can hard-redirect back after sign-in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) {
         const next = encodeURIComponent(window.location.pathname)
         window.location.replace('/login?next=' + next)
       }
@@ -267,14 +272,14 @@ export default function ProjectPage({ params }: PageProps) {
     })
 
     // Track presence with user info
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        channel.track({ 
-          user_id: user.id, 
-          email: user.email,
-          online_at: new Date().toISOString() 
-        })
-      }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user
+      if (!user) return
+      channel.track({
+        user_id: user.id,
+        email: user.email,
+        online_at: new Date().toISOString(),
+      })
     })
 
     return () => { 

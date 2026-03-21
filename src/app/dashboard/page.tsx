@@ -93,9 +93,6 @@ export default async function DashboardPage() {
   const daysLeft = subscription?.trial_ends_at
     ? Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - Date.now()) / 86400000))
     : null
-  const daysLeft = subscription?.trial_ends_at
-    ? Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - Date.now()) / 86400000))
-    : null
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
