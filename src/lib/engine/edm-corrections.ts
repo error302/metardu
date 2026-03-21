@@ -11,8 +11,8 @@
  *            NOAA Manual NOS NGS 5 (geodetic EDM reductions)
  */
 
-import type { SurveyingCountry } from '@/lib/country'
-import { getCountryStandard } from '@/lib/country'
+import type { SurveyingCountry } from '@/lib/country/standards'
+import { getCountryStandard } from '@/lib/country/standards'
 
 // ─── STAGE 1: SLOPE → HORIZONTAL ─────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ export function slopeFromEDM(input: SlopeCorrectionInput): SlopeCorrectionOutput
   const zenithRad = zenith * Math.PI / 180
 
   const horizontalDistance = slopeDistanceMetres * Math.sin(zenithRad)
-  const requiresTwoFace = zenith > 100 || zenith < 80  // >10° from horizontal
+  const requiresTwoFace = zenith > 90.5 || zenith < 89.5  // flag any non-horizontal shot
 
   const tempPPM = edmTemperatureCorrection(temperatureC, pressureHPa, edmSpecPPM)
   const pressPPM = edmPressureCorrection(temperatureC, pressureHPa, edmSpecPPM)
@@ -177,30 +177,29 @@ export function gridCorrection(input: GridCorrectionInput): GridCorrectionOutput
 
 export function edmTemperatureCorrection(
   tempC: number,
-  pressureHPa: number,
-  basePPM: number
+  _pressureHPa: number,
+  _basePPM: number
 ): number {
-  const k = 282.23   // refractive index constant
-  const P0 = 1013.25 // standard pressure, hPa
-  const T0 = 273.15  // standard temp, K
-  const T = tempC + T0
-  const ppm = (k * pressureHPa / T - k * P0 / T0) * basePPM / (k * P0 / T0)
-  return ppm
+  // Barrel & Sears atmospheric correction — temperature component only
+  // ppm = K × P0 × (1/T0 - 1/T), where T0 = 288.15 K (15°C standard)
+  const K  = 281.8
+  const P0 = 1013.25
+  const T0 = 288.15   // 15°C in Kelvin
+  const T  = tempC + 273.15
+  return K * P0 * (1 / T0 - 1 / T)
 }
 
 export function edmPressureCorrection(
-  tempC: number,
+  _tempC: number,
   pressureHPa: number,
-  basePPM: number
+  _basePPM: number
 ): number {
-  const k = 282.23
+  // Barrel & Sears atmospheric correction — pressure component only
+  // ppm = K / T0 × (P0 - P), where T0 = 288.15 K, P0 = 1013.25 hPa
+  const K  = 281.8
   const P0 = 1013.25
-  const T0 = 273.15
-  const T = tempC + T0
-  const P0_k = k * P0 / T0
-  const actual_k = k * pressureHPa / T
-  const deltaPPM = (actual_k - P0_k) / P0_k * basePPM
-  return deltaPPM
+  const T0 = 288.15
+  return (K / T0) * (P0 - pressureHPa)
 }
 
 export function edmCombinedAtmosphericCorrection(
@@ -216,7 +215,7 @@ export function edmCombinedAtmosphericCorrection(
   return {
     totalPPM,
     tempPPM,
-    pressurePPM,
+    pressurePPM: pressPPM,
     isWithinSpec: Math.abs(totalPPM - standardPPM) <= edmSpecPPM,
   }
 }

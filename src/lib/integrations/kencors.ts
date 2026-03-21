@@ -1,182 +1,150 @@
 /**
- * KenCORS Real-Time Corrections Service
- * Phase 8 - Integration Layer
- * Kenya Continuously Operating Reference Station Network
+ * Kenya CORS Network data
+ * Sources: Muya CORS (Measurement Systems Ltd), AGL CORS (Africa Geonetwork Ltd),
+ * Survey of Kenya KenCORS, Kenya Power CORS
+ *
+ * Note: Exact station coordinates are proprietary — providers give NTRIP credentials
+ * on registration. Positions below are at the town/facility level.
  */
+
+export type NetworkId = 'MUYA' | 'AGL' | 'KENCORS' | 'KPLC'
+export type StationStatus = 'online' | 'offline' | 'unknown'
 
 export interface CORSStation {
   id: string
   name: string
-  location: string
-  latitude: number
+  town: string
+  county: string
+  network: NetworkId
+  latitude: number    // approximate — at town centre
   longitude: number
-  elevation: number
-  status: 'online' | 'offline' | 'maintenance'
-  network: 'KENTCORS' | 'KEGNSS' | 'TRIFFID'
+  elevation: number   // metres above MSL (approximate)
+  status: StationStatus
+  notes?: string
 }
 
-export interface CORSRTCMData {
-  stationId: string
-  timestamp: string
-  baseLat: number
-  baseLon: number
-  baseHeight: number
-  rms: number
-  age: number
-  solution: 'fixed' | 'float' | 'autonomous'
+export interface CORSNetwork {
+  id: NetworkId
+  name: string
+  operator: string
+  website: string
+  mountpoint: string    // NTRIP mountpoint
+  rtcmFormat: string
+  accuracy: string
+  coverage: string
+  registrationRequired: boolean
+  contactEmail?: string
+  contactPhone?: string
+  notes: string
 }
 
-export interface CORSNetworkStatus {
-  network: string
-  stations: number
-  online: number
-  lastUpdate: string
+// ── Networks ─────────────────────────────────────────────────────────────────
+
+export const NETWORKS: Record<NetworkId, CORSNetwork> = {
+  MUYA: {
+    id: 'MUYA',
+    name: 'Muya CORS',
+    operator: 'Measurement Systems Ltd',
+    website: 'https://muya-cors.com',
+    mountpoint: 'RTCM32_NR_MUYA',
+    rtcmFormat: 'RTCM 3.2 / NTRIP',
+    accuracy: '<1 cm horizontal, <2 cm vertical',
+    coverage: 'Nationwide — 25+ stations',
+    registrationRequired: true,
+    contactPhone: '+254 722 xxx xxx',
+    notes: 'Coordinates computed via OPUS (NGS/USA) and Trimble RTX on ITRF2014. Supports WGS84 and Arc 1960 / UTM and Cassini Soldner.',
+  },
+  AGL: {
+    id: 'AGL',
+    name: 'AGL CORS',
+    operator: 'Africa Geonetwork Limited',
+    website: 'https://aglcors.com',
+    mountpoint: 'RTCM3_AGL',
+    rtcmFormat: 'RTCM 3.x / NTRIP',
+    accuracy: '<2 cm horizontal, <4 cm vertical',
+    coverage: 'Mombasa, Central, Western regions',
+    registrationRequired: true,
+    notes: 'Available 24/7, 365 days. Expanding to north and east based on user demand.',
+  },
+  KENCORS: {
+    id: 'KENCORS',
+    name: 'KenCORS',
+    operator: 'Survey of Kenya',
+    website: 'https://www.surveyofkenya.go.ke',
+    mountpoint: 'KENCORS_NTRIP',
+    rtcmFormat: 'RTCM 3.x',
+    accuracy: '<5 cm (network RTK)',
+    coverage: 'National (selective)',
+    registrationRequired: true,
+    contactEmail: 'info@surveyofkenya.go.ke',
+    notes: 'National network operated by Survey of Kenya. Used as authoritative reference for cadastral surveys. Contact Survey of Kenya directly for access credentials.',
+  },
+  KPLC: {
+    id: 'KPLC',
+    name: 'Kenya Power CORS',
+    operator: 'Kenya Power & Lighting Company',
+    website: 'https://www.kplc.co.ke',
+    mountpoint: 'KPLC_CORS',
+    rtcmFormat: 'RTCM 3.x',
+    accuracy: '<3 cm (pending gazettement)',
+    coverage: '15 stations nationwide (being gazetted)',
+    registrationRequired: true,
+    notes: 'Being gazetted as third-tier geodetic control by Survey of Kenya. 50-person joint campaign with Survey of Kenya for approval.',
+  },
 }
 
-export interface CORSRTKRequest {
-  latitude: number
-  longitude: number
-  height?: number
-  network?: 'KENTCORS' | 'KEGNSS' | 'TRIFFID' | 'auto'
-  solutionType?: 'RTK' | 'DGPS' | 'PPP'
-}
+// ── Stations (approximate city-level coordinates) ────────────────────────────
+// Exact station coordinates are proprietary — contact the network operator.
 
-export interface CORSRTKResult {
-  success: boolean
-  corrections?: {
-    network: string
-    nearestStations: CORSStation[]
-    baseLatitude: number
-    baseLongitude: number
-    baseHeight: number
-    distanceToBase: number
-    approximateAccuracy: string
-    age: number
-    ionosphericCondition: 'normal' | 'elevated' | 'severe'
-    recommendedSolution: string
-  }
-  error?: string
-}
-
-const CORS_STATIONS: CORSStation[] = [
-  { id: 'KNTK', name: 'Nairobi', location: 'Nairobi, KIS', latitude: -1.2924, longitude: 36.8219, elevation: 1812, status: 'online', network: 'KENTCORS' },
-  { id: 'KMST', name: 'Mombasa', location: 'Mombasa', latitude: -4.0435, longitude: 39.6682, elevation: 18, status: 'online', network: 'KENTCORS' },
-  { id: 'KELD', name: 'Eldoret', location: 'Uasin Gishu', latitude: 0.5143, longitude: 35.2698, elevation: 2089, status: 'online', network: 'KENTCORS' },
-  { id: 'KNRK', name: 'Nakuru', location: 'Nakuru', latitude: -0.3031, longitude: 36.0800, elevation: 1901, status: 'online', network: 'KENTCORS' },
-  { id: 'KKSM', name: 'Kisumu', location: 'Kisumu', latitude: -0.1022, longitude: 34.7619, elevation: 1146, status: 'online', network: 'KENTCORS' },
-  { id: 'KMBT', name: 'Mombasa North', location: 'Mombasa', latitude: -3.9685, longitude: 39.7132, elevation: 25, status: 'maintenance', network: 'KEGNSS' },
-  { id: 'KTRV', name: 'Tharaka', location: 'Tharaka-Nithi', latitude: 0.2828, longitude: 37.6833, elevation: 1456, status: 'online', network: 'KENTCORS' },
-  { id: 'KGAR', name: 'Garissa', location: 'Garissa', latitude: -0.4536, longitude: 39.6401, elevation: 147, status: 'online', network: 'KEGNSS' },
-  { id: 'KMG', name: 'Migori', location: 'Migori', latitude: -1.0634, longitude: 34.4731, elevation: 1354, status: 'online', network: 'TRIFFID' },
-  { id: 'KBUN', name: 'Bungoma', location: 'Bungoma', latitude: 0.5635, longitude: 34.5606, elevation: 1678, status: 'online', network: 'KENTCORS' }
+export const STATIONS: CORSStation[] = [
+  // Muya CORS — major stations
+  { id: 'MUYA_NBI', name: 'Nairobi', town: 'Nairobi', county: 'Nairobi', network: 'MUYA', latitude: -1.2921, longitude: 36.8219, elevation: 1661, status: 'online' },
+  { id: 'MUYA_MSA', name: 'Mombasa', town: 'Mombasa', county: 'Mombasa', network: 'MUYA', latitude: -4.0435, longitude: 39.6682, elevation: 17, status: 'online' },
+  { id: 'MUYA_KSM', name: 'Kisumu', town: 'Kisumu', county: 'Kisumu', network: 'MUYA', latitude: -0.0917, longitude: 34.7679, elevation: 1131, status: 'online' },
+  { id: 'MUYA_NKR', name: 'Nakuru', town: 'Nakuru', county: 'Nakuru', network: 'MUYA', latitude: -0.3031, longitude: 36.0800, elevation: 1850, status: 'online' },
+  { id: 'MUYA_ELD', name: 'Eldoret', town: 'Eldoret', county: 'Uasin Gishu', network: 'MUYA', latitude: 0.5143, longitude: 35.2698, elevation: 2100, status: 'online' },
+  { id: 'MUYA_NYR', name: 'Nyeri', town: 'Nyeri', county: 'Nyeri', network: 'MUYA', latitude: -0.4167, longitude: 36.9500, elevation: 1759, status: 'online' },
+  { id: 'MUYA_THK', name: 'Thika', town: 'Thika', county: 'Kiambu', network: 'MUYA', latitude: -1.0333, longitude: 37.0833, elevation: 1555, status: 'online' },
+  { id: 'MUYA_KER', name: 'Kericho', town: 'Kericho', county: 'Kericho', network: 'MUYA', latitude: -0.3667, longitude: 35.2833, elevation: 2000, status: 'online' },
+  { id: 'MUYA_MRU', name: 'Meru', town: 'Meru', county: 'Meru', network: 'MUYA', latitude: 0.0464, longitude: 37.6491, elevation: 1515, status: 'online' },
+  { id: 'MUYA_EMB', name: 'Embu', town: 'Embu', county: 'Embu', network: 'MUYA', latitude: -0.5333, longitude: 37.4500, elevation: 1490, status: 'online' },
+  { id: 'MUYA_MLN', name: 'Malindi', town: 'Malindi', county: 'Kilifi', network: 'MUYA', latitude: -3.2175, longitude: 40.1169, elevation: 26, status: 'online' },
+  { id: 'MUYA_KTL', name: 'Kitale', town: 'Kitale', county: 'Trans Nzoia', network: 'MUYA', latitude: 1.0154, longitude: 35.0063, elevation: 1890, status: 'online' },
+  { id: 'MUYA_KKM', name: 'Kakamega', town: 'Kakamega', county: 'Kakamega', network: 'MUYA', latitude: 0.2827, longitude: 34.7519, elevation: 1535, status: 'online' },
+  { id: 'MUYA_GRS', name: 'Garissa', town: 'Garissa', county: 'Garissa', network: 'MUYA', latitude: -0.4532, longitude: 39.6461, elevation: 134, status: 'unknown', notes: 'Coverage may be limited in arid north' },
+  { id: 'MUYA_ISL', name: 'Isiolo', town: 'Isiolo', county: 'Isiolo', network: 'MUYA', latitude: 0.3544, longitude: 37.5820, elevation: 1066, status: 'unknown' },
+  // AGL CORS
+  { id: 'AGL_MSA', name: 'Mombasa (AGL)', town: 'Mombasa', county: 'Mombasa', network: 'AGL', latitude: -4.0500, longitude: 39.6600, elevation: 15, status: 'online' },
+  { id: 'AGL_NBI', name: 'Nairobi Central (AGL)', town: 'Nairobi', county: 'Nairobi', network: 'AGL', latitude: -1.2833, longitude: 36.8167, elevation: 1660, status: 'online' },
+  { id: 'AGL_KSM', name: 'Kisumu (AGL)', town: 'Kisumu', county: 'Kisumu', network: 'AGL', latitude: -0.1022, longitude: 34.7617, elevation: 1130, status: 'online' },
+  // KenCORS — Survey of Kenya (locations approximate)
+  { id: 'SOK_NBI', name: 'Survey of Kenya HQ', town: 'Nairobi', county: 'Nairobi', network: 'KENCORS', latitude: -1.2940, longitude: 36.8062, elevation: 1675, status: 'online', notes: 'Primary reference station' },
+  { id: 'SOK_MSA', name: 'Mombasa Regional', town: 'Mombasa', county: 'Mombasa', network: 'KENCORS', latitude: -4.0556, longitude: 39.6636, elevation: 14, status: 'online' },
+  { id: 'SOK_KSM', name: 'Kisumu Regional', town: 'Kisumu', county: 'Kisumu', network: 'KENCORS', latitude: -0.0917, longitude: 34.7619, elevation: 1131, status: 'online' },
+  { id: 'SOK_NKR', name: 'Nakuru Regional', town: 'Nakuru', county: 'Nakuru', network: 'KENCORS', latitude: -0.3031, longitude: 36.0800, elevation: 1850, status: 'online' },
 ]
 
-export async function getNetworkStatus(): Promise<CORSNetworkStatus[]> {
-  const networks = ['KENTCORS', 'KEGNSS', 'TRIFFID']
-  
-  return networks.map(network => {
-    const stations = CORS_STATIONS.filter(s => s.network === network)
-    const online = stations.filter(s => s.status === 'online').length
-    
-    return {
-      network,
-      stations: stations.length,
-      online,
-      lastUpdate: new Date().toISOString()
-    }
-  })
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Distance between two lat/lon points in km (Haversine) */
+export function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat/2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
 }
 
-export async function getNearestStations(
-  latitude: number, 
-  longitude: number,
-  count: number = 3
-): Promise<CORSStation[]> {
-  const withDistance = CORS_STATIONS
-    .filter(s => s.status === 'online')
-    .map(station => {
-      const distance = Math.sqrt(
-        Math.pow(station.latitude - latitude, 2) + 
-        Math.pow(station.longitude - longitude, 2)
-      )
-      return { station, distance }
-    })
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, count)
-    .map(item => item.station)
-  
-  return withDistance
+/** Find nearest N stations to given coordinates */
+export function getNearestStations(lat: number, lon: number, n = 5, network?: NetworkId): (CORSStation & { distanceKm: number })[] {
+  return STATIONS
+    .filter(s => !network || s.network === network)
+    .map(s => ({ ...s, distanceKm: distanceKm(lat, lon, s.latitude, s.longitude) }))
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, n)
 }
 
-export async function getRTKCorrections(request: CORSRTKRequest): Promise<CORSRTKResult> {
-  try {
-    const network = request.network === 'auto' ? 'KENTCORS' : (request.network || 'KENTCORS')
-    
-    const nearestStations = await getNearestStations(request.latitude, request.longitude, 3)
-    
-    if (nearestStations.length === 0) {
-      return { success: false, error: 'No CORS stations available within range' }
-    }
-    
-    const baseStation = nearestStations[0]
-    const distance = Math.sqrt(
-      Math.pow(baseStation.latitude - request.latitude, 2) + 
-      Math.pow(baseStation.longitude - request.longitude, 2)
-    ) * 111000
-    
-    let approximateAccuracy: string
-    if (distance < 10000) {
-      approximateAccuracy = '1-2 cm (RTK)'
-    } else if (distance < 30000) {
-      approximateAccuracy = '2-5 cm (RTK)'
-    } else if (distance < 50000) {
-      approximateAccuracy = '5-10 cm (RTK)'
-    } else {
-      approximateAccuracy = '10-50 cm (DGPS)'
-    }
-    
-    let ionosphericCondition: 'normal' | 'elevated' | 'severe' = 'normal'
-    let ionoSeverity: 'normal' | 'elevated' | 'severe' = 'normal'
-    const time = new Date().getUTCHours()
-    if (time >= 14 && time <= 18) {
-      ionosphericCondition = 'elevated'
-      ionoSeverity = 'elevated'
-    }
-    
-    let recommendedSolution = 'RTK'
-    if (distance > 50000) {
-      recommendedSolution = 'DGPS'
-    } else if (ionoSeverity === 'elevated') {
-      recommendedSolution = 'Consider post-processing'
-    }
-    
-    return {
-      success: true,
-      corrections: {
-        network,
-        nearestStations,
-        baseLatitude: baseStation.latitude,
-        baseLongitude: baseStation.longitude,
-        baseHeight: baseStation.elevation,
-        distanceToBase: Math.round(distance),
-        approximateAccuracy,
-        age: Math.round(distance / 30000 * 1.5 * 100) / 100,
-        ionosphericCondition,
-        recommendedSolution
-      }
-    }
-  } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to compute corrections' 
-    }
-  }
-}
-
-export async function getStationInfo(stationId: string): Promise<CORSStation | null> {
-  return CORS_STATIONS.find(s => s.id === stationId) || null
-}
-
-export function getAvailableNetworks(): string[] {
-  return ['KENTCORS', 'KEGNSS', 'TRIFFID']
+export function getCounties(): string[] {
+  const seen = new Set<string>(); return STATIONS.map(s => s.county).filter(c => { if (seen.has(c)) return false; seen.add(c); return true }).sort()
 }

@@ -25,7 +25,7 @@ export const DATUM_REGISTRY: Record<string, DatumParameters> = {
 
   // ── Global / Reference ──────────────────────────────────────────────────────
   WGS84: {
-    name: 'WGS84',
+    name: 'WGS84 (G1762)',
     ellipsoid: 'WGS84',
     semiMajorAxis: 6378137.0,
     inverseFlattening: 298.257223563,
@@ -88,17 +88,6 @@ export const DATUM_REGISTRY: Record<string, DatumParameters> = {
     countries: ['United States'],
     projection: 'State Plane / UTM',
     notes: 'Original NAD83. Still used in some legacy surveys.',
-  },
-  WGS84: {
-    name: 'WGS84 (G1762)',
-    ellipsoid: 'WGS84',
-    semiMajorAxis: 6378137.0,
-    inverseFlattening: 298.257223563,
-    dx: 0, dy: 0, dz: 0,
-    rx: 0, ry: 0, rz: 0, scale: 0,
-    countries: ['Worldwide', 'United States', 'International'],
-    projection: 'WGS84 / UTM',
-    notes: 'IGS08 epoch. Equivalent to ITRF08 at 1–2cm. Use for GNSS/GPS.',
   },
   NAVD88: {
     name: 'NAVD88',
@@ -176,7 +165,7 @@ export const DATUM_REGISTRY: Record<string, DatumParameters> = {
   // ── Bahrain ────────────────────────────────────────────────────────────────
   AIN_AL_ABD_1970: {
     name: 'Ain Al-Abd 1970',
-    ellipsoid: 'Clarke 1880 (International 1924)',
+    ellipsoid: 'Clarke 1880',
     semiMajorAxis: 6378249.145,
     inverseFlattening: 293.465,
     dx: -243.1, dy: -154.4, dz: 406.1,

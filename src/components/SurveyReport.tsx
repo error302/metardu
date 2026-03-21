@@ -207,10 +207,10 @@ export default function SurveyReport({
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
           <div>
             <h2 className="text-lg font-bold text-gray-900">
-              {t('surveyReport.title', 'Survey Report')}
+              {t('surveyReport.title')}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {t('surveyReport.subtitle', 'Based on NZ LINZ Rule 8.2(a)(ix) and Bahrain CSD Appendix 6')}
+              {t('surveyReport.subtitle')}
             </p>
           </div>
           <div className="flex gap-2">
@@ -218,13 +218,13 @@ export default function SurveyReport({
               onClick={handlePrint}
               className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50"
             >
-              {t('surveyReport.print', 'Print / PDF')}
+              {t('surveyReport.print')}
             </button>
             <button
               onClick={onClose}
               className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50"
             >
-              {t('common.close', 'Close')}
+              {t('common.close')}
             </button>
           </div>
         </div>
@@ -241,11 +241,11 @@ export default function SurveyReport({
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <FieldLabel required>{t('surveyReport.jobNo', 'Job Number')}</FieldLabel>
+              <FieldLabel required>{t('surveyReport.jobNo')}</FieldLabel>
               <Input value={jobNo} onChange={e => setJobNo(e.target.value)} placeholder="e.g. SD-2024-00123" />
             </div>
             <div>
-              <FieldLabel required>{t('surveyReport.surveyor', 'Surveyor Name')}</FieldLabel>
+              <FieldLabel required>{t('surveyReport.surveyor')}</FieldLabel>
               <Input
                 value={surveyorName}
                 onChange={e => setSurveyorName(e.target.value.toUpperCase())}
@@ -254,15 +254,15 @@ export default function SurveyReport({
               />
             </div>
             <div>
-              <FieldLabel required>{t('surveyReport.date', 'Date')}</FieldLabel>
+              <FieldLabel required>{t('surveyReport.date')}</FieldLabel>
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
           </div>
 
-          <SectionHeader>{t('surveyReport.parcelInfo', 'Parcel Information')}</SectionHeader>
+          <SectionHeader>{t('surveyReport.parcelInfo')}</SectionHeader>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <FieldLabel>{t('surveyReport.parcelDesc', 'Parcel / Property Description')}</FieldLabel>
+              <FieldLabel>{t('surveyReport.parcelDesc')}</FieldLabel>
               <Input
                 value={parcelDescription}
                 onChange={e => setParcelDescription(e.target.value)}
@@ -270,18 +270,18 @@ export default function SurveyReport({
               />
             </div>
             <div>
-              <FieldLabel>{t('surveyReport.environment', 'Environment')}</FieldLabel>
+              <FieldLabel>{t('surveyReport.environment')}</FieldLabel>
               <Select value={initialEnv} disabled>
-                <option value="urban">{t('surveyReport.envUrban', 'Urban / Built-up')}</option>
-                <option value="rural">{t('surveyReport.envRural', 'Rural / Agricultural')}</option>
-                <option value="transmission_line">{t('surveyReport.envTransmission', 'Transmission Line Corridor')}</option>
-                <option value="detail">{t('surveyReport.envDetail', 'Detail / Topographic')}</option>
+                <option value="urban">{t('surveyReport.envUrban')}</option>
+                <option value="rural">{t('surveyReport.envRural')}</option>
+                <option value="transmission_line">{t('surveyReport.envTransmission')}</option>
+                <option value="detail">{t('surveyReport.envDetail')}</option>
               </Select>
             </div>
           </div>
 
           <div>
-            <FieldLabel>{t('surveyReport.fieldConditions', 'Field Conditions')}</FieldLabel>
+            <FieldLabel>{t('surveyReport.fieldConditions')}</FieldLabel>
             <div className="flex flex-wrap gap-2">
               {FIELD_CONDITIONS.map(c => (
                 <button
@@ -299,9 +299,9 @@ export default function SurveyReport({
             </div>
           </div>
 
-          <SectionHeader>{t('surveyReport.boundarySection', 'Boundary Description')}</SectionHeader>
+          <SectionHeader>{t('surveyReport.boundarySection')}</SectionHeader>
           <div>
-            <FieldLabel required>{t('surveyReport.boundaryDesc', 'Verbal Boundary Description')}</FieldLabel>
+            <FieldLabel required>{t('surveyReport.boundaryDesc')}</FieldLabel>
             <Textarea
               rows={3}
               value={boundaryDescription}
@@ -309,20 +309,20 @@ export default function SurveyReport({
               placeholder="Parcel bounded on N by Road reserve (15m), E by remaining parent parcel..., etc."
             />
             <p className="text-xs text-gray-500 mt-1">
-              {t('surveyReport.boundaryHint', 'Describe the boundary fully. Avoid "perimeter measured" — specify each side.')}
+              {t('surveyReport.boundaryHint')}
             </p>
           </div>
 
-          <SectionHeader>{t('surveyReport.controlSection', 'Control & Fixation')}</SectionHeader>
+          <SectionHeader>{t('surveyReport.controlSection')}</SectionHeader>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <FieldLabel>{t('surveyReport.fixedPoints', 'Fixed Points Used for Fixation')}</FieldLabel>
+              <FieldLabel>{t('surveyReport.fixedPoints')}</FieldLabel>
               <button
                 onClick={addFixedPoint}
                 className="text-xs text-blue-600 hover:underline"
               >
-                + {t('surveyReport.addPoint', 'Add Point')}
+                + {t('surveyReport.addPoint')}
               </button>
             </div>
             <div className="space-y-2">
@@ -350,7 +350,7 @@ export default function SurveyReport({
                     onClick={() => removeFixedPoint(fp.id)}
                     className="text-xs text-red-500 hover:underline"
                   >
-                    {t('common.remove', 'Remove')}
+                    {t('common.remove')}
                   </button>
                 </div>
               ))}
@@ -359,30 +359,30 @@ export default function SurveyReport({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <FieldLabel>{t('surveyReport.locationMethod', 'Location Method')}</FieldLabel>
+              <FieldLabel>{t('surveyReport.locationMethod')}</FieldLabel>
               <Select value={locationMethod} onChange={e => setLocationMethod(e.target.value)}>
-                <option value="">{t('common.select', 'Select...')}</option>
-                <option value="polar">{t('surveyReport.methodPolar', 'Polar / Radiation')}</option>
-                <option value="intersection">{t('surveyReport.methodIntersection', 'Intersection (2 bearings)')}</option>
-                <option value="resection">{t('surveyReport.methodResection', 'Resection / Tienstra')}</option>
-                <option value="gps_rtk">{t('surveyReport.methodRTK', 'RTK GPS')}</option>
-                <option value="tape_offset">{t('surveyReport.methodTapeOffset', 'Tape Offset')}</option>
+                <option value="">{t('common.select')}</option>
+                <option value="polar">{t('surveyReport.methodPolar')}</option>
+                <option value="intersection">{t('surveyReport.methodIntersection')}</option>
+                <option value="resection">{t('surveyReport.methodResection')}</option>
+                <option value="gps_rtk">{t('surveyReport.methodRTK')}</option>
+                <option value="tape_offset">{t('surveyReport.methodTapeOffset')}</option>
               </Select>
             </div>
             <div>
-              <FieldLabel>{t('surveyReport.areaMethod', 'Area Calculation Method')}</FieldLabel>
+              <FieldLabel>{t('surveyReport.areaMethod')}</FieldLabel>
               <Select value={areaCalcMethod} onChange={e => setAreaCalcMethod(e.target.value)}>
-                <option value="coordinate">{t('surveyReport.areaCoord', 'Coordinate (Gauss/Shoelace)')}</option>
-                <option value="subdivision">{t('surveyReport.areaSubdiv', 'Subdivision / Split')}</option>
-                <option value="decomposition">{t('surveyReport.areaDecomp', 'Decomposition')}</option>
-                <option value="graphic">{t('surveyReport.areaGraphic', 'Graphic / Planimeter')}</option>
+                <option value="coordinate">{t('surveyReport.areaCoord')}</option>
+                <option value="subdivision">{t('surveyReport.areaSubdiv')}</option>
+                <option value="decomposition">{t('surveyReport.areaDecomp')}</option>
+                <option value="graphic">{t('surveyReport.areaGraphic')}</option>
               </Select>
             </div>
           </div>
 
-          <SectionHeader>{t('surveyReport.methodsSection', 'Survey Methods & Equipment')}</SectionHeader>
+          <SectionHeader>{t('surveyReport.methodsSection')}</SectionHeader>
           <div>
-            <FieldLabel required>{t('surveyReport.surveyMethods', 'Methods Used')}</FieldLabel>
+            <FieldLabel required>{t('surveyReport.surveyMethods')}</FieldLabel>
             <div className="flex flex-wrap gap-2">
               {SURVEY_METHODS.map(m => (
                 <button
@@ -401,7 +401,7 @@ export default function SurveyReport({
           </div>
 
           <div>
-            <FieldLabel>{t('surveyReport.equipment', 'Equipment')}</FieldLabel>
+            <FieldLabel>{t('surveyReport.equipment')}</FieldLabel>
             <Input
               value={equipment}
               onChange={e => setEquipment(e.target.value)}
@@ -409,7 +409,7 @@ export default function SurveyReport({
             />
           </div>
 
-          <SectionHeader>{t('surveyReport.accuracySection', 'Accuracy & Quality')}</SectionHeader>
+          <SectionHeader>{t('surveyReport.accuracySection')}</SectionHeader>
 
           {precisionValidation && (
             <div className={`rounded-lg p-3 text-sm ${
@@ -419,7 +419,7 @@ export default function SurveyReport({
             }`}>
               <div className="flex items-center justify-between mb-1">
                 <div className="font-medium">
-                  {t('surveyReport.traverseAccuracy', 'Traverse Accuracy')}
+                  {t('surveyReport.traverseAccuracy')}
                 </div>
                 <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800">
                   {standard.isoCode} · {precisionValidation.jurisdiction.toUpperCase()}
@@ -439,7 +439,7 @@ export default function SurveyReport({
           )}
 
           <div>
-            <FieldLabel>{t('surveyReport.accuracyNotes', 'Accuracies / Residuals')}</FieldLabel>
+            <FieldLabel>{t('surveyReport.accuracyNotes')}</FieldLabel>
             <Textarea
               rows={2}
               value={accuracyNotes}
@@ -449,17 +449,17 @@ export default function SurveyReport({
           </div>
 
           <div>
-            <FieldLabel>{t('surveyReport.fieldChecks', 'Field Checks Applied (with results)')}</FieldLabel>
+            <FieldLabel>{t('surveyReport.fieldChecks')}</FieldLabel>
             <Textarea
               rows={2}
               value={fieldChecks}
               onChange={e => setFieldChecks(e.target.value)}
-              placeholder="Independent check measurement to RM-042: 0.005m difference. Second face observations: all within 20\"..."
+              placeholder="Independent check measurement to RM-042: 0.005m difference. Second face observations: all within 20 arcsec..."
             />
           </div>
 
           <div className="flex items-center justify-between">
-            <SectionHeader>{t('surveyReport.areaSection', 'Area')}</SectionHeader>
+            <SectionHeader>{t('surveyReport.areaSection')}</SectionHeader>
             {country === 'kenya' && parcelAreaSqM > 0 && (
               <button
                 onClick={() => setShowRIM(true)}
@@ -472,20 +472,20 @@ export default function SurveyReport({
           {areaResult ? (
             <div className="grid grid-cols-4 gap-4">
               <div>
-                <span className="text-sm text-gray-600">{t('surveyReport.area', 'Computed Area')}</span>
+                <span className="text-sm text-gray-600">{t('surveyReport.area')}</span>
                 <div className="font-semibold text-lg">{areaResult.formattedHa} ha</div>
                 <div className="text-xs text-gray-500">{areaResult.regulation}</div>
               </div>
               <div>
-                <span className="text-sm text-gray-600">{t('surveyReport.areaSqM', 'Square Metres')}</span>
+                <span className="text-sm text-gray-600">{t('surveyReport.areaSqM')}</span>
                 <div className="font-semibold">{areaResult.formattedM2} m²</div>
               </div>
               <div>
-                <span className="text-sm text-gray-600">{t('surveyReport.decimalPlaces', 'Decimal Places')}</span>
+                <span className="text-sm text-gray-600">{t('surveyReport.decimalPlaces')}</span>
                 <div className="font-semibold">{areaResult.decimalPlaces}</div>
               </div>
               <div>
-                <span className="text-sm text-gray-600">{t('surveyReport.countryStd', 'Country Standard')}</span>
+                <span className="text-sm text-gray-600">{t('surveyReport.countryStd')}</span>
                 <div className="font-semibold text-xs">{standard.name}</div>
                 <div className="text-xs text-gray-500">{standard.isoCode} — {standard.datum}</div>
               </div>
@@ -498,12 +498,12 @@ export default function SurveyReport({
               )}
             </div>
           ) : (
-            <p className="text-sm text-gray-400 italic">{t('surveyReport.noArea', 'No parcel area data provided.')}</p>
+            <p className="text-sm text-gray-400 italic">{t('surveyReport.noArea')}</p>
           )}
 
-          <SectionHeader>{t('surveyReport.difficultiesSection', 'Difficulties & Discrepancies')}</SectionHeader>
+          <SectionHeader>{t('surveyReport.difficultiesSection')}</SectionHeader>
           <div>
-            <FieldLabel>{t('surveyReport.difficulties', 'Difficulties Encountered')}</FieldLabel>
+            <FieldLabel>{t('surveyReport.difficulties')}</FieldLabel>
             <Textarea
               rows={2}
               value={difficulties}
@@ -514,19 +514,19 @@ export default function SurveyReport({
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <FieldLabel>{t('surveyReport.discrepancies', 'Discrepancies Found')}</FieldLabel>
+              <FieldLabel>{t('surveyReport.discrepancies')}</FieldLabel>
               <button
                 onClick={addDiscrepancy}
                 className="text-xs text-blue-600 hover:underline"
               >
-                + {t('surveyReport.addDiscrepancy', 'Add Discrepancy')}
+                + {t('surveyReport.addDiscrepancy')}
               </button>
             </div>
             <div className="space-y-3">
               {discrepancies.map(d => (
                 <div key={d.id} className="grid grid-cols-3 gap-2 p-3 bg-gray-50 rounded">
                   <div>
-                    <FieldLabel>{t('surveyReport.discType', 'Type')}</FieldLabel>
+                    <FieldLabel>{t('surveyReport.discType')}</FieldLabel>
                     <Select
                       value={d.type}
                       onChange={e => {
@@ -540,7 +540,7 @@ export default function SurveyReport({
                     </Select>
                   </div>
                   <div className="col-span-2">
-                    <FieldLabel>{t('surveyReport.discDesc', 'Description & Suggested Solution')}</FieldLabel>
+                    <FieldLabel>{t('surveyReport.discDesc')}</FieldLabel>
                     <Textarea
                       rows={2}
                       placeholder="Describe and suggest a resolution..."
@@ -556,20 +556,20 @@ export default function SurveyReport({
                       onClick={() => removeDiscrepancy(d.id)}
                       className="text-xs text-red-500 hover:underline"
                     >
-                      {t('common.remove', 'Remove')}
+                      {t('common.remove')}
                     </button>
                   </div>
                 </div>
               ))}
               {discrepancies.length === 0 && (
                 <p className="text-xs text-gray-400 italic">
-                  {t('surveyReport.noDiscrepancies', 'No discrepancies recorded.')}
+                  {t('surveyReport.noDiscrepancies')}
                 </p>
               )}
             </div>
           </div>
 
-          <SectionHeader>{t('surveyReport.certificate', 'Certificate of Compliance')}</SectionHeader>
+          <SectionHeader>{t('surveyReport.certificate')}</SectionHeader>
           <div>
             <Textarea
               rows={3}
@@ -580,14 +580,14 @@ export default function SurveyReport({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <FieldLabel>{t('surveyReport.signature', 'Surveyor Signature')}</FieldLabel>
+              <FieldLabel>{t('surveyReport.signature')}</FieldLabel>
               <div className="border-b border-gray-400 pb-1 mt-6 text-sm font-medium uppercase">
-                {surveyorName || <span className="text-gray-300 italic">{t('surveyReport.signHere', 'Sign here')}</span>}
+                {surveyorName || <span className="text-gray-300 italic">{t('surveyReport.signHere')}</span>}
               </div>
               <div className="text-xs text-gray-500 mt-1">{surveyorName}</div>
             </div>
             <div>
-              <FieldLabel>{t('surveyReport.supervisor', 'Supervisor Counter-sign')}</FieldLabel>
+              <FieldLabel>{t('surveyReport.supervisor')}</FieldLabel>
               <Input
                 value={supervisorName}
                 onChange={e => setSupervisorName(e.target.value.toUpperCase())}
@@ -595,7 +595,7 @@ export default function SurveyReport({
                 className="uppercase"
               />
               <div className="border-b border-gray-400 pb-1 mt-4 text-sm font-medium uppercase">
-                {supervisorName || <span className="text-gray-300 italic">{t('surveyReport.signHere', 'Sign here')}</span>}
+                {supervisorName || <span className="text-gray-300 italic">{t('surveyReport.signHere')}</span>}
               </div>
             </div>
           </div>
@@ -604,7 +604,7 @@ export default function SurveyReport({
         <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-between rounded-b-xl">
           {validated ? (
             <div className="text-sm text-green-600 font-medium">
-              ✓ {t('surveyReport.validated', 'Report validated — ready for submission.')}
+              ✓ {t('surveyReport.validated')}
             </div>
           ) : validationErrors.length > 0 ? (
             <div className="text-sm text-red-600">
@@ -612,7 +612,7 @@ export default function SurveyReport({
             </div>
           ) : (
             <div className="text-xs text-gray-500">
-              {t('surveyReport.validationHint', 'Validate to check required fields before submission.')}
+              {t('surveyReport.validationHint')}
             </div>
           )}
           <div className="flex gap-2">
@@ -620,13 +620,13 @@ export default function SurveyReport({
               onClick={handleValidate}
               className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              {t('surveyReport.validate', 'Validate Report')}
+              {t('surveyReport.validate')}
             </button>
             <button
               onClick={handlePrint}
               className="px-4 py-1.5 text-sm bg-gray-800 text-white rounded hover:bg-gray-900"
             >
-              {t('surveyReport.export', 'Export / Print')}
+              {t('surveyReport.export')}
             </button>
           </div>
         </div>

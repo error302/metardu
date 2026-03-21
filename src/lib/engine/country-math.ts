@@ -9,7 +9,7 @@
  *   const result = getTraverseValidation('kenya', linearError, totalDist, 'urban')
  */
 
-import type { SurveyingCountry, SurveyEnvironment } from '@/lib/country'
+import type { SurveyingCountry, SurveyEnvironment } from '@/lib/country/standards'
 import {
   getCountryStandard,
   getTraverseOrderForEnvironment,
@@ -18,7 +18,7 @@ import {
   getBeaconRule,
   getFieldNoteRule,
   getSurveyorReportRequirement,
-} from '@/lib/country'
+} from '@/lib/country/standards'
 import { getTopoConfigForCountry } from './topographic'
 
 // ─── TRAVERSE VALIDATION ──────────────────────────────────────────────────────
@@ -73,8 +73,10 @@ export function getTraverseValidation(input: TraverseValidationInput): TraverseV
   // Actually the formula is: required linear error ≤ 0.0015 * Lm (Lm in km, result in metres)
   // or equivalently: requiredRatio ≥ max(D/0.0015, 20000)  [D in metres, so D/(0.0015*1000)]
   // Required Ratio = max(totalDistance / (0.0015 * 1000), 20000) = max(totalDistance / 1.5, 20000)
-  if (country === 'bahrain' && (environment === 'cadastral_control' || environment === 'default' || environment === 'detail')) {
-    const byFormula = totalDistance / 1.5  // D/0.0015 where D is in metres (0.0015m/km)
+  if (country === 'bahrain' && environment === 'detail') {
+    requiredRatio = 5_000  // Bahrain CSD detail survey: 1:5,000
+  } else if (country === 'bahrain' && (environment === 'default' || environment === 'urban')) {
+    const byFormula = totalDistance / 1.5  // D/0.0015 where D is in metres
     requiredRatio = Math.max(byFormula, 20_000)
     const maxLinearError = totalDistance / 20000  // error at 1:20000
     const formulaError = 0.0015 * (totalDistance / 1000)  // error at 0.0015/Lm

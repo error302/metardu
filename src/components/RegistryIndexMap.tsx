@@ -343,7 +343,7 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
                         onClick={() => setSheetIndex(s => ({...s, currentRow: r as number, currentCol: c as number}))}
                         className={`h-8 text-xs rounded border ${r===sheetIndex.currentRow&&c===sheetIndex.currentCol?'bg-black text-white':'bg-gray-100 hover:bg-gray-200'}`}
                       >
-                        {label ?? `${r!+1}-${c!+1}`}
+                        {label ?? `${Number(r!)+1}-${Number(c!)+1}`}
                       </button>
                     ))}
                   </div>
@@ -500,7 +500,7 @@ function RIMSheetContent({
           <div className="grid grid-cols-2 gap-x-4 text-[7pt]">
             <div><span className="font-bold">District:</span> {district || '—'}</div>
             <div><span className="font-bold">Location:</span> {location || '—'}</div>
-            <div><span className="font-bold">Sub-Location:</span> {subLocation || '—'}</div>
+            <div><span className="font-bold">Sub-Location:</span> {(location as any)?.subLocation || '—'}</div>
             <div><span className="font-bold">Reg. Unit:</span> {registrationUnit || '—'}</div>
           </div>
         </div>

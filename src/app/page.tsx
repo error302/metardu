@@ -64,6 +64,7 @@ export default function Home() {
   const { t } = useLanguage()
   const { country, setCountry, standard } = useCountry()
   const [active, setActive] = useState<keyof typeof TOOL_DEMOS_RAW>('traverse')
+  const [showCountryPicker, setShowCountryPicker] = useState(false)
 
   const TOOL_DEMOS: Record<string, { title: string; input: string[][]; output: string[][]; badge: string }> = {
     traverse: {
@@ -147,9 +148,9 @@ export default function Home() {
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{ALL_COUNTRIES.find(c => c.id === country)?.flag ?? '🌍'}</span>
                     <div>
-                      <div className="text-xs text-[var(--text-muted)]">{t('landing.countryActive', 'Active Standard')}</div>
+                      <div className="text-xs text-[var(--text-muted)]">{t('landing.countryActive')}</div>
                       <div className="text-sm font-semibold text-[var(--text-primary)]">
-                        {standard.name} — {t('landing.traverseStd', 'Traverse')} 1:{standard.traverseOrders[0]?.minPrecision.toLocaleString()}
+                        {standard.name} — {t('landing.traverseStd')} 1:{standard.traverseOrders[0]?.minPrecision.toLocaleString()}
                         <span className="text-[var(--text-muted)] font-normal ml-1">({standard.traverseOrders[0]?.regulation.split(' ')[0]})</span>
                       </div>
                     </div>
@@ -159,7 +160,7 @@ export default function Home() {
                       onClick={() => setShowCountryPicker(v => !v)}
                       className="px-3 py-1.5 text-xs bg-[var(--accent)] text-black font-semibold rounded-lg hover:bg-[var(--accent-dim)] transition-colors"
                     >
-                      {t('landing.changeCountry', 'Change Country')}
+                      {t('landing.changeCountry')}
                     </button>
                     {showCountryPicker && (
                       <div className="absolute right-0 top-full mt-2 w-64 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl shadow-xl z-50 max-h-72 overflow-y-auto">
@@ -175,7 +176,7 @@ export default function Home() {
                               <div className="text-xs text-[var(--text-muted)]">{c.id === country ? standard.traverseOrders[0]?.description ?? '' : ''}</div>
                             </div>
                             {c.id === country && (
-                              <div className="ml-auto text-[var(--accent)] text-xs font-semibold">{t('landing.active', 'Active')}</div>
+                              <div className="ml-auto text-[var(--accent)] text-xs font-semibold">{t('landing.active')}</div>
                             )}
                           </button>
                         ))}

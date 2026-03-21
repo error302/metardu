@@ -1163,7 +1163,8 @@ export function getCountryByISO(isoCode: string): CountrySurveyStandard | undefi
 
 export type SurveyEnvironment =
   | 'urban' | 'rural' | 'transmission_line' | 'detail' | 'default'
-  | 'first_order' | 'second_order_i' | 'second_order_ii' | 'third_order_i' | 'third_order_ii' | 'construction' | 'alta_acsm'
+  | 'first_order' | 'geodetic'
+  | 'second_order_i' | 'second_order_ii' | 'third_order_i' | 'third_order_ii' | 'construction' | 'alta_acsm'
 
 export function getTraverseOrderForEnvironment(
   country: SurveyingCountry,
@@ -1179,8 +1180,9 @@ export function getTraverseOrderForEnvironment(
   }
 
   if (country === 'bahrain') {
-    if (environment === 'detail') return orders.find(o => o.order === 'detail_survey')
-    return orders.find(o => o.order === 'cadastral_control')
+    if (environment === 'geodetic') return orders.find(o => o.order === 'geodetic')
+    if (environment === 'detail') return orders.find(o => o.order === 'detail_survey' || o.order === 'detail')
+    return orders.find(o => o.order === 'cadastral_control') ?? orders.find(o => o.order === 'geodetic')
   }
 
   if (country === 'new_zealand') {
@@ -1231,7 +1233,7 @@ export function getTraverseOrderForEnvironment(
     return orders.find(o => o.order === orderId) ?? orders.find(o => o.order === 'cadastral')
   }
 
-  if (country === 'bahrain' || country === 'saudi_arabia' || country === 'oman' || country === 'uae') {
+  if (country === 'saudi_arabia' || country === 'oman' || country === 'uae') {
     if (environment === 'geodetic') return orders.find(o => o.order === 'geodetic')
     if (environment === 'detail') return orders.find(o => o.order === 'detail')
     return orders.find(o => o.order === 'cadastral') ?? orders.find(o => o.order === 'geodetic')

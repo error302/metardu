@@ -9,8 +9,8 @@
  *   Bahrain CSD (field round tolerances)
  */
 
-import type { SurveyingCountry } from '@/lib/country'
-import { getCountryStandard } from '@/lib/country'
+import type { SurveyingCountry } from '@/lib/country/standards'
+import { getCountryStandard } from '@/lib/country/standards'
 import { twoPegTest } from './twoPegTest'
 
 // ─── LEVELING CLOSURE ORDERS (USACE Table 4-2) ────────────────────────────────
@@ -136,10 +136,10 @@ export function validateLevelingClosure(input: LevelingClosureInput): LevelingCl
   if (country === 'kenya') {
     const directTolerance = 0.020 * Math.sqrt(distanceKm)
     const indirectTolerance = 0.030 * Math.sqrt(distanceKm)
-    allowable = Math.min(directTolerance, indirectTolerance)
+    allowable = indirectTolerance  // Kenya Reg 63: published tolerance is 0.030√K (indirect)
     requiredOrderObj = LEVELING_ORDERS.find(o => o.order === 'third_order')
     if (misclosureMetres > directTolerance && misclosureMetres <= indirectTolerance) {
-      warnings.push('Kenya Reg 63: Misclosure within indirect leveling tolerance (1:3,000).')
+      warnings.push('Kenya Reg 63: Misclosure within indirect leveling tolerance (1:3,000). Direct: 0.020√K.')
     }
   }
 
@@ -200,7 +200,9 @@ export interface CFactorResult {
 
 export function validateCFactor(input: CFactorInput): CFactorResult {
   const { maxError, horizontalDistance, contourInterval } = input
-  const ci = contourInterval ?? maxError
+  // contourInterval is the denominator of K (e.g. 100 for K=1/100).
+  // Default to 100 (smooth terrain) when not specified.
+  const ci = contourInterval ?? 100
   const k = 1 / ci
 
   const entry = C_FACTOR_TABLE.find(e => Math.abs(e.kValue - k) < 0.001)
@@ -233,7 +235,7 @@ export function validateCFactor(input: CFactorInput): CFactorResult {
 
 // ─── TWO-PEG TEST (country-aware) ─────────────────────────────────────────────
 
-export interface TwoPegTestResult {
+export interface LevelingTwoPegResult {
   collimationError: number       // radians
   collimationPer100m: number      // mm per 100m
   allowablePer100m: number         // mm per 100m
@@ -254,7 +256,7 @@ export interface TwoPegTestInput {
   daysSinceLastTest?: number
 }
 
-export function runTwoPegTest(input: TwoPegTestInput): TwoPegTestResult {
+export function runTwoPegTest(input: TwoPegTestInput): LevelingTwoPegResult {
   const {
     A1, B1, A2, B2,
     baselineMeters = 100,

@@ -9,8 +9,8 @@
  *   Bahrain CSD §E.3.6 (detail survey)
  */
 
-import type { SurveyingCountry } from '@/lib/country'
-import { getCountryStandard } from '@/lib/country'
+import type { SurveyingCountry } from '@/lib/country/standards'
+import { getCountryStandard } from '@/lib/country/standards'
 
 // ─── ASPRS PLANIMETRIC ACCURACY TABLE ─────────────────────────────────────────
 // Table 4-3: RMSE thresholds (feet) at each scale, 3 ASPRS classes.
@@ -35,14 +35,13 @@ export const ASPRS_PLANIMETRIC: ASPRSPlanimetricEntry[] = [
   { scale: "1\"=200'",  scaleRatio:    2400, class1: 0.50,   class2: 1.00,  class3: 2.00  },
   { scale: "1\"=400'",  scaleRatio:    4800, class1: 1.00,   class2: 2.00,  class3: 4.00  },
   { scale: "1\"=500'",  scaleRatio:    6000, class1: 1.25,   class2: 2.50,  class3: 5.00  },
-  { scale: "1\"=1,000'",scaleRatio:  12_000, class1: 2.50,   class2: 5.00,  class3: 10.00 },
+  { scale: "1\"=1,000'",scaleRatio:  12_000, class1: 0.304, class2: 0.608, class3: 1.216 },
   { scale: "1\"=2,000'",scaleRatio:  24_000, class1: 5.00,   class2: 10.00, class3: 20.00 },
   { scale: "1\"=5,000'",scaleRatio:  60_000, class1: 12.50,  class2: 25.00, class3: 50.00 },
   { scale: "1\"=10,000'",scaleRatio: 120_000, class1: 25.00,  class2: 50.00, class3: 100.00},
   { scale: "1\"=20,000'",scaleRatio: 240_000, class1: 50.00,  class2: 100.00,class3: 200.00},
   { scale: "1\"=50,000'",scaleRatio: 600_000, class1: 125.00, class2: 250.00,class3: 500.00},
   { scale: "1\"=100,000'",scaleRatio:1_200_000, class1: 250.00,class2: 500.00,class3: 1000.00},
-  { scale: "1\"=250,000'",scaleRatio:3_000_000, class1: 625.00,class2: 1250.00,class3:2500.00},
 ]
 
 // ─── ASPRS TOPOGRAPHIC / CONTOUR ACCURACY TABLE ────────────────────────────────

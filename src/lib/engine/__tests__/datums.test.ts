@@ -172,12 +172,12 @@ describe('getConvergenceAngle', () => {
   })
 
   it('returns non-zero away from central meridian', () => {
-    const conv = getConvergenceAngle(38, 0, 37)
+    const conv = getConvergenceAngle(38, -1.2921, 37)
     expect(Math.abs(conv)).toBeGreaterThan(0)
   })
 
   it('returns larger convergence at higher latitude', () => {
-    const convEquator = getConvergenceAngle(38, 0, 37)
+    const convEquator = getConvergenceAngle(38, -1.2921, 37)
     const convHighLat = getConvergenceAngle(38, 45, 37)
     expect(Math.abs(convHighLat)).toBeGreaterThan(Math.abs(convEquator))
   })

@@ -69,7 +69,7 @@ describe('getTraverseValidation', () => {
   it('UK cadastral: 1:10,000 required', () => {
     const r = getTraverseValidation({
       country: 'uk',
-      environment: 'cadastral',
+      environment: 'default',
       linearError: 1.0,
       totalDistance: 10_000,
     })
@@ -129,9 +129,9 @@ describe('formatAreaByCountry', () => {
   })
 
   it('Kenya: >1,000ha → 1 decimal place', () => {
-    const r = formatAreaByCountry('kenya', 2_000_000) // 200 ha
+    const r = formatAreaByCountry('kenya', 20_000_000) // 2,000 ha
     expect(r.decimalPlaces).toBe(1)
-    expect(r.formattedHa).toBe('200.0')
+    expect(r.formattedHa).toBe('2000.0')
   })
 
   it('US: always 4 decimal places (ALTA)', () => {

@@ -122,9 +122,10 @@ describe('validateCFactor', () => {
 
 describe('runTwoPegTest', () => {
   it('zero collimation: PASSES', () => {
+    // Both setups record the same height difference (0.5m) → collimation error = 0
     const r = runTwoPegTest({
       A1: 1.500, B1: 1.000,
-      A2: 1.000, B2: 1.500,
+      A2: 1.500, B2: 1.000,
       baselineMeters: 100,
       country: 'us',
     })

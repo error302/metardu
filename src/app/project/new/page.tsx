@@ -69,6 +69,10 @@ export default function NewProjectPage() {
     india: 'WGS84',
     indonesia: 'WGS84',
     brazil: 'WGS84',
+    rwanda: 'Arc 1960 / Clarke 1880',
+    burundi: 'Arc 1960 / Clarke 1880',
+    south_sudan: 'Arc 1960 / Clarke 1880',
+    zambia: 'Arc 1960 / Clarke 1880',
     other: 'WGS84',
   }
 
