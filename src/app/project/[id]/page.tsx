@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import { geographicToUTM } from '@/lib/engine/coordinates'
 // Reports loaded dynamically to keep initial bundle lean
 import { trackEvent } from '@/lib/analytics/events'
@@ -585,6 +586,7 @@ export default function ProjectPage({ params }: PageProps) {
   if (!project) return null
 
   return (
+    <ErrorBoundary>
     <>
       <PythonEngineStatus />
     <WorkspaceShell
@@ -1227,5 +1229,6 @@ export default function ProjectPage({ params }: PageProps) {
         />
       )}
     </>
+    </ErrorBoundary>
   )
 }
