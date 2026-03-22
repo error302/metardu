@@ -718,7 +718,26 @@ export class SurveyPlanRenderer {
   }
   
   private drawBuildings(): string {
-    return ''
+    const buildings = this.data.buildings
+    if (!buildings || buildings.length === 0) return ''
+    // Define diagonal hatch pattern once in defs
+    const defs = `<defs><pattern id="hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="6" stroke="#000" stroke-width="0.5" opacity="0.12"/></pattern></defs>`
+    let svg = defs
+    for (const b of buildings) {
+      const cx = this.toSvgX(b.easting)
+      const cy = this.toSvgY(b.northing)
+      const w = b.width_m * PX_PER_M
+      const h = b.height_m * PX_PER_M
+      // Rectangle with fill and hatch overlay
+      svg += `<g transform="translate(${cx},${cy}) rotate(${b.rotation_deg})">`
+      svg += `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="rgba(220,210,190,0.3)" stroke="${C_BLACK}" stroke-width="1"/>`
+      svg += `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="url(#hatch)"/>`
+      if (b.label) {
+        svg += `<text x="0" y="3" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7.5" font-weight="bold" fill="${C_BLACK}">${escapeXml(b.label)}</text>`
+      }
+      svg += '</g>'
+    }
+    return svg
   }
   
   private drawAdjacentLots(): string {
@@ -799,6 +818,45 @@ export class SurveyPlanRenderer {
     const x = this.drawingX + mmToPx(8)
     const y = this.drawingY + this.drawingAreaH - mmToPx(15)
     return svgScaleBar(x, y, scaleBarPx, segmentMetres, 4)
+  }
+
+  private drawSheetFooter(): string {
+    const footerY = this.pageH - this.titleBlockH
+    const footerH = this.titleBlockH
+    const p = this.data.project
+    const cols = 8
+    const colW = (this.pageW - this.margin * 2) / cols
+
+    let svg = `<rect x="${this.margin}" y="${footerY}" width="${this.pageW - this.margin * 2}" height="${footerH}" fill="#F8F8F8"/>`
+    svg += `<line x1="${this.margin}" y1="${footerY}" x2="${this.pageW - this.margin}" y2="${footerY}" stroke="${C_BLACK}" stroke-width="2"/>`
+
+    const fields: Array<[string, string]> = [
+      ['Field', ''],
+      ['Drawing', p.drawing_no || `MD-${Date.now().toString().slice(-6)}`],
+      ['Checked', ''],
+      ['Address', p.firm_address || ''],
+      ['Date', new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+      ['Work Order', ''],
+      ['Job No.', p.reference || ''],
+      [p.firm_name || 'METARDU', ''],
+    ]
+
+    let x = this.margin
+    for (let i = 0; i < cols; i++) {
+      const [label, value] = fields[i] || ['', '']
+      const cx = x + colW / 2
+      svg += `<line x1="${x}" y1="${footerY}" x2="${x}" y2="${footerY + footerH}" stroke="${C_BLACK}" stroke-width="0.5"/>`
+      if (i === cols - 1) {
+        // Last column: company name, dark background
+        svg += `<rect x="${x}" y="${footerY}" width="${colW}" height="${footerH}" fill="${C_BLACK}"/>`
+        svg += `<text x="${cx}" y="${footerY + footerH / 2 + 4}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="11" font-weight="bold" fill="white">${escapeXml(label)}</text>`
+      } else {
+        svg += `<text x="${cx}" y="${footerY + mmToPx(4)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="#555">${escapeXml(label)}</text>`
+        svg += `<text x="${cx}" y="${footerY + mmToPx(10)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
+      }
+      x += colW
+    }
+    return svg
   }
   
   private drawSheetBorder(): string {
