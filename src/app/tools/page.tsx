@@ -19,6 +19,7 @@ export default function ToolsPage() {
           <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Leveling</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ToolLink href="/tools/leveling" title="Leveling" />
+            <ToolLink href="/tools/level-book" title="Level Book" />
             <ToolLink href="/tools/two-peg-test" title="Two Peg Test" />
             <ToolLink href="/tools/height-of-object" title="Height of Object" />
           </div>
@@ -40,6 +41,7 @@ export default function ToolsPage() {
           <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Traverse & Adjustment</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ToolLink href="/tools/traverse" title="Traverse" />
+            <ToolLink href="/tools/traverse-field-book" title="Traverse Field Book" />
             <ToolLink href="/tools/coordinates" title="Coordinates" />
             <ToolLink href="/tools/cogo" title="COGO" />
             <ToolLink href="/tools/gnss" title="GNSS" />
