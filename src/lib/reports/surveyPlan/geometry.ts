@@ -210,3 +210,34 @@ export function computeFenceBoundary(
   }
   return fence
 }
+
+export function formatChainage(chainageM: number): string {
+  const km = Math.floor(chainageM / 1000)
+  const m = chainageM % 1000
+  return `${km}+${String(Math.round(m)).padStart(3, '0')}`
+}
+
+export function parseChainage(label: string): number | null {
+  const match = label.match(/^(\d+)\+(\d+)$/)
+  if (!match) return null
+  return parseInt(match[1]) * 1000 + parseInt(match[2])
+}
+
+export function chainageFromDistance(startChainage: number, distanceM: number): number {
+  return startChainage + distanceM
+}
+
+export function computeChainageAlongAlignment(
+  startChainage: number,
+  points: Array<{ easting: number; northing: number }>
+): Array<{ chainage: number; easting: number; northing: number }> {
+  const result: Array<{ chainage: number; easting: number; northing: number }> = []
+  let current = startChainage
+  result.push({ chainage: current, easting: points[0]?.easting || 0, northing: points[0]?.northing || 0 })
+  for (let i = 1; i < points.length; i++) {
+    const dist = distance(points[i - 1].easting, points[i - 1].northing, points[i].easting, points[i].northing)
+    current += dist
+    result.push({ chainage: current, easting: points[i].easting, northing: points[i].northing })
+  }
+  return result
+}

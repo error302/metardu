@@ -11,6 +11,7 @@ import {
   centroid, boundingBox, selectScale, calcScaleLabel, calcScaleBarMetres,
   formatBearingDegMinSec,
   offsetPointPerpendicular, computeFenceBoundary, rotatePoints,
+  formatChainage, computeChainageAlongAlignment,
 } from './geometry'
 import {
   svgFoundMonument, svgSetMonument, svgMasonryNail, svgIronPin,
@@ -648,6 +649,9 @@ export class SurveyPlanRenderer {
     svgParts.push(this.drawMetricNote(leftPad, rightPad))
     svgParts.push(this.drawPlanInfoBox(leftPad, rightPad, panelInnerW))
     svgParts.push(this.drawCoordinateSchedule(leftPad, panelInnerW))
+    if (this.data.project.roadCenterLine) {
+      svgParts.push(this.drawChainageSchedule(leftPad, panelInnerW))
+    }
     svgParts.push(this.drawBearingSchedule(leftPad, panelInnerW))
     svgParts.push(this.drawLegend(leftPad, panelInnerW))
     svgParts.push(this.drawWarningBox(leftPad, rightPad, panelInnerW))
@@ -831,6 +835,7 @@ export class SurveyPlanRenderer {
     layers.push(this.drawAdjacentLabels())
     layers.push(this.drawBuildings())
     layers.push(this.drawRoadReserveBoundaries())
+    layers.push(this.drawChainageMarkers())
     layers.push(this.drawNorthArrow())
     layers.push(this.drawScaleBar())
     layers.push(this.drawAssociationStamp())
@@ -940,6 +945,90 @@ export class SurveyPlanRenderer {
     svg += `<text x="${this.toSvgX(leftCentroid[0])}" y="${this.toSvgY(leftCentroid[1])}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}" transform="rotate(-45,${this.toSvgX(leftCentroid[0])},${this.toSvgY(leftCentroid[1])})">${escapeXml(label)}</text>`
     svg += `<text x="${this.toSvgX(rightCentroid[0])}" y="${this.toSvgY(rightCentroid[1])}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}" transform="rotate(-45,${this.toSvgX(rightCentroid[0])},${this.toSvgY(rightCentroid[1])})">${escapeXml(label)}</text>`
 
+    return svg
+  }
+
+  private drawChainageMarkers(): string {
+    const roadCenter = this.data.project.roadCenterLine
+    const roadClass = this.data.project.road_class
+    if (!roadCenter || roadCenter.length < 2) return ''
+
+    const startCh = this.data.project.startChainage ?? 0
+    const intervalM = 100
+
+    const chainagePoints = computeChainageAlongAlignment(startCh, roadCenter)
+    let svg = ''
+
+    for (let i = 0; i < chainagePoints.length - 1; i++) {
+      const from = roadCenter[i]
+      const to = roadCenter[i + 1]
+      const ch0 = chainagePoints[i]
+      const ch1 = chainagePoints[i + 1]
+      const dx = to.easting - from.easting
+      const dy = to.northing - from.northing
+      const segLen = Math.sqrt(dx * dx + dy * dy)
+      if (segLen === 0) continue
+
+      const steps = Math.floor(segLen / intervalM)
+      for (let j = 1; j <= steps; j++) {
+        const t = j / steps
+        const x = from.easting + dx * t
+        const y = from.northing + dy * t
+        const chainage = ch0.chainage + (ch1.chainage - ch0.chainage) * t
+
+        const perpX = -dy / segLen
+        const perpY = dx / segLen
+        const tickLenM = 2
+        const x1 = this.toSvgX(x - perpX * tickLenM)
+        const y1 = this.toSvgY(y - perpY * tickLenM)
+        const x2 = this.toSvgX(x + perpX * tickLenM)
+        const y2 = this.toSvgY(y + perpY * tickLenM)
+        const svgX = this.toSvgX(x)
+        const svgY = this.toSvgY(y)
+
+        svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C_BLACK}" stroke-width="0.5"/>`
+        svg += `<text x="${svgX}" y="${svgY - 1.5}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4" fill="${C_BLACK}" font-weight="bold">${formatChainage(chainage)}</text>`
+      }
+    }
+
+    return svg
+  }
+
+  private drawChainageSchedule(leftPad: number, panelInnerW: number): string {
+    const roadCenter = this.data.project.roadCenterLine
+    if (!roadCenter || roadCenter.length < 2) return ''
+
+    const startCh = this.data.project.startChainage ?? 0
+    const chainagePts = computeChainageAlongAlignment(startCh, roadCenter)
+    const roadName = this.data.project.roadName || 'Road'
+
+    const colW = panelInnerW / 4
+    const rowH = mmToPx(3.5)
+    const headerH = mmToPx(5)
+    const maxRows = Math.min(chainagePts.length, 20)
+    const startY = this.margin + mmToPx(8)
+    const tableH = headerH + maxRows * rowH
+
+    let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
+    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">CHAINAGE SCHEDULE — ${escapeXml(roadName)}</text>`
+
+    const hY = startY + headerH
+    svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
+    const headers = ['Chainage', 'Easting', 'Northing', 'Label']
+    headers.forEach((h, i) => {
+      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
+    })
+
+    chainagePts.slice(0, maxRows).forEach((pt, i) => {
+      const ry = hY + rowH * (i + 1)
+      if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
+      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}" font-weight="bold">${formatChainage(pt.chainage)}</text>`
+      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.easting.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.northing.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="#555">km+m</text>`
+    })
+
+    svg += `<text x="${leftPad}" y="${startY + tableH + 8}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="#555" font-style="italic">Chainage format: km+m (RDM 1.1 §5.6.4) · Interval: 100m markers</text>`
     return svg
   }
 }

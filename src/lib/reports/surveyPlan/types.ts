@@ -53,6 +53,9 @@ export interface SurveyPlanData {
     roadEdge?: string
     road_class?: string
     roadCenterLine?: Array<{ easting: number; northing: number }>
+    startChainage?: number
+    roadName?: string
+    spotLevelInterval?: number
     hundred?: string
     terrain_type?: 'flat' | 'rolling' | 'mountainous' | 'escarpment'
     iskRegNo?: string

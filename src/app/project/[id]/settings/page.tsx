@@ -26,6 +26,8 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
   const [clientName, setClientName] = useState('')
   const [surveyorName, setSurveyorName] = useState('')
   const [linearError, setLinearError] = useState('')
+  const [roadName, setRoadName] = useState('')
+  const [startChainage, setStartChainage] = useState('')
 
   useEffect(() => {
     async function loadProject() {
@@ -52,6 +54,8 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
       setSurveyorName(data.surveyor_name || '')
       setDatum(data.datum || 'ARC1960')
       setLinearError(data.traverse?.linearError !== undefined ? String(data.traverse.linearError) : '')
+      setRoadName(data.road_name || '')
+      setStartChainage(data.start_chainage !== undefined ? String(data.start_chainage) : '')
       setLoading(false)
     }
 
@@ -76,6 +80,8 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
         surveyor_name: surveyorName || null,
         datum,
         traverse: { linearError: parseFloat(linearError) || 0 },
+        road_name: roadName || null,
+        start_chainage: parseFloat(startChainage) || 0,
       })
       .eq('id', projectId)
 
@@ -227,6 +233,32 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
               </optgroup>
             </select>
           </div>
+
+          {roadClass && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-[var(--text-primary)] mb-2">Road Name</label>
+                <input
+                  type="text"
+                  value={roadName}
+                  onChange={(e) => setRoadName(e.target.value)}
+                  placeholder="e.g. Nairobi–Mombasa Road"
+                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text-primary)] mb-2">Start Chainage (m)</label>
+                <input
+                  type="number"
+                  value={startChainage}
+                  onChange={(e) => setStartChainage(e.target.value)}
+                  placeholder="e.g. 0 or 5000"
+                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
+                />
+                <p className="text-xs text-[var(--text-secondary)] mt-1">km+m format: 5000m = 5+000</p>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm text-[var(--text-primary)] mb-2">Terrain Type</label>
