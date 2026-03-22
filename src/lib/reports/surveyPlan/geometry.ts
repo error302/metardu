@@ -169,3 +169,44 @@ export function parseCornersCSV(csv: string): Array<{ name: string; easting: num
   if (result.length < 3) throw new Error('CSV must have at least 3 valid corner rows')
   return result
 }
+
+export function offsetPointPerpendicular(
+  from: { easting: number; northing: number },
+  to: { easting: number; northing: number },
+  offset: number
+): { easting: number; northing: number } {
+  const dx = to.easting - from.easting
+  const dy = to.northing - from.northing
+  const len = Math.sqrt(dx * dx + dy * dy)
+  if (len === 0) return { easting: from.easting, northing: from.northing }
+  const perpX = dy / len
+  const perpY = -dx / len
+  return {
+    easting: from.easting + perpX * offset,
+    northing: from.northing + perpY * offset,
+  }
+}
+
+export function computeFenceBoundary(
+  boundaryPoints: Array<{ easting: number; northing: number }>,
+  fenceOffsets: Array<{
+    segmentIndex: number
+    type: string
+    offsetMetres: number
+  }>
+): Array<{ easting: number; northing: number }> {
+  if (!fenceOffsets || fenceOffsets.length === 0) return []
+  const pts = boundaryPoints
+  const fence: Array<{ easting: number; northing: number }> = []
+  for (let i = 0; i < pts.length; i++) {
+    const from = pts[i]
+    const to = pts[(i + 1) % pts.length]
+    const fo = fenceOffsets.find(o => o.segmentIndex === i)
+    if (fo && fo.offsetMetres > 0) {
+      fence.push(offsetPointPerpendicular(from, to, fo.offsetMetres))
+    } else {
+      fence.push({ easting: from.easting, northing: from.northing })
+    }
+  }
+  return fence
+}

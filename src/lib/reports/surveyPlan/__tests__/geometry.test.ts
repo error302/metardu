@@ -8,6 +8,7 @@ import {
   offsetFromMidpoint, centroid, boundingBox,
   formatBearingDegMinSec, shoelaceArea, shoelacePerimeter,
   rotatePoints, parseCornersCSV,
+  offsetPointPerpendicular, computeFenceBoundary,
 } from '../geometry'
 
 describe('constants', () => {
@@ -343,5 +344,52 @@ describe('parseCornersCSV', () => {
   })
   it('throws for fewer than 3 rows', () => {
     expect(() => parseCornersCSV('C1,0,0\nC2,10,0')).toThrow()
+  })
+})
+
+describe('offsetPointPerpendicular', () => {
+  it('offsets a point 1m to the left of a horizontal segment', () => {
+    const from = { easting: 0, northing: 0 }
+    const to = { easting: 10, northing: 0 }
+    const result = offsetPointPerpendicular(from, to, 1)
+    expect(result.easting).toBeCloseTo(0, 4)
+    expect(result.northing).toBeCloseTo(-1, 4)
+  })
+  it('handles vertical segment', () => {
+    const from = { easting: 0, northing: 0 }
+    const to = { easting: 0, northing: 10 }
+    const result = offsetPointPerpendicular(from, to, 1)
+    expect(result.easting).toBeCloseTo(1, 4)
+    expect(result.northing).toBeCloseTo(0, 4)
+  })
+  it('handles zero-length segment', () => {
+    const from = { easting: 5, northing: 5 }
+    const to = { easting: 5, northing: 5 }
+    const result = offsetPointPerpendicular(from, to, 1)
+    expect(result.easting).toBeCloseTo(5, 4)
+    expect(result.northing).toBeCloseTo(5, 4)
+  })
+})
+
+describe('computeFenceBoundary', () => {
+  it('returns empty array when no fence offsets', () => {
+    const pts = [{ easting: 0, northing: 0 }, { easting: 10, northing: 0 }, { easting: 10, northing: 10 }]
+    const result = computeFenceBoundary(pts, [])
+    expect(result).toEqual([])
+  })
+  it('offsets segment 0 by 2m', () => {
+    const pts = [{ easting: 0, northing: 0 }, { easting: 10, northing: 0 }, { easting: 10, northing: 10 }]
+    const offsets = [{ segmentIndex: 0, type: 'chain_link', offsetMetres: 2 }]
+    const result = computeFenceBoundary(pts, offsets)
+    expect(result).toHaveLength(3)
+    expect(result[0].easting).toBeCloseTo(0, 4)
+    expect(result[0].northing).toBeCloseTo(-2, 4)
+  })
+  it('returns boundary points when no valid fence offsets', () => {
+    const pts = [{ easting: 0, northing: 0 }, { easting: 10, northing: 0 }, { easting: 10, northing: 10 }]
+    const offsets = [{ segmentIndex: 5, type: 'chain_link', offsetMetres: 2 }]
+    const result = computeFenceBoundary(pts, offsets)
+    expect(result).toHaveLength(3)
+    expect(result[0]).toEqual({ easting: 0, northing: 0 })
   })
 })
