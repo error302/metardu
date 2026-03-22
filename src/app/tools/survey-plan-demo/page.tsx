@@ -1,4 +1,5 @@
 import SurveyPlanViewer from '@/components/SurveyPlanViewer'
+import GeometryValidationPanel from '@/components/GeometryValidationPanel'
 import type { SurveyPlanData } from '@/lib/reports/surveyPlan/types'
 
 const demoData: SurveyPlanData = {
@@ -75,6 +76,9 @@ export default function SurveyPlanDemoPage() {
       <main className="flex-1 flex flex-col items-center">
         <div className="w-full h-[75vh] bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden m-4">
           <SurveyPlanViewer data={demoData} className="h-full" />
+        </div>
+        <div className="w-full max-w-2xl px-4 pb-4">
+          <GeometryValidationPanel />
         </div>
       </main>
     </div>
