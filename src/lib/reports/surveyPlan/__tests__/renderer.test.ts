@@ -431,5 +431,77 @@ describe('SurveyPlanRenderer', () => {
       const svg = renderer.render()
       expect(svg).toContain('PLAN M-459')
     })
+
+    it('renders PIN label when parcel has pin', () => {
+      const dataWithPin = {
+        ...BASE_DATA,
+        parcel: { ...BASE_DATA.parcel, pin: 'KRN-12345' },
+      }
+      const renderer = new SurveyPlanRenderer(dataWithPin)
+      const svg = renderer.render()
+      expect(svg).toContain('PIN: KRN-12345')
+    })
+
+    it('does not render PIN label when not provided', () => {
+      const renderer = new SurveyPlanRenderer(BASE_DATA)
+      const svg = renderer.render()
+      expect(svg).not.toContain('PIN:')
+    })
+
+    it('renders part labels when parcel has parts', () => {
+      const dataWithParts = {
+        ...BASE_DATA,
+        parcel: { ...BASE_DATA.parcel, parts: ['PART 1', 'PART 2'] },
+      }
+      const renderer = new SurveyPlanRenderer(dataWithParts)
+      const svg = renderer.render()
+      expect(svg).toContain('PART 1')
+      expect(svg).toContain('PART 2')
+    })
+
+    it('renders association stamp when firm_name is provided', () => {
+      const dataWithFirm = {
+        ...BASE_DATA,
+        project: { ...BASE_DATA.project, firm_name: 'GeoTech Surveys Ltd' },
+      }
+      const renderer = new SurveyPlanRenderer(dataWithFirm)
+      const svg = renderer.render()
+      expect(svg).toContain('SURVEYORS ASSOCIATION STAMP')
+      expect(svg).toContain('GeoTech Surveys Ltd')
+    })
+
+    it('does not render association stamp when firm_name is absent', () => {
+      const dataWithoutFirm = {
+        ...BASE_DATA,
+        project: { ...BASE_DATA.project, firm_name: undefined },
+      }
+      const renderer = new SurveyPlanRenderer(dataWithoutFirm)
+      const svg = renderer.render()
+      expect(svg).not.toContain('SURVEYORS ASSOCIATION STAMP')
+    })
+
+    it('applies north rotation when northRotationDeg is set', () => {
+      const dataWithRotation = {
+        ...BASE_DATA,
+        project: { ...BASE_DATA.project, northRotationDeg: 15 },
+      }
+      const renderer = new SurveyPlanRenderer(dataWithRotation)
+      const svg = renderer.render()
+      expect(svg).toContain('15')
+      expect(svg).toContain('N')
+    })
+
+    it('renders fence offsets when provided', () => {
+      const dataWithFence = {
+        ...BASE_DATA,
+        fenceOffsets: [
+          { segmentIndex: 0, type: 'chain_link' as const, offsetMetres: 1.5 },
+          { segmentIndex: 1, type: 'board_fence' as const, offsetMetres: 2.0 },
+        ],
+      }
+      const renderer = new SurveyPlanRenderer(dataWithFence)
+      const svg = renderer.render()
+      expect(svg).toContain('FENCE TYPES')
+    })
   })
 })

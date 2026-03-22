@@ -8,11 +8,13 @@ import {
   segmentAngle, textAngleForSegment, offsetFromMidpoint,
   centroid, boundingBox, selectScale, calcScaleLabel, calcScaleBarMetres,
   formatBearingDegMinSec,
+  offsetPointPerpendicular, computeFenceBoundary, rotatePoints,
 } from './geometry'
 import {
   svgFoundMonument, svgSetMonument, svgMasonryNail, svgIronPin,
   svgCornerDot, svgNorthArrow, svgScaleBar,
   svgSheetBorder, svgPanelDivider,
+  svgFenceLine, svgFenceCallout,
   escapeXml, polylineFromPoints,
   C_BLACK, C_GREEN, C_RED, C_GRID_MINOR, C_GRID_MAJOR,
   C_LOT_FILL, C_WARNING_BG,
@@ -35,6 +37,7 @@ export class SurveyPlanRenderer {
   private mPerPx = 1
   private toSvgX!: (m: number) => number
   private toSvgY!: (m: number) => number
+  private rotatedPoints: Array<{ easting: number; northing: number }> = []
 
   constructor(data: SurveyPlanData, options?: PlanOptions) {
     this.data = data
@@ -54,6 +57,7 @@ export class SurveyPlanRenderer {
     this.panelX = this.drawingX + this.drawingAreaW
     this.panelW = this.pageW - this.panelX - this.margin
     this.computeScale()
+    this.rotatedPoints = this.getTransformedPoints()
   }
 
   private computeScale(): void {
@@ -76,6 +80,16 @@ export class SurveyPlanRenderer {
     const minN = bb.minN
     this.toSvgX = (m) => this.drawingX + mmToPx(10) + offsetX + (m - minE) * PX_PER_M
     this.toSvgY = (m) => this.drawingY + mmToPx(10) + offsetY + (m - minN) * PX_PER_M
+  }
+
+  private getTransformedPoints(): Array<{ easting: number; northing: number }> {
+    const pts = this.data.parcel.boundaryPoints
+    const rotDeg = this.data.project.northRotationDeg || 0
+    if (rotDeg === 0) return pts
+    const { minE, maxE, minN, maxN } = boundingBox(pts)
+    const cx = (minE + maxE) / 2
+    const cy = (minN + maxN) / 2
+    return rotatePoints(pts, rotDeg, cx, cy)
   }
 
   private drawBackground(): string {
@@ -154,7 +168,7 @@ export class SurveyPlanRenderer {
   }
 
   private drawBoundaryLabels(): string {
-    const pts = this.data.parcel.boundaryPoints
+    const pts = this.rotatedPoints
     let svg = ''
     for (let i = 0; i < pts.length; i++) {
       const from = pts[i]
@@ -186,13 +200,16 @@ export class SurveyPlanRenderer {
 
   private drawMonuments(): string {
     let svg = ''
-    const pts = this.data.parcel.boundaryPoints
-    for (const pt of pts) {
+    const rawPts = this.data.parcel.boundaryPoints
+    const rotPts = this.rotatedPoints
+    for (let i = 0; i < rawPts.length; i++) {
+      const rawPt = rawPts[i]
+      const rotPt = rotPts[i]
       const cp = this.data.controlPoints.find(
-        c => c.name === pt.name || (Math.abs(c.easting - pt.easting) < 0.01 && Math.abs(c.northing - pt.northing) < 0.01)
+        c => c.name === rawPt.name || (Math.abs(c.easting - rotPt.easting) < 0.01 && Math.abs(c.northing - rotPt.northing) < 0.01)
       )
-      const cx = this.toSvgX(pt.easting)
-      const cy = this.toSvgY(pt.northing)
+      const cx = this.toSvgX(rotPt.easting)
+      const cy = this.toSvgY(rotPt.northing)
       svg += svgCornerDot(cx, cy)
       if (!cp) continue
       switch (cp.monumentType) {
@@ -225,14 +242,14 @@ export class SurveyPlanRenderer {
   }
 
   private drawLotNumber(): string {
-    const pts = this.data.parcel.boundaryPoints
+    const pts = this.rotatedPoints
     const [ce, cn] = centroid(pts)
     const id = this.data.project.parcel_id || this.data.project.name || 'LOT'
     return `<text x="${this.toSvgX(ce)}" y="${this.toSvgY(cn)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="28" font-weight="bold" fill="${C_BLACK}" opacity="0.12">${escapeXml(id)}</text>`
   }
 
   private drawAreaLabel(): string {
-    const pts = this.data.parcel.boundaryPoints
+    const pts = this.rotatedPoints
     const [ax, ay] = offsetFromMidpoint(pts[0].easting, pts[0].northing, pts[1].easting, pts[1].northing, 0.4)
     const area = this.data.parcel.area_sqm
     const ha = area / 10000
@@ -242,11 +259,58 @@ export class SurveyPlanRenderer {
     ].join('')
   }
 
+  private drawPinLabel(): string {
+    const pin = this.data.parcel.pin
+    if (!pin) return ''
+    const pts = this.rotatedPoints
+    if (pts.length === 0) return ''
+    const { minE, maxE, minN, maxN } = boundingBox(pts)
+    const cx = this.toSvgX((minE + maxE) / 2)
+    const cy = this.toSvgY((minN + maxN) / 2)
+    const tw = pin.length * 7 + 8
+    const th = 12
+    let svg = `<rect x="${cx - tw/2}" y="${cy - th/2}" width="${tw}" height="${th}" fill="#FFF8DC" stroke="${C_BLACK}" stroke-width="0.5" opacity="0.7"/>`
+    svg += `<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}">PIN: ${escapeXml(pin)}</text>`
+    return svg
+  }
+
+  private drawPartLabels(): string {
+    const parts = this.data.parcel.parts
+    if (!parts || parts.length === 0) return ''
+    const pts = this.rotatedPoints
+    if (pts.length === 0) return ''
+    const { minE, maxE, minN, maxN } = boundingBox(pts)
+    const cx = this.toSvgX((minE + maxE) / 2)
+    const cy = this.toSvgY((minN + maxN) / 2)
+    let svg = ''
+    parts.forEach((part, i) => {
+      const offset = (i - (parts.length - 1) / 2) * 15
+      svg += `<text x="${cx}" y="${cy + offset}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}" opacity="0.5">${escapeXml(part)}</text>`
+    })
+    return svg
+  }
+
+  private drawAssociationStamp(): string {
+    const firmName = this.data.project.firm_name || ''
+    if (!firmName) return ''
+    const x = this.drawingX + mmToPx(3)
+    const y = this.drawingY + this.drawingAreaH - mmToPx(3)
+    const w = mmToPx(42)
+    const h = mmToPx(20)
+    return [
+      `<rect x="${x}" y="${y - h}" width="${w}" height="${h}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`,
+      `<line x1="${x}" y1="${y - h * 0.55}" x2="${x + w}" y2="${y - h * 0.55}" stroke="${C_BLACK}" stroke-width="0.3"/>`,
+      `<text x="${x + w/2}" y="${y - h * 0.8}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">SURVEYORS ASSOCIATION STAMP</text>`,
+      `<text x="${x + w/2}" y="${y - h * 0.3}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(firmName)}</text>`,
+      `<text x="${x + w/2}" y="${y - h * 0.12}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Approved: ____________</text>`,
+    ].join('')
+  }
+
   private drawAdjacentLabels(): string {
     const lots = this.data.adjacentLots
     if (!lots || lots.length === 0) return ''
     let svg = ''
-    const parcelCentroid = centroid(this.data.parcel.boundaryPoints)
+    const parcelCentroid = centroid(this.rotatedPoints)
     for (const lot of lots) {
       const pts = lot.boundaryPoints
       if (pts.length < 2) continue
@@ -264,7 +328,23 @@ export class SurveyPlanRenderer {
   }
 
   private drawNorthArrow(): string {
-    return svgNorthArrow(this.drawingX + mmToPx(8), this.drawingY + mmToPx(10) + 30, mmToPx(15))
+    const rotDeg = this.data.project.northRotationDeg || 0
+    const nx = this.drawingX + mmToPx(8)
+    const ny = this.drawingY + mmToPx(10) + 30
+    const svg = svgNorthArrow(nx, ny, mmToPx(15))
+    if (rotDeg !== 0) {
+      return [
+        `<g transform="translate(${nx},${ny})">`,
+        `<g transform="rotate(${rotDeg})">`,
+        `<rect x="-1" y="${-mmToPx(15)}" width="2" height="${mmToPx(15)}" fill="${C_BLACK}"/>`,
+        `<polygon points="0,${-mmToPx(15)} -3,${-mmToPx(15) + 5} 3,${-mmToPx(15) + 5}" fill="${C_BLACK}"/>`,
+        `</g>`,
+        `</g>`,
+        `<text x="${nx}" y="${ny + mmToPx(15) + 8}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="#555">${rotDeg.toFixed(1)}°</text>`,
+        `<text x="${nx}" y="${ny + mmToPx(15) + 14}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="9" font-weight="bold" fill="${C_BLACK}">N</text>`,
+      ].join('')
+    }
+    return svg
   }
 
   private drawScaleBar(): string {
@@ -415,6 +495,65 @@ export class SurveyPlanRenderer {
       else if (!isTop) transform = `transform="translate(${px},${py}) rotate(90)"`
       svg += `<text ${transform} x="${px}" y="${py}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}" opacity="0.4">${escapeXml(ref)}</text>`
     }
+    return svg
+  }
+
+  private drawFenceOffsets(): string {
+    const fenceOffsets = this.data.fenceOffsets
+    if (!fenceOffsets || fenceOffsets.length === 0) return ''
+    const pts = this.rotatedPoints
+    if (pts.length < 2) return ''
+    let svg = ''
+    const renderedTypes = new Set<string>()
+    const ptsRaw = this.data.parcel.boundaryPoints
+
+    for (const fo of fenceOffsets) {
+      if (fo.segmentIndex < 0 || fo.segmentIndex >= pts.length) continue
+      const from = pts[fo.segmentIndex]
+      const to = pts[(fo.segmentIndex + 1) % pts.length]
+      const fenceType = fo.type as 'fence_on_boundary' | 'chain_link' | 'board_fence' | 'iron_fence' | 'galv_iron' | 'no_fence' | 'end_of_fence' | 'end_of_bf'
+      renderedTypes.add(fo.type)
+
+      if (fo.type === 'end_of_fence' || fo.type === 'end_of_bf') {
+        const cx = this.toSvgX((from.easting + to.easting) / 2)
+        const cy = this.toSvgY((from.northing + to.northing) / 2)
+        svg += `<line x1="${cx - 4}" y1="${cy - 4}" x2="${cx + 4}" y2="${cy + 4}" stroke="#666666" stroke-width="0.5"/>`
+        svg += `<line x1="${cx + 4}" y1="${cy - 4}" x2="${cx - 4}" y2="${cy + 4}" stroke="#666666" stroke-width="0.5"/>`
+        continue
+      }
+
+      const fencePts = [
+        offsetPointPerpendicular(from, to, fo.offsetMetres),
+        offsetPointPerpendicular(to, pts[(fo.segmentIndex + 1) % pts.length], fo.offsetMetres),
+      ]
+      svg += svgFenceLine(fencePts, this.toSvgX.bind(this), this.toSvgY.bind(this), fenceType)
+
+      if (fo.offsetMetres > 0) {
+        const midE = (from.easting + to.easting) / 2
+        const midN = (from.northing + to.northing) / 2
+        const sx = this.toSvgX(midE)
+        const sy = this.toSvgY(midN)
+        const offPt = offsetPointPerpendicular(from, to, fo.offsetMetres)
+        const ex = this.toSvgX(offPt.easting)
+        const ey = this.toSvgY(offPt.northing)
+        svg += svgFenceCallout(sx, sy, ex, ey, fo.offsetMetres)
+      }
+    }
+
+    if (renderedTypes.size > 0) {
+      svg += this.drawFenceLegend(Array.from(renderedTypes))
+    }
+    return svg
+  }
+
+  private drawFenceLegend(types: string[]): string {
+    const x = this.drawingX + this.drawingAreaW - mmToPx(32)
+    const y = this.drawingY + mmToPx(5)
+    let svg = `<rect x="${x - mmToPx(1)}" y="${y - mmToPx(3)}" width="${mmToPx(30)}" height="${mmToPx(4 + types.length * 4.5)}" fill="white" fill-opacity="0.9" stroke="${C_BLACK}" stroke-width="0.3"/>`
+    svg += `<text x="${x}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">FENCE TYPES</text>`
+    types.forEach((t, i) => {
+      svg += `<text x="${x}" y="${y + (i + 1) * mmToPx(4)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="#555">${t.replace(/_/g, ' ')}</text>`
+    })
     return svg
   }
 
@@ -581,12 +720,16 @@ export class SurveyPlanRenderer {
     layers.push(this.drawBoundaryLabels())
     layers.push(this.drawMonuments())
     layers.push(this.drawAdjacentLotPlanRefs())
+    layers.push(this.drawFenceOffsets())
     layers.push(this.drawLotNumber())
+    layers.push(this.drawPinLabel())
+    layers.push(this.drawPartLabels())
     layers.push(this.drawAreaLabel())
     layers.push(this.drawAdjacentLabels())
     layers.push(this.drawBuildings())
     layers.push(this.drawNorthArrow())
     layers.push(this.drawScaleBar())
+    layers.push(this.drawAssociationStamp())
     if (this.opts.includePanel) layers.push(this.drawRightPanel())
     layers.push(this.drawSheetFooter())
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'Share Tech Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
