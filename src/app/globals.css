@@ -369,3 +369,16 @@ h1, h2, h3, h4 {
 .print-header {
   display: none;
 }
+
+/* Survey Plan Print Styles */
+@media print {
+  @page {
+    size: A3 landscape;
+    margin: 10mm;
+  }
+
+  svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}

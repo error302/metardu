@@ -17,10 +17,12 @@ export default function SurveyPlanViewer({ data, options, className = '' }: Surv
   const [svgContent, setSvgContent] = useState('')
   const [loading, setLoading] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
+  const rendererRef = useRef<SurveyPlanRenderer | null>(null)
 
   useEffect(() => {
     try {
       const renderer = new SurveyPlanRenderer(data, options)
+      rendererRef.current = renderer
       setSvgContent(renderer.render())
     } catch (e) {
       console.error('Survey plan render error:', e)
@@ -40,9 +42,25 @@ export default function SurveyPlanViewer({ data, options, className = '' }: Surv
   }
   const fitToWidth = () => setScale(1.0)
 
+  const handleDownloadCSV = () => {
+    if (!rendererRef.current) return
+    const csv = rendererRef.current.exportToCSV()
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${(data.project.name || 'survey-plan').replace(/\s+/g, '_')}-bearing-schedule.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const handlePrint = () => window.print()
+
   return (
     <div className={`flex flex-col h-full ${className}`}>
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)] no-print">
         <button onClick={zoomOut} disabled={scale <= ZOOM_LEVELS[0]}
           className="px-2 py-1 text-sm rounded hover:bg-[var(--bg-tertiary)] disabled:opacity-30">−</button>
         <span className="text-xs font-mono min-w-[48px] text-center">{Math.round(scale * 100)}%</span>
@@ -58,6 +76,14 @@ export default function SurveyPlanViewer({ data, options, className = '' }: Surv
             Download SVG
           </a>
         )}
+        <button onClick={handlePrint}
+          className="px-3 py-1 text-xs rounded bg-gray-600 text-white hover:opacity-80">
+          Print
+        </button>
+        <button onClick={handleDownloadCSV}
+          className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:opacity-80">
+          Download CSV
+        </button>
       </div>
       <div ref={containerRef} className="flex-1 overflow-auto bg-[#e8e8e8] p-4">
         {loading ? (
