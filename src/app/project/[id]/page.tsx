@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { geographicToUTM } from '@/lib/engine/coordinates'
-// Reports loaded dynamically to keep initial bundle lean
 import { trackEvent } from '@/lib/analytics/events'
 import { downloadLandXML } from '@/lib/export/generateLandXML'
 import { exportProject, importProject } from '@/lib/export/exportProject'
@@ -50,6 +49,7 @@ interface Project {
   survey_type?: string
   client_name?: string | null
   surveyor_name?: string | null
+  datum?: string | null
 }
 
 interface Point {
@@ -70,6 +70,19 @@ type Parcel = {
   name: string | null
   boundary_points: Array<{ name?: string; easting: number; northing: number }>
   created_at?: string
+}
+
+function SidebarSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2 px-1">{title}</div>
+      <div className="space-y-1">{children}</div>
+    </div>
+  )
+}
+
+function SidebarDivider() {
+  return <div className="border-t border-[var(--border-color)] my-3"></div>
 }
 
 export default function ProjectPage({ params }: PageProps) {
@@ -193,7 +206,6 @@ export default function ProjectPage({ params }: PageProps) {
     })
   }, [])
 
-  // Online/offline status
   useEffect(() => {
     setIsOnline(navigator.onLine)
     const handleOnline = () => setIsOnline(true)
@@ -206,7 +218,6 @@ export default function ProjectPage({ params }: PageProps) {
     }
   }, [])
 
-  // Real-time subscription for points
   useEffect(() => {
     const supabase = createClient()
     
@@ -245,7 +256,6 @@ export default function ProjectPage({ params }: PageProps) {
     }
   }, [params.id])
 
-  // Presence tracking for viewer count
   useEffect(() => {
     const supabase = createClient()
     
@@ -272,7 +282,6 @@ export default function ProjectPage({ params }: PageProps) {
       setOnlineUsers(users)
     })
 
-    // Track presence with user info
     supabase.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user
       if (!user) return
@@ -575,6 +584,30 @@ export default function ProjectPage({ params }: PageProps) {
     }
   }
 
+  const computeProjectArea = () => {
+    if (points.length < 3) return null
+    try {
+      return coordinateArea(points.map(p => ({ easting: p.easting, northing: p.northing })))
+    } catch {
+      return null
+    }
+  }
+
+  const projectArea = useMemo(() => computeProjectArea(), [points])
+
+  const getSurveyTypeBadge = () => {
+    const type = project?.survey_type?.toLowerCase() || 'topographic'
+    const label = type === 'topographic' ? 'TOPO' : type === 'boundary' ? 'BOUNDARY' : type === 'road' ? 'ROAD' : type === 'control' ? 'CONTROL' : type.toUpperCase()
+    const badgeColor = (() => {
+      if (type === 'road') return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+      if (type === 'boundary') return 'bg-green-500/20 text-green-400 border-green-500/30'
+      if (type === 'control') return 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+      if (type === 'topographic') return 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+      return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+    })()
+    return { label, badgeColor }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
@@ -585,6 +618,8 @@ export default function ProjectPage({ params }: PageProps) {
 
   if (!project) return null
 
+  const surveyTypeBadge = getSurveyTypeBadge()
+
   return (
     <ErrorBoundary>
     <>
@@ -592,215 +627,233 @@ export default function ProjectPage({ params }: PageProps) {
     <WorkspaceShell
         bottomTitle={bottomTab === 'log' ? 'Calculation Log' : 'Field Notes'}
         left={
-          <div className="p-3">
-            <div className="space-y-2">
-          <button
-            onClick={() => {
-              setPrefillCoords({})
-              setShowAddPoint(true)
-            }}
-            className="w-full px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm transition-colors"
-          >
-            {t('points.addPoint')}
-          </button>
-          <button
-            onClick={() => setShowCSVUpload(true)}
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors"
-          >
-            {t('points.uploadCSV')}
-          </button>
-          <button
-            onClick={() => setShowTraverse(true)}
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors"
-          >
-            {t('traverse.runTraverse')}
-          </button>
-          <button
-            onClick={() => {
-              setMapMode(mapMode === 'distance' ? 'idle' : 'distance')
-              setAreaPoints([])
-            }}
-            className={`w-full px-4 py-2 rounded text-sm transition-colors ${
-              mapMode === 'distance' 
-                ? 'bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold' 
-                : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)]'
-            }`}
-            title="Press D to activate"
-          >
-            {mapMode === 'distance' ? t('workspace.distanceActive') : t('workspace.distanceTool')}
-          </button>
-          <button
-            onClick={() => {
-              setMapMode(mapMode === 'area' ? 'idle' : 'area')
-              setAreaPoints([])
-            }}
-            className={`w-full px-4 py-2 rounded text-sm transition-colors ${
-              mapMode === 'area' 
-                ? 'bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold' 
-                : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)]'
-            }`}
-            title="Press A to activate"
-          >
-            {mapMode === 'area' ? t('workspace.areaActive') : t('workspace.areaTool')}
-          </button>
-          <button
-            onClick={handleGenerateReport}
-            disabled={reportLoading}
-            className="w-full px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm transition-colors disabled:opacity-50"
-          >
-            {reportLoading ? t('common.loading') : t('reports.generate')}
-          </button>
-          <button
-            onClick={handleGenerateSurveyPlan}
-            disabled={reportLoading || points.length === 0}
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] font-semibold rounded text-sm transition-colors disabled:opacity-50"
-          >
-            {t('workspace.generateSurveyPlan')}
-          </button>
-          <button
-            onClick={() => {
-              if (project) {
-                downloadLandXML(
-                  {
-                    name: project.name,
-                    location: project.location || '',
-                    utm_zone: project.utm_zone,
-                    hemisphere: project.hemisphere
-                  },
-                  points.map(p => ({
-                    name: p.name,
-                    easting: p.easting,
-                    northing: p.northing,
-                    elevation: p.elevation,
-                    is_control: p.is_control
-                  }))
-                )
-              }
-            }}
-            disabled={points.length === 0}
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
-          >
-            {t('reports.exportLandXML')}
-          </button>
-          <button
-            onClick={() => {
-              downloadGeoJSON(
-                points.map(p => ({
-                  name: p.name,
-                  easting: p.easting,
-                  northing: p.northing,
-                  elevation: p.elevation,
-                  is_control: p.is_control
-                })),
-                project?.name || 'survey',
-                project?.utm_zone,
-                project?.hemisphere
-              )
-            }}
-            disabled={points.length === 0}
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
-          >
-            {t('reports.exportGeoJSON')}
-          </button>
-          <button
-            onClick={async () => {
-              const sb = getSupabase()
-              if (sb) await exportProject(params.id, sb)
-            }}
-            disabled={points.length === 0}
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
-          >
-            {t('reports.exportProject')}
-          </button>
-          <Link
-            href={`/project/${params.id}/documents`}
-            className="w-full px-4 py-2 bg-[var(--accent)]/10 border border-[var(--accent)]/30 hover:bg-[var(--accent)]/20 text-[var(--accent)] rounded text-sm transition-colors text-center block font-medium"
-          >
-            Document package
-          </Link>
-          <Link
-            href="/tools/gis-export"
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors text-center block"
-          >
-            GIS Package (GeoJSON/KML)
-          </Link>
-          <Link
-            href="/tools/civil-export"
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors text-center block"
-          >
-            Civil 3D Export
-          </Link>
-          <Link
-            href="/tools/gcp-export"
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors text-center block"
-          >
-            GCP Export (Pix4D / DroneDeploy)
-          </Link>
-          <button
-            onClick={() => setShowStakeout(true)}
-            disabled={points.length === 0}
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
-          >
-            {t('workspace.stakeoutAllPoints')}
-          </button>
-          <button
-            onClick={() => setShowNearbyBeacons(true)}
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors"
-          >
-            {t('workspace.nearbyBeacons')}
-          </button>
-          <Link
-            href={`/project/${params.id}/profiles`}
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors text-center block"
-          >
-            {t('workspace.profiles')}
-          </Link>
-          <button
-            onClick={() => setShowParcelBuilder(true)}
-            disabled={points.length < 3}
-            className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
-          >
-            {t('workspace.buildParcel')}
-          </button>
-          {shareUrl && (
-            <div className="mt-2 p-2 bg-green-900/30 border border-green-700 rounded">
-              <div className="text-xs text-green-400 mb-1">✓ Report uploaded</div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={shareUrl}
-                  className="flex-1 px-2 py-1 text-xs bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] font-mono"
-                />
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(shareUrl)
-                    navigator.clipboard.writeText(window.location.href).catch(() => {})
-                  }}
-                  className="px-2 py-1 text-xs bg-gray-700 hover:bg-[var(--border-hover)] text-white rounded"
-                >
-                  {t('common.copy')}
-                </button>
+          <div className="p-3 space-y-1">
+            <SidebarSection title="DATA">
+              <button
+                onClick={() => {
+                  setPrefillCoords({})
+                  setShowAddPoint(true)
+                }}
+                className="w-full px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm transition-colors"
+              >
+                Add Point
+              </button>
+              <button
+                onClick={() => setShowCSVUpload(true)}
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors"
+              >
+                Upload CSV
+              </button>
+              <button
+                onClick={() => setShowTraverse(true)}
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors"
+              >
+                Run Traverse
+              </button>
+            </SidebarSection>
+
+            <SidebarDivider />
+
+            <SidebarSection title="MEASURE">
+              <button
+                onClick={() => {
+                  setMapMode(mapMode === 'distance' ? 'idle' : 'distance')
+                  setAreaPoints([])
+                }}
+                className={`w-full px-4 py-2 rounded text-sm transition-colors ${
+                  mapMode === 'distance' 
+                    ? 'bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold' 
+                    : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)]'
+                }`}
+                title="Press D to activate"
+              >
+                Distance Tool
+              </button>
+              <button
+                onClick={() => {
+                  setMapMode(mapMode === 'area' ? 'idle' : 'area')
+                  setAreaPoints([])
+                }}
+                className={`w-full px-4 py-2 rounded text-sm transition-colors ${
+                  mapMode === 'area' 
+                    ? 'bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold' 
+                    : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)]'
+                }`}
+                title="Press A to activate"
+              >
+                Area Tool
+              </button>
+            </SidebarSection>
+
+            <SidebarDivider />
+
+            <SidebarSection title="GENERATE">
+              <button
+                onClick={handleGenerateSurveyPlan}
+                disabled={reportLoading || points.length === 0}
+                className="w-full px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm transition-colors disabled:opacity-50"
+              >
+                Generate Survey Plan
+              </button>
+              <button
+                onClick={handleGenerateReport}
+                disabled={reportLoading}
+                className="w-full px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm transition-colors disabled:opacity-50"
+              >
+                Generate Report
+              </button>
+              <Link
+                href={`/project/${params.id}/documents`}
+                className="w-full px-4 py-2 bg-[var(--accent)]/10 border border-[var(--accent)]/30 hover:bg-[var(--accent)]/20 text-[var(--accent)] rounded text-sm transition-colors text-center block font-medium"
+              >
+                Document Package
+              </Link>
+            </SidebarSection>
+
+            <SidebarDivider />
+
+            <SidebarSection title="EXPORT">
+              <button
+                onClick={() => {
+                  downloadLandXML(
+                    {
+                      name: project.name,
+                      location: project.location || '',
+                      utm_zone: project.utm_zone,
+                      hemisphere: project.hemisphere
+                    },
+                    points.map(p => ({
+                      name: p.name,
+                      easting: p.easting,
+                      northing: p.northing,
+                      elevation: p.elevation,
+                      is_control: p.is_control
+                    }))
+                  )
+                }}
+                disabled={points.length === 0}
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50 text-left"
+              >
+                Export LandXML
+              </button>
+              <button
+                onClick={() => {
+                  downloadGeoJSON(
+                    points.map(p => ({
+                      name: p.name,
+                      easting: p.easting,
+                      northing: p.northing,
+                      elevation: p.elevation,
+                      is_control: p.is_control
+                    })),
+                    project?.name || 'survey',
+                    project?.utm_zone,
+                    project?.hemisphere
+                  )
+                }}
+                disabled={points.length === 0}
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50 text-left"
+              >
+                Export GeoJSON
+              </button>
+              <Link
+                href="/tools/gis-export"
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors text-left block"
+              >
+                GIS Package (GeoJSON/KML)
+              </Link>
+              <Link
+                href="/tools/civil-export"
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors text-left block"
+              >
+                Civil 3D Export
+              </Link>
+              <Link
+                href="/tools/gcp-export"
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors text-left block"
+              >
+                GCP Export (Pix4D/DroneDeploy)
+              </Link>
+              <button
+                onClick={async () => {
+                  const sb = getSupabase()
+                  if (sb) await exportProject(params.id, sb)
+                }}
+                disabled={points.length === 0}
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50 text-left"
+              >
+                Export Project
+              </button>
+            </SidebarSection>
+
+            <SidebarDivider />
+
+            <SidebarSection title="TOOLS">
+              <button
+                onClick={() => setShowStakeout(true)}
+                disabled={points.length === 0}
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
+              >
+                Stakeout Mode
+              </button>
+              <button
+                onClick={() => setShowNearbyBeacons(true)}
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors"
+              >
+                Nearby Beacons
+              </button>
+              <Link
+                href={`/project/${params.id}/profiles`}
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors text-center block"
+              >
+                Profiles
+              </Link>
+              <button
+                onClick={() => setShowParcelBuilder(true)}
+                disabled={points.length < 3}
+                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm transition-colors disabled:opacity-50"
+              >
+                Build Parcel
+              </button>
+            </SidebarSection>
+
+            {shareUrl && (
+              <div className="mt-4 p-2 bg-green-900/30 border border-green-700 rounded">
+                <div className="text-xs text-green-400 mb-1">✓ Report uploaded</div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={shareUrl}
+                    className="flex-1 px-2 py-1 text-xs bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] font-mono"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(shareUrl)
+                      navigator.clipboard.writeText(window.location.href).catch(() => {})
+                    }}
+                    className="px-2 py-1 text-xs bg-gray-700 hover:bg-[var(--border-hover)] text-white rounded"
+                  >
+                    {t('common.copy')}
+                  </button>
+                </div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">Link expires in 7 days</div>
               </div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">Link expires in 7 days</div>
-            </div>
-          )}
-          
-          {/* Sync status indicator */}
-          <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
-            <div className="flex items-center gap-2 text-xs">
-              <div className={`w-2 h-2 rounded-full ${
-                syncStatus === 'synced' ? 'bg-green-500' :
-                syncStatus === 'pending' ? 'bg-yellow-500 animate-pulse' :
-                'bg-red-500'
-              }`} />
-              <span className="text-[var(--text-secondary)]">
-                {syncStatus === 'synced' ? 'All changes saved' :
-                 syncStatus === 'pending' ? 'Saving...' :
-                 'Offline — changes queued'}
-              </span>
-            </div>
-          </div>
+            )}
+            
+            <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
+              <div className="flex items-center gap-2 text-xs">
+                <div className={`w-2 h-2 rounded-full ${
+                  syncStatus === 'synced' ? 'bg-green-500' :
+                  syncStatus === 'pending' ? 'bg-yellow-500 animate-pulse' :
+                  'bg-red-500'
+                }`} />
+                <span className="text-[var(--text-secondary)]">
+                  {syncStatus === 'synced' ? 'All changes saved' :
+                   syncStatus === 'pending' ? 'Saving...' :
+                   'Offline — changes queued'}
+                </span>
+              </div>
             </div>
           </div>
         }
@@ -808,15 +861,16 @@ export default function ProjectPage({ params }: PageProps) {
           <div className="h-full flex flex-col min-h-0">
         <header className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/30 px-6 py-4">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex items-center gap-3">
               <h1 className="text-xl font-bold text-[var(--text-primary)]">{project.name}</h1>
-              <p className="text-sm text-[var(--text-secondary)]">
-                UTM Zone {project.utm_zone} {project.hemisphere}
-                {project.location && ` — ${project.location}`}
-              </p>
+              <span className={`badge text-[10px] border ${surveyTypeBadge.badgeColor}`}>
+                {surveyTypeBadge.label} SURVEY
+              </span>
             </div>
             <div className="flex items-center gap-4">
-              {/* Collaboration indicators */}
+              <p className="text-sm text-[var(--text-secondary)]">
+                UTM Zone {project.utm_zone}{project.hemisphere}{project.location && ` — ${project.location}`}
+              </p>
               <div className="flex items-center gap-2 text-sm">
                 {onlineUsers.length > 0 ? (
                   <div className="flex items-center gap-1">
@@ -958,9 +1012,9 @@ export default function ProjectPage({ params }: PageProps) {
         }
         right={
           <div className="p-3 space-y-3">
-            <div className="rounded border border-white/5 bg-[var(--bg-primary)]/20 p-3">
-              <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-2">Inspector</div>
-              {selectedPoint ? (
+            {selectedPoint ? (
+              <div className="rounded border border-white/5 bg-[var(--bg-primary)]/20 p-3">
+                <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-2">POINT DETAILS</div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-mono text-lg text-[var(--text-primary)]">{selectedPoint.name}</div>
@@ -970,15 +1024,15 @@ export default function ProjectPage({ params }: PageProps) {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="rounded bg-[var(--bg-primary)]/30 border border-[var(--border-color)] p-2">
-                      <div className="text-[var(--text-muted)]">E</div>
+                      <div className="text-[var(--text-muted)]">Easting</div>
                       <div className="font-mono text-[var(--text-primary)]">{selectedPoint.easting.toFixed(4)}</div>
                     </div>
                     <div className="rounded bg-[var(--bg-primary)]/30 border border-[var(--border-color)] p-2">
-                      <div className="text-[var(--text-muted)]">N</div>
+                      <div className="text-[var(--text-muted)]">Northing</div>
                       <div className="font-mono text-[var(--text-primary)]">{selectedPoint.northing.toFixed(4)}</div>
                     </div>
                     <div className="rounded bg-[var(--bg-primary)]/30 border border-[var(--border-color)] p-2">
-                      <div className="text-[var(--text-muted)]">Z</div>
+                      <div className="text-[var(--text-muted)]">RL (Elev)</div>
                       <div className="font-mono text-[var(--text-primary)]">
                         {selectedPoint.elevation !== null ? selectedPoint.elevation.toFixed(3) : '-'}
                       </div>
@@ -988,6 +1042,15 @@ export default function ProjectPage({ params }: PageProps) {
                       <div className="text-[var(--text-primary)]">{selectedPoint.is_control ? 'Control' : 'Detail'}</div>
                     </div>
                   </div>
+                  {selectedPoint.is_control && selectedPoint.control_order && (
+                    <div className="text-xs">
+                      <span className="text-[var(--text-muted)]">Order: </span>
+                      <span className={selectedPoint.control_order === 'primary' ? 'text-red-400' : 
+                        selectedPoint.control_order === 'secondary' ? 'text-orange-400' : 'text-yellow-400'}>
+                        {selectedPoint.control_order.toUpperCase()}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleCopyCoords(selectedPoint)}
@@ -1011,20 +1074,85 @@ export default function ProjectPage({ params }: PageProps) {
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="text-sm text-[var(--text-muted)]">Select a point on the map or in the table.</div>
-              )}
-            </div>
-
+              </div>
+            ) : (
+              <div className="rounded border border-white/5 bg-[var(--bg-primary)]/20 p-3">
+                <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-2">PROJECT INFO</div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Points:</span>
+                    <span className="font-mono text-[var(--text-primary)]">{points.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Parcels:</span>
+                    <span className="font-mono text-[var(--text-primary)]">{parcels.length}</span>
+                  </div>
+                  {projectArea && (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-[var(--text-muted)]">Area:</span>
+                        <span className="font-mono text-[var(--text-primary)]">{projectArea.areaSqm.toFixed(2)} m²</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[var(--text-muted)]">Perimeter:</span>
+                        <span className="font-mono text-[var(--text-primary)]">{projectArea.perimeter.toFixed(2)} m</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">UTM Zone:</span>
+                    <span className="font-mono text-[var(--text-primary)]">{project.utm_zone}{project.hemisphere}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Datum:</span>
+                    <span className="text-[var(--text-primary)]">{project.datum || 'WGS84'}</span>
+                  </div>
+                </div>
+                
+                {traverseResult && (
+                  <>
+                    <div className="border-t border-[var(--border-color)] mt-3 pt-3">
+                      <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-2">TRAVERSE STATUS</div>
+                      <div className="space-y-1.5 text-xs">
+                        {traverseResult.closureError && (
+                          <div className="flex justify-between">
+                            <span className="text-[var(--text-muted)]">Closure Error:</span>
+                            <span className="font-mono text-[var(--text-primary)]">{traverseResult.closureError.toFixed(4)} m</span>
+                          </div>
+                        )}
+                        {traverseResult.accuracy && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-[var(--text-muted)]">Accuracy:</span>
+                            <span className="badge badge-success text-[10px]">First Order Class I</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                <div className="border-t border-[var(--border-color)] mt-3 pt-3">
+                  <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-2">QUICK ACTIONS</div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowTraverse(true)}
+                      className="flex-1 px-3 py-2 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] text-xs"
+                    >
+                      Run Traverse
+                    </button>
+                    <button
+                      onClick={handleGenerateSurveyPlan}
+                      disabled={points.length === 0}
+                      className="flex-1 px-3 py-2 rounded bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black text-xs font-semibold disabled:opacity-50"
+                    >
+                      Generate Plan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="rounded border border-white/5 bg-[var(--bg-primary)]/20 p-3 text-sm text-[var(--text-primary)] space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[var(--text-secondary)]">Points</span>
-                <span className="font-mono">{points.length}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[var(--text-secondary)]">Parcels</span>
-                <span className="font-mono">{parcels.length}</span>
-              </div>
               <div className="flex items-center justify-between">
                 <span className="text-[var(--text-secondary)]">Map mode</span>
                 <span className="font-mono">{mapMode}</span>

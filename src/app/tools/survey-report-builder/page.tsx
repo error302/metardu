@@ -463,7 +463,7 @@ export default function SurveyReportBuilderPage() {
       <UpgradeModal
         isOpen={showUpgrade}
         onClose={() => setShowUpgrade(false)}
-        currentTier={subscription.tier}
+        currentPlan={(subscription.tier === 'professional' ? 'pro' : subscription.tier === 'firm' ? 'team' : 'free') as 'free' | 'pro' | 'team'}
       />
     </div>
   )

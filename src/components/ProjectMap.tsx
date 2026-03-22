@@ -10,7 +10,6 @@ import { bearingToString } from '@/lib/engine/angles'
 import { utmToGeographic } from '@/lib/engine/coordinates'
 import { testConnection } from '@/lib/supabase/client'
 
-// Fix Leaflet default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -126,6 +125,31 @@ function RecenterMap({ center }: { center: [number, number] }) {
   return null
 }
 
+function FitBoundsOnLoad({ markers, map }: { markers: SurveyPoint[]; map: L.Map | null }) {
+  const hasFitted = useRef(false)
+  
+  useEffect(() => {
+    if (markers.length > 0 && map && !hasFitted.current) {
+      hasFitted.current = true
+      const bounds = L.latLngBounds(
+        markers.map(p => {
+          let lat = p.lat
+          let lon = p.lon
+          if (lat === undefined || lon === undefined) {
+            return null
+          }
+          return [lat, lon] as [number, number]
+        }).filter((x): x is [number, number] => x !== null)
+      )
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [50, 50] })
+      }
+    }
+  }, [markers, map])
+  
+  return null
+}
+
 function FlyToPoints({ points, utmZone, hemisphere }: { points: SurveyPoint[]; utmZone: number; hemisphere: 'N' | 'S' }) {
   const map = useMap()
   const prevPointsLength = useRef(0)
@@ -153,6 +177,47 @@ function FlyToPoints({ points, utmZone, hemisphere }: { points: SurveyPoint[]; u
   return null
 }
 
+function MapController({ markers, utmZone, hemisphere }: { markers: SurveyPoint[]; utmZone: number; hemisphere: 'N' | 'S' }) {
+  const map = useMap()
+  const prevPointsLength = useRef(0)
+  const hasFittedInitial = useRef(false)
+  
+  useEffect(() => {
+    if (markers.length > 0) {
+      if (!hasFittedInitial.current) {
+        hasFittedInitial.current = true
+        const bounds = L.latLngBounds(
+          markers.map(p => {
+            let lat = p.lat
+            let lon = p.lon
+            if (lat === undefined || lon === undefined) {
+              const converted = utmToGeographic(p.easting, p.northing, utmZone, hemisphere)
+              return [converted.lat, converted.lon] as [number, number]
+            }
+            return [lat, lon] as [number, number]
+          })
+        )
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [50, 50] })
+        }
+      } else if (markers.length > prevPointsLength.current) {
+        const lastPoint = markers[markers.length - 1]
+        let lat = lastPoint.lat
+        let lon = lastPoint.lon
+        if (lat === undefined || lon === undefined) {
+          const converted = utmToGeographic(lastPoint.easting, lastPoint.northing, utmZone, hemisphere)
+          lat = converted.lat
+          lon = converted.lon
+        }
+        map.flyTo([lat, lon], Math.max(map.getZoom(), 16), { duration: 1 })
+      }
+    }
+    prevPointsLength.current = markers.length
+  }, [markers, map, utmZone, hemisphere])
+  
+  return null
+}
+
 export default function ProjectMap({ 
   points, 
   parcels = [],
@@ -174,19 +239,17 @@ export default function ProjectMap({
     if (utmZone === 37 && hemisphere === 'S') {
       return [-1.2921, 36.8219]
     }
-    return [0, 0]
+    return [0, 20]
   }
 
   const [center, setCenter] = useState<[number, number]>(getDefaultCenter())
   const [distancePoints, setDistancePoints] = useState<SurveyPoint[]>([])
   const [localAreaPoints, setLocalAreaPoints] = useState<SurveyPoint[]>(areaPoints)
 
-  // Test Supabase connection on mount
   useEffect(() => {
     testConnection()
   }, [])
 
-  // Sync area points from props
   useEffect(() => {
     setLocalAreaPoints(areaPoints)
   }, [areaPoints])
@@ -195,8 +258,6 @@ export default function ProjectMap({
     const seen = new Set<string>()
     const out: SurveyPoint[] = []
     for (const p of points) {
-      // Dedupe by survey meaning (name + coordinates + control flags), not by DB id.
-      // This prevents UI duplicate markers when a point is accidentally inserted twice with different ids.
       const key = `${p.name}|${p.easting}|${p.northing}|${p.elevation ?? ''}|${p.is_control ? 'c' : 'p'}|${p.control_order ?? ''}`
       if (seen.has(key)) continue
       seen.add(key)
@@ -205,7 +266,6 @@ export default function ProjectMap({
     return out
   }, [points])
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -241,7 +301,6 @@ export default function ProjectMap({
 
   const handleMapClick = (lat: number, lon: number) => {
     if (mode === 'idle' && onMapClick) {
-      // Pass lat/lon directly - parent will convert to UTM if needed
       onMapClick(lat, lon)
     }
   }
@@ -250,7 +309,6 @@ export default function ProjectMap({
 
   const handleMarkerClick = (point: SurveyPoint) => {
     if (mode === 'distance') {
-      // Prevent selecting same point twice
       if (distancePoints.length > 0 && distancePoints[0].id === point.id) {
         return
       }
@@ -261,16 +319,12 @@ export default function ProjectMap({
         return [...prev, point]
       })
     } else if (mode === 'area') {
-      // Check if clicking first point to close polygon
       if (localAreaPoints.length >= 3 && localAreaPoints[0].id === point.id) {
-        // Polygon closed - don't add, let parent handle calculation
         return
       }
-      // Prevent clicking same point twice in a row
       if (localAreaPoints.length > 0 && localAreaPoints[localAreaPoints.length - 1].id === point.id) {
         return
       }
-      // Prevent adding duplicate points
       if (localAreaPoints.some(p => p.id === point.id)) {
         return
       }
@@ -291,7 +345,6 @@ export default function ProjectMap({
     onAreaPointsUpdate?.([])
   }
 
-  // Calculate distance/bearing between selected points
   let distanceInfo: { distance: number; bearing: string; backBearing: string; deltaE: number; deltaN: number } | null = null
   if (distancePoints.length === 2) {
     const result = distanceBearing(
@@ -308,7 +361,6 @@ export default function ProjectMap({
     }
   }
 
-  // Calculate area polygon positions
   const areaLinePositions: [number, number][] = localAreaPoints
     .filter(p => p.lat !== undefined && p.lon !== undefined)
     .map(p => [p.lat!, p.lon!] as [number, number])
@@ -341,7 +393,6 @@ export default function ProjectMap({
     return positions.length >= 2 ? positions : null
   }, [draftParcelBoundary, utmZone, hemisphere])
 
-  // Build polyline for distance
   const distanceLinePositions: [number, number][] = distancePoints.length === 2
     ? [[distancePoints[0].lat!, distancePoints[0].lon!], [distancePoints[1].lat!, distancePoints[1].lon!]]
     : []
@@ -368,8 +419,9 @@ export default function ProjectMap({
         <LayersControl position="topright">
           <LayersControl.BaseLayer checked name="Street">
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CartoDB</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
             />
           </LayersControl.BaseLayer>
           <LayersControl.BaseLayer name="Satellite">
@@ -397,9 +449,8 @@ export default function ProjectMap({
         </LayersControl>
         <MapClickHandler onClick={handleMapClick} />
         <RecenterMap center={center} />
-        <FlyToPoints points={markers} utmZone={utmZone} hemisphere={hemisphere} />
+        <MapController markers={markers} utmZone={utmZone} hemisphere={hemisphere} />
 
-        {/* Parcel draft (builder) */}
         {draftParcelPositions ? (
           <>
             {draftParcelPositions.length >= 3 ? (
@@ -415,7 +466,6 @@ export default function ProjectMap({
           </>
         ) : null}
 
-        {/* Parcel polygons */}
         {parcelPolygons.map((p) => (
           <Polygon
             key={p.id}
@@ -431,28 +481,27 @@ export default function ProjectMap({
           </Polygon>
         ))}
         
-        {/* Distance polyline */}
         {distanceLinePositions.length === 2 && (
           <Polyline positions={distanceLinePositions} color="#E8841A" weight={3} dashArray="5, 10" />
         )}
         
-        {/* Area polyline */}
         {areaLinePositions.length > 1 && (
           <Polyline positions={areaLinePositions} color="#8B5CF6" weight={3} />
         )}
         
-        {/* Marker clustering */}
         <MarkerClusterGroup
           chunkedLoading
           maxClusterRadius={60}
           spiderfyOnMaxZoom={true}
           showCoverageOnHover={false}
+          zoomToBoundsOnClick={true}
           iconCreateFunction={(cluster: any) => {
             const count = cluster.getChildCount()
             return L.divIcon({
-              html: `<div class="bg-[var(--accent)] text-white rounded-full flex items-center justify-center font-bold text-xs" style="width: 30px; height: 30px;">${count}</div>`,
+              html: `<div class="bg-[var(--accent)] text-white rounded-full flex items-center justify-center font-bold text-xs shadow-lg" style="width: 36px; height: 36px; background-color: #E8841A;">${count}</div>`,
               className: '',
-              iconSize: L.point(30, 30)
+              iconSize: L.point(36, 36),
+              iconAnchor: L.point(18, 18)
             })
           }}
         >
@@ -462,14 +511,12 @@ export default function ProjectMap({
             const isAreaFirst = localAreaPoints.length > 0 && localAreaPoints[0].id === point.id
             const isSelected = !!selectedPointId && point.id === selectedPointId
             
-            // Default to amber for survey points
             let icon = amberIcon
             if (point.is_control) {
-              // Control points: red (primary), orange (secondary), yellow (temporary)
               if (point.control_order === 'primary') icon = redIcon
               else if (point.control_order === 'secondary') icon = orangeIcon
               else if (point.control_order === 'temporary') icon = yellowIcon
-              else icon = redIcon // default to red for generic control points
+              else icon = redIcon
             }
             if (isDistanceSelected) icon = selectedIcon
             if (isAreaSelected || isAreaFirst) icon = areaIcon
@@ -489,10 +536,16 @@ export default function ProjectMap({
                     y: e.originalEvent.clientY,
                     point
                   })
+                },
+                mouseover: (e) => {
+                  const marker = e.target as L.Marker
+                  if (marker.getTooltip()) {
+                    marker.openTooltip()
+                  }
                 }
               }}
             >
-              <Tooltip permanent direction="top" offset={[0, -10]} className="font-mono text-xs">
+              <Tooltip direction="top" offset={[0, -10]} opacity={1} className="font-mono text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] px-2 py-1 rounded shadow-lg">
                 {point.name}
               </Tooltip>
               <Popup>
@@ -527,7 +580,6 @@ export default function ProjectMap({
         </MarkerClusterGroup>
       </MapContainer>
 
-      {/* Mode indicator */}
       {mode !== 'idle' && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-[var(--bg-secondary)]/95 border border-[var(--accent)] rounded-lg px-4 py-2">
           <span className="text-sm text-[var(--accent)] font-semibold">{getModeLabel()}</span>
@@ -535,7 +587,6 @@ export default function ProjectMap({
         </div>
       )}
 
-      {/* Distance info panel */}
       {distanceInfo && (
         <div className="absolute top-4 right-4 z-[1000] bg-[var(--bg-secondary)]/95 border border-[var(--border-color)] rounded-lg p-3 shadow-lg min-w-[220px]">
           <div className="flex justify-between items-center mb-2">
@@ -573,7 +624,6 @@ export default function ProjectMap({
         </div>
       )}
 
-      {/* Area info panel */}
       {mode === 'area' && localAreaPoints.length > 0 && (
         <div className="absolute top-4 left-4 z-[1000] bg-[var(--bg-secondary)]/95 border border-purple-500 rounded-lg p-3 shadow-lg min-w-[200px]">
           <div className="flex justify-between items-center mb-2">
@@ -591,7 +641,6 @@ export default function ProjectMap({
         </div>
       )}
 
-      {/* Context menu for right-click */}
       {contextMenu && (
         <>
           <div 

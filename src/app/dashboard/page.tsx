@@ -28,7 +28,7 @@ export default async function DashboardPage() {
 
     if (isAdmin) {
       subscription = { plan_id: 'premium', trial_ends_at: null }
-      const { data, error } = await supabase.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+      const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false })
       if (!error) projects = data ?? []
     } else {
       const [pRes, sRes] = await Promise.all([
@@ -47,11 +47,29 @@ export default async function DashboardPage() {
     ? Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - Date.now()) / 86400000))
     : null
 
+  const projectsWithCounts = await Promise.all(
+    projects.map(async (project) => {
+      try {
+        const supabase = await createClient()
+        const [pointsRes, parcelsRes] = await Promise.all([
+          supabase.from('survey_points').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
+          supabase.from('parcels').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
+        ])
+        return {
+          ...project,
+          point_count: pointsRes.count ?? 0,
+          parcel_count: parcelsRes.count ?? 0,
+        }
+      } catch {
+        return { ...project, point_count: 0, parcel_count: 0 }
+      }
+    })
+  )
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <SubscriptionStatus subscription={subscription} />
 
-      {/* Trial banner */}
       {subscription?.status === 'trial' && daysLeft !== null && (
         <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg border border-green-500/20 bg-green-500/5 text-sm">
           <svg className="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -66,7 +84,6 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Process field notes CTA */}
       <div className="mb-8 rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/5 p-5">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
@@ -83,12 +100,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">
           {t('dashboard.title')}
-          {projects?.length ? (
-            <span className="ml-2 text-sm font-normal text-[var(--text-muted)]">({projects.length})</span>
+          {projectsWithCounts?.length ? (
+            <span className="ml-2 text-sm font-normal text-[var(--text-muted)]">({projectsWithCounts.length})</span>
           ) : null}
         </h1>
         {canCreateProject ? (
@@ -104,28 +120,39 @@ export default async function DashboardPage() {
 
       {!canCreateProject && <UpgradePrompt type="projects" />}
 
-      {!projects?.length ? (
-        <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-dashed border-[var(--border-color)] text-center">
-          <div className="w-14 h-14 rounded-xl bg-[var(--bg-tertiary)] flex items-center justify-center mb-4">
-            <svg className="w-7 h-7 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/>
+      {!projectsWithCounts?.length ? (
+        <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-[var(--border-color)] text-center">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center mb-6">
+            <svg className="w-8 h-8 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"/>
             </svg>
           </div>
-          <p className="text-[var(--text-secondary)] mb-2 font-medium">{t('dashboard.noProjects')}</p>
-          <p className="text-[var(--text-muted)] text-sm mb-6">Create your first survey project to get started</p>
-          {canCreateProject ? (
-            <Link href="/project/new" className="btn btn-primary">
-              {t('dashboard.createFirst')}
+          
+          <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Welcome to METARDU</h2>
+          <p className="text-[var(--text-secondary)] mb-8 max-w-md">Start your first project or jump straight into a tool</p>
+          
+          <div className="flex flex-wrap gap-3 justify-center mb-8">
+            <Link href="/project/new" className="px-6 py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded-lg transition-colors">
+              + New Project
             </Link>
-          ) : (
-            <Link href="/pricing" className="btn btn-primary">
-              {t('dashboard.upgradeToPro')}
+            <Link href="/tools/traverseAdjust" className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] font-medium rounded-lg transition-colors border border-[var(--border-color)]">
+              Open Traverse Tool
             </Link>
-          )}
+            <Link href="/process" className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] font-medium rounded-lg transition-colors border border-[var(--border-color)]">
+              Process Field Notes
+            </Link>
+          </div>
+          
+          <div className="w-full max-w-sm border-t border-[var(--border-color)] pt-6 mt-2">
+            <p className="text-xs text-[var(--text-muted)] mb-3">NEW TO METARDU?</p>
+            <Link href="/docs/first-plan" className="text-sm text-[var(--accent)] hover:text-[var(--accent-dim)] transition-colors inline-flex items-center gap-1">
+              View Survey Guide →
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects.map(project => (
+          {projectsWithCounts.map(project => (
             <ProjectCard key={project.id} project={project} openLabel={t('project.open')} />
           ))}
         </div>
