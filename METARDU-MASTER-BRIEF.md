@@ -129,3 +129,27 @@ The computation engine is the product. The plan and the reports are the outputs.
 ## The One Line
 
 **METARDU: From field data to finished documents — without the manual computation.**
+
+---
+
+## Implementation Status
+
+| Module | Status | Details |
+|--------|--------|---------|
+| Module 1 — Traverse | ✅ Done | `traverseEngine.ts` — Bowditch/Transit adjustment, RDM 1.1 accuracy classification, closed traverse + raw field book (`TraverseFieldBook.tsx`, `/tools/traverse-field-book`) |
+| Module 2 — COGO | ✅ Done | `distanceBearing()`, coordinate transforms, intersection, resection, area |
+| Module 3 — Levelling | ✅ Done | `riseAndFall()` + `heightOfCollimation()` in `leveling.ts`, RDM 1.1 10√K misclosure, `LevelBook.tsx` raw field book + `/tools/level-book` |
+| Module 4 — Survey Plan | ✅ Done | `SurveyPlanViewer.tsx`, SVG renderer, chainage markers, compliance checklist |
+| Module 5 — Road Design | ✅ Done | Curve geometry, vertical curves, superelevation, sight distance, gradient check |
+| Module 6 — Cross Sections | ✅ Done | Cross section import, area computation, volume calculation |
+| Module 7 — Setting Out | ✅ Done | Bearing/distances from instrument station |
+| Module 8 — Documents | ✅ Done | Auto-generated 14-section survey report (`surveyReport/`), subscription gate, photo upload |
+| Module 9 — Field Import | ✅ Done | `totalStation.ts` — Leica GSI, Trimble JobXML, Topcon GTS, Generic CSV parsers |
+| Module 10 — Project Mgmt | ✅ Done | Supabase-backed projects, sheets, clients, revision history |
+
+**Key commits:**
+- `68f30ef` — feat(field): traverse field book + level book modules
+- `d6bbed5` — feat(survey): chainage system and survey corridor
+- `5116414` — feat(report): auto-generated RDM 1.1 survey report
+- `19d421a` — feat: compliance checklist, coordinate converter, datum fix, accuracy badge
+- `cfe3f4b` — docs: save METARDU master product brief
