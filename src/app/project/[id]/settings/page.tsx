@@ -3,6 +3,7 @@ import { useState, useEffect, use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import UTMZonePicker from '@/components/ui/UTMZonePicker'
+import { computeTraverseAccuracy, getAccuracyBadgeLabel, getAccuracyBadgeClass } from '@/lib/reports/traverseAccuracy'
 
 export default function ProjectSettingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params)
@@ -24,6 +25,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
   const [datum, setDatum] = useState<'ARC1960' | 'WGS84' | 'WGS84Geographic'>('ARC1960')
   const [clientName, setClientName] = useState('')
   const [surveyorName, setSurveyorName] = useState('')
+  const [linearError, setLinearError] = useState('')
 
   useEffect(() => {
     async function loadProject() {
@@ -49,6 +51,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
       setClientName(data.client_name || '')
       setSurveyorName(data.surveyor_name || '')
       setDatum(data.datum || 'ARC1960')
+      setLinearError(data.traverse?.linearError !== undefined ? String(data.traverse.linearError) : '')
       setLoading(false)
     }
 
@@ -72,6 +75,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
         client_name: clientName || null,
         surveyor_name: surveyorName || null,
         datum,
+        traverse: { linearError: parseFloat(linearError) || 0 },
       })
       .eq('id', projectId)
 
@@ -238,6 +242,29 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
               <option value="escarpment">Escarpment</option>
             </select>
             <p className="text-xs text-[var(--text-secondary)] mt-1">Used for road geometric validation per RDM 1.3</p>
+          </div>
+
+          <div>
+            <label className="block text-sm text-[var(--text-primary)] mb-2">Traverse Linear Closure Error (m)</label>
+            <input
+              type="number"
+              step="0.001"
+              value={linearError}
+              onChange={(e) => setLinearError(e.target.value)}
+              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
+              placeholder="e.g. 0.001"
+            />
+            <p className="text-xs text-[var(--text-secondary)] mt-1">Used to compute C=m√K accuracy classification per RDM 1.1</p>
+            {linearError && (
+              (() => {
+                const acc = computeTraverseAccuracy(parseFloat(linearError), 1000)
+                return acc ? (
+                  <div className={`mt-2 px-3 py-1.5 rounded text-xs font-bold inline-block ${getAccuracyBadgeClass(acc)}`}>
+                    {getAccuracyBadgeLabel(acc)} — C={acc.C_mm.toFixed(2)}mm, K=1.00km
+                  </div>
+                ) : null
+              })()
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
