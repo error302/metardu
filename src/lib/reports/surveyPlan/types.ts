@@ -65,6 +65,7 @@ export interface SurveyPlanData {
     notes?: string
   }
   parcel: Parcel
+  traverse?: Traverse
   controlPoints: ControlPoint[]
   fenceOffsets?: FenceOffset[]
   adjacentLots?: AdjacentLot[]
@@ -98,6 +99,10 @@ export interface Parcel {
   perimeter_m: number
   pin?: string
   parts?: string[]
+}
+
+export interface Traverse {
+  linearError?: number
 }
 
 export interface PlanOptions {

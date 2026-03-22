@@ -1,6 +1,7 @@
 import type { SurveyPlanData, PlanOptions } from './types'
 import { getRoadReserveWidth } from './types'
 import { generateBearingScheduleCSV } from '../bearingScheduleCSV'
+import { computeTraverseAccuracy } from '../traverseAccuracy'
 import {
   DPI, PX_PER_MM, PX_PER_M,
   PAGE_WIDTH_MM, PAGE_HEIGHT_MM,
@@ -366,6 +367,46 @@ export class SurveyPlanRenderer {
     return svgScaleBar(x, y, scaleBarPx, segmentMetres, 4)
   }
 
+  private drawDatumNote(leftPad: number, panelInnerW: number): string {
+    const p = this.data.project
+    const datum = p.datum || 'ARC1960'
+    const zone = `${p.utm_zone || 37}${p.hemisphere || 'S'}`
+    const note = `Coordinates: UTM Zone ${zone}, ${datum} (Clarke 1880) — Survey Act Cap. 299 | RDM 1.1 §5.2`
+    const y = this.margin + mmToPx(25)
+    return `<text x="${leftPad}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="4.5" font-style="italic" fill="#555">${escapeXml(note)}</text>`
+  }
+
+  private drawCoordinateSchedule(leftPad: number, panelInnerW: number): string {
+    const p = this.data.project
+    const pts = this.data.parcel.boundaryPoints
+    const datum = p.datum || 'ARC1960'
+    const zone = `${p.utm_zone || 37}${p.hemisphere || 'S'}`
+    const startY = this.margin + mmToPx(42)
+    const colW = panelInnerW / 4
+    const rowH = mmToPx(3.5)
+    const headerH = mmToPx(5)
+    const maxRows = Math.min(pts.length, 12)
+    const tableH = headerH + maxRows * rowH
+
+    let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
+    const label = datum === 'ARC1960' ? `COORDINATE SCHEDULE (${datum} / UTM ${zone} EPSG:21037)` : `COORDINATE SCHEDULE (${datum})`
+    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`
+    const hY = startY + headerH
+    svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
+    const headers = ['Point', 'Easting', 'Northing', '']
+    headers.forEach((h, i) => {
+      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
+    })
+    pts.slice(0, maxRows).forEach((pt, i) => {
+      const ry = hY + rowH * (i + 1)
+      if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
+      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(pt.name)}</text>`
+      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.easting.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.northing.toFixed(3)}</text>`
+    })
+    return svg
+  }
+
   private drawMetricNote(leftPad: number, rightPad: number): string {
     const y = this.margin + mmToPx(30)
     return `<text x="${leftPad}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="7" font-style="italic" fill="#555">Distances in metres. Divide by 0.3048 for feet.</text>`
@@ -603,8 +644,10 @@ export class SurveyPlanRenderer {
     const panelInnerW = this.panelW - mmToPx(6)
     const svgParts: string[] = []
     svgParts.push(this.drawReportHeader(leftPad, rightPad, panelInnerW))
+    svgParts.push(this.drawDatumNote(leftPad, panelInnerW))
     svgParts.push(this.drawMetricNote(leftPad, rightPad))
     svgParts.push(this.drawPlanInfoBox(leftPad, rightPad, panelInnerW))
+    svgParts.push(this.drawCoordinateSchedule(leftPad, panelInnerW))
     svgParts.push(this.drawBearingSchedule(leftPad, panelInnerW))
     svgParts.push(this.drawLegend(leftPad, panelInnerW))
     svgParts.push(this.drawWarningBox(leftPad, rightPad, panelInnerW))
@@ -651,14 +694,21 @@ export class SurveyPlanRenderer {
     y += mmToPx(4)
     const info: Array<[string, string]> = [
       ['Title Ref:', p.reference || '\u2014'],
-      ['Datum:', p.datum || 'WGS84'],
-      ['UTM Zone:', `${p.utm_zone}${p.hemisphere}`],
+      ['Datum:', `${p.datum || 'ARC1960'} / UTM Zone ${p.utm_zone}${p.hemisphere} (EPSG:21037)`],
       ['Area:', p.area_sqm ? `${p.area_sqm.toFixed(2)} m\u00B2` : '\u2014'],
       ['Council:', p.municipality || '\u2014'],
       ['Client:', p.client_name || '\u2014'],
       ['Drawing No:', p.drawing_no || `MD-${Date.now().toString().slice(-6)}`],
     ]
     for (const [label, value] of info) svg += row(label, value)
+
+    const accuracyResult = this.data.traverse?.linearError !== undefined
+      ? computeTraverseAccuracy(this.data.traverse.linearError, this.data.parcel.perimeter_m)
+      : null
+    if (accuracyResult) {
+      svg += row('Accuracy:', `${accuracyResult.order} \u2713`)
+    }
+
     return svg
   }
 
@@ -749,8 +799,11 @@ export class SurveyPlanRenderer {
   }
 
   private drawLegalReferenceLine(): string {
+    const p = this.data.project
+    const zone = `${p.utm_zone || 37}${p.hemisphere || 'S'}`
+    const datum = p.datum || 'ARC1960'
     const y = this.pageH - mmToPx(6)
-    const ref = 'Prepared in accordance with: Survey Act Cap. 299 | Survey Regulations 1994 | RDM 1.1 (2025) | RDM 1.3 (2023) | Ministry of Roads and Transport, Republic of Kenya'
+    const ref = `Prepared: Survey Act Cap. 299 | Survey Regulations 1994 | RDM 1.1 (2025) | RDM 1.3 (2023) | Ministry of Roads and Transport, Republic of Kenya | Coordinates: UTM Zone ${zone}, ${datum}`
     return `<text x="${this.margin}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">${escapeXml(ref)}</text>`
   }
 
