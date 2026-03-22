@@ -48,10 +48,11 @@ export default function ToolsPage() {
           </div>
         </section>
 
-        {/* CURVES */}
+        {/* ROAD DESIGN */}
         <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Curves</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Road Design</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <ToolLink href="/tools/road-design" title="Road Design" />
             <ToolLink href="/tools/curves" title="Horizontal Curves" />
             <ToolLink href="/tools/tacheometry" title="Tacheometry" />
           </div>
