@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: #0a0a0f; padding: 40px; text-align: center;">
-            <h1 style="color: #E8841A; font-size: 32px; margin: 0;">GEONOVA</h1>
+            <h1 style="color: #E8841A; font-size: 32px; margin: 0;">METARDU</h1>
             <p style="color: #888; margin: 8px 0 0;">Professional Surveying Platform</p>
           </div>
           

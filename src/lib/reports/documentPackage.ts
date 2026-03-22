@@ -141,7 +141,7 @@ function docHeader(title: string, project: ProjectData, surveyorDetails: Record<
   <div style="border-bottom:2px solid #E8841A;padding-bottom:12px;margin-bottom:20px;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;">
       <div>
-        <div style="font-size:22px;font-weight:700;color:#E8841A;letter-spacing:1px;">GEONOVA</div>
+        <div style="font-size:22px;font-weight:700;color:#E8841A;letter-spacing:1px;">METARDU</div>
         <div style="font-size:11px;color:#666;margin-top:2px;">Professional Surveying Platform</div>
       </div>
       <div style="text-align:right;font-size:11px;color:#444;">

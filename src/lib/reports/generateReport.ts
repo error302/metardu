@@ -64,7 +64,7 @@ export function generateSurveyReport(options: ReportOptions, onBlob?: (blob: Blo
   doc.setTextColor(...amber)
   doc.setFontSize(22)
   doc.setFont('helvetica', 'bold')
-  doc.text('GEONOVA', 15, 15)
+  doc.text('METARDU', 15, 15)
   
   doc.setTextColor(...white)
   doc.setFontSize(10)
@@ -339,7 +339,7 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
   doc.setTextColor(...amber)
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
-  doc.text('GEONOVA', 10, 14)
+  doc.text('METARDU', 10, 14)
 
   doc.setTextColor(...white)
   doc.setFontSize(10)
@@ -744,7 +744,7 @@ function drawTitleBlock(
   doc.setTextColor(...amber)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
-  doc.text('GEONOVA', x + w / 2, y + 10, { align: 'center' })
+  doc.text('METARDU', x + w / 2, y + 10, { align: 'center' })
 
   doc.setTextColor(...white)
   doc.setFont('helvetica', 'normal')

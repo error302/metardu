@@ -169,7 +169,7 @@ export default function NewProjectPage() {
       <header className="border-b border-[var(--border-color)] bg-[var(--bg-card)]">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center">
           <a href="/dashboard" className="text-2xl font-bold text-[var(--accent)]">
-            GEONOVA
+            METARDU
           </a>
           <span className="ml-4 text-[var(--text-secondary)]">/ New Project</span>
         </div>

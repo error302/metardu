@@ -448,7 +448,7 @@ If you lose orientation (backsight moved / wrong point), stop and re-orient befo
       {
         id: 4,
         title: 'Process Data',
-        juniorContent: `STEP 4 — PROCESS IN GEONOVA
+        juniorContent: `STEP 4 — PROCESS IN METARDU
 Enter observations in Radiation mode.
 
 In METARDU:
@@ -802,7 +802,7 @@ Record systematically.`,
       {
         id: 4,
         title: 'Enter Cross Sections',
-        juniorContent: `STEP 4 — ENTER IN GEONOVA
+        juniorContent: `STEP 4 — ENTER IN METARDU
 Input cross-section data.
 
 In METARDU Profiles:

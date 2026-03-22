@@ -18,7 +18,7 @@ export default function GlobalError({
       <body style={{ background: "#0a0a0f", color: "#e5e5e5", fontFamily: "system-ui, sans-serif" }}>
         <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", padding: "2rem", textAlign: "center" }}>
           <div>
-            <h1 style={{ color: "#E8841A", fontSize: "2rem", fontWeight: "700", marginBottom: "0.5rem" }}>GEONOVA</h1>
+            <h1 style={{ color: "#E8841A", fontSize: "2rem", fontWeight: "700", marginBottom: "0.5rem" }}>METARDU</h1>
             <h2 style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>Something went wrong</h2>
             <p style={{ color: "#a3a3a3", marginBottom: "1.5rem", fontSize: "0.9rem" }}>
               {error.message || "An unexpected error occurred."}

@@ -62,7 +62,7 @@ function LoginForm() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <a href="/" className="text-4xl font-bold mb-2 text-[var(--accent)] block hover:opacity-80 transition-opacity">
-            GEONOVA
+            METARDU
           </a>
           <p className="text-[var(--text-secondary)]">{t('auth.loginSubtitle')}</p>
         </div>

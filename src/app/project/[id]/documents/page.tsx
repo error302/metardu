@@ -9,7 +9,17 @@ import {
   generateMutationForm, generateLevelingSummary, generateControlSubmission,
   ProjectData, PointData, TraverseData, AreaData,
 } from '@/lib/reports/documentPackage'
+import type { SurveyPlanData, ControlPoint } from '@/lib/reports/surveyPlan/types'
+import SurveyPlanViewer from '@/components/SurveyPlanViewer'
+import SurveyPlanExport from '@/components/SurveyPlanExport'
 import Link from 'next/link'
+import {
+  formatBearingDegMinSec,
+  shoelaceArea,
+  shoelacePerimeter,
+  bearingFromDelta,
+  distance,
+} from '@/lib/reports/surveyPlan/geometry'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -24,7 +34,7 @@ function openPrint(html: string, filename: string) {
 
 // ── Surveyor details form (fills once, cached in localStorage) ───────────────
 
-const SD_KEY = 'geonova_surveyor_details'
+const SD_KEY = 'metardu_surveyor_details'
 
 function loadSD(): Record<string,string> {
   if (typeof window === 'undefined') return {}
@@ -250,6 +260,7 @@ export default function DocumentsPage({ params }: PageProps) {
   const [area, setArea]         = useState<AreaData | undefined>()
   const [loading, setLoading]   = useState(true)
   const [surveyorDetails, setSurveyorDetails] = useState<Record<string,string>>(loadSD())
+  const [activeTab, setActiveTab] = useState<'docs' | 'plan'>('docs')
   const [activeDoc, setActiveDoc] = useState<SurveyDocType | null>(null)
   const [extraFields, setExtraFields] = useState<Record<string,Record<string,string>>>({})
   const [generated, setGenerated] = useState<Set<SurveyDocType>>(new Set())
@@ -262,9 +273,10 @@ export default function DocumentsPage({ params }: PageProps) {
       return
     }
 
-    const [{ data: proj }, { data: pts }] = await Promise.all([
+    const [{ data: proj }, { data: pts }, { data: parcels }] = await Promise.all([
       supabase.from('projects').select('*').eq('id', params.id).single(),
       supabase.from('survey_points').select('*').eq('project_id', params.id).order('created_at'),
+      supabase.from('parcels').select('*').eq('project_id', params.id).limit(1).single(),
     ])
 
     if (proj) setProject(proj)
@@ -337,6 +349,71 @@ export default function DocumentsPage({ params }: PageProps) {
 
   const docs = getDocsForType(project.survey_type)
 
+  // Build SurveyPlanData from project
+  const buildSurveyPlanData = (): SurveyPlanData | null => {
+    if (!project) return null
+    const controlPts: ControlPoint[] = points
+      .filter(p => p.is_control)
+      .map(p => ({
+        name: p.name,
+        easting: p.easting,
+        northing: p.northing,
+        elevation: p.elevation,
+        monumentType: 'found' as const,
+      }))
+    const boundaryPts = controlPts.length >= 3
+      ? controlPts
+      : [
+          { name: '1', easting: 5000, northing: 5000 },
+          { name: '2', easting: 5100, northing: 5000 },
+          { name: '3', easting: 5100, northing: 5050 },
+          { name: '4', easting: 5000, northing: 5050 },
+        ]
+    const area_sqm = shoelaceArea(boundaryPts)
+    const perimeter_m = shoelacePerimeter(boundaryPts)
+    const bearingSchedule = boundaryPts.map((pt, i) => {
+      const next = boundaryPts[(i + 1) % boundaryPts.length]
+      const dE = next.easting - pt.easting
+      const dN = next.northing - pt.northing
+      return {
+        from: pt.name,
+        to: next.name,
+        bearing: formatBearingDegMinSec(bearingFromDelta(dE, dN)),
+        distance: distance(pt.easting, pt.northing, next.easting, next.northing),
+      }
+    })
+    return {
+      project: {
+        name: project.name,
+        location: project.location || '',
+        municipality: surveyorDetails['address']?.split(',')[0] || undefined,
+        utm_zone: project.utm_zone || 37,
+        hemisphere: (project.hemisphere || 'S') as 'N' | 'S',
+        datum: 'WGS84',
+        client_name: project.client_name || undefined,
+        surveyor_name: surveyorDetails['name'] || undefined,
+        surveyor_licence: surveyorDetails['licence'] || undefined,
+        firm_name: surveyorDetails['name'] || undefined,
+        firm_address: surveyorDetails['address'] || undefined,
+        firm_phone: surveyorDetails['phone'] || undefined,
+        firm_email: surveyorDetails['email'] || undefined,
+        drawing_no: `MD-${Date.now().toString().slice(-6)}`,
+        plan_title: 'Boundary Identification Plan',
+        northRotationDeg: 0,
+        bearingSchedule,
+        revisions: [],
+        iskRegNo: surveyorDetails['licence'] || '',
+      },
+      parcel: {
+        boundaryPoints: boundaryPts,
+        area_sqm,
+        perimeter_m,
+      },
+      controlPoints: controlPts,
+      fenceOffsets: [],
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -347,20 +424,72 @@ export default function DocumentsPage({ params }: PageProps) {
             <div className="flex items-center gap-2 mb-1">
               <Link href={`/project/${params.id}`} className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)]">← Back to project</Link>
             </div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Document package</h1>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Documents & Plans</h1>
             <p className="text-sm text-[var(--text-muted)] mt-1">
               {project.name} · {project.survey_type || 'Survey'} · {project.location || ''}
             </p>
           </div>
-          <div className="text-right text-xs text-[var(--text-muted)]">
-            <p>{generated.size}/{docs.length} documents generated</p>
-            <div className="h-1.5 w-32 bg-[var(--bg-tertiary)] rounded-full mt-1.5">
-              <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${docs.length ? (generated.size/docs.length)*100 : 0}%` }} />
-            </div>
-          </div>
         </div>
 
+        {/* Tab bar */}
+        <div className="flex gap-1 mb-6 border-b border-[var(--border-color)]">
+          <button onClick={() => setActiveTab('docs')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              activeTab === 'docs'
+                ? 'border-[var(--accent)] text-[var(--accent)]'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}>
+            Document Package
+          </button>
+          <button onClick={() => setActiveTab('plan')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              activeTab === 'plan'
+                ? 'border-[var(--accent)] text-[var(--accent)]'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}>
+            Survey Plan
+          </button>
+        </div>
+
+        {/* Survey Plan tab */}
+        {activeTab === 'plan' && (
+          <div className="space-y-4">
+            <div className="bg-[var(--accent)]/5 border border-[var(--accent)]/20 rounded-xl p-4 text-sm">
+              <p className="text-[var(--text-secondary)]">
+                <strong className="text-[var(--text-primary)]">Boundary Identification Plan</strong> — A professional A3 survey plan rendered from your project coordinates, ready to print and sign.
+              </p>
+              <p className="text-[var(--text-muted)] mt-1 text-xs">
+                Requires at least 3 control points marked on the parcel boundary.
+              </p>
+            </div>
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden" style={{ height: '70vh' }}>
+              {(() => {
+                const planData = buildSurveyPlanData()
+                if (!planData) return <div className="flex items-center justify-center h-full text-[var(--text-muted)]">Loading...</div>
+                return <SurveyPlanViewer data={planData} className="h-full" />
+              })()}
+            </div>
+            <div className="flex justify-end">
+              {(() => {
+                const planData = buildSurveyPlanData()
+                if (!planData) return null
+                return <SurveyPlanExport data={planData} />
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Document package tab */}
+        {activeTab === 'docs' && (
+        <>
+
         {/* Info banner */}
+        <div className="bg-[var(--accent)]/5 border border-[var(--accent)]/20 rounded-xl p-4 mb-6 text-sm">
+          <p className="text-[var(--text-secondary)]">
+            <strong className="text-[var(--text-primary)]">{docs.filter(d=>d.required).length} required documents</strong> for a {(project.survey_type||'boundary').toLowerCase()} survey — pre-filled with your project data.
+            Fill in the extra fields for each document, then click <strong>Generate &amp; Print</strong>. Each opens in a new tab ready to print as PDF.
+          </p>
+        </div>
         <div className="bg-[var(--accent)]/5 border border-[var(--accent)]/20 rounded-xl p-4 mb-6 text-sm">
           <p className="text-[var(--text-secondary)]">
             <strong className="text-[var(--text-primary)]">{docs.filter(d=>d.required).length} required documents</strong> for a {(project.survey_type||'boundary').toLowerCase()} survey — pre-filled with your project data.
@@ -453,6 +582,9 @@ export default function DocumentsPage({ params }: PageProps) {
             </button>
             <p className="text-xs text-center text-[var(--text-muted)] mt-2">Opens each document in a separate tab for printing</p>
           </div>
+        )}
+
+        </>
         )}
 
       </div>
