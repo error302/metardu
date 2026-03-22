@@ -20,6 +20,7 @@ import {
   bearingFromDelta,
   distance,
 } from '@/lib/reports/surveyPlan/geometry'
+import { computeTraverseAccuracy, getAccuracyBadgeLabel, getAccuracyBadgeClass } from '@/lib/reports/traverseAccuracy'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -382,6 +383,10 @@ export default function DocumentsPage({ params }: PageProps) {
         distance: distance(pt.easting, pt.northing, next.easting, next.northing),
       }
     })
+    const linearError = traverse?.linearError
+    const traverseAccuracyResult = linearError != null
+      ? computeTraverseAccuracy(linearError, perimeter_m)
+      : null
     return {
       project: {
         name: project.name,
@@ -389,7 +394,7 @@ export default function DocumentsPage({ params }: PageProps) {
         municipality: surveyorDetails['address']?.split(',')[0] || undefined,
         utm_zone: project.utm_zone || 37,
         hemisphere: (project.hemisphere || 'S') as 'N' | 'S',
-        datum: 'WGS84',
+        datum: 'ARC1960',
         client_name: project.client_name || undefined,
         surveyor_name: surveyorDetails['name'] || undefined,
         surveyor_licence: surveyorDetails['licence'] || undefined,
@@ -409,10 +414,18 @@ export default function DocumentsPage({ params }: PageProps) {
         area_sqm,
         perimeter_m,
       },
+      traverse: traverseAccuracyResult ? {
+        linearError: linearError ?? undefined,
+      } : undefined,
       controlPoints: controlPts,
       fenceOffsets: [],
     }
   }
+
+  const planData = buildSurveyPlanData()
+  const traverseAccuracy = traverse && traverse.linearError != null && planData?.parcel?.perimeter_m
+    ? computeTraverseAccuracy(traverse.linearError, planData.parcel.perimeter_m)
+    : null
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -462,19 +475,30 @@ export default function DocumentsPage({ params }: PageProps) {
                 Requires at least 3 control points marked on the parcel boundary.
               </p>
             </div>
+            {traverseAccuracy && traverse && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
+                <span className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Traverse Accuracy</span>
+                <span className={`px-2.5 py-1 rounded text-xs font-semibold ${getAccuracyBadgeClass(traverseAccuracy)}`}>
+                  {getAccuracyBadgeLabel(traverseAccuracy)}
+                </span>
+                <span className="text-xs text-[var(--text-secondary)]">
+                  Linear Error: {traverse.linearError?.toFixed(4)}m
+                </span>
+                <span className="text-xs text-[var(--text-secondary)]">
+                  Precision: 1:{traverseAccuracy.K_km > 0 ? Math.round(traverseAccuracy.K_km * traverseAccuracy.C_mm / traverseAccuracy.allowed) : '—'}
+                </span>
+                <span className="text-xs text-[var(--text-muted)] font-mono ml-auto">
+                  {traverseAccuracy.formula}
+                </span>
+              </div>
+            )}
             <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden" style={{ height: '70vh' }}>
-              {(() => {
-                const planData = buildSurveyPlanData()
-                if (!planData) return <div className="flex items-center justify-center h-full text-[var(--text-muted)]">Loading...</div>
-                return <SurveyPlanViewer data={planData} className="h-full" />
-              })()}
+              {planData ? <SurveyPlanViewer data={planData} className="h-full" /> : (
+                <div className="flex items-center justify-center h-full text-[var(--text-muted)]">Loading...</div>
+              )}
             </div>
             <div className="flex justify-end">
-              {(() => {
-                const planData = buildSurveyPlanData()
-                if (!planData) return null
-                return <SurveyPlanExport data={planData} />
-              })()}
+              {planData && <SurveyPlanExport data={planData} />}
             </div>
           </div>
         )}

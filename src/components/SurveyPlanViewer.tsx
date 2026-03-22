@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { SurveyPlanData, PlanOptions } from '@/lib/reports/surveyPlan/types'
 import { SurveyPlanRenderer } from '@/lib/reports/surveyPlan/renderer'
+import ComplianceChecklistModal from '@/components/ComplianceChecklistModal'
 
 interface SurveyPlanViewerProps {
   data: SurveyPlanData
@@ -17,6 +18,7 @@ export default function SurveyPlanViewer({ data, options, className = '' }: Surv
   const [currentSheet, setCurrentSheet] = useState(0)
   const [svgContent, setSvgContent] = useState('')
   const [loading, setLoading] = useState(true)
+  const [showCompliance, setShowCompliance] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<SurveyPlanRenderer | null>(null)
 
@@ -85,6 +87,10 @@ export default function SurveyPlanViewer({ data, options, className = '' }: Surv
           className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:opacity-80">
           Download CSV
         </button>
+        <button onClick={() => setShowCompliance(true)}
+          className="px-3 py-1 text-xs rounded bg-[var(--accent)] text-black font-semibold hover:opacity-80">
+          Export Plan
+        </button>
       </div>
       {svgContent && svgContent.includes('Sheet ') && (
         (() => {
@@ -131,6 +137,13 @@ export default function SurveyPlanViewer({ data, options, className = '' }: Surv
           <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">No plan data available</div>
         )}
       </div>
+
+      <ComplianceChecklistModal
+        isOpen={showCompliance}
+        onClose={() => setShowCompliance(false)}
+        data={data}
+        onExport={handlePrint}
+      />
     </div>
   )
 }
