@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -71,6 +71,25 @@ export default function FieldPage() {
 
   const supabase = createClient()
 
+  const fetchProjects = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from('projects')
+      .select('id, name')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    if (data) setProjects(data)
+  }, [supabase])
+
+  const fetchProjectPoints = useCallback(async (projectId: string) => {
+    if (!projectId) return
+    const { data } = await supabase
+      .from('survey_points')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+    if (data) setPoints(data)
+  }, [supabase])
+
   // Auth check
   useEffect(() => {
     const checkAuth = async () => {
@@ -85,7 +104,7 @@ export default function FieldPage() {
       fetchProjectPoints(selectedProject)
     }
     checkAuth()
-  }, [router, supabase, selectedProject])
+  }, [router, supabase, selectedProject, fetchProjects, fetchProjectPoints])
 
   useEffect(() => {
     if (!user) return
@@ -100,25 +119,6 @@ export default function FieldPage() {
     })
     return () => subscription.unsubscribe()
   }, [user, supabase, router])
-
-  const fetchProjects = async (userId: string) => {
-    const { data } = await supabase
-      .from('projects')
-      .select('id, name')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-    if (data) setProjects(data)
-  }
-
-  const fetchProjectPoints = async (projectId: string) => {
-    if (!projectId) return
-    const { data } = await supabase
-      .from('survey_points')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: false })
-    if (data) setPoints(data)
-  }
 
   // Point batch parser
   const parseBatchCSV = () => {

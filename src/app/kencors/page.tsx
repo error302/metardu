@@ -130,6 +130,7 @@ export default function KenCORSPage() {
 
   useEffect(() => {
     if (myLat && myLon) findNearest()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [findNearest])
 
   const detectGPS = () => {

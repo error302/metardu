@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { computeChainageTable } from '@/lib/engine/chainage'
@@ -71,11 +71,7 @@ export default function ProfilesPage({ params }: PageProps) {
   const [svgHScale, setSvgHScale] = useState<number>(1000);
   const [svgVScale, setSvgVScale] = useState<number>(100);
 
-  useEffect(() => {
-    loadData();
-  }, [params.id]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const { data: projectData } = await supabase
@@ -103,7 +99,11 @@ export default function ProfilesPage({ params }: PageProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase, params.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const loadAlignmentData = async (alignmentId: string) => {
     const { data: cpData } = await supabase

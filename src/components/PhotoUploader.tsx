@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import type { Photo } from '@/lib/reports/surveyReport/types'
 
@@ -120,7 +121,7 @@ export default function PhotoUploader({ projectId, photos, onChange, maxPhotos =
             <div key={i} className="border border-[var(--border-color)] rounded-lg p-3 bg-[var(--bg-tertiary)]/30">
               <div className="flex gap-2">
                 <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0 bg-[var(--bg-tertiary)]">
-                  <img src={photo.url} alt={photo.caption || ''} className="w-full h-full object-cover" />
+                  <Image src={photo.url} alt={photo.caption || ''} fill className="object-cover" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <input

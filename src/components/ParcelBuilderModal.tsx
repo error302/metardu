@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { coordinateArea } from '@/lib/engine/area';
 import { distanceBearing } from '@/lib/engine/distance';
@@ -52,22 +52,12 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    if (selectedPoints.length >= 3) {
-      computeParcel();
-    } else {
+  const computeParcel = useCallback(() => {
+    if (selectedPoints.length < 3) {
       setBoundaryLines([]);
       setAreaResult(null);
+      return;
     }
-  }, [selectedPoints]);
-
-  useEffect(() => {
-    onDraftBoundaryChange?.(selectedPoints.length ? selectedPoints.map((p) => ({ easting: p.easting, northing: p.northing })) : null);
-    return () => onDraftBoundaryChange?.(null);
-  }, [selectedPoints, onDraftBoundaryChange]);
-
-  const computeParcel = () => {
-    if (selectedPoints.length < 3) return;
 
     const coords = selectedPoints.map(p => ({ easting: p.easting, northing: p.northing }));
     const areaData = coordinateArea(coords);
@@ -93,7 +83,16 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
       areaAcres: areaData.areaAcres,
       perimeter: areaData.perimeter
     });
-  };
+  }, [selectedPoints]);
+
+  useEffect(() => {
+    if (selectedPoints.length >= 3) {
+      computeParcel();
+    } else {
+      setBoundaryLines([]);
+      setAreaResult(null);
+    }
+  }, [selectedPoints, computeParcel]);
 
   const handlePointClick = (point: Point) => {
     if (!isSelecting) return;

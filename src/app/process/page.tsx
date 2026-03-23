@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { interpretCSV, CSVInterpretResult } from '@/lib/parsers/csvSurveyInterpreter'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
@@ -45,11 +45,7 @@ export default function ProcessPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
-  useEffect(() => {
-    fetchProjects()
-  }, [])
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -63,7 +59,11 @@ export default function ProcessPage() {
     if (data) {
       setProjects(data)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    fetchProjects()
+  }, [fetchProjects])
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -315,6 +315,7 @@ export default function ProjectPage({ params }: PageProps) {
 
   useEffect(() => {
     fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id])
 
   const handleMapClick = (lat: number, lon: number) => {
@@ -600,16 +601,16 @@ export default function ProjectPage({ params }: PageProps) {
     }
   }
 
-  const computeProjectArea = () => {
+  const computeProjectArea = useCallback(() => {
     if (points.length < 3) return null
     try {
       return coordinateArea(points.map(p => ({ easting: p.easting, northing: p.northing })))
     } catch {
       return null
     }
-  }
+  }, [points])
 
-  const projectArea = useMemo(() => computeProjectArea(), [points])
+  const projectArea = useMemo(() => computeProjectArea(), [computeProjectArea])
 
   const getSurveyTypeBadge = () => {
     const type = project?.survey_type?.toLowerCase() || 'topographic'

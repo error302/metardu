@@ -49,6 +49,7 @@ export default function ImportPage() {
       setLoadingProjects(false)
     }
     loadProjects()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {

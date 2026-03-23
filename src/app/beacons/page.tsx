@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { utmToGeographic } from '@/lib/engine/coordinates'
@@ -47,11 +47,7 @@ export default function BeaconsPage() {
 
   const supabase = createClient()
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     
     const [beaconsRes, projectsRes] = await Promise.all([
@@ -62,8 +58,11 @@ export default function BeaconsPage() {
     if (beaconsRes.data) setBeacons(beaconsRes.data)
     if (projectsRes.data) setProjects(projectsRes.data)
     
-    setLoading(false)
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const getMarkerIcon = (type: string) => {
     const icons: Record<string, string> = {

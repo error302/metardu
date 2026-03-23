@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface NearbyBeacon {
@@ -33,11 +33,7 @@ export default function NearbyBeaconsModal({
 
   const supabase = createClient()
 
-  useEffect(() => {
-    fetchNearbyBeacons()
-  }, [])
-
-  const fetchNearbyBeacons = async () => {
+  const fetchNearbyBeacons = useCallback(async () => {
     setLoading(true)
     
     const { data, error } = await supabase
@@ -59,7 +55,11 @@ export default function NearbyBeaconsModal({
     }
     
     setLoading(false)
-  }
+  }, [supabase, projectEasting, projectNorthing])
+
+  useEffect(() => {
+    fetchNearbyBeacons()
+  }, [fetchNearbyBeacons])
 
   const handleImport = async () => {
     if (!selectedBeacon) return

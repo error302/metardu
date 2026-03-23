@@ -86,6 +86,7 @@ export default function SurveyReportBuilderPage() {
     setSubscription(sub)
     setProjects(projData || [])
     setLoading(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => { load() }, [load])

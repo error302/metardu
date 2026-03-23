@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { User } from '@supabase/supabase-js'
 import { subscribeToProjectChanges, PresenceUser, supabase } from '@/lib/realtime'
 import { savePointsOffline, getOfflinePoints } from '@/lib/offline/syncQueue'
@@ -19,6 +19,9 @@ export function useRealtimeCollaboration(
   const [isConnected, setIsConnected] = useState(false)
   const [unsubscribe, setUnsubscribe] = useState<{ unsubscribe: () => Promise<void> } | null>(null)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableOptions = useMemo(() => options, [options?.enablePoints, options?.enableTraverse, options?.enableLeveling])
+
   useEffect(() => {
     if (!projectId || !user) return
 
@@ -32,7 +35,7 @@ export function useRealtimeCollaboration(
           onPresenceChange: (users) => {
             if (mounted) {
               setOnlineUsers(users)
-              options?.onPresenceChange?.(users)
+              stableOptions?.onPresenceChange?.(users)
             }
           },
           onPointsChange: async (payload) => {
@@ -62,7 +65,7 @@ export function useRealtimeCollaboration(
       unsubscribe?.unsubscribe()
       setIsConnected(false)
     }
-  }, [projectId, user?.id])
+  }, [projectId, user?.id, stableOptions]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const updatePresence = useCallback(async (data: Partial<PresenceUser>) => {
     if (!projectId) return

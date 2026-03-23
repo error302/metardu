@@ -11,23 +11,22 @@ export default function AccountPage() {
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    loadData()
-  }, [])
+    async function loadData() {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
 
-  async function loadData() {
-    const { data: { user } } = await supabase.auth.getUser()
-    setUser(user)
-
-    if (user) {
-      const { data: sub } = await supabase
-        .from('user_subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      setSubscription(sub)
+      if (user) {
+        const { data: sub } = await supabase
+          .from('user_subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        setSubscription(sub)
+      }
+      setLoading(false)
     }
-    setLoading(false)
-  }
+    loadData()
+  }, [supabase])
 
   async function updatePassword(currentPassword: string, newPassword: string) {
     setSaving(true)

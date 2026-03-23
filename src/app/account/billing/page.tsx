@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import type { PlanId } from '@/lib/subscription/catalog'
@@ -52,11 +52,7 @@ export default function BillingPage() {
   const [cancelling, setCancelling] = useState(false)
   const [message, setMessage] = useState('')
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     setUser(user)
 
@@ -69,7 +65,11 @@ export default function BillingPage() {
       setPayments((pay || []) as any)
     }
     setLoading(false)
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   async function handleCancel() {
     if (!confirm('Are you sure you want to cancel your subscription? You will retain access until the end of the billing period.')) return

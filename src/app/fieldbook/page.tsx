@@ -138,8 +138,13 @@ export default function DigitalFieldBookPage() {
     return controlSetups.find((s) => s.id === activeControlSetupId) ?? controlSetups[0]
   }, [controlSetups, activeControlSetupId])
 
-  const controlStation = activeControlSetup?.station ?? { name: 'STN', e: '500000.0000', n: '0.0000', z: '100.0000' }
-  const controlRows = activeControlSetup?.rows ?? []
+  const controlStation = useMemo(() => 
+    activeControlSetup?.station ?? { name: 'STN', e: '500000.0000', n: '0.0000', z: '100.0000' }
+  , [activeControlSetup])
+
+  const controlRows = useMemo(() => 
+    activeControlSetup?.rows ?? []
+  , [activeControlSetup])
   const setControlStation = (next: { name: string; e: string; n: string; z: string } | ((p: { name: string; e: string; n: string; z: string }) => { name: string; e: string; n: string; z: string })) => {
     setControlSetups((prev) =>
       prev.map((s) => {

@@ -37,6 +37,7 @@ export default function ContoursPage({ params }: { params: Promise<{ id: string 
       setLoading(false)
     }
     loadPoints()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
   const handleGenerate = async () => {

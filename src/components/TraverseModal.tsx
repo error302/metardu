@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { bowditchAdjustment } from '@/lib/engine/traverse'
 import { dmsToDecimal, decimalToDMS } from '@/lib/engine/angles'
@@ -253,16 +253,7 @@ export default function TraverseModal({
   
   const supabase = createClient()
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchControlPoints()
-      setStep('input')
-      setResults(null)
-      setSaveMessage(null)
-    }
-  }, [isOpen])
-
-  const fetchControlPoints = async () => {
+  const fetchControlPoints = useCallback(async () => {
     const { data } = await supabase
       .from('survey_points')
       .select('id, name, easting, northing')
@@ -277,7 +268,16 @@ export default function TraverseModal({
         setClosingPointId(data[0].id)
       }
     }
-  }
+  }, [supabase, projectId])
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchControlPoints()
+      setStep('input')
+      setResults(null)
+      setSaveMessage(null)
+    }
+  }, [isOpen, fetchControlPoints])
 
   const addLeg = () => {
     const newId = legs.length > 0 ? Math.max(...legs.map(l => l.id)) + 1 : 1
