@@ -13,7 +13,18 @@
  *   Formline        → 0.13mm dashed (supplementary half-interval)
  */
 
-import type { ContourResult, ContourLine, SpotHeight } from '@/lib/compute/pythonService';
+// Contour types - Python API returns { contours: ContourLine[], spotHeights: SpotHeight[], interval: number }
+interface ContourLine {
+  elevation: number
+  isIndex: boolean
+  points: Array<{ x: number; y: number }>
+}
+
+interface SpotHeight {
+  x: number
+  y: number
+  elevation: number
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LINE WEIGHT CONSTANTS — Brief 12
