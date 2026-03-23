@@ -20,10 +20,27 @@ interface ContourLine {
   points: Array<{ x: number; y: number }>
 }
 
-interface SpotHeight {
+export interface SpotHeight {
   x: number
   y: number
-  elevation: number
+  z: number
+  label?: string
+}
+
+export interface ContourResult {
+  interval_m: number
+  extent?: {
+    x_min: number
+    x_max: number
+    y_min: number
+    y_max: number
+  }
+  contours: Array<{
+    elevation: number
+    is_index: boolean
+    segments: Segment[]
+  }>
+  spot_heights: SpotHeight[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

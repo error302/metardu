@@ -23,6 +23,16 @@ export interface QRVerificationResult {
   verifiedAt: number
 }
 
+export interface SignatureRecord {
+  signerId: string
+  signerName: string
+  licenseNumber: string
+  timestamp: number
+  documentId: string
+  signature: string
+  documentHash: string
+}
+
 async function deriveKey(secret: string): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(secret), 'PBKDF2', false, ['deriveKey'])
   return crypto.subtle.deriveKey(
@@ -94,4 +104,19 @@ export async function createSurveyReportSignature(
 ): Promise<SignedDocument> {
   const content = JSON.stringify({ surveyId, surveyorLicense, measurements }, Object.keys(measurements).sort())
   return signDocument(surveyId, content, surveyorLicense, secret, { type: 'survey_report' })
+}
+
+export function buildVerificationBlock(sig: SignatureRecord): string {
+  const date = new Date(sig.timestamp).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  })
+  const w = 55  // mm
+  const h = 12  // mm
+  const px = 3.7795275591
+  return (
+    `<rect x="0" y="0" width="${w * px}" height="${h * px}" fill="#f8f9fa" stroke="#dee2e6" stroke-width="0.3"/>` +
+    `<text x="${2 * px}" y="${4 * px}" font-family="Arial,sans-serif" font-size="2.5" fill="#212529">Signed: ${sig.signerName}</text>` +
+    `<text x="${2 * px}" y="${7 * px}" font-family="Arial,sans-serif" font-size="2" fill="#6c757d">Lic: ${sig.licenseNumber} | ${date}</text>` +
+    `<text x="${2 * px}" y="${10 * px}" font-family="Courier New,monospace" font-size="1.8" fill="#495057">ID: ${sig.documentId.slice(0,12)}...</text>`
+  )
 }

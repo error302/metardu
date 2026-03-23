@@ -19,13 +19,13 @@
  *         Survey Regulations 1994
  */
 
-import type { ContourResult, SpotHeight }    from '@/lib/compute/pythonService';
+import type { ContourResult, SpotHeight }    from './contourRenderer';
 import { renderContoursToSvg, renderSpotHeightsToSvg, type ViewTransform } from './contourRenderer';
 import { buildSymbolDefs, renderSymbol, type SurveySymbol }                from './surveySymbols';
 import { buildLineWeightLegend, LINE_STYLES, svgStrokeAttrs, lineWeightPx } from './lineWeights';
 import { buildArrowDefs, renderLinearDimension, renderLeaderLine }          from './dimensionLeaders';
-import type { SignatureRecord }               from '@/lib/signatures/digitalSignature';
-import { buildVerificationBlock }             from '@/lib/signatures/digitalSignature';
+import type { SignatureRecord }               from '@/lib/integrations/digitalSignature';
+import { buildVerificationBlock }             from '@/lib/integrations/digitalSignature';
 
 const MM_TO_PX = 3.7795275591;
 function mm(val: number, sf = 1): number { return val * MM_TO_PX * sf; }
@@ -246,11 +246,12 @@ export function renderTopographicPlan(opts: TopographicPlanOptions): string {
   const drawAreaH   = svgH - margin - titleBlockH - margin;
 
   // Build view transform
+  const contourExtent = opts.contours?.extent
   const t: ViewTransform = {
-    x_min:      opts.contours?.extent.x_min ?? 0,
-    x_max:      opts.contours?.extent.x_max ?? 1000,
-    y_min:      opts.contours?.extent.y_min ?? 0,
-    y_max:      opts.contours?.extent.y_max ?? 1000,
+    x_min:      contourExtent?.x_min ?? 0,
+    x_max:      contourExtent?.x_max ?? 1000,
+    y_min:      contourExtent?.y_min ?? 0,
+    y_max:      contourExtent?.y_max ?? 1000,
     svg_width:  svgW,
     svg_height: svgH - titleBlockH,
     margin,
