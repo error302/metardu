@@ -51,6 +51,7 @@ export class SurveyPlanRenderer {
       includeGrid: options?.includeGrid ?? true,
       includePanel: options?.includePanel ?? true,
       language: options?.language ?? 'en',
+      watermarkPlan: options?.watermarkPlan ?? 'free',
     }
     this.pageW = mmToPx(PAGE_WIDTH_MM)
     this.pageH = mmToPx(PAGE_HEIGHT_MM)
@@ -811,6 +812,19 @@ export class SurveyPlanRenderer {
     return `<text x="${this.margin}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">${escapeXml(ref)}</text>`
   }
 
+  private drawWatermark(): string {
+    if (this.opts.watermarkPlan !== 'free') return ''
+    const cx = this.drawingX + this.drawingAreaW / 2
+    const cy = this.drawingY + this.drawingAreaH / 2
+    return [
+      `<g transform="translate(${cx},${cy}) rotate(-45)">`,
+      `<text x="0" y="-40" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="72" font-weight="bold" fill="#000" opacity="0.04">METARDU</text>`,
+      `<text x="0" y="10" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="28" fill="#000" opacity="0.04">Free Plan — Upgrade for Professional Plans</text>`,
+      `<text x="0" y="35" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="18" fill="#000" opacity="0.04">metardu.com/pricing</text>`,
+      `</g>`,
+    ].join('')
+  }
+
   render(): string {
     const totalSheets = parseInt(this.data.project.totalSheets || '1', 10)
     if (totalSheets > 1) return this.renderMultiSheet()
@@ -821,6 +835,7 @@ export class SurveyPlanRenderer {
     if (this.opts.includePanel) layers.push(this.drawPanelDivider())
     if (this.opts.includeGrid) layers.push(this.drawGrid())
     layers.push(this.drawLotFill())
+    layers.push(this.drawWatermark())
     layers.push(this.drawAdjacentLots())
     layers.push(this.drawStreetInfo())
     layers.push(this.drawBoundary())
@@ -870,6 +885,7 @@ export class SurveyPlanRenderer {
       if (this.opts.includePanel) layers.push(this.drawPanelDivider())
       if (this.opts.includeGrid) layers.push(this.drawGrid())
       layers.push(this.drawLotFill())
+      layers.push(this.drawWatermark())
       layers.push(this.drawAdjacentLots())
       layers.push(this.drawStreetInfo())
       layers.push(this.drawBoundary())

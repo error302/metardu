@@ -13,6 +13,7 @@ import type { SurveyPlanData, ControlPoint } from '@/lib/reports/surveyPlan/type
 import SurveyPlanViewer from '@/components/SurveyPlanViewer'
 import SurveyPlanExport from '@/components/SurveyPlanExport'
 import Link from 'next/link'
+import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import {
   formatBearingDegMinSec,
   shoelaceArea,
@@ -255,6 +256,7 @@ function ExtraFieldsForm({
 interface PageProps { params: { id: string } }
 
 export default function DocumentsPage({ params }: PageProps) {
+  const { plan } = useSubscription()
   const [project, setProject] = useState<ProjectData | null>(null)
   const [points, setPoints]   = useState<PointData[]>([])
   const [traverse, setTraverse] = useState<TraverseData | undefined>()
@@ -498,7 +500,7 @@ export default function DocumentsPage({ params }: PageProps) {
               )}
             </div>
             <div className="flex justify-end">
-              {planData && <SurveyPlanExport data={planData} projectId={params.id} />}
+              {planData && <SurveyPlanExport data={planData} projectId={params.id} plan={plan} />}
             </div>
           </div>
         )}

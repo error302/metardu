@@ -114,6 +114,7 @@ export interface PlanOptions {
   includeGrid?: boolean
   includePanel?: boolean
   language?: string
+  watermarkPlan?: 'free' | 'pro' | 'team' | 'firm' | 'enterprise'
 }
 
 export interface RoadClassification {

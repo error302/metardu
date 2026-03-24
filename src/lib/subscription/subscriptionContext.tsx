@@ -1,9 +1,10 @@
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { PlanId } from '@/lib/subscription/catalog'
 
 interface SubscriptionContextType {
-  plan: 'free' | 'pro' | 'team'
+  plan: PlanId
   isTrialing: boolean
   trialDaysLeft: number
   canCreateProject: boolean
@@ -27,7 +28,7 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
 })
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
-  const [plan, setPlan] = useState<'free' | 'pro' | 'team'>('free')
+  const [plan, setPlan] = useState<PlanId>('free')
   const [isTrialing, setIsTrialing] = useState(false)
   const [trialDaysLeft, setTrialDaysLeft] = useState(0)
   const [features, setFeatures] = useState<string[]>([])
@@ -75,7 +76,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const canAddPoints = true
 
   function hasFeature(feature: string) {
-    if (plan === 'pro' || plan === 'team') return true
+    if (plan === 'pro' || plan === 'team' || plan === 'firm' || plan === 'enterprise') return true
     return features.includes(feature)
   }
 

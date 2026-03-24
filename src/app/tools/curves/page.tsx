@@ -58,10 +58,15 @@ export default function CurvesCalculator() {
 
     // RDM 1.3 validation
     try {
+      const radius = curveType === 'simple'
+        ? parseFloat(input.radius || '0')
+        : curveType === 'compound'
+        ? Math.min(parseFloat(input.r1 || '0'), parseFloat(input.r2 || '0'))
+        : Math.min(parseFloat(input.r1_rev || '0'), parseFloat(input.r2_rev || '0'))
       const rdmRes = await fetch('/api/validate-geometry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ radius: parseFloat(input.radius || '0'), designSpeed: 80, terrain: 'rolling', gradient: 0 })
+        body: JSON.stringify({ radius, designSpeed: 80, terrain: 'rolling', gradient: 0 })
       });
       const rdmData = await rdmRes.json();
       setRdmValidation(rdmData);

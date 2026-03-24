@@ -209,6 +209,128 @@ export default function COGOCalculator({ compact = false }: Props) {
     setJoinResult(null)
   }
 
+  const handleExportPDF = async () => {
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
+      doc.setFontSize(16)
+      doc.text('METARDU — COGO Computation Report', 14, 14)
+      doc.setFontSize(10)
+      doc.text(`Computation Type: ${TABS.find(t => t.id === activeTab)?.label || activeTab}`, 14, 22)
+      doc.setFontSize(8)
+      doc.text(`Generated: ${new Date().toLocaleString()} | Survey Act Cap. 299 | RDM 1.1 (2025)`, 14, 28)
+      doc.setDrawColor(150)
+      doc.line(14, 30, 196, 30)
+
+      if (activeTab === 'inverse' && invResult) {
+        autoTable(doc, {
+          startY: 34,
+          head: [['Parameter', 'Value', 'Formula']],
+          body: [
+            ['Point 1', invL1, ''],
+            ['Point 2', invL2, ''],
+            ['Delta Easting', `${invResult.deltaE.toFixed(4)} m`, ''],
+            ['Delta Northing', `${invResult.deltaN.toFixed(4)} m`, ''],
+            ['WCB', invResult.wcbDMS, ''],
+            ['Distance', `${invResult.distance.toFixed(4)} m`, ''],
+            ['Reduced Bearing', invResult.reducedBearing, ''],
+            ['Back Bearing', invResult.backBearingDMS, ''],
+            ['Quadrant', invResult.quadrant, ''],
+            ['Arithmetic Check', invResult.arithmeticCheck.passed ? 'PASS' : 'FAIL', invResult.arithmeticCheck.value.toFixed(6)],
+          ],
+          styles: { fontSize: 9 },
+          columnStyles: { 2: { cellWidth: 60 } },
+          headStyles: { fillColor: [34, 197, 94] },
+        })
+      } else if (activeTab === 'polar' && polResult) {
+        autoTable(doc, {
+          startY: 34,
+          head: [['Parameter', 'Value']],
+          body: [
+            ['WCB Used', polResult.wcbDMS],
+            ['E2 (m)', polResult.e2.toFixed(4)],
+            ['N2 (m)', polResult.n2.toFixed(4)],
+          ],
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [34, 197, 94] },
+        })
+      } else if (activeTab === 'intersection' && intResult) {
+        autoTable(doc, {
+          startY: 34,
+          head: [['Parameter', 'Value']],
+          body: [
+            ['Intersection Easting E3 (m)', intResult.e3.toFixed(4)],
+            ['Intersection Northing N3 (m)', intResult.n3.toFixed(4)],
+            ['Distance from P1 (m)', intResult.distanceFrom1.toFixed(4)],
+            ['Distance from P2 (m)', intResult.distanceFrom2.toFixed(4)],
+            ['Check Difference (m)', intResult.checkDiff.toFixed(4)],
+            ['Within Tolerance', intResult.isWithinTolerance ? 'PASS' : 'FLAG'],
+          ],
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [34, 197, 94] },
+        })
+      } else if (activeTab === 'resection' && resResult) {
+        autoTable(doc, {
+          startY: 34,
+          head: [['Parameter', 'Value']],
+          body: [
+            ['Station E (m)', resResult.eP.toFixed(4)],
+            ['Station N (m)', resResult.nP.toFixed(4)],
+            ['Distance to A (m)', resResult.distToA.toFixed(4)],
+            ['Distance to B (m)', resResult.distToB.toFixed(4)],
+            ['Distance to C (m)', resResult.distToC.toFixed(4)],
+            ['Danger Circle', resResult.isDangerCircle ? 'WARNING' : 'No'],
+          ],
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [34, 197, 94] },
+        })
+      } else if (activeTab === 'area' && areaResult) {
+        autoTable(doc, {
+          startY: 34,
+          head: [['Parameter', 'Value']],
+          body: [
+            ['Area (m\u00B2)', areaResult.areaSqm.toFixed(4)],
+            ['Area (ha)', areaResult.areaHa.toFixed(4)],
+            ['Perimeter (m)', areaResult.perimeter.toFixed(4)],
+            ['Centroid E (m)', areaResult.centroid.easting.toFixed(4)],
+            ['Centroid N (m)', areaResult.centroid.northing.toFixed(4)],
+            ['Arithmetic Check', areaResult.arithmeticCheck.passed ? 'PASS' : 'FAIL'],
+          ],
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [34, 197, 94] },
+        })
+      } else if (activeTab === 'join' && joinResult) {
+        autoTable(doc, {
+          startY: 34,
+          head: [['From', 'To', 'Delta E (m)', 'Delta N (m)', 'Distance (m)', 'WCB', 'Back Bearing']],
+          body: joinResult.rows.map(r => [r.from, r.to, r.deltaE.toFixed(4), r.deltaN.toFixed(4), r.distance.toFixed(4), r.wcbDMS, r.backBearingDMS]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [34, 197, 94] },
+        })
+        const finalY = (doc as any).lastAutoTable.finalY + 6
+        doc.setFontSize(9)
+        doc.text(`Total Perimeter: ${joinResult.totalPerimeter.toFixed(4)} m`, 14, finalY)
+      } else {
+        doc.setFontSize(10)
+        doc.text('No computation results to export. Run a calculation first.', 14, 34)
+      }
+
+      doc.setFontSize(7)
+      doc.setTextColor(120)
+      doc.text('Source: Ghilani & Wolf, Elementary Surveying 16th Ed. | N.N. Basak, Surveying and Levelling | Survey Act Cap. 299 | RDM 1.1 (2025)', 14, doc.internal.pageSize.height - 8)
+      doc.setTextColor(0)
+
+      const date = new Date().toISOString().slice(0, 10)
+      const tabName = TABS.find(t => t.id === activeTab)?.label.replace(/[^a-zA-Z]/g, '_') || activeTab
+      doc.save(`METARDU_COGO_${tabName}_${date}.pdf`)
+    } catch (err) {
+      console.error('PDF export error:', err)
+      setError('Failed to export PDF. Please try again.')
+    }
+  }
+
   const TABS: { id: Tab; label: string }[] = [
     { id: 'inverse', label: 'Inverse' },
     { id: 'polar', label: 'Radiation' },
@@ -242,6 +364,10 @@ export default function COGOCalculator({ compact = false }: Props) {
           </button>
         ))}
         <div className="flex-1" />
+        <button onClick={handleExportPDF}
+          className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] border border-[var(--border-color)] hover:border-[var(--accent)] rounded">
+          Export PDF
+        </button>
         <button onClick={clearAll}
           className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
           Clear

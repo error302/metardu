@@ -4,22 +4,28 @@ import { useState } from 'react'
 import type { SurveyPlanData, PlanOptions } from '@/lib/reports/surveyPlan/types'
 import { SurveyPlanRenderer } from '@/lib/reports/surveyPlan/renderer'
 import QRCode from 'qrcode'
+import type { PlanId } from '@/lib/subscription/catalog'
 
 interface SurveyPlanExportProps {
   data: SurveyPlanData
   options?: PlanOptions
   projectId?: string
+  plan?: PlanId
 }
 
-export default function SurveyPlanExport({ data, options, projectId }: SurveyPlanExportProps) {
+export default function SurveyPlanExport({ data, options, projectId, plan = 'free' }: SurveyPlanExportProps) {
   const [exporting, setExporting] = useState(false)
   const [signing, setSigning] = useState(false)
+
+  const buildSvgString = () => {
+    const renderer = new SurveyPlanRenderer(data, { ...options, watermarkPlan: plan })
+    return renderer.render()
+  }
 
   const handleExport = async () => {
     setExporting(true)
     try {
-      const renderer = new SurveyPlanRenderer(data, options)
-      const svgString = renderer.render()
+      const svgString = buildSvgString()
 
       const container = document.createElement('div')
       container.innerHTML = svgString
@@ -49,8 +55,7 @@ export default function SurveyPlanExport({ data, options, projectId }: SurveyPla
     if (!projectId) { alert('Project ID missing'); return }
     setSigning(true)
     try {
-      const renderer = new SurveyPlanRenderer(data, options)
-      let svgString = renderer.render()
+      let svgString = buildSvgString()
       
       // Hash SVG
       const encoder = new TextEncoder()
