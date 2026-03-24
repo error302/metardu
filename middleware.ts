@@ -59,16 +59,10 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // SECURITY: Always verify the JWT with Supabase — never trust the cookie alone.
-  // getSession() reads from the cookie directly and is instant — no network call.
-  // getUser() is only used as a fallback to validate with Supabase server.
+  // SECURITY: getSession() reads from the cookie directly and is instant — no network call.
+  // Only use getSession() for middleware auth checks to avoid blocking.
   const { data: { session } } = await supabase.auth.getSession()
-  let user = session?.user ?? null
-
-  if (!user) {
-    const { data: { user: validatedUser } } = await supabase.auth.getUser()
-    user = validatedUser ?? null
-  }
+  const user = session?.user ?? null
 
   const authRoutes = ['/login', '/register']
   const isAuthRoute = authRoutes.some(route => request.nextUrl.pathname.startsWith(route))
