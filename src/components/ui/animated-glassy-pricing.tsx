@@ -1,5 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { RippleButton } from "@/components/ui/multi-type-ripple-buttons";
+import { FeatureCard } from "@/components/ui/grid-feature-cards";
+import { 
+  Calculator, TrendingUp, FileText, MapPin, Users, Shield, 
+  Cloud, Download, Wifi, Zap, BarChart3, Globe
+} from 'lucide-react';
 
 const CheckIcon = ({ className }: { className?: string }) => (
   <svg
@@ -214,11 +219,44 @@ export const ModernPricingPage = ({
   plans,
   showAnimatedBackground = true,
 }: ModernPricingPageProps) => {
+  const metarduFeatures = [
+    {
+      title: '18+ Survey Tools',
+      icon: Calculator,
+      description: 'Traverse, leveling, COGO, curves, cross-sections and more built-in.',
+    },
+    {
+      title: 'Professional Reports',
+      icon: FileText,
+      description: 'Generate PDF plans, bearing schedules, and traverse computations.',
+    },
+    {
+      title: 'GPS Stakeout',
+      icon: MapPin,
+      description: 'Real-time stakeout mode with Bluetooth total station connection.',
+    },
+    {
+      title: 'Team Collaboration',
+      icon: Users,
+      description: 'Work together with role-based access and real-time sync.',
+    },
+    {
+      title: 'Cloud Sync',
+      icon: Cloud,
+      description: 'Your data synced across all devices, online and offline.',
+    },
+    {
+      title: 'Export Anywhere',
+      icon: Download,
+      description: 'DXF, LandXML, GeoJSON, and CSV export for any workflow.',
+    },
+  ]
+
   return (
     <div className="bg-background text-foreground min-h-screen w-full overflow-x-hidden">
       {showAnimatedBackground && <ShaderCanvas />}
-      <main className="relative w-full min-h-screen flex flex-col items-center justify-center px-4 py-8">
-        <div className="w-full max-w-5xl mx-auto text-center mb-14">
+      <main className="relative w-full flex flex-col items-center px-4 py-16">
+        <div className="w-full max-w-5xl mx-auto text-center mb-8">
           <h1 className="text-[48px] md:text-[64px] font-extralight leading-tight tracking-[-0.03em] bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-cyan-500 to-blue-600 dark:from-white dark:via-cyan-300 dark:to-blue-400 font-display">
             {title}
           </h1>
@@ -226,6 +264,13 @@ export const ModernPricingPage = ({
             {subtitle}
           </p>
         </div>
+
+        <div className="grid grid-cols-1 divide-x divide-dashed divide-border border border-dashed border-border rounded-2xl sm:grid-cols-2 md:grid-cols-3 w-full max-w-5xl mb-16">
+          {metarduFeatures.map((feature, i) => (
+            <FeatureCard key={i} feature={feature} />
+          ))}
+        </div>
+
         <div className="flex flex-col md:flex-row gap-8 md:gap-6 justify-center items-center w-full max-w-4xl">
           {plans.map((plan) => <PricingCard key={plan.planName} {...plan} />)}
         </div>
