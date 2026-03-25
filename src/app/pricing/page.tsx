@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { ModernPricingPage, PricingCardProps } from '@/components/ui/animated-glassy-pricing'
 
 type Currency = 'KES' | 'UGX' | 'TZS' | 'NGN' | 'USD' | 'GHS' | 'ZAR' | 'INR' | 'IDR' | 'BRL' | 'AUD' | 'GBP' | 'EUR'
 
@@ -12,92 +13,13 @@ const currencyMap: Record<string, Currency> = {
   'SD': 'KES', 'MA': 'EUR', 'EG': 'USD'
 }
 
-const plans = [
-  {
-    id: 'free',
-    name: 'Free',
-    prices: { KES: 0, UGX: 0, TZS: 0, NGN: 0, USD: 0, GHS: 0, ZAR: 0, INR: 0, IDR: 0, BRL: 0, AUD: 0, GBP: 0, EUR: 0 },
-    features: [
-      { text: 'All 18 quick calculation tools', included: true },
-      { text: '1 survey project', included: true },
-      { text: 'Up to 50 survey points', included: true },
-      { text: 'Basic PDF report', included: true },
-      { text: 'CSV import', included: true },
-      { text: 'Offline calculations', included: true },
-      { text: 'DXF/LandXML export', included: false },
-      { text: 'Report share link', included: false },
-      { text: 'Team collaboration', included: false },
-    ],
-    cta: 'Get Started Free',
-    popular: false,
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    prices: { KES: 500, UGX: 15000, TZS: 10000, NGN: 2000, USD: 4, GHS: 50, ZAR: 75, INR: 350, IDR: 65000, BRL: 20, AUD: 6, GBP: 3, EUR: 4 },
-    features: [
-      { text: 'Everything in Free', included: true },
-      { text: 'Unlimited projects', included: true },
-      { text: 'Unlimited survey points', included: true },
-      { text: 'Full professional PDF reports', included: true },
-      { text: 'DXF export for AutoCAD', included: true },
-      { text: 'LandXML export', included: true },
-      { text: 'Report share link', included: true },
-      { text: 'GPS Stakeout mode', included: true },
-      { text: 'Process field notes', included: true },
-      { text: 'Priority support', included: true },
-      { text: 'Team collaboration', included: false },
-    ],
-    cta: 'Start Free Trial',
-    popular: true,
-  },
-  {
-    id: 'team',
-    name: 'Team',
-    prices: { KES: 2000, UGX: 60000, TZS: 40000, NGN: 8000, USD: 15, GHS: 200, ZAR: 280, INR: 1300, IDR: 230000, BRL: 75, AUD: 22, GBP: 12, EUR: 14 },
-    features: [
-      { text: 'Everything in Pro', included: true },
-      { text: '5 team members', included: true },
-      { text: 'Real-time collaboration', included: true },
-      { text: 'Role-based access', included: true },
-      { text: 'Version history', included: true },
-      { text: 'Audit trail', included: true },
-      { text: 'Branded reports with firm logo', included: true },
-      { text: 'Dedicated support', included: true },
-    ],
-    cta: 'Contact Us',
-    popular: false,
-  },
-  {
-    id: 'firm',
-    name: 'Firm',
-    prices: { KES: 5000, UGX: 150000, TZS: 100000, NGN: 20000, USD: 38, GHS: 500, ZAR: 700, INR: 3200, IDR: 580000, BRL: 190, AUD: 55, GBP: 30, EUR: 35 },
-    features: [
-      { text: 'Everything in Team', included: true },
-      { text: '20 team members', included: true },
-      { text: 'Advanced admin dashboard', included: true },
-      { text: 'Custom report branding', included: true },
-      { text: 'API access', included: true },
-      { text: 'White-label option', included: true },
-    ],
-    cta: 'Contact Us',
-    popular: false,
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    prices: { KES: 0, UGX: 0, TZS: 0, NGN: 0, USD: 0, GHS: 0, ZAR: 0, INR: 0, IDR: 0, BRL: 0, AUD: 0, GBP: 0, EUR: 0 },
-    features: [
-      { text: 'Everything in Firm', included: true },
-      { text: 'Unlimited users', included: true },
-      { text: 'On-premise deployment', included: true },
-      { text: 'Custom development', included: true },
-      { text: 'SLA & 24/7 support', included: true },
-    ],
-    cta: 'Contact Sales',
-    popular: false,
-  },
-]
+const formatPrice = (price: number, currency: Currency) => {
+  const symbols: Record<Currency, string> = {
+    KES: 'KSh ', UGX: 'USh ', TZS: 'TSh ', NGN: '₦ ', USD: '$ ',
+    GHS: '₵ ', ZAR: 'R ', INR: '₹ ', IDR: 'Rp ', BRL: 'R$ ', AUD: 'A$ ', GBP: '£ ', EUR: '€ '
+  }
+  return `${symbols[currency]}${price.toLocaleString()}`
+}
 
 const faqs = [
   {
@@ -123,14 +45,6 @@ export default function PricingPage() {
 
   useEffect(() => { document.title = 'Pricing — METARDU' }, [])
 
-  const formatPrice = (price: number) => {
-    const symbols: Record<Currency, string> = {
-      KES: 'KSh ', UGX: 'USh ', TZS: 'TSh ', NGN: '₦ ', USD: '$ ',
-      GHS: '₵ ', ZAR: 'R ', INR: '₹ ', IDR: 'Rp ', BRL: 'R$ ', AUD: 'A$ ', GBP: '£ ', EUR: '€ '
-    }
-    return `${symbols[currency]}${price.toLocaleString()}`
-  }
-
   useEffect(() => {
     async function detectCurrency() {
       try {
@@ -146,121 +60,71 @@ export default function PricingPage() {
     detectCurrency()
   }, [])
 
+  const plans: PricingCardProps[] = [
+    {
+      planName: 'Free',
+      description: 'Perfect for students and hobbyist surveyors',
+      price: formatPrice(0, currency),
+      features: [
+        'All 18 quick calculation tools',
+        '1 survey project',
+        'Up to 50 survey points',
+        'Basic PDF report',
+        'CSV import',
+        'Offline calculations',
+      ],
+      buttonText: 'Get Started Free',
+      buttonVariant: 'secondary',
+      isPopular: false,
+    },
+    {
+      planName: 'Pro',
+      description: 'For professional surveyors and small firms',
+      price: formatPrice(currency === 'KES' ? 500 : currency === 'USD' ? 4 : currency === 'EUR' ? 4 : 15, currency),
+      features: [
+        'Everything in Free',
+        'Unlimited projects',
+        'Unlimited survey points',
+        'Full professional PDF reports',
+        'DXF & LandXML export',
+        'GPS Stakeout mode',
+        'Process field notes',
+        'Priority support',
+      ],
+      buttonText: 'Start Free Trial',
+      buttonVariant: 'primary',
+      isPopular: true,
+    },
+    {
+      planName: 'Team',
+      description: 'Collaborate with your survey crew',
+      price: formatPrice(currency === 'KES' ? 2000 : currency === 'USD' ? 15 : currency === 'EUR' ? 14 : 60, currency),
+      features: [
+        'Everything in Pro',
+        '5 team members',
+        'Real-time collaboration',
+        'Role-based access',
+        'Version history',
+        'Audit trail',
+        'Branded reports',
+        'Dedicated support',
+      ],
+      buttonText: 'Contact Us',
+      buttonVariant: 'primary',
+      isPopular: false,
+    },
+  ]
+
   return (
-    <div className="min-h-screen py-16">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-[var(--text-primary)] mb-4">
-            Simple, Transparent Pricing
-          </h1>
-          <p className="text-[var(--text-secondary)] text-lg">
-            Start free, upgrade when you need more
-          </p>
-        </div>
-
-        <div className="flex justify-center mb-12">
-          <div className="bg-[var(--bg-secondary)] p-1 rounded-lg flex flex-wrap justify-center gap-1">
-            {(['KES', 'UGX', 'TZS', 'NGN', 'GHS', 'ZAR', 'USD', 'EUR', 'GBP', 'INR', 'IDR', 'BRL', 'AUD'] as Currency[]).map((curr) => (
-              <button
-                key={curr}
-                onClick={() => setCurrency(curr)}
-                className={`px-3 py-2 rounded-md text-xs font-medium transition-colors ${
-                  currency === curr
-                    ? 'bg-[var(--accent)] text-black'
-                    : 'text-[var(--text-secondary)] hover:text-white'
-                }`}
-              >
-                {curr}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-20">
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className={`bg-[var(--bg-secondary)] rounded-2xl border ${
-                plan.popular ? 'border-[var(--accent)]' : 'border-[var(--border-color)]'
-              } p-8 relative`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--accent)] text-black text-xs font-bold px-4 py-1 rounded-full">
-                  Most Popular
-                </div>
-              )}
-
-              <h3 className="text-[var(--text-primary)] font-bold text-2xl mb-2">{plan.name}</h3>
-              <div className="mb-6">
-                <span className="text-[var(--accent)] text-4xl font-bold">
-                  {formatPrice(plan.prices[currency])}
-                </span>
-                <span className="text-[var(--text-muted)]">/{currency === 'USD' ? 'mo' : 'month'}</span>
-              </div>
-
-              <ul className="space-y-3 mb-8">
-                {plan.features.map((feature, i) => (
-                  <li
-                    key={i}
-                    className={`flex items-center gap-3 text-sm ${
-                      feature.included ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
-                    }`}
-                  >
-                    <span
-                      className={`text-lg ${
-                        feature.included ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
-                      }`}
-                    >
-                      {feature.included ? '✓' : '✗'}
-                    </span>
-                    {feature.text}
-                  </li>
-                ))}
-              </ul>
-
-              {plan.id === 'team' ? (
-                <a
-                  href="mailto:support@metardu.app?subject=Team%20Plan%20Inquiry"
-                  className="block w-full py-3 rounded-lg font-medium text-center transition-colors bg-[var(--bg-tertiary)] text-white hover:bg-[var(--bg-tertiary)]"
-                >
-                  {plan.cta}
-                </a>
-              ) : (
-                <Link
-                  href="/register"
-                  className={`block w-full py-3 rounded-lg font-medium text-center transition-colors ${
-                    plan.popular
-                      ? 'bg-[var(--accent)] text-black hover:bg-[var(--accent-dim)]'
-                      : 'bg-[var(--bg-tertiary)] text-white hover:bg-[var(--bg-tertiary)]'
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] text-center mb-8">
-            Frequently Asked Questions
-          </h2>
-
-          <div className="space-y-6">
-            {faqs.map((faq, i) => (
-              <div key={i} className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[var(--border-color)]">
-                <h3 className="text-[var(--text-primary)] font-semibold mb-2">{faq.q}</h3>
-                <p className="text-[var(--text-secondary)]">{faq.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="text-center mt-12 text-[var(--text-muted)] text-sm">
-          <p>All prices include applicable taxes.</p>
-          <p>Need a custom enterprise plan? Contact us at support@metardu.app</p>
-        </div>
-      </div>
-    </div>
+    <ModernPricingPage
+      title={
+        <>
+          Simple, <span className="text-cyan-400">Transparent</span> Pricing
+        </>
+      }
+      subtitle="Start free, upgrade when you need more. No hidden fees, cancel anytime."
+      plans={plans}
+      showAnimatedBackground={true}
+    />
   )
 }
