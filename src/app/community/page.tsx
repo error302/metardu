@@ -126,24 +126,16 @@ export default function CommunityPage() {
         </div>
 
         <div className="text-center">
-          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-6">Follow METARDU</h2>
-          <div className="flex justify-center gap-6">
-            <div className="text-center">
-              <div className="text-3xl mb-2">𝕏</div>
-              <p className="text-[var(--text-secondary)] text-sm">Twitter/X</p>
-              <p className="text-[var(--text-muted)] text-xs">Coming soon</p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl mb-2">in</div>
-              <p className="text-[var(--text-secondary)] text-sm">LinkedIn</p>
-              <p className="text-[var(--text-muted)] text-xs">Coming soon</p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl mb-2">▶</div>
-              <p className="text-[var(--text-secondary)] text-sm">YouTube</p>
-              <p className="text-[var(--text-muted)] text-xs">Coming soon</p>
-            </div>
-          </div>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-6">Join the Conversation</h2>
+          <p className="text-[var(--text-muted)] mb-4">Connect with surveyors on WhatsApp</p>
+          <a
+            href="https://chat.whatsapp.com/your-community-link"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+          >
+            <span>Join WhatsApp Community</span>
+          </a>
         </div>
       </div>
     </div>

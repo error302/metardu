@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface AnalyticsData {
   totalProjects: number
@@ -13,36 +14,84 @@ interface AnalyticsData {
   projectTypes: { type: string; count: number }[]
 }
 
-const mockData: AnalyticsData = {
-  totalProjects: 47,
-  activeProjects: 12,
-  completedSurveys: 234,
-  totalPoints: 15680,
-  storageUsed: 2.4,
-  apiCalls: 12450,
-  userActivity: [
-    { date: '2024-01-01', count: 45 },
-    { date: '2024-01-02', count: 52 },
-    { date: '2024-01-03', count: 38 },
-    { date: '2024-01-04', count: 61 },
-    { date: '2024-01-05', count: 55 },
-    { date: '2024-01-06', count: 48 },
-    { date: '2024-01-07', count: 42 },
-  ],
-  projectTypes: [
-    { type: 'Boundary', count: 18 },
-    { type: 'Topographic', count: 12 },
-    { type: 'Engineering', count: 8 },
-    { type: 'Control Network', count: 5 },
-    { type: 'Mining', count: 4 },
-  ],
+const emptyData: AnalyticsData = {
+  totalProjects: 0,
+  activeProjects: 0,
+  completedSurveys: 0,
+  totalPoints: 0,
+  storageUsed: 0,
+  apiCalls: 0,
+  userActivity: [],
+  projectTypes: [],
 }
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState('7d')
-  const data = mockData
+  const [data, setData] = useState<AnalyticsData>(emptyData)
+  const [loading, setLoading] = useState(true)
 
-  const maxActivity = Math.max(...data.userActivity.map(d => d.count))
+  useEffect(() => {
+    async function fetchAnalytics() {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) {
+        setLoading(false)
+        return
+      }
+
+      const userId = session.user.id
+
+      const [projectsRes, pointsRes] = await Promise.all([
+        supabase.from('projects').select('id, survey_type, created_at').eq('user_id', userId),
+        supabase.from('survey_points').select('id, created_at').eq('user_id', userId)
+      ])
+
+      const projects = projectsRes.data || []
+      const points = pointsRes.data || []
+
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      
+      const last7Days: { date: string; count: number }[] = []
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date()
+        d.setDate(d.getDate() - i)
+        const dateStr = d.toISOString().split('T')[0]
+        const count = projects.filter(p => p.created_at?.startsWith(dateStr)).length
+        last7Days.push({ date: dateStr, count })
+      }
+
+      const projectTypesMap: Record<string, number> = {}
+      projects.forEach(p => {
+        const type = p.survey_type || 'Other'
+        projectTypesMap[type] = (projectTypesMap[type] || 0) + 1
+      })
+
+      setData({
+        totalProjects: projects.length,
+        activeProjects: projects.length,
+        completedSurveys: projects.filter(p => p.survey_type).length,
+        totalPoints: points.length,
+        storageUsed: Math.round((points.length * 0.001) * 100) / 100,
+        apiCalls: 0,
+        userActivity: last7Days,
+        projectTypes: Object.entries(projectTypesMap).map(([type, count]) => ({ type, count })),
+      })
+      setLoading(false)
+    }
+
+    fetchAnalytics()
+  }, [period])
+
+  const maxActivity = data.userActivity.length > 0 ? Math.max(...data.userActivity.map(d => d.count)) : 0
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
