@@ -14,9 +14,10 @@ scripts/.out/
 # Debug
 npm-debug.log*
 
-# Local env files
-.env*.local
+# Local env files - NEVER commit these
 .env
+.env.local
+.env.*.local
 
 # TypeScript
 *.tsbuildinfo
@@ -45,19 +46,10 @@ ios/
 capacitor.config.ts
 capacitor/
 
-# OpenCode/AI
-.continue/
-.opencode/
-
 # Debug files
-TODO.md
 notes.txt
 *.log
 
 # PDF/Blueprints
-*.pdf
-geonova-blueprint.pdf
-
-# Backup files
 *.bak
 *.tmp
