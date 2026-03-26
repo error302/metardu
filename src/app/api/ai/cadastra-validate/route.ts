@@ -47,12 +47,14 @@ export async function GET(request: NextRequest) {
   let query = supabase.from('cadastra_validations').select('*')
   
   if (validationId) {
-    query = query.eq('id', validationId).single()
-  } else if (projectId) {
-    query = query.eq('project_id', projectId).order('created_at', { ascending: false })
+    const { data, error } = await query.eq('id', validationId).single()
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json(data)
   }
   
-  const { data, error } = await query
+  const { data, error } = await query.eq('project_id', projectId).order('created_at', { ascending: false })
   
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
