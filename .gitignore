@@ -46,10 +46,17 @@ ios/
 capacitor.config.ts
 capacitor/
 
-# Debug files
-notes.txt
-*.log
+# PDF/Blueprints - local reference files
+*.pdf
 
-# PDF/Blueprints
+# Local docs and notes
+docs/superpowers/
+
+# Local scripts
+scripts/generate-icons.js
+scripts/i18n-sync.mjs
+scripts/push_github.ps1
+
+# Backup files
 *.bak
 *.tmp
