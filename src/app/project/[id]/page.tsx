@@ -91,6 +91,8 @@ export default function ProjectPage({ params }: PageProps) {
   const [points, setPoints] = useState<Point[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingStage, setLoadingStage] = useState<string>('init')
+  const [loadingTimeout, setLoadingTimeout] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
   const [showAddPoint, setShowAddPoint] = useState(false)
   const [showCSVUpload, setShowCSVUpload] = useState(false)
   const [showTraverse, setShowTraverse] = useState(false)
@@ -351,6 +353,16 @@ export default function ProjectPage({ params }: PageProps) {
     }, 5000)
     return () => clearTimeout(timer)
   }, [loading, loadingStage, project, points])
+
+  useEffect(() => {
+    if (loading && loadingStage !== 'done' && !loadingTimeout) {
+      const timer = setTimeout(() => {
+        console.log('METARDU DEBUG: Loading timeout reached, showing retry')
+        setLoadingTimeout(true)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [loading, loadingStage, loadingTimeout])
 
   const handleMapClick = (lat: number, lon: number) => {
     if (!project) return
@@ -662,7 +674,23 @@ export default function ProjectPage({ params }: PageProps) {
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full"></div>
+        {loadingTimeout ? (
+          <div className="text-center">
+            <div className="animate-pulse text-amber-400 mb-4">Loading project data... (retrying)</div>
+            <button
+              onClick={() => { setRetryCount(r => r + 1); setLoadingTimeout(false); fetchData(); }}
+              className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded"
+            >
+              Retry Now
+            </button>
+            <div className="text-xs text-[var(--text-muted)] mt-2">Attempt {retryCount + 1}</div>
+          </div>
+        ) : (
+          <>
+            <div className="animate-spin w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full mr-3"></div>
+            <span className="text-[var(--text-secondary)]">Loading...</span>
+          </>
+        )}
       </div>
     )
   }
