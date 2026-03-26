@@ -58,7 +58,7 @@ export interface FieldMission {
   updatedAt: string
 }
 
-const KEY = 'geonova_field_missions'
+const KEY = 'metardu_field_missions'
 
 function load(): FieldMission[] {
   if (typeof window === 'undefined') return []

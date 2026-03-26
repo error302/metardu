@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { GeoNovaJob } from '@/lib/supabase/jobs'
+import { MetarduJob } from '@/lib/supabase/jobs'
 
 const statusColors = {
   planned: 'bg-blue-100 text-blue-800',
@@ -10,7 +10,7 @@ const statusColors = {
   cancelled: 'bg-red-100 text-red-800'
 }
 
-export default function JobCard({ job }: { job: GeoNovaJob }) {
+export default function JobCard({ job }: { job: MetarduJob }) {
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return 'No date'
     return new Date(dateStr).toLocaleDateString('en-US', { 
@@ -49,7 +49,7 @@ export default function JobCard({ job }: { job: GeoNovaJob }) {
           )}
           <div className="flex items-center gap-2 text-gray-300 font-medium">
             <span>📅</span>
-            <span>{formatDate(job.scheduled_date)}</span>
+            <span>{formatDate(job.scheduled_date ?? null)}</span>
           </div>
         </div>
         

@@ -533,7 +533,7 @@ export default function DigitalFieldBookPage() {
 
   function exportJSON() {
     const payload = { id: fieldbookId, type, name: name.trim() || `${type.toUpperCase()} Field Book`, projectId, createdAt: new Date().toISOString(), data: currentDataPayload() }
-    downloadBlob(`geonova-fieldbook-${type}.json`, new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
+    downloadBlob(`metardu-fieldbook-${type}.json`, new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
   }
 
    async function exportCSV() {
@@ -562,7 +562,7 @@ export default function DigitalFieldBookPage() {
      }
 
      const Papa = (await import('papaparse')).default
-     downloadBlob(`geonova-fieldbook-${type}.csv`, new Blob([Papa.unparse(rows)], { type: 'text/csv' }))
+     downloadBlob(`metardu-fieldbook-${type}.csv`, new Blob([Papa.unparse(rows)], { type: 'text/csv' }))
    }
 
   async function exportPDF() {
@@ -660,7 +660,7 @@ export default function DigitalFieldBookPage() {
       autoTable(doc, { startY: 32, head: [['Point', 'Bearing', 'V.Ang', 'Slope', 'Easting', 'Northing', 'RL', 'Remarks']], body: miningComputed.ok ? miningComputed.rows.map((r: any) => [r.pointId, r.bearingNum !== null && r.bearingNum !== undefined ? bearingToString(r.bearingNum) : r.bearing, r.verticalAngle, r.slopeDistance, r.computed ? r.computed.easting : '', r.computed ? r.computed.northing : '', r.computed ? r.computed.elevation : '', r.remarks]) : [], styles: { fontSize: 8 } })
     }
 
-    downloadBlob(`geonova-fieldbook-${type}.pdf`, doc.output('blob'))
+    downloadBlob(`metardu-fieldbook-${type}.pdf`, doc.output('blob'))
   }
 
   return (

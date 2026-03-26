@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { createJob, getEquipmentByType, getChecklistByType } from '@/lib/supabase/jobs'
+import { createJob, getEquipmentByType, getChecklistByType, CreateJobInput } from '@/lib/supabase/jobs'
 
 interface JobFormProps {
   surveyType?: string
   onSuccess?: () => void
 }
 
-export default function JobForm({ surveyType, onSuccess }: JobFormProps) {
+export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.Element {
   const [formData, setFormData] = useState({
     name: '',
     client: '',
@@ -33,11 +33,12 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps) {
     await loadRecommendations(type)
   }
 
-
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
-      await createJob(formData)
+      const jobData = { ...formData, status: 'planned' } as CreateJobInput
+      await createJob(jobData)
       onSuccess?.()
     } catch (error) {
       console.error(error)

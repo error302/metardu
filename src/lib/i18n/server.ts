@@ -4,7 +4,7 @@ import type { Language } from './messages'
 
 export async function getRequestLanguage(): Promise<Language> {
   const cookieStore = await cookies()
-  const cookieLang = cookieStore.get('geonova_language')?.value
+  const cookieLang = cookieStore.get('metardu_language')?.value
   if (isLanguage(cookieLang)) return cookieLang
   return defaultLanguage
 }

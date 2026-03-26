@@ -40,8 +40,8 @@ export interface EquipmentWithStatus extends Equipment {
   percentUsed: number        // 0–100, how far through the interval
 }
 
-const STORAGE_KEY = 'geonova_equipment'
-const LOG_KEY = 'geonova_calibration_logs'
+const STORAGE_KEY = 'metardu_equipment'
+const LOG_KEY = 'metardu_calibration_logs'
 
 // ── Storage helpers ──────────────────────────────────────────────────────────
 

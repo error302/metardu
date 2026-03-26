@@ -38,8 +38,8 @@ export interface JobProposal {
   submittedAt: string
 }
 
-const JOB_KEY = 'geonova_jobs'
-const PROP_KEY = 'geonova_proposals'
+const JOB_KEY = 'metardu_jobs'
+const PROP_KEY = 'metardu_proposals'
 
 function loadJobs(): SurveyJob[] {
   if (typeof window === 'undefined') return []

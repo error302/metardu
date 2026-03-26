@@ -1,14 +1,12 @@
 import { createClient } from '@/lib/supabase/client'
 
-import { cookies } from 'next/headers'
-
-export interface GeoNovaJob {
+export interface MetarduJob {
   id: string
   user_id: string
   name: string
   client?: string | null
   survey_type: 'boundary' | 'topographic' | 'leveling' | 'road' | 'construction' | 'control' | 'mining' | 'hydrographic' | 'drone' | 'gnss' | 'other'
-  location?: { lat: number; lng: number } | null  // Simplified for frontend
+  location?: { lat: number; lng: number } | null
   scheduled_date?: string | null
   crew_size?: number | null
   status: 'planned' | 'active' | 'completed' | 'cancelled'
@@ -29,8 +27,9 @@ export interface JobChecklist {
   tasks: string[]
 }
 
-// Client-side functions
-export async function getUserJobs(): Promise<GeoNovaJob[]> {
+export type CreateJobInput = Omit<MetarduJob, 'id' | 'created_at' | 'updated_at' | 'user_id'>
+
+export async function getUserJobs(): Promise<MetarduJob[]> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
@@ -45,7 +44,7 @@ export async function getUserJobs(): Promise<GeoNovaJob[]> {
   return data || []
 }
 
-export async function createJob(job: Omit<GeoNovaJob, 'id' | 'created_at' | 'updated_at'>): Promise<GeoNovaJob> {
+export async function createJob(job: CreateJobInput): Promise<MetarduJob> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
@@ -60,7 +59,7 @@ export async function createJob(job: Omit<GeoNovaJob, 'id' | 'created_at' | 'upd
   return data
 }
 
-export async function getJob(id: string): Promise<GeoNovaJob | null> {
+export async function getJob(id: string): Promise<MetarduJob | null> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('jobs')
@@ -72,7 +71,7 @@ export async function getJob(id: string): Promise<GeoNovaJob | null> {
   return data || null
 }
 
-export async function updateJob(id: string, updates: Partial<GeoNovaJob>): Promise<GeoNovaJob> {
+export async function updateJob(id: string, updates: Partial<MetarduJob>): Promise<MetarduJob> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('jobs')
@@ -118,35 +117,3 @@ export async function getChecklistByType(survey_type: string): Promise<string[]>
   if (error || !data) return []
   return data.tasks || []
 }
-
-// Server-side (for SSR/pages)
-export async function getUserJobsServer(): Promise<GeoNovaJob[]> {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-          } catch (e) {}
-        },
-      },
-    }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
-
-  const { data, error } = await supabase
-    .from('jobs')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('scheduled_date', { ascending: true, nullsFirst: true })
-
-  if (error) throw error
-  return data || []
-}
-

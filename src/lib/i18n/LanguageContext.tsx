@@ -21,7 +21,7 @@ const LanguageContext = createContext<LanguageContextType>({
 
 function setLanguageCookie(lang: Language) {
   const maxAgeSeconds = 60 * 60 * 24 * 365
-  document.cookie = `geonova_language=${encodeURIComponent(lang)}; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax`
+  document.cookie = `metardu_language=${encodeURIComponent(lang)}; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax`
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
@@ -30,7 +30,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
-    const savedRaw = localStorage.getItem('geonova_language')
+    const savedRaw = localStorage.getItem('metardu_language')
     const saved = isLanguage(savedRaw) ? savedRaw : null
 
     const browser = navigator.language?.split('-')[0]?.toLowerCase()
@@ -42,7 +42,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setIsRTL(initial === 'ar')
     document.documentElement.dir = initial === 'ar' ? 'rtl' : 'ltr'
     document.documentElement.lang = initial
-    localStorage.setItem('geonova_language', initial)
+    localStorage.setItem('metardu_language', initial)
     setLanguageCookie(initial)
     setHydrated(true)
   }, [])
@@ -50,7 +50,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const setLanguage = (lang: Language) => {
     setLanguageState(lang)
     setIsRTL(lang === 'ar')
-    localStorage.setItem('geonova_language', lang)
+    localStorage.setItem('metardu_language', lang)
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'
     document.documentElement.lang = lang
     setLanguageCookie(lang)

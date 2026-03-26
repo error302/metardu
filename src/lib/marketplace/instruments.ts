@@ -41,8 +41,8 @@ export interface InquiryMessage {
   sentAt: string
 }
 
-const LISTING_KEY = 'geonova_instrument_listings'
-const INQUIRY_KEY = 'geonova_instrument_inquiries'
+const LISTING_KEY = 'metardu_instrument_listings'
+const INQUIRY_KEY = 'metardu_instrument_inquiries'
 
 function loadListings(): InstrumentListing[] {
   if (typeof window === 'undefined') return []

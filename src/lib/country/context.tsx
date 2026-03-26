@@ -52,7 +52,7 @@ const CountryContext = createContext<CountryContextType>({
 
 function setCountryCookie(country: SurveyingCountry) {
   const maxAgeSeconds = 60 * 60 * 24 * 365
-  document.cookie = `geonova_country=${encodeURIComponent(country)}; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax`
+  document.cookie = `metardu_country=${encodeURIComponent(country)}; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax`
 }
 
 export function CountryProvider({ children }: { children: ReactNode }) {
@@ -61,7 +61,7 @@ export function CountryProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const saved = localStorage.getItem('geonova_country') as SurveyingCountry | null
+    const saved = localStorage.getItem('metardu_country') as SurveyingCountry | null
     if (saved && ALL_COUNTRIES.some(c => c.id === saved)) {
       setCountryState(saved)
       return
@@ -71,8 +71,8 @@ export function CountryProvider({ children }: { children: ReactNode }) {
       const cookies = Object.fromEntries(
         document.cookie.split('; ').map(c => c.split('='))
       )
-      if (cookies['geonova_country']) {
-        const cookieCountry = decodeURIComponent(cookies['geonova_country']) as SurveyingCountry
+      if (cookies['metardu_country']) {
+        const cookieCountry = decodeURIComponent(cookies['metardu_country']) as SurveyingCountry
         if (ALL_COUNTRIES.some(c => c.id === cookieCountry)) {
           setCountryState(cookieCountry)
         }
@@ -86,7 +86,7 @@ export function CountryProvider({ children }: { children: ReactNode }) {
           const match = getCountryByISO(data.country_code)
           if (match) {
             setCountryState(match.country)
-            localStorage.setItem('geonova_country', match.country)
+            localStorage.setItem('metardu_country', match.country)
           }
         }
       })
@@ -98,7 +98,7 @@ export function CountryProvider({ children }: { children: ReactNode }) {
 
   function setCountry(c: SurveyingCountry) {
     setCountryState(c)
-    localStorage.setItem('geonova_country', c)
+    localStorage.setItem('metardu_country', c)
     setCountryCookie(c)
   }
 

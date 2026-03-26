@@ -2,7 +2,7 @@
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getJob, getEquipmentByType, getChecklistByType, GeoNovaJob } from '@/lib/supabase/jobs'
+import { getJob, getEquipmentByType, getChecklistByType, MetarduJob } from '@/lib/supabase/jobs'
 import { useEffect, useState } from 'react'
 import JobCard from '@/components/jobs/JobCard'
 
@@ -38,8 +38,8 @@ const WORKFLOW_GUIDES: WorkflowGuide = {
   // Add more as needed
 }
 
-export default async function JobDetailPage({ params }: { params: { id: string } }) {
-  const [job, setJob] = useState<GeoNovaJob | null>(null)
+export default function JobDetailPage({ params }: { params: { id: string } }) {
+  const [job, setJob] = useState<MetarduJob | null>(null)
   const [equipment, setEquipment] = useState<string[]>([])
   const [checklist, setChecklist] = useState<string[]>([])
   const [loading, setLoading] = useState(true)

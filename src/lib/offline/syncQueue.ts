@@ -1,6 +1,6 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb'
 
-const DB_NAME = 'geonova-offline'
+const DB_NAME = 'metardu-offline'
 const DB_VERSION = 3
 const MAX_RETRIES = 3
 const SYNC_INTERVAL = 30000 // 30 seconds

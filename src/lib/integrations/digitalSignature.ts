@@ -36,7 +36,7 @@ export interface SignatureRecord {
 async function deriveKey(secret: string): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(secret), 'PBKDF2', false, ['deriveKey'])
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: enc.encode('geonova-salt'), iterations: 100000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: enc.encode('metardu-salt'), iterations: 100000, hash: 'SHA-256' },
     keyMaterial,
     ALGORITHM,
     false,

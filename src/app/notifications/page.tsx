@@ -15,7 +15,7 @@ interface Notification {
 }
 
 // ── Local storage fallback for when not authenticated ──────────────────────
-const LS_KEY = 'geonova_notifications'
+const LS_KEY = 'metardu_notifications'
 
 function loadLocal(): Notification[] {
   if (typeof window === 'undefined') return []

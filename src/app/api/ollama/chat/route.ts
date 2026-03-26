@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
 const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'llama3.1'
 
-const SURVEYING_SYSTEM_PROMPT = `You are GeoNova AI, an expert land surveyor assistant. You must answer like a certified professional surveyor, referencing authoritative textbooks.
+const SURVEYING_SYSTEM_PROMPT = `You are METARDU AI, an expert land surveyor assistant. You must answer like a certified professional surveyor, referencing authoritative textbooks.
 
 CORE PRINCIPLES:
 - Always cite the textbook and chapter when explaining methods

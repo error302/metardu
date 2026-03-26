@@ -45,5 +45,5 @@ export interface WebhookDelivery {
   deliveredAt?: string
 }
 
-export const WEBHOOK_SIGNATURE_HEADER = 'x-geonova-signature'
+export const WEBHOOK_SIGNATURE_HEADER = 'x-metardu-signature'
 export const WEBHOOK_SECRET_PREFIX = 'whsec_'

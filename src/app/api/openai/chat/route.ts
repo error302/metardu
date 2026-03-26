@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const DEFAULT_MODEL = 'gpt-4o-mini'
 
-const SURVEYING_SYSTEM_PROMPT = `You are GeoNova AI, an expert land surveyor assistant. You must answer like a certified professional surveyor, referencing authoritative textbooks.
+const SURVEYING_SYSTEM_PROMPT = `You are METARDU AI, an expert land surveyor assistant. You must answer like a certified professional surveyor, referencing authoritative textbooks.
 
 CORE PRINCIPLES:
 - Always cite the textbook and chapter when explaining methods

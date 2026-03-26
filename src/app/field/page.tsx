@@ -17,7 +17,7 @@ import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/sol
 type Tab = 'points' | 'traverse' | 'leveling' | 'radiation'
 type SyncStatus = 'synced' | 'pending' | 'offline'
 
-const STORAGE_KEY = 'geonova_pending_observations'
+const STORAGE_KEY = 'metardu_pending_observations'
 
 export default function FieldPage() {
   const router = useRouter()
