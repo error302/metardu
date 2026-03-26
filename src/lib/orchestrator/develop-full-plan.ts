@@ -1,6 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { callAI, isProError } from '@/lib/api/ai-client'
 
 interface Project {
   id: string
@@ -222,6 +223,12 @@ export async function developFullPlan(
     includeSettingOut: false,
   }
 ): Promise<PlanPackage> {
+  const tierCheck = await callAI<void>({ endpoint: '/api/tier-check', body: {}, requirePro: true })
+  
+  if (isProError(tierCheck)) {
+    throw new Error('PRO_REQUIRED: Upgrade to Pro for full plan generation')
+  }
+
   const { project, points, traverseObs, levelingObs } = await loadProjectData(projectId)
   
   if (!project) {
