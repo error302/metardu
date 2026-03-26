@@ -134,6 +134,52 @@ export default function DigitalFieldBookPage() {
     },
   ])
   const [activeControlSetupId, setActiveControlSetupId] = useState<string>(initialControlSetupId)
+
+  const [planGenerating, setPlanGenerating] = useState(false)
+  const [planStep, setPlanStep] = useState('')
+  const [planResult, setPlanResult] = useState<{ success: boolean; downloadUrl?: string; error?: string } | null>(null)
+
+  const handleDevelopFullPlan = async () => {
+    if (!projectId) {
+      alert('Please select a project first')
+      return
+    }
+    
+    setPlanGenerating(true)
+    setPlanStep('Initializing...')
+    setPlanResult(null)
+    
+    try {
+      setPlanStep('Loading project data...')
+      const response = await fetch('/api/plan/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          options: {
+            adjustmentMethod: 'bowditch',
+            includeVolumes: true,
+            includeSettingOut: true,
+          }
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Generation failed')
+      }
+      
+      setPlanStep('Packaging results...')
+      setPlanResult({ success: true, downloadUrl: data.downloadUrl })
+    } catch (err: any) {
+      setPlanResult({ success: false, error: err.message })
+    } finally {
+      setPlanGenerating(false)
+      setPlanStep('')
+    }
+  }
+
   const activeControlSetup = useMemo(() => {
     return controlSetups.find((s) => s.id === activeControlSetupId) ?? controlSetups[0]
   }, [controlSetups, activeControlSetupId])
@@ -723,6 +769,32 @@ export default function DigitalFieldBookPage() {
                 Sync: {syncStatus.synced} synced, {syncStatus.failed} failed
               </p>
             )}
+
+            <div className="pt-2 border-t border-[var(--border-color)]">
+              <button
+                onClick={handleDevelopFullPlan}
+                disabled={planGenerating || !projectId}
+                className="w-full btn bg-green-600 hover:bg-green-700 text-white border-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {planGenerating ? planStep || 'Generating...' : 'Develop Full Plan'}
+              </button>
+              {planResult && (
+                <div className="mt-2 p-2 rounded text-xs">
+                  {planResult.success ? (
+                    <a
+                      href={planResult.downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-400 underline"
+                    >
+                      Download Plan Package
+                    </a>
+                  ) : (
+                    <span className="text-red-400">Error: {planResult.error}</span>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="pt-2 border-t border-[var(--border-color)] flex gap-2">
               <button onClick={exportPDF} className="btn btn-secondary flex-1">
