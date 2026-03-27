@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import { MapContainer, TileLayer, CircleMarker, useMap } from 'react-leaflet'
 import type { SoundingPoint } from '@/types/bathymetry'
 import 'leaflet/dist/leaflet.css'
@@ -32,15 +32,16 @@ function FitBounds({ soundings }: { soundings: SoundingPoint[] }) {
 }
 
 export default function BathymetryMap({ soundings, height = '400px' }: BathymetryMapProps) {
-  const minDepth = Math.min(...soundings.map(s => s.depth))
-  const maxDepth = Math.max(...soundings.map(s => s.depth))
+  const minDepth = useMemo(() => Math.min(...soundings.map(s => s.depth)), [soundings])
+  const maxDepth = useMemo(() => Math.max(...soundings.map(s => s.depth)), [soundings])
   
-  const center: [number, number] = soundings.length > 0
-    ? [
-        soundings.reduce((sum, s) => sum + s.northing, 0) / soundings.length,
-        soundings.reduce((sum, s) => sum + s.easting, 0) / soundings.length
-      ]
-    : [0, 0]
+  const center: [number, number] = useMemo(() => {
+    if (soundings.length === 0) return [0, 0]
+    return [
+      soundings.reduce((sum, s) => sum + s.northing, 0) / soundings.length,
+      soundings.reduce((sum, s) => sum + s.easting, 0) / soundings.length
+    ]
+  }, [soundings])
   
   return (
     <MapContainer

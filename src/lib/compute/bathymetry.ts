@@ -1,6 +1,9 @@
 import type { ProcessBathymetryRequest, ProcessBathymetryResponse, SoundingPoint } from '@/types/bathymetry'
 
-const BASE = process.env.NEXT_PUBLIC_URL || ''
+const BASE = process.env.NEXT_PUBLIC_URL
+if (!BASE) {
+  throw new Error('NEXT_PUBLIC_URL environment variable is not configured')
+}
 
 export async function processBathymetry(
   projectId: string,
