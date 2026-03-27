@@ -9,26 +9,54 @@ import HazardAlert from '@/components/hydrolive/HazardAlert'
 import { processBathymetry } from '@/lib/compute/bathymetry'
 import type { SoundingPoint, ProcessBathymetryResponse } from '@/types/bathymetry'
 
+interface CSVRow {
+  id?: string
+  easting?: string
+  X?: string
+  northing?: string
+  Y?: string
+  depth?: string
+  Z?: string
+  Depth?: string
+}
+
 export default function HydroLivePage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ProcessBathymetryResponse | null>(null)
   const [soundings, setSoundings] = useState<SoundingPoint[]>([])
+  const [error, setError] = useState<string | null>(null)
   const projectId = 'default-project'
   
   const handleUpload = async (file: File) => {
+    setError(null)
     const text = await file.text()
     let parsedSoundings: SoundingPoint[]
     
     if (file.name.endsWith('.json')) {
-      parsedSoundings = JSON.parse(text)
+      try {
+        const json = JSON.parse(text)
+        parsedSoundings = Array.isArray(json) ? json : []
+      } catch {
+        setError('Invalid JSON file')
+        return
+      }
     } else {
-      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
-      parsedSoundings = parsed.data.map((row: any, i: number) => ({
+      const parsed = Papa.parse<CSVRow>(text, { header: true, skipEmptyLines: true })
+      if (parsed.errors.length > 0) {
+        setError('Error parsing CSV file')
+        return
+      }
+      parsedSoundings = parsed.data.map((row, i) => ({
         id: row.id || String(i),
-        easting: parseFloat(row.easting || row.X || 0),
-        northing: parseFloat(row.northing || row.Y || 0),
-        depth: parseFloat(row.depth || row.Z || row.Depth || 0)
-      })).filter((s: any) => !isNaN(s.depth))
+        easting: parseFloat(row.easting || row.X || '0'),
+        northing: parseFloat(row.northing || row.Y || '0'),
+        depth: parseFloat(row.depth || row.Z || row.Depth || '0')
+      })).filter((s) => !isNaN(s.depth) && s.depth > 0)
+    }
+    
+    if (parsedSoundings.length === 0) {
+      setError('No valid soundings found in file')
+      return
     }
     
     setSoundings(parsedSoundings)
@@ -41,7 +69,7 @@ export default function HydroLivePage() {
       })
       setResult(res)
     } catch (err) {
-      console.error(err)
+      setError(err instanceof Error ? err.message : 'Failed to process bathymetry')
     } finally {
       setLoading(false)
     }
@@ -54,7 +82,7 @@ export default function HydroLivePage() {
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Upload Soundings</h2>
         
-        <label className="flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 w-fit">
+        <label className={`flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 w-fit ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
           <Upload className="h-5 w-5" />
           Upload Depth Data
           <input
@@ -65,6 +93,12 @@ export default function HydroLivePage() {
             disabled={loading}
           />
         </label>
+        
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
+            {error}
+          </div>
+        )}
         
         {loading && (
           <div className="mt-4 flex items-center gap-2">
