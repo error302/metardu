@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Upload, Loader2 } from 'lucide-react'
+import { Upload, Loader2, X } from 'lucide-react'
 import Papa from 'papaparse'
 import BathymetryMap from '@/components/hydrolive/BathymetryMap'
 import VolumeDelta from '@/components/hydrolive/VolumeDelta'
@@ -20,14 +20,39 @@ interface CSVRow {
   Depth?: string
 }
 
+function isValidSoundingPoint(item: unknown): item is SoundingPoint {
+  if (typeof item !== 'object' || item === null) return false
+  const obj = item as Record<string, unknown>
+  return (
+    typeof obj.id === 'string' &&
+    typeof obj.easting === 'number' &&
+    typeof obj.northing === 'number' &&
+    typeof obj.depth === 'number'
+  )
+}
+
 export default function HydroLivePage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ProcessBathymetryResponse | null>(null)
   const [soundings, setSoundings] = useState<SoundingPoint[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [fileName, setFileName] = useState<string | null>(null)
   const projectId = 'default-project'
   
+  const reset = () => {
+    setResult(null)
+    setSoundings([])
+    setError(null)
+    setFileName(null)
+  }
+  
   const handleUpload = async (file: File) => {
+    const MAX_FILE_SIZE = 10 * 1024 * 1024
+    if (file.size > MAX_FILE_SIZE) {
+      setError('File too large. Maximum size is 10MB.')
+      return
+    }
+
     setError(null)
     const text = await file.text()
     let parsedSoundings: SoundingPoint[]
@@ -35,7 +60,11 @@ export default function HydroLivePage() {
     if (file.name.endsWith('.json')) {
       try {
         const json = JSON.parse(text)
-        parsedSoundings = Array.isArray(json) ? json : []
+        if (!Array.isArray(json)) {
+          setError('JSON must be an array of sounding points')
+          return
+        }
+        parsedSoundings = json.filter(isValidSoundingPoint)
       } catch {
         setError('Invalid JSON file')
         return
@@ -59,6 +88,7 @@ export default function HydroLivePage() {
       return
     }
     
+    setFileName(file.name)
     setSoundings(parsedSoundings)
     setLoading(true)
     try {
@@ -82,17 +112,33 @@ export default function HydroLivePage() {
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Upload Soundings</h2>
         
-        <label className={`flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 w-fit ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-          <Upload className="h-5 w-5" />
-          Upload Depth Data
-          <input
-            type="file"
-            accept=".csv,.json"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])}
-            disabled={loading}
-          />
-        </label>
+        <div className="flex items-center gap-4 flex-wrap">
+          <label className={`flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 w-fit ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <Upload className="h-5 w-5" />
+            Upload Depth Data
+            <input
+              type="file"
+              accept=".csv,.json"
+              className="hidden"
+              aria-label="Upload depth data file"
+              onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])}
+              disabled={loading}
+            />
+          </label>
+          
+          {fileName && (
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <span>Loaded: {fileName}</span>
+              <button
+                onClick={reset}
+                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                aria-label="Clear uploaded data"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
         
         {error && (
           <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
