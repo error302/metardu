@@ -1,7 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Inter, Share_Tech_Mono, Barlow_Condensed } from 'next/font/google';
 
 import './globals.css';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const shareTechMono = Share_Tech_Mono({ weight: '400', subsets: ['latin'], variable: '--font-share-tech' });
+const barlowCondensed = Barlow_Condensed({ weight: ['400', '600', '700'], subsets: ['latin'], variable: '--font-barlow' });
 import NavBar from '@/components/NavBar';
 import MobileNav from '@/components/MobileNav';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
@@ -72,12 +77,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700&display=swap"
-          rel="stylesheet"
-        />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#111111" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -87,7 +86,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
       </head>
-      <body className="antialiased">
+      <body className={`antialiased ${inter.variable} ${shareTechMono.variable} ${barlowCondensed.variable}`}>
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-black focus:rounded focus:font-semibold">Skip to content</a>
         <LanguageProvider>
           <CountryProvider>

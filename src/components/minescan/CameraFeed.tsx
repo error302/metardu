@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { Video, Camera, RefreshCw, Maximize2, AlertCircle } from 'lucide-react'
 import { getCameraFeedUrl } from '@/lib/compute/safety'
 
@@ -93,10 +94,11 @@ export default function CameraFeed({ projectId, cameraId, cameraName = 'Camera F
         )}
 
         {snapshotUrl && !streamUrl && !loading && !error && (
-          <img
+          <Image
             src={snapshotUrl}
             alt="Camera snapshot"
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
             onError={() => setError('Failed to load snapshot')}
           />
         )}
