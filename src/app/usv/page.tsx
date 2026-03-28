@@ -1,10 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Navigation, Map, Activity, Plus, Ship, Save } from 'lucide-react'
-import MissionPlanner from '@/components/usv/MissionPlanner'
-import FleetMap from '@/components/usv/FleetMap'
-import TelemetryDashboard from '@/components/usv/TelemetryDashboard'
+
+const MissionPlanner = dynamic(() => import('@/components/usv/MissionPlanner'), { ssr: false })
+const FleetMap = dynamic(() => import('@/components/usv/FleetMap'), { ssr: false })
+const TelemetryDashboard = dynamic(() => import('@/components/usv/TelemetryDashboard'), { ssr: false })
+
 import type { Waypoint, USVTelemetry, CreateMissionRequest } from '@/types/usv'
 
 const PATTERNS = [

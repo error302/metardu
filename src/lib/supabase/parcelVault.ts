@@ -1,0 +1,183 @@
+import { createClient } from '@supabase/supabase-js'
+import type { NLIMSParcel } from '@/types/nlims'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+export type VaultFreshness = 'FRESH' | 'VERIFY' | 'STALE'
+
+export interface ParcelVaultEntry {
+  id: string
+  user_id: string
+  parcel_number: string
+  county: string
+  registration_section: string | null
+  area_sqm: number | null
+  title_deed_number: string | null
+  owner_type: string | null
+  encumbrances: any[]
+  status: string | null
+  certificate_date: string
+  expires_at: string
+  freshness: VaultFreshness
+  pdf_path: string | null
+  shared: boolean
+  parsed_data: NLIMSParcel
+  created_at: string
+  updated_at: string
+}
+
+export interface ParcelVaultShared {
+  id: string
+  parcel_number: string
+  county: string
+  registration_section: string | null
+  area_sqm: number | null
+  title_deed_number: string | null
+  encumbrances_count: number
+  status: string | null
+  certificate_date: string
+  freshness: string
+  contributor_count: number
+  last_updated: string
+}
+
+export interface VaultSearchResult {
+  source: 'personal' | 'shared' | 'nlims'
+  freshness?: VaultFreshness
+  certificateDate?: string
+  data: NLIMSParcel | ParcelVaultEntry | ParcelVaultShared
+}
+
+export interface VaultStats {
+  totalParcels: number
+  sharedParcels: number
+  freshParcels: number
+  verifyParcels: number
+  staleParcels: number
+}
+
+export async function searchVault(
+  parcelNumber: string,
+  county: string,
+  userId: string
+): Promise<VaultSearchResult | null> {
+  const sanitized = parcelNumber.trim().toUpperCase().replace(/\s+/g, '')
+
+  const { data: personal } = await supabase
+    .from('parcel_vault')
+    .select('*')
+    .eq('parcel_number', sanitized)
+    .eq('user_id', userId)
+    .single()
+
+  if (personal) {
+    return {
+      source: 'personal',
+      freshness: personal.freshness,
+      certificateDate: personal.certificate_date,
+      data: personal as any
+    }
+  }
+
+  const { data: shared } = await supabase
+    .from('parcel_vault_shared')
+    .select('*')
+    .eq('parcel_number', sanitized)
+    .single()
+
+  if (shared) {
+    return {
+      source: 'shared',
+      freshness: shared.freshness as VaultFreshness,
+      certificateDate: shared.certificate_date,
+      data: shared as any
+    }
+  }
+
+  return null
+}
+
+export async function saveToVault(
+  parcel: NLIMSParcel,
+  certificateDate: string,
+  pdfPath: string,
+  share: boolean,
+  userId: string
+): Promise<void> {
+  const sanitized = parcel.parcelNumber.trim().toUpperCase().replace(/\s+/g, '')
+
+  await supabase
+    .from('parcel_vault')
+    .upsert({
+      user_id: userId,
+      parcel_number: sanitized,
+      county: parcel.county,
+      registration_section: parcel.registrationSection,
+      area_sqm: parcel.area,
+      title_deed_number: parcel.titleDeedNumber,
+      owner_type: parcel.ownerType,
+      encumbrances: parcel.encumbrances,
+      status: parcel.status,
+      certificate_date: certificateDate,
+      pdf_path: pdfPath,
+      shared: share,
+      parsed_data: parcel
+    }, { onConflict: 'user_id,parcel_number' })
+
+  if (share) {
+    await supabase
+      .from('parcel_vault_shared')
+      .upsert({
+        parcel_number: sanitized,
+        county: parcel.county,
+        registration_section: parcel.registrationSection,
+        area_sqm: parcel.area,
+        title_deed_number: parcel.titleDeedNumber,
+        encumbrances_count: parcel.encumbrances.length,
+        status: parcel.status,
+        certificate_date: certificateDate,
+        freshness: new Date(certificateDate) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) ? 'FRESH' : 
+                   new Date(certificateDate) > new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) ? 'VERIFY' : 'STALE',
+        last_updated: new Date().toISOString()
+      }, { onConflict: 'parcel_number' })
+  }
+}
+
+export async function getUserVault(userId: string): Promise<ParcelVaultEntry[]> {
+  const { data, error } = await supabase
+    .from('parcel_vault')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
+}
+
+export async function getVaultStats(): Promise<VaultStats> {
+  const [total, shared, fresh, verify, stale] = await Promise.all([
+    supabase.from('parcel_vault').select('id', { count: 'exact', head: true }),
+    supabase.from('parcel_vault_shared').select('id', { count: 'exact', head: true }),
+    supabase.from('parcel_vault').select('id', { count: 'exact', head: true }).eq('freshness', 'FRESH'),
+    supabase.from('parcel_vault').select('id', { count: 'exact', head: true }).eq('freshness', 'VERIFY'),
+    supabase.from('parcel_vault').select('id', { count: 'exact', head: true }).eq('freshness', 'STALE')
+  ])
+
+  return {
+    totalParcels: total.count || 0,
+    sharedParcels: shared.count || 0,
+    freshParcels: fresh.count || 0,
+    verifyParcels: verify.count || 0,
+    staleParcels: stale.count || 0
+  }
+}
+
+export async function deleteVaultEntry(parcelNumber: string, userId: string): Promise<void> {
+  await supabase
+    .from('parcel_vault')
+    .delete()
+    .eq('parcel_number', parcelNumber)
+    .eq('user_id', userId)
+}

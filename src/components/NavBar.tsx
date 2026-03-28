@@ -75,6 +75,35 @@ const fieldGroups = [
   },
 ]
 
+const documentGroups = [
+  {
+    titleKey: 'nav.documents',
+    items: [
+      { href: '/deed-plan', labelKey: 'documents.deedPlan', badgeKey: 'new' },
+      { href: '/tools/survey-report-builder', labelKey: 'documents.surveyReport', badgeKey: 'new' },
+      { href: '/tools/beacon-reference', labelKey: 'documents.beaconReference' },
+      { href: '/tools/survey-regulations', labelKey: 'documents.surveyRegulations' },
+      { href: '/tools/us-survey-reference', labelKey: 'documents.usSurveyReference' },
+    ]
+  },
+]
+
+const advancedGroups = [
+  {
+    titleKey: 'nav.advanced',
+    items: [
+      { href: '/fieldguard', labelKey: 'advanced.fieldguard', badgeKey: 'ai' },
+      { href: '/cadastra', labelKey: 'advanced.cadastra', badgeKey: 'ai' },
+      { href: '/minetwin', labelKey: 'advanced.minetwin', badgeKey: 'new' },
+      { href: '/automator', labelKey: 'advanced.automator', badgeKey: 'new' },
+      { href: '/hydrolive', labelKey: 'advanced.hydrolive', badgeKey: 'ai' },
+      { href: '/usv', labelKey: 'advanced.usv', badgeKey: 'new' },
+      { href: '/minescan', labelKey: 'advanced.minescan', badgeKey: 'ai' },
+      { href: '/geofusion', labelKey: 'advanced.geofusion', badgeKey: 'new' },
+    ]
+  },
+]
+
 const moreGroups = [
   {
     titleKey: 'nav.import',
@@ -145,7 +174,7 @@ function Dropdown({ label, children, isOpen, onToggle, align = 'left', buttonCla
 }
 
 type Translator = (key: string, values?: Record<string, string | number>) => string
-type MenuItem = { href: string; labelKey: string; icon?: string; badgeKey?: string }
+type MenuItem = { href: string; labelKey: string; icon?: string; badgeKey?: 'new' | 'ai' | 'beta' | string }
 type MenuGroup = { titleKey: string; items: MenuItem[] }
 
 function DropdownGroup({
@@ -161,6 +190,19 @@ function DropdownGroup({
   onSelect?: () => void
   badgeCounts?: Record<string, number>
 }) {
+  const getBadgeStyle = (badgeKey?: string) => {
+    switch (badgeKey) {
+      case 'new':
+        return 'bg-green-600 text-white'
+      case 'ai':
+        return 'bg-indigo-600 text-white'
+      case 'beta':
+        return 'bg-amber-600 text-white'
+      default:
+        return 'bg-red-600 text-white'
+    }
+  }
+
   return (
     <div className="px-4 py-2">
       <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-2">
@@ -176,11 +218,15 @@ function DropdownGroup({
           <span className="inline-flex items-center gap-2">
             {item.icon ? <span aria-hidden>{item.icon}</span> : null}
             <span>{t(item.labelKey)}</span>
-            {item.badgeKey && badgeCounts && badgeCounts[item.badgeKey] > 0 && (
+            {item.badgeKey && (item.badgeKey === 'new' || item.badgeKey === 'ai' || item.badgeKey === 'beta') ? (
+              <span className={`inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded ${getBadgeStyle(item.badgeKey)}`}>
+                {item.badgeKey.toUpperCase()}
+              </span>
+            ) : item.badgeKey && badgeCounts && badgeCounts[item.badgeKey] > 0 ? (
               <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold bg-red-600 text-white rounded-full">
                 !
               </span>
-            )}
+            ) : null}
           </span>
         </Link>
       ))}
@@ -461,6 +507,30 @@ export default function NavBar() {
             >
               {t('nav.projects')}
             </Link>
+
+            {/* Documents Dropdown */}
+            <Dropdown
+              label={t('nav.documents')}
+              isOpen={openDropdown === 'documents'}
+              onToggle={() => handleDropdownToggle('documents')}
+              panelClassName="min-w-[240px] py-2"
+            >
+              {documentGroups.map((group, idx) => (
+                <DropdownGroup key={idx} titleKey={group.titleKey} items={group.items} t={t} onSelect={() => setOpenDropdown(null)} />
+              ))}
+            </Dropdown>
+
+            {/* Advanced Modules Dropdown */}
+            <Dropdown
+              label={t('nav.advanced')}
+              isOpen={openDropdown === 'advanced'}
+              onToggle={() => handleDropdownToggle('advanced')}
+              panelClassName="min-w-[280px] py-2"
+            >
+              {advancedGroups.map((group, idx) => (
+                <DropdownGroup key={idx} titleKey={group.titleKey} items={group.items} t={t} onSelect={() => setOpenDropdown(null)} />
+              ))}
+            </Dropdown>
 
             <Dropdown
               label={t('nav.field')}

@@ -3,6 +3,8 @@
     "tools": "Tools",
     "projects": "Projects",
     "field": "Field",
+    "documents": "Documents",
+    "advanced": "Advanced",
     "import": "Import",
     "more": "More",
     "ai": "AI",
@@ -17,6 +19,23 @@
     "register": "Get Started",
     "signOut": "Sign Out",
     "search": "Search..."
+  },
+  "documents": {
+    "deedPlan": "Deed Plan",
+    "surveyReport": "Survey Report",
+    "beaconReference": "Beacon Reference",
+    "surveyRegulations": "Kenya Survey Regulations",
+    "usSurveyReference": "US Survey Standards"
+  },
+  "advanced": {
+    "fieldguard": "FieldGuard AI",
+    "cadastra": "CadastraAI",
+    "minetwin": "MineTwin 3D",
+    "automator": "SurveyFlow",
+    "hydrolive": "HydroLive",
+    "usv": "USV Orchestrator",
+    "minescan": "MineScan Safety",
+    "geofusion": "GeoFusion Hub"
   },
   "online": {
     "coordinateServices": "Coordinate Services",

@@ -1,10 +1,10 @@
-# GeoNova
+# METARDU
 
  Professional surveying calculation platform for land surveyors - the complete replacement for expensive software like Trimble, Leica, and AutoCAD.
 
-## Why GeoNova?
+## Why METARDU?
 
-Surveying is mentally exhausting. Long days collecting observations, hours of manual computation, misclosure checks, and report writing. GeoNova handles everything so you can focus on what matters - taking accurate observations.
+Surveying is mentally exhausting. Long days collecting observations, hours of manual computation, misclosure checks, and report writing. METARDU handles everything so you can focus on what matters - taking accurate observations.
 
 ## Features
 

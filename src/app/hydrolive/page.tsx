@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Upload, Loader2, X } from 'lucide-react'
 import Papa from 'papaparse'
-import BathymetryMap from '@/components/hydrolive/BathymetryMap'
-import VolumeDelta from '@/components/hydrolive/VolumeDelta'
-import HazardAlert from '@/components/hydrolive/HazardAlert'
+
+const BathymetryMap = dynamic(() => import('@/components/hydrolive/BathymetryMap'), { ssr: false })
+const VolumeDelta = dynamic(() => import('@/components/hydrolive/VolumeDelta'), { ssr: false })
+const HazardAlert = dynamic(() => import('@/components/hydrolive/HazardAlert'), { ssr: false })
+
 import { processBathymetry } from '@/lib/compute/bathymetry'
 import type { SoundingPoint, ProcessBathymetryResponse } from '@/types/bathymetry'
 

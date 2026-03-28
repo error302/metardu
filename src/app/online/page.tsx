@@ -1,16 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { transformCoordinates, getSupportedSystems } from '@/lib/online/coordinates'
 import { calculateEDMCorrection } from '@/lib/online/weather'
-import { searchBenchmarks, getAvailableCountries, getBenchmarkTypes } from '@/lib/online/benchmarks'
+import { searchBenchmarks, getAvailableCountries, getBenchmarkTypes, Benchmark } from '@/lib/online/benchmarks'
+import GNSSProcessor from '@/components/online/GNSSProcessor'
+import CoordinateTransformer from '@/components/online/CoordinateTransformer'
+import ImageryViewer from '@/components/online/ImageryViewer'
 
 export default function OnlineServicesPage() {
-  const [activeTab, setActiveTab] = useState<'transform' | 'benchmarks' | 'weather'>('transform')
+  const [activeTab, setActiveTab] = useState<'gnss' | 'transform' | 'edm' | 'benchmarks' | 'imagery'>('gnss')
   const [transformResult, setTransformResult] = useState<any>(null)
-  const [benchmarkResults, setBenchmarkResults] = useState<any[]>([])
+  const [benchmarkResults, setBenchmarkResults] = useState<Benchmark[]>([])
   const [weatherResult, setWeatherResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [onlineStatus, setOnlineStatus] = useState<'online' | 'offline'>('online')
+
+  useEffect(() => {
+    const handleOnline = () => setOnlineStatus('online')
+    const handleOffline = () => setOnlineStatus('offline')
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    setOnlineStatus(navigator.onLine ? 'online' : 'offline')
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   const [transformInput, setTransformInput] = useState({
     latitude: '',
@@ -85,14 +101,24 @@ export default function OnlineServicesPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Online Services</h1>
-        <p className="text-[var(--text-muted)] mb-8">Live coordinate transformations, benchmark lookup, and atmospheric corrections</p>
+        <div className="flex justify-between items-start mb-2">
+          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Online Services</h1>
+          <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+            onlineStatus === 'online' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${onlineStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+            {onlineStatus === 'online' ? 'Connected' : 'Offline'}
+          </div>
+        </div>
+        <p className="text-[var(--text-muted)] mb-8">Live coordinate transformations, benchmark lookup, GNSS processing, and atmospheric corrections</p>
 
-        <div className="flex space-x-4 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           {[
+            { id: 'gnss', label: 'GNSS Baseline' },
             { id: 'transform', label: 'Coordinate Transform' },
+            { id: 'edm', label: 'EDM Corrections' },
             { id: 'benchmarks', label: 'Benchmarks' },
-            { id: 'weather', label: 'EDM Corrections' }
+            { id: 'imagery', label: 'Satellite Imagery' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -107,6 +133,26 @@ export default function OnlineServicesPage() {
             </button>
           ))}
         </div>
+
+        {activeTab === 'gnss' && (
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
+            <h2 className="text-xl font-semibold mb-4">GNSS Baseline Processing</h2>
+            <p className="text-sm text-[var(--text-muted)] mb-6">
+              Process GNSS baseline observations for high-precision control network adjustments
+            </p>
+            <GNSSProcessor />
+          </div>
+        )}
+
+        {activeTab === 'imagery' && (
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
+            <h2 className="text-xl font-semibold mb-4">Satellite Imagery Overlay</h2>
+            <p className="text-sm text-[var(--text-muted)] mb-6">
+              Access Sentinel-2 satellite imagery for survey planning and verification
+            </p>
+            <ImageryViewer />
+          </div>
+        )}
 
         {activeTab === 'transform' && (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
@@ -317,9 +363,38 @@ export default function OnlineServicesPage() {
           </div>
         )}
 
-        {activeTab === 'weather' && (
+        {activeTab === 'edm' && (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
-            <h2 className="text-xl font-semibold mb-4">EDM Atmospheric Correction</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">EDM Atmospheric Correction</h2>
+              <button
+                onClick={async () => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(async (pos) => {
+                      const { latitude, longitude } = pos.coords
+                      try {
+                        const res = await fetch(`/api/weather?lat=${latitude}&lon=${longitude}`)
+                        const data = await res.json()
+                        if (data.temperature !== undefined) {
+                          setWeatherInput({
+                            ...weatherInput,
+                            temperature: data.temperature.toString(),
+                            pressure: data.pressure?.toString() || '1013.25',
+                            humidity: data.humidity?.toString() || '50',
+                            elevation: data.elevation?.toString() || ''
+                          })
+                        }
+                      } catch (e) {
+                        console.error('Failed to fetch weather:', e)
+                      }
+                    })
+                  }
+                }}
+                className="text-sm px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                📍 Get Live Weather
+              </button>
+            </div>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>

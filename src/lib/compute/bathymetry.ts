@@ -1,8 +1,8 @@
 import type { ProcessBathymetryRequest, ProcessBathymetryResponse, SoundingPoint } from '@/types/bathymetry'
 
-const BASE = process.env.NEXT_PUBLIC_URL
-if (!BASE) {
-  throw new Error('NEXT_PUBLIC_URL environment variable is not configured')
+function getBaseUrl(): string {
+  if (typeof window !== 'undefined') return ''
+  return process.env.NEXT_PUBLIC_URL || ''
 }
 
 export async function processBathymetry(
@@ -10,6 +10,7 @@ export async function processBathymetry(
   soundings: SoundingPoint[],
   options?: { contour_interval?: number; detect_hazards?: boolean; compare_previous?: boolean }
 ): Promise<ProcessBathymetryResponse> {
+  const BASE = getBaseUrl()
   const res = await fetch(`${BASE}/api/hydro/process`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

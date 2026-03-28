@@ -1,4 +1,4 @@
-import { Node, Edge } from 'reactflow'
+import { Node } from 'reactflow'
 
 export type WorkflowNodeType = 
   | 'fieldbook' 
@@ -17,7 +17,14 @@ export interface WorkflowNode extends Node {
   }
 }
 
-export interface WorkflowEdge extends Edge {
+export interface WorkflowEdge {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
+  type?: string
+  animated?: boolean
   data?: {
     label?: string
   }

@@ -29,7 +29,7 @@ export async function generateReport(
   const res = await fetch(`${BASE}/api/automator/report`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project_data: projectData, sections, style } as ReportRequest)
+    body: JSON.stringify({ project_data: projectData, sections, style })
   })
   
   if (!res.ok) {

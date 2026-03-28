@@ -1,0 +1,75 @@
+import { createClient } from '@/lib/supabase/client'
+import type { DeedPlanInput, DeedPlanOutput, DeedPlanDocument } from '@/types/deedPlan'
+
+export async function saveDeedPlan(
+  projectId: string,
+  input: DeedPlanInput,
+  output: DeedPlanOutput
+): Promise<DeedPlanDocument> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase
+    .from('deed_plans')
+    .insert({
+      project_id: projectId,
+      user_id: user.id,
+      survey_number: input.surveyNumber,
+      drawing_number: input.drawingNumber,
+      parcel_number: input.parcelNumber,
+      locality: input.locality,
+      area_sqm: input.area,
+      scale: input.scale,
+      datum: input.datum,
+      input_data: input,
+      svg_content: output.svg,
+      closure_check: output.closureCheck,
+      status: 'draft'
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as DeedPlanDocument
+}
+
+export async function getDeedPlansByProject(projectId: string): Promise<DeedPlanDocument[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('deed_plans')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data as DeedPlanDocument[]
+}
+
+export async function getDeedPlanById(id: string): Promise<DeedPlanDocument | null> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('deed_plans')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) throw error
+  return data as DeedPlanDocument
+}
+
+export async function updateDeedPlanStatus(
+  id: string,
+  status: 'draft' | 'finalised'
+): Promise<DeedPlanDocument> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('deed_plans')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as DeedPlanDocument
+}

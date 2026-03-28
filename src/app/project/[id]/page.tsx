@@ -865,6 +865,21 @@ export default function ProjectPage({ params }: PageProps) {
               </button>
             </SidebarSection>
 
+            <SidebarSection title="DOCUMENTS">
+              <Link
+                href={`/deed-plan?projectId=${params.id}`}
+                className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors text-left block"
+              >
+                Generate Deed Plan
+              </Link>
+              <Link
+                href={`/tools/survey-report-builder?projectId=${params.id}`}
+                className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors text-left block"
+              >
+                Write Survey Report
+              </Link>
+            </SidebarSection>
+
             <SidebarDivider />
 
             <SidebarSection title="TOOLS">
