@@ -1,0 +1,58 @@
+type User @table {
+  username: String!
+  email: String!
+  passwordHash: String!
+  displayName: String
+  profilePictureUrl: String
+  bio: String
+  createdAt: Timestamp
+}
+
+type Game @table {
+  name: String!
+  bggId: String
+  description: String
+  minPlayers: Int
+  maxPlayers: Int
+  playingTime: Int
+  imageUrl: String
+  thumbnailUrl: String
+  yearPublished: Int
+  designer: String
+  artist: String
+  publisher: String
+  categories: [String]
+  mechanisms: [String]
+}
+
+type CollectionItem @table(key: ["user", "game"]) {
+  user: User!
+  game: Game!
+  ownedDate: Timestamp!
+  notes: String
+  isExpansion: Boolean
+}
+
+type Play @table {
+  user: User!
+  game: Game!
+  playDate: Timestamp!
+  notes: String
+  duration: Int
+  isWin: Boolean
+  score: Int
+  location: String
+}
+
+type Comment @table {
+  user: User!
+  play: Play!
+  content: String!
+  createdAt: Timestamp!
+}
+
+type Follow @table(key: ["follower", "followee"]) {
+  follower: User!
+  followee: User!
+  followedAt: Timestamp!
+}

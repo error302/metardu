@@ -1,0 +1,131 @@
+mutation CreateSeedData @transaction @auth(level: USER, insecureReason: "Seed data mutation, only run by admin and data is hardcoded.") {
+  user_insertMany(
+    data: [
+      {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        username: "boardgamefan1",
+        email: "boardgamefan1@example.com",
+        passwordHash: "hashedpassword1",
+        displayName: "BoardGameFanatic",
+        bio: "Love all things board games!",
+        createdAt: "2023-01-01T12:00:00Z"
+      },
+      {
+        id: "550e8400-e29b-41d4-a716-446655440001",
+        username: "strategyplayer",
+        email: "strategyplayer@example.com",
+        passwordHash: "hashedpassword2",
+        displayName: "StrategyMaster",
+        bio: "Always looking for a good strategic challenge.",
+        createdAt: "2023-01-05T10:30:00Z"
+      }
+    ]
+  )
+  game_insertMany(
+    data: [
+      {
+        id: "550e8400-e29b-41d4-a716-446655440002",
+        name: "Catan",
+        bggId: "13",
+        description: "Trade, build, and settle the island of Catan.",
+        minPlayers: 3,
+        maxPlayers: 4,
+        playingTime: 90,
+        imageUrl: "https://example.com/catan.jpg",
+        thumbnailUrl: "https://example.com/catan_thumb.jpg",
+        yearPublished: 1995,
+        designer: "Klaus Teuber",
+        publisher: "Mayfair Games",
+        categories: ["Negotiation", "Territory Building"],
+        mechanisms: ["Dice Rolling", "Modular Board"]
+      },
+      {
+        id: "550e8400-e29b-41d4-a716-446655440003",
+        name: "Terraforming Mars",
+        bggId: "167791",
+        description: "Corporations are competing to transform Mars into a habitable planet.",
+        minPlayers: 1,
+        maxPlayers: 5,
+        playingTime: 120,
+        imageUrl: "https://example.com/terraformingmars.jpg",
+        thumbnailUrl: "https://example.com/terraformingmars_thumb.jpg",
+        yearPublished: 2016,
+        designer: "Jacob Fryxelius",
+        publisher: "FryxGames",
+        categories: ["Economic", "Environmental"],
+        mechanisms: ["Card Drafting", "Set Collection"]
+      }
+    ]
+  )
+  collectionItem_insertMany(
+    data: [
+      {
+        userId: "550e8400-e29b-41d4-a716-446655440000",
+        gameId: "550e8400-e29b-41d4-a716-446655440002",
+        ownedDate: "2023-01-15T15:00:00Z",
+        notes: "Got it for my birthday!",
+        isExpansion: false
+      },
+      {
+        userId: "550e8400-e29b-41d4-a716-446655440001",
+        gameId: "550e8400-e29b-41d4-a716-446655440003",
+        ownedDate: "2023-02-10T18:00:00Z",
+        notes: "Such a deep strategy game.",
+        isExpansion: false
+      }
+    ]
+  )
+  play_insertMany(
+    data: [
+      {
+        id: "550e8400-e29b-41d4-a716-446655440004",
+        userId: "550e8400-e29b-41d4-a716-446655440000",
+        gameId: "550e8400-e29b-41d4-a716-446655440002",
+        playDate: "2023-01-20T19:00:00Z",
+        notes: "First time playing, had a blast!",
+        duration: 90,
+        isWin: true,
+        score: 12,
+        location: "Home"
+      },
+      {
+        id: "550e8400-e29b-41d4-a716-446655440005",
+        userId: "550e8400-e29b-41d4-a716-446655440001",
+        gameId: "550e8400-e29b-41d4-a716-446655440003",
+        playDate: "2023-02-15T20:00:00Z",
+        notes: "Very close game, lost by a few points.",
+        duration: 150,
+        isWin: false,
+        score: 75,
+        location: "Friend's House"
+      }
+    ]
+  )
+  comment_insertMany(
+    data: [
+      {
+        id: "550e8400-e29b-41d4-a716-446655440006",
+        userId: "550e8400-e29b-41d4-a716-446655440000",
+        playId: "550e8400-e29b-41d4-a716-446655440004",
+        content: "Catan is always a good time!",
+        createdAt: "2023-01-20T21:00:00Z"
+      },
+      {
+        id: "550e8400-e29b-41d4-a716-446655440007",
+        userId: "550e8400-e29b-41d4-a716-446655440001",
+        playId: "550e8400-e29b-41d4-a716-446655440005",
+        content: "Need to try a different strategy next time for Terraforming Mars.",
+        createdAt: "2023-02-15T22:30:00Z"
+      }
+    ]
+  )
+  follow_insertMany(
+    data: [
+      {
+        followerId: "550e8400-e29b-41d4-a716-446655440000",
+        followeeId: "550e8400-e29b-41d4-a716-446655440001",
+        followedAt: "2023-02-01T10:00:00Z"
+      }
+    ]
+  )
+}

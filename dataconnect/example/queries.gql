@@ -1,0 +1,68 @@
+mutation CreateGame($name: String!, $bggId: String, $description: String, $minPlayers: Int, $maxPlayers: Int, $playingTime: Int, $imageUrl: String, $thumbnailUrl: String, $yearPublished: Int, $designer: String, $publisher: String, $categories: [String!], $mechanisms: [String!]) @auth(level: USER, insecureReason: "This mutation creates a game entry and doesn't expose sensitive user data.") {
+  game_insert(data: {
+    name: $name,
+    bggId: $bggId,
+    description: $description,
+    minPlayers: $minPlayers,
+    maxPlayers: $maxPlayers,
+    playingTime: $playingTime,
+    imageUrl: $imageUrl,
+    thumbnailUrl: $thumbnailUrl,
+    yearPublished: $yearPublished,
+    designer: $designer,
+    publisher: $publisher,
+    categories: $categories,
+    mechanisms: $mechanisms
+  }) {
+    id
+  }
+}
+
+query GetGameDetails($gameId: UUID!) @auth(level: PUBLIC, insecureReason: "This query retrieves public game details.") {
+  game(id: $gameId) {
+    id
+    name
+    bggId
+    description
+    minPlayers
+    maxPlayers
+    playingTime
+    imageUrl
+    thumbnailUrl
+    yearPublished
+    designer
+    artist
+    publisher
+    categories
+    mechanisms
+  }
+}
+
+mutation AddGameToCollection($gameId: UUID!, $ownedDate: Timestamp!, $notes: String, $isExpansion: Boolean) @auth(level: USER) {
+  collectionItem_insert(data: {
+    userId_expr: "auth.uid",
+    gameId: $gameId,
+    ownedDate: $ownedDate,
+    notes: $notes,
+    isExpansion: $isExpansion
+  }) {
+    userId
+    gameId
+  }
+}
+
+query GetUserCollection(@auth: User_Key) @auth(level: USER) {
+  user(key: {id_expr: "auth.uid"}) {
+    username
+    collectionItems_on_user {
+      game {
+        name
+        imageUrl
+        yearPublished
+      }
+      ownedDate
+      isExpansion
+      notes
+    }
+  }
+}
