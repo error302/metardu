@@ -176,9 +176,29 @@ export default function ProjectPage({ params }: PageProps) {
     setLoadingStage('auth-check')
     console.log('METARDU DEBUG: fetchData stage=auth-check')
     
-    // Use getSession() - reads from cookie, no network call
-    // getUser() makes a network call to Supabase auth server which can timeout
-    const { data: { session } } = await sb.auth.getSession()
+    // Wrap getSession in a timeout to prevent hanging
+    let session = null
+    try {
+      const sessionPromise = sb.auth.getSession()
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Session check timed out')), 3000)
+      )
+      const { data } = await Promise.race([sessionPromise, timeoutPromise]) as any
+      session = data?.session
+      console.log('METARDU DEBUG: Session result:', session ? 'found' : 'null')
+    } catch (err: any) {
+      console.error('METARDU: Session error:', err.message)
+      // Try getUser as fallback
+      try {
+        const { data: { user } } = await sb.auth.getUser()
+        if (user) {
+          console.log('METARDU DEBUG: getUser fallback succeeded')
+        }
+      } catch (e) {
+        console.error('METARDU: getUser also failed')
+      }
+    }
+    
     const user = session?.user ?? null
 
     if (!user) {
