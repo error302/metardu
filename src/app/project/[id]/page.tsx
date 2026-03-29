@@ -93,6 +93,7 @@ export default function ProjectPage({ params }: PageProps) {
   const [loadingStage, setLoadingStage] = useState<string>('init')
   const [loadingTimeout, setLoadingTimeout] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [showAddPoint, setShowAddPoint] = useState(false)
   const [showCSVUpload, setShowCSVUpload] = useState(false)
   const [showTraverse, setShowTraverse] = useState(false)
@@ -166,7 +167,9 @@ export default function ProjectPage({ params }: PageProps) {
   const fetchData = async () => {
     const sb = getSupabase()
     if (!sb) {
-      console.log('METARDU DEBUG: getSupabase returned null')
+      console.error('METARDU: Supabase client not initialized')
+      setFetchError('Supabase not configured')
+      setLoading(false)
       return
     }
 
@@ -192,15 +195,24 @@ export default function ProjectPage({ params }: PageProps) {
     setLoadingStage('fetch-project')
     console.log('METARDU DEBUG: fetchData stage=fetch-project, user=', user.id)
     
-    const { data: projectData } = await sb
+    const { data: projectData, error: projectError } = await sb
       .from('projects')
       .select('*')
       .eq('id', params.id)
       .eq('user_id', user.id)
       .single()
 
+    if (projectError) {
+      console.error('METARDU: Project fetch error:', projectError.code, projectError.message, projectError.details)
+      setFetchError(`Failed to load project: ${projectError.message}`)
+      setLoading(false)
+      return
+    }
+
     if (!projectData) {
-      window.location.href = '/dashboard'
+      console.error('METARDU: Project not found:', params.id)
+      setFetchError('Project not found')
+      setLoading(false)
       return
     }
 
@@ -208,11 +220,16 @@ export default function ProjectPage({ params }: PageProps) {
     setLoadingStage('fetch-points')
     console.log('METARDU DEBUG: fetchData stage=fetch-points')
 
-    const { data: pointsData } = await sb
+    const { data: pointsData, error: pointsError } = await sb
       .from('survey_points')
       .select('*')
       .eq('project_id', params.id)
       .order('created_at', { ascending: true })
+
+    if (pointsError) {
+      console.error('METARDU: Points fetch error:', pointsError.code, pointsError.message, pointsError.details)
+      // Don't fail the whole page if points fail - just log and continue with empty array
+    }
 
     let fetchedPoints = (pointsData || []).map(normalizePoint)
     
@@ -671,10 +688,31 @@ export default function ProjectPage({ params }: PageProps) {
     return { label, badgeColor }
   }
 
-  if (loading) {
+  if (loading || fetchError) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        {loadingTimeout ? (
+        {fetchError ? (
+          <div className="text-center max-w-md mx-auto p-6">
+            <div className="text-red-400 font-medium mb-4 text-lg">Failed to load project</div>
+            <div className="text-[var(--text-muted)] mb-4 text-sm bg-red-900/20 p-3 rounded border border-red-800/50">
+              {fetchError}
+            </div>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => { setFetchError(null); setLoading(true); fetchData(); }}
+                className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => window.location.href = '/dashboard'}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white font-semibold rounded"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        ) : loadingTimeout ? (
           <div className="text-center">
             <div className="animate-pulse text-amber-400 mb-4">Loading project data... (retrying)</div>
             <button
