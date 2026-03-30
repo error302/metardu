@@ -334,6 +334,28 @@ export default function ProjectWorkspacePage() {
 
   const fetchProject = useCallback(async () => {
     setLoading(true);
+    
+    // Check auth first with timeout
+    let user = null;
+    try {
+      const authPromise = supabase.auth.getUser();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Auth timeout')), 5000)
+      );
+      const result = await Promise.race([authPromise, timeoutPromise]) as any;
+      user = result?.data?.user;
+    } catch (err) {
+      // Auth check timed out or failed - try to continue anyway
+      console.warn('Auth check:', err);
+    }
+    
+    if (!user) {
+      // Not logged in - redirect to login
+      const next = encodeURIComponent(window.location.pathname);
+      window.location.href = '/login?next=' + next;
+      return;
+    }
+
     const { data, error: err } = await supabase.from('projects').select('*').eq('id', params.id).single();
     if (err || !data) {
       setError(err?.message ?? 'Project not found');
