@@ -16,7 +16,7 @@ import FeedbackWidget from '@/components/FeedbackWidget';
 import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://metardu-henna.vercel.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.vercel.app'),
   title: 'METARDU — Precise earth measurements.',
   description: 'Professional surveying platform for land surveyors worldwide. Traverse adjustment, leveling, COGO, GPS stakeout, PDF reports. Supports all 60 UTM zones. Built in Africa, used globally.',
   keywords: [
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: process.env.NEXT_PUBLIC_APP_URL || 'https://metardu-henna.vercel.app',
+    url: process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.vercel.app',
     siteName: 'METARDU',
     title: 'METARDU — Precise earth measurements.',
     description: 'Complete surveying platform for professional land surveyors across Africa and beyond.',
