@@ -60,12 +60,6 @@ const toolGroups = [
       { href: '/tools/gis-export', labelKey: 'tools.gisExport' },
     ]
   },
-  {
-    titleKey: 'tools.outputs',
-    items: [
-      { href: '/dashboard/working-diagram', labelKey: 'tools.workingDiagram' },
-    ]
-  },
 ]
 
 const fieldGroups = [

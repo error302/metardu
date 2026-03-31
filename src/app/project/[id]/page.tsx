@@ -4,6 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client'
+import dynamic from 'next/dynamic'
+
+const WorkingDiagramClient = dynamic(
+  () => import('@/components/working-diagram/WorkingDiagramClient'),
+  { ssr: false }
+)
 
 type StepStatus = 'locked' | 'pending' | 'in_progress' | 'complete';
 type SurveyMode = 'boundary' | 'levelling' | 'topographic' | 'gnss';
@@ -77,7 +83,7 @@ function getBoundarySteps(project: MetarduProject): WorkspaceStep[] {
   const steps: WorkspaceStep[] = [
     { id: 'setup', label: 'Project Setup', description: 'Client details, datum, LR reference', status: 'complete' },
     { id: 'beacons', label: 'Beacon & Boundary Data', description: 'Enter all beacons once — all outputs auto-populate', status: beacons.length > 0 ? 'complete' : 'in_progress' },
-    { id: 'working_diagram', label: 'Working Diagram', description: 'Traverse plan auto-populated from beacon data', status: (bd?.working_diagram_status as StepStatus) ?? 'pending', toolRoute: '/dashboard/working-diagram', gated: true },
+    { id: 'working_diagram', label: 'Working Diagram', description: 'Traverse plan auto-populated from beacon data', status: (bd?.working_diagram_status as StepStatus) ?? 'pending', gated: true },
   ];
 
   if (['subdivision', 'amalgamation'].includes(project.survey_type)) {
@@ -412,6 +418,36 @@ function ExportPanel({ project, steps }: { project: MetarduProject; steps: Works
   );
 }
 
+function WorkingDiagramPanel({ project, beacons, boundaries }: {
+  project: MetarduProject;
+  beacons: Array<{id: string; name: string; type: string; easting: number; northing: number; description: string}>;
+  boundaries: Array<{from: string; to: string; bearing: number; distance: number}>;
+}) {
+  if (beacons.length < 3) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">Working Diagram</h3>
+          <p className="text-zinc-400 text-sm">Add at least 3 beacons in the Beacon & Boundary Data step to generate the working diagram.</p>
+        </div>
+        <div className="rounded-lg border border-zinc-800 p-8 text-center text-zinc-600 text-sm">
+          No beacon data yet
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-1">Working Diagram</h3>
+        <p className="text-zinc-400 text-sm">Auto-populated from beacon data. Use the toolbar to add annotations, then export as PDF.</p>
+      </div>
+      <WorkingDiagramClient />
+    </div>
+  );
+}
+
 function GenericStepPanel({ step }: { step: WorkspaceStep }) {
   return (
     <div className="space-y-4">
@@ -423,7 +459,7 @@ function GenericStepPanel({ step }: { step: WorkspaceStep }) {
         <Link href={step.toolRoute} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#f59e0b] text-black text-sm font-semibold hover:bg-[#f59e0b]/90 transition-colors">Open Tool ↗</Link>
       )}
       {step.status === 'locked' && (
-        <div className="rounded-lg border border-zinc-800 p-4 text-zinc-600 text-sm">🔒 Complete the previous steps to unlock this section.</div>
+        <div className="rounded-lg border border-zinc-800 p-4 text-zinc-600 text-sm"> Complete the previous steps to unlock this section.</div>
       )}
     </div>
   );
@@ -448,6 +484,7 @@ function renderStepContent(
     case 'beacons': return <BeaconDataPanel project={project} beacons={beacons} setBeacons={setBeacons} boundaries={boundaries} saving={saving} onSave={onSave} />;
     case 'field_book': return <FieldBookPanel project={project} stations={stations} setStations={setStations} levelLine={levelLine} setLevelLine={setLevelLine} saving={saving} onSave={onSave} />;
     case 'line_setup': return <LevelLineSetupPanel project={project} levelLine={levelLine} setLevelLine={setLevelLine} saving={saving} onSave={onSave} />;
+    case 'working_diagram': return <WorkingDiagramPanel project={project} beacons={beacons} boundaries={boundaries} />;
     case 'export': return <ExportPanel project={project} steps={steps} />;
     default: return <GenericStepPanel step={step} />;
   }
