@@ -60,6 +60,14 @@ const toolGroups = [
       { href: '/tools/gis-export', labelKey: 'tools.gisExport' },
     ]
   },
+  {
+    titleKey: 'tools.engineering',
+    items: [
+      { href: '/tools/superelevation', labelKey: 'tools.superelevation' },
+      { href: '/tools/sight-distance', labelKey: 'tools.sightDistance' },
+      { href: '/tools/pipe-gradient', labelKey: 'tools.pipeGradient' },
+    ]
+  },
 ]
 
 const fieldGroups = [

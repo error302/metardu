@@ -483,6 +483,342 @@ function Step3Vertical({
   )
 }
 
+function Step4CrossSection({ 
+  data, 
+  onSave 
+}: { 
+  data: RoadDesignData | null
+  onSave: (template: CrossSectionTemplate) => void 
+}) {
+  const [template, setTemplate] = useState<CrossSectionTemplate>(data?.crossSectionTemplate || {
+    carriagewayWidth: 6.0,
+    shoulderWidth: 1.0,
+    cutSlope: '1:1',
+    fillSlope: '1:1.5',
+    camber: 3,
+    subgradeDepth: 0.5
+  })
+
+  const handleSave = () => {
+    onSave(template)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-1">Cross Section Template</h3>
+        <p className="text-zinc-400 text-sm">Define standard cross section parameters.</p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm text-zinc-400 mb-1">Carriageway Width (m)</label>
+          <input
+            type="number"
+            step="0.1"
+            value={template.carriagewayWidth}
+            onChange={e => setTemplate({ ...template, carriagewayWidth: Number(e.target.value) })}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-zinc-400 mb-1">Shoulder Width (m)</label>
+          <input
+            type="number"
+            step="0.1"
+            value={template.shoulderWidth}
+            onChange={e => setTemplate({ ...template, shoulderWidth: Number(e.target.value) })}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-zinc-400 mb-1">Camber (%)</label>
+          <input
+            type="number"
+            step="0.5"
+            value={template.camber}
+            onChange={e => setTemplate({ ...template, camber: Number(e.target.value) })}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-zinc-400 mb-1">Cut Slope (H:V)</label>
+          <input
+            type="text"
+            value={template.cutSlope}
+            onChange={e => setTemplate({ ...template, cutSlope: e.target.value })}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
+            placeholder="1:1"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-zinc-400 mb-1">Fill Slope (H:V)</label>
+          <input
+            type="text"
+            value={template.fillSlope}
+            onChange={e => setTemplate({ ...template, fillSlope: e.target.value })}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
+            placeholder="1:1.5"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-zinc-400 mb-1">Subgrade Depth (m)</label>
+          <input
+            type="number"
+            step="0.1"
+            value={template.subgradeDepth}
+            onChange={e => setTemplate({ ...template, subgradeDepth: Number(e.target.value) })}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+      </div>
+
+      <button
+        onClick={handleSave}
+        className="px-6 py-2.5 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400"
+      >
+        Save Template
+      </button>
+    </div>
+  )
+}
+
+function Step5Stations({ 
+  data, 
+  onSave 
+}: { 
+  data: RoadDesignData | null
+  onSave: (stations: StationData[]) => void 
+}) {
+  const [stations, setStations] = useState<StationData[]>(data?.stations || [])
+
+  const addStation = () => {
+    const lastCh = stations.length > 0 ? stations[stations.length - 1].chainage : 0
+    setStations([...stations, { chainage: lastCh + 20, groundLevel: 0 }])
+  }
+
+  const updateStation = (index: number, field: keyof StationData, value: any) => {
+    const updated = [...stations]
+    updated[index] = { ...updated[index], [field]: value }
+    setStations(updated)
+  }
+
+  const removeStation = (index: number) => {
+    setStations(stations.filter((_, i) => i !== index))
+  }
+
+  const handleSave = () => {
+    onSave(stations)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-1">Stations & Levels</h3>
+        <p className="text-zinc-400 text-sm">Enter ground levels at chainage intervals (default 20m).</p>
+      </div>
+
+      {stations.length === 0 ? (
+        <div className="text-center py-8 text-zinc-500">
+          <p>No stations defined. Add stations to proceed.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-zinc-800 text-zinc-400">
+                <th className="px-3 py-2 text-left">#</th>
+                <th className="px-3 py-2 text-right">Chainage (m)</th>
+                <th className="px-3 py-2 text-right">Ground Level (m)</th>
+                <th className="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {stations.map((s, idx) => (
+                <tr key={idx} className="border-t border-zinc-800">
+                  <td className="px-3 py-2 text-zinc-500">{idx + 1}</td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="number"
+                      value={s.chainage}
+                      onChange={e => updateStation(idx, 'chainage', Number(e.target.value))}
+                      className="w-24 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-right"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={s.groundLevel}
+                      onChange={e => updateStation(idx, 'groundLevel', Number(e.target.value))}
+                      className="w-24 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-right"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <button onClick={() => removeStation(idx)} className="text-red-400 hover:text-red-300">✕</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <button
+        onClick={addStation}
+        className="px-4 py-2 border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800"
+      >
+        + Add Station
+      </button>
+
+      {stations.length >= 2 && (
+        <button
+          onClick={handleSave}
+          className="px-6 py-2.5 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400"
+        >
+          Save Stations
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Step6Outputs({ 
+  project, 
+  data 
+}: { 
+  project: EngineeringProject
+  data: RoadDesignData | null
+}) {
+  const ips = data?.ips || []
+  const vips = data?.vips || []
+  const stations = data?.stations || []
+  const template = data?.crossSectionTemplate
+
+  const computeCurves = () => {
+    const results: any[] = []
+    for (let i = 0; i < ips.length - 1; i++) {
+      const ip1 = ips[i]
+      const ip2 = ips[i + 1]
+      const dx = ip2.easting - ip1.easting
+      const dy = ip2.northing - ip1.northing
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const bearing = Math.atan2(dx, dy) * (180 / Math.PI)
+      const radius = ip2.radius || 100
+      const deflection = bearing - (i > 0 ? Math.atan2(ips[i].easting - ips[i-1].easting, ips[i].northing - ips[i-1].northing) * (180 / Math.PI) : bearing)
+      const tangent = radius * Math.tan(Math.abs(deflection) / 2 * Math.PI / 180)
+      const arc = radius * Math.abs(deflection) * Math.PI / 180
+      results.push({
+        name: ip2.name,
+        from: ip1.name,
+        to: ip2.name,
+        radius,
+        deflection: deflection.toFixed(2),
+        tangent: tangent.toFixed(2),
+        arc: arc.toFixed(2)
+      })
+    }
+    return results
+  }
+
+  const computeEarthworks = () => {
+    if (!template || stations.length < 2) return []
+    const rows: any[] = []
+    for (let i = 0; i < stations.length; i++) {
+      const s = stations[i]
+      let cutArea = 0, fillArea = 0
+      const halfW = template.carriagewayWidth / 2 + template.shoulderWidth
+      const heightDiff = s.designLevel ? s.groundLevel - s.designLevel : 0
+      if (heightDiff > 0) {
+        cutArea = heightDiff * halfW * 2 + (heightDiff * heightDiff)
+      } else {
+        fillArea = Math.abs(heightDiff) * halfW * 2 + (heightDiff * heightDiff)
+      }
+      let cutVol = 0, fillVol = 0
+      if (i > 0) {
+        const prev = stations[i - 1]
+        const d = s.chainage - prev.chainage
+        cutVol = ((prev.cutArea || 0) + cutArea) / 2 * d
+        fillVol = ((prev.fillArea || 0) + fillArea) / 2 * d
+      }
+      rows.push({ chainage: s.chainage, groundLevel: s.groundLevel, cutArea, fillArea, cutVol, fillVol })
+    }
+    return rows
+  }
+
+  const curves = computeCurves()
+  const earthworks = computeEarthworks()
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-1">Computed Outputs</h3>
+        <p className="text-zinc-400 text-sm">Horizontal curves and earthworks summary.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="border border-zinc-700 rounded-lg p-4">
+          <h4 className="font-medium text-white mb-3">Horizontal Curves</h4>
+          {curves.length === 0 ? (
+            <p className="text-zinc-500 text-sm">Add at least 2 IPs to compute curves.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-zinc-500 text-xs">
+                  <th className="text-left pb-2">IP</th>
+                  <th className="text-right pb-2">Radius</th>
+                  <th className="text-right pb-2">Defl</th>
+                  <th className="text-right pb-2">Tangent</th>
+                  <th className="text-right pb-2">Arc</th>
+                </tr>
+              </thead>
+              <tbody>
+                {curves.map((c, i) => (
+                  <tr key={i} className="border-t border-zinc-800">
+                    <td className="py-1.5 text-white">{c.name}</td>
+                    <td className="py-1.5 text-right text-zinc-400">{c.radius}m</td>
+                    <td className="py-1.5 text-right text-zinc-400">{c.deflection}°</td>
+                    <td className="py-1.5 text-right text-zinc-400">{c.tangent}m</td>
+                    <td className="py-1.5 text-right text-zinc-400">{c.arc}m</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="border border-zinc-700 rounded-lg p-4">
+          <h4 className="font-medium text-white mb-3">Earthworks Summary</h4>
+          {earthworks.length === 0 ? (
+            <p className="text-zinc-500 text-sm">Add stations and cross section template.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-zinc-500 text-xs">
+                  <th className="text-left pb-2">Ch</th>
+                  <th className="text-right pb-2">G.L.</th>
+                  <th className="text-right pb-2">Cut</th>
+                  <th className="text-right pb-2">Fill</th>
+                </tr>
+              </thead>
+              <tbody>
+                {earthworks.slice(0, 10).map((e, i) => (
+                  <tr key={i} className="border-t border-zinc-800">
+                    <td className="py-1.5 text-white">{e.chainage}m</td>
+                    <td className="py-1.5 text-right text-zinc-400">{e.groundLevel.toFixed(2)}</td>
+                    <td className="py-1.5 text-right text-green-400">{e.cutArea.toFixed(1)}m²</td>
+                    <td className="py-1.5 text-right text-amber-400">{e.fillArea.toFixed(1)}m²</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function renderStepContent(
   stepId: EngineeringStepId,
   project: EngineeringProject,
@@ -516,39 +852,24 @@ function renderStepContent(
       )
     case 'cross_section':
       return (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-1">Cross Section Template</h3>
-            <p className="text-zinc-400 text-sm">Define standard cross section parameters.</p>
-          </div>
-          <div className="p-8 text-center text-zinc-500 border border-zinc-700 rounded-lg">
-            Cross Section Template editor coming in next iteration
-          </div>
-        </div>
+        <Step4CrossSection
+          data={roadData}
+          onSave={(template) => onSave({ road: { ...roadData, crossSectionTemplate: template } as RoadDesignData })}
+        />
       )
     case 'stations':
       return (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-1">Stations & Levels</h3>
-            <p className="text-zinc-400 text-sm">Enter ground levels at chainage intervals.</p>
-          </div>
-          <div className="p-8 text-center text-zinc-500 border border-zinc-700 rounded-lg">
-            Stations editor coming in next iteration
-          </div>
-        </div>
+        <Step5Stations
+          data={roadData}
+          onSave={(stations) => onSave({ road: { ...roadData, stations } as RoadDesignData })}
+        />
       )
     case 'outputs':
       return (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-1">Computed Outputs</h3>
-            <p className="text-zinc-400 text-sm">Generated reports and calculations.</p>
-          </div>
-          <div className="p-8 text-center text-zinc-500 border border-zinc-700 rounded-lg">
-            Computed outputs coming in next iteration
-          </div>
-        </div>
+        <Step6Outputs
+          project={project}
+          data={roadData}
+        />
       )
     case 'export':
       return (
