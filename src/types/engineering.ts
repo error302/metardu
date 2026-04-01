@@ -4,6 +4,7 @@ export type RoadClass = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'J' | 'K
 export type TerrainType = 'flat' | 'rolling' | 'mountainous' | 'escarpment'
 export type PipeMaterial = 'HDPE' | 'Concrete' | 'uPVC' | 'VCP'
 export type GradientStatus = 'OK' | 'TOO_FLAT' | 'TOO_STEEP'
+export type StepStatus = 'locked' | 'pending' | 'in_progress' | 'complete'
 
 export interface EngineeringData {
   mode: EngineeringMode
@@ -20,6 +21,7 @@ export interface RoadDesignData {
   designSpeed: number
   roadClass: RoadClass
   terrainType?: TerrainType
+  standard?: EngineeringStandard
 
   ips: IntersectionPoint[]
   vips: VerticalIP[]
