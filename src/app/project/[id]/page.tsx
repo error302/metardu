@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client'
+import { generateShapefileZip } from '@/lib/export/generateShapefile'
 import dynamic from 'next/dynamic'
 
 const WorkingDiagramClient = dynamic(
@@ -395,8 +396,45 @@ function LevelLineSetupPanel({
   );
 }
 
-function ExportPanel({ project, steps }: { project: MetarduProject; steps: WorkspaceStep[] }) {
+function ExportPanel({ project, steps, beacons, boundaries, lots }: { 
+  project: MetarduProject; 
+  steps: WorkspaceStep[];
+  beacons: Array<{id: string; name: string; type: string; easting: number; northing: number; height?: number; description: string}>;
+  boundaries: Array<{id: string; from: string; to: string; fromEasting: number; fromNorthing: number; toEasting: number; toNorthing: number; bearing: number; distance: number}>;
+  lots: Array<{id: string; name: string; boundaryPoints: Array<{easting: number; northing: number}>; area_sqm: number}>;
+}) {
   const allDone = steps.filter(s => s.id !== 'export').every(s => s.status === 'complete');
+  const [exporting, setExporting] = useState<string | null>(null);
+  
+  const handleExport = async (format: string) => {
+    setExporting(format);
+    try {
+      if (format === 'Shapefile' || format === 'GeoJSON') {
+        const beaconData = beacons.map(b => ({ id: b.id, name: b.name, type: b.type, easting: b.easting, northing: b.northing, height: b.height, description: b.description }));
+        const boundaryData = boundaries.map(b => ({ id: b.id, from: b.from, to: b.to, fromEasting: b.fromEasting, fromNorthing: b.fromNorthing, toEasting: b.toEasting, toNorthing: b.toNorthing, bearing: b.bearing, distance: b.distance }));
+        const parcelData = lots.map(l => ({ id: l.id, lrNumber: l.name, boundaryPoints: l.boundaryPoints, area_sqm: l.area_sqm }));
+        
+        const blob = await generateShapefileZip(beaconData, boundaryData, parcelData, project.name.replace(/\s+/g, '_'), project.utm_zone, project.hemisphere);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${project.name.replace(/\s+/g, '_')}_${format === 'Shapefile' ? 'shapefile' : 'geojson'}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else if (format === 'PDF Report') {
+        window.alert('PDF Report generation - connect to existing PDF generation flow');
+      } else if (format === 'DXF Export') {
+        window.alert('DXF Export - connect to existing DXF generation');
+      } else if (format === 'CSV Tables') {
+        window.alert('CSV Tables - connect to existing CSV generation');
+      }
+    } catch (err) {
+      console.error('Export failed:', err);
+      window.alert('Export failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setExporting(null);
+    }
+  };
   return (
     <div className="space-y-6">
       <div>
@@ -411,8 +449,10 @@ function ExportPanel({ project, steps }: { project: MetarduProject; steps: Works
         </div>
       )}
       <div className={`grid grid-cols-2 gap-3 ${!allDone ? 'opacity-40 pointer-events-none' : ''}`}>
-        {['PDF Report', 'DXF Export', 'GeoJSON', 'CSV Tables'].map(fmt => (
-          <button key={fmt} className="py-3 rounded-lg border border-zinc-700 text-zinc-300 text-sm hover:bg-zinc-800 transition-colors">↓ {fmt}</button>
+        {['PDF Report', 'DXF Export', 'GeoJSON', 'Shapefile', 'CSV Tables'].map(fmt => (
+          <button key={fmt} onClick={() => handleExport(fmt)} disabled={exporting === fmt} className="py-3 rounded-lg border border-zinc-700 text-zinc-300 text-sm hover:bg-zinc-800 transition-colors disabled:opacity-50">
+            {exporting === fmt ? '⏳' : '↓'} {fmt}
+          </button>
         ))}
       </div>
     </div>
@@ -472,13 +512,14 @@ function renderStepContent(
   steps: WorkspaceStep[],
   beacons: Array<{id: string; name: string; type: string; easting: number; northing: number; description: string}>,
   setBeacons: React.Dispatch<React.SetStateAction<Array<{id: string; name: string; type: string; easting: number; northing: number; description: string}>>>,
-  boundaries: Array<{from: string; to: string; bearing: number; distance: number}>,
+  boundaries: Array<{from: string; to: string; fromEasting: number; fromNorthing: number; toEasting: number; toNorthing: number; bearing: number; distance: number}>,
   saving: boolean,
   onSave: () => void,
   stations: Array<{id: string; stationId: string; backSight?: number; intermediateSight?: number; foreSight?: number; reducedLevel?: number; remarks?: string}>,
   setStations: React.Dispatch<React.SetStateAction<Array<{id: string; stationId: string; backSight?: number; intermediateSight?: number; foreSight?: number; reducedLevel?: number; remarks?: string}>>>,
   levelLine: {startBMRef: string; startRL: number; endBMRef?: string; endRL?: number; totalDistance: number},
-  setLevelLine: React.Dispatch<React.SetStateAction<{startBMRef: string; startRL: number; endBMRef?: string; endRL?: number; totalDistance: number}>>
+  setLevelLine: React.Dispatch<React.SetStateAction<{startBMRef: string; startRL: number; endBMRef?: string; endRL?: number; totalDistance: number}>>,
+  lots: Array<{id: string; name: string; boundaryPoints: Array<{easting: number; northing: number}>; area_sqm: number}>
 ) {
   if (!step) return null;
   switch (step.id) {
@@ -486,7 +527,7 @@ function renderStepContent(
     case 'field_book': return <FieldBookPanel project={project} stations={stations} setStations={setStations} levelLine={levelLine} setLevelLine={setLevelLine} saving={saving} onSave={onSave} />;
     case 'line_setup': return <LevelLineSetupPanel project={project} levelLine={levelLine} setLevelLine={setLevelLine} saving={saving} onSave={onSave} />;
     case 'working_diagram': return <WorkingDiagramPanel project={project} beacons={beacons} boundaries={boundaries} />;
-    case 'export': return <ExportPanel project={project} steps={steps} />;
+    case 'export': return <ExportPanel project={project} steps={steps} beacons={beacons} boundaries={boundaries.map(b => ({...b, id: b.from + '-' + b.to}))} lots={lots} />;
     default: return <GenericStepPanel step={step} />;
   }
 }
@@ -504,7 +545,8 @@ export default function ProjectWorkspacePage() {
 
   // Beacon/boundary state
   const [beacons, setBeacons] = useState<Array<{id: string; name: string; type: string; easting: number; northing: number; description: string}>>([]);
-  const [boundaries, setBoundaries] = useState<Array<{from: string; to: string; bearing: number; distance: number}>>([]);
+  const [boundaries, setBoundaries] = useState<Array<{from: string; to: string; fromEasting: number; fromNorthing: number; toEasting: number; toNorthing: number; bearing: number; distance: number}>>([]);
+  const [lots, setLots] = useState<Array<{id: string; name: string; boundaryPoints: Array<{easting: number; northing: number}>; area_sqm: number}>>([]);
 
   // Levelling state
   const [stations, setStations] = useState<Array<{id: string; stationId: string; backSight?: number; intermediateSight?: number; foreSight?: number; reducedLevel?: number; remarks?: string}>>([]);
@@ -535,7 +577,28 @@ export default function ProjectWorkspacePage() {
         // Load boundary data
         const bd = (data.boundary_data as any) || {};
         setBeacons(bd.beacons || []);
-        setBoundaries(bd.boundaries || []);
+        
+        // Transform boundaries to include coordinates
+        const rawBoundaries = bd.boundaries || [];
+        const beaconMap = new Map((bd.beacons as any[] || []).map((b: any) => [b.name, b]));
+        const enrichedBoundaries = rawBoundaries.map((b: any) => {
+          const fromBeacon = beaconMap.get(b.from);
+          const toBeacon = beaconMap.get(b.to);
+          return {
+            from: b.from,
+            to: b.to,
+            fromEasting: fromBeacon?.easting ?? 0,
+            fromNorthing: fromBeacon?.northing ?? 0,
+            toEasting: toBeacon?.easting ?? 0,
+            toNorthing: toBeacon?.northing ?? 0,
+            bearing: b.bearing ?? 0,
+            distance: b.distance ?? 0
+          };
+        });
+        setBoundaries(enrichedBoundaries);
+        
+        // Load lots
+        setLots(bd.lots || []);
         
         // Load levelling data
         const ld = (data.levelling_data as any) || {};
@@ -572,7 +635,16 @@ export default function ProjectWorkspacePage() {
         const distance = Math.sqrt(dx * dx + dy * dy);
         let bearing = Math.atan2(dx, dy) * (180 / Math.PI);
         if (bearing < 0) bearing += 360;
-        computedBoundaries.push({ from: from.id, to: to.id, bearing, distance });
+        computedBoundaries.push({ 
+          from: from.id, 
+          to: to.id, 
+          fromEasting: from.easting,
+          fromNorthing: from.northing,
+          toEasting: to.easting,
+          toNorthing: to.northing,
+          bearing, 
+          distance 
+        });
       }
     }
     
@@ -699,7 +771,7 @@ export default function ProjectWorkspacePage() {
               {currentStep?.toolRoute && <Link href={`${currentStep.toolRoute}?project=${project.id}`} className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-600 transition-colors">Open in Tool ↗</Link>}
             </div>
           </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6">{renderStepContent(currentStep, project, steps, beacons, setBeacons, boundaries, saving, () => saveBeacons(), stations, setStations, levelLine, setLevelLine)}</div>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6">{renderStepContent(currentStep, project, steps, beacons, setBeacons, boundaries, saving, () => saveBeacons(), stations, setStations, levelLine, setLevelLine, lots)}</div>
           <div className="flex items-center justify-between mt-4">
             <button onClick={() => { const idx = steps.findIndex(s => s.id === activeStep); if (idx > 0) setActiveStep(steps[idx - 1].id); }} disabled={steps.findIndex(s => s.id === activeStep) === 0} className="text-sm text-zinc-500 hover:text-zinc-300 disabled:opacity-30 transition-colors">← Previous</button>
             <span className="text-xs text-zinc-700">Step {steps.findIndex(s => s.id === activeStep) + 1} of {steps.length}</span>

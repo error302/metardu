@@ -407,6 +407,7 @@ export default function DocumentsPage({ params }: PageProps) {
     const traverseAccuracyResult = linearError != null
       ? computeTraverseAccuracy(linearError, perimeter_m)
       : null
+    const proj = project as any
     return {
       project: {
         name: project.name,
@@ -428,6 +429,13 @@ export default function DocumentsPage({ params }: PageProps) {
         bearingSchedule,
         revisions: [],
         iskRegNo: surveyorDetails['licence'] || '',
+        // Form No. 4 / Kenya submission fields
+        lrNumber: proj.lr_number || undefined,
+        folioNumber: proj.folio_number || undefined,
+        registerNumber: proj.register_number || undefined,
+        plotParcelNumber: proj.plot_parcel_number || undefined,
+        registrationDistrict: proj.registration_district || undefined,
+        locality: proj.locality || undefined,
       },
       parcel: {
         boundaryPoints: boundaryPts,

@@ -28,6 +28,14 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
   const [linearError, setLinearError] = useState('')
   const [roadName, setRoadName] = useState('')
   const [startChainage, setStartChainage] = useState('')
+  
+  // Form No. 4 / Kenya submission fields
+  const [folioNumber, setFolioNumber] = useState('')
+  const [registerNumber, setRegisterNumber] = useState('')
+  const [lrNumber, setLrNumber] = useState('')
+  const [plotParcelNumber, setPlotParcelNumber] = useState('')
+  const [registrationDistrict, setRegistrationDistrict] = useState('')
+  const [locality, setLocality] = useState('')
 
   useEffect(() => {
     async function loadProject() {
@@ -56,6 +64,12 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
       setLinearError(data.traverse?.linearError !== undefined ? String(data.traverse.linearError) : '')
       setRoadName(data.road_name || '')
       setStartChainage(data.start_chainage !== undefined ? String(data.start_chainage) : '')
+      setFolioNumber(data.folio_number || '')
+      setRegisterNumber(data.register_number || '')
+      setLrNumber(data.lr_number || '')
+      setPlotParcelNumber(data.plot_parcel_number || '')
+      setRegistrationDistrict(data.registration_district || '')
+      setLocality(data.locality || '')
       setLoading(false)
     }
 
@@ -82,6 +96,12 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
         traverse: { linearError: parseFloat(linearError) || 0 },
         road_name: roadName || null,
         start_chainage: parseFloat(startChainage) || 0,
+        folio_number: folioNumber || null,
+        register_number: registerNumber || null,
+        lr_number: lrNumber || null,
+        plot_parcel_number: plotParcelNumber || null,
+        registration_district: registrationDistrict || null,
+        locality: locality || null,
       })
       .eq('id', projectId)
 
@@ -317,6 +337,75 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                 onChange={(e) => setSurveyorName(e.target.value)}
                 className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
               />
+            </div>
+          </div>
+
+          {/* Form No. 4 / Kenya Submission Fields */}
+          <div className="border-t border-[var(--border-color)] pt-6 mt-6">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Form No. 4 — Kenya Submission</h3>
+            <p className="text-xs text-[var(--text-secondary)] mb-4">These fields appear on the Survey Plan / Form No. 4 for official submissions.</p>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm text-[var(--text-primary)] mb-2">LR Number</label>
+                <input
+                  type="text"
+                  value={lrNumber}
+                  onChange={(e) => setLrNumber(e.target.value)}
+                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
+                  placeholder="LR 12345"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text-primary)] mb-2">Folio Number</label>
+                <input
+                  type="text"
+                  value={folioNumber}
+                  onChange={(e) => setFolioNumber(e.target.value)}
+                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
+                  placeholder="Folio/2024/001"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text-primary)] mb-2">Register Number</label>
+                <input
+                  type="text"
+                  value={registerNumber}
+                  onChange={(e) => setRegisterNumber(e.target.value)}
+                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
+                  placeholder="REG/001"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text-primary)] mb-2">Plot/Parcel Number</label>
+                <input
+                  type="text"
+                  value={plotParcelNumber}
+                  onChange={(e) => setPlotParcelNumber(e.target.value)}
+                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
+                  placeholder="Plot 45"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text-primary)] mb-2">Registration District</label>
+                <input
+                  type="text"
+                  value={registrationDistrict}
+                  onChange={(e) => setRegistrationDistrict(e.target.value)}
+                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
+                  placeholder="Nairobi"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text-primary)] mb-2">Locality</label>
+                <input
+                  type="text"
+                  value={locality}
+                  onChange={(e) => setLocality(e.target.value)}
+                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
+                  placeholder="Karen"
+                />
+              </div>
             </div>
           </div>
 
