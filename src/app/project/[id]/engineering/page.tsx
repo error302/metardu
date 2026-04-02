@@ -3,10 +3,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { EngineeringData, EngineeringMode, EngineeringStandard, RoadDesignData, StationData, IntersectionPoint, VerticalIP, CrossSectionTemplate, StepStatus } from '@/types/engineering'
+import type { EngineeringData, EngineeringMode, EngineeringStandard, RoadDesignData, DrainageData, StationData, IntersectionPoint, VerticalIP, CrossSectionTemplate, StepStatus, Manhole, PipeRun } from '@/types/engineering'
 import { KRDM2017, KeRRA, getDesignSpeedRange, getCarriagewayWidth, getShoulderWidth } from '@/lib/standards/engineering'
 
-type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export'
+type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs'
 
 interface EngineeringStep {
   id: EngineeringStepId
@@ -29,14 +29,15 @@ interface EngineeringProject {
 const ROAD_CLASSES = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const
 
 function getEngineeringSteps(data: EngineeringData | null): EngineeringStep[] {
-  const mode = data?.mode
+  const mode = data?.mode || 'road'
   const rd = data?.road
+  const dd = data?.drainage
 
   const steps: EngineeringStep[] = [
     { 
       id: 'setup', 
       label: 'Project Setup', 
-      description: 'Road name, design speed, class, standard', 
+      description: mode === 'road' ? 'Road name, design speed, class, standard' : 'Drainage network name, catchment area',
       status: 'complete' 
     },
   ]
@@ -94,6 +95,41 @@ function getEngineeringSteps(data: EngineeringData | null): EngineeringStep[] {
       status: 'locked',
       gated: true
     })
+  } else if (mode === 'drainage') {
+    const drainageSetupDone = dd?.manholes?.length ? true : false
+    steps.push({
+      id: 'manholes',
+      label: 'Manholes',
+      description: 'Define manhole locations, cover and invert levels',
+      status: drainageSetupDone ? 'complete' : 'in_progress',
+      gated: true
+    })
+
+    const manholesDone = dd?.manholes?.length && dd.manholes.length >= 2
+    steps.push({
+      id: 'pipes',
+      label: 'Pipe Runs',
+      description: 'Connect manholes with pipe runs and calculate gradients',
+      status: manholesDone ? 'complete' : (drainageSetupDone ? 'in_progress' : 'locked'),
+      gated: true
+    })
+
+    const pipesDone = dd?.pipeRuns?.length
+    steps.push({
+      id: 'drainage_outputs',
+      label: 'Hydraulic Summary',
+      description: 'Pipe capacities, velocities, sizing verification',
+      status: pipesDone ? 'complete' : 'locked',
+      gated: true
+    })
+
+    steps.push({
+      id: 'export',
+      label: 'Export Package',
+      description: 'Drainage layout PDF, invert levels schedule',
+      status: 'locked',
+      gated: true
+    })
   }
 
   return steps
@@ -102,11 +138,15 @@ function getEngineeringSteps(data: EngineeringData | null): EngineeringStep[] {
 function Step1Setup({ 
   project, 
   data, 
-  onSave 
+  onSave,
+  mode,
+  onModeChange
 }: { 
   project: EngineeringProject
   data: RoadDesignData | null
   onSave: (data: Partial<RoadDesignData>) => void
+  mode: EngineeringMode
+  onModeChange: (mode: EngineeringMode) => void
 }) {
   const [roadName, setRoadName] = useState(data?.roadName || '')
   const [startChainage, setStartChainage] = useState(data?.startChainage || 0)
@@ -144,6 +184,36 @@ function Step1Setup({
         <p className="text-zinc-400 text-sm">Define road parameters per {standard} standard.</p>
       </div>
 
+      <div className="border border-zinc-700 rounded-lg p-4">
+        <label className="block text-sm text-zinc-400 mb-2">Engineering Mode</label>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => onModeChange('road')}
+            className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium transition ${
+              mode === 'road' 
+                ? 'bg-amber-500/20 border-amber-500 text-amber-400' 
+                : 'border-zinc-700 text-zinc-400 hover:bg-zinc-800'
+            }`}
+          >
+            🚧 Road Design
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange('drainage')}
+            className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium transition ${
+              mode === 'drainage' 
+                ? 'bg-amber-500/20 border-amber-500 text-amber-400' 
+                : 'border-zinc-700 text-zinc-400 hover:bg-zinc-800'
+            }`}
+          >
+            🌧️ Drainage Survey
+          </button>
+        </div>
+      </div>
+
+      {mode === 'road' && (
+        <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Road Name</label>
@@ -240,6 +310,8 @@ function Step1Setup({
           </select>
         </div>
       </div>
+      </>
+      )}
 
       <button
         onClick={handleSave}
@@ -683,6 +755,351 @@ function Step5Stations({
   )
 }
 
+function DrainageStep1Manholes({ 
+  data, 
+  onSave 
+}: { 
+  data: DrainageData | null
+  onSave: (manholes: Manhole[]) => void 
+}) {
+  const [manholes, setManholes] = useState<Manhole[]>(data?.manholes || [])
+
+  const addManhole = () => {
+    const newMh: Manhole = {
+      id: `MH${manholes.length + 1}`,
+      name: `MH${manholes.length + 1}`,
+      chainage: manholes.length > 0 ? manholes[manholes.length - 1].chainage + 30 : 0,
+      coverLevel: 0,
+      invertLevelIn: 0,
+      invertLevelOut: 0,
+      pipeDiameterOut: 450,
+      pipeMaterial: 'Concrete'
+    }
+    setManholes([...manholes, newMh])
+  }
+
+  const updateManhole = (index: number, field: keyof Manhole, value: any) => {
+    const updated = [...manholes]
+    updated[index] = { ...updated[index], [field]: value }
+    setManholes(updated)
+  }
+
+  const removeManhole = (index: number) => {
+    setManholes(manholes.filter((_, i) => i !== index))
+  }
+
+  const handleSave = () => {
+    onSave(manholes)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-1">Manholes</h3>
+        <p className="text-zinc-400 text-sm">Define manhole locations, cover and invert levels.</p>
+      </div>
+
+      {manholes.length === 0 ? (
+        <div className="text-center py-8 text-zinc-500">
+          <p>No manholes defined. Add at least 2 manholes for a drainage line.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {manholes.map((mh, idx) => (
+            <div key={mh.id} className="border border-zinc-700 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-medium text-white">Manhole {idx + 1}</span>
+                <button
+                  onClick={() => removeManhole(idx)}
+                  className="text-red-400 text-sm hover:text-red-300"
+                >
+                  Remove
+                </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={mh.name}
+                    onChange={e => updateManhole(idx, 'name', e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Chainage (m)</label>
+                  <input
+                    type="number"
+                    value={mh.chainage}
+                    onChange={e => updateManhole(idx, 'chainage', Number(e.target.value))}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Cover Level (m)</label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={mh.coverLevel}
+                    onChange={e => updateManhole(idx, 'coverLevel', Number(e.target.value))}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Invert Out (m)</label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={mh.invertLevelOut}
+                    onChange={e => updateManhole(idx, 'invertLevelOut', Number(e.target.value))}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Pipe Dia (mm)</label>
+                  <input
+                    type="number"
+                    value={mh.pipeDiameterOut}
+                    onChange={e => updateManhole(idx, 'pipeDiameterOut', Number(e.target.value))}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Material</label>
+                  <select
+                    value={mh.pipeMaterial}
+                    onChange={e => updateManhole(idx, 'pipeMaterial', e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-white text-sm"
+                  >
+                    <option value="Concrete">Concrete</option>
+                    <option value="HDPE">HDPE</option>
+                    <option value="uPVC">uPVC</option>
+                    <option value="VCP">VCP</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Depth (m)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={mh.coverLevel - mh.invertLevelOut}
+                    disabled
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-zinc-500 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={addManhole}
+        className="px-4 py-2 border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800"
+      >
+        + Add Manhole
+      </button>
+
+      {manholes.length >= 2 && (
+        <button
+          onClick={handleSave}
+          className="px-6 py-2.5 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400"
+        >
+          Save Manholes
+        </button>
+      )}
+    </div>
+  )
+}
+
+function DrainageStep2Pipes({ 
+  data, 
+  onSave 
+}: { 
+  data: DrainageData | null
+  onSave: (pipeRuns: PipeRun[]) => void 
+}) {
+  const manholes = data?.manholes || []
+  
+  const computePipes = (): PipeRun[] => {
+    if (manholes.length < 2) return []
+    
+    const pipes: PipeRun[] = []
+    for (let i = 0; i < manholes.length - 1; i++) {
+      const mh1 = manholes[i]
+      const mh2 = manholes[i + 1]
+      
+      const length = mh2.chainage - mh1.chainage
+      const fall = mh1.invertLevelOut - mh2.invertLevelOut
+      const gradient = fall / length
+      const diameter = mh2.pipeDiameterOut / 1000
+      
+      const velocity = gradient > 0 ? (1 / 0.013) * Math.pow(diameter, 2/3) * Math.pow(gradient, 0.5) : 0
+      const fullBore = (Math.PI * Math.pow(diameter, 2) / 4) * velocity
+      
+      pipes.push({
+        fromMH: mh1.name,
+        toMH: mh2.name,
+        length,
+        gradient: gradient * 100,
+        velocity,
+        fullBoreCapacity: fullBore,
+        gradientStatus: gradient > 0.001 ? 'OK' : gradient > 0 ? 'TOO_FLAT' : 'TOO_STEEP'
+      })
+    }
+    return pipes
+  }
+
+  const [autoCompute, setAutoCompute] = useState(true)
+  const pipes = autoCompute ? computePipes() : data?.pipeRuns || []
+
+  const handleSave = () => {
+    onSave(pipes)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-1">Pipe Runs</h3>
+        <p className="text-zinc-400 text-sm">Connect manholes with pipe runs and calculate gradients.</p>
+      </div>
+
+      <div className="flex items-center gap-3 mb-4">
+        <input
+          type="checkbox"
+          id="autoCompute"
+          checked={autoCompute}
+          onChange={e => setAutoCompute(e.target.checked)}
+          className="rounded"
+        />
+        <label htmlFor="autoCompute" className="text-sm text-zinc-400">Auto-calculate from manhole invert levels</label>
+      </div>
+
+      {pipes.length === 0 ? (
+        <div className="text-center py-8 text-zinc-500">
+          <p>Add at least 2 manholes to compute pipe runs.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-zinc-800 text-zinc-400">
+                <th className="px-3 py-2 text-left">From</th>
+                <th className="px-3 py-2 text-left">To</th>
+                <th className="px-3 py-2 text-right">Length (m)</th>
+                <th className="px-3 py-2 text-right">Gradient (%)</th>
+                <th className="px-3 py-2 text-right">Velocity (m/s)</th>
+                <th className="px-3 py-2 text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pipes.map((p, idx) => (
+                <tr key={idx} className="border-t border-zinc-800">
+                  <td className="px-3 py-2 text-white">{p.fromMH}</td>
+                  <td className="px-3 py-2 text-white">{p.toMH}</td>
+                  <td className="px-3 py-2 text-right text-zinc-400">{p.length.toFixed(1)}</td>
+                  <td className="px-3 py-2 text-right text-zinc-400">{p.gradient.toFixed(3)}%</td>
+                  <td className="px-3 py-2 text-right text-zinc-400">{p.velocity.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      p.gradientStatus === 'OK' ? 'bg-green-900 text-green-400' :
+                      p.gradientStatus === 'TOO_FLAT' ? 'bg-amber-900 text-amber-400' :
+                      'bg-red-900 text-red-400'
+                    }`}>
+                      {p.gradientStatus}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <button
+        onClick={handleSave}
+        className="px-6 py-2.5 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400"
+      >
+        Save Pipe Runs
+      </button>
+    </div>
+  )
+}
+
+function DrainageStep3Outputs({ 
+  data 
+}: { 
+  data: DrainageData | null
+}) {
+  const manholes = data?.manholes || []
+  const pipes = data?.pipeRuns || []
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-1">Hydraulic Summary</h3>
+        <p className="text-zinc-400 text-sm">Pipe capacities, velocities, sizing verification.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="border border-zinc-700 rounded-lg p-4">
+          <h4 className="font-medium text-white mb-3">Invert Levels Schedule</h4>
+          {manholes.length === 0 ? (
+            <p className="text-zinc-500 text-sm">Add manholes to see schedule.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-zinc-500 text-xs">
+                  <th className="text-left pb-2">Manhole</th>
+                  <th className="text-right pb-2">Cover</th>
+                  <th className="text-right pb-2">Invert</th>
+                  <th className="text-right pb-2">Depth</th>
+                </tr>
+              </thead>
+              <tbody>
+                {manholes.map((m, i) => (
+                  <tr key={i} className="border-t border-zinc-800">
+                    <td className="py-1.5 text-white">{m.name}</td>
+                    <td className="py-1.5 text-right text-zinc-400">{m.coverLevel.toFixed(3)}</td>
+                    <td className="py-1.5 text-right text-zinc-400">{m.invertLevelOut.toFixed(3)}</td>
+                    <td className="py-1.5 text-right text-zinc-400">{(m.coverLevel - m.invertLevelOut).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="border border-zinc-700 rounded-lg p-4">
+          <h4 className="font-medium text-white mb-3">Pipe Capacity Check</h4>
+          {pipes.length === 0 ? (
+            <p className="text-zinc-500 text-sm">Add pipe runs to verify sizing.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-zinc-500 text-xs">
+                  <th className="text-left pb-2">Run</th>
+                  <th className="text-right pb-2">Capacity</th>
+                  <th className="text-right pb-2">Velocity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pipes.map((p, i) => (
+                  <tr key={i} className="border-t border-zinc-800">
+                    <td className="py-1.5 text-white">{p.fromMH}-{p.toMH}</td>
+                    <td className="py-1.5 text-right text-zinc-400">{(p.fullBoreCapacity * 1000).toFixed(1)} L/s</td>
+                    <td className="py-1.5 text-right text-zinc-400">{p.velocity.toFixed(2)} m/s</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Step6Outputs({ 
   project, 
   data 
@@ -823,9 +1240,12 @@ function renderStepContent(
   stepId: EngineeringStepId,
   project: EngineeringProject,
   engineeringData: EngineeringData | null,
-  onSave: (data: Partial<EngineeringData>) => void
+  onSave: (data: Partial<EngineeringData>) => void,
+  onModeChange?: (mode: EngineeringMode) => void
 ) {
+  const mode = engineeringData?.mode || 'road'
   const roadData = engineeringData?.road || null
+  const drainageData = engineeringData?.drainage || null
 
   switch (stepId) {
     case 'setup':
@@ -833,6 +1253,8 @@ function renderStepContent(
         <Step1Setup
           project={project}
           data={roadData}
+          mode={mode}
+          onModeChange={(m) => onModeChange?.(m)}
           onSave={(data) => onSave({ road: { ...roadData, ...data } as RoadDesignData })}
         />
       )
@@ -871,7 +1293,44 @@ function renderStepContent(
           data={roadData}
         />
       )
+    case 'manholes':
+      return (
+        <DrainageStep1Manholes
+          data={drainageData}
+          onSave={(manholes) => onSave({ drainage: { ...drainageData, manholes } as DrainageData })}
+        />
+      )
+    case 'pipes':
+      return (
+        <DrainageStep2Pipes
+          data={drainageData}
+          onSave={(pipeRuns) => onSave({ drainage: { ...drainageData, pipeRuns } as DrainageData })}
+        />
+      )
+    case 'drainage_outputs':
+      return (
+        <DrainageStep3Outputs
+          data={drainageData}
+        />
+      )
     case 'export':
+      if (mode === 'drainage') {
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-1">Export Package</h3>
+              <p className="text-zinc-400 text-sm">Generate drainage layout PDF, invert levels schedule.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {['Drainage Layout PDF', 'Invert Levels Schedule', 'Manhole Schedule', 'Long Section PDF'].map(fmt => (
+                <button key={fmt} className="py-3 rounded-lg border border-zinc-700 text-zinc-300 text-sm hover:bg-zinc-800">
+                  ↓ {fmt}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      }
       return (
         <div className="space-y-6">
           <div>
@@ -924,16 +1383,48 @@ export default function EngineeringWorkspacePage() {
     fetchProject()
   }, [fetchProject])
 
-  const handleSave = async (data: Partial<EngineeringData>) => {
+  const handleModeChange = async (newMode: EngineeringMode) => {
     if (!project) return
     setSaving(true)
 
     const current = project.engineering_data || { mode: 'road' as EngineeringMode, standard: 'KRDM2017' as EngineeringStandard }
     const updated: EngineeringData = {
       ...current,
-      mode: 'road',
-      standard: current.standard || 'KRDM2017',
-      road: { ...current.road, ...data } as RoadDesignData
+      mode: newMode,
+      standard: current.standard || 'KRDM2017'
+    }
+
+    await supabase
+      .from('projects')
+      .update({ engineering_data: updated })
+      .eq('id', project.id)
+
+    setProject({ ...project, engineering_data: updated })
+    setActiveStep('setup')
+    setSaving(false)
+  }
+
+  const handleSave = async (data: Partial<EngineeringData>) => {
+    if (!project) return
+    setSaving(true)
+
+    const current = project.engineering_data || { mode: 'road' as EngineeringMode, standard: 'KRDM2017' as EngineeringStandard }
+    
+    let updated: EngineeringData
+    if (data.mode) {
+      updated = {
+        ...current,
+        mode: data.mode,
+        standard: data.standard || current.standard || 'KRDM2017'
+      }
+    } else {
+      updated = {
+        ...current,
+        mode: current.mode || 'road',
+        standard: current.standard || 'KRDM2017',
+        road: { ...current.road, ...data.road } as RoadDesignData,
+        drainage: { ...current.drainage, ...data.drainage } as DrainageData
+      }
     }
 
     await supabase
@@ -964,6 +1455,7 @@ export default function EngineeringWorkspacePage() {
 
   const steps = getEngineeringSteps(project.engineering_data || null)
   const currentStep = steps.find(s => s.id === activeStep) || steps[0]
+  const mode = project.engineering_data?.mode || 'road'
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -972,9 +1464,9 @@ export default function EngineeringWorkspacePage() {
           <button onClick={() => router.push('/dashboard')} className="text-zinc-500 hover:text-zinc-300 text-sm">← Projects</button>
           <div className="flex-1">
             <h1 className="text-sm font-semibold text-white">{project.name}</h1>
-            <div className="text-xs text-zinc-500">Engineering Mode • Road Design</div>
+            <div className="text-xs text-zinc-500">Engineering Mode • {mode === 'road' ? 'Road Design' : 'Drainage Survey'}</div>
           </div>
-          <span className="text-xs px-2 py-1 bg-amber-500/20 text-amber-400 rounded">Road Design</span>
+          <span className="text-xs px-2 py-1 bg-amber-500/20 text-amber-400 rounded">{mode === 'road' ? 'Road Design' : 'Drainage Survey'}</span>
         </div>
       </div>
 
@@ -1024,7 +1516,7 @@ export default function EngineeringWorkspacePage() {
             <h2 className="text-lg font-semibold text-white">{currentStep?.label}</h2>
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6">
-            {renderStepContent(currentStep?.id || 'setup', project, project.engineering_data || null, handleSave)}
+            {renderStepContent(currentStep?.id || 'setup', project, project.engineering_data || null, handleSave, handleModeChange)}
           </div>
         </main>
       </div>

@@ -63,9 +63,12 @@ const toolGroups = [
   {
     titleKey: 'tools.engineering',
     items: [
-      { href: '/tools/superelevation', labelKey: 'tools.superelevation' },
-      { href: '/tools/sight-distance', labelKey: 'tools.sightDistance' },
-      { href: '/tools/pipe-gradient', labelKey: 'tools.pipeGradient' },
+      { href: '/tools/superelevation', labelKey: 'tools.superelevation', label: 'Superelevation' },
+      { href: '/tools/sight-distance', labelKey: 'tools.sightDistance', label: 'Sight Distance' },
+      { href: '/tools/pipe-gradient', labelKey: 'tools.pipeGradient', label: 'Pipe Gradient' },
+      { href: '/tools/borrow-pit-volume', labelKey: 'tools.borrowPitVolume', label: 'Borrow Pit Volume' },
+      { href: '/tools/stockpile-volume', labelKey: 'tools.stockpileVolume', label: 'Stockpile Volume' },
+      { href: '/tools/setting-out', labelKey: 'tools.settingOut', label: 'Setting Out' },
     ]
   },
 ]

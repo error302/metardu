@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { getUTMZoneFromLatLng } from '@/lib/engine/utmZones'
 import { useCountry, ALL_COUNTRIES } from '@/lib/country'
 import type { SurveyingCountry } from '@/lib/country'
+import { SURVEY_TYPE_LABELS, SurveyType } from '@/types/project'
 
 export default function NewProjectPage() {
   const { country: defaultCountry, setCountry: setContextCountry } = useCountry()
@@ -17,7 +18,7 @@ export default function NewProjectPage() {
     return c ? String(c.id === 'us' ? '17' : c.id === 'uk' ? '30' : c.id === 'australia' ? '51' : 37) : '37'
   })
   const [hemisphere, setHemisphere] = useState('S')
-  const [surveyType, setSurveyType] = useState('topographic')
+  const [surveyType, setSurveyType] = useState<SurveyType>('topographic')
   const [clientName, setClientName] = useState('')
   const [surveyorName, setSurveyorName] = useState('')
   const [error, setError] = useState('')
@@ -127,8 +128,8 @@ export default function NewProjectPage() {
     setError('')
     setLoading(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
       window.location.replace('/login?next=%2Fproject%2Fnew')
       return
     }
@@ -138,10 +139,10 @@ export default function NewProjectPage() {
       location,
       utm_zone: parseInt(utmZone),
       hemisphere,
-      user_id: user.id,
+      user_id: session.user.id,
       survey_type: surveyType,
       client_name: clientName || null,
-      surveyor_name: surveyorName || user.email,
+      surveyor_name: surveyorName || session.user.email,
       country: selectedCountry,
       datum: datumLabels[selectedCountry],
     })
@@ -286,29 +287,16 @@ export default function NewProjectPage() {
             <label className="block text-sm text-[var(--text-primary)] mb-2">Survey Type</label>
             <select
               value={surveyType}
-              onChange={(e) => setSurveyType(e.target.value)}
+              onChange={(e) => setSurveyType(e.target.value as SurveyType)}
               className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded focus:border-[var(--accent)] focus:outline-none text-[var(--text-primary)]"
             >
-              <optgroup label="Boundary Surveys">
-                <option value="subdivision">Subdivision</option>
-                <option value="amalgamation">Amalgamation</option>
-                <option value="resurvey">Boundary Resurvey</option>
-                <option value="mutation">Mutation</option>
-                <option value="gnss_control">GNSS Control Survey</option>
-              </optgroup>
-              <optgroup label="Levelling Surveys">
-                <option value="differential">Differential Levelling</option>
-                <option value="profile">Profile Levelling</option>
-                <option value="cross_section">Cross-Section Levelling</option>
-                <option value="benchmark_establishment">Benchmark Establishment</option>
-                <option value="two_peg_test">Two Peg Test</option>
-              </optgroup>
-              <optgroup label="Other Surveys">
-                <option value="topographic">Topographic Survey</option>
-                <option value="mining">Mining Survey</option>
-                <option value="hydrographic">Hydrographic Survey</option>
-                <option value="drone_uav">Drone / UAV Survey</option>
-              </optgroup>
+              {(Object.entries(SURVEY_TYPE_LABELS) as [SurveyType, string][]).map(
+                ([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                )
+              )}
             </select>
           </div>
 
