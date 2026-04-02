@@ -29,3 +29,14 @@ export const LEVELLING_SURVEY_TYPES: SurveyType[] = [
 
 export const isLevellingSurveyType = (type: SurveyType): boolean =>
   LEVELLING_SURVEY_TYPES.includes(type);
+
+export const ALL_SURVEY_TYPES: SurveyType[] = [
+  'cadastral',
+  'engineering',
+  'topographic',
+  'geodetic',
+  'mining',
+  'hydrographic',
+  'drone',
+  'deformation',
+];

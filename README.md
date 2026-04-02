@@ -1,94 +1,80 @@
 # METARDU
 
- Professional surveying calculation platform for land surveyors - the complete replacement for expensive software like Trimble, Leica, and AutoCAD.
+Professional surveying calculation platform for land surveyors - the complete replacement for expensive software like Trimble, Leica, and AutoCAD.
 
 ## Why METARDU?
 
 Surveying is mentally exhausting. Long days collecting observations, hours of manual computation, misclosure checks, and report writing. METARDU handles everything so you can focus on what matters - taking accurate observations.
 
+## Survey Types
+
+METARDU supports **9 survey types** with dedicated project workflows:
+
+1. **Cadastral Survey** — Boundary surveys with LR number, deed plan generation, Bowditch traverse adjustment
+2. **Engineering Survey** — Road design, levelling (10√K mm closure per RDM 1.1), cross-sections, earthworks
+3. **Topographic Survey** — Tacheometry, radial surveys, DTM generation, contour extraction
+4. **Geodetic / Control Survey** — GNSS baselines, network adjustment, accuracy classification
+5. **Mining Survey** — Underground traverse, stockpile volumes, setting-out data
+6. **Hydrographic Survey** — Bathymetric soundings, tidal corrections, depth reduction
+7. **Drone / UAV Photogrammetry** — GCP management, point cloud processing, orthophoto generation
+8. **Deformation / Monitoring Survey** — Epoch comparisons, displacement vectors, statistical analysis
+9. **Mixed Discipline Survey** — Combined observations from multiple survey types
+
+### 5-Step Project Workflow
+
+Every project follows the same workflow:
+1. **Setup** — Enter project details, LR number, client info, UTM zone
+2. **Field Book** — Record observations (columns auto-switch per survey type)
+3. **Compute** — Run calculations (Bowditch, Rise & Fall, volumes, etc.)
+4. **Review** — Check results, diagrams, closure reports
+5. **Submission** — Generate and download all required documents
+
 ## Features
 
-### Core Survey Tools (18+)
-- **Distance & Bearing** - Point-to-point calculations
-- **Bearing Calculator** - WCB ↔ Quadrant conversion
-- **Area Calculator** - Coordinate, trapezoidal, Simpson's methods
-- **Traverse** - Closed, open, link traverse with Bowditch/Transit adjustment
-- **Leveling** - Rise & Fall, Height of Collimation
-- **COGO** - Radiation, bearing intersection, distance intersection, resection
-- **Curves** - Circular curve elements and stakeout
-- **Tacheometry** - Stadia calculations
-- **Chainage** - Station chaining
-- **GNSS** - Coordinate handling
-- **Mining Survey** - Underground calculations
-- **Hydrographic** - Bathymetric surveys
-- **Drone/UAV** - Flight planning & GCP
-- **Setting Out** - Stakeout calculations
-- **Two-Peg Test** - Instrument calibration
-- **Missing Line** - Triangle calculations
-- **Grade/Slope** - Gradient calculations
+### Data Import
+- **Universal Importer** — Auto-detects format: LAS, LAZ, PLY, CSV, XML, DXF, GSI, JobXML, RINEX, Trimble RW5
+- **Drone Support** — Pix4D, DJI flight logs, point cloud processing
 
-### Online Services (Phase 7)
-- GNSS baseline file processing
-- Live coordinate transformation API (WGS84 ↔ UTM, all 60 zones)
-- Real-time weather/EDM corrections
+### Calculations (via math-engine)
+- Traverse adjustment (Bowditch/Transit)
+- Levelling (Rise & Fall, Height of Collimation)
+- COGO (radiation, intersection, resection)
+- Volume computation (prismoidal, end-area)
+- Coordinate transforms (WGS84 ↔ UTM, all 60 zones)
+- Curve geometry (horizontal/vertical)
+- Earthworks (cut/fill, mass haul)
+
+### Document Generation
+- Survey reports per RDM 1.1
+- Deed plans (Form No. 4)
+- Working diagrams
+- Longitudinal/cross-sections
+- Setting-out sheets
+- Coordinate schedules
+- Shapefile/DXF export
+
+### Online Services
+- GNSS baseline processing
+- Live coordinate transformation API
 - Benchmark database lookup
-- Satellite imagery overlay (Sentinel-2)
+- Kenya CORS RTK corrections
 
-### Integration Layer (Phase 8)
-- Kenya NLIMS land registry
-- Uganda NLIS
-- Tanzania Land Registry
-- Ghana, Nigeria, South Africa registries
-- Kenya CORS (RTK corrections)
-- Digital signature + QR verification
-- Equipment calibration tracker
-- International registries (India, Bangladesh, Indonesia, Malaysia, Brazil, Colombia, Egypt, Morocco)
-
-### Community + Marketplace (Phase 9)
-- Survey job marketplace (5% commission)
-- Peer review network
-- AI plan checking
-- CPD certificate system
-- Professional body integration (ISK, Uganda, Tanzania boards)
-- Survey templates store
-- Find professional surveyors
-
-### Enterprise (Phase 10)
-- Cloud rendering for large projects
-- Survey project insurance
-- Government department licensing
-- University API
-- White-label configuration
-- Audit logs
-- Payment integration (M-Pesa, Card, PayPal)
-
-### Land Law Intelligence (Phase 11)
-- Legal guidance based on Brown's Boundary Control
-- Boundary dispute procedures
-- Adverse possession rules
-- Easement guidance
-
-### Data Management
-- Supabase realtime collaboration
-- Offline field book with sync
-- Import: RINEX, Topcon, Leica SDR, JobXML, GSI
-- Export: GeoJSON, LandXML, DXF, PDF reports
+### Integration
+- Kenya NLIMS, Uganda NLIS, Tanzania Land Registry
+- Professional body integration (ISK, EBK)
+- M-Pesa, Stripe payment
 
 ## Tech Stack
 
 - Next.js 14 (App Router)
-- TypeScript
+- TypeScript 5.x (95%+ coverage)
 - Tailwind CSS
-- Supabase (Auth + PostgreSQL)
+- Supabase (Auth + PostgreSQL + RLS)
 - Leaflet (maps)
 - Capacitor (Android mobile)
-- PWA support (works offline)
-
-## Compute Architecture
-
-- Core survey math runs in the TypeScript engine (offline/deterministic).
-- Heavy geospatial processing is optional via a Python compute service exposed through `/api/compute/*`.
-- Details: `C:\\Users\\ADMIN\\Desktop\\Survey -ENG\\GEONOVA_COMPUTE_ARCHITECTURE.md:1`
+- PWA support (offline-first)
+- Sentry (error monitoring)
+- Jest + React Testing Library
 
 ## Supported
 
@@ -108,35 +94,32 @@ npm run dev
 # Build for production
 npm run build
 
+# Run tests
+npm test
+
 # Build mobile app (requires Java)
 npm run mobile:build
 ```
 
 ## Pages
 
-- `/` - Landing page
-- `/tools/*` - 19 survey tools
-- `/project/[id]` - Project workspace
-- `/fieldbook` - Digital field book
-- `/community` - Surveyor community
-- `/marketplace` - Templates & services
-- `/jobs` - Job board
-- `/online` - Coordinate services
-- `/parcel` - Parcel search
-- `/kencors` - RTK corrections
-- `/checkout` - Payment
-- `/analytics` - Usage analytics
-- `/notifications` - Activity center
-- `/audit-logs` - Security logs
-- `/white-label` - Enterprise branding
-- `/api-docs` - API documentation
-- `/cpd` - CPD certificates
-- `/ai-plan-checker` - AI validation
-- `/peer-review` - Professional reviews
+- `/` — Landing page
+- `/project/new` — Create new project
+- `/project/[id]` — Project workspace (5-step workflow)
+- `/fieldbook` — Digital field book
+- `/tools/*` — Standalone survey tools
+- `/community` — Surveyor community
+- `/marketplace` — Templates & services
+- `/jobs` — Job board
+- `/online` — Coordinate services
+- `/parcel` — Parcel search
+- `/kencors` — RTK corrections
+- `/checkout` — Payment
+- `/pricing` — Subscription plans
 
 ## Build
 
-- **Web**: 67 routes, builds successfully
+- **Web**: 181 routes, builds successfully
 - **Mobile**: Capacitor Android (requires Java for APK build)
 
 ## License

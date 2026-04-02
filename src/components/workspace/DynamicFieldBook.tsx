@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { SurveyType } from '@/types/project';
 import { FieldBookColumn, FieldBookRow } from '@/types/fieldbook';
@@ -76,7 +76,9 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
   const [warnings, setWarnings] = useState<FieldBookWarning[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
-  const saveTimeoutRef = { current: null as ReturnType<typeof setTimeout> | null };
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
   const addRow = () => setRows((prev) => [...prev, emptyRow(template.columns)]);
 
@@ -102,7 +104,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
       setSaving(true);
-      const records = rows.map((row, idx) =>
+      const records = rowsRef.current.map((row, idx) =>
         rowToDbRecord(row, idx, projectId, surveyType, template.columns)
       );
       const { error: dbError } = await supabase
@@ -111,7 +113,8 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
       if (!dbError) setLastSaved(new Date());
       setSaving(false);
     }, 500);
-  }, [surveyType, projectId, template.columns, supabase, rows]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [surveyType, projectId, template.columns, supabase]);
 
   const handleCompute = useCallback(() => {
     try {

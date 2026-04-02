@@ -163,7 +163,7 @@ function Step1Setup({
     if (speedRange && (designSpeed < speedRange[0] || designSpeed > speedRange[1])) {
       setDesignSpeed(speedRange[0])
     }
-  }, [roadClass, standard])
+  }, [roadClass, standard, speedRange, designSpeed])
 
   const handleSave = () => {
     onSave({

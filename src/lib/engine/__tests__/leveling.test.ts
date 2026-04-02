@@ -40,10 +40,10 @@ describe('riseAndFall', () => {
     expect(Number.isFinite(r.misclosure)).toBe(true)
   })
 
-  it('allowable misclosure scales with distance (12mm√K)', () => {
+  it('allowable misclosure scales with distance (10mm√K per RDM 1.1)', () => {
     const r = riseAndFall(LEVELING_INPUT)
-    // For 1km: allowable = 0.012m
-    expect(r.allowableMisclosure).toBeCloseTo(0.012, 4)
+    // For 1km: allowable = 10√1 = 10mm = 0.010m per RDM 1.1 Table 5.1
+    expect(r.allowableMisclosure).toBeCloseTo(0.010, 4)
   })
 
   it('opening RL is first reduced level', () => {
