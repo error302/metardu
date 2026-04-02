@@ -87,6 +87,20 @@ export async function generateDocument(
       mimeType = 'application/dxf';
       break;
     }
+    case 'longitudinal-section': {
+      const { generateLongitudinalSection } = await import('../generators/longitudinalSection');
+      buffer = await generateLongitudinalSection(projectId, supabase);
+      fileName = `longitudinal-section-${projectId}.pdf`;
+      mimeType = 'application/pdf';
+      break;
+    }
+    case 'volumetric-report': {
+      const { generateVolumetricReport } = await import('../generators/volumetricReport');
+      buffer = await generateVolumetricReport(projectId, supabase);
+      fileName = `volumetric-report-${projectId}.pdf`;
+      mimeType = 'application/pdf';
+      break;
+    }
     default:
       throw new Error(`Generator not yet implemented for: ${documentId}. This document type is coming in a future phase.`);
   }
