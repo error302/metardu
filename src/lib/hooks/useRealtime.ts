@@ -38,14 +38,15 @@ export function useRealtimeCollaboration(
               stableOptions?.onPresenceChange?.(users)
             }
           },
-          onPointsChange: async (payload) => {
+          onPointsChange: async (payload: { eventType: string; new: unknown; old: unknown }) => {
             if (!mounted) return
             
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
               await savePointsOffline([payload.new])
             } else if (payload.eventType === 'DELETE') {
               const points = await getOfflinePoints(projectId)
-              const filtered = points.filter(p => p.id !== payload.old.id)
+              const oldRecord = payload.old as { id: string } | undefined
+              const filtered = points.filter(p => p.id !== oldRecord?.id)
               await savePointsOffline(filtered)
             }
           }
@@ -86,7 +87,7 @@ export function useRealtimeCollaboration(
     isConnected,
     updateCursor,
     updateActiveTool,
-    otherUsers: onlineUsers.filter(u => u.user_id !== user?.id)
+    otherUsers: onlineUsers.filter(u => (u as { id?: string }).id !== user?.id)
   }
 }
 

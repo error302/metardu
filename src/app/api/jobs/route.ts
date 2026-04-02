@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { getOpenJobs, createJob, getJobById } from '@/lib/supabase/community'
-import { awardCPDPoints } from '@/lib/supabase/cpd'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabase = createClient(supabaseUrl, supabaseKey)
+import db from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +11,52 @@ export async function GET(request: NextRequest) {
     const minBudget = searchParams.get('minBudget') ? parseFloat(searchParams.get('minBudget')!) : undefined
     const maxBudget = searchParams.get('maxBudget') ? parseFloat(searchParams.get('maxBudget')!) : undefined
 
-    const jobs = await getOpenJobs({ jobType, county, minBudget, maxBudget })
+    let query = 'SELECT * FROM marketplace_jobs WHERE status = $1'
+    const params: unknown[] = ['OPEN']
+
+    if (jobType) {
+      query += ` AND job_type = $${params.length + 1}`
+      params.push(jobType)
+    }
+    if (county) {
+      query += ` AND county = $${params.length + 1}`
+      params.push(county)
+    }
+    if (minBudget !== undefined) {
+      query += ` AND budget_amount >= $${params.length + 1}`
+      params.push(minBudget)
+    }
+    if (maxBudget !== undefined) {
+      query += ` AND budget_amount <= $${params.length + 1}`
+      params.push(maxBudget)
+    }
+
+    query += ' ORDER BY created_at DESC LIMIT 50'
+
+    const result = await db.query(query, params)
+    
+    // Map to camelCase
+    const jobs = result.rows.map((row: Record<string, unknown>) => ({
+      id: row.id,
+      postedBy: row.posted_by,
+      title: row.title,
+      description: row.description,
+      jobType: row.job_type,
+      county: row.county,
+      locationDescription: row.location_description,
+      parcelNumber: row.parcel_number,
+      estimatedArea: row.estimated_area,
+      budget: {
+        amount: row.budget_amount,
+        currency: row.budget_type || 'KES',
+        type: row.budget_type || 'FIXED'
+      },
+      deadline: row.deadline,
+      requiredQualifications: row.required_qualifications,
+      status: row.status,
+      createdAt: row.created_at
+    }))
+
     return NextResponse.json({ jobs })
 
   } catch (error) {
@@ -26,22 +67,41 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
+    const session = await getServerSession(authOptions) as { user: { id: string; email: string } } | null
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
-
     const body = await request.json()
-    const jobId = await createJob(body, user.id)
+    const id = crypto.randomUUID()
+    const now = new Date().toISOString()
 
-    return NextResponse.json({ jobId })
+    await db.query(
+      `INSERT INTO marketplace_jobs 
+       (id, posted_by, title, description, job_type, county, location_description, 
+        parcel_number, estimated_area, budget_amount, budget_type, deadline, 
+        required_qualifications, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+      [
+        id,
+        session.user.id,
+        body.title,
+        body.description || '',
+        body.jobType || 'OTHER',
+        body.county || '',
+        body.locationDescription || '',
+        body.parcelNumber || null,
+        body.estimatedArea || null,
+        body.budget?.amount || null,
+        body.budget?.type || 'FIXED',
+        body.deadline || null,
+        body.requiredQualifications || [],
+        'OPEN',
+        now
+      ]
+    )
+
+    return NextResponse.json({ jobId: id })
 
   } catch (error) {
     console.error('Jobs POST error:', error)

@@ -1,15 +1,6 @@
 import NextAuth, { AuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 
-const users = new Map<string, { id: string; email: string; passwordHash: string; role: string }>()
-
-users.set('mohameddosho20@gmail.com', {
-  id: 'demo-user-1',
-  email: 'mohameddosho20@gmail.com',
-  passwordHash: '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8',
-  role: 'user'
-})
-
 function hashPassword(password: string): string {
   const crypto = require('crypto')
   return crypto.createHash('sha256').update(password).digest('hex')
@@ -26,16 +17,28 @@ export const authOptions: AuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
         
-        const user = users.get(credentials.email)
+        // Demo users - in production, check against database
+        const demoUsers: Record<string, { id: string; name: string; passwordHash: string }> = {
+          'mohameddosho20@gmail.com': {
+            id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+            name: 'Mohamed Dosho',
+            passwordHash: '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8' // password
+          }
+        }
+        
+        const user = demoUsers[credentials.email]
         if (!user) return null
         
-        const passwordHash = hashPassword(credentials.password)
-        if (passwordHash !== user.passwordHash) return null
-        
-        return {
-          id: user.id,
-          email: user.email,
+        // Accept 'password' as the demo password
+        if (credentials.password === 'password') {
+          return {
+            id: user.id,
+            email: credentials.email,
+            name: user.name,
+          }
         }
+        
+        return null
       },
     }),
   ],
