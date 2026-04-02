@@ -101,6 +101,13 @@ export async function generateDocument(
       mimeType = 'application/pdf';
       break;
     }
+    case 'gcp-report': {
+      const { generateGcpReport } = await import('../generators/gcpReport');
+      buffer = await generateGcpReport(projectId, supabase);
+      fileName = `gcp-report-${projectId}.pdf`;
+      mimeType = 'application/pdf';
+      break;
+    }
     default:
       throw new Error(`Generator not yet implemented for: ${documentId}. This document type is coming in a future phase.`);
   }
