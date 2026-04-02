@@ -1,33 +1,11 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { requireEnv } from '@/lib/env'
 
 export async function middleware(request: NextRequest) {
-  // Create response that will be returned
-  const response = NextResponse.next({ request })
-
-  // Create supabase client that reads/writes cookies on the response
-  const supabase = createServerClient(
-    requireEnv('NEXT_PUBLIC_SUPABASE_URL'),
-    requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options))
-        },
-      },
-    }
-  )
-
-  // Refresh the session cookie on every request
-  // This is required for getSession() to work in page components
-  await supabase.auth.getSession()
-
-  // Protected routes - redirect to login if no session
+  const sessionToken = request.cookies.get('next-auth.session-token')?.value 
+    || request.cookies.get('__Secure-next-auth.session-token')?.value
+  
+  const hasSession = !!sessionToken
+  
   const protectedPaths = [
     '/dashboard', '/project', '/fieldbook', '/deed-plan',
     '/tools/survey-report-builder', '/fieldguard', '/cadastra',
@@ -46,20 +24,17 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(route)
   )
 
-  // Check if user is authenticated by reading the session cookie
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (isProtected && !session) {
+  if (isProtected && !hasSession) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', request.nextUrl.pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  if (isAuthRoute && session) {
+  if (isAuthRoute && hasSession) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
