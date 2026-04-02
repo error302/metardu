@@ -66,6 +66,13 @@ export async function generateDocument(
       mimeType = 'application/pdf';
       break;
     }
+    case 'working-diagram': {
+      const { generateWorkingDiagramPdf } = await import('../generators/workingDiagram');
+      buffer = await generateWorkingDiagramPdf(projectId, supabase);
+      fileName = `working-diagram-${projectId}.pdf`;
+      mimeType = 'application/pdf';
+      break;
+    }
     default:
       throw new Error(`Generator not yet implemented for: ${documentId}. This document type is coming in a future phase.`);
   }
