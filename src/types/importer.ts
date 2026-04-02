@@ -25,6 +25,7 @@ export interface ParsedPoint {
 export interface ParseResult {
   format: SupportedFormat;
   points: ParsedPoint[];
+  errors?: string[];
   warnings: string[];
   metadata?: Record<string, unknown>;
 }
