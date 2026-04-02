@@ -56,6 +56,16 @@ export async function generateDocument(
       mimeType = 'application/zip';
       break;
     }
+    case 'deed-plan': {
+      if (surveyType !== 'cadastral') {
+        throw new Error('Deed Plan is only available for cadastral surveys.');
+      }
+      const { generateDeedPlan } = await import('../generators/deedPlan');
+      buffer = await generateDeedPlan(projectId, supabase);
+      fileName = `deed-plan-${projectId}.pdf`;
+      mimeType = 'application/pdf';
+      break;
+    }
     default:
       throw new Error(`Generator not yet implemented for: ${documentId}. This document type is coming in a future phase.`);
   }
