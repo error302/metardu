@@ -11,6 +11,8 @@ import { QueryBuilder } from '@/lib/db/queryBuilder'
 import { env } from '@/lib/env'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { dirname, join } from 'path'
+import { mkdir, readFile, unlink, writeFile } from 'fs/promises'
 
 let pool: Pool | null = null
 
@@ -68,6 +70,17 @@ export interface CompatClient {
 
 export async function createClient(): Promise<CompatClient> {
   const p = getPool()
+  const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'public', 'uploads')
+
+  const toBuffer = async (file: any): Promise<Buffer> => {
+    if (Buffer.isBuffer(file)) return file
+    if (file instanceof Uint8Array) return Buffer.from(file)
+    if (file?.arrayBuffer && typeof file.arrayBuffer === 'function') {
+      const arr = await file.arrayBuffer()
+      return Buffer.from(arr)
+    }
+    throw new Error('Unsupported file type for server upload')
+  }
 
   const getCompatSession = async () => {
     const session = await getServerSession(authOptions)
@@ -118,10 +131,41 @@ export async function createClient(): Promise<CompatClient> {
     storage: {
       from(bucket: string) {
         return {
-          upload: async () => ({ data: null, error: { message: 'Storage not migrated to VM yet.' } }),
+          upload: async (path: string, file: any) => {
+            try {
+              const buffer = await toBuffer(file)
+              const fullPath = join(UPLOAD_DIR, bucket, path)
+              await mkdir(dirname(fullPath), { recursive: true })
+              await writeFile(fullPath, buffer)
+              return { data: { path: `${bucket}/${path}` }, error: null }
+            } catch (err: any) {
+              return { data: null, error: { message: err?.message || 'Local upload failed' } }
+            }
+          },
           getPublicUrl: (path: string) => ({ data: { publicUrl: `/uploads/${bucket}/${path}` } }),
-          download: async () => ({ data: null, error: { message: 'Storage not migrated.' } }),
-          remove: async () => ({ data: null, error: null }),
+          download: async (path: string) => {
+            try {
+              const fullPath = join(UPLOAD_DIR, bucket, path)
+              const data = await readFile(fullPath)
+              return { data, error: null }
+            } catch (err: any) {
+              return { data: null, error: { message: err?.message || 'Download failed' } }
+            }
+          },
+          remove: async (paths: string[]) => {
+            try {
+              await Promise.all(paths.map(async (path: string) => {
+                try {
+                  await unlink(join(UPLOAD_DIR, bucket, path))
+                } catch {
+                  // Ignore missing files to keep Supabase-compatible behavior.
+                }
+              }))
+              return { data: null, error: null }
+            } catch (err: any) {
+              return { data: null, error: { message: err?.message || 'Remove failed' } }
+            }
+          },
         }
       }
     },
