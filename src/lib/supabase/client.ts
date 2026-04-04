@@ -211,7 +211,24 @@ export function createClient(): BrowserClient {
         } catch {}
       },
       async updateUser(_params: any) {
-        return { data: { user: null }, error: { message: 'Use custom API endpoint to update user.' } }
+        const params = _params as { password?: string } | undefined
+        if (!params?.password) {
+          return { data: { user: null }, error: { message: 'Only password updates are supported.' } }
+        }
+        try {
+          const res = await fetch('/api/auth/update-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: params.password }),
+          })
+          const json = await res.json().catch(() => ({}))
+          if (!res.ok) {
+            return { data: { user: null }, error: { message: json.error || 'Password update failed' } }
+          }
+          return { data: { user: json.user ?? null }, error: null }
+        } catch {
+          return { data: { user: null }, error: { message: 'Password update failed' } }
+        }
       },
       async exchangeCodeForSession(_code: string) {
         return { data: { session: null }, error: null }

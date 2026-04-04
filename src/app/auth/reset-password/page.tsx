@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, XCircle } from 'lucide-react'
 
 function getPasswordStrength(password: string): { label: string; color: string; width: string } {
   if (password.length < 8) return { label: 'Weak', color: 'bg-red-500', width: 'w-1/3' }
@@ -20,8 +19,8 @@ function getPasswordStrength(password: string): { label: string; color: string; 
 function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
 
+  const [token, setToken] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -29,18 +28,14 @@ function ResetPasswordContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [hasCode, setHasCode] = useState(false)
 
   const strength = getPasswordStrength(password)
 
   useEffect(() => {
-    document.title = 'Reset Password — METARDU'
-    const code = searchParams.get('code')
-    if (code) {
-      setHasCode(true)
-      supabase.auth.exchangeCodeForSession(code)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    document.title = 'Reset Password - METARDU'
+    const t = searchParams.get('token') || searchParams.get('code') || ''
+    setToken(t)
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,28 +49,42 @@ function ResetPasswordContent() {
       setError('Passwords do not match')
       return
     }
+    if (!token) {
+      setError('Invalid reset link. Request a new one from login.')
+      return
+    }
 
     setLoading(true)
-    const { error: updateError } = await supabase.auth.updateUser({ password })
-
-    if (updateError) {
-      setError('Password update failed. Your reset link may have expired.')
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(json.error || 'Password update failed. Your reset link may have expired.')
+        setLoading(false)
+        return
+      }
+    } catch {
+      setError('Password update failed. Please try again.')
       setLoading(false)
       return
     }
 
     setSuccess(true)
-    setTimeout(() => router.push('/dashboard'), 2000)
+    setTimeout(() => router.push('/login'), 2000)
   }
 
-  if (!hasCode) {
+  if (!token) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-8">
         <div className="max-w-md w-full text-center">
           <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Invalid reset link</h2>
           <p className="text-[var(--text-secondary)] mb-6">This link is invalid or has expired.</p>
-          <a href="/login" className="text-[var(--accent)] hover:underline">Request a new reset link →</a>
+          <a href="/login" className="text-[var(--accent)] hover:underline">Request a new reset link</a>
         </div>
       </div>
     )
@@ -87,7 +96,7 @@ function ResetPasswordContent() {
         <div className="max-w-md w-full text-center">
           <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Password updated</h2>
-          <p className="text-[var(--text-secondary)]">Redirecting to dashboard...</p>
+          <p className="text-[var(--text-secondary)]">Redirecting to login...</p>
         </div>
       </div>
     )
@@ -173,11 +182,13 @@ function ResetPasswordContent() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
       <ResetPasswordContent />
     </Suspense>
   )

@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
+import { z } from 'zod'
+import db from '@/lib/db'
+import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
+
+const resetSchema = z.object({
+  token: z.string().min(20),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+})
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => ({}))
+    const parsed = resetSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid input' }, { status: 400 })
+    }
+
+    const identifier = getClientIdentifier(req)
+    const { allowed } = await rateLimit(`reset:${identifier}`, 10, 15 * 60 * 1000)
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+
+    const { token, password } = parsed.data
+
+    const tokenRes = await db.query(
+      `SELECT id, user_id
+       FROM password_reset_tokens
+       WHERE token = $1
+         AND used_at IS NULL
+         AND expires_at > NOW()
+       LIMIT 1`,
+      [token]
+    )
+
+    if (tokenRes.rows.length === 0) {
+      return NextResponse.json({ error: 'Invalid or expired reset link.' }, { status: 400 })
+    }
+
+    const tokenRow = tokenRes.rows[0] as { id: string; user_id: string }
+    const passwordHash = await bcrypt.hash(password, 10)
+
+    const client = await db.getClient()
+    try {
+      await client.query('BEGIN')
+      await client.query(
+        `UPDATE users 
+         SET password_hash = $1, updated_at = NOW() 
+         WHERE id = $2`,
+        [passwordHash, tokenRow.user_id]
+      )
+      await client.query(
+        `UPDATE password_reset_tokens 
+         SET used_at = NOW()
+         WHERE id = $1`,
+        [tokenRow.id]
+      )
+      await client.query(
+        `UPDATE password_reset_tokens
+         SET used_at = NOW()
+         WHERE user_id = $1 AND used_at IS NULL`,
+        [tokenRow.user_id]
+      )
+      await client.query('COMMIT')
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('[reset-password] Error:', err)
+    return NextResponse.json({ error: 'Failed to reset password' }, { status: 500 })
+  }
+}
