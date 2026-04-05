@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DocumentStatus, ProjectDocument } from '@/types/submission';
 import { getDocumentsForSurveyType } from '@/lib/submission/submissionDocuments';
 import { SurveyType } from '@/types/project';
 import { SupportingDocUpload } from '@/components/submission/SupportingDocUpload';
+import { FormNo4Preview } from '@/components/drawing/FormNo4Preview';
 
 interface Props {
   project: { id: string; name: string; survey_type: string };
   existingDocs: ProjectDocument[];
+  projectId: string;
 }
 
 interface DocState {
@@ -21,8 +23,31 @@ interface DocState {
   generatedAt?: string;
 }
 
-export default function SubmissionClient({ project, existingDocs }: Props) {
+interface SubmissionPackage {
+  submissionRef: string;
+  projectId: string;
+  surveyor: { registrationNumber: string; fullName: string; firmName: string; isKMemberActive: boolean };
+  subtype: 'cadastral_subdivision' | 'cadastral_amalgamation' | 'cadastral_resurvey' | 'cadastral_mutation';
+  parcel: { lrNumber: string; county: string; district: string; locality: string; areaM2: number; perimeterM: number };
+  traverse: {
+    points: { pointName: string; easting: number; northing: number; adjustedEasting: number; adjustedNorthing: number; observedBearing: number; observedDistance: number }[];
+    angularMisclosure: number;
+    linearMisclosure: number;
+    precisionRatio: string;
+    closingErrorE: number;
+    closingErrorN: number;
+    adjustmentMethod: 'bowditch' | 'transit';
+    areaM2: number;
+    perimeterM: number;
+  };
+  supportingDocs: { type: 'ppa2' | 'lcb_consent' | 'mutation_form' | 'beacon_cert'; label: string; required: boolean; fileUrl: string | null; uploadedAt: string | null }[];
+  generatedAt: string;
+  revision: number;
+}
+
+export default function SubmissionClient({ project, existingDocs, projectId }: Props) {
   const supabase = createClient();
+  const [previewPkg, setPreviewPkg] = useState<SubmissionPackage | null>(null);
   const [docStates, setDocStates] = useState<Record<string, DocState>>(() => {
     const initial: Record<string, DocState> = {};
     getDocumentsForSurveyType(project.survey_type).forEach((doc) => {
@@ -50,6 +75,21 @@ export default function SubmissionClient({ project, existingDocs }: Props) {
     blockers: string[];
     warnings: string[];
   } | null>(null);
+
+  useEffect(() => {
+    async function loadPreview() {
+      try {
+        const res = await fetch(`/api/submission/preview?projectId=${projectId}`);
+        if (res.ok) {
+          const pkg = await res.json();
+          setPreviewPkg(pkg);
+        }
+      } catch (err) {
+        console.error('Failed to load preview:', err);
+      }
+    }
+    loadPreview();
+  }, [projectId]);
 
   const generateDocument = useCallback(async (docId: string) => {
     setDocStates((prev) => ({
@@ -338,6 +378,16 @@ export default function SubmissionClient({ project, existingDocs }: Props) {
       )}
 
       <SupportingDocUpload projectId={project.id} />
+
+      {previewPkg && (
+        <div className="space-y-2">
+          <h3 className="font-semibold text-lg">Form No. 4 Preview</h3>
+          <p className="text-xs text-[var(--text-muted)]">
+            Verify geometry before generating package. The DXF export matches this preview exactly.
+          </p>
+          <FormNo4Preview pkg={previewPkg} width={760} height={500} />
+        </div>
+      )}
 
       <div className="mt-8 p-4 border border-orange-200 bg-orange-50 rounded-lg">
         <h3 className="font-semibold text-orange-800">Generate Compliant Submission Package</h3>

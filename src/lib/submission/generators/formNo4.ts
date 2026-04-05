@@ -1,18 +1,17 @@
 import Drawing from 'dxf-writer'
 import type { SubmissionPackage } from '../types'
+import {
+  initialiseDXFLayers,
+  addStandardTitleBlock,
+  DXF_LAYERS
+} from '@/lib/drawing/dxfLayers'
 
 export function generateFormNo4DXF(pkg: SubmissionPackage): string {
   const drawing = new Drawing()
 
-  drawing.addLayer('BOUNDARY', 7, 'CONTINUOUS')
-  drawing.addLayer('BEACONS', 2, 'CONTINUOUS')
-  drawing.addLayer('ANNOTATIONS', 3, 'CONTINUOUS')
-  drawing.addLayer('TITLEBLOCK', 7, 'CONTINUOUS')
-  drawing.addLayer('NORTHARROW', 7, 'CONTINUOUS')
-  drawing.addLayer('SCALEBAR', 7, 'CONTINUOUS')
-  drawing.addLayer('GRID', 8, 'DASHED')
+  initialiseDXFLayers(drawing)
 
-  drawing.setActiveLayer('BOUNDARY')
+  drawing.setActiveLayer(DXF_LAYERS.BOUNDARY.name)
 
   const points = pkg.traverse.points
   if (points.length >= 3) {
@@ -65,9 +64,26 @@ export function generateFormNo4DXF(pkg: SubmissionPackage): string {
   }
 
   drawing.setActiveLayer('TITLEBLOCK')
-  addTitleBlock(drawing, pkg)
+  addStandardTitleBlock(drawing, {
+    drawingTitle: 'FORM NO. 4 — SURVEY PLAN',
+    lrNumber: pkg.parcel.lrNumber,
+    county: pkg.parcel.county,
+    district: pkg.parcel.district,
+    locality: pkg.parcel.locality,
+    areaHa: pkg.parcel.areaM2 / 10000,
+    perimeterM: pkg.parcel.perimeterM,
+    surveyorName: pkg.surveyor.fullName,
+    registrationNumber: pkg.surveyor.registrationNumber,
+    firmName: pkg.surveyor.firmName,
+    date: new Date(pkg.generatedAt).toLocaleDateString('en-KE'),
+    submissionRef: pkg.submissionRef,
+    coordinateSystem: 'Arc 1960 / UTM Zone 37S (SRID: 21037)',
+    scale: '1:2500',
+    sheetNumber: '1 of 1',
+    revision: `R${String(pkg.revision).padStart(2, '0')}`
+  })
 
-  drawing.setActiveLayer('NORTHARROW')
+  drawing.setActiveLayer(DXF_LAYERS.NORTHARROW.name)
   addNorthArrow(drawing, pkg)
 
   return drawing.toDxfString()
@@ -79,20 +95,6 @@ function formatBearing(decimal: number): string {
   const min = Math.floor(minDecimal)
   const sec = Math.round((minDecimal - min) * 60)
   return `${deg}°${min}'${sec}"`
-}
-
-function addTitleBlock(drawing: Drawing, pkg: SubmissionPackage): void {
-  const tbX = 0
-  const tbY = -30
-
-  drawing.drawText(tbX + 2, tbY - 5, 2, 0, `FORM NO. 4 — SURVEY PLAN`)
-  drawing.drawText(tbX + 2, tbY - 10, 1.5, 0, `LR No: ${pkg.parcel.lrNumber}`)
-  drawing.drawText(tbX + 2, tbY - 14, 1.5, 0, `County: ${pkg.parcel.county}`)
-  drawing.drawText(tbX + 2, tbY - 18, 1.5, 0, `Area: ${(pkg.parcel.areaM2 / 10000).toFixed(4)} Ha`)
-  drawing.drawText(tbX + 2, tbY - 22, 1.5, 0, `Surveyor: ${pkg.surveyor.fullName} (${pkg.surveyor.registrationNumber})`)
-  drawing.drawText(tbX + 2, tbY - 26, 1.5, 0, `Date: ${new Date(pkg.generatedAt).toLocaleDateString('en-KE')}`)
-  drawing.drawText(tbX + 2, tbY - 30, 1.5, 0, `Submission Ref: ${pkg.submissionRef}`)
-  drawing.drawText(tbX + 2, tbY - 34, 1.2, 0, `Coordinate System: Arc 1960 / UTM Zone 37S`)
 }
 
 function addNorthArrow(drawing: Drawing, _pkg: SubmissionPackage): void {

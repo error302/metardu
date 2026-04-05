@@ -30,6 +30,7 @@ export default async function SubmissionPage({ params }: Props) {
     <SubmissionClient
       project={project}
       existingDocs={existingDocs ?? []}
+      projectId={params.id}
     />
   );
 }
