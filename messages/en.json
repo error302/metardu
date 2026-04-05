@@ -379,6 +379,11 @@
     "joinCommunity": "Join Community"
   },
   "tools": {
+    "superelevation": "Superelevation",
+    "sightDistance": "Sight Distance",
+    "pipeGradient": "Pipe Gradient",
+    "borrowPitVolume": "Borrow Pit Volume",
+    "stockpileVolume": "Stockpile Volume",
     "quickTools": "Quick Tools",
     "calculations": "Calculations",
     "traverseAdjust": "Traverse & Adjustment",

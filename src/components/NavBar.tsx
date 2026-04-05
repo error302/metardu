@@ -99,22 +99,6 @@ const documentGroups = [
   },
 ]
 
-const advancedGroups = [
-  {
-    titleKey: 'nav.advanced',
-    items: [
-      { href: '/fieldguard', labelKey: 'advanced.fieldguard', badgeKey: 'ai' },
-      { href: '/cadastra', labelKey: 'advanced.cadastra', badgeKey: 'ai' },
-      { href: '/minetwin', labelKey: 'advanced.minetwin', badgeKey: 'new' },
-      { href: '/automator', labelKey: 'advanced.automator', badgeKey: 'new' },
-      { href: '/hydrolive', labelKey: 'advanced.hydrolive', badgeKey: 'ai' },
-      { href: '/usv', labelKey: 'advanced.usv', badgeKey: 'new' },
-      { href: '/minescan', labelKey: 'advanced.minescan', badgeKey: 'ai' },
-      { href: '/geofusion', labelKey: 'advanced.geofusion', badgeKey: 'new' },
-    ]
-  },
-]
-
 const moreGroups = [
   {
     titleKey: 'nav.import',
@@ -537,18 +521,6 @@ export default function NavBar() {
               ))}
             </Dropdown>
 
-            {/* Advanced Modules Dropdown */}
-            <Dropdown
-              label={t('nav.advanced')}
-              isOpen={openDropdown === 'advanced'}
-              onToggle={() => handleDropdownToggle('advanced')}
-              panelClassName="min-w-[280px] py-2"
-            >
-              {advancedGroups.map((group, idx) => (
-                <DropdownGroup key={idx} titleKey={group.titleKey} items={group.items} t={t} onSelect={() => setOpenDropdown(null)} />
-              ))}
-            </Dropdown>
-
             <Dropdown
               label={t('nav.field')}
               isOpen={openDropdown === 'field'}
@@ -669,6 +641,13 @@ export default function NavBar() {
                           className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
                         >
                           {t('nav.pricing')}
+                        </Link>
+                        <Link
+                          href="/enterprise"
+                          onClick={() => setOpenDropdown(null)}
+                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
+                        >
+                          Enterprise Products
                         </Link>
                         <Link
                           href="/white-label"
