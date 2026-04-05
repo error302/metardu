@@ -1,18 +1,24 @@
-import { createClient } from '@/lib/supabase/client'
-import type { SurveyorProfile } from '@/types/submission'
+import { createClient } from '@/lib/supabase/server'
+import type { SurveyorProfile } from './types'
 
-export async function getActiveSurveyorProfile(): Promise<SurveyorProfile | null> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return null
+export async function getActiveSurveyorProfile(): Promise<SurveyorProfile> {
+  const supabase = await createClient()
 
-  const { data } = await supabase
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase
     .from('surveyor_profiles')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .order('created_at', { ascending: false })
-    .maybeSingle()
+    .select('registration_number, full_name, firm_name, isk_active')
+    .eq('user_id', user.id)
+    .single()
 
-  return data as SurveyorProfile | null
+  if (error || !data) throw new Error('Surveyor profile not found')
+
+  return {
+    registrationNumber: data.registration_number,
+    fullName: data.full_name,
+    firmName: data.firm_name,
+    isKMemberActive: data.isk_active
+  }
 }
-

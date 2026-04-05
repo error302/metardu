@@ -42,6 +42,14 @@ export default function SubmissionClient({ project, existingDocs }: Props) {
   const totalCount = documents.length;
   const progressPct = totalCount > 0 ? (readyCount / totalCount) * 100 : 0;
 
+  const [assembling, setAssembling] = useState(false);
+  const [packageResult, setPackageResult] = useState<{
+    passed: boolean;
+    ref: string;
+    blockers: string[];
+    warnings: string[];
+  } | null>(null);
+
   const generateDocument = useCallback(async (docId: string) => {
     setDocStates((prev) => ({
       ...prev,
@@ -327,6 +335,96 @@ export default function SubmissionClient({ project, existingDocs }: Props) {
           </div>
         </div>
       )}
+
+      <div className="mt-8 p-4 border border-orange-200 bg-orange-50 rounded-lg">
+        <h3 className="font-semibold text-orange-800">Generate Compliant Submission Package</h3>
+        <p className="text-sm text-orange-700 mt-1">
+          Generate a complete submission package with Form No. 4 DXF, computation workbook, and supporting documents.
+        </p>
+        <button
+          onClick={async () => {
+            setAssembling(true);
+            try {
+              const res = await fetch('/api/submission/assemble', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId: project.id })
+              });
+
+              if (!res.ok) {
+                const err = await res.json();
+                setPackageResult({
+                  passed: false,
+                  ref: '',
+                  blockers: err.blockers ?? ['Unknown error'],
+                  warnings: err.warnings ?? []
+                });
+                return;
+              }
+
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = res.headers.get('X-Submission-Ref') + '.zip';
+              a.click();
+              URL.revokeObjectURL(url);
+
+              setPackageResult({
+                passed: true,
+                ref: res.headers.get('X-Submission-Ref') ?? '',
+                blockers: [],
+                warnings: []
+              });
+            } catch (err) {
+              setPackageResult({
+                passed: false,
+                ref: '',
+                blockers: [err instanceof Error ? err.message : 'Unknown error'],
+                warnings: []
+              });
+            } finally {
+              setAssembling(false);
+            }
+          }}
+          disabled={assembling}
+          className="mt-4 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded transition"
+        >
+          {assembling ? 'Generating Package...' : 'Generate Submission Package'}
+        </button>
+
+        {packageResult && !packageResult.passed && (
+          <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded">
+            <h4 className="font-medium text-red-800">QA Gate Failed</h4>
+            <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
+              {packageResult.blockers.map((msg, i) => (
+                <li key={i}>{msg}</li>
+              ))}
+            </ul>
+            {packageResult.warnings.length > 0 && (
+              <div className="mt-2">
+                <p className="text-sm text-amber-700">Warnings:</p>
+                <ul className="text-sm text-amber-600 list-disc list-inside">
+                  {packageResult.warnings.map((msg, i) => (
+                    <li key={i}>{msg}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {packageResult?.passed && (
+          <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded">
+            <p className="text-green-800 font-medium">
+              Package generated: {packageResult.ref}
+            </p>
+            <p className="text-sm text-green-600 mt-1">
+              Your submission ZIP has downloaded. Submit to the Director of Surveys office.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

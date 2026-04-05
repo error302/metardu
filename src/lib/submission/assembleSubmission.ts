@@ -1,20 +1,130 @@
-export const SUBMISSION_SECTIONS = [
-  { id: 'surveyor_report',    order: 1, label: "Surveyor's Report",        required: true,  status: 'missing' as const },
-  { id: 'index',              order: 2, label: 'Index to Computations',     required: true,  status: 'missing' as const },
-  { id: 'coordinate_list',    order: 3, label: 'Final Coordinate List',     required: true,  status: 'missing' as const },
-  { id: 'working_diagram',    order: 4, label: 'Working Diagram',          required: true,  status: 'missing' as const },
-  { id: 'theoretical_comps',  order: 5, label: 'Theoretical Computations', required: true,  status: 'missing' as const },
-  { id: 'rtk_result',         order: 6, label: 'RTK / Field Result Bundle',required: false, status: 'missing' as const },
-  { id: 'consistency_checks', order: 7, label: 'Consistency Checks',       required: true,  status: 'missing' as const },
-  { id: 'area_computations',  order: 8, label: 'Area Computations',        required: true,  status: 'missing' as const },
-]
+import JSZip from 'jszip'
+import { createClient } from '@/lib/supabase/server'
+import { getActiveSurveyorProfile } from './surveyorProfile'
+import { generateSubmissionRef } from './revisionNumber'
+import { validateSubmission } from './validateSubmission'
+import { generateFormNo4DXF } from './generators/formNo4'
+import { generateComputationWorkbook } from './generators/computationWorkbook'
+import { generateWorkingDiagramDXF } from './generators/workingDiagram'
+import type { SubmissionPackage, QAGateResult, SurveySubtype } from './types'
 
-export function buildPackageManifest(
-  project: Record<string, any>,
-  submission: Record<string, any> | null
-) {
-  return SUBMISSION_SECTIONS.map((section: any) => ({
-    ...section,
-    status: submission?.generated_artifacts?.[section.id] ? 'ready' as const : 'missing' as const,
-  }))
+interface ProjectData {
+  id: string
+  lr_number: string
+  county: string
+  district: string
+  locality: string
+  area_m2: number
+  perimeter_m: number
+  subtype: SurveySubtype
+  survey_points: any[]
+  angular_misclosure: number
+  linear_misclosure: number
+  precision_ratio: string
+  closing_error_e: number
+  closing_error_n: number
+}
+
+export async function assembleSubmissionPackage(
+  projectId: string
+): Promise<{ zipBuffer: Buffer; ref: string; qa: QAGateResult }> {
+  const supabase = await createClient()
+  const surveyor = await getActiveSurveyorProfile()
+
+  const { data: project } = await supabase
+    .from('projects')
+    .select('*')
+    .eq('id', projectId)
+    .single()
+
+  if (!project) throw new Error('Project not found')
+
+  const proj = project as unknown as ProjectData
+
+  const { ref, revision } = await generateSubmissionRef(
+    projectId,
+    surveyor.registrationNumber
+  )
+
+  const supportingDocs = [
+    { type: 'ppa2' as const, label: 'Physical Planning Approval (PPA2)', required: true, fileUrl: null, uploadedAt: null },
+    { type: 'lcb_consent' as const, label: 'Land Control Board Consent', required: true, fileUrl: null, uploadedAt: null },
+    { type: 'mutation_form' as const, label: 'Mutation Form', required: false, fileUrl: null, uploadedAt: null },
+  ]
+
+  const pkg: SubmissionPackage = {
+    submissionRef: ref,
+    projectId,
+    surveyor,
+    subtype: proj.subtype || 'cadastral_subdivision',
+    parcel: {
+      lrNumber: proj.lr_number || '',
+      county: proj.county || '',
+      district: proj.district || '',
+      locality: proj.locality || '',
+      areaM2: proj.area_m2 || 0,
+      perimeterM: proj.perimeter_m || 0
+    },
+    traverse: {
+      points: (proj.survey_points || []).map((pt: any) => ({
+        pointName: pt.name || pt.point_name || `P${pt.id}`,
+        easting: pt.easting || 0,
+        northing: pt.northing || 0,
+        adjustedEasting: pt.adjusted_easting || pt.easting || 0,
+        adjustedNorthing: pt.adjusted_northing || pt.northing || 0,
+        observedBearing: pt.observed_bearing || 0,
+        observedDistance: pt.observed_distance || pt.distance || 0
+      })),
+      angularMisclosure: proj.angular_misclosure || 0,
+      linearMisclosure: proj.linear_misclosure || 0,
+      precisionRatio: proj.precision_ratio || '1:1',
+      closingErrorE: proj.closing_error_e || 0,
+      closingErrorN: proj.closing_error_n || 0,
+      adjustmentMethod: 'bowditch',
+      areaM2: proj.area_m2 || 0,
+      perimeterM: proj.perimeter_m || 0
+    },
+    supportingDocs,
+    generatedAt: new Date().toISOString(),
+    revision
+  }
+
+  const qa = validateSubmission(pkg)
+  if (!qa.passed) {
+    return { zipBuffer: Buffer.alloc(0), ref, qa }
+  }
+
+  const formNo4Dxf = generateFormNo4DXF(pkg)
+  const workbook = generateComputationWorkbook(pkg)
+  const workingDiagram = generateWorkingDiagramDXF(pkg)
+
+  const zip = new JSZip()
+  zip.file('form_no_4.dxf', formNo4Dxf)
+  zip.file('computation_workbook.xlsx', workbook)
+  zip.file('working_diagram.dxf', workingDiagram)
+
+  const manifest = {
+    submissionRef: ref,
+    generatedAt: pkg.generatedAt,
+    surveyor: pkg.surveyor.registrationNumber,
+    lrNumber: pkg.parcel.lrNumber,
+    files: ['form_no_4.dxf', 'computation_workbook.xlsx', 'working_diagram.dxf'],
+    qaResult: qa
+  }
+  zip.file('manifest.json', JSON.stringify(manifest, null, 2))
+
+  const supportingFolder = zip.folder('supporting_docs')
+
+  const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
+
+  await supabase.from('submissions').insert({
+    project_id: projectId,
+    submission_ref: ref,
+    revision,
+    registration_number: surveyor.registrationNumber,
+    qa_passed: true,
+    generated_at: pkg.generatedAt
+  })
+
+  return { zipBuffer, ref, qa }
 }

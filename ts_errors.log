@@ -1,0 +1,60 @@
+﻿src/components/registry/EquipmentTracker.tsx(117,24): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ OVERDUE: number; DUE_SOON: number; CURRENT: number; INACTIVE: number; }'.
+src/components/registry/EquipmentTracker.tsx(117,42): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ OVERDUE: number; DUE_SOON: number; CURRENT: number; INACTIVE: number; }'.
+src/components/registry/EquipmentTracker.tsx(134,69): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ CURRENT: { color: string; icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; label: string; }; DUE_SOON: { ...; }; OVERDUE: { ...; }; INACTIVE: { ...; }; }'.
+src/components/registry/EquipmentTracker.tsx(135,24): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ CURRENT: { color: string; icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; label: string; }; DUE_SOON: { ...; }; OVERDUE: { ...; }; INACTIVE: { ...; }; }'.
+src/components/registry/KenCORSMap.tsx(187,58): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ ONLINE: string; DEGRADED: string; OFFLINE: string; }'.
+src/components/setting-out/SettingOutCalculator.tsx(152,37): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ id: string; e: string; n: string; rl: string; th: string; desc: string; }'.
+src/components/shared/BeaconPicker.tsx(39,25): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<BeaconType, BeaconDefinition>'.
+src/components/working-diagram/DiagramCanvas.tsx(103,23): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<BoundaryType, SVGProps<SVGPathElement>>'.
+src/hooks/useFieldBook.ts(41,36): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/lib/compute/reportCompleteness.ts(85,31): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<ReportSection, number>'.
+src/lib/compute/reportCompleteness.ts(88,22): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<ReportSection, number>'.
+src/lib/compute/reportCompleteness.ts(89,14): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<ReportSection, string>'.
+src/lib/compute/reportCompleteness.ts(90,22): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<ReportSection, string[]>'.
+src/lib/compute/reportCompleteness.ts(91,21): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<ReportSection, number>'.
+src/lib/compute/surveyReportSections.ts(410,13): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ PRIMARY: number; SECONDARY: number; TERTIARY: number; }'.
+src/lib/compute/surveyReportSections.ts(410,37): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ PRIMARY: number; SECONDARY: number; TERTIARY: number; }'.
+src/lib/generators/coordinateSchedule.ts(51,28): error TS7006: Parameter 'beacon' implicitly has an 'any' type.
+src/lib/generators/coordinateSchedule.ts(51,36): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/lib/generators/deedPlanGeometry.ts(82,11): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/lib/generators/deedPlanGeometry.ts(89,14): error TS7006: Parameter 'l' implicitly has an 'any' type.
+src/lib/generators/deformationReport.ts(28,11): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/lib/generators/deformationReport.ts(35,14): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/lib/generators/deformationReport.ts(52,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/lib/generators/fieldBookExcel.ts(21,37): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/lib/generators/fieldBookExcel.ts(60,17): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/lib/generators/fieldBookExcel.ts(60,22): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/lib/generators/fullPackage.ts(43,23): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/lib/generators/gcpReport.ts(28,11): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/lib/generators/gcpReport.ts(35,14): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/lib/generators/gcpReport.ts(48,34): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/lib/generators/gcpReport.ts(67,39): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/lib/generators/gcpReport.ts(67,42): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/lib/generators/gcpReport.ts(68,48): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/lib/generators/levellingReport.ts(23,37): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/lib/generators/levellingReport.ts(25,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/lib/generators/levellingReport.ts(25,52): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/lib/generators/levellingReport.ts(26,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/lib/generators/levellingReport.ts(26,52): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/lib/generators/levellingReport.ts(27,36): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/lib/generators/levellingReport.ts(27,39): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/lib/generators/levellingReport.ts(28,36): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/lib/generators/levellingReport.ts(28,39): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/lib/generators/levellingReport.ts(55,21): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/lib/generators/longitudinalSection.ts(28,11): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/lib/generators/longitudinalSection.ts(34,14): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/lib/generators/longitudinalSection.ts(48,40): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/lib/generators/longitudinalSection.ts(76,48): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/lib/generators/longitudinalSection.ts(77,48): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/lib/generators/soundingChart.ts(28,11): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/lib/generators/soundingChart.ts(34,14): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/lib/generators/soundingChart.ts(47,39): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/lib/generators/traverseReport.ts(23,37): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/lib/generators/traverseReport.ts(45,21): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/lib/generators/traverseReport.ts(71,38): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+src/lib/generators/traverseReport.ts(71,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/lib/generators/volumetricReport.ts(29,11): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/lib/generators/volumetricReport.ts(33,14): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/lib/offline/syncQueue.ts(130,19): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ high: number; normal: number; low: number; }'.
+src/lib/offline/syncQueue.ts(130,47): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ high: number; normal: number; low: number; }'.
+src/lib/submission/assembleDocument.ts(148,6): error TS2339: Property 'createSignedUrl' does not exist on type '{ upload(path: string, file: any, opts?: any): Promise<{ data: any; error: any; }>; getPublicUrl(path: string): { data: { publicUrl: string; }; }; download(path: string): Promise<{ ...; }>; remove(paths: string[]): Promise<...>; }'.

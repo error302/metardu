@@ -1,34 +1,87 @@
-import type { SurveyorProfile } from '@/types/submission'
+import type {
+  SubmissionPackage,
+  QAGateResult,
+  QABlocker,
+  QAWarning
+} from './types'
 
-export interface PackageValidation {
-  ready: boolean
-  blockers: string[]
-  warnings: string[]
+const PRECISION_REQUIREMENTS: Record<string, number> = {
+  cadastral_subdivision: 5000,
+  cadastral_amalgamation: 5000,
+  cadastral_resurvey: 5000,
+  cadastral_mutation: 5000
 }
 
-export function validateSubmissionPackage(
-  submission: Record<string, any> | null,
-  project: Record<string, any>,
-  profile: SurveyorProfile | null
-): PackageValidation {
-  const blockers: string[] = []
-  const warnings: string[] = []
+export function validateSubmission(pkg: SubmissionPackage): QAGateResult {
+  const blockers: QABlocker[] = []
+  const warnings: QAWarning[] = []
 
-  if (!profile) blockers.push('Surveyor profile not set — go to Account Settings')
-  if (!profile?.registration_number) blockers.push('Registration number missing from surveyor profile')
+  if (!pkg.surveyor.registrationNumber) {
+    blockers.push({
+      code: 'NO_REG_NUMBER',
+      message: 'Surveyor registration number is missing. Update your profile before submitting.'
+    })
+  }
 
-  const bd = project.boundary_data as Record<string, any> | undefined
-  if (!bd?.beacons?.length || (bd.beacons as unknown[]).length < 3)
-    blockers.push('At least 3 beacons required')
+  if (!pkg.surveyor.isKMemberActive) {
+    warnings.push({
+      code: 'ISK_INACTIVE',
+      message: 'ISK membership may not be current. Verify before submission to Director of Surveys.'
+    })
+  }
 
-  if (!project.lr_number) blockers.push('LR Number not set on project')
-  if (!project.folio_number) warnings.push('Folio number not set — required for Form No. 4')
-  if (!project.register_number) warnings.push('Register number not set')
+  if (!pkg.parcel.lrNumber) {
+    blockers.push({
+      code: 'NO_LR_NUMBER',
+      message: 'LR Number is required for cadastral submission.'
+    })
+  }
 
-  if (!submission?.supporting_attachments?.ppa2)
-    blockers.push('Physical Planning Approval (PPA2) not uploaded')
-  if (!submission?.supporting_attachments?.lcb_consent)
-    blockers.push('Land Control Board Consent not uploaded')
+  if (!pkg.parcel.county) {
+    blockers.push({
+      code: 'NO_COUNTY',
+      message: 'County is required on Form No. 4.'
+    })
+  }
 
-  return { ready: blockers.length === 0, blockers, warnings }
+  const requiredPrecision = PRECISION_REQUIREMENTS[pkg.subtype] || 5000
+  const precisionParts = pkg.traverse.precisionRatio.split(':')
+  const denominator = parseInt(precisionParts[1], 10)
+
+  if (isNaN(denominator) || denominator < requiredPrecision) {
+    blockers.push({
+      code: 'PRECISION_FAILURE',
+      message: `Traverse precision ${pkg.traverse.precisionRatio} does not meet minimum 1:${requiredPrecision} required for ${pkg.subtype}.`
+    })
+  }
+
+  if (pkg.traverse.points.length < 3) {
+    blockers.push({
+      code: 'INSUFFICIENT_POINTS',
+      message: 'A minimum of 3 survey points are required.'
+    })
+  }
+
+  const requiredDocs = pkg.supportingDocs.filter(d => d.required)
+  const missingDocs = requiredDocs.filter(d => !d.fileUrl)
+
+  missingDocs.forEach(doc => {
+    blockers.push({
+      code: `MISSING_DOC_${doc.type.toUpperCase()}`,
+      message: `${doc.label} is required for this submission type and has not been uploaded.`
+    })
+  })
+
+  if (pkg.parcel.areaM2 <= 0) {
+    blockers.push({
+      code: 'INVALID_AREA',
+      message: 'Computed parcel area is zero or negative. Check traverse computation.'
+    })
+  }
+
+  return {
+    passed: blockers.length === 0,
+    blockers,
+    warnings
+  }
 }
