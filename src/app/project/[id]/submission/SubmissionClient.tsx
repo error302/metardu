@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { DocumentStatus, ProjectDocument } from '@/types/submission';
 import { getDocumentsForSurveyType } from '@/lib/submission/submissionDocuments';
 import { SurveyType } from '@/types/project';
+import { SupportingDocUpload } from '@/components/submission/SupportingDocUpload';
 
 interface Props {
   project: { id: string; name: string; survey_type: string };
@@ -335,6 +336,8 @@ export default function SubmissionClient({ project, existingDocs }: Props) {
           </div>
         </div>
       )}
+
+      <SupportingDocUpload projectId={project.id} />
 
       <div className="mt-8 p-4 border border-orange-200 bg-orange-50 rounded-lg">
         <h3 className="font-semibold text-orange-800">Generate Compliant Submission Package</h3>

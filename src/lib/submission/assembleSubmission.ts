@@ -18,6 +18,7 @@ interface ProjectData {
   perimeter_m: number
   subtype: SurveySubtype
   survey_points: any[]
+  supporting_documents: any[]
   angular_misclosure: number
   linear_misclosure: number
   precision_ratio: string
@@ -33,7 +34,7 @@ export async function assembleSubmissionPackage(
 
   const { data: project } = await supabase
     .from('projects')
-    .select('*')
+    .select('*, survey_points(*), supporting_documents(*)')
     .eq('id', projectId)
     .single()
 
@@ -46,11 +47,13 @@ export async function assembleSubmissionPackage(
     surveyor.registrationNumber
   )
 
-  const supportingDocs = [
-    { type: 'ppa2' as const, label: 'Physical Planning Approval (PPA2)', required: true, fileUrl: null, uploadedAt: null },
-    { type: 'lcb_consent' as const, label: 'Land Control Board Consent', required: true, fileUrl: null, uploadedAt: null },
-    { type: 'mutation_form' as const, label: 'Mutation Form', required: false, fileUrl: null, uploadedAt: null },
-  ]
+  const supportingDocs = (proj.supporting_documents ?? []).map((doc: any) => ({
+    type: doc.type,
+    label: doc.label,
+    required: doc.required,
+    fileUrl: doc.file_url ?? null,
+    uploadedAt: doc.uploaded_at ?? null
+  }))
 
   const pkg: SubmissionPackage = {
     submissionRef: ref,
