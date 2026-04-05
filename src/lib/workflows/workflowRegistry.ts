@@ -12,7 +12,7 @@ function step(
 }
 
 const SUBMISSION_STEP = step(
-  5,
+  6,
   'submission',
   'Submission',
   'Generate and download all required documents.',
@@ -49,7 +49,8 @@ const WORKFLOWS: Record<SurveyType, SurveyWorkflow> = {
       step(1, 'setup', 'Setup', 'Enter project name, scale, contour interval, and datum.'),
       step(2, 'fieldbook', 'Field Book', 'Record radial observations, GPS points, and spot heights.'),
       step(3, 'compute', 'Compute', 'Reduce coordinates, generate DTM, and extract contours.'),
-      step(4, 'review', 'Review', 'Inspect contour plan and TIN surface.'),
+      step(4, 'topo', 'Topo', 'Generate contours, interpolate terrain, and export topographic data.'),
+      step(5, 'review', 'Review', 'Inspect contour plan and TIN surface.'),
       SUBMISSION_STEP,
     ],
   },
