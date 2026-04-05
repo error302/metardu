@@ -31,16 +31,44 @@ export async function assembleSubmissionPackage(
 ): Promise<{ zipBuffer: Buffer; ref: string; qa: QAGateResult }> {
   const supabase = await createClient()
   const surveyor = await getActiveSurveyorProfile()
+  const asNum = (value: unknown, fallback = 0): number => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
 
-  const { data: project } = await supabase
+  // QueryBuilder does not support Supabase-style nested relation selects,
+  // so fetch project, points, and docs in separate queries.
+  const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('*, survey_points(*), supporting_documents(*)')
+    .select('*')
     .eq('id', projectId)
     .single()
 
-  if (!project) throw new Error('Project not found')
+  if (projectError || !project) throw new Error('Project not found')
 
-  const proj = project as unknown as ProjectData
+  const { data: surveyPoints, error: pointsError } = await supabase
+    .from('survey_points')
+    .select('*')
+    .eq('project_id', projectId)
+
+  if (pointsError) {
+    throw new Error(`Failed to load survey points: ${pointsError.message}`)
+  }
+
+  const { data: supportingDocuments, error: docsError } = await supabase
+    .from('supporting_documents')
+    .select('*')
+    .eq('project_id', projectId)
+
+  if (docsError) {
+    throw new Error(`Failed to load supporting documents: ${docsError.message}`)
+  }
+
+  const proj = {
+    ...(project as Record<string, unknown>),
+    survey_points: Array.isArray(surveyPoints) ? surveyPoints : [],
+    supporting_documents: Array.isArray(supportingDocuments) ? supportingDocuments : []
+  } as unknown as ProjectData
 
   const { ref, revision } = await generateSubmissionRef(
     projectId,
@@ -65,27 +93,27 @@ export async function assembleSubmissionPackage(
       county: proj.county || '',
       district: proj.district || '',
       locality: proj.locality || '',
-      areaM2: proj.area_m2 || 0,
-      perimeterM: proj.perimeter_m || 0
+      areaM2: asNum(proj.area_m2),
+      perimeterM: asNum(proj.perimeter_m)
     },
     traverse: {
       points: (proj.survey_points || []).map((pt: any) => ({
         pointName: pt.name || pt.point_name || `P${pt.id}`,
-        easting: pt.easting || 0,
-        northing: pt.northing || 0,
-        adjustedEasting: pt.adjusted_easting || pt.easting || 0,
-        adjustedNorthing: pt.adjusted_northing || pt.northing || 0,
-        observedBearing: pt.observed_bearing || 0,
-        observedDistance: pt.observed_distance || pt.distance || 0
+        easting: asNum(pt.easting),
+        northing: asNum(pt.northing),
+        adjustedEasting: asNum(pt.adjusted_easting, asNum(pt.easting)),
+        adjustedNorthing: asNum(pt.adjusted_northing, asNum(pt.northing)),
+        observedBearing: asNum(pt.observed_bearing),
+        observedDistance: asNum(pt.observed_distance, asNum(pt.distance))
       })),
-      angularMisclosure: proj.angular_misclosure || 0,
-      linearMisclosure: proj.linear_misclosure || 0,
+      angularMisclosure: asNum(proj.angular_misclosure),
+      linearMisclosure: asNum(proj.linear_misclosure),
       precisionRatio: proj.precision_ratio || '1:1',
-      closingErrorE: proj.closing_error_e || 0,
-      closingErrorN: proj.closing_error_n || 0,
+      closingErrorE: asNum(proj.closing_error_e),
+      closingErrorN: asNum(proj.closing_error_n),
       adjustmentMethod: 'bowditch',
-      areaM2: proj.area_m2 || 0,
-      perimeterM: proj.perimeter_m || 0
+      areaM2: asNum(proj.area_m2),
+      perimeterM: asNum(proj.perimeter_m)
     },
     supportingDocs,
     generatedAt: new Date().toISOString(),

@@ -34,7 +34,20 @@ export async function POST(req: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Submission assembly error:', error)
+    const message = error instanceof Error ? error.message : 'Internal server error'
+    console.error('Submission assembly error:', message)
+
+    if (
+      message.includes('profile not found') ||
+      message.includes('Project not found') ||
+      message.includes('Not authenticated')
+    ) {
+      return NextResponse.json(
+        { error: message },
+        { status: 422 }
+      )
+    }
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
