@@ -94,6 +94,7 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
       <div className="pt-3 border-t border-[var(--border-color)] flex items-center justify-between">
         <Link
           href={`/project/${project.id}`}
+          prefetch={false}
           onClick={e => e.stopPropagation()}
           className="text-xs text-[var(--accent)] font-medium hover:text-[var(--accent-dim)] transition-colors"
         >
@@ -103,6 +104,7 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
         <div className="flex items-center gap-2 relative" ref={menuRef}>
           <Link
             href={`/project/${project.id}/generate-plan`}
+            prefetch={false}
             onClick={e => e.stopPropagation()}
             className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-secondary)]"
           >
@@ -123,6 +125,7 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
             <div className="menu-dropdown absolute right-0 top-full mt-1 z-50 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg shadow-xl py-1 min-w-[160px]">
               <Link
                 href={`/project/${project.id}`}
+                prefetch={false}
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(false) }}
                 className="block px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors"
               >
@@ -130,6 +133,7 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
               </Link>
               <Link
                 href={`/project/${project.id}/generate-plan`}
+                prefetch={false}
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(false) }}
                 className="block px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors"
               >

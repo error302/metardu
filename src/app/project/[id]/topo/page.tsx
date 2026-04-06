@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { TopoCanvas } from '@/components/drawing/TopoCanvas'
 import { generateContours } from '@/lib/topo/contourGenerator'
@@ -24,12 +25,7 @@ export default function TopoPage() {
   const [progress, setProgress] = useState(0)
   const [pointCount, setPointCount] = useState(0)
 
-  useEffect(() => {
-    loadSpotHeights()
-    return () => { workerRef.current?.terminate() }
-  }, [id])
-
-  async function loadSpotHeights() {
+  const loadSpotHeights = useCallback(async () => {
     setStatus('loading')
     const { data, error } = await supabase
       .from('survey_points')
@@ -53,12 +49,17 @@ export default function TopoPage() {
     setSpotHeights(pts)
     setPointCount(pts.length)
     setStatus('idle')
-  }
+  }, [id, supabase])
+
+  useEffect(() => {
+    loadSpotHeights()
+    return () => { workerRef.current?.terminate() }
+  }, [loadSpotHeights])
 
   function runIDW() {
     if (spotHeights.length < 3) return
     setStatus('computing')
-    setProgress(0)
+    setProgress(2)
     setContours([])
 
     workerRef.current?.terminate()
@@ -68,26 +69,37 @@ export default function TopoPage() {
     )
     workerRef.current = worker
 
-    worker.postMessage({
-      points: spotHeights.map(p => ({ e: p.e, n: p.n, z: p.z })),
-      gridResolution: resolution,
-      power: 2,
-      searchRadius: 0
+    requestAnimationFrame(() => {
+      worker.postMessage({
+        points: spotHeights.map(p => ({ e: p.e, n: p.n, z: p.z })),
+        gridResolution: resolution,
+        power: 2,
+        searchRadius: 0
+      })
     })
 
     worker.onmessage = (e) => {
-      const { result, progress: prog } = e.data
+      const { result, progress: prog, error } = e.data
+
+      if (error) {
+        setStatus('error')
+        worker.terminate()
+        return
+      }
 
       if (prog !== undefined) {
-        setProgress(prog)
+        setProgress(Math.max(2, prog))
         return
       }
 
       if (result) {
         const lines = generateContours(result, { interval, indexInterval: 5 })
-        setContours(lines)
-        setStatus('done')
-        worker.terminate()
+        setProgress(100)
+        window.setTimeout(() => {
+          setContours(lines)
+          setStatus('done')
+          worker.terminate()
+        }, 120)
       }
     }
   }
@@ -142,10 +154,21 @@ export default function TopoPage() {
   return (
     <div className="space-y-6 p-4">
       <div>
-        <h2 className="text-xl font-bold">Topographic Map</h2>
-        <p className="text-sm text-[var(--text-muted)]">
-          {pointCount} spot heights loaded
-        </p>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-xl font-bold">Topographic Map</h2>
+            <p className="text-sm text-[var(--text-muted)]">
+              {pointCount} spot heights loaded
+            </p>
+          </div>
+          <Link
+            href={`/project/${id}`}
+            prefetch={false}
+            className="text-sm text-orange-400 hover:text-orange-300"
+          >
+            Back to workspace
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-4 items-end">
@@ -196,7 +219,7 @@ export default function TopoPage() {
 
       {status === 'computing' && (
         <div className="w-full bg-[var(--bg-secondary)] rounded-full h-1.5">
-          <div className="bg-orange-500 h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
+          <div className="bg-orange-500 h-1.5 rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
         </div>
       )}
 

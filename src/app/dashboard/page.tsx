@@ -97,7 +97,7 @@ export default async function DashboardPage() {
               {t('dashboard.processFieldNotesSubtitle')}
             </p>
           </div>
-          <Link href="/process" className="btn btn-primary shrink-0">
+          <Link href="/process" prefetch={false} className="btn btn-primary shrink-0">
             {t('dashboard.startProcessing')}
           </Link>
         </div>
@@ -111,7 +111,7 @@ export default async function DashboardPage() {
           ) : null}
         </h1>
         {canCreateProject ? (
-          <Link href="/project/new" className="btn btn-primary">
+          <Link href="/project/new" prefetch={false} className="btn btn-primary">
             {t('dashboard.newProject')}
           </Link>
         ) : (
@@ -135,13 +135,13 @@ export default async function DashboardPage() {
           <p className="text-[var(--text-secondary)] mb-8 max-w-md">Start your first project or jump straight into a tool</p>
           
           <div className="flex flex-wrap gap-3 justify-center mb-8">
-            <Link href="/project/new" className="px-6 py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded-lg transition-colors">
+            <Link href="/project/new" prefetch={false} className="px-6 py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded-lg transition-colors">
               + New Project
             </Link>
             <Link href="/tools/traverse" className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] font-medium rounded-lg transition-colors border border-[var(--border-color)]">
               Open Traverse Tool
             </Link>
-            <Link href="/process" className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] font-medium rounded-lg transition-colors border border-[var(--border-color)]">
+            <Link href="/process" prefetch={false} className="px-6 py-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] font-medium rounded-lg transition-colors border border-[var(--border-color)]">
               Process Field Notes
             </Link>
           </div>
