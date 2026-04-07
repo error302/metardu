@@ -1,6 +1,6 @@
 'use client'
+
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
 import type { PlanId } from '@/lib/subscription/catalog'
 
@@ -25,12 +25,12 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
   hasFeature: () => false,
   projectCount: 0,
   loading: true,
-  refresh: () => {}
+  refresh: () => {},
 })
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession()
-  const userId = (session?.user as { id?: string } | undefined)?.id
+  const [userId, setUserId] = useState<string | null>(null)
+  const [authResolved, setAuthResolved] = useState(false)
   const [plan, setPlan] = useState<PlanId>('free')
   const [isTrialing, setIsTrialing] = useState(false)
   const [trialDaysLeft, setTrialDaysLeft] = useState(0)
@@ -38,8 +38,20 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [projectCount, setProjectCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  const resetState = useCallback(() => {
+    setPlan('free')
+    setIsTrialing(false)
+    setTrialDaysLeft(0)
+    setFeatures([])
+    setProjectCount(0)
+  }, [])
+
   const loadSubscription = useCallback(async () => {
-    if (!userId) { setLoading(false); return }
+    if (!userId) {
+      resetState()
+      setLoading(false)
+      return
+    }
 
     const supabase = createClient()
 
@@ -49,10 +61,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       .eq('user_id', userId)
       .maybeSingle()
 
+    resetState()
+
     if (sub) {
       setPlan(sub.plan_id as PlanId)
       setFeatures(sub.features || [])
-      
+
       if (sub.status === 'trial') {
         setIsTrialing(true)
         const daysLeft = Math.ceil(
@@ -69,16 +83,55 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
     setProjectCount(count || 0)
     setLoading(false)
-  }, [userId])
+  }, [resetState, userId])
 
   useEffect(() => {
-    if (status === 'loading') return
-    if (!session?.user) {
+    let active = true
+
+    async function loadAuthSession() {
+      try {
+        const response = await fetch('/api/auth/session', {
+          cache: 'no-store',
+          credentials: 'same-origin',
+        })
+
+        if (!response.ok) {
+          throw new Error(`Session request failed with ${response.status}`)
+        }
+
+        const session = await response.json()
+        if (!active) return
+
+        setUserId((session?.user as { id?: string } | undefined)?.id ?? null)
+      } catch {
+        if (!active) return
+        setUserId(null)
+      } finally {
+        if (active) {
+          setAuthResolved(true)
+        }
+      }
+    }
+
+    loadAuthSession()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    if (!userId) {
+      resetState()
       setLoading(false)
       return
     }
-    loadSubscription()
-  }, [loadSubscription, session?.user, status])
+
+    setLoading(true)
+    void loadSubscription()
+  }, [authResolved, loadSubscription, resetState, userId])
 
   const canCreateProject = plan !== 'free' || projectCount < 1
   const canAddPoints = true
@@ -89,12 +142,19 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   }
 
   return (
-    <SubscriptionContext.Provider value={{
-      plan, isTrialing, trialDaysLeft,
-      canCreateProject, canAddPoints,
-      hasFeature, projectCount, loading,
-      refresh: loadSubscription
-    }}>
+    <SubscriptionContext.Provider
+      value={{
+        plan,
+        isTrialing,
+        trialDaysLeft,
+        canCreateProject,
+        canAddPoints,
+        hasFeature,
+        projectCount,
+        loading,
+        refresh: loadSubscription,
+      }}
+    >
       {children}
     </SubscriptionContext.Provider>
   )

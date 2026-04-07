@@ -7,7 +7,7 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   register: true,
   skipWaiting: true,
   disable:
-    process.env.NODE_ENV === 'development' ||
+    process.env.NODE_ENV !== 'production' ||
     process.env.DISABLE_PWA === 'true' ||
     (process.platform === 'win32' && process.env.ENABLE_PWA_ON_WINDOWS !== 'true'),
   workboxOptions: { disableDevLogs: true },

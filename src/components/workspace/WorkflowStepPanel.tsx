@@ -2,6 +2,8 @@
 
 import { SurveyType } from '@/types/project';
 import dynamic from 'next/dynamic';
+import { MiningVolumePanel } from '@/components/compute/MiningVolumePanel';
+import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile';
 
 const DynamicFieldBook = dynamic(() => import('./DynamicFieldBook'), { ssr: false });
 
@@ -19,7 +21,7 @@ export default function WorkflowStepPanel({ projectId, surveyType, stepIndex }: 
     <div className="space-y-4">
       {stepIndex === 1 && <SetupPanel surveyType={surveyType} />}
       {stepIndex === 2 && <FieldBookStepPanel projectId={projectId} surveyType={surveyType} />}
-      {stepIndex === 3 && <ComputeStepPanel surveyType={surveyType} />}
+        {stepIndex === 3 && <ComputeStepPanel surveyType={surveyType} projectId={projectId} />}
       {stepIndex === 4 && <ReviewStepPanel surveyType={surveyType} />}
     </div>
   );
@@ -56,28 +58,34 @@ function FieldBookStepPanel({ projectId, surveyType }: { projectId: string; surv
   );
 }
 
-function ComputeStepPanel({ surveyType }: { surveyType: SurveyType }) {
+function ComputeStepPanel({ surveyType, projectId }: { surveyType: SurveyType; projectId: string }) {
   const computeItems: Record<SurveyType, string[]> = {
     cadastral: ['Bowditch traverse adjustment', 'Linear misclosure + precision', 'Shoelace area'],
     engineering: ['Rise & fall reduction', '10√K mm closure (RDM 1.1)', 'Cross-section volumes'],
     topographic: ['Coordinate reduction', 'DTM generation', 'Contour extraction'],
     geodetic: ['Network adjustment', 'Baseline processing', 'Accuracy classification'],
-    mining: ['Traverse adjustment', 'Stockpile volumes', 'Setting-out data'],
+    mining: ['Traverse adjustment', 'End-of-month volumes', 'Mine plan DXF'],
     hydrographic: ['Tidal correction', 'Depth reduction'],
     drone: ['GCP residuals', 'Point cloud volumes', 'Orthophoto check'],
     deformation: ['Epoch comparison', 'Displacement vectors', 'Statistical test'],
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
-      <h2 className="font-semibold text-gray-900 mb-1">Step 3 — Compute</h2>
-      <p className="text-sm text-gray-500 mb-4">These computations will run against your field book data.</p>
-      <ul className="text-sm text-gray-700 space-y-1.5 list-disc list-inside">
-        {(computeItems[surveyType] ?? []).map((item) => <li key={item}>{item}</li>)}
-      </ul>
-      <div className="mt-5 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-        Compute runners ship in Phase 16. Ensure field book data is complete before advancing.
-      </div>
+    <div className="space-y-4">
+      {surveyType === 'mining' ? (
+        <MiningVolumePanel projectId={projectId} projectData={{}} />
+      ) : (
+        <div className="rounded-lg border border-gray-200 bg-white p-5">
+          <h2 className="font-semibold text-gray-900 mb-1">Step 3 — Compute</h2>
+          <p className="text-sm text-gray-500 mb-4">These computations will run against your field book data.</p>
+          <ul className="text-sm text-gray-700 space-y-1.5 list-disc list-inside">
+            {(computeItems[surveyType] ?? []).map((item) => <li key={item}>{item}</li>)}
+          </ul>
+          <div className="mt-5 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+            Compute runners ship in Phase 16. Ensure field book data is complete before advancing.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

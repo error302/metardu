@@ -486,7 +486,7 @@ export default function NavBar() {
         {/* Main Navbar */}
         <div className="h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/">
+          <Link href="/" prefetch={false}>
             <MetarduLogo color="var(--accent)" size={28} showWordmark={true} />
           </Link>
 
@@ -494,7 +494,8 @@ export default function NavBar() {
           <div className="hidden md:flex items-center gap-1">
             {/* Dashboard Link */}
             <Link 
-              href="/dashboard" 
+              href="/dashboard"
+              prefetch={false}
               className="px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
             >
               Dashboard
@@ -502,7 +503,8 @@ export default function NavBar() {
 
             {/* Projects Link */}
             <Link 
-              href="/projects" 
+              href="/projects"
+              prefetch={false}
               className="px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
             >
               Projects
@@ -510,7 +512,8 @@ export default function NavBar() {
 
             {/* Community Link */}
             <Link 
-              href="/community" 
+              href="/community"
+              prefetch={false}
               className="px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
             >
               Community

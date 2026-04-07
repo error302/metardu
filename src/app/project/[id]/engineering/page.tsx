@@ -9,6 +9,11 @@ import { HorizontalCurvePanel } from '@/components/engineering/HorizontalCurvePa
 import SuperelevationPanel from '@/components/engineering/SuperelevationPanel'
 import { VolumesPanel } from '@/components/engineering/VolumesPanel'
 import { NetworkAdjustmentPanel } from '@/components/compute/NetworkAdjustmentPanel'
+import { CurvesPanel } from '@/components/compute/CurvesPanel'
+import { ChainagePanel } from '@/components/compute/ChainagePanel'
+import { TacheometryPanel } from '@/components/compute/TacheometryPanel'
+import { CrossSectionsPanel } from '@/components/compute/CrossSectionsPanel'
+import { SettingOutPanel } from '@/components/compute/SettingOutPanel'
 import type { SurveyorProfile } from '@/lib/submission/types'
 
 type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs'
@@ -1511,6 +1516,10 @@ export default function EngineeringWorkspacePage() {
           <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-2">
             {[
               { id: 'curves', label: 'Horizontal Curves' },
+              { id: 'chainage', label: 'Chainage' },
+              { id: 'tacheometry', label: 'Tacheometry' },
+              { id: 'cross_sections', label: 'Cross Sections' },
+              { id: 'setting_out', label: 'Setting Out' },
               { id: 'superelevation', label: 'Superelevation' },
               { id: 'volumes', label: 'Volumes' },
               { id: 'network', label: 'Network Adjustment' },
@@ -1532,6 +1541,10 @@ export default function EngineeringWorkspacePage() {
 
           <div className="bg-zinc-900 rounded-xl p-6">
             {activeTab === 'curves' && <HorizontalCurvePanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
+            {activeTab === 'chainage' && <ChainagePanel projectId={params.id} projectData={project} />}
+            {activeTab === 'tacheometry' && <TacheometryPanel projectId={params.id} projectData={project} />}
+            {activeTab === 'cross_sections' && <CrossSectionsPanel projectId={params.id} projectData={project} />}
+            {activeTab === 'setting_out' && <SettingOutPanel projectId={params.id} projectData={project} />}
             {activeTab === 'superelevation' && <SuperelevationPanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
             {activeTab === 'volumes' && <VolumesPanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
             {activeTab === 'network' && <NetworkAdjustmentPanel projectId={params.id} projectData={project} />}

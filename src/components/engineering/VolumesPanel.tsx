@@ -3,7 +3,10 @@
 import { useState, useMemo } from 'react';
 import { z } from 'zod';
 import { crossSectionVolume, massHaulDiagram, logEngineeringCompute } from '@/lib/engineering/compute';
-import { initialiseDXFLayers, addStandardTitleBlock, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
+import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
+import renderTitleBlock from '@/lib/drawing/titleBlockRenderer';
+import { TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/titleBlockTemplates';
+import type { TitleBlockData } from '@/lib/drawing/dxfLayers';
 import Drawing from 'dxf-writer';
 
 const VolumeInputSchema = z.object({
@@ -70,8 +73,8 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
     const drawing = new Drawing();
     initialiseDXFLayers(drawing);
 
-    addStandardTitleBlock(drawing, {
-      drawingTitle: 'CROSS-SECTION VOLUMES',
+    const tb: TitleBlockData = {
+      drawingTitle: TITLE_BLOCK_TEMPLATES.eng_volumes.drawingTitle,
       lrNumber: projectData?.lr_number ?? 'N/A',
       county: projectData?.county ?? 'N/A',
       district: projectData?.district ?? 'N/A',
@@ -87,7 +90,8 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
       scale: '1:2500',
       sheetNumber: '1 of 1',
       revision: 'R00'
-    });
+    }
+    renderTitleBlock(drawing, 'eng_volumes', tb)
 
     const baseY = 100;
     const scale = 2;

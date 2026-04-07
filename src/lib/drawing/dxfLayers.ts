@@ -20,6 +20,7 @@ export const DXF_LAYERS = {
   NEW_BOUNDARY:  { name: 'NEW_BOUNDARY',  color: 7,  linetype: 'CONTINUOUS' },
   TRAVERSE:      { name: 'TRAVERSE',      color: 1,  linetype: 'CONTINUOUS' },
   CONTROL_POINTS:{ name: 'CONTROL_POINTS',color: 6,  linetype: 'CONTINUOUS' },
+  TOPO:          { name: 'TOPO',          color: 4,  linetype: 'CONTINUOUS' },
 } as const
 
 export type DXFLayerKey = keyof typeof DXF_LAYERS
