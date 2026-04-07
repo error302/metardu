@@ -1,21 +1,21 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
+import { useParams } from 'next/navigation'
 import { TopoCanvas } from '@/components/drawing/TopoCanvas'
-import { generateContours } from '@/lib/topo/contourGenerator'
-import type { ContourLine } from '@/lib/topo/contourGenerator'
 import type { SpotHeight } from '@/components/drawing/TopoCanvas'
+import { createClient } from '@/lib/supabase/client'
+import { generateContours } from '@/lib/topo/contourGenerator'
+import { runIDW as computeIDW } from '@/lib/topo/idwEngine'
+import type { ContourLine } from '@/lib/topo/contourGenerator'
 
 const INTERVAL_OPTIONS = [0.25, 0.5, 1, 2, 5, 10]
 const RESOLUTION_OPTIONS = [0.5, 1, 2, 5]
 
 export default function TopoPage() {
   const { id } = useParams()
-  const supabase = createClient()
-  const workerRef = useRef<Worker | null>(null)
+  const [supabase] = useState(() => createClient())
 
   const [spotHeights, setSpotHeights] = useState<SpotHeight[]>([])
   const [contours, setContours] = useState<ContourLine[]>([])
@@ -27,9 +27,10 @@ export default function TopoPage() {
 
   const loadSpotHeights = useCallback(async () => {
     setStatus('loading')
+
     const { data, error } = await supabase
       .from('survey_points')
-      .select('easting, northing, elevation, name')
+      .select('*')
       .eq('project_id', id)
       .eq('point_type', 'spot_height')
       .not('elevation', 'is', null)
@@ -39,116 +40,121 @@ export default function TopoPage() {
       return
     }
 
-    const pts: SpotHeight[] = data.map((p: any) => ({
-      e: p.easting,
-      n: p.northing,
-      z: p.elevation,
-      label: p.name
+    const points: SpotHeight[] = data.map((point: any) => ({
+      e: point.easting,
+      n: point.northing,
+      z: point.elevation,
+      label: point.point_name ?? point.name ?? '',
     }))
 
-    setSpotHeights(pts)
-    setPointCount(pts.length)
+    setSpotHeights(points)
+    setPointCount(points.length)
     setStatus('idle')
   }, [id, supabase])
 
   useEffect(() => {
-    loadSpotHeights()
-    return () => { workerRef.current?.terminate() }
+    void loadSpotHeights()
   }, [loadSpotHeights])
 
-  function runIDW() {
+  function handleCompute() {
     if (spotHeights.length < 3) return
+
     setStatus('computing')
-    setProgress(2)
+    setProgress(0)
     setContours([])
 
-    workerRef.current?.terminate()
+    setTimeout(() => {
+      try {
+        const points = spotHeights.map(p => ({ x: p.e, y: p.n, z: p.z }))
 
-    const worker = new Worker(
-      new URL('@/workers/idw.worker.ts', import.meta.url)
-    )
-    workerRef.current = worker
+        const minE = Math.min(...points.map(p => p.x))
+        const maxE = Math.max(...points.map(p => p.x))
+        const minN = Math.min(...points.map(p => p.y))
+        const maxN = Math.max(...points.map(p => p.y))
+        const cols = Math.ceil((maxE - minE) / resolution) + 1
+        const rows = Math.ceil((maxN - minN) / resolution) + 1
 
-    requestAnimationFrame(() => {
-      worker.postMessage({
-        points: spotHeights.map(p => ({ e: p.e, n: p.n, z: p.z })),
-        gridResolution: resolution,
-        power: 2,
-        searchRadius: 0
-      })
-    })
+        setProgress(20)
 
-    worker.onmessage = (e) => {
-      const { result, progress: prog, error } = e.data
+        const idwGrid = computeIDW(points, { power: 2, resolution: Math.max(cols, rows) })
 
-      if (error) {
-        setStatus('error')
-        worker.terminate()
-        return
-      }
+        setProgress(80)
 
-      if (prog !== undefined) {
-        setProgress(Math.max(2, prog))
-        return
-      }
-
-      if (result) {
-        const lines = generateContours(result, { interval, indexInterval: 5 })
+        const lines = generateContours(
+          {
+            grid: idwGrid.grid,
+            gridMinE: idwGrid.minX,
+            gridMinN: idwGrid.minY,
+            gridResolution: idwGrid.cellSize,
+            cols: idwGrid.cols,
+            rows: idwGrid.rows,
+          },
+          { interval, indexInterval: 5 }
+        )
+        setContours(lines)
         setProgress(100)
-        window.setTimeout(() => {
-          setContours(lines)
-          setStatus('done')
-          worker.terminate()
-        }, 120)
+        setStatus('done')
+      } catch (err) {
+        console.error('IDW error:', err)
+        setStatus('error')
       }
-    }
+    }, 0)
   }
 
   async function exportDXF() {
-    const res = await fetch(`/api/topo/export/dxf`, {
+    const response = await fetch('/api/topo/export/dxf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectId: id, contours, spotHeights })
+      body: JSON.stringify({ projectId: id, contours, spotHeights }),
     })
-    if (!res.ok) return
-    const blob = await res.blob()
+
+    if (!response.ok) {
+      return
+    }
+
+    const blob = await response.blob()
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `topo_${id}.dxf`
-    a.click()
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `topo_${id}.dxf`
+    anchor.click()
   }
 
   async function exportGeoJSON() {
-    const features = contours.flatMap(c =>
-      c.coordinates.map(ring => ({
+    const features = contours.flatMap((contour) =>
+      contour.coordinates.map((ring) => ({
         type: 'Feature',
-        properties: { elevation: c.elevation, isIndex: c.isIndex },
-        geometry: { type: 'LineString', coordinates: ring.map(([e, n]) => [e, n]) }
+        properties: { elevation: contour.elevation, isIndex: contour.isIndex },
+        geometry: { type: 'LineString', coordinates: ring.map(([e, n]) => [e, n]) },
       }))
     )
+
     const geojson = { type: 'FeatureCollection', features }
     const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `contours_${id}.geojson`
-    a.click()
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `contours_${id}.geojson`
+    anchor.click()
   }
 
   async function exportShapefile() {
-    const res = await fetch(`/api/topo/export/shapefile`, {
+    const response = await fetch('/api/topo/export/shapefile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectId: id, contours, spotHeights })
+      body: JSON.stringify({ projectId: id, contours, spotHeights }),
     })
-    if (!res.ok) return
-    const blob = await res.blob()
+
+    if (!response.ok) {
+      return
+    }
+
+    const blob = await response.blob()
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `contours_${id}.zip`
-    a.click()
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `contours_${id}.zip`
+    anchor.click()
   }
 
   return (
@@ -157,9 +163,7 @@ export default function TopoPage() {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-xl font-bold">Topographic Map</h2>
-            <p className="text-sm text-[var(--text-muted)]">
-              {pointCount} spot heights loaded
-            </p>
+            <p className="text-sm text-[var(--text-muted)]">{pointCount} spot heights loaded</p>
           </div>
           <Link
             href={`/project/${id}`}
@@ -173,37 +177,37 @@ export default function TopoPage() {
 
       <div className="flex flex-wrap gap-4 items-end">
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-1">
-            Contour Interval (m)
-          </label>
+          <label className="text-xs text-[var(--text-muted)] block mb-1">Contour Interval (m)</label>
           <select
             value={interval}
-            onChange={e => setInterval(Number(e.target.value))}
+            onChange={(event) => setInterval(Number(event.target.value))}
             className="bg-[var(--bg-secondary)] border rounded px-3 py-1.5 text-sm"
           >
-            {INTERVAL_OPTIONS.map(v => (
-              <option key={v} value={v}>{v}m</option>
+            {INTERVAL_OPTIONS.map((value) => (
+              <option key={value} value={value}>
+                {value}m
+              </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-1">
-            Grid Resolution (m)
-          </label>
+          <label className="text-xs text-[var(--text-muted)] block mb-1">Grid Resolution (m)</label>
           <select
             value={resolution}
-            onChange={e => setResolution(Number(e.target.value))}
+            onChange={(event) => setResolution(Number(event.target.value))}
             className="bg-[var(--bg-secondary)] border rounded px-3 py-1.5 text-sm"
           >
-            {RESOLUTION_OPTIONS.map(v => (
-              <option key={v} value={v}>{v}m</option>
+            {RESOLUTION_OPTIONS.map((value) => (
+              <option key={value} value={value}>
+                {value}m
+              </option>
             ))}
           </select>
         </div>
 
         <button
-          onClick={runIDW}
+          onClick={handleCompute}
           disabled={spotHeights.length < 3 || status === 'computing'}
           className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-4 py-1.5 rounded text-sm font-medium"
         >
@@ -211,15 +215,16 @@ export default function TopoPage() {
         </button>
 
         {status === 'done' && (
-          <span className="text-sm text-green-400">
-            ✓ {contours.length} contour levels generated
-          </span>
+          <span className="text-sm text-green-400">OK {contours.length} contour levels generated</span>
         )}
       </div>
 
       {status === 'computing' && (
         <div className="w-full bg-[var(--bg-secondary)] rounded-full h-1.5">
-          <div className="bg-orange-500 h-1.5 rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
+          <div
+            className="bg-orange-500 h-1.5 rounded-full transition-all duration-200"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       )}
 
@@ -234,13 +239,22 @@ export default function TopoPage() {
 
       {status === 'done' && contours.length > 0 && (
         <div className="flex gap-3">
-          <button onClick={exportDXF} className="border rounded px-4 py-2 text-sm hover:bg-[var(--bg-secondary)]">
+          <button
+            onClick={exportDXF}
+            className="border rounded px-4 py-2 text-sm hover:bg-[var(--bg-secondary)]"
+          >
             Export DXF
           </button>
-          <button onClick={exportGeoJSON} className="border rounded px-4 py-2 text-sm hover:bg-[var(--bg-secondary)]">
+          <button
+            onClick={exportGeoJSON}
+            className="border rounded px-4 py-2 text-sm hover:bg-[var(--bg-secondary)]"
+          >
             Export GeoJSON
           </button>
-          <button onClick={exportShapefile} className="border rounded px-4 py-2 text-sm hover:bg-[var(--bg-secondary)]">
+          <button
+            onClick={exportShapefile}
+            className="border rounded px-4 py-2 text-sm hover:bg-[var(--bg-secondary)]"
+          >
             Export Shapefile
           </button>
         </div>

@@ -5,14 +5,21 @@ import { usePathname } from 'next/navigation'
 
 interface Props {
   id: string
+  surveyType?: string
 }
 
-export default function ProjectTabs({ id }: Props) {
+export default function ProjectTabs({ id, surveyType }: Props) {
   const pathname = usePathname()
+
+  const isEngineering = surveyType?.startsWith('engineering')
+  const isTopographic = surveyType === 'topographic' ||
+                        surveyType === 'topographic_site' ||
+                        surveyType === 'topographic_corridor'
 
   const tabs = [
     { label: 'Workspace', href: `/project/${id}` },
-    { label: 'Topo', href: `/project/${id}/topo` },
+    ...(isTopographic ? [{ label: 'Topo', href: `/project/${id}/topo` }] : []),
+    ...(isEngineering ? [{ label: 'Engineering', href: `/project/${id}/engineering` }] : []),
     { label: 'Submission', href: `/project/${id}/submission` },
     { label: 'Settings', href: `/project/${id}/settings` },
   ]
