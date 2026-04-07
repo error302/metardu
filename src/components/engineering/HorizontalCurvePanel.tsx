@@ -3,13 +3,18 @@
 import { useState, useMemo } from 'react';
 import { z } from 'zod';
 import { horizontalCurve, logEngineeringCompute } from '@/lib/engineering/compute';
-import { initialiseDXFLayers, addStandardTitleBlock, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
+import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
+import renderTitleBlock from '@/lib/drawing/titleBlockRenderer';
+import { TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/titleBlockTemplates';
+import type { TitleBlockData } from '@/lib/drawing/dxfLayers';
+import { getMinRadius, getMinSSD, getMinSuperelevation } from '@/lib/standards/engineering';
 import Drawing from 'dxf-writer';
 
 const HorizontalCurveInputSchema = z.object({
-  R: z.number().positive().min(50).max(2000),
+  R: z.number().positive().min(30).max(2000),
   deltaDeg: z.number().positive().min(1).max(180),
   chainageStart: z.number().min(0).default(0),
+  designSpeed: z.number().min(20).max(120).default(60),
 });
 
 interface HorizontalCurvePanelProps {
@@ -25,17 +30,49 @@ interface HorizontalCurvePanelProps {
     registrationNumber: string;
     firmName: string;
   } | null;
+  standard?: 'KRDM2017' | 'KeRRA';
+  designSpeed?: number;
 }
 
-export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile }: HorizontalCurvePanelProps) {
+export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, standard = 'KRDM2017', designSpeed = 60 }: HorizontalCurvePanelProps) {
   const [R, setR] = useState(200);
   const [deltaDeg, setDeltaDeg] = useState(35);
   const [chainageStart, setChainageStart] = useState(1000);
   const [error, setError] = useState<string | null>(null);
 
+  const minRadius = getMinRadius(standard, designSpeed);
+  const minSSD = getMinSSD(standard, designSpeed);
+  const minE = getMinSuperelevation(designSpeed, R);
+
+  const validations = useMemo(() => {
+    const issues: string[] = [];
+    const passes: string[] = [];
+
+    if (R < minRadius) {
+      issues.push(`Radius ${R}m < minimum ${minRadius}m for ${designSpeed}km/h (RDM 1.1)`);
+    } else {
+      passes.push(`Radius ${R}m ≥ minimum ${minRadius}m ✓`);
+    }
+
+    const ssdCheck = R >= minSSD * 0.5;
+    if (!ssdCheck) {
+      issues.push(`Insufficient sight distance for ${designSpeed}km/h (min SSD: ${minSSD}m)`);
+    } else {
+      passes.push(`Sight distance adequate (min SSD: ${minSSD}m) ✓`);
+    }
+
+    if (minE > 7) {
+      issues.push(`Required superelevation ${minE.toFixed(1)}% exceeds 7% max — consider larger radius`);
+    } else {
+      passes.push(`Superelevation ${minE.toFixed(1)}% within 7% limit ✓`);
+    }
+
+    return { issues, passes };
+  }, [R, designSpeed, minRadius, minSSD, minE]);
+
   const result = useMemo(() => {
     try {
-      const input = HorizontalCurveInputSchema.parse({ R, deltaDeg, chainageStart });
+      const input = HorizontalCurveInputSchema.parse({ R, deltaDeg, chainageStart, designSpeed });
       setError(null);
       const res = horizontalCurve(input);
       logEngineeringCompute('horizontal_curve', input, {
@@ -48,16 +85,15 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile }
       }
       return null;
     }
-  }, [R, deltaDeg, chainageStart, projectId]);
+  }, [R, deltaDeg, chainageStart, projectId, designSpeed]);
 
   const exportDXF = () => {
     if (!result) return;
 
     const drawing = new Drawing();
     initialiseDXFLayers(drawing);
-
-    addStandardTitleBlock(drawing, {
-      drawingTitle: 'HORIZONTAL CURVE SETTING OUT',
+    const tb: TitleBlockData = {
+      drawingTitle: TITLE_BLOCK_TEMPLATES.eng_horizontal_curve.drawingTitle,
       lrNumber: projectData?.lr_number ?? 'N/A',
       county: projectData?.county ?? 'N/A',
       district: projectData?.district ?? 'N/A',
@@ -73,7 +109,8 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile }
       scale: '1:2500',
       sheetNumber: '1 of 1',
       revision: 'R00'
-    });
+    }
+    renderTitleBlock(drawing, 'eng_horizontal_curve', tb)
 
     drawing.setActiveLayer(DXF_LAYERS.CENTRELINE.name);
     
@@ -130,17 +167,39 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile }
         </div>
       )}
 
+      {validations.issues.length > 0 && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+          <p className="text-red-400 text-sm font-semibold mb-1">Standards Violations</p>
+          <ul className="text-red-400 text-xs space-y-0.5">
+            {validations.issues.map((issue, i) => (
+              <li key={i}>⚠ {issue}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {validations.passes.length > 0 && (
+        <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+          <ul className="text-green-400 text-xs space-y-0.5">
+            {validations.passes.map((pass, i) => (
+              <li key={i}>✓ {pass}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Radius R (m)</label>
           <input
             type="number"
-            min={50}
+            min={30}
             max={2000}
             value={R}
             onChange={(e) => setR(Number(e.target.value) || 50)}
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-sm font-mono"
+            className={`w-full bg-[var(--bg-secondary)] border rounded px-3 py-2 text-sm font-mono ${R < minRadius ? 'border-red-500 text-red-400' : 'border-[var(--border-color)]'}`}
           />
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">Min: {minRadius}m for {designSpeed}km/h</p>
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Deflection Angle Δ (°)</label>

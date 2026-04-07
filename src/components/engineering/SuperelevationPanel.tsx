@@ -3,7 +3,10 @@
 import { useState, useMemo } from 'react';
 import { superelevationCalc, type SuperelevationResult, logEngineeringCompute } from '@/lib/engineering/compute';
 import { z } from 'zod';
-import { initialiseDXFLayers, addStandardTitleBlock, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
+import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
+import renderTitleBlock from '@/lib/drawing/titleBlockRenderer';
+import type { TitleBlockData } from '@/lib/drawing/dxfLayers';
+import { TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/titleBlockTemplates';
 import Drawing from 'dxf-writer';
 
 const SuperelevationInputSchema = z.object({
@@ -27,6 +30,7 @@ interface SuperelevationPanelProps {
     registrationNumber: string;
     firmName: string;
   } | null;
+  standard?: 'KRDM2017' | 'KeRRA';
 }
 
 export default function SuperelevationPanel({ 
@@ -34,12 +38,42 @@ export default function SuperelevationPanel({
   initialSpeed = 80,
   projectId,
   projectData,
-  surveyorProfile
+  surveyorProfile,
+  standard = 'KRDM2017'
 }: SuperelevationPanelProps) {
   const [R, setR] = useState(initialRadius);
   const [V, setV] = useState(initialSpeed);
   const [eMax, setEmax] = useState(0.07);
   const [error, setError] = useState<string | null>(null);
+
+  const eRequired = (V * V) / (225 * R);
+  const ePercent = eRequired * 100;
+  const minTransition = Math.max(0.6 * (V * V) / R, 30);
+
+  const validations = useMemo(() => {
+    const issues: string[] = [];
+    const passes: string[] = [];
+
+    if (ePercent > 12) {
+      issues.push(`Required e ${ePercent.toFixed(1)}% exceeds absolute max 12%`);
+    } else if (ePercent > 7) {
+      issues.push(`Required e ${ePercent.toFixed(1)}% exceeds KeRRA rural max 7%`);
+    } else {
+      passes.push(`e ${ePercent.toFixed(1)}% within 7% limit ✓`);
+    }
+
+    if (minTransition < 30) {
+      issues.push(`Transition length ${minTransition.toFixed(1)}m < absolute minimum 30m`);
+    } else {
+      passes.push(`Transition length ${minTransition.toFixed(1)}m ≥ 30m minimum ✓`);
+    }
+
+    if (standard === 'KeRRA' && ePercent > 7) {
+      issues.push(`KeRRA rural roads: max e = 7%. Consider larger radius or lower speed.`);
+    }
+
+    return { issues, passes };
+  }, [R, V, ePercent, minTransition, standard]);
 
   const result: SuperelevationResult | null = useMemo(() => {
     try {
@@ -63,9 +97,9 @@ export default function SuperelevationPanel({
     
     const drawing = new Drawing();
     initialiseDXFLayers(drawing);
-    
-    addStandardTitleBlock(drawing, {
-      drawingTitle: 'SUPERELEVATION TRANSITION',
+    // Render title block via template system
+    const tb: TitleBlockData = {
+      drawingTitle: TITLE_BLOCK_TEMPLATES.eng_superelevation.drawingTitle,
       lrNumber: projectData?.lr_number ?? 'N/A',
       county: projectData?.county ?? 'N/A',
       district: projectData?.district ?? 'N/A',
@@ -81,7 +115,8 @@ export default function SuperelevationPanel({
       scale: '1:2500',
       sheetNumber: '1 of 1',
       revision: 'R00'
-    });
+    }
+    renderTitleBlock(drawing, 'eng_superelevation', tb);
     
     drawing.setActiveLayer(DXF_LAYERS.PROFILE.name);
     
@@ -136,18 +171,39 @@ export default function SuperelevationPanel({
         </div>
       )}
 
-      {/* Inputs */}
+      {validations.issues.length > 0 && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+          <p className="text-red-400 text-sm font-semibold mb-1">Standards Violations</p>
+          <ul className="text-red-400 text-xs space-y-0.5">
+            {validations.issues.map((issue, i) => (
+              <li key={i}>⚠ {issue}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {validations.passes.length > 0 && (
+        <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+          <ul className="text-green-400 text-xs space-y-0.5">
+            {validations.passes.map((pass, i) => (
+              <li key={i}>✓ {pass}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Curve Radius R (m)</label>
           <input
             type="number"
-            min={50}
+            min={30}
             max={2000}
             value={R}
             onChange={(e) => setR(Number(e.target.value) || 50)}
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-sm font-mono"
+            className={`w-full bg-[var(--bg-secondary)] border rounded px-3 py-2 text-sm font-mono ${ePercent > 7 ? 'border-red-500 text-red-400' : 'border-[var(--border-color)]'}`}
           />
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">e required: {ePercent.toFixed(1)}%</p>
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Design Speed V (km/h)</label>
@@ -175,6 +231,7 @@ export default function SuperelevationPanel({
             <option value={0.10}>10%</option>
             <option value={0.12}>12%</option>
           </select>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">Min transition: {minTransition.toFixed(1)}m</p>
         </div>
       </div>
 
