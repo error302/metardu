@@ -1,10 +1,15 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { EngineeringData, EngineeringMode, EngineeringStandard, RoadDesignData, DrainageData, StationData, IntersectionPoint, VerticalIP, CrossSectionTemplate, StepStatus, Manhole, PipeRun } from '@/types/engineering'
 import { KRDM2017, KeRRA, getDesignSpeedRange, getCarriagewayWidth, getShoulderWidth } from '@/lib/standards/engineering'
+import { HorizontalCurvePanel } from '@/components/engineering/HorizontalCurvePanel'
+import SuperelevationPanel from '@/components/engineering/SuperelevationPanel'
+import { VolumesPanel } from '@/components/engineering/VolumesPanel'
+import { NetworkAdjustmentPanel } from '@/components/compute/NetworkAdjustmentPanel'
+import type { SurveyorProfile } from '@/lib/submission/types'
 
 type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs'
 
@@ -23,6 +28,10 @@ interface EngineeringProject {
   utm_zone: number
   hemisphere: 'N' | 'S'
   datum?: string
+  lr_number?: string
+  county?: string
+  district?: string
+  locality?: string
   engineering_data?: EngineeringData | null
 }
 
@@ -1354,12 +1363,18 @@ function renderStepContent(
 export default function EngineeringWorkspacePage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   const [project, setProject] = useState<EngineeringProject | null>(null)
+  const [surveyorProfile, setSurveyorProfile] = useState<SurveyorProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeStep, setActiveStep] = useState<EngineeringStepId>('setup')
   const [saving, setSaving] = useState(false)
+  const [quickMode, setQuickMode] = useState(false)
+
+  // Sub-tab for quick compute panels
+  const activeTab = searchParams.get('tab') || 'workflow'
 
   const fetchProject = useCallback(async () => {
     setLoading(true)
@@ -1376,6 +1391,22 @@ export default function EngineeringWorkspacePage() {
 
     const engData = (data as any).engineering_data as EngineeringData | null
     setProject({ ...data, engineering_data: engData } as EngineeringProject)
+    
+    const { data: profile } = await supabase
+      .from('surveyor_profiles')
+      .select('registration_number, isk_number, full_name, name, firm_name, company')
+      .eq('user_id', (data as any).user_id)
+      .single()
+    
+    if (profile) {
+      setSurveyorProfile({
+        registrationNumber: profile.registration_number ?? profile.isk_number ?? '',
+        fullName: profile.full_name ?? profile.name ?? '',
+        firmName: profile.firm_name ?? profile.company ?? '',
+        isKMemberActive: true
+      })
+    }
+    
     setLoading(false)
   }, [params.id, supabase])
 
@@ -1457,6 +1488,59 @@ export default function EngineeringWorkspacePage() {
   const currentStep = steps.find((s: any) => s.id === activeStep) || steps[0]
   const mode = project.engineering_data?.mode || 'road'
 
+  // Quick Compute Panel Mode
+  if (activeTab !== 'workflow') {
+    return (
+      <div className="min-h-screen bg-black text-white p-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <button onClick={() => router.push(`/project/${params.id}`)} className="text-zinc-500 hover:text-zinc-300">← Back</button>
+              <h1 className="text-xl font-bold">Engineering Compute</h1>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => router.push(`/project/${params.id}/engineering?tab=workflow`)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'workflow' ? 'bg-orange-500 text-white' : 'bg-zinc-800 text-zinc-300'}`}
+              >
+                Workflow
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-2">
+            {[
+              { id: 'curves', label: 'Horizontal Curves' },
+              { id: 'superelevation', label: 'Superelevation' },
+              { id: 'volumes', label: 'Volumes' },
+              { id: 'network', label: 'Network Adjustment' },
+              { id: 'workflow', label: '← Back to Workflow' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => router.push(`/project/${params.id}/engineering?tab=${tab.id}`)}
+                className={`px-4 py-2 rounded-t-lg text-sm font-medium ${
+                  activeTab === tab.id 
+                    ? 'bg-zinc-800 text-white border-t border-l border-r border-zinc-700' 
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-zinc-900 rounded-xl p-6">
+            {activeTab === 'curves' && <HorizontalCurvePanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
+            {activeTab === 'superelevation' && <SuperelevationPanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
+            {activeTab === 'volumes' && <VolumesPanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
+            {activeTab === 'network' && <NetworkAdjustmentPanel projectId={params.id} projectData={project} />}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="border-b border-zinc-800 bg-zinc-950">
@@ -1467,6 +1551,12 @@ export default function EngineeringWorkspacePage() {
             <div className="text-xs text-zinc-500">Engineering Mode • {mode === 'road' ? 'Road Design' : 'Drainage Survey'}</div>
           </div>
           <span className="text-xs px-2 py-1 bg-amber-500/20 text-amber-400 rounded">{mode === 'road' ? 'Road Design' : 'Drainage Survey'}</span>
+          <button
+            onClick={() => router.push(`/project/${params.id}/engineering?tab=curves`)}
+            className="text-xs px-3 py-1 bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30"
+          >
+            Quick Compute →
+          </button>
         </div>
       </div>
 
