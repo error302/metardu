@@ -2,9 +2,8 @@
 
 import { SurveyType } from '@/types/project';
 import dynamic from 'next/dynamic';
-// TODO: MiningVolumePanel coming Phase XX
-// import { MiningVolumePanel } from '@/components/compute/MiningVolumePanel';
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile';
+import { HydroPanel } from '@/components/compute/HydroPanel';
 
 const DynamicFieldBook = dynamic(() => import('./DynamicFieldBook'), { ssr: false });
 
@@ -66,10 +65,14 @@ function ComputeStepPanel({ surveyType, projectId }: { surveyType: SurveyType; p
     topographic: ['Coordinate reduction', 'DTM generation', 'Contour extraction'],
     geodetic: ['Network adjustment', 'Baseline processing', 'Accuracy classification'],
     mining: ['Traverse adjustment', 'End-of-month volumes', 'Mine plan DXF'],
-    hydrographic: ['Tidal correction', 'Depth reduction'],
+    hydrographic: ['Tidal correction', 'Depth reduction', 'Bathymetric surface', 'Report of Survey'],
     drone: ['GCP residuals', 'Point cloud volumes', 'Orthophoto check'],
     deformation: ['Epoch comparison', 'Displacement vectors', 'Statistical test'],
   };
+
+  if (surveyType === 'hydrographic') {
+    return <HydroPanel projectId={projectId} projectData={{}} />
+  }
 
   return (
     <div className="space-y-4">

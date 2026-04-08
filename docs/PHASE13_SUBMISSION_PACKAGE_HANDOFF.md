@@ -56,17 +56,17 @@ From the two workbooks, the benchmark package repeatedly follows this order:
 
 - Contains an explicit package index sheet.
 - Final coordinate list includes:
-  - station
-  - northings
-  - eastings
-  - class of beacon
-  - description
+- station
+- northings
+- eastings
+- class of beacon
+- description
 - Datum joins sheet includes:
-  - pairwise joins
-  - delta northing
-  - delta easting
-  - distance
-  - bearing
+- pairwise joins
+- delta northing
+- delta easting
+- distance
+- bearing
 - Consistency of datum sheet marks adopted plan values.
 - Theoreticals sheet is line-by-line and beacon-by-beacon.
 - Consistency checks sheet compares computed values against "should be" coordinates.
@@ -75,17 +75,17 @@ From the two workbooks, the benchmark package repeatedly follows this order:
 #### `FINAL THEORETICAL COMPUTATIONS FOR 4 ACRES.xlsx`
 
 - Includes a narrative surveyor report sheet with:
-  - approval reference
-  - datum reference
-  - method narrative
-  - conclusion
-  - sign/date area
+- approval reference
+- datum reference
+- method narrative
+- conclusion
+- sign/date area
 - Repeats the same package order as above.
 - Makes the method explicit:
-  - working diagram prepared from approved scheme + F/R
-  - AutoCAD used for theoretical computations
-  - GNSS RTK used for staking and checks
-  - consistency checks run after plan production
+- working diagram prepared from approved scheme + F/R
+- AutoCAD used for theoretical computations
+- GNSS RTK used for staking and checks
+- consistency checks run after plan production
 
 ### Benchmark Sheet Layout Findings
 
@@ -104,11 +104,11 @@ From the image and PDFs:
 - Reuses project data across plans, reports, exports, and checks.
 - Can compute and validate faster than the manual benchmark workflow.
 - Already has strong engines for:
-  - traverse accuracy
-  - leveling
-  - working diagrams and survey plans
-  - mutation forms and document package HTML
-  - survey report generation
+- traverse accuracy
+- leveling
+- working diagrams and survey plans
+- mutation forms and document package HTML
+- survey report generation
 
 ## What METARDU Still Lacks Compared To The Benchmark
 
@@ -157,7 +157,7 @@ Now the brief:
 
 **File:** `supabase/migrations/[timestamp]_create_project_submissions.sql`
 
-```sql
+```
 create table project_submissions (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references projects(id) on delete cascade,
@@ -203,7 +203,7 @@ create policy "owner access" on submission_sequence
 
 **File:** `src/types/submission.ts`
 
-```typescript
+```
 export interface ProjectSubmission {
   id: string
   project_id: string
@@ -254,7 +254,7 @@ export const SUBMISSION_SECTIONS: SubmissionSection[] = [
 
 **File:** `src/lib/submission/surveyorProfile.ts`
 
-```typescript
+```
 import { createClient } from '@/lib/supabase/client'
 
 export interface SurveyorProfile {
@@ -290,7 +290,7 @@ export async function getActiveSurveyorProfile(): Promise<SurveyorProfile | null
 
 **File:** `src/lib/submission/numbering.ts`
 
-```typescript
+```
 import { createClient } from '@/lib/supabase/client'
 
 export async function generateSubmissionNumber(
@@ -325,7 +325,7 @@ export function incrementRevision(submissionNumber: string): string {
 
 **Supabase function** (add to a new migration):
 
-```sql
+```
 create or replace function increment_submission_sequence(
   p_surveyor_profile_id uuid,
   p_year integer
@@ -365,7 +365,7 @@ This is the most visible gap. The benchmark image shows exactly what's needed.
 
 **File:** `src/lib/reports/surveyPlan/types.ts` — add these fields:
 
-```typescript
+```
 export interface SurveyPlanTitleBlock {
   // Existing fields kept
   projectTitle: string
@@ -426,7 +426,7 @@ export interface InsetDiagram {
 
 **File:** `src/lib/reports/surveyPlan/renderer.ts` — add these rendering rules on top of existing renderer:
 
-```typescript
+```
 // RULE 1: Coordinate tables
 // Split beacons into two tables: left side (P-series, K-series) and right side (N-series, D-series)
 // Each table: Station | Northings | Eastings | Heights | Class of Beacon
@@ -466,7 +466,7 @@ export interface InsetDiagram {
 
 **File:** `src/lib/submission/workbook/generateWorkbook.ts`
 
-```typescript
+```
 import * as XLSX from 'xlsx'
 
 export function generateSubmissionWorkbook(data: SubmissionWorkbookData): ArrayBuffer {
@@ -505,7 +505,7 @@ export function generateSubmissionWorkbook(data: SubmissionWorkbookData): ArrayB
 
 **File:** `src/lib/submission/checklist.ts`
 
-```typescript
+```
 export interface AttachmentSlot {
   id: string
   label: string
@@ -565,7 +565,7 @@ export const BOUNDARY_ATTACHMENT_SLOTS: AttachmentSlot[] = [
 
 **DWG import strategy** — add to the import page UI:
 
-```tsx
+```
 // src/components/import/DWGImportGuidance.tsx
 // Show this component when user uploads a .dwg file
 
@@ -590,7 +590,7 @@ export function DWGImportGuidance() {
 
 **Shapefile export** — `src/lib/export/generateShapefile.ts`
 
-```typescript
+```
 // Use the 'shpjs' package for reading and 'shpwrite' for writing
 // npm install shpwrite @types/shpwrite
 
@@ -668,7 +668,7 @@ function getUTMPrj(zone: number, hemisphere: 'N' | 'S'): string {
 
 **File:** `src/lib/submission/assembleSubmission.ts`
 
-```typescript
+```
 export interface PackageValidation {
   ready: boolean
   blockers: string[]
@@ -717,7 +717,7 @@ export function validateSubmissionPackage(
 
 Add these to the `projects` table:
 
-```sql
+```
 alter table projects
   add column if not exists lr_number text,
   add column if not exists folio_number text,
@@ -763,15 +763,15 @@ alter table projects
 ### Repetition problems causing delivery risk
 
 - Duplicate workspace routes:
-  - `src/app/project/[id]/page.tsx`
-  - `src/app/project/[id]/workspace/page.tsx`
+- `src/app/project/[id]/page.tsx`
+- `src/app/project/[id]/workspace/page.tsx`
 - Two report systems:
-  - `src/lib/reports/surveyReport/index.ts`
-  - `src/components/surveyreport/SurveyReportBuilder.tsx` plus `src/lib/compute/surveyReportSections.ts`
+- `src/lib/reports/surveyReport/index.ts`
+- `src/components/surveyreport/SurveyReportBuilder.tsx` plus `src/lib/compute/surveyReportSections.ts`
 - Surveyor data stored in multiple places:
-  - project fields
-  - Supabase profile
-  - localStorage on documents page
+- project fields
+- Supabase profile
+- localStorage on documents page
 - Multiple export surfaces with overlapping responsibilities
 
 ## Phase Goal
@@ -802,16 +802,16 @@ Create one source of truth for submission-ready outputs.
 
 - New `project_submissions` table or equivalent structured JSON domain
 - Stores:
-  - project id
-  - surveyor profile id
-  - submission number
-  - revision code
-  - submission year
-  - package status
-  - required document checklist
-  - generated artifact paths
-  - supporting attachment paths
-  - package validation results
+- project id
+- surveyor profile id
+- submission number
+- revision code
+- submission year
+- package status
+- required document checklist
+- generated artifact paths
+- supporting attachment paths
+- package validation results
 
 ### Suggested files
 
@@ -839,10 +839,10 @@ Stop using mixed surveyor sources.
 ### Deliverables
 
 - Standard surveyor profile loader used by:
-  - survey plan renderer
-  - report generator
-  - document package
-  - submission assembler
+- survey plan renderer
+- report generator
+- document package
+- submission assembler
 - Add seal/signature asset support if not already present.
 - Remove localStorage as primary source for official document identity.
 
@@ -931,27 +931,27 @@ Improve official-sheet realism using the benchmark as the visual target.
 ### Current strength
 
 - `src/lib/reports/surveyPlan/renderer.ts` already has many advanced pieces:
-  - coordinate schedule
-  - legend
-  - north arrow
-  - scale bar
-  - revisions
-  - legal references
-  - title/footer blocks
+- coordinate schedule
+- legend
+- north arrow
+- scale bar
+- revisions
+- legal references
+- title/footer blocks
 
 ### Remaining work
 
 - Add benchmark-style multi-table density and placement refinement.
 - Add formal title block fields that match office-issued sheets more closely:
-  - folio
-  - register number
-  - form number
-  - drawn/checked fields
-  - submission number
+- folio
+- register number
+- form number
+- drawn/checked fields
+- submission number
 - Ensure plotted output supports:
-  - final coordinate list references
-  - consistency check references
-  - surveyor certification block
+- final coordinate list references
+- consistency check references
+- surveyor certification block
 - Standardize working diagram vs final plan modes instead of maintaining separate ad hoc layouts.
 
 ### Suggested files
@@ -988,12 +988,12 @@ Generate the benchmark workbook structure from project data.
 - workbook export service
 - stable ordering and sheet naming
 - formulas or computed values for:
-  - joins
-  - delta northings/eastings
-  - bearings
-  - distances
-  - consistency checks
-  - area totals and discrepancy
+- joins
+- delta northings/eastings
+- bearings
+- distances
+- consistency checks
+- area totals and discrepancy
 
 ### Suggested files
 
@@ -1015,11 +1015,11 @@ Support the non-drawing pieces required for a full submission.
 ### Deliverables
 
 - attachment slots for:
-  - physical planning approval
-  - Land Control Board consent
-  - mutation-related support files
-  - RTK raw output or source files
-  - field book exports
+- physical planning approval
+- Land Control Board consent
+- mutation-related support files
+- RTK raw output or source files
+- field book exports
 - attachment checklist in submission validation
 
 ### Suggested files
@@ -1042,16 +1042,16 @@ Close the last compliance gap around machine-readable deliverables.
 ### Deliverables
 
 - real shapefile ZIP export:
-  - `.shp`
-  - `.shx`
-  - `.dbf`
-  - `.prj`
-  - `.xml`
-  - `.cpg`
+- `.shp`
+- `.shx`
+- `.dbf`
+- `.prj`
+- `.xml`
+- `.cpg`
 - raw source data ZIP with folders like:
-  - `GNSS Raw/`
-  - `Digital Field Book/`
-  - `Level Data/`
+- `GNSS Raw/`
+- `Digital Field Book/`
+- `Level Data/`
 
 ### Suggested files
 
@@ -1086,8 +1086,8 @@ Create the final "one-button" workflow.
 ### Acceptance criteria
 
 - User can click one action and get either:
-  - a complete package
-  - or a precise list of blockers
+- a complete package
+- or a precise list of blockers
 
 ## Workstream 10: Remove Repetition Before More Features
 
@@ -1215,11 +1215,11 @@ When another agent picks this up, do this first:
 
 1. Read this file completely.
 2. Confirm which workspace route is currently intended as canonical:
-   - `src/app/project/[id]/page.tsx`
-   - `src/app/project/[id]/workspace/page.tsx`
-3. Inspect current uncommitted changes before editing anything.
-4. Start from Milestone A unless the repo already contains a submission domain layer.
-5. Avoid touching shapefile export until numbering, manifest, and identity are unified.
+- `src/app/project/[id]/page.tsx`
+- `src/app/project/[id]/workspace/page.tsx`
+1. Inspect current uncommitted changes before editing anything.
+2. Start from Milestone A unless the repo already contains a submission domain layer.
+3. Avoid touching shapefile export until numbering, manifest, and identity are unified.
 
 ## First Implementation Task For The Next Agent
 
@@ -1268,7 +1268,7 @@ Now the brief:
 
 **File:** `supabase/migrations/[timestamp]_create_project_submissions.sql`
 
-```sql
+```
 create table project_submissions (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references projects(id) on delete cascade,
@@ -1314,7 +1314,7 @@ create policy "owner access" on submission_sequence
 
 **File:** `src/types/submission.ts`
 
-```typescript
+```
 export interface ProjectSubmission {
   id: string
   project_id: string
@@ -1365,7 +1365,7 @@ export const SUBMISSION_SECTIONS: SubmissionSection[] = [
 
 **File:** `src/lib/submission/surveyorProfile.ts`
 
-```typescript
+```
 import { createClient } from '@/lib/supabase/client'
 
 export interface SurveyorProfile {
@@ -1401,7 +1401,7 @@ export async function getActiveSurveyorProfile(): Promise<SurveyorProfile | null
 
 **File:** `src/lib/submission/numbering.ts`
 
-```typescript
+```
 import { createClient } from '@/lib/supabase/client'
 
 export async function generateSubmissionNumber(
@@ -1436,7 +1436,7 @@ export function incrementRevision(submissionNumber: string): string {
 
 **Supabase function** (add to a new migration):
 
-```sql
+```
 create or replace function increment_submission_sequence(
   p_surveyor_profile_id uuid,
   p_year integer
@@ -1476,7 +1476,7 @@ This is the most visible gap. The benchmark image shows exactly what's needed.
 
 **File:** `src/lib/reports/surveyPlan/types.ts` — add these fields:
 
-```typescript
+```
 export interface SurveyPlanTitleBlock {
   // Existing fields kept
   projectTitle: string
@@ -1537,7 +1537,7 @@ export interface InsetDiagram {
 
 **File:** `src/lib/reports/surveyPlan/renderer.ts` — add these rendering rules on top of existing renderer:
 
-```typescript
+```
 // RULE 1: Coordinate tables
 // Split beacons into two tables: left side (P-series, K-series) and right side (N-series, D-series)
 // Each table: Station | Northings | Eastings | Heights | Class of Beacon
@@ -1577,7 +1577,7 @@ export interface InsetDiagram {
 
 **File:** `src/lib/submission/workbook/generateWorkbook.ts`
 
-```typescript
+```
 import * as XLSX from 'xlsx'
 
 export function generateSubmissionWorkbook(data: SubmissionWorkbookData): ArrayBuffer {
@@ -1616,7 +1616,7 @@ export function generateSubmissionWorkbook(data: SubmissionWorkbookData): ArrayB
 
 **File:** `src/lib/submission/checklist.ts`
 
-```typescript
+```
 export interface AttachmentSlot {
   id: string
   label: string
@@ -1676,7 +1676,7 @@ export const BOUNDARY_ATTACHMENT_SLOTS: AttachmentSlot[] = [
 
 **DWG import strategy** — add to the import page UI:
 
-```tsx
+```
 // src/components/import/DWGImportGuidance.tsx
 // Show this component when user uploads a .dwg file
 
@@ -1701,7 +1701,7 @@ export function DWGImportGuidance() {
 
 **Shapefile export** — `src/lib/export/generateShapefile.ts`
 
-```typescript
+```
 // Use the 'shpjs' package for reading and 'shpwrite' for writing
 // npm install shpwrite @types/shpwrite
 
@@ -1779,7 +1779,7 @@ function getUTMPrj(zone: number, hemisphere: 'N' | 'S'): string {
 
 **File:** `src/lib/submission/assembleSubmission.ts`
 
-```typescript
+```
 export interface PackageValidation {
   ready: boolean
   blockers: string[]
@@ -1828,7 +1828,7 @@ export function validateSubmissionPackage(
 
 Add these to the `projects` table:
 
-```sql
+```
 alter table projects
   add column if not exists lr_number text,
   add column if not exists folio_number text,
