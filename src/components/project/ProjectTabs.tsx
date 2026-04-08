@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 interface Props {
   id: string
@@ -10,6 +10,9 @@ interface Props {
 
 export default function ProjectTabs({ id, surveyType }: Props) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const activeStep = searchParams.get('step') ?? '1'
+  const baseHref = `/project/${id}`
 
   const isEngineering = surveyType?.startsWith('engineering')
   const isTopographic = surveyType === 'topographic' ||
@@ -17,11 +20,14 @@ export default function ProjectTabs({ id, surveyType }: Props) {
                         surveyType === 'topographic_corridor'
 
   const tabs = [
-    { label: 'Workspace', href: `/project/${id}` },
+    { label: 'Setup', href: `${baseHref}?step=1`, active: pathname === baseHref && activeStep === '1' },
+    { label: 'Field', href: `${baseHref}?step=2`, active: pathname === baseHref && activeStep === '2' },
+    { label: 'Compute', href: `${baseHref}?step=3`, active: pathname === baseHref && activeStep === '3' },
+    { label: 'QA', href: `${baseHref}?step=4`, active: pathname === baseHref && activeStep === '4' },
     ...(isTopographic ? [{ label: 'Topo', href: `/project/${id}/topo` }] : []),
     ...(isEngineering ? [{ label: 'Engineering', href: `/project/${id}/engineering` }] : []),
-    { label: 'Submission', href: `/project/${id}/submission` },
-    { label: 'Settings', href: `/project/${id}/settings` },
+    { label: 'Documents', href: `/project/${id}/documents` },
+    { label: 'Submit', href: `/project/${id}/submission` },
   ]
 
   return (
@@ -30,8 +36,10 @@ export default function ProjectTabs({ id, surveyType }: Props) {
         <nav aria-label="Project tabs" className="flex gap-2 overflow-x-auto py-3">
           {tabs.map((tab) => {
             const isActive =
-              pathname === tab.href ||
-              (tab.href !== `/project/${id}` && pathname.startsWith(`${tab.href}/`))
+              'active' in tab
+                ? Boolean(tab.active)
+                : pathname === tab.href ||
+                  (tab.href !== baseHref && pathname.startsWith(`${tab.href}/`))
 
             return (
               <Link
