@@ -10,7 +10,7 @@ import {
   DXF_LAYERS
 } from '@/lib/drawing/dxfLayers'
 import { generateContours, IDWOutput } from '@/lib/topo/contourGenerator'
-import type { ReducedSounding } from './tidalReduction'
+import type { ReducedSounding } from './types'
 
 export interface BathymetricGrid {
   idwGrid: {

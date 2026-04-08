@@ -5,7 +5,7 @@
  */
 
 import { runIDW, IDWGrid, SurveyPoint } from '@/lib/topo/idwEngine'
-import type { ReducedSounding } from './tidalReduction'
+import type { ReducedSounding } from './types'
 
 export interface BathymetricGrid {
   idwGrid:    IDWGrid

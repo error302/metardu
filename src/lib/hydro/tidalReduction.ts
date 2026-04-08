@@ -7,34 +7,12 @@
  * Kenya datum: Mean Sea Level (MSL) referenced to KMD tide gauge network
  */
 
-export interface RawSounding {
-  x: number
-  y: number
-  depthM: number
-  timestamp: string
-}
-
-export interface TideObservation {
-  timestamp: string
-  waterLevelM: number
-}
-
-export interface ReducedSounding {
-  x: number
-  y: number
-  rawDepthM: number
-  waterLevelM: number
-  reducedDepthM: number
-  timestamp: string
-}
-
-export interface TidalReductionResult {
-  reducedSoundings: ReducedSounding[]
-  meanWaterLevel: number
-  maxWaterLevel: number
-  minWaterLevel: number
-  warnings: string[]
-}
+import type {
+  RawSounding,
+  TideObservation,
+  ReducedSounding,
+  TidalReductionResult
+} from './types'
 
 export function reduceSoundings(
   soundings: RawSounding[],

@@ -733,7 +733,7 @@ export default function NavBar() {
             ) : (
               <div className="hidden md:flex items-center gap-2">
                 <Link href="/login" className="px-4 py-2 text-sm border border-[var(--accent)] text-[var(--accent)] rounded hover:bg-[var(--accent)]/10 transition-colors">
-                  {t('nav.login')}
+                  {t('nav.account')}
                 </Link>
                 <Link href="/register" className="px-4 py-2 text-sm bg-[var(--accent)] text-black font-semibold rounded hover:bg-[var(--accent-dim)] transition-colors">
                   {t('nav.register')}
