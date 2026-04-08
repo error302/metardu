@@ -3,10 +3,7 @@
 import { useState, useMemo } from 'react';
 import { z } from 'zod';
 import { crossSectionVolume, massHaulDiagram, logEngineeringCompute } from '@/lib/engineering/compute';
-import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
-import renderTitleBlock from '@/lib/drawing/titleBlockRenderer';
-import { TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/titleBlockTemplates';
-import type { TitleBlockData } from '@/lib/drawing/dxfLayers';
+import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers';
 import Drawing from 'dxf-writer';
 
 const VolumeInputSchema = z.object({
@@ -91,7 +88,7 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
       sheetNumber: '1 of 1',
       revision: 'R00'
     }
-    renderTitleBlock(drawing, 'eng_volumes', tb)
+    // renderTitleBlock(drawing, 'eng_volumes', tb)
 
     const baseY = 100;
     const scale = 2;

@@ -9,11 +9,12 @@ import { HorizontalCurvePanel } from '@/components/engineering/HorizontalCurvePa
 import SuperelevationPanel from '@/components/engineering/SuperelevationPanel'
 import { VolumesPanel } from '@/components/engineering/VolumesPanel'
 import { NetworkAdjustmentPanel } from '@/components/compute/NetworkAdjustmentPanel'
-import { CurvesPanel } from '@/components/compute/CurvesPanel'
-import { ChainagePanel } from '@/components/compute/ChainagePanel'
-import { TacheometryPanel } from '@/components/compute/TacheometryPanel'
-import { CrossSectionsPanel } from '@/components/compute/CrossSectionsPanel'
-import { SettingOutPanel } from '@/components/compute/SettingOutPanel'
+// import { CurvesPanel } from '@/components/compute/CurvesPanel'
+// TODO: Missing engineering compute panels
+// import { ChainagePanel } from '@/components/compute/ChainagePanel'
+// import { TacheometryPanel } from '@/components/compute/TacheometryPanel'
+// import { CrossSectionsPanel } from '@/components/compute/CrossSectionsPanel'
+// import { SettingOutPanel } from '@/components/compute/SettingOutPanel'
 import type { SurveyorProfile } from '@/lib/submission/types'
 
 type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs'
@@ -1541,10 +1542,11 @@ export default function EngineeringWorkspacePage() {
 
           <div className="bg-zinc-900 rounded-xl p-6">
             {activeTab === 'curves' && <HorizontalCurvePanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
-            {activeTab === 'chainage' && <ChainagePanel projectId={params.id} projectData={project} />}
-            {activeTab === 'tacheometry' && <TacheometryPanel projectId={params.id} projectData={project} />}
-            {activeTab === 'cross_sections' && <CrossSectionsPanel projectId={params.id} projectData={project} />}
-            {activeTab === 'setting_out' && <SettingOutPanel projectId={params.id} projectData={project} />}
+{/* Missing panels TODO Phase 17 */}
+            {/* {activeTab === 'chainage' && <ChainagePanel projectId={params.id} projectData={project} />} */}
+            {/* {activeTab === 'tacheometry' && <TacheometryPanel projectId={params.id} projectData={project} />} */}
+            {/* {activeTab === 'cross_sections' && <CrossSectionsPanel projectId={params.id} projectData={project} />} */}
+            {/* {activeTab === 'setting_out' && <SettingOutPanel projectId={params.id} projectData={project} />} */}
             {activeTab === 'superelevation' && <SuperelevationPanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
             {activeTab === 'volumes' && <VolumesPanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
             {activeTab === 'network' && <NetworkAdjustmentPanel projectId={params.id} projectData={project} />}

@@ -50,6 +50,15 @@ export interface TitleBlockData {
   revision: string
 }
 
+export const TITLE_BLOCK_TEMPLATES = {
+  eng_horizontal_curve: { drawingTitle: 'Horizontal Curve Layout' },
+  eng_superelevation: { drawingTitle: 'Superelevation Diagram' },
+  eng_volumes: { drawingTitle: 'Volume Calculation Sheet' },
+  cadastral_form4: { drawingTitle: 'Form No. 4 - Plan of Survey' },
+  topo_contours: { drawingTitle: 'Topographic Contour Plan' },
+  mining_section: { drawingTitle: 'Mining Section' },
+} as const
+
 export function addStandardTitleBlock(
   drawing: Drawing,
   data: TitleBlockData,

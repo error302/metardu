@@ -2,7 +2,8 @@
 
 import { SurveyType } from '@/types/project';
 import dynamic from 'next/dynamic';
-import { MiningVolumePanel } from '@/components/compute/MiningVolumePanel';
+// TODO: MiningVolumePanel coming Phase XX
+// import { MiningVolumePanel } from '@/components/compute/MiningVolumePanel';
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile';
 
 const DynamicFieldBook = dynamic(() => import('./DynamicFieldBook'), { ssr: false });
@@ -73,7 +74,8 @@ function ComputeStepPanel({ surveyType, projectId }: { surveyType: SurveyType; p
   return (
     <div className="space-y-4">
       {surveyType === 'mining' ? (
-        <MiningVolumePanel projectId={projectId} projectData={{}} />
+        // <MiningVolumePanel projectId={projectId} projectData={{}} />
+        <div> Mining Volume Panel (Phase XX) </div>
       ) : (
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <h2 className="font-semibold text-gray-900 mb-1">Step 3 — Compute</h2>

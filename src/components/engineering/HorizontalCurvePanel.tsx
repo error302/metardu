@@ -3,10 +3,7 @@
 import { useState, useMemo } from 'react';
 import { z } from 'zod';
 import { horizontalCurve, logEngineeringCompute } from '@/lib/engineering/compute';
-import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
-import renderTitleBlock from '@/lib/drawing/titleBlockRenderer';
-import { TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/titleBlockTemplates';
-import type { TitleBlockData } from '@/lib/drawing/dxfLayers';
+import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers';
 import { getMinRadius, getMinSSD, getMinSuperelevation } from '@/lib/standards/engineering';
 import Drawing from 'dxf-writer';
 
@@ -110,7 +107,7 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
       sheetNumber: '1 of 1',
       revision: 'R00'
     }
-    renderTitleBlock(drawing, 'eng_horizontal_curve', tb)
+    // renderTitleBlock(drawing, 'eng_horizontal_curve', tb)
 
     drawing.setActiveLayer(DXF_LAYERS.CENTRELINE.name);
     

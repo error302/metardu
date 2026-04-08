@@ -3,10 +3,7 @@
 import { useState, useMemo } from 'react';
 import { superelevationCalc, type SuperelevationResult, logEngineeringCompute } from '@/lib/engineering/compute';
 import { z } from 'zod';
-import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
-import renderTitleBlock from '@/lib/drawing/titleBlockRenderer';
-import type { TitleBlockData } from '@/lib/drawing/dxfLayers';
-import { TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/titleBlockTemplates';
+import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers';
 import Drawing from 'dxf-writer';
 
 const SuperelevationInputSchema = z.object({
@@ -116,7 +113,7 @@ export default function SuperelevationPanel({
       sheetNumber: '1 of 1',
       revision: 'R00'
     }
-    renderTitleBlock(drawing, 'eng_superelevation', tb);
+    // renderTitleBlock(drawing, 'eng_superelevation', tb);
     
     drawing.setActiveLayer(DXF_LAYERS.PROFILE.name);
     
