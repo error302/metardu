@@ -38,7 +38,7 @@ export const TRAVERSE_ACCURACY_STANDARDS: AccuracyStandard[] = [
   { name: 'First Order Class II', order: 2, traversePrecision: 10000, levelingAllowable: '6√K', description: 'High precision geodetic control' },
   { name: 'Second Order Class I', order: 3, traversePrecision: 5000, levelingAllowable: '8√K', description: 'Primary control survey' },
   { name: 'Second Order Class II', order: 4, traversePrecision: 2500, levelingAllowable: '10√K', description: 'Secondary control survey' },
-  { name: 'Third Order', order: 5, traversePrecision: 1000, levelingAllowable: '12√K', description: 'Cadastral and detail survey' },
+  { name: 'Third Order', order: 5, traversePrecision: 1000, levelingAllowable: '10√K', description: 'Cadastral and detail survey' },
 ]
 
 // Levelling Accuracy Standards per RDM 1.1 Table 5.1

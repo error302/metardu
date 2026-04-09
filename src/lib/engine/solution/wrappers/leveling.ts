@@ -40,7 +40,7 @@ export function levelingSolved(input: LevelingInput, result: LevelingResult): So
       },
       {
         title: 'Allowable misclosure (ordinary leveling)',
-        formula: 'Allowable = ±12√K mm',
+        formula: 'Allowable = ±10√K mm',
         substitution: `K = ${fullNumber(distanceKm)} km`,
         computation: `Allowable = ±${fullNumber(result.allowableMisclosure * 1000)} mm`,
       },

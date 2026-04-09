@@ -151,7 +151,7 @@ export const levelingFixtures: LevelingFixture[] = [
     openingRL: 100.000,
     closingRL: 100.080,
     expectedClosingError: 0.080,
-    expectedPass: true, // within ±12√K mm
+    expectedPass: true, // within ±10√K mm
   },
   {
     id: 'lv-002',
