@@ -13,8 +13,10 @@ import {
   PlusIcon
 } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/solid'
+import { FieldBookMobile } from '@/components/fieldbook/FieldBookMobile'
+import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 
-type Tab = 'points' | 'traverse' | 'leveling' | 'radiation'
+type Tab = 'points' | 'traverse' | 'leveling' | 'radiation' | 'offline'
 type SyncStatus = 'synced' | 'pending' | 'offline'
 
 const STORAGE_KEY = 'metardu_pending_observations'
@@ -74,7 +76,7 @@ export default function FieldPage() {
   const fetchProjects = useCallback(async (userId: string) => {
     const { data } = await supabase
       .from('projects')
-      .select('id, name')
+      .select('id, name, survey_type')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
     if (data) setProjects(data)
@@ -241,6 +243,18 @@ export default function FieldPage() {
     >
       <Icon className="w-5 h-5" />
       <span>{label}</span>
+    </button>
+  )
+
+  const renderOfflineTabButton = (tab: Tab, Icon: any, label: string) => (
+    <button
+      onClick={() => setActiveTab(tab)}
+      className={`flex-1 py-2 text-xs font-medium flex flex-col items-center gap-1 ${
+        activeTab === tab ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+      }`}
+    >
+      <Icon className="w-5 h-5" />
+      <span className="text-[10px]">{label}</span>
     </button>
   )
 
@@ -613,6 +627,20 @@ export default function FieldPage() {
             )}
           </div>
         )}
+
+        {activeTab === 'offline' && selectedProject && (
+          <FieldBookMobile
+            projectId={selectedProject}
+            surveyType={projects.find(p => p.id === selectedProject)?.survey_type || 'General'}
+            surveyorId={user?.id || ''}
+          />
+        )}
+
+        {activeTab === 'offline' && !selectedProject && (
+          <div className="flex flex-col items-center justify-center h-64 text-[var(--text-muted)]">
+            <p className="text-sm">Select a project first to use offline field book</p>
+          </div>
+        )}
       </main>
 
       {/* Bottom Tabs */}
@@ -622,6 +650,7 @@ export default function FieldPage() {
           {renderTabButton('traverse', ArrowPathIcon, 'Traverse')}
           {renderTabButton('leveling', ScaleIcon, 'Level')}
           {renderTabButton('radiation', RadioIcon, 'Rad')}
+          {renderOfflineTabButton('offline', ArrowUpTrayIcon, 'Offline')}
         </div>
       </div>
     </div>
