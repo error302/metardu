@@ -21,21 +21,21 @@ export interface NavItem {
 
 export type NavGroup =
   | 'CORE_TOOLS'
-  | 'ADVANCED_MODULES'
   | 'DOCUMENTS'
   | 'DATA'
   | 'COMMUNITY'
   | 'ENTERPRISE'
   | 'SETTINGS'
+  | 'AI_MODULES'
 
 export const NAV_GROUPS: Record<NavGroup, { label: string; order: number }> = {
   CORE_TOOLS: { label: 'Survey Tools', order: 1 },
-  ADVANCED_MODULES: { label: 'Advanced Modules', order: 2 },
-  DOCUMENTS: { label: 'Documents', order: 3 },
-  DATA: { label: 'Data & Integration', order: 4 },
-  COMMUNITY: { label: 'Community', order: 5 },
-  ENTERPRISE: { label: 'Enterprise', order: 6 },
-  SETTINGS: { label: 'Settings', order: 7 },
+  DOCUMENTS: { label: 'Documents', order: 2 },
+  DATA: { label: 'Data & Integration', order: 3 },
+  COMMUNITY: { label: 'Community', order: 4 },
+  ENTERPRISE: { label: 'Enterprise', order: 5 },
+  SETTINGS: { label: 'Settings', order: 6 },
+  AI_MODULES: { label: 'AI Modules', order: 7 },
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -68,15 +68,15 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Survey Regulations', href: '/tools/survey-regulations', icon: BookOpen, group: 'DOCUMENTS', description: 'Kenya Survey Regulations 1994, RDM 1.1 accuracy standards' },
   { label: 'US Survey Standards', href: '/tools/us-survey-reference', icon: BookOpen, group: 'DOCUMENTS', description: 'US FWS Land Survey Handbook, BLM Manual, DOJ Title Standards' },
 
-  // ADVANCED MODULES
-  { label: 'FieldGuard AI', href: '/fieldguard', icon: Shield, group: 'ADVANCED_MODULES', badge: 'AI', description: 'GNSS/total-station data cleaner and outlier detection', requiresSubscription: 'pro' },
-  { label: 'CadastraAI', href: '/cadastra', icon: Map, group: 'ADVANCED_MODULES', badge: 'AI', description: 'Boundary dispute detection, overlap and gap analysis', requiresSubscription: 'pro' },
-  { label: 'MineTwin 3D', href: '/minetwin', icon: Cpu, group: 'ADVANCED_MODULES', badge: 'NEW', description: 'WebGL digital twin viewer for mining operations', requiresSubscription: 'pro' },
-  { label: 'SurveyFlow', href: '/automator', icon: Layers, group: 'ADVANCED_MODULES', badge: 'NEW', description: 'Drag-and-drop workflow automation builder', requiresSubscription: 'pro' },
-  { label: 'HydroLive', href: '/hydrolive', icon: Waves, group: 'ADVANCED_MODULES', badge: 'AI', description: 'Live contour maps, volume change, hazard detection', requiresSubscription: 'pro' },
-  { label: 'USV Orchestrator', href: '/usv', icon: Ship, group: 'ADVANCED_MODULES', badge: 'NEW', description: 'Unmanned surface vehicle mission planning and telemetry', requiresSubscription: 'pro' },
-  { label: 'MineScan Safety', href: '/minescan', icon: AlertTriangle, group: 'ADVANCED_MODULES', badge: 'AI', description: 'AI-powered safety monitoring for mining operations', requiresSubscription: 'pro' },
-  { label: 'GeoFusion Hub', href: '/geofusion', icon: Database, group: 'ADVANCED_MODULES', badge: 'NEW', description: 'Unified survey, bathymetric, drone and cadastral data', requiresSubscription: 'pro' },
+  // AI MODULES
+  { label: 'FieldGuard AI', href: '/fieldguard', icon: Shield, group: 'AI_MODULES', badge: 'AI', description: 'GNSS/total-station data cleaner and outlier detection', requiresSubscription: 'pro' },
+  { label: 'CadastraAI', href: '/cadastra', icon: Map, group: 'AI_MODULES', badge: 'AI', description: 'Boundary dispute detection, overlap and gap analysis', requiresSubscription: 'pro' },
+  { label: 'MineTwin 3D', href: '/minetwin', icon: Cpu, group: 'AI_MODULES', badge: 'NEW', description: 'WebGL digital twin viewer for mining operations', requiresSubscription: 'pro' },
+  { label: 'SurveyFlow', href: '/automator', icon: Layers, group: 'AI_MODULES', badge: 'NEW', description: 'Drag-and-drop workflow automation builder', requiresSubscription: 'pro' },
+  { label: 'HydroLive', href: '/hydrolive', icon: Waves, group: 'AI_MODULES', badge: 'AI', description: 'Live contour maps, volume change, hazard detection', requiresSubscription: 'pro' },
+  { label: 'USV Orchestrator', href: '/usv', icon: Ship, group: 'AI_MODULES', badge: 'NEW', description: 'Unmanned surface vehicle mission planning and telemetry', requiresSubscription: 'pro' },
+  { label: 'MineScan Safety', href: '/minescan', icon: AlertTriangle, group: 'AI_MODULES', badge: 'AI', description: 'AI-powered safety monitoring for mining operations', requiresSubscription: 'pro' },
+  { label: 'GeoFusion Hub', href: '/geofusion', icon: Database, group: 'AI_MODULES', badge: 'NEW', description: 'Unified survey, bathymetric, drone and cadastral data', requiresSubscription: 'pro' },
 
   // DATA
   { label: 'Projects', href: '/project', icon: Layers, group: 'DATA', description: 'Manage survey projects and revision history' },

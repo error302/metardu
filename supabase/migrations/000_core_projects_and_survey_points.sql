@@ -1,4 +1,4 @@
--- Core project + points tables for GeoNova
+-- Core project + points tables for Metardu
 -- Keeps the schema reproducible from a clean Supabase database.
 
 create extension if not exists pgcrypto;

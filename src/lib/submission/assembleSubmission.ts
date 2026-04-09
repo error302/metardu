@@ -4,9 +4,13 @@ import { getActiveSurveyorProfile } from './surveyorProfile'
 import { generateSubmissionRef } from './revisionNumber'
 import { validateSubmission } from './validateSubmission'
 import { generateFormNo4DXF } from './generators/formNo4'
-import { generateComputationWorkbook } from './generators/computationWorkbook'
+import { generateStatutoryWorkbook } from './workbook/statutoryWorkbook'
 import { generateWorkingDiagramDXF } from './generators/workingDiagram'
+import { generatePPA2Form } from './generators/ppa2Form'
+import { generateLCBConsent } from './generators/lcbConsent'
+import { generateMutationForm } from './generators/mutationForm'
 import { coordinateArea } from '@/lib/engine/area'
+import { angularClosureTolerance } from '@/lib/engine/traverse'
 import type { SubmissionPackage, QAGateResult, SurveySubtype } from './types'
 
 interface ProjectData {
@@ -76,6 +80,7 @@ export async function assembleSubmissionPackage(
   const adjustedCoordinates = (proj.survey_points || [])
     .filter((pt: any) => pt.adjusted_easting != null && pt.adjusted_northing != null)
     .map((pt: any) => ({
+      label: pt.point_name ?? pt.name ?? `P${pt.idx}`,
       easting: asNum(pt.adjusted_easting),
       northing: asNum(pt.adjusted_northing)
     }));
@@ -162,13 +167,160 @@ export async function assembleSubmissionPackage(
   }
 
   const formNo4Dxf = generateFormNo4DXF(pkg)
-  const workbook = generateComputationWorkbook(pkg)
+  const firstPt = pkg.traverse.points[0]
+  const workbook = await generateStatutoryWorkbook({
+    project: {
+      name: project.name,
+      lrNumber: project.lr_number,
+      parcelNumber: project.parcel_number,
+      county: project.county,
+      division: project.division,
+      district: project.district,
+      locality: project.locality,
+      surveyType: 'cadastral',
+      surveyDate: project.survey_date ?? new Date().toISOString(),
+      scaleDenominator: 2500,
+    },
+    surveyor: {
+      name: surveyor.fullName,
+      iskNumber: surveyor.iskNumber,
+      firmName: surveyor.firmName ?? '',
+    },
+    submission: {
+      referenceNumber: ref,
+      revision,
+      status: 'submitted',
+    },
+    fieldObservations: pkg.traverse.points.map((pt, i) => ({
+      stationFrom: pt.pointName,
+      stationTo: pkg.traverse.points[(i + 1) % pkg.traverse.points.length]?.pointName ?? '',
+      observedBearingDeg: pt.observedBearing,
+      observedDistanceM: pt.observedDistance,
+    })),
+    traverse: {
+      method: pkg.traverse.adjustmentMethod,
+      stations: pkg.traverse.points.map(pt => ({
+        label: pt.pointName,
+        observedBearing: pt.observedBearing,
+        observedDistance: pt.observedDistance,
+        departureRaw: pt.easting - (firstPt?.easting ?? 0),
+        latitudeRaw: pt.northing - (firstPt?.northing ?? 0),
+        departureCorrected: pt.adjustedEasting - pt.easting,
+        latitudeCorrected: pt.adjustedNorthing - pt.northing,
+        easting: pt.adjustedEasting,
+        northing: pt.adjustedNorthing,
+      })),
+      angularMisclosureSec: pkg.traverse.angularMisclosure,
+      angularToleranceSec: angularClosureTolerance(pkg.traverse.points.length),
+      angularPassesQA: pkg.traverse.angularMisclosure <= angularClosureTolerance(pkg.traverse.points.length),
+      linearMisclosureM: pkg.traverse.linearMisclosure,
+      perimeterM: pkg.traverse.perimeterM,
+      precisionRatio: parseInt(pkg.traverse.precisionRatio.replace('1:', '')),
+      precisionMinimum: 5000,
+      linearPassesQA: true,
+    },
+    adjustedStations: pkg.traverse.points.map(pt => ({
+      label: pt.pointName,
+      easting: pt.adjustedEasting,
+      northing: pt.adjustedNorthing,
+    })),
+    levelling: null,
+    areaComputation: {
+      stations: pkg.traverse.points.map(pt => ({
+        label: pt.pointName,
+        easting: pt.adjustedEasting,
+        northing: pt.adjustedNorthing,
+      })),
+      areaM2: pkg.traverse.areaM2,
+      areaHa: pkg.traverse.areaM2 / 10000,
+      perimeterM: pkg.traverse.perimeterM,
+    },
+    legs: pkg.traverse.points.map((pt, i) => ({
+      fromLabel: pt.pointName,
+      toLabel: pkg.traverse.points[(i + 1) % pkg.traverse.points.length]?.pointName ?? '',
+      bearing: pt.observedBearing,
+      distance: pt.observedDistance,
+    })),
+    cogoResults: null,
+  })
   const workingDiagram = generateWorkingDiagramDXF(pkg)
 
   const zip = new JSZip()
   zip.file('form_no_4.dxf', formNo4Dxf)
   zip.file('computation_workbook.xlsx', workbook)
   zip.file('working_diagram.dxf', workingDiagram)
+
+  // Supporting documents - PPA2 (always included)
+  const ppa2Input = {
+    lrNumber: project.lr_number,
+    parcelNumber: project.parcel_number,
+    county: project.county,
+    division: project.division,
+    district: project.district,
+    locality: project.locality,
+    areaHa: computedAreaM2 / 10000,
+    surveyType: project.survey_subtype ?? project.survey_type ?? 'Cadastral',
+    applicantName: project.client_name ?? '',
+    applicantAddress: project.client_address ?? '',
+    applicantIdNumber: project.client_id_number,
+    surveyorName: surveyor.fullName,
+    iskNumber: surveyor.iskNumber,
+    firmName: surveyor.firmName ?? '',
+    surveyDate: project.survey_date ?? new Date().toISOString(),
+    referenceNumber: ref,
+  }
+  zip.file('supporting_docs/ppa2_form.pdf', generatePPA2Form(ppa2Input))
+
+  // Supporting documents - LCB Consent (always included)
+  const lcbInput = {
+    lrNumber: project.lr_number,
+    parcelNumber: project.parcel_number,
+    county: project.county,
+    division: project.division,
+    district: project.district,
+    areaHa: computedAreaM2 / 10000,
+    landUse: project.land_use ?? 'Agricultural',
+    transferorName: project.owner_name ?? '',
+    transfereeName: project.client_name ?? '',
+    transferorIdNumber: project.owner_id_number,
+    transfereeIdNumber: project.client_id_number,
+    surveyorName: surveyor.fullName,
+    iskNumber: surveyor.iskNumber,
+    surveyDate: project.survey_date ?? new Date().toISOString(),
+    referenceNumber: ref,
+    lbcApplicationNumber: project.lbc_application_number,
+  }
+  zip.file('supporting_docs/lcb_consent.pdf', generateLCBConsent(lcbInput))
+
+  // Supporting documents - Mutation Form (only for mutation subtype)
+  if (project.survey_subtype === 'mutation') {
+    const mutationInput = {
+      parentLRNumber: project.lr_number,
+      parentParcelNumber: project.parcel_number,
+      parentAreaHa: project.parent_area_ha ?? computedAreaM2 / 10000,
+      resultingParcels: project.resulting_parcels ?? [],
+      county: project.county,
+      division: project.division,
+      district: project.district,
+      locality: project.locality,
+      registryMapSheet: project.registry_map_sheet ?? '',
+      mutationType: 'subdivision' as const,
+      reasonForMutation: project.mutation_reason ?? 'Subdivision',
+      affectedBeacons: adjustedCoordinates.map((st, i) => ({
+        beaconId: st.label,
+        action: 'new' as const,
+        easting: st.easting,
+        northing: st.northing,
+      })),
+      surveyorName: surveyor.fullName,
+      iskNumber: surveyor.iskNumber,
+      firmName: surveyor.firmName ?? '',
+      surveyDate: project.survey_date ?? new Date().toISOString(),
+      referenceNumber: ref,
+      mutationNumber: project.mutation_number,
+    }
+    zip.file('supporting_docs/mutation_form.pdf', generateMutationForm(mutationInput))
+  }
 
   const manifest = {
     submissionRef: ref,
@@ -185,27 +337,6 @@ export async function assembleSubmissionPackage(
     qaResult: qa
   }
   zip.file('manifest.json', JSON.stringify(manifest, null, 2))
-
-  const supportingFolder = zip.folder('supporting_docs')
-  if (supportingFolder) {
-    for (const doc of pkg.supportingDocs) {
-      if (doc.fileUrl && doc.uploadedAt) {
-        const urlParts = doc.fileUrl.split('/')
-        const fileName = urlParts[urlParts.length - 1]
-        supportingFolder.file(fileName, Buffer.alloc(0))
-      }
-    }
-
-    if (pkg.supportingDocs.find(d => d.type === 'ppa2')?.fileUrl) {
-      supportingFolder.file('ppa2_approval.pdf', Buffer.alloc(0))
-    }
-    if (pkg.supportingDocs.find(d => d.type === 'lcb_consent')?.fileUrl) {
-      supportingFolder.file('lcb_consent.pdf', Buffer.alloc(0))
-    }
-    if (pkg.supportingDocs.find(d => d.type === 'mutation_form')?.fileUrl) {
-      supportingFolder.file('mutation_form.pdf', Buffer.alloc(0))
-    }
-  }
 
   const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 

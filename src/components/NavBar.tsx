@@ -518,6 +518,15 @@ export default function NavBar() {
             >
               Community
             </Link>
+
+            {/* Account Link */}
+            <Link 
+              href="/account"
+              prefetch={false}
+              className="px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
+            >
+              Account
+            </Link>
           </div>
 
           {/* Right Side */}

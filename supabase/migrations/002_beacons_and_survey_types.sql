@@ -1,4 +1,4 @@
--- GeoNova Community Beacons Table
+-- Metardu Community Beacons Table
 -- Run this in Supabase SQL Editor
 
 -- Create public_beacons table

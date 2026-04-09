@@ -1,4 +1,4 @@
--- GeoNova Digital Field Book storage
+-- Metardu Digital Field Book storage
 -- Stores structured field observations for offline/online sync.
 
 create table if not exists public.fieldbooks (

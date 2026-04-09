@@ -165,7 +165,7 @@ export default function CommunityPage() {
         <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
             <strong>ISK CPD Requirement:</strong> Institution of Surveyors of Kenya requires 20 CPD points 
-            per year for license renewal. GeoNova automatically awards points for completed jobs, 
+            per year for license renewal. METARDU automatically awards points for completed jobs, 
             peer reviews, and document signatures.
           </p>
         </div>

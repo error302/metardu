@@ -1,4 +1,4 @@
--- GeoNova PostGIS Spatial Indexing
+-- Metardu PostGIS Spatial Indexing
 -- Run this in Supabase SQL Editor
 
 -- Enable PostGIS extension

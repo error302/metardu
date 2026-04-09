@@ -1,5 +1,5 @@
 -- Field Mission Planner tables
--- Jobs, equipment recommendations, checklists for GeoNova
+-- Jobs, equipment recommendations, checklists for survey missions
 
 -- Enable PostGIS if not already
 create extension if not exists postgis;
