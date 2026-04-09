@@ -312,6 +312,12 @@ export default function FieldPage() {
               Open Field Book
             </button>
             <button
+              onClick={() => router.push('/field/gnss')}
+              className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] px-2 py-1.5 rounded"
+            >
+              GNSS Receiver
+            </button>
+            <button
               onClick={() => router.push('/guide')}
               className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] px-2 py-1.5 rounded"
             >
