@@ -1,3 +1,9 @@
+/**
+ * @deprecated This module contains approximate coordinate math and must NOT be
+ * used for any legal submission, QA computation, or coordinate storage.
+ * Use @/lib/geo/transform for all authoritative coordinate transformations.
+ */
+
 // src/math/coordinates.ts
 // Arc 1960 Datum → UTM Zone 37N / 38N (Kenya standard)
 

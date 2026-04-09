@@ -53,7 +53,8 @@ export default function BillingPage() {
   const [message, setMessage] = useState('')
 
   const loadData = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user ?? null
     setUser(user)
 
     if (user) {

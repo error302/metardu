@@ -78,10 +78,11 @@ export async function getRequests(status?: ReviewStatus): Promise<ReviewRequest[
 export async function postRequest(data: Omit<ReviewRequest, 'id' | 'postedAt' | 'comments' | 'status' | 'paymentStatus'>): Promise<ReviewRequest> {
   const supabase = createClient()
   
-  const { data: authData } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
 
   const { data: ret, error } = await supabase.from('peer_reviews').insert({
-    user_id: authData?.user?.id || null,
+    user_id: user?.id || null,
     project_name: data.projectName,
     survey_type: data.surveyType,
     description: data.description,

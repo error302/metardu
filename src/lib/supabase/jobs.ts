@@ -31,7 +31,8 @@ export type CreateJobInput = Omit<MetarduJob, 'id' | 'created_at' | 'updated_at'
 
 export async function getUserJobs(): Promise<MetarduJob[]> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   if (!user) return []
 
   const { data, error } = await supabase
@@ -46,7 +47,8 @@ export async function getUserJobs(): Promise<MetarduJob[]> {
 
 export async function createJob(job: CreateJobInput): Promise<MetarduJob> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await supabase

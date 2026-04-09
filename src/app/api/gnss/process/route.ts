@@ -5,7 +5,8 @@ import { callPythonCompute } from '@/lib/compute/pythonService'
 export async function POST(request: NextRequest) {
   try {
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: authSession } = await supabase.auth.getSession()
+    const user = authSession.session?.user ?? null
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create session record
-    const { data: session, error: sessionError } = await supabase
+    const { data: gnssSession, error: sessionError } = await supabase
       .from('gnss_sessions')
       .insert({
         project_id: projectId,
@@ -66,10 +67,10 @@ export async function POST(request: NextRequest) {
         error_msg: errorMsg,
         updated_at: new Date().toISOString()
       })
-      .eq('id', session.id)
+      .eq('id', gnssSession.id)
 
     return NextResponse.json({
-      sessionId: session.id,
+      sessionId: gnssSession.id,
       results,
       status,
       message: status === 'simulated' ? 'Simulation mode — upload valid RINEX for real processing' : undefined

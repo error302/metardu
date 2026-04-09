@@ -88,10 +88,10 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
   {
     id: 'orthophoto-plan',
     label: 'Orthophoto Plan',
-    description: 'Georeferenced orthophoto exported as PDF and GeoTIFF.',
+    description: 'Orthophoto evidence sheet with parcel boundary and encroachment overlays, exported as PDF.',
     format: 'pdf',
     surveyTypes: ['drone'],
-    requiredData: ['orthophoto file', 'project extent'],
+    requiredData: ['orthophoto image or imagery overlay', 'parcel boundary', 'project extent'],
   },
   {
     id: 'sounding-chart',

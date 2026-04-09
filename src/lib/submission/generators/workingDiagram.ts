@@ -1,12 +1,10 @@
 import Drawing from 'dxf-writer'
 import type { SubmissionPackage } from '../types'
+import { initialiseDXFLayers } from '@/lib/drawing/dxfLayers'
 
 export function generateWorkingDiagramDXF(pkg: SubmissionPackage): string {
   const drawing = new Drawing()
-
-  drawing.addLayer('WORKING', 7, 'CONTINUOUS')
-  drawing.addLayer('ANNOTATIONS', 3, 'CONTINUOUS')
-  drawing.addLayer('GRID', 8, 'DASHED')
+  initialiseDXFLayers(drawing)
 
   drawing.setActiveLayer('WORKING')
 

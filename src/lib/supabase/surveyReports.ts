@@ -27,7 +27,8 @@ export async function createSurveyReport(
   projectId: string
 ): Promise<string> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await supabase
@@ -57,7 +58,8 @@ export async function saveSurveyReport(
   completeness: number
 ): Promise<void> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { error } = await supabase
@@ -78,7 +80,8 @@ export async function getSurveyReportsByProject(
   projectId: string
 ): Promise<SurveyReportSummary[]> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await supabase
@@ -106,7 +109,8 @@ export async function getSurveyReportById(
   id: string
 ): Promise<(SurveyReportInput & { sections: SectionContent[]; completeness: number; status: string; reportNumber: string; reportTitle: string; revision: string }) | null> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await supabase
@@ -138,7 +142,8 @@ export async function updateReportStatus(
   status: 'draft' | 'review' | 'finalised'
 ): Promise<void> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { error } = await supabase
@@ -152,7 +157,8 @@ export async function updateReportStatus(
 
 export async function deleteSurveyReport(id: string): Promise<void> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { error } = await supabase

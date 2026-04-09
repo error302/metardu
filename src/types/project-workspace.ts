@@ -203,7 +203,7 @@ function getLevellingSteps(project: MetarduProject): WorkspaceStep[] {
     { id: 'line_setup', label: 'Level Line Setup', description: 'Start BM RL, End BM RL, distance K (km)', status: ld?.levelLine?.startRL !== undefined ? 'complete' : 'in_progress' },
     { id: 'field_book', label: 'Field Book Entry', description: 'BS / IS / FS per station', status: ld?.fieldBookStatus ?? 'pending', toolRoute: '/tools/leveling', gated: true },
     { id: 'computation', label: ld?.computationMethod === 'rise_fall' ? 'Rise & Fall Computation' : 'HPC Computation', description: 'Reduced levels + arithmetic check', status: ld?.computationStatus ?? 'pending', gated: true },
-    { id: 'closure', label: 'Closure Check', description: `Allowed: 12√K mm${ld?.closurePassed === true ? ' — ✓ PASSED' : ld?.closurePassed === false ? ' — ✗ FAILED' : ''}`, status: ld?.closurePassed !== undefined ? (ld.closurePassed ? 'complete' : 'in_progress') : 'pending', gated: true },
+    { id: 'closure', label: 'Closure Check', description: `Allowed: 10√K mm${ld?.closurePassed === true ? ' — ✓ PASSED' : ld?.closurePassed === false ? ' — ✗ FAILED' : ''}`, status: ld?.closurePassed !== undefined ? (ld.closurePassed ? 'complete' : 'in_progress') : 'pending', gated: true },
     { id: 'adjustment', label: 'Bowditch Adjustment', description: 'Distribute misclosure across stations', status: 'pending', gated: true },
     ...(project.surveyType === 'profile' || project.surveyType === 'cross_section'
       ? [{ id: 'profile', label: project.surveyType === 'profile' ? 'Longitudinal Section' : 'Cross-Section Drawings', description: 'Chainage vs RL plot', status: 'pending' as StepStatus, gated: true }]

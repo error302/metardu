@@ -114,7 +114,7 @@ const STD = (p: string, c: string, n: number, notes: string, docs: string[]): St
 export const STANDARDS: Partial<Record<Country, Partial<Record<SurveyType, Standard>>>> = {
   kenya: {
     traverse:      STD('1:5000',   '1/(100√n) rad', 2, 'Survey of Kenya order III+. Retain field notes 5 years. Tie to national grid.', ['Survey plan','Field notes','Computation sheets','Surveyor certificate']),
-    leveling:      STD('1:50000',  '12√K mm',       1, 'Vertical datum: MSL Mombasa. 3rd order: ±24mm/km. Close loop before leaving site.', ['Level book','Misclosure computation','Reduced level table']),
+    leveling:      STD('1:50000',  '10√K mm',       1, 'Vertical datum: MSL Mombasa. 3rd order: ±24mm/km. Close loop before leaving site.', ['Level book','Misclosure computation','Reduced level table']),
     boundary:      STD('1:7500',   '5mm+50ppm',     2, '3rd party verification required for parcels >5ha. File with Land Registry within 30 days.', ['Survey plan','Registry index map','Parcel area certificate','Title deed']),
     topographic:   STD('1:2000',   '15cm horiz.',   3, 'Contour interval ≥1m. All features to be captured. Coordinate grid on output.', ['Survey plan','Field sketches','Control report']),
     engineering:   STD('1:10000',  '10mm+20ppm',    3, 'Road/building setout must be certified by licensed surveyor. As-built required within 6 months.', ['Setting out data','As-built plan','Engineer certificate']),
@@ -138,7 +138,7 @@ export const STANDARDS: Partial<Record<Country, Partial<Record<SurveyType, Stand
   },
   tanzania: {
     traverse:      STD('1:5000',   '1:7500',        2, 'COSTECH standards. WGS84 / UTM Zone 36-37S. Datum: Arc 1960.', ['Survey plan','Field notes','Certificate']),
-    leveling:      STD('1:25000',  '12√K mm',       1, 'Datum: MSL Dar es Salaam. Close within ±20mm/km for 3rd order.', ['Level book','Misclosure']),
+    leveling:      STD('1:25000',  '10√K mm',       1, 'Datum: MSL Dar es Salaam. Close within ±20mm/km for 3rd order.', ['Level book','Misclosure']),
     boundary:      STD('1:5000',   '50ppm',          2, 'Ministry of Lands Housing and Human Settlements approval required.', ['Survey plan','Plot area certificate']),
     topographic:   STD('1:2000',   '20cm',           2, 'COSTECH approved. Contour interval specified by client.', ['Plan','Field notes']),
     engineering:   STD('1:10000',  '10mm+20ppm',    2, 'TANROADS/TANESCO approval for infrastructure.', ['Setting out data','As-built']),
@@ -162,7 +162,7 @@ export const STANDARDS: Partial<Record<Country, Partial<Record<SurveyType, Stand
   },
   ghana: {
     traverse:      STD('1:5000',   '1:7500',        2, 'Survey Department Ghana. Accra Datum / UTM Zone 30N.', ['Field notes','Survey plan']),
-    leveling:      STD('1:20000',  '12√K mm',       1, 'Datum: MSL Accra.', ['Level book']),
+    leveling:      STD('1:20000',  '10√K mm',       1, 'Datum: MSL Accra.', ['Level book']),
     boundary:      STD('1:5000',   '50ppm',          2, 'Lands Commission approval. File within 30 days.', ['Survey plan','Site plan']),
     topographic:   STD('1:2000',   '20cm',           2, 'Survey Department Ghana. WGS84/UTM.', ['Plan','Notes']),
     engineering:   STD('1:10000',  '15mm+25ppm',    2, 'Ghana Institution of Engineers standards.', ['Setting out','Certificate']),
@@ -174,7 +174,7 @@ export const STANDARDS: Partial<Record<Country, Partial<Record<SurveyType, Stand
   },
   new_zealand: {
     traverse:      STD('1:10000',  '10mm+20ppm',    2, 'LINZ Rule 8 — cadastral traverses must be reported.', ['Survey record','Computation','Surveyor report']),
-    leveling:      STD('1:10000',  '12√K mm',       1, 'LINZ vertical control standards.', ['Level book','Adjustment']),
+    leveling:      STD('1:10000',  '10√K mm',       1, 'LINZ vertical control standards.', ['Level book','Adjustment']),
     boundary:      STD('1:10000',  '25ppm',          2, 'LINZ Rule 8 — all boundary decisions require documented reasons.', ['Survey record','Surveyor report','LDS Parcel Report']),
     topographic:   STD('1:2000',   '20cm',           3, 'LINZ topographic standards.', ['Plan','Metadata']),
     engineering:   STD('1:20000',  '5mm+10ppm',     3, 'LINZ engineering setout.', ['Setting out','As-built']),
@@ -186,7 +186,7 @@ export const STANDARDS: Partial<Record<Country, Partial<Record<SurveyType, Stand
   },
   other: {
     traverse:      STD('1:5000',   '12√n mm',       2, 'Apply applicable national standard. Retain field notes 5 years minimum.', ['Survey plan','Field notes','Computation']),
-    leveling:      STD('1:25000',  '12√K mm',       1, 'Standard 3rd-order leveling. Retain level book.', ['Level book','Misclosure table']),
+    leveling:      STD('1:25000',  '10√K mm',       1, 'Standard 3rd-order leveling. Retain level book.', ['Level book','Misclosure table']),
     boundary:      STD('1:5000',   '50ppm',          2, 'File with appropriate land authority.', ['Survey plan','Area certificate']),
     topographic:   STD('1:2000',   '20cm',           2, 'All features to scale. Coordinate grid required.', ['Plan','Field notes']),
     engineering:   STD('1:10000',  '15mm+25ppm',    2, 'ISO 4463 setout tolerances. As-built required.', ['Setting out','As-built']),
@@ -200,7 +200,7 @@ export const STANDARDS: Partial<Record<Country, Partial<Record<SurveyType, Stand
 
 export function getStandard(country: Country, type: SurveyType): Standard {
   const s = STANDARDS[country as keyof typeof STANDARDS]?.[type]
-  return s ?? STANDARDS['other']?.['traverse'] ?? { minPrecision: '1:5000', closureLimit: '12√K mm', minControlPoints: 2, notes: 'Apply applicable national standard.', requiredDocs: ['Survey plan', 'Field notes'] }
+  return s ?? STANDARDS['other']?.['traverse'] ?? { minPrecision: '1:5000', closureLimit: '10√K mm', minControlPoints: 2, notes: 'Apply applicable national standard.', requiredDocs: ['Survey plan', 'Field notes'] }
 }
 
 export const DEFAULT_EQUIPMENT: Record<SurveyType, string[]> = {

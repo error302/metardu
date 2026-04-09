@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
     const { event, properties, url } = parsed.data
 
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user ?? null
 
     // Prevent abuse via huge blobs (keep a small, predictable payload).
     const safeProps: Record<string, unknown> = {}

@@ -86,7 +86,8 @@ export async function importProject(
       return { success: false, error: 'Unsupported file version' }
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user ?? null
     if (!user) {
       return { success: false, error: 'Must be logged in to import' }
     }

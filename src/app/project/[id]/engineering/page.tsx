@@ -15,7 +15,7 @@ import { NetworkAdjustmentPanel } from '@/components/compute/NetworkAdjustmentPa
 // import { TacheometryPanel } from '@/components/compute/TacheometryPanel'
 // import { CrossSectionsPanel } from '@/components/compute/CrossSectionsPanel'
 // import { SettingOutPanel } from '@/components/compute/SettingOutPanel'
-import type { SurveyorProfile } from '@/lib/submission/types'
+import type { SurveyorProfileSubmission } from '@/lib/supabase/community'
 
 type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs'
 
@@ -1373,7 +1373,7 @@ export default function EngineeringWorkspacePage() {
   const supabase = createClient()
 
   const [project, setProject] = useState<EngineeringProject | null>(null)
-  const [surveyorProfile, setSurveyorProfile] = useState<SurveyorProfile | null>(null)
+  const [surveyorProfile, setSurveyorProfile] = useState<SurveyorProfileSubmission | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeStep, setActiveStep] = useState<EngineeringStepId>('setup')
   const [saving, setSaving] = useState(false)
@@ -1400,16 +1400,16 @@ export default function EngineeringWorkspacePage() {
     
     const { data: profile } = await supabase
       .from('surveyor_profiles')
-      .select('registration_number, isk_number, full_name, name, firm_name, company')
+      .select('isk_number, verified_isk, full_name, name, firm_name, company')
       .eq('user_id', (data as any).user_id)
       .single()
     
     if (profile) {
       setSurveyorProfile({
-        registrationNumber: profile.registration_number ?? profile.isk_number ?? '',
+        registrationNumber: profile.isk_number ?? '',
         fullName: profile.full_name ?? profile.name ?? '',
         firmName: profile.firm_name ?? profile.company ?? '',
-        isKMemberActive: true
+        isKMemberActive: profile.verified_isk ?? true
       })
     }
     

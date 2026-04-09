@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: authSession } = await supabase.auth.getSession()
+    const user = authSession.session?.user ?? null
 
     // For peer reviews, they might not be fully registered but we can try to link if logged in
     const stripe = getStripeService()
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-    const session = await stripe.createCheckoutSession({
+    const checkoutSession = await stripe.createCheckoutSession({
       mode: 'payment',
       amount: 2500, // KES 2,500
       currency: 'KES',
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    return NextResponse.json(apiSuccess({ url: session.url }))
+    return NextResponse.json(apiSuccess({ url: checkoutSession.url }))
   } catch (error: any) {
     logger.error('Peer review checkout error', error)
     return NextResponse.json(apiError('Failed to initialize payment checkout session'), { status: 500 })
