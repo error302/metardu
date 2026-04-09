@@ -185,7 +185,7 @@ export const STANDARDS: Partial<Record<Country, Partial<Record<SurveyType, Stand
     tacheometric:  STD('1:2000',   '20cm',           2, 'LINZ tacheometric standards.', ['Field sheets']),
   },
   other: {
-    traverse:      STD('1:5000',   '12√n mm',       2, 'Apply applicable national standard. Retain field notes 5 years minimum.', ['Survey plan','Field notes','Computation']),
+    traverse:      STD('1:5000',   '10√K mm',       2, 'Apply applicable national standard. Retain field notes 5 years minimum.', ['Survey plan','Field notes','Computation']),
     leveling:      STD('1:25000',  '10√K mm',       1, 'Standard 3rd-order leveling. Retain level book.', ['Level book','Misclosure table']),
     boundary:      STD('1:5000',   '50ppm',          2, 'File with appropriate land authority.', ['Survey plan','Area certificate']),
     topographic:   STD('1:2000',   '20cm',           2, 'All features to scale. Coordinate grid required.', ['Plan','Field notes']),
