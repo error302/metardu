@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import UploadZone from '@/components/UploadZone'
+import { DWGImportGuidance } from '@/components/import/DWGImportGuidance'
 
 export default function ParsersPage() {
   const [mounted, setMounted] = useState(false)
+  const [showDwgGuidance, setShowDwgGuidance] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -34,9 +36,13 @@ export default function ParsersPage() {
         </div>
 
         <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div className="bg-[var(--bg-secondary)]/30 rounded-lg p-4 border border-[var(--border-color)]">
+          <div 
+            className="bg-[var(--bg-secondary)]/30 rounded-lg p-4 border border-[var(--border-color)] cursor-pointer hover:border-blue-400"
+            onClick={() => setShowDwgGuidance(!showDwgGuidance)}
+          >
             <div className="text-blue-400 font-medium">CAD</div>
             <div className="text-[var(--text-muted)] text-xs mt-1">DXF, DWG</div>
+            {showDwgGuidance && <div className="mt-2"><DWGImportGuidance /></div>}
           </div>
           <div className="bg-[var(--bg-secondary)]/30 rounded-lg p-4 border border-[var(--border-color)]">
             <div className="text-purple-400 font-medium">BIM</div>

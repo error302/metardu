@@ -42,7 +42,7 @@ function openPrint(html: string, filename: string) {
   setTimeout(() => { win.focus(); win.print() }, 400)
 }
 
-// ── Surveyor details form (fills once, cached in localStorage) ───────────────
+// ── Surveyor details form (backed by surveyor profile in database) ───────
 
 function SurveyorDetailsPanel({
   details, onChange, saveState,

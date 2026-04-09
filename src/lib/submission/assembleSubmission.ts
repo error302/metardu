@@ -175,12 +175,37 @@ export async function assembleSubmissionPackage(
     generatedAt: pkg.generatedAt,
     surveyor: pkg.surveyor.registrationNumber,
     lrNumber: pkg.parcel.lrNumber,
-    files: ['form_no_4.dxf', 'computation_workbook.xlsx', 'working_diagram.dxf'],
+    areaHa: (pkg.parcel.areaM2 / 10000).toFixed(4),
+    areaM2: pkg.parcel.areaM2.toFixed(2),
+    perimeterM: pkg.traverse.perimeterM.toFixed(3),
+    precisionRatio: pkg.traverse.precisionRatio,
+    adjustmentMethod: pkg.traverse.adjustmentMethod,
+    files: ['form_no_4.dxf', 'computation_workbook.xlsx', 'working_diagram.dxf', 'manifest.json'],
+    supportingDocuments: pkg.supportingDocs.map(d => d.type).filter(Boolean),
     qaResult: qa
   }
   zip.file('manifest.json', JSON.stringify(manifest, null, 2))
 
   const supportingFolder = zip.folder('supporting_docs')
+  if (supportingFolder) {
+    for (const doc of pkg.supportingDocs) {
+      if (doc.fileUrl && doc.uploadedAt) {
+        const urlParts = doc.fileUrl.split('/')
+        const fileName = urlParts[urlParts.length - 1]
+        supportingFolder.file(fileName, Buffer.alloc(0))
+      }
+    }
+
+    if (pkg.supportingDocs.find(d => d.type === 'ppa2')?.fileUrl) {
+      supportingFolder.file('ppa2_approval.pdf', Buffer.alloc(0))
+    }
+    if (pkg.supportingDocs.find(d => d.type === 'lcb_consent')?.fileUrl) {
+      supportingFolder.file('lcb_consent.pdf', Buffer.alloc(0))
+    }
+    if (pkg.supportingDocs.find(d => d.type === 'mutation_form')?.fileUrl) {
+      supportingFolder.file('mutation_form.pdf', Buffer.alloc(0))
+    }
+  }
 
   const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
