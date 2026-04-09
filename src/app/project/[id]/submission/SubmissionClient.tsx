@@ -26,9 +26,9 @@ interface DocState {
 interface SubmissionPackage {
   submissionRef: string;
   projectId: string;
-  surveyor: { registrationNumber: string; fullName: string; firmName: string; isKMemberActive: boolean };
+  surveyor: { registrationNumber: string; iskNumber: string; fullName: string; firmName: string; isKMemberActive: boolean };
   subtype: 'cadastral_subdivision' | 'cadastral_amalgamation' | 'cadastral_resurvey' | 'cadastral_mutation';
-  parcel: { lrNumber: string; county: string; district: string; locality: string; areaM2: number; perimeterM: number };
+  parcel: { lrNumber: string; parcelNumber: string; county: string; division: string; district: string; locality: string; areaM2: number; perimeterM: number };
   traverse: {
     points: { pointName: string; easting: number; northing: number; adjustedEasting: number; adjustedNorthing: number; observedBearing: number; observedDistance: number }[];
     angularMisclosure: number;

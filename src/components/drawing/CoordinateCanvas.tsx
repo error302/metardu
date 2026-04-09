@@ -17,6 +17,15 @@ export interface CanvasLine {
   style?: 'solid' | 'dashed'
 }
 
+export interface CanvasLeg {
+  from: string
+  to: string
+  bearing: number
+  distance: number
+  midX: number
+  midY: number
+}
+
 export interface CoordinateCanvasProps {
   points: CanvasPoint[]
   lines?: CanvasLine[]
@@ -25,6 +34,9 @@ export interface CoordinateCanvasProps {
   showNorthArrow?: boolean
   showScaleBar?: boolean
   showGrid?: boolean
+  showAreaAnnotation?: boolean
+  areaAnnotation?: string
+  legs?: CanvasLeg[]
   onPointClick?: (point: CanvasPoint) => void
 }
 
@@ -86,6 +98,9 @@ export function CoordinateCanvas({
   showNorthArrow = true,
   showScaleBar = true,
   showGrid = false,
+  showAreaAnnotation = false,
+  areaAnnotation,
+  legs = [],
   onPointClick
 }: CoordinateCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -292,12 +307,55 @@ export function CoordinateCanvas({
       }))
     }
 
+    if (showAreaAnnotation && areaAnnotation && points.length >= 3) {
+      const centX = points.reduce((s, p) => s + p.easting, 0) / points.length
+      const centY = points.reduce((s, p) => s + p.northing, 0) / points.length
+      const cX = (centX - t.originE) * t.scale + height / 2
+      const cY = height / 2 - (centY - t.originN) * t.scale
+      layer.add(new Konva.Text({
+        x: cX - 40,
+        y: cY - 8,
+        text: areaAnnotation,
+        fontSize: 12,
+        fill: '#fff',
+        fontStyle: 'bold'
+      }))
+    }
+
+    if (legs && legs.length > 0) {
+      legs.forEach(leg => {
+        const textX = (leg.midX - t.originE) * t.scale + height / 2
+        const textY = height / 2 - (leg.midY - t.originN) * t.scale
+        const bearingStr = (() => {
+          const d = Math.floor(leg.bearing)
+          const m = Math.floor((leg.bearing - d) * 60)
+          const s = Math.round(((leg.bearing - d) * 60 - m) * 60)
+          return `${String(d).padStart(3, '0')}°${String(m).padStart(2, '0')}'${String(s).padStart(2, '0')}"`
+        })()
+        const distStr = leg.distance.toFixed(3)
+        layer.add(new Konva.Text({
+          x: textX - 30,
+          y: textY + 14,
+          text: bearingStr,
+          fontSize: 8,
+          fill: '#4f4'
+        }))
+        layer.add(new Konva.Text({
+          x: textX - 25,
+          y: textY + 4,
+          text: distStr + 'm',
+          fontSize: 8,
+          fill: '#4f4'
+        }))
+      })
+    }
+
     layer.draw()
 
     return () => {
       stage.destroy()
     }
-  }, [points, lines, width, height, showNorthArrow, showScaleBar, showGrid, onPointClick])
+  }, [points, lines, width, height, showNorthArrow, showScaleBar, showGrid, showAreaAnnotation, areaAnnotation, legs, onPointClick])
 
   return (
     <div

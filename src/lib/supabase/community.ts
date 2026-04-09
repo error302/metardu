@@ -8,6 +8,7 @@ export type SurveyorProfile = SurveyorProfileJob
 
 export interface SurveyorProfileSubmission {
   registrationNumber: string
+  iskNumber: string
   fullName: string
   firmName: string
   isKMemberActive: boolean

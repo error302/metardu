@@ -3,10 +3,18 @@ import Drawing from 'dxf-writer'
 export const DXF_LAYERS = {
   BOUNDARY:      { name: 'BOUNDARY',      color: 7,  linetype: 'CONTINUOUS' },
   BEACONS:       { name: 'BEACONS',       color: 2,  linetype: 'CONTINUOUS' },
-  ANNOTATIONS:   { name: 'ANNOTATIONS',   color: 3,  linetype: 'CONTINUOUS' },
+  BEACON_LABELS:  { name: 'BEACON_LABELS', color: 7,  linetype: 'CONTINUOUS' },
+  DIMENSIONS:    { name: 'DIMENSIONS',     color: 3,  linetype: 'CONTINUOUS' },
+  BEARINGS:      { name: 'BEARINGS',       color: 3,  linetype: 'CONTINUOUS' },
+  AREA_LABEL:    { name: 'AREA_LABEL',     color: 7,  linetype: 'CONTINUOUS' },
+  TITLE_BLOCK:   { name: 'TITLE_BLOCK',  color: 7,  linetype: 'CONTINUOUS' },
   TITLEBLOCK:    { name: 'TITLEBLOCK',    color: 7,  linetype: 'CONTINUOUS' },
+  NORTH_ARROW:  { name: 'NORTH_ARROW',  color: 7,  linetype: 'CONTINUOUS' },
   NORTHARROW:    { name: 'NORTHARROW',    color: 7,  linetype: 'CONTINUOUS' },
+  SCALE_BAR:     { name: 'SCALE_BAR',    color: 7,  linetype: 'CONTINUOUS' },
   SCALEBAR:      { name: 'SCALEBAR',      color: 7,  linetype: 'CONTINUOUS' },
+  BORDER:       { name: 'BORDER',       color: 7,  linetype: 'CONTINUOUS' },
+  ANNOTATIONS:   { name: 'ANNOTATIONS',   color: 3,  linetype: 'CONTINUOUS' },
   GRID:          { name: 'GRID',          color: 8,  linetype: 'DASHED'     },
   CONTOURS:      { name: 'CONTOURS',      color: 4,  linetype: 'CONTINUOUS' },
   CONTOURS_IDX:  { name: 'CONTOURS_IDX',  color: 1,  linetype: 'CONTINUOUS' },
@@ -48,6 +56,46 @@ export interface TitleBlockData {
   scale: string
   sheetNumber: string
   revision: string
+}
+
+export interface FormNo4TitleBlockData {
+  lrNumber: string
+  parcelNumber: string
+  county: string
+  division: string
+  district: string
+  locality: string
+  areaHa: string
+  perimeterM: string
+  surveyorName: string
+  iskNumber: string
+  firmName: string
+  surveyDate: string
+  scale: string
+  sheet: string
+  revision: string
+  referenceNumber: string
+}
+
+export function formatPlanDate(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  return `${dd}/${mm}/${yyyy}`
+}
+
+export function formatBearingDMS(decimalDegrees: number): string {
+  const normalised = ((decimalDegrees % 360) + 360) % 360
+  const totalSeconds = Math.round(normalised * 3600)
+  const d = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = totalSeconds % 60
+  return `${String(d).padStart(3, '0')}°${String(m).padStart(2, '0')}'${String(s).padStart(2, '0')}"`
+}
+
+export function formatDistanceM(metres: number): string {
+  return metres.toFixed(3)
 }
 
 export const TITLE_BLOCK_TEMPLATES = {

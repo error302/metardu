@@ -12,6 +12,8 @@ import type { SubmissionPackage, QAGateResult, SurveySubtype } from './types'
 interface ProjectData {
   id: string
   lr_number: string
+  parcel_number: string
+  division: string
   county: string
   district: string
   locality: string
@@ -122,7 +124,9 @@ export async function assembleSubmissionPackage(
     subtype: proj.subtype || 'cadastral_subdivision',
     parcel: {
       lrNumber: proj.lr_number || '',
+      parcelNumber: proj.parcel_number || proj.lr_number || '',
       county: proj.county || '',
+      division: proj.division || '',
       district: proj.district || '',
       locality: proj.locality || '',
       areaM2: computedAreaM2,
