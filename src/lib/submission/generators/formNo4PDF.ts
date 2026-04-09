@@ -115,6 +115,9 @@ export function generateFormNo4PDF(pkg: SubmissionPackage): Buffer {
   doc.text(`Division: ${pkg.parcel.division || '-'}`, margin, titleBlockY + 36)
   doc.text(`District: ${pkg.parcel.district}`, margin, titleBlockY + 41)
   doc.text(`Locality: ${pkg.parcel.locality}`, margin, titleBlockY + 46)
+  if (pkg.parcel.clientName) {
+    doc.text(`Client: ${pkg.parcel.clientName}`, margin, titleBlockY + 51)
+  }
 
   const col2X = margin + 60
   doc.text(`Area: ${geometry.areaHa.toFixed(4)} Ha`, col2X, titleBlockY + 21)
@@ -123,6 +126,13 @@ export function generateFormNo4PDF(pkg: SubmissionPackage): Buffer {
   doc.text(`ISK No: ${pkg.surveyor.iskNumber || pkg.surveyor.registrationNumber}`, col2X, titleBlockY + 36)
   doc.text(`Firm: ${pkg.surveyor.firmName}`, col2X, titleBlockY + 41)
   doc.text(`Survey Date: ${formatPlanDate(pkg.generatedAt)}`, col2X, titleBlockY + 46)
+  
+  if (pkg.surveyor.verifiedIsk) {
+    doc.setFontSize(7)
+    doc.setTextColor(34, 139, 34)
+    doc.text('✓ ISK VERIFIED', col2X + 45, titleBlockY + 36)
+    doc.setTextColor(0)
+  }
 
   const col3X = margin + 120
   doc.text(`Scale: 1:${scale}`, col3X, titleBlockY + 21)

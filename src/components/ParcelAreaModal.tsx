@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { coordinateArea } from '@/lib/engine/area'
 import { distanceBearing } from '@/lib/engine/distance'
-import { SurveyPoint } from './ProjectMap'
+import type { SurveyPoint } from '@/types/surveyPoint'
 
 interface ParcelAreaModalProps {
   isOpen: boolean

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import NLIMSLookup from '@/components/registry/NLIMSLookup'
-import KenCORSMap from '@/components/registry/KenCORSMap'
 
 export default function RegistryPage() {
   const [activeTab, setActiveTab] = useState<'nlims' | 'kencors'>('nlims')
@@ -56,7 +55,12 @@ export default function RegistryPage() {
               Kenya Continuously Operating Reference Stations for real-time GNSS corrections.
               Cite: Survey Act Cap 299 s.9 — national control network
             </p>
-            <KenCORSMap />
+            <div className="p-8 text-center bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-gray-600">
+                KenCORS stations are now displayed in the project Map tab using OpenLayers.
+                Navigate to any project and click the Map tab to view the 3 nearest KenCORS stations.
+              </p>
+            </div>
           </div>
         )}
       </div>

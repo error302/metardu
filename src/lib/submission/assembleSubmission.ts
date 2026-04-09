@@ -31,6 +31,7 @@ interface ProjectData {
   precision_ratio: string
   closing_error_e: number
   closing_error_n: number
+  client_name: string
 }
 
 export async function assembleSubmissionPackage(
@@ -135,7 +136,8 @@ export async function assembleSubmissionPackage(
       district: proj.district || '',
       locality: proj.locality || '',
       areaM2: computedAreaM2,
-      perimeterM: asNum(proj.perimeter_m)
+      perimeterM: asNum(proj.perimeter_m),
+      clientName: proj.client_name || ''
     },
     traverse: {
       points: (proj.survey_points || []).map((pt: any) => ({

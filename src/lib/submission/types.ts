@@ -14,6 +14,7 @@ export type SurveySubtype =
 export interface SurveyorProfile {
   registrationNumber: string
   iskNumber: string
+  verifiedIsk: boolean
   fullName: string
   firmName: string
   isKMemberActive: boolean
@@ -50,6 +51,7 @@ export interface ParcelDetails {
   locality: string
   areaM2: number
   perimeterM: number
+  clientName?: string
 }
 
 export interface SupportingDocument {

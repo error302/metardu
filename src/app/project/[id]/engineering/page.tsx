@@ -1408,6 +1408,7 @@ export default function EngineeringWorkspacePage() {
       setSurveyorProfile({
         registrationNumber: profile.isk_number ?? '',
         iskNumber: profile.isk_number ?? '',
+        verifiedIsk: profile.verified_isk ?? false,
         fullName: profile.full_name ?? profile.name ?? '',
         firmName: profile.firm_name ?? profile.company ?? '',
         isKMemberActive: profile.verified_isk ?? true

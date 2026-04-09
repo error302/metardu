@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic'
 import { Navigation, Map, Activity, Plus, Ship, Save } from 'lucide-react'
 
 const MissionPlanner = dynamic(() => import('@/components/usv/MissionPlanner'), { ssr: false })
-const FleetMap = dynamic(() => import('@/components/usv/FleetMap'), { ssr: false })
 const TelemetryDashboard = dynamic(() => import('@/components/usv/TelemetryDashboard'), { ssr: false })
 
 import type { Waypoint, USVTelemetry, CreateMissionRequest } from '@/types/usv'
@@ -178,11 +177,16 @@ export default function USVFleetOrchestratorPage() {
                   />
                 )}
                 {activeTab === 'fleet' && (
-                  <FleetMap
-                    usvPositions={telemetry}
-                    waypoints={waypoints}
-                    height="500px"
-                  />
+                  <div className="p-8 text-center bg-gray-50 rounded-lg border border-gray-200 h-[500px] flex items-center justify-center">
+                    <div>
+                      <p className="text-gray-600 mb-2">
+                        USV Fleet tracking uses real-time telemetry.
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        This feature integrates with hardware APIs for live vessel tracking.
+                      </p>
+                    </div>
+                  </div>
                 )}
                 {activeTab === 'telemetry' && (
                   <TelemetryDashboard data={telemetry} />

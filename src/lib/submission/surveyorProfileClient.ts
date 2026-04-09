@@ -24,6 +24,7 @@ export async function getActiveSurveyorProfile(): Promise<SurveyorProfileSubmiss
   return {
     registrationNumber: data.isk_number ?? '',
     iskNumber: data.isk_number ?? '',
+    verifiedIsk: data.verified_isk ?? false,
     fullName: data.full_name ?? data.name ?? '',
     firmName: data.firm_name ?? data.company ?? '',
     isKMemberActive: data.verified_isk ?? true
