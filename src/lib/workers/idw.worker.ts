@@ -1,16 +1,24 @@
-/**
- * IDW (Inverse Distance Weighting) interpolation engine.
- * Runs synchronously for survey point counts < 50,000.
- * For larger datasets, consider chunked processing.
- */
+/// <reference lib="webworker" />
 
-export interface SurveyPoint {
-  x: number
-  y: number
-  z: number
+export interface IDWMessage {
+  type: 'idw'
+  points: Array<{ x: number; y: number; z: number }>
+  options?: {
+    power?: number
+    resolution?: number
+    noDataValue?: number
+  }
 }
 
-export interface IDWGrid {
+export interface IDWProgress {
+  type: 'progress'
+  percent: number
+  rowsCompleted: number
+  totalRows: number
+}
+
+export interface IDWResult {
+  type: 'result'
   grid: number[][]
   cols: number
   rows: number
@@ -19,33 +27,17 @@ export interface IDWGrid {
   cellSize: number
 }
 
-export interface IDWOptions {
-  power?: number
-  resolution?: number
-  noDataValue?: number
+export interface IDWError {
+  type: 'error'
+  message: string
 }
 
-export interface IDWProgress {
-  percent: number
-  rowsCompleted: number
-  totalRows: number
-}
+type WorkerMessage = IDWMessage | IDWProgress | IDWResult | IDWError
 
-type ProgressCallback = (progress: IDWProgress) => void
-
-export function runIDW(
-  points: SurveyPoint[], 
-  options: IDWOptions = {},
-  onProgress?: ProgressCallback
-): IDWGrid {
-  return runIDWSync(points, options, onProgress)
-}
-
-export function runIDWSync(
-  points: SurveyPoint[], 
-  options: IDWOptions = {},
-  onProgress?: ProgressCallback
-): IDWGrid {
+function runIDWWithProgress(
+  points: Array<{ x: number; y: number; z: number }>,
+  options: { power?: number; resolution?: number; noDataValue?: number } = {}
+): IDWResult {
   const power = options.power ?? 2
   const resolution = options.resolution ?? 100
   const noData = options.noDataValue ?? -9999
@@ -105,18 +97,28 @@ export function runIDWSync(
         grid[row][col] = weightedSum / weightTotal
       }
     }
-  }
 
-  return { grid, cols, rows, minX, minY, cellSize }
-}
-
-export function gridToFlat(idwGrid: IDWGrid): Float64Array {
-  const { grid, rows, cols } = idwGrid
-  const flat = new Float64Array(rows * cols)
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      flat[r * cols + c] = grid[r][c]
+    if (row % 10 === 0 || row === rows - 1) {
+      self.postMessage({
+        type: 'progress',
+        percent: Math.round((row + 1) / rows * 100),
+        rowsCompleted: row + 1,
+        totalRows: rows
+      } as IDWProgress)
     }
   }
-  return flat
+
+  return { type: 'result', grid, cols, rows, minX, minY, cellSize }
+}
+
+self.onmessage = (event: MessageEvent<IDWMessage>) => {
+  try {
+    const { type, points, options } = event.data
+    if (type === 'idw') {
+      const result = runIDWWithProgress(points, options)
+      self.postMessage(result)
+    }
+  } catch (err: any) {
+    self.postMessage({ type: 'error', message: err.message } as IDWError)
+  }
 }

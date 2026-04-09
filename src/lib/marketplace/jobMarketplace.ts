@@ -160,3 +160,29 @@ export function formatBudget(amount: number, currency: Currency): string {
   }
   return `${sym}${amount.toLocaleString()}`
 }
+
+export const COMMISSION_RATE = 0.05
+
+export function calculateCommission(budget: number): number {
+  return Math.round(budget * COMMISSION_RATE)
+}
+
+export function calculatePlatformFee(budget: number): number {
+  return calculateCommission(budget)
+}
+
+export function calculateSurveyorPayout(budget: number): {
+  grossBudget: number
+  commission: number
+  platformFee: number
+  netPayout: number
+} {
+  const commission = calculateCommission(budget)
+  const platformFee = commission
+  return {
+    grossBudget: budget,
+    commission,
+    platformFee,
+    netPayout: budget - platformFee
+  }
+}
