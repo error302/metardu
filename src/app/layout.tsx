@@ -11,6 +11,7 @@ import { SubscriptionProvider } from '@/lib/subscription/subscriptionContext'
 import FeedbackWidget from '@/components/FeedbackWidget'
 import KeyboardShortcuts from '@/components/KeyboardShortcuts'
 import { QuickCompute } from '@/components/layout/QuickCompute'
+import { ProjectionInit } from '@/components/layout/ProjectionInit'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.vercel.app'),
@@ -108,6 +109,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <AuthProvider>
+          <ProjectionInit />
           <LanguageProvider>
             <CountryProvider>
               <SubscriptionProvider>

@@ -24,6 +24,7 @@ export default function ProjectTabs({ id, surveyType }: Props) {
     { label: 'Field', href: `${baseHref}?step=2`, active: pathname === baseHref && activeStep === '2' },
     { label: 'Compute', href: `${baseHref}?step=3`, active: pathname === baseHref && activeStep === '3' },
     { label: 'QA', href: `${baseHref}?step=4`, active: pathname === baseHref && activeStep === '4' },
+    { label: 'Map', href: `/project/${id}/map` },
     ...(isTopographic ? [{ label: 'Topo', href: `/project/${id}/topo` }] : []),
     ...(isEngineering ? [{ label: 'Engineering', href: `/project/${id}/engineering` }] : []),
     { label: 'Documents', href: `/project/${id}/documents` },

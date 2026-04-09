@@ -110,7 +110,7 @@ const yellowIcon = new L.Icon({
 
 function MapClickHandler({ onClick }: { onClick: (lat: number, lon: number) => void }) {
   useMapEvents({
-    click: (e) => {
+    click: (e: any) => {
       onClick(e.latlng.lat, e.latlng.lng)
     }
   })
@@ -533,7 +533,7 @@ export default function ProjectMap({
               icon={icon}
               eventHandlers={{
                 click: () => handleMarkerClick(point),
-                contextmenu: (e) => {
+                contextmenu: (e: any) => {
                   e.originalEvent.preventDefault()
                   setContextMenu({
                     x: e.originalEvent.clientX,
@@ -541,7 +541,7 @@ export default function ProjectMap({
                     point
                   })
                 },
-                mouseover: (e) => {
+                mouseover: (e: any) => {
                   const marker = e.target as L.Marker
                   if (marker.getTooltip()) {
                     marker.openTooltip()
