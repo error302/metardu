@@ -1,4 +1,5 @@
 // METARDU Engine - Type definitions
+import type { SurveyTypeKey } from './traverse';
 
 export interface Point2D {
   easting: number;
@@ -76,6 +77,8 @@ export interface TraverseResult {
   precisionGrade: 'excellent' | 'good' | 'acceptable' | 'poor';
   totalDistance: number;
   isClosed: boolean;
+  surveyType?: SurveyTypeKey;
+  passesQA?: boolean;
 }
 
 export interface LevelingReading {

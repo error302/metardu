@@ -15,9 +15,8 @@ export function validateLevelingClosure(
   // Arithmetic check: ΣBS - ΣFS = Last RL - First RL
   const arithmeticCheck = Math.abs((sumBS - sumFS) - (lastRL - firstRL)) < 0.001
   
-  // Allowable misclosure per Basak
-  // Ordinary: ±12√K mm, Precise: ±6√K mm
-  const factor = type === 'ordinary' ? 12 : 6
+  // RDM 1.1 (2025) Table 5.1 — Levelling closure tolerance: 10√K mm for ordinary, 5√K mm for precise
+  const factor = type === 'ordinary' ? 10 : 5
   const allowableMisclosure = factor * Math.sqrt(distanceKm) / 1000 // convert to metres
   
   const closingError = lastRL - firstRL

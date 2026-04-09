@@ -1,11 +1,37 @@
-import { bowditchAdjustment, forwardTraverse, ForwardTraverseInput, TraverseInput } from '@/lib/engine/traverse';
+import { 
+  bowditchAdjustment, 
+  transitAdjustment,
+  forwardTraverse, 
+  ForwardTraverseInput, 
+  TraverseInput,
+  TRAVERSE_PRECISION_STANDARDS,
+  evaluateTraverseClosure,
+  type SurveyTypeKey
+} from '@/lib/engine/traverse';
+import { coordinateArea } from '@/lib/engine/area';
 import { NamedPoint2D } from '@/lib/engine/types';
 import { FieldBookRow } from '@/types/fieldbook';
+
+export type TraverseAdjustmentMethod = 'bowditch' | 'transit';
 
 export interface TraverseComputeInput {
   rows: FieldBookRow[];
   startPoint: NamedPoint2D;
   closingPoint?: NamedPoint2D;
+  surveyType?: SurveyTypeKey;
+  method?: TraverseAdjustmentMethod;
+}
+
+export interface TraverseComputationResult {
+  adjustedStations: ReturnType<typeof bowditchAdjustment>;
+  linearMisclosure: number;
+  angularMisclosure: number;
+  precisionRatio: number;
+  precisionMinimum: number;
+  passesQA: boolean;
+  method: TraverseAdjustmentMethod;
+  surveyType: SurveyTypeKey;
+  adjustedAreaM2: number;
 }
 
 function parseBearingDMS(bearingStr: string): number {
@@ -44,6 +70,53 @@ function parseTraverseRows(rows: FieldBookRow[]): {
   }
 
   return { stations, distances, bearings, points };
+}
+
+export function runTraverseComputation(input: TraverseComputeInput): TraverseComputationResult {
+  const { stations, distances, bearings, points } = parseTraverseRows(input.rows);
+
+  if (points.length === 0) {
+    throw new Error('No valid traverse legs found in field book');
+  }
+
+  const traverseInput: TraverseInput = {
+    points: [input.startPoint, ...points],
+    distances,
+    bearings,
+    closingPoint: input.closingPoint,
+  };
+
+  const surveyType = input.surveyType || 'cadastral';
+  const method = input.method || 'bowditch';
+
+  const adjusted = method === 'transit'
+    ? transitAdjustment(traverseInput)
+    : bowditchAdjustment(traverseInput);
+
+  const closure = evaluateTraverseClosure(
+    adjusted.linearError,
+    adjusted.totalDistance,
+    surveyType
+  );
+
+  const coordinates = adjusted.legs.map(leg => ({
+    easting: leg.adjEasting,
+    northing: leg.adjNorthing
+  }));
+
+  const areaResult = coordinateArea(coordinates);
+
+  return {
+    adjustedStations: adjusted,
+    linearMisclosure: adjusted.linearError,
+    angularMisclosure: 0,
+    precisionRatio: closure.ratio,
+    precisionMinimum: closure.minimum,
+    passesQA: closure.passes,
+    method: method,
+    surveyType: surveyType,
+    adjustedAreaM2: areaResult.areaSqm
+  };
 }
 
 export function runForwardTraverse(input: TraverseComputeInput): ReturnType<typeof forwardTraverse> {

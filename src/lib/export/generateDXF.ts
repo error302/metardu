@@ -11,6 +11,7 @@
  */
 
 import Drawing from 'dxf-writer'
+import { initialiseDXFLayers } from '@/lib/drawing/dxfLayers'
 
 export interface SurveyPoint {
   name: string
@@ -40,6 +41,7 @@ export function generateDXF(options: DXFExportOptions): string {
   const { points, traverseLegs = [], includeElevations = true } = options
 
   const drawing = new Drawing()
+  initialiseDXFLayers(drawing)
   drawing.setUnits('Meters')
 
   drawing.addLineType('DASHED', 'Dashed', [-1.0, 0.5])

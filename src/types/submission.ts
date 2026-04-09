@@ -75,7 +75,7 @@ export interface SurveyorProfile {
   id: string
   user_id: string
   full_name: string
-  registration_number: string
+  isk_number: string
   firm_name?: string
   seal_url?: string
   signature_url?: string
@@ -136,4 +136,11 @@ export interface ProjectSubmissionRecord {
   validation_results: Record<string, unknown> | null
   created_at: string
   updated_at: string
+}
+
+export interface SubmissionSequence {
+  id: string
+  surveyor_profile_id: string
+  year: number
+  last_sequence: number
 }

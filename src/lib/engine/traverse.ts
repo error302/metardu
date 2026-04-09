@@ -14,6 +14,49 @@
 import { NamedPoint2D, TraverseResult, TraverseLeg } from './types';
 import { toRadians, bearingToString } from './angles';
 
+// Kenya Survey Regulations 1994 - Traverse precision standards
+export const TRAVERSE_PRECISION_STANDARDS = {
+  cadastral: 5000,      // 1:5000 minimum — Kenya Survey Regulations 1994
+  engineering: 3000,    // 1:3000 minimum
+  topographic: 1000,   // 1:1000 minimum
+  geodetic: 10000,     // 1:10000 minimum
+  mining: 5000,
+  hydrographic: 1000,
+  drone: 1000,
+  deformation: 10000,
+} as const;
+
+export type SurveyTypeKey = keyof typeof TRAVERSE_PRECISION_STANDARDS;
+
+/**
+ * Angular misclosure tolerance in seconds of arc.
+ * Kenya Survey Regulations 1994.
+ * @param stationCount - Number of angles observed in the traverse
+ */
+export function angularClosureTolerance(stationCount: number): number {
+  return 60 * Math.sqrt(stationCount); // seconds
+}
+
+/**
+ * Evaluates whether a traverse meets the minimum precision for the given survey type.
+ * @param linearMisclosure - Total linear misclosure in metres
+ * @param perimeter - Total traverse perimeter in metres
+ * @param surveyType - Must match one of the 8 locked survey types
+ * @returns precision ratio (e.g. 5000 means 1:5000), and whether it meets the standard
+ */
+export function evaluateTraverseClosure(
+  linearMisclosure: number,
+  perimeter: number,
+  surveyType: SurveyTypeKey
+): { ratio: number; passes: boolean; minimum: number } {
+  if (linearMisclosure === 0) {
+    return { ratio: Infinity, passes: true, minimum: TRAVERSE_PRECISION_STANDARDS[surveyType] };
+  }
+  const ratio = perimeter / linearMisclosure;
+  const minimum = TRAVERSE_PRECISION_STANDARDS[surveyType];
+  return { ratio: Math.round(ratio), passes: ratio >= minimum, minimum };
+}
+
 export interface TraverseInput {
   points: NamedPoint2D[];
   distances: number[];

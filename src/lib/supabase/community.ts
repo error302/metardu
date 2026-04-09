@@ -1,6 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
-import type { SurveyJob, JobApplication, JobReview, SurveyorProfile } from '@/types/jobs'
+import type { SurveyJob, JobApplication, JobReview, SurveyorProfile as SurveyorProfileJob } from '@/types/jobs'
 import type { PeerReviewRequest, PeerReviewer } from '@/types/peerReview'
+
+export { type SurveyorProfileJob }
+
+export type SurveyorProfile = SurveyorProfileJob
+
+export interface SurveyorProfileSubmission {
+  registrationNumber: string
+  fullName: string
+  firmName: string
+  isKMemberActive: boolean
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!

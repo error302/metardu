@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { bowditchAdjustment, forwardTraverse } from '@/lib/engine/traverse';
+import { 
+  bowditchAdjustment, 
+  transitAdjustment,
+  forwardTraverse, 
+  TRAVERSE_PRECISION_STANDARDS,
+  evaluateTraverseClosure,
+  angularClosureTolerance,
+  type SurveyTypeKey
+} from '@/lib/engine/traverse';
+import { coordinateArea } from '@/lib/engine/area';
 import { apiSuccess, apiError } from '@/lib/api/response';
 
 const traverseSchema = z.object({
   task: z.enum(['forward', 'adjust']),
+  method: z.enum(['bowditch', 'transit']).default('bowditch'),
+  surveyType: z.string().default('cadastral'),
   startPoint: z.object({
     name: z.string(),
     easting: z.number(),
@@ -36,7 +47,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { task, startPoint, legs, closingPoint } = parsed.data;
+  const { task, method, surveyType, startPoint, legs, closingPoint } = parsed.data;
 
   const points = legs.map((l) => ({ name: l.station, easting: 0, northing: 0 }));
   const distances = legs.map((l) => l.distance);
@@ -67,26 +78,54 @@ export async function POST(request: NextRequest) {
     closingPoint,
   };
 
-  const result = bowditchAdjustment(traverseInput);
+  const adjusted = method === 'transit'
+    ? transitAdjustment(traverseInput)
+    : bowditchAdjustment(traverseInput);
 
-  const errorMm = result.linearError * 1000;
-  const ratioStr = `1/${Math.round(1 / result.precisionRatio)}`;
+  const validSurveyTypes = Object.keys(TRAVERSE_PRECISION_STANDARDS) as string[];
+  const validatedSurveyType = validSurveyTypes.includes(surveyType) 
+    ? surveyType as SurveyTypeKey 
+    : 'cadastral';
+
+  const closure = evaluateTraverseClosure(
+    adjusted.linearError,
+    adjusted.totalDistance,
+    validatedSurveyType
+  );
+
+  const coordinates = adjusted.legs.map(leg => ({
+    easting: leg.adjEasting,
+    northing: leg.adjNorthing
+  }));
+
+  const areaResult = coordinateArea(coordinates);
+
+  const errorMm = adjusted.linearError * 1000;
+  const ratioStr = `1:${Math.round(closure.ratio)}`;
 
   return NextResponse.json(
     apiSuccess({
       task: 'traverse_adjust',
-      method: 'bowditch',
-      legs: result.legs,
-      closingErrorE: result.closingErrorE,
-      closingErrorN: result.closingErrorN,
-      linearError: result.linearError,
+      method,
+      surveyType: validatedSurveyType,
+      legs: adjusted.legs,
+      closingErrorE: adjusted.closingErrorE,
+      closingErrorN: adjusted.closingErrorN,
+      linearError: adjusted.linearError,
       linearErrorMm: errorMm,
-      precisionRatio: result.precisionRatio,
+      precisionRatio: closure.ratio,
       precisionRatioStr: ratioStr,
-      precisionGrade: result.precisionGrade,
-      totalDistance: result.totalDistance,
-      isClosed: result.isClosed,
-      message: `${result.precisionGrade.charAt(0).toUpperCase() + result.precisionGrade.slice(1)} closure: ${ratioStr} (error ${errorMm.toFixed(1)}mm)`,
+      precisionMinimum: closure.minimum,
+      passesQA: closure.passes,
+      precisionGrade: adjusted.precisionGrade,
+      totalDistance: adjusted.totalDistance,
+      isClosed: closure.passes,
+      adjustedAreaM2: areaResult.areaSqm,
+      adjustedAreaHa: areaResult.areaHa,
+      angularToleranceSeconds: angularClosureTolerance(legs.length + 1),
+      message: closure.passes
+        ? `${adjusted.precisionGrade.charAt(0).toUpperCase() + adjusted.precisionGrade.slice(1)} closure: ${ratioStr} (error ${errorMm.toFixed(1)}mm) - PASSES QA`
+        : `Insufficient precision: ${ratioStr} (error ${errorMm.toFixed(1)}mm) - BELOW ${surveyType} MINIMUM 1:${closure.minimum}`,
     })
   );
 }
@@ -95,8 +134,11 @@ export async function GET() {
   return NextResponse.json(
     apiSuccess({
       endpoint: '/api/compute/traverse',
-      description: 'Run traverse computations: forward traverse and Bowditch adjustment',
+      description: 'Run traverse computations: forward traverse and adjustment (Bowditch or Transit)',
       tasks: ['forward', 'adjust'],
+      methods: ['bowditch', 'transit'],
+      surveyTypes: Object.keys(TRAVERSE_PRECISION_STANDARDS),
+      precisionStandards: TRAVERSE_PRECISION_STANDARDS,
     })
   );
 }

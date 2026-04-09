@@ -1,16 +1,16 @@
 /**
  * POST /api/submission/sequence
  * Atomically increments the submission sequence number for a surveyor/year pair
- * using an UPSERT — replaces the old supabase.rpc() stub that always failed.
+ * using the canonical submission_sequence table.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import db from '@/lib/db'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const supabase = await createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -28,28 +28,26 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Ensure the submission_sequences table exists (defensive)
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS submission_sequences (
-        surveyor_profile_id UUID NOT NULL,
-        year INT NOT NULL,
-        sequence INT NOT NULL DEFAULT 0,
-        PRIMARY KEY (surveyor_profile_id, year)
-      )
-    `)
+    const result = await supabase.rpc('increment_submission_sequence', {
+      p_surveyor_profile_id: surveyorProfileId,
+      p_year: year
+    })
 
-    const result = await db.query(
-      `INSERT INTO submission_sequences (surveyor_profile_id, year, sequence)
-       VALUES ($1, $2, 1)
-       ON CONFLICT (surveyor_profile_id, year)
-       DO UPDATE SET sequence = submission_sequences.sequence + 1
-       RETURNING sequence`,
-      [surveyorProfileId, year]
-    )
+    if (result.error) {
+      throw result.error
+    }
 
-    return NextResponse.json({ sequence: result.rows[0].sequence })
+    const sequence = result.data
+    const referenceNumber = `ISK_${year}_${String(sequence).padStart(3, '0')}_R00`
+
+    return NextResponse.json({ 
+      sequence,
+      reference_number: referenceNumber,
+      revision: 0,
+      year
+    })
   } catch (err: any) {
-    console.error('[/api/submission/sequence] DB error:', err)
+    console.error('[/api/submission/sequence] Error:', err)
     return NextResponse.json(
       { error: 'Failed to generate sequence number' },
       { status: 500 }

@@ -6,6 +6,7 @@ import { validateSubmission } from './validateSubmission'
 import { generateFormNo4DXF } from './generators/formNo4'
 import { generateComputationWorkbook } from './generators/computationWorkbook'
 import { generateWorkingDiagramDXF } from './generators/workingDiagram'
+import { coordinateArea } from '@/lib/engine/area'
 import type { SubmissionPackage, QAGateResult, SurveySubtype } from './types'
 
 interface ProjectData {
@@ -70,6 +71,37 @@ export async function assembleSubmissionPackage(
     supporting_documents: Array.isArray(supportingDocuments) ? supportingDocuments : []
   } as unknown as ProjectData
 
+  const adjustedCoordinates = (proj.survey_points || [])
+    .filter((pt: any) => pt.adjusted_easting != null && pt.adjusted_northing != null)
+    .map((pt: any) => ({
+      easting: asNum(pt.adjusted_easting),
+      northing: asNum(pt.adjusted_northing)
+    }));
+
+  let computedAreaM2 = 0;
+  if (adjustedCoordinates.length >= 3) {
+    const areaResult = coordinateArea(adjustedCoordinates);
+    computedAreaM2 = areaResult.areaSqm;
+  } else if (proj.survey_points && proj.survey_points.length >= 3) {
+    const rawCoordinates = (proj.survey_points || []).map((pt: any) => ({
+      easting: asNum(pt.easting),
+      northing: asNum(pt.northing)
+    }));
+    const areaResult = coordinateArea(rawCoordinates);
+    computedAreaM2 = areaResult.areaSqm;
+  }
+
+  if (adjustedCoordinates.length < 3 && proj.survey_points && proj.survey_points.length >= 3) {
+    console.warn('No adjusted coordinates found - using raw coordinates for area computation');
+  }
+
+  if (adjustedCoordinates.length < 3 && (!proj.survey_points || proj.survey_points.length < 3)) {
+    throw new Error(
+      'Cannot assemble submission: traverse must have at least 3 points to compute area. ' +
+      'Complete traverse computation before submitting.'
+    );
+  }
+
   const { ref, revision } = await generateSubmissionRef(
     projectId,
     surveyor.registrationNumber
@@ -93,7 +125,7 @@ export async function assembleSubmissionPackage(
       county: proj.county || '',
       district: proj.district || '',
       locality: proj.locality || '',
-      areaM2: asNum(proj.area_m2),
+      areaM2: computedAreaM2,
       perimeterM: asNum(proj.perimeter_m)
     },
     traverse: {
@@ -112,7 +144,7 @@ export async function assembleSubmissionPackage(
       closingErrorE: asNum(proj.closing_error_e),
       closingErrorN: asNum(proj.closing_error_n),
       adjustmentMethod: 'bowditch',
-      areaM2: asNum(proj.area_m2),
+      areaM2: computedAreaM2,
       perimeterM: asNum(proj.perimeter_m)
     },
     supportingDocs,
@@ -148,13 +180,51 @@ export async function assembleSubmissionPackage(
 
   const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-  await supabase.from('submissions').insert({
+  const { data: authSession } = await supabase.auth.getSession()
+  const userId = authSession.session?.user?.id ?? ''
+  
+  const { data: profile } = await supabase
+    .from('surveyor_profiles')
+    .select('id, user_id, isk_number, verified_isk')
+    .eq('user_id', userId)
+    .single()
+
+  if (!profile) {
+    throw new Error('Surveyor profile not found')
+  }
+
+  const currentYear = new Date().getFullYear()
+  const { data: existingSubmissions } = await supabase
+    .from('project_submissions')
+    .select('revision_number')
+    .eq('project_id', projectId)
+    .order('revision_number', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const revisionNumber = (existingSubmissions?.revision_number ?? -1) + 1
+
+  const sequenceNumber = await supabase.rpc('increment_submission_sequence', {
+    p_surveyor_profile_id: profile.id,
+    p_year: currentYear
+  })
+
+  const sequence = sequenceNumber.data ?? 1
+  const submissionNumber = `${profile.isk_number}_${currentYear}_${String(sequence).padStart(3, '0')}_R${String(revisionNumber).padStart(2, '0')}`
+
+  await supabase.from('project_submissions').insert({
     project_id: projectId,
-    submission_ref: ref,
-    revision,
-    registration_number: surveyor.registrationNumber,
-    qa_passed: true,
-    generated_at: pkg.generatedAt
+    surveyor_profile_id: profile.id,
+    submission_number: submissionNumber,
+    revision_code: `R${String(revisionNumber).padStart(2, '0')}`,
+    submission_year: currentYear,
+    package_status: 'ready',
+    generated_artifacts: {
+      form_no_4: 'form_no_4.dxf',
+      computation_workbook: 'computation_workbook.xlsx',
+      working_diagram: 'working_diagram.dxf'
+    },
+    validation_results: qa
   })
 
   return { zipBuffer, ref, qa }

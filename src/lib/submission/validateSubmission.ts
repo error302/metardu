@@ -5,28 +5,30 @@ import type {
   QAWarning
 } from './types'
 
-const PRECISION_REQUIREMENTS: Record<string, number> = {
-  cadastral_subdivision: 5000,
-  cadastral_amalgamation: 5000,
-  cadastral_resurvey: 5000,
-  cadastral_mutation: 5000,
-  topographic_site: 1000,
-  topographic_corridor: 1000,
-  engineering_road: 2000,
-  engineering_bridge: 3000,
-  engineering_dam: 3000,
-  geodetic_control: 20000,
-  mining: 1000,
-  hydrographic: 500,
-  drone: 1000,
-  deformation: 5000,
-}
+import { TRAVERSE_PRECISION_STANDARDS, angularClosureTolerance } from '@/lib/engine/traverse'
 
 const LEVELLING_TOLERANCE: Record<string, number> = {
   first_order: 3,
   second_order: 6,
   third_order: 12,
   fourth_order: 20,
+}
+
+const SUBTYPE_TO_SURVEY_TYPE: Record<string, keyof typeof TRAVERSE_PRECISION_STANDARDS> = {
+  cadastral_subdivision: 'cadastral',
+  cadastral_amalgamation: 'cadastral',
+  cadastral_resurvey: 'cadastral',
+  cadastral_mutation: 'cadastral',
+  topographic_site: 'topographic',
+  topographic_corridor: 'topographic',
+  engineering_road: 'engineering',
+  engineering_bridge: 'engineering',
+  engineering_dam: 'engineering',
+  geodetic_control: 'geodetic',
+  mining: 'mining',
+  hydrographic: 'hydrographic',
+  drone: 'drone',
+  deformation: 'deformation',
 }
 
 export function validateSubmission(pkg: SubmissionPackage): QAGateResult {
@@ -75,7 +77,8 @@ export function validateSubmission(pkg: SubmissionPackage): QAGateResult {
     })
   }
 
-  const requiredPrecision = PRECISION_REQUIREMENTS[pkg.subtype] || 5000
+  const surveyType = SUBTYPE_TO_SURVEY_TYPE[pkg.subtype] || 'cadastral'
+  const requiredPrecision = TRAVERSE_PRECISION_STANDARDS[surveyType]
   const precisionParts = pkg.traverse.precisionRatio.split(':')
   const denominator = parseInt(precisionParts[1], 10)
 
@@ -110,7 +113,8 @@ export function validateSubmission(pkg: SubmissionPackage): QAGateResult {
     })
   }
 
-  if (pkg.traverse.angularMisclosure > 20 * Math.sqrt(pkg.traverse.points.length)) {
+  const angularTolerance = angularClosureTolerance(pkg.traverse.points.length)
+  if (pkg.traverse.angularMisclosure > angularTolerance) {
     blockers.push({
       code: 'ANGULAR_MISCLOSURE_EXCEEDED',
       message: `Angular misclosure ${(pkg.traverse.angularMisclosure).toFixed(1)}" exceeds 20√n = ${(20 * Math.sqrt(pkg.traverse.points.length)).toFixed(1)}" limit.`
@@ -141,6 +145,9 @@ export function validateSubmission(pkg: SubmissionPackage): QAGateResult {
 }
 
 export function getSubmissionChecklist(subtype: string): { code: string; label: string; required: boolean }[] {
+  const surveyType = SUBTYPE_TO_SURVEY_TYPE[subtype] || 'cadastral'
+  const minPrecision = TRAVERSE_PRECISION_STANDARDS[surveyType]
+  
   const base = [
     { code: 'COORD_SYS', label: 'Coordinate system specified (Arc 1960 / UTM Zone 37S)', required: true },
     { code: 'SURVEYOR_PROFILE', label: 'Licensed surveyor profile complete (ISK Reg. No.)', required: true },
@@ -148,7 +155,7 @@ export function getSubmissionChecklist(subtype: string): { code: string; label: 
     { code: 'COUNTY', label: 'County specified', required: true },
     { code: 'DISTRICT', label: 'District specified', required: true },
     { code: 'AREA_COMPUTED', label: 'Parcel area computed and > 0', required: true },
-    { code: 'PRECISION', label: `Traverse precision meets 1:${PRECISION_REQUIREMENTS[subtype] || 5000}`, required: true },
+    { code: 'PRECISION', label: `Traverse precision meets 1:${minPrecision}`, required: true },
     { code: 'BEACONS', label: 'Beacon types and positions verified', required: true },
     { code: 'FORM_NO4', label: 'Form No. 4 (Mutation Form) generated', required: true },
     { code: 'DXF_PLAN', label: 'DXF plan with TitleBlock generated', required: true },

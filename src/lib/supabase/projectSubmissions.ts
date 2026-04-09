@@ -41,9 +41,8 @@ function mapSubmissionRow(row: ProjectSubmissionRow): ProjectSubmissionRecord {
 
 export async function getOrCreateProjectSubmission(projectId: string): Promise<ProjectSubmissionRecord> {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
 
   if (!user) {
     throw new Error('Not authenticated')
@@ -105,9 +104,8 @@ export async function updateProjectSubmission(
   }>
 ): Promise<ProjectSubmissionRecord> {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
 
   if (!user) {
     throw new Error('Not authenticated')

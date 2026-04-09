@@ -99,7 +99,7 @@ create table if not exists parcels (
   project_id uuid not null references projects(id) on delete cascade,
   parcel_number text,
   area_hectares double precision,
-  geometry geometry(Polygon, 32737), -- UTM Zone 37S for Kenya
+  geometry geometry(Polygon, 21037), -- Arc 1960 / UTM Zone 37S for Kenya
   created_at timestamptz not null default now()
 );
 
@@ -111,7 +111,7 @@ create table if not exists alignments (
   project_id uuid not null references projects(id) on delete cascade,
   name text not null,
   alignment_type text,
-  geometry geometry(LineString, 32737),
+  geometry geometry(LineString, 21037),
   created_at timestamptz not null default now()
 );
 

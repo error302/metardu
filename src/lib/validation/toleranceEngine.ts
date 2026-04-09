@@ -41,7 +41,7 @@ const TOLERANCE_CONFIGS: Record<ToleranceProfile, ToleranceConfig> = {
     description: 'Urban property boundary surveys',
     linearPrecision: 5000,
     angularMisclosure: 60,
-    closingErrorMmPerKm: 12
+    closingErrorMmPerKm: 10 // RDM 1.1 (2025) Table 5.1: 10√K mm
   },
   engineering: {
     name: 'Engineering',
