@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { registerProjections, arrayTo3857, to21037, SRID_3857 } from '@/lib/map/projection';
 import { nearestKenCORSStations, type KenCORSStation } from '@/lib/map/kencors';
-import type { AdjustedStation } from '@/lib/engine/planGeometry';
+import type { AdjustedStation, PlanGeometry } from '@/lib/engine/planGeometry';
+import { computePlanGeometry } from '@/lib/engine/planGeometry';
 import { createAnnotationLayer } from '@/lib/map/annotations';
 import { MeasurementTool } from './MeasurementTool';
 import { VertexEditToolbar } from './VertexEditToolbar';
 import { useVertexEditing } from '@/hooks/useVertexEditing';
 import { LayerControl } from './LayerControl';
+import { exportMapPDF } from '@/lib/export/exportMapPDF';
 
 interface SurveyMapProps {
   projectId: string;
@@ -21,6 +23,15 @@ interface SurveyMapProps {
   enableEditing?: boolean;
   /** Callback with updated vertices (EPSG:21037) after each edit */
   onVerticesChange?: (updated: Array<{ easting: number; northing: number }>) => void;
+  /** Sheet layout props */
+  lrNumber?: string;
+  projectName?: string;
+  surveyorName?: string;
+  surveyorLicense?: string;
+  clientName?: string;
+  county?: string;
+  /** Unique container ID for PDF print targeting */
+  mapContainerId?: string;
 }
 
 interface NearestStation extends KenCORSStation {
@@ -36,6 +47,13 @@ export default function SurveyMap({
   readOnly = true,
   enableEditing = false,
   onVerticesChange,
+  lrNumber,
+  projectName,
+  surveyorName,
+  surveyorLicense,
+  clientName,
+  county,
+  mapContainerId = 'metardu-map-container',
 }: SurveyMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import('ol/Map').default | null>(null);
@@ -43,6 +61,27 @@ export default function SurveyMap({
   const [nearestStations, setNearestStations] = useState<NearestStation[]>([]);
   const [clickedCoord, setClickedCoord] = useState<{ easting: number; northing: number } | null>(null);
   const [basemap, setBasemap] = useState<'osm' | 'satellite' | 'blank'>('osm');
+
+  // ── Sheet layout state ────────────────────────────────────────
+  const [showSheetLayout, setShowSheetLayout] = useState(false);
+  const [sheetLayoutReady, setSheetLayoutReady] = useState(false);
+
+  // ── Compute plan geometry for sheet layout ─────────────────────
+  const planGeometry: PlanGeometry | null = useMemo(() => {
+    if (adjustedStations.length < 3) return null;
+    return computePlanGeometry(adjustedStations);
+  }, [adjustedStations]);
+
+  // ── Dynamically import SheetLayout to avoid SSR issues ─────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [SheetLayoutComponent, setSheetLayoutComponent] = useState<React.ComponentType<any> | null>(null);
+
+  useEffect(() => {
+    import('./SheetLayout').then((mod) => {
+      setSheetLayoutComponent(() => mod.default);
+      setSheetLayoutReady(true);
+    });
+  }, []);
 
   // ── Vertex editing state ──────────────────────────────────────
   const [vertexEditingEnabled, setVertexEditingEnabled] = useState(false);
@@ -203,14 +242,42 @@ export default function SurveyMap({
     mapInstanceRef.current.getView().fit(extent, { padding: [60, 60, 60, 60], duration: 400 });
   }, [adjustedStations]);
 
+  const handlePrint = useCallback(() => {
+    if (!showSheetLayout) {
+      setShowSheetLayout(true);
+    }
+    // Small delay to ensure sheet layout renders before print
+    setTimeout(() => {
+      exportMapPDF(mapContainerId, { paperSize: 'a3', orientation: 'landscape' });
+    }, 500);
+  }, [showSheetLayout, mapContainerId]);
+
   return (
-    <div className="flex flex-col h-full">
+    <div id={mapContainerId} className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-3 py-2 bg-white border-b border-gray-200 text-sm">
         <button
           onClick={fitToParcel}
           className="px-3 py-1.5 bg-[#1B3A5C] text-white rounded text-xs font-medium hover:bg-[#142d49]"
         >
           Fit to Parcel
+        </button>
+        <button
+          onClick={() => setShowSheetLayout(v => !v)}
+          className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+            showSheetLayout
+              ? 'bg-[#1B3A5C] text-white border-[#1B3A5C]'
+              : 'bg-white text-[#1B3A5C] border-[#1B3A5C] hover:bg-[#1B3A5C]/5'
+          }`}
+          title="Toggle sheet layout overlay (north arrow, scale bar, grid ticks, title block)"
+        >
+          {showSheetLayout ? '✦ Sheet Layout On' : '✦ Sheet Layout'}
+        </button>
+        <button
+          onClick={handlePrint}
+          className="px-3 py-1.5 bg-white text-[#1B3A5C] border border-[#1B3A5C] rounded text-xs font-medium hover:bg-[#1B3A5C]/5 transition-colors"
+          title="Export current map view to PDF (A3 landscape)"
+        >
+          ⎙ Print / PDF
         </button>
         <div className="flex-1" />
         <div className="flex items-center gap-3 text-xs text-gray-600">
@@ -254,6 +321,21 @@ export default function SurveyMap({
             <span className="font-semibold">{clickedCoord.northing.toFixed(3)}</span>
             <span className="ml-2 text-gray-400">SRID 21037</span>
           </div>
+        )}
+
+        {/* Sheet Layout Overlay */}
+        {showSheetLayout && sheetLayoutReady && SheetLayoutComponent && (
+          <SheetLayoutComponent
+            show={true}
+            map={mapInstanceRef.current}
+            planGeometry={planGeometry}
+            lrNumber={lrNumber}
+            projectName={projectName}
+            surveyorName={surveyorName}
+            surveyorLicense={surveyorLicense}
+            clientName={clientName}
+            county={county}
+          />
         )}
 
         {!mapReady && (
