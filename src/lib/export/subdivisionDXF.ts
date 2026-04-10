@@ -8,6 +8,7 @@
  * - OLD_BOUNDARY: parent parcel boundary (dashed)
  * - NEW_BOUNDARY: lot boundaries (solid)
  * - LABELS: lot numbers and area labels
+ * - ROAD_RESERVE: road corridor boundary and fill
  * - TITLEBLOCK: title block with survey metadata
  * - NORTH_ARROW: north arrow symbol
  */
@@ -35,6 +36,7 @@ export function generateSubdivisionDXF(
   drawing.setUnits('Meters')
 
   drawing.addLineType('DASHED', 'Dashed', [-5.0, 2.5])
+  drawing.addLineType('DASHDOT', 'DashDot', [-5.0, 2.5, 0.5, 2.5])
 
   const parent = result.parentParcel.vertices
   const n = parent.length
@@ -47,6 +49,50 @@ export function generateSubdivisionDXF(
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n
     drawing.drawLine(parent[i].easting, parent[i].northing, parent[j].easting, parent[j].northing)
+  }
+
+  // ─── Road Reserve (ROAD_RESERVE, dashed) ──────────────────────────────
+  if (result.roadReserve && result.roadReserve.roadPolygon.length >= 3) {
+    const rr = result.roadReserve
+    // Add ROAD_RESERVE layer with DASHDOT linetype (ACI 30 = orange)
+    drawing.addLayer('ROAD_RESERVE', 30, 'DASHDOT')
+    drawing.setActiveLayer('ROAD_RESERVE')
+
+    const rrVerts = rr.roadPolygon
+    const m = rrVerts.length
+
+    for (let i = 0; i < m; i++) {
+      const j = (i + 1) % m
+      drawing.drawLine(
+        rrVerts[i].easting, rrVerts[i].northing,
+        rrVerts[j].easting, rrVerts[j].northing
+      )
+    }
+
+    // Road reserve label
+    drawing.setActiveLayer('LABELS')
+    let rrCx = 0, rrCy = 0
+    for (const p of rrVerts) {
+      rrCx += p.easting
+      rrCy += p.northing
+    }
+    rrCx /= m
+    rrCy /= m
+
+    drawing.drawText(
+      rrCx,
+      rrCy + 2,
+      2.0,
+      0,
+      `ROAD RESERVE (${rr.width}m)`
+    )
+    drawing.drawText(
+      rrCx,
+      rrCy - 1,
+      1.5,
+      0,
+      `${rr.areaHa.toFixed(4)} ha`
+    )
   }
 
   // ─── Lot Boundaries (NEW_BOUNDARY, solid) ─────────────────────────────

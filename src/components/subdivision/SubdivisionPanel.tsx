@@ -24,6 +24,9 @@ import {
   AlertCircle,
   ChevronDown,
   Info,
+  Road,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import type { SubdivisionMethod, SubdivisionParams, SubdivisionResult, SubdividedLot } from '@/types/subdivision'
 import type { Point2D } from '@/lib/engine/types'
@@ -99,6 +102,11 @@ export default function SubdivisionPanel({
     isDrawingSplitLine,
     isComputing,
     error,
+    roadReserveEnabled,
+    roadReserveWidth,
+    roadReserveEdges,
+    roadReserveAuto,
+    roadReservePreview,
     selectMethod,
     updateParams,
     execute,
@@ -106,6 +114,12 @@ export default function SubdivisionPanel({
     startSplitLineDrawing,
     pickCenterPoint,
     exportDXF,
+    setRoadReserveEnabled,
+    setRoadReserveWidth,
+    setRoadReserveAuto,
+    previewRoadReserve,
+    clearRoadReservePreview,
+    toggleRoadReserveEdge,
   } = useSubdivision({
     parentVertices,
     map,
@@ -150,6 +164,141 @@ export default function SubdivisionPanel({
 
       {isCollapsed ? null : (
         <div className="divide-y divide-gray-100">
+          {/* ─── Road Reserve Section ──────────────────────────────────── */}
+          <div className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
+                Road Reserve
+              </label>
+              <button
+                onClick={(e) => { e.stopPropagation(); setRoadReserveEnabled(!roadReserveEnabled); if (roadReserveEnabled) clearRoadReservePreview() }}
+                className={`relative w-9 h-5 rounded-full transition-colors ${
+                  roadReserveEnabled ? 'bg-[#1B3A5C]' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                  roadReserveEnabled ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+
+            {roadReserveEnabled && (
+              <div className="space-y-2.5 mt-2">
+                {/* Width input */}
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Width (m)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={roadReserveWidth}
+                    onChange={(e) => setRoadReserveWidth(Math.max(1, parseFloat(e.target.value) || 1))}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-[#1B3A5C] focus:border-[#1B3A5C] outline-none font-mono"
+                  />
+                  <div className="text-[10px] text-gray-400 mt-1">
+                    {roadReserveWidth < 8 ? 'Single lane' : roadReserveWidth < 16 ? '2-lane road' : roadReserveWidth < 24 ? '4-lane road' : 'Multi-lane / boulevard'}
+                  </div>
+                </div>
+
+                {/* Edge selector */}
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Edge Selection</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setRoadReserveAuto(true)}
+                      className={`flex-1 px-2.5 py-1.5 text-[11px] font-medium rounded-md transition-colors ${
+                        roadReserveAuto
+                          ? 'bg-[#1B3A5C] text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                      }`}
+                    >
+                      Auto (longest)
+                    </button>
+                    <button
+                      onClick={() => setRoadReserveAuto(false)}
+                      className={`flex-1 px-2.5 py-1.5 text-[11px] font-medium rounded-md transition-colors ${
+                        !roadReserveAuto
+                          ? 'bg-[#1B3A5C] text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                      }`}
+                    >
+                      Manual
+                    </button>
+                  </div>
+                </div>
+
+                {/* Manual edge checkboxes */}
+                {!roadReserveAuto && parentVertices.length >= 3 && (
+                  <div className="border border-gray-200 rounded-md p-2 max-h-24 overflow-y-auto">
+                    <div className="text-[10px] text-gray-400 mb-1">Select edges to apply road reserve:</div>
+                    <div className="grid grid-cols-3 gap-1">
+                      {parentVertices.map((_, idx) => {
+                        if (idx >= parentVertices.length) return null
+                        const nextIdx = (idx + 1) % parentVertices.length
+                        const dx = parentVertices[nextIdx].easting - parentVertices[idx].easting
+                        const dy = parentVertices[nextIdx].northing - parentVertices[idx].northing
+                        const len = Math.sqrt(dx * dx + dy * dy)
+                        return (
+                          <label
+                            key={idx}
+                            className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] cursor-pointer transition-colors ${
+                              roadReserveEdges.includes(idx)
+                                ? 'bg-amber-50 border border-amber-300 text-amber-800'
+                                : 'bg-gray-50 border border-gray-200 text-gray-500 hover:bg-gray-100'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={roadReserveEdges.includes(idx)}
+                              onChange={() => toggleRoadReserveEdge(idx)}
+                              className="w-3 h-3 accent-[#1B3A5C]"
+                            />
+                            E{idx} ({len.toFixed(0)}m)
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Preview & info */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={previewRoadReserve}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#1B3A5C] bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Preview
+                  </button>
+                  {roadReservePreview && (
+                    <button
+                      onClick={clearRoadReservePreview}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                      <EyeOff className="w-3.5 h-3.5" />
+                      Hide
+                    </button>
+                  )}
+                </div>
+
+                {roadReservePreview && (
+                  <div className="p-2 bg-amber-50 border border-amber-200 rounded-md">
+                    <div className="text-[11px] text-amber-800 font-medium mb-1">
+                      <Road className="w-3.5 h-3.5 inline mr-1" />
+                      Road Reserve Preview
+                    </div>
+                    <div className="text-[10px] text-amber-700 space-y-0.5">
+                      <div>Width: {roadReservePreview.width}m</div>
+                      <div>Area: {formatAreaHa(roadReservePreview.areaHa)}</div>
+                      <div>Edge{roadReservePreview.clippedEdges.length !== 1 ? 's' : ''}: {roadReservePreview.clippedEdges.join(', ')}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* ─── Method Selector ──────────────────────────────────────── */}
           <div className="p-3">
             <label className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-2 block">
@@ -376,6 +525,19 @@ export default function SubdivisionPanel({
           {/* ─── Results Table ────────────────────────────────────────── */}
           {result && result.lots.length > 0 && (
             <div className="px-3 pb-3">
+              {/* Road reserve summary in results */}
+              {result.roadReserve && (
+                <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                  <div className="text-[11px] text-amber-800 font-medium">
+                    <Road className="w-3.5 h-3.5 inline mr-1" />
+                    Road Reserve: {formatAreaHa(result.roadReserve.areaHa)}
+                  </div>
+                  <div className="text-[10px] text-amber-700">
+                    {result.roadReserve.width}m width · Edge{result.roadReserve.clippedEdges.length !== 1 ? 's' : ''} {result.roadReserve.clippedEdges.join(', ')}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
                   Results — {result.lots.length} Lot{result.lots.length !== 1 ? 's' : ''}

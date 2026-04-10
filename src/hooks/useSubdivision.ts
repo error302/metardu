@@ -15,11 +15,11 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type Map from 'ol/Map'
-import type { SubdivisionMethod, SubdivisionParams, SubdivisionResult, SplitLine } from '@/types/subdivision'
+import type { SubdivisionMethod, SubdivisionParams, SubdivisionResult, SplitLine, RoadReserveInfo } from '@/types/subdivision'
 import type { Point2D } from '@/lib/engine/types'
-import { subdivide } from '@/lib/engine/subdivision'
+import { subdivide, createRoadReserve } from '@/lib/engine/subdivision'
 import { downloadSubdivisionDXF } from '@/lib/export/subdivisionDXF'
-import { createSubdivisionLayer, createSplitLineLayer } from '@/lib/map/subdivisionLayer'
+import { createSubdivisionLayer, createSplitLineLayer, createRoadReservePreviewLayer } from '@/lib/map/subdivisionLayer'
 
 export interface UseSubdivisionOptions {
   /** Parent parcel vertices (EPSG:21037) */
@@ -44,9 +44,17 @@ export function useSubdivision({
   const [isComputing, setIsComputing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // ─── Road reserve state ──────────────────────────────────────────────
+  const [roadReserveEnabled, setRoadReserveEnabled] = useState(false)
+  const [roadReserveWidth, setRoadReserveWidth] = useState(12)
+  const [roadReserveEdges, setRoadReserveEdges] = useState<number[]>([])
+  const [roadReserveAuto, setRoadReserveAuto] = useState(true)
+  const [roadReservePreview, setRoadReservePreview] = useState<RoadReserveInfo | null>(null)
+
   // ─── Refs for map layers ──────────────────────────────────────────────
   const subdivisionLayerRef = useRef<any>(null)
   const splitLineLayerRef = useRef<any>(null)
+  const roadReserveLayerRef = useRef<any>(null)
   const drawInteractionRef = useRef<any>(null)
   const clickHandlerRef = useRef<any>(null)
   const splitLinePointsRef = useRef<Point2D[]>([])
@@ -55,9 +63,11 @@ export function useSubdivision({
   const mapRef = useRef<Map | null>(null)
   const removeSubdivisionLayerRef = useRef<() => void>(() => {})
   const removeSplitLineLayerRef = useRef<() => void>(() => {})
+  const removeRoadReserveLayerRef = useRef<() => void>(() => {})
   const removeDrawInteractionRef = useRef<() => void>(() => {})
   const addSubdivisionLayerRef = useRef<(r: any) => void>(() => {})
   const addSplitLineLayerRef = useRef<(l: any) => void>(() => {})
+  const addRoadReserveLayerRef = useRef<(r: any) => void>(() => {})
 
   // Keep map ref in sync
   useEffect(() => { mapRef.current = map }, [map])
@@ -66,9 +76,11 @@ export function useSubdivision({
   useEffect(() => {
     removeSubdivisionLayerRef.current = removeSubdivisionLayer
     removeSplitLineLayerRef.current = removeSplitLineLayer
+    removeRoadReserveLayerRef.current = removeRoadReserveLayer
     removeDrawInteractionRef.current = removeDrawInteraction
     addSubdivisionLayerRef.current = addSubdivisionLayer
     addSplitLineLayerRef.current = addSplitLineLayer
+    addRoadReserveLayerRef.current = addRoadReserveLayer
   })
 
   // ─── Clean up layers on unmount ──────────────────────────────────────
@@ -76,6 +88,7 @@ export function useSubdivision({
     return () => {
       removeSubdivisionLayerRef.current()
       removeSplitLineLayerRef.current()
+      removeRoadReserveLayerRef.current()
       removeDrawInteractionRef.current()
     }
   }, [])
@@ -144,8 +157,18 @@ export function useSubdivision({
         fullParams.splitLine = splitLine!
       }
 
+      // Apply road reserve if enabled
+      if (roadReserveEnabled && roadReserveWidth > 0) {
+        fullParams.roadReserveWidth = roadReserveWidth
+        fullParams.roadReserveEdges = roadReserveAuto ? [] : roadReserveEdges
+      }
+
       const subResult = subdivide(parentVertices, method, fullParams)
       setResult(subResult)
+
+      // Remove road reserve preview layer
+      removeRoadReserveLayerRef.current()
+      setRoadReservePreview(null)
 
       // Add subdivision layer to map
       addSubdivisionLayerRef.current(subResult)
@@ -155,7 +178,7 @@ export function useSubdivision({
     } finally {
       setIsComputing(false)
     }
-  }, [method, params, splitLine, parentVertices])
+  }, [method, params, splitLine, parentVertices, roadReserveEnabled, roadReserveWidth, roadReserveEdges, roadReserveAuto])
 
   // ─── Clear everything ────────────────────────────────────────────────
 
@@ -167,8 +190,14 @@ export function useSubdivision({
     setError(null)
     setIsDrawingSplitLine(false)
     splitLinePointsRef.current = []
+    setRoadReserveEnabled(false)
+    setRoadReserveWidth(12)
+    setRoadReserveEdges([])
+    setRoadReserveAuto(true)
+    setRoadReservePreview(null)
     removeSubdivisionLayerRef.current()
     removeSplitLineLayerRef.current()
+    removeRoadReserveLayerRef.current()
     removeDrawInteractionRef.current()
   }, [])
 
@@ -280,6 +309,28 @@ export function useSubdivision({
     }
   }, [map, removeSplitLineLayer])
 
+  const removeRoadReserveLayer = useCallback(() => {
+    if (mapRef.current && roadReserveLayerRef.current) {
+      mapRef.current.removeLayer(roadReserveLayerRef.current)
+      roadReserveLayerRef.current = null
+    }
+  }, [map])
+
+  const addRoadReserveLayer = useCallback(async (rrInfo: RoadReserveInfo) => {
+    if (!map) return
+    removeRoadReserveLayerRef.current()
+
+    try {
+      const layer = await createRoadReservePreviewLayer(rrInfo)
+      if (layer) {
+        map.addLayer(layer)
+        roadReserveLayerRef.current = layer
+      }
+    } catch (err) {
+      console.error('Failed to create road reserve layer:', err)
+    }
+  }, [map, removeRoadReserveLayer])
+
   // ─── Center point picking (for radial) ───────────────────────────────
 
   const pickCenterPoint = useCallback(() => {
@@ -303,6 +354,59 @@ export function useSubdivision({
     }
   }, [map, updateParams])
 
+  // ─── Road reserve preview ───────────────────────────────────────────
+
+  const previewRoadReserve = useCallback(() => {
+    if (parentVertices.length < 3 || roadReserveWidth <= 0) return
+
+    try {
+      const edges = roadReserveAuto ? [] : roadReserveEdges
+      const rr = createRoadReserve(parentVertices, roadReserveWidth, edges)
+
+      if (rr.roadPolygon.length >= 3) {
+        // Compute area
+        let area = 0
+        const pts = rr.roadPolygon
+        const n = pts.length
+        for (let i = 0; i < n; i++) {
+          const j = (i + 1) % n
+          area += pts[i].easting * pts[j].northing
+          area -= pts[j].easting * pts[i].northing
+        }
+        const areaHaVal = Math.abs(area / 2) / 10000
+
+        const info: RoadReserveInfo = {
+          roadPolygon: rr.roadPolygon,
+          width: roadReserveWidth,
+          clippedEdges: rr.clippedEdges,
+          areaHa: areaHaVal,
+        }
+
+        setRoadReservePreview(info)
+        addRoadReserveLayerRef.current(info)
+      } else {
+        setRoadReservePreview(null)
+        removeRoadReserveLayerRef.current()
+      }
+    } catch (err) {
+      console.error('Road reserve preview failed:', err)
+    }
+  }, [parentVertices, roadReserveWidth, roadReserveAuto, roadReserveEdges])
+
+  const clearRoadReservePreview = useCallback(() => {
+    setRoadReservePreview(null)
+    removeRoadReserveLayerRef.current()
+  }, [])
+
+  const toggleRoadReserveEdge = useCallback((edgeIdx: number) => {
+    setRoadReserveEdges(prev => {
+      if (prev.includes(edgeIdx)) {
+        return prev.filter(e => e !== edgeIdx)
+      }
+      return [...prev, edgeIdx].sort((a, b) => a - b)
+    })
+  }, [])
+
   // ─── Return ──────────────────────────────────────────────────────────
 
   return {
@@ -315,6 +419,13 @@ export function useSubdivision({
     isComputing,
     error,
 
+    // Road reserve state
+    roadReserveEnabled,
+    roadReserveWidth,
+    roadReserveEdges,
+    roadReserveAuto,
+    roadReservePreview,
+
     // Actions
     selectMethod,
     updateParams,
@@ -324,5 +435,13 @@ export function useSubdivision({
     pickCenterPoint,
     exportDXF,
     setSplitLine,
+
+    // Road reserve actions
+    setRoadReserveEnabled,
+    setRoadReserveWidth,
+    setRoadReserveAuto,
+    previewRoadReserve,
+    clearRoadReservePreview,
+    toggleRoadReserveEdge,
   }
 }

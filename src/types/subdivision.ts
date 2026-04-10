@@ -47,6 +47,22 @@ export interface SubdivisionParams {
   splitLine?: SplitLine
   /** Area-based method: preferred cut bearing (degrees, WCB) */
   preferredBearing?: number
+  /** Road reserve width in meters (e.g., 12 for a 2-lane road) */
+  roadReserveWidth?: number
+  /** Edge indices to apply road reserve to; empty array = auto-detect longest edge */
+  roadReserveEdges?: number[]
+}
+
+/** Road reserve corridor information */
+export interface RoadReserveInfo {
+  /** Road corridor polygon vertices (closed) */
+  roadPolygon: Point2D[]
+  /** Width of the road reserve in meters */
+  width: number
+  /** Which parent edges the road reserve was applied to */
+  clippedEdges: number[]
+  /** Area of the road corridor in hectares */
+  areaHa: number
 }
 
 /** Complete subdivision result */
@@ -59,4 +75,6 @@ export interface SubdivisionResult {
   lots: SubdividedLot[]
   totalAreaHa: number
   remainderAreaHa: number  // area not allocated to any lot
+  /** Road reserve information, if applied */
+  roadReserve?: RoadReserveInfo
 }

@@ -4,11 +4,12 @@
  * Renders subdivided lots as colored polygons on an OpenLayers map.
  * Each lot gets a unique fill color, lot number label, and area label.
  * Split lines are rendered as dashed lines.
+ * Road reserves are rendered with semi-transparent orange fill and hatched boundary.
  *
  * All OL imports are dynamic to match existing project patterns.
  */
 
-import type { SubdivisionResult, SplitLine } from '@/types/subdivision'
+import type { SubdivisionResult, SplitLine, RoadReserveInfo } from '@/types/subdivision'
 import type { Point2D } from '@/lib/engine/types'
 import { to3857, arrayTo3857 } from '@/lib/map/projection'
 
@@ -136,6 +137,55 @@ export async function createSubdivisionLayer(
     features.push(labelFeature)
   }
 
+  // ─── Road reserve polygon (if present) ─────────────────────────────────
+  if (result.roadReserve && result.roadReserve.roadPolygon.length >= 3) {
+    const rr = result.roadReserve
+    const closedRR = [...rr.roadPolygon, rr.roadPolygon[0]]
+    const rrCoords3857 = await arrayTo3857(
+      closedRR.map(p => [p.easting, p.northing] as [number, number])
+    )
+
+    const roadFeature = new Feature({
+      geometry: new Polygon([rrCoords3857]),
+      type: 'road-reserve',
+    })
+    roadFeature.setStyle(new Style({
+      fill: new Fill({ color: 'rgba(251, 146, 60, 0.35)' }),
+      stroke: new Stroke({
+        color: '#EA580C',
+        width: 3,
+        lineDash: [10, 5],
+      }),
+    }))
+    features.push(roadFeature)
+
+    // Road width label at centroid of road polygon
+    let rrCx = 0, rrCy = 0
+    for (const p of rr.roadPolygon) {
+      rrCx += p.easting
+      rrCy += p.northing
+    }
+    rrCx /= rr.roadPolygon.length
+    rrCy /= rr.roadPolygon.length
+    const rrCentroidCoord = await to3857(rrCx, rrCy)
+
+    const rrLabelFeature = new Feature({
+      geometry: new PointGeom(rrCentroidCoord),
+      type: 'road-label',
+    })
+    rrLabelFeature.setStyle(new Style({
+      text: new Text({
+        text: `ROAD RESERVE\n${rr.width}m`,
+        font: 'bold 11px Calibri, sans-serif',
+        fill: new Fill({ color: '#9A3412' }),
+        stroke: new Stroke({ color: '#FFFFFF', width: 4 }),
+        textAlign: 'center',
+        textBaseline: 'middle',
+      }),
+    }))
+    features.push(rrLabelFeature)
+  }
+
   const source = new VectorSource({ features })
   return new VectorLayer({ source, zIndex: 10 })
 }
@@ -183,4 +233,85 @@ export async function createSplitLineLayer(
 
   const source = new VectorSource({ features: [feature] })
   return new VectorLayer({ source, zIndex: 11 })
+}
+
+/**
+ * Create a road reserve preview layer (semi-transparent orange polygon with hatched boundary).
+ * Used for previewing the road reserve before executing the subdivision.
+ */
+export async function createRoadReservePreviewLayer(
+  roadReserve: RoadReserveInfo
+): Promise<import('ol/layer/Vector').default> {
+  const [
+    { default: VectorLayer },
+    { default: VectorSource },
+    { default: Feature },
+    { default: Polygon },
+    { default: PointGeom },
+    { default: Style },
+    { default: Stroke },
+    { default: Fill },
+    { default: Text },
+  ] = await Promise.all([
+    import('ol/layer/Vector'),
+    import('ol/source/Vector'),
+    import('ol/Feature'),
+    import('ol/geom/Polygon'),
+    import('ol/geom/Point'),
+    import('ol/style/Style'),
+    import('ol/style/Stroke'),
+    import('ol/style/Fill'),
+    import('ol/style/Text'),
+  ])
+
+  const features: InstanceType<typeof Feature>[] = []
+
+  // Road corridor polygon
+  const closed = [...roadReserve.roadPolygon, roadReserve.roadPolygon[0]]
+  const coords3857 = await arrayTo3857(
+    closed.map(p => [p.easting, p.northing] as [number, number])
+  )
+
+  const roadFeature = new Feature({
+    geometry: new Polygon([coords3857]),
+    type: 'road-reserve-preview',
+  })
+  roadFeature.setStyle(new Style({
+    fill: new Fill({ color: 'rgba(251, 146, 60, 0.35)' }),
+    stroke: new Stroke({
+      color: '#EA580C',
+      width: 3,
+      lineDash: [10, 5],
+    }),
+  }))
+  features.push(roadFeature)
+
+  // Road width label at centroid
+  let cx = 0, cy = 0
+  for (const p of roadReserve.roadPolygon) {
+    cx += p.easting
+    cy += p.northing
+  }
+  cx /= roadReserve.roadPolygon.length
+  cy /= roadReserve.roadPolygon.length
+  const centroidCoord = await to3857(cx, cy)
+
+  const labelFeature = new Feature({
+    geometry: new PointGeom(centroidCoord),
+    type: 'road-label-preview',
+  })
+  labelFeature.setStyle(new Style({
+    text: new Text({
+      text: `ROAD RESERVE\n${roadReserve.width}m`,
+      font: 'bold 11px Calibri, sans-serif',
+      fill: new Fill({ color: '#9A3412' }),
+      stroke: new Stroke({ color: '#FFFFFF', width: 4 }),
+      textAlign: 'center',
+      textBaseline: 'middle',
+    }),
+  }))
+  features.push(labelFeature)
+
+  const source = new VectorSource({ features })
+  return new VectorLayer({ source, zIndex: 12 })
 }

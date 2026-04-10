@@ -27,6 +27,7 @@ import type {
   SubdivisionResult,
   SubdividedLot,
   SplitLine,
+  RoadReserveInfo,
 } from '@/types/subdivision'
 
 // ─── Utility helpers ────────────────────────────────────────────────────────
@@ -385,10 +386,261 @@ function pickClosest(points: Point2D[], reference: Point2D): Point2D {
   return closest
 }
 
+// ─── Road Reserve Generation ──────────────────────────────────────────────────
+
+/**
+ * Create a road reserve corridor along selected edges of a parent polygon.
+ *
+ * Algorithm:
+ * 1. For each selected edge, compute the inward parallel offset at `width` distance
+ * 2. Use line-line intersection to compute road corridor corners
+ * 3. Clip the parent polygon (Sutherland-Hodgman) to remove the road corridor,
+ *    leaving the developable area
+ *
+ * @param parentVertices - Parent parcel polygon (closed or open)
+ * @param width - Road reserve width in meters (e.g., 12 for a 2-lane road)
+ * @param edgeIndices - Edge indices to apply road reserve; empty = auto-detect longest
+ * @returns Road corridor polygon, remaining developable polygon, and clipped edge indices
+ */
+export function createRoadReserve(
+  parentVertices: Point2D[],
+  width: number,
+  edgeIndices: number[]
+): {
+  roadPolygon: Point2D[]       // the road corridor polygon
+  remainingPolygon: Point2D[]  // the developable area (parent minus road)
+  clippedEdges: number[]       // which edges were used
+} {
+  const polygon = stripClosing(parentVertices)
+  const n = polygon.length
+
+  if (n < 3 || width <= 0) {
+    return { roadPolygon: [], remainingPolygon: polygon, clippedEdges: [] }
+  }
+
+  // Auto-detect longest edge if none specified
+  let edges = [...edgeIndices]
+  if (edges.length === 0) {
+    let maxLen = 0
+    let maxIdx = 0
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n
+      const dx = polygon[j].easting - polygon[i].easting
+      const dy = polygon[j].northing - polygon[i].northing
+      const len = Math.sqrt(dx * dx + dy * dy)
+      if (len > maxLen) {
+        maxLen = len
+        maxIdx = i
+      }
+    }
+    edges = [maxIdx]
+  }
+
+  // Sort and deduplicate, wrap to valid range
+  edges = Array.from(new Set(edges.map(e => ((e % n) + n) % n))).sort((a, b) => a - b)
+
+  // Compute centroid for inward direction determination
+  const centroid = polyCentroid(polygon)
+
+  // For each road edge, compute the inward normal and offset points
+  const edgeData: Array<{
+    idx: number
+    start: Point2D
+    end: Point2D
+    normalX: number
+    normalY: number
+    offsetStart: Point2D
+    offsetEnd: Point2D
+  }> = []
+
+  for (const edgeIdx of edges) {
+    const j = (edgeIdx + 1) % n
+    const A = polygon[edgeIdx]
+    const B = polygon[j]
+
+    const dx = B.easting - A.easting
+    const dy = B.northing - A.northing
+    const edgeLen = Math.sqrt(dx * dx + dy * dy)
+
+    if (edgeLen < 1e-10) continue
+
+    // Two candidate perpendiculars: (-dy/len, dx/len) and (dy/len, -dx/len)
+    const nx1 = -dy / edgeLen
+    const ny1 = dx / edgeLen
+
+    // Pick the one pointing inward (towards centroid)
+    const mid = { easting: (A.easting + B.easting) / 2, northing: (A.northing + B.northing) / 2 }
+    const p1 = { easting: mid.easting + nx1 * 10, northing: mid.northing + ny1 * 10 }
+    const d1 = Math.sqrt((p1.easting - centroid.easting) ** 2 + (p1.northing - centroid.northing) ** 2)
+    const dOrig = Math.sqrt((mid.easting - centroid.easting) ** 2 + (mid.northing - centroid.northing) ** 2)
+
+    const inx = d1 < dOrig ? nx1 : -nx1
+    const iny = d1 < dOrig ? ny1 : -ny1
+
+    const offsetStart = { easting: A.easting + width * inx, northing: A.northing + width * iny }
+    const offsetEnd = { easting: B.easting + width * inx, northing: B.northing + width * iny }
+
+    edgeData.push({
+      idx: edgeIdx,
+      start: A,
+      end: B,
+      normalX: inx,
+      normalY: iny,
+      offsetStart,
+      offsetEnd,
+    })
+  }
+
+  // ─── Compute remaining polygon by clipping against each offset line ────
+  let remaining = [...polygon]
+
+  for (const edge of edgeData) {
+    // Clip against the offset line, keeping the centroid (interior) side
+    // clipEdge keeps points on LEFT of directed edge (edgeStart → edgeEnd)
+    // We need centroid to be on the LEFT of the clip edge
+    const side = sideOfLine(centroid, edge.offsetStart, edge.offsetEnd)
+    if (side >= 0) {
+      remaining = clipEdge(remaining, edge.offsetStart, edge.offsetEnd)
+    } else {
+      remaining = clipEdge(remaining, edge.offsetEnd, edge.offsetStart)
+    }
+  }
+
+  // ─── Build road corridor polygon ──────────────────────────────────────
+  const roadPolygon = buildRoadCorridor(polygon, edges, edgeData, n, width)
+
+  return {
+    roadPolygon: roadPolygon.length >= 3 ? stripClosing(roadPolygon) : [],
+    remainingPolygon: remaining.length >= 3 ? stripClosing(remaining) : polygon,
+    clippedEdges: edgeData.map(e => e.idx),
+  }
+}
+
+/**
+ * Build the road corridor polygon from edge data.
+ *
+ * Groups consecutive road edges into runs. For each run:
+ * - Outer boundary: original polygon vertices along the run
+ * - Inner boundary: offset vertices along the run (reversed)
+ * - Connected at ends by perpendicular caps
+ *
+ * For non-consecutive edges, each run produces a separate corridor segment;
+ * they are merged into a single polygon using connecting segments.
+ */
+function buildRoadCorridor(
+  polygon: Point2D[],
+  edges: number[],
+  edgeData: Array<{
+    idx: number
+    start: Point2D
+    end: Point2D
+    normalX: number
+    normalY: number
+    offsetStart: Point2D
+    offsetEnd: Point2D
+  }>,
+  n: number,
+  width: number
+): Point2D[] {
+  if (edgeData.length === 0) return []
+
+  // Build a map from edge index to edge data
+  const edgeMap = new Map<number, typeof edgeData[0]>()
+  for (const ed of edgeData) {
+    edgeMap.set(ed.idx, ed)
+  }
+
+  // Group edges into runs of consecutive edges (modular)
+  const runs: number[][] = []
+  let currentRun: number[] = []
+
+  for (let i = 0; i < edges.length; i++) {
+    if (i === 0) {
+      currentRun = [edges[i]]
+    } else if (edges[i] === (edges[i - 1] + 1) % n || edges[i] === edges[i - 1] + 1) {
+      currentRun.push(edges[i])
+    } else {
+      runs.push(currentRun)
+      currentRun = [edges[i]]
+    }
+  }
+  runs.push(currentRun)
+
+  // Build each run's corridor polygon
+  const corridorParts: Point2D[][] = []
+
+  for (const run of runs) {
+    const firstEdge = edgeMap.get(run[0])
+    const lastEdge = edgeMap.get(run[run.length - 1])
+    if (!firstEdge || !lastEdge) continue
+
+    const corridor: Point2D[] = []
+
+    // ── Outer boundary: walk along original polygon vertices ──
+    corridor.push({ ...firstEdge.start })
+    for (const edgeIdx of run) {
+      const ed = edgeMap.get(edgeIdx)
+      if (!ed) continue
+      corridor.push({ ...ed.end })
+    }
+
+    // ── End cap: perpendicular from last edge endpoint to offset ──
+    corridor.push({ ...lastEdge.offsetEnd })
+
+    // ── Inner boundary: walk back along offset lines (reversed) ──
+    for (let i = run.length - 1; i >= 0; i--) {
+      const edgeIdx = run[i]
+      const ed = edgeMap.get(edgeIdx)
+      if (!ed) continue
+
+      // If there's a next edge in the run (i.e., a corner), add bevel point
+      if (i < run.length - 1) {
+        const nextEdge = edgeMap.get(run[i + 1])
+        if (nextEdge) {
+          // The bevel connects offsetStart of next edge to offsetEnd of current edge
+          // But we're going backwards, so we add offsetEnd of current edge first,
+          // then offsetStart of the next edge is already added
+          // Actually: at the shared vertex, the two offset points are:
+          // ed.offsetEnd (end of current edge's offset) and nextEdge.offsetStart (start of next edge's offset)
+          // The bevel connects them: ed.offsetEnd → nextEdge.offsetStart
+          // But since we're reversed, we encounter nextEdge first, then ed
+        }
+      }
+      corridor.push({ ...ed.offsetStart })
+    }
+
+    if (corridor.length >= 3) {
+      corridorParts.push(corridor)
+    }
+  }
+
+  // If only one corridor part, return it directly
+  if (corridorParts.length === 1) {
+    return corridorParts[0]
+  }
+
+  // For multiple parts, merge them by finding shortest connecting segment
+  // Simple approach: connect end of part i to start of part i+1
+  if (corridorParts.length > 1) {
+    const merged: Point2D[] = []
+    for (const part of corridorParts) {
+      if (merged.length > 0) {
+        merged.push(part[0])
+      }
+      merged.push(...part)
+    }
+    return merged
+  }
+
+  return []
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
  * Subdivide a parent parcel polygon using the specified method and parameters.
+ * If road reserve parameters are provided, the road corridor is carved out first
+ * and subdivision is applied to the remaining developable area.
  */
 export function subdivide(
   parentVertices: Point2D[],
@@ -409,20 +661,40 @@ export function subdivide(
     remainderAreaHa: 0,
   }
 
+  // ─── Apply road reserve if configured ─────────────────────────────────
+  const rrWidth = params.roadReserveWidth
+  const rrEdges = params.roadReserveEdges
+  let effectiveParent = parent
+
+  if (rrWidth && rrWidth > 0 && rrEdges !== undefined) {
+    const rr = createRoadReserve(parent, rrWidth, rrEdges)
+    if (rr.roadPolygon.length >= 3) {
+      result.roadReserve = {
+        roadPolygon: rr.roadPolygon,
+        width: rrWidth,
+        clippedEdges: rr.clippedEdges,
+        areaHa: areaHa(rr.roadPolygon),
+      }
+      if (rr.remainingPolygon.length >= 3) {
+        effectiveParent = rr.remainingPolygon
+      }
+    }
+  }
+
   let lots: SubdividedLot[]
 
   switch (method) {
     case 'single-split':
-      lots = subdivideSingleSplit(parent, params.splitLine!)
+      lots = subdivideSingleSplit(effectiveParent, params.splitLine!)
       break
     case 'grid':
-      lots = subdivideGrid(parent, params.rows ?? 2, params.cols ?? 2)
+      lots = subdivideGrid(effectiveParent, params.rows ?? 2, params.cols ?? 2)
       break
     case 'radial':
-      lots = subdivideRadial(parent, params.center, params.numLots ?? 4)
+      lots = subdivideRadial(effectiveParent, params.center, params.numLots ?? 4)
       break
     case 'area':
-      lots = subdivideByArea(parent, params.targetArea ?? parentArea / 2, params.preferredBearing)
+      lots = subdivideByArea(effectiveParent, params.targetArea ?? parentArea / 2, params.preferredBearing)
       break
     default:
       throw new Error(`Unknown subdivision method: ${method}`)
@@ -430,7 +702,8 @@ export function subdivide(
 
   result.lots = lots
   result.totalAreaHa = lots.reduce((s, l) => s + l.areaHa, 0)
-  result.remainderAreaHa = Math.max(0, parentArea - result.totalAreaHa)
+  const effectiveArea = areaHa(effectiveParent)
+  result.remainderAreaHa = Math.max(0, effectiveArea - result.totalAreaHa)
 
   return result
 }
