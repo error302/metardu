@@ -12,6 +12,8 @@ import FeedbackWidget from '@/components/FeedbackWidget'
 import KeyboardShortcuts from '@/components/KeyboardShortcuts'
 import { QuickCompute } from '@/components/layout/QuickCompute'
 import { ProjectionInit } from '@/components/layout/ProjectionInit'
+import { OfflineIndicator } from '@/components/app/OfflineIndicator'
+import { AppUpdateBanner } from '@/components/app/AppUpdateBanner'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.vercel.app'),
@@ -89,9 +91,16 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#111111" />
+        <meta name="application-name" content="METARDU" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="METARDU" />
+        <meta name="description" content="Professional surveying platform for land surveyors. Traverse adjustment, leveling, COGO, GPS stakeout, PDF reports." />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="msapplication-TileColor" content="#111111" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="color-scheme" content="dark" />
         <link rel="icon" href="/metardu-logo.jpg" type="image/jpeg" />
         <link rel="apple-touch-icon" href="/metardu-logo.jpg" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -109,6 +118,8 @@ export default function RootLayout({
           Skip to content
         </a>
         <AuthProvider>
+          <AppUpdateBanner />
+          <OfflineIndicator />
           <ProjectionInit />
           <LanguageProvider>
             <CountryProvider>
