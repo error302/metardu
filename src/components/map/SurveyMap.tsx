@@ -6,6 +6,9 @@ import { nearestKenCORSStations, type KenCORSStation } from '@/lib/map/kencors';
 import type { AdjustedStation } from '@/lib/engine/planGeometry';
 import { createAnnotationLayer } from '@/lib/map/annotations';
 import { MeasurementTool } from './MeasurementTool';
+import { VertexEditToolbar } from './VertexEditToolbar';
+import { useVertexEditing } from '@/hooks/useVertexEditing';
+import { LayerControl } from './LayerControl';
 
 interface SurveyMapProps {
   projectId: string;
@@ -14,6 +17,10 @@ interface SurveyMapProps {
   centroidNorthing: number;
   onBeaconClick?: (label: string, easting: number, northing: number) => void;
   readOnly?: boolean;
+  /** Enable the vertex editing toolbar and interactions */
+  enableEditing?: boolean;
+  /** Callback with updated vertices (EPSG:21037) after each edit */
+  onVerticesChange?: (updated: Array<{ easting: number; northing: number }>) => void;
 }
 
 interface NearestStation extends KenCORSStation {
@@ -27,13 +34,35 @@ export default function SurveyMap({
   centroidNorthing,
   onBeaconClick,
   readOnly = true,
+  enableEditing = false,
+  onVerticesChange,
 }: SurveyMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import('ol/Map').default | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [nearestStations, setNearestStations] = useState<NearestStation[]>([]);
   const [clickedCoord, setClickedCoord] = useState<{ easting: number; northing: number } | null>(null);
-  const [basemap, setBasemap] = useState<'osm' | 'blank'>('osm');
+  const [basemap, setBasemap] = useState<'osm' | 'satellite' | 'blank'>('osm');
+
+  // ── Vertex editing state ──────────────────────────────────────
+  const [vertexEditingEnabled, setVertexEditingEnabled] = useState(false);
+  const [snapEnabled, setSnapEnabled] = useState(true);
+  const [snapTolerance, setSnapTolerance] = useState(10);
+
+  // Derive the editable vertices from adjustedStations
+  const editableVertices = adjustedStations.map(s => ({
+    easting: s.adjustedEasting,
+    northing: s.adjustedNorthing,
+  }));
+
+  const { state: vertexEditState } = useVertexEditing({
+    map: mapInstanceRef.current,
+    vertices: editableVertices,
+    enabled: enableEditing && vertexEditingEnabled,
+    onVerticesChange: onVerticesChange ?? (() => {}),
+    snapTolerance,
+    snapEnabled,
+  });
 
   async function to3857Single(e: number, n: number): Promise<[number, number]> {
     const { transform } = await import('ol/proj');
@@ -94,6 +123,9 @@ export default function SurveyMap({
         createKenCORSLayer(kenCORSWithCoords),
       ]);
 
+      // Tag the OSM layer so LayerControl can find it
+      osmLayer.set('basemapId', 'osm');
+
       // Create annotation layer with bearings, distances, and area
       const stations21037 = adjustedStations.map(s => ({
         pointName: s.pointName,
@@ -148,11 +180,13 @@ export default function SurveyMap({
 
     if (basemap === 'osm') {
       map.getLayers().getArray()
-        .filter(l => l.get('type') === 'tile')
+        .filter(l => l.get('basemapId'))
         .forEach(l => l.setVisible(false));
       setBasemap('blank');
     } else {
-      map.getLayers().getArray().forEach(l => l.setVisible(true));
+      map.getLayers().getArray()
+        .filter(l => l.get('basemapId') === 'osm')
+        .forEach(l => l.setVisible(true));
       setBasemap('osm');
     }
   }, [basemap]);
@@ -178,12 +212,6 @@ export default function SurveyMap({
         >
           Fit to Parcel
         </button>
-        <button
-          onClick={toggleBasemap}
-          className="px-3 py-1.5 border border-gray-300 rounded text-xs font-medium hover:bg-gray-50"
-        >
-          {basemap === 'osm' ? 'Blank Map' : 'Satellite / OSM'}
-        </button>
         <div className="flex-1" />
         <div className="flex items-center gap-3 text-xs text-gray-600">
           <span className="font-medium">Nearest KenCORS:</span>
@@ -198,8 +226,23 @@ export default function SurveyMap({
       <div className="relative flex-1">
         <div ref={mapRef} className="w-full h-full" />
 
-        <div className="absolute top-3 right-3 z-10">
+        <div className="absolute top-3 right-3 z-10 flex flex-col gap-3 items-end">
+          {enableEditing && (
+            <VertexEditToolbar
+              enabled={vertexEditingEnabled}
+              onToggle={() => setVertexEditingEnabled(v => !v)}
+              snapEnabled={snapEnabled}
+              onSnapToggle={() => setSnapEnabled(v => !v)}
+              snapTolerance={snapTolerance}
+              onToleranceChange={setSnapTolerance}
+              editState={vertexEditState}
+            />
+          )}
           <MeasurementTool map={mapInstanceRef.current} />
+          <LayerControl
+            map={mapInstanceRef.current}
+            onBasemapChange={setBasemap}
+          />
         </div>
 
         {clickedCoord && (
