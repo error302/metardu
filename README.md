@@ -70,7 +70,7 @@ Every project follows the same workflow:
 - TypeScript 5.x (95%+ coverage)
 - Tailwind CSS
 - Supabase (Auth + PostgreSQL + RLS)
-- Leaflet (maps)
+- OpenLayers + Leaflet (maps)
 - Capacitor (Android mobile)
 - PWA support (offline-first)
 - Sentry (error monitoring)
