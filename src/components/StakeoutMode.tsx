@@ -166,6 +166,16 @@ export default function StakeoutMode({ points, utmZone, hemisphere, onComplete }
     }
   }, [])
 
+  // Close AudioContext on unmount
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {})
+        audioContextRef.current = null
+      }
+    }
+  }, [])
+
   const handleMarkStaked = () => {
     if (!currentPoint) return
     const newStaked = new Set(stakedPoints)

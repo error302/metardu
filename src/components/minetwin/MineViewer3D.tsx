@@ -56,13 +56,32 @@ export default function MineViewer3D({ mesh }: MineViewer3DProps) {
     scene.add(gridHelper)
     
     const animate = () => {
-      requestAnimationFrame(animate)
+      frameIdRef.current = requestAnimationFrame(animate)
       renderer.render(scene, camera)
     }
+    const frameIdRef = { current: 0 }
     animate()
     
     return () => {
+      cancelAnimationFrame(frameIdRef.current)
+      renderer.setAnimationLoop(null)
+      
+      // Traverse scene and dispose all geometries and materials
+      scene.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          object.geometry.dispose()
+          if (Array.isArray(object.material)) {
+            object.material.forEach((m) => m.dispose())
+          } else {
+            object.material.dispose()
+          }
+        }
+      })
+      
       renderer.dispose()
+      if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
+        containerRef.current.removeChild(renderer.domElement)
+      }
     }
   }, [mesh])
   

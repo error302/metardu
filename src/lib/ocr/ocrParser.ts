@@ -510,6 +510,9 @@ export function verifyAndRecompute(rows: LevelBookRow[], openingRL: number): Lev
       const computedRL = hi - row.fs;
       row.rl = computedRL;
       currentRL = computedRL;
+      // Reset HI after FS: a foresight terminates the current instrument setup.
+      // The next reading must establish a new HI via a BS before IS is valid.
+      hi = null;
     }
 
     // Re-flag

@@ -20,7 +20,6 @@ const nextConfig = {
   // Image optimization
   images: {
     unoptimized: true,
-    formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60 * 60 * 24, // 1 day
   },
   
@@ -36,16 +35,6 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   generateEtags: true,
-  
-  // Bundle optimization
-  modularizeImports: {
-    '@mui/material': {
-      transform: '@mui/material/{{member}}',
-    },
-    'lucide-react': {
-      transform: 'lucide-react/dist/esm/icons/{{member}}',
-    },
-  },
   
   // Experimental features
   experimental: {

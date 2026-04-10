@@ -132,9 +132,21 @@ export function generateSubdivisionDXF(
   // ─── Area label for parent ─────────────────────────────────────────────
   drawing.setActiveLayer('LABELS')
 
-  // Compute parent centroid
-  const centroidE = parent.reduce((s, p) => s + p.easting, 0) / n
-  const centroidN = parent.reduce((s, p) => s + p.northing, 0) / n
+  // Compute parent centroid using area-weighted (Shoelace-based) formula
+  // Correct for non-convex polygons, unlike simple arithmetic mean
+  let signedArea = 0;
+  let cx6A = 0;
+  let cy6A = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const cross = parent[i].easting * parent[j].northing - parent[j].easting * parent[i].northing;
+    signedArea += cross;
+    cx6A += (parent[i].easting + parent[j].easting) * cross;
+    cy6A += (parent[i].northing + parent[j].northing) * cross;
+  }
+  signedArea /= 2;
+  const centroidE = signedArea !== 0 ? cx6A / (6 * signedArea) : parent.reduce((s, p) => s + p.easting, 0) / n;
+  const centroidN = signedArea !== 0 ? cy6A / (6 * signedArea) : parent.reduce((s, p) => s + p.northing, 0) / n;
 
   drawing.drawText(
     centroidE,

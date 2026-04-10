@@ -354,13 +354,16 @@ export async function setupOnlineListener(onOnline: () => void): Promise<() => v
     onOnline()
   }
   
-  window.addEventListener('online', handleOnline)
-  window.addEventListener('offline', () => {
+  const handleOffline = () => {
     if (process.env.NODE_ENV !== 'production') console.log('[Sync] Offline mode - changes stored locally')
-  })
+  }
+  
+  window.addEventListener('online', handleOnline)
+  window.addEventListener('offline', handleOffline)
   
   return () => {
     window.removeEventListener('online', handleOnline)
+    window.removeEventListener('offline', handleOffline)
   }
 }
 

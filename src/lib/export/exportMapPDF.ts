@@ -19,7 +19,7 @@ let injectedStyleEl: HTMLStyleElement | null = null;
  * Inject print-specific CSS into the document head.
  * Hides everything except the map container and sheet layout overlays.
  */
-function injectPrintCSS(mapContainerId: string): void {
+function injectPrintCSS(mapContainerId: string, paperSize: string, orientation: string): void {
   if (injectedStyleEl) return; // already injected
 
   const css = `
@@ -73,7 +73,7 @@ function injectPrintCSS(mapContainerId: string): void {
 
       /* Page setup */
       @page {
-        size: A3 landscape;
+        size: ${paperSize} ${orientation};
         margin: 10mm;
       }
     }
@@ -115,7 +115,7 @@ export async function exportMapPDF(
   const orientation = options?.orientation ?? 'landscape';
 
   // Inject print CSS
-  injectPrintCSS(mapContainerId);
+  injectPrintCSS(mapContainerId, paperSize, orientation);
 
   // Add a short delay to let the browser repaint with the new CSS
   await new Promise((resolve) => setTimeout(resolve, 300));

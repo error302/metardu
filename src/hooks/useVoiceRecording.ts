@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 export interface VoiceNote {
   id: string;
@@ -166,6 +166,29 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
       startTimer();
     }
   }, [startTimer]);
+
+  // Clean up on unmount: stop recorder, clear interval, release mic
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        const stream = recorder.stream;
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+        try {
+          recorder.stop();
+        } catch {
+          // ignore if already stopped
+        }
+      }
+      mediaRecorderRef.current = null;
+    };
+  }, []);
 
   return {
     isRecording,

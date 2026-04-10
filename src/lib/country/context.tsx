@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react'
 import {
   SurveyingCountry,
   ALL_COUNTRIES,
@@ -93,38 +93,38 @@ export function CountryProvider({ children }: { children: ReactNode }) {
       .catch(() => {})
   }, [])
 
-  const standard = getCountryStandard(country)
-  const countryInfo = ALL_COUNTRIES.find((c: any) => c.id === country)
+  const standard = useMemo(() => getCountryStandard(country), [country])
+  const countryInfo = useMemo(() => ALL_COUNTRIES.find((c: any) => c.id === country), [country])
 
-  function setCountry(c: SurveyingCountry) {
+  const setCountry = useCallback((c: SurveyingCountry) => {
     setCountryState(c)
     localStorage.setItem('metardu_country', c)
     setCountryCookie(c)
-  }
+  }, [])
 
-  const getAreaRule = (sqMetres: number) => getAreaDecimalPlaces(country, sqMetres)
-  const getSlope = () => getSlopeRule(country)
-  const getBeacon = () => getBeaconRule(country)
-  const getFieldNote = () => getFieldNoteRule(country)
-  const getReportReq = () => getSurveyorReportRequirement(country)
+  const getAreaRule = useCallback((sqMetres: number) => getAreaDecimalPlaces(country, sqMetres), [country])
+  const getSlope = useCallback(() => getSlopeRule(country), [country])
+  const getBeacon = useCallback(() => getBeaconRule(country), [country])
+  const getFieldNote = useCallback(() => getFieldNoteRule(country), [country])
+  const getReportReq = useCallback(() => getSurveyorReportRequirement(country), [country])
+
+  const value = useMemo<CountryContextType>(() => ({
+    country,
+    standard,
+    t: (key) => key,
+    setCountry,
+    getTraverseOrder: (env) => getTraverseOrderForEnvironment(country, env),
+    getAreaRule,
+    getSlope,
+    getBeacon,
+    getFieldNote,
+    getReportReq,
+    flag: countryInfo?.flag ?? '🌍',
+    isoCode: countryInfo?.isoCode ?? 'XX',
+  }), [country, standard, setCountry, getAreaRule, getSlope, getBeacon, getFieldNote, getReportReq, countryInfo])
 
   return (
-    <CountryContext.Provider
-      value={{
-        country,
-        standard,
-        t: (key) => key,
-        setCountry,
-        getTraverseOrder: (env) => getTraverseOrderForEnvironment(country, env),
-        getAreaRule,
-        getSlope,
-        getBeacon,
-        getFieldNote,
-        getReportReq,
-        flag: countryInfo?.flag ?? '🌍',
-        isoCode: countryInfo?.isoCode ?? 'XX',
-      }}
-    >
+    <CountryContext.Provider value={value}>
       {children}
     </CountryContext.Provider>
   )

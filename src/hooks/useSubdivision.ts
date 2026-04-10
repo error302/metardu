@@ -289,7 +289,8 @@ export function useSubdivision({
   }, [map])
 
   const removeDrawInteraction = useCallback(() => {
-    if (drawInteractionRef.current) {
+    if (mapRef.current && drawInteractionRef.current) {
+      mapRef.current.removeInteraction(drawInteractionRef.current)
       drawInteractionRef.current = null
     }
   }, [])
@@ -333,8 +334,25 @@ export function useSubdivision({
 
   // ─── Center point picking (for radial) ───────────────────────────────
 
+  const pickCenterPointHandlerRef = useRef<((evt: any) => void) | null>(null)
+
+  // Clean up pickCenterPoint handler on unmount
+  useEffect(() => {
+    return () => {
+      if (mapRef.current && pickCenterPointHandlerRef.current) {
+        mapRef.current.un('click', pickCenterPointHandlerRef.current)
+        pickCenterPointHandlerRef.current = null
+      }
+    }
+  }, [])
+
   const pickCenterPoint = useCallback(() => {
     if (!map) return
+
+    // Clean up previous handler if any
+    if (pickCenterPointHandlerRef.current) {
+      map.un('click', pickCenterPointHandlerRef.current)
+    }
 
     const handleMapClick = async (evt: any) => {
       const [x, y] = evt.coordinate as [number, number]
@@ -344,14 +362,14 @@ export function useSubdivision({
       const center: Point2D = { easting: e, northing: n }
       updateParams({ center })
 
-      map.un('click', handleMapClick)
+      if (pickCenterPointHandlerRef.current) {
+        map.un('click', pickCenterPointHandlerRef.current)
+        pickCenterPointHandlerRef.current = null
+      }
     }
 
+    pickCenterPointHandlerRef.current = handleMapClick
     map.on('click', handleMapClick)
-
-    return () => {
-      map.un('click', handleMapClick)
-    }
   }, [map, updateParams])
 
   // ─── Road reserve preview ───────────────────────────────────────────

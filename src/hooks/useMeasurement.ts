@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Map from 'ol/Map';
 import { Vector as VectorSource } from 'ol/source';
 import { Vector as VectorLayer } from 'ol/layer';
@@ -266,6 +266,23 @@ export function useMeasurement(map: Map | null) {
     
     return null;
   }, [state.result]);
+
+  // Clean up on unmount: remove layer and click handler from map
+  useEffect(() => {
+    return () => {
+      if (map) {
+        if (clickHandlerRef.current) {
+          map.un('click', clickHandlerRef.current);
+          clickHandlerRef.current = null;
+        }
+        if (layerRef.current) {
+          map.removeLayer(layerRef.current);
+          layerRef.current = null;
+        }
+        sourceRef.current = null;
+      }
+    };
+  }, [map]);
 
   return {
     state,

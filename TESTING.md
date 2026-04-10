@@ -1,4 +1,4 @@
-# GeoNova Testing Guide
+# METARDU Testing Guide
 
 ## Unit Tests (Engine)
 

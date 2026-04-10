@@ -112,6 +112,11 @@ export default function SurveyMap({
     if (!mapRef.current || mapInstanceRef.current) return;
 
     let map: import('ol/Map').default;
+    let cancelled = false;
+
+    // Store handler references for cleanup
+    let viewChangeHandler: (() => void) | null = null;
+    let mapClickHandler: ((evt: any) => void) | null = null;
 
     async function initMap() {
       await registerProjections();
@@ -119,6 +124,8 @@ export default function SurveyMap({
       const { default: Map }  = await import('ol/Map');
       const { default: View } = await import('ol/View');
       const { transform }     = await import('ol/proj');
+
+      if (cancelled) return;
 
       const storageKey = `metardu_map_${projectId}`;
       const saved = localStorage.getItem(storageKey);
@@ -132,6 +139,8 @@ export default function SurveyMap({
 
       const { createOSMLayer, createParcelLayer, createBeaconLayer, createKenCORSLayer }
         = await import('@/lib/map/layers');
+
+      if (cancelled) return;
 
       const closed = [...adjustedStations, adjustedStations[0]];
       const coords3857 = await arrayTo3857(
@@ -155,6 +164,8 @@ export default function SurveyMap({
         }))
       );
 
+      if (cancelled) return;
+
       const [osmLayer, parcelLayer, beaconLayer, kenCORSLayer] = await Promise.all([
         createOSMLayer(),
         createParcelLayer(coords3857),
@@ -176,6 +187,8 @@ export default function SurveyMap({
         stations21037,
       });
 
+      if (cancelled) return;
+
       map = new Map({
         target: mapRef.current!,
         layers: [osmLayer, kenCORSLayer, parcelLayer, beaconLayer, annotationLayer],
@@ -187,19 +200,21 @@ export default function SurveyMap({
         controls: [],
       });
 
-      map.getView().on('change', () => {
+      viewChangeHandler = () => {
         const state = {
           center: map.getView().getCenter(),
           zoom: map.getView().getZoom(),
         };
         localStorage.setItem(storageKey, JSON.stringify(state));
-      });
+      };
+      map.getView().on('change', viewChangeHandler);
 
-      map.on('click', async (evt) => {
+      mapClickHandler = async (evt: any) => {
         const [x, y] = evt.coordinate as [number, number];
         const [e, n] = await to21037(x, y);
         setClickedCoord({ easting: e, northing: n });
-      });
+      };
+      map.on('click', mapClickHandler);
 
       mapInstanceRef.current = map;
       setMapReady(true);
@@ -208,8 +223,24 @@ export default function SurveyMap({
     initMap();
 
     return () => {
-      mapInstanceRef.current?.setTarget(undefined);
-      mapInstanceRef.current = null;
+      cancelled = true;
+      const instance = mapInstanceRef.current;
+      if (instance) {
+        // Remove event listeners before destroying
+        try {
+          const view = instance.getView();
+          if (view && viewChangeHandler) {
+            view.un('change', viewChangeHandler);
+          }
+        } catch { /* ignore */ }
+        try {
+          if (mapClickHandler) {
+            instance.un('click', mapClickHandler);
+          }
+        } catch { /* ignore */ }
+        instance.setTarget(undefined);
+        mapInstanceRef.current = null;
+      }
     };
   }, [projectId, centroidEasting, centroidNorthing]);
 

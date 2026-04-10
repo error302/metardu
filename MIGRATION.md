@@ -528,7 +528,7 @@ UPSTASH_REDIS_REST_TOKEN=your-token-here
 # EMAIL COMMUNICATIONS
 # ============================================================
 RESEND_API_KEY=re_your_key_here
-RESEND_FROM_EMAIL=GeoNova <hello@geonova.app>
+RESEND_FROM_EMAIL=METARDU <hello@geonova.app>
 
 # ============================================================
 # MONITORING & LOGGING

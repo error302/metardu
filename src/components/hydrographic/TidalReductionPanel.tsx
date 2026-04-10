@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   reduceSoundings,
   computeTidalConstants,
@@ -62,10 +62,12 @@ export function TidalReductionPanel() {
   const soundings = useMemo(() => parseSoundingCSV(soundingCSV), [soundingCSV])
   const tideObs = useMemo(() => parseTideCSV(tideCSV), [tideCSV])
 
+  // Clear error when inputs change
+  useEffect(() => { setError(null); }, [soundings, tideObs])
+
   // Reduce soundings
   const reducedSoundings = useMemo((): ReducedSounding[] | null => {
     if (soundings.length === 0 || tideObs.length === 0) return null
-    setError(null)
     try {
       return reduceSoundings(soundings, tideObs)
     } catch (e: any) {

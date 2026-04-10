@@ -320,11 +320,23 @@ export function usePrint(defaultOptions?: PrintOptions) {
   const [paperSize, setPaperSize] = useState<PaperSize>(defaultOptions?.paperSize ?? 'a4');
   const [orientation, setOrientation] = useState<Orientation>(defaultOptions?.orientation ?? 'landscape');
   const prevPrintTarget = useRef<string | undefined>(defaultOptions?.printTarget);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Update target ref when prop changes
   useEffect(() => {
     prevPrintTarget.current = defaultOptions?.printTarget;
   }, [defaultOptions?.printTarget]);
+
+  // Cleanup on unmount: clear any pending fallback timer and remove injected CSS
+  useEffect(() => {
+    return () => {
+      if (fallbackTimerRef.current !== null) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      removePrintCSS();
+    };
+  }, []);
 
   const print = useCallback(
     async (overrides?: Partial<PrintOptions>) => {
@@ -334,6 +346,12 @@ export function usePrint(defaultOptions?: PrintOptions) {
         ...defaultOptions,
         ...overrides,
       };
+
+      // Clear any previous fallback timer
+      if (fallbackTimerRef.current !== null) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
 
       setIsPrinting(true);
       injectPrintCSS(opts);
@@ -345,16 +363,21 @@ export function usePrint(defaultOptions?: PrintOptions) {
 
       // Clean up after print dialog closes
       const onAfterPrint = () => {
+        if (fallbackTimerRef.current !== null) {
+          clearTimeout(fallbackTimerRef.current);
+          fallbackTimerRef.current = null;
+        }
         removePrintCSS();
         setIsPrinting(false);
         window.removeEventListener('afterprint', onAfterPrint);
       };
       window.addEventListener('afterprint', onAfterPrint);
 
-      // Fallback cleanup
-      setTimeout(() => {
+      // Fallback cleanup — stored in ref so unmount can clear it
+      fallbackTimerRef.current = setTimeout(() => {
         removePrintCSS();
         setIsPrinting(false);
+        fallbackTimerRef.current = null;
       }, 6000);
     },
     [paperSize, orientation, defaultOptions]

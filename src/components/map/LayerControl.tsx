@@ -14,7 +14,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Layers,
   ChevronDown,
@@ -73,10 +73,14 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
   const [initialized, setInitialized] = useState(false);
   const [tileLayerVisibility, setTileLayerVisibility] = useState<Record<string, boolean>>({});
 
+  // Store cleanup for the async init effect
+  const moveendCleanupRef = useRef<(() => void) | null>(null);
+
   // ─── Initialize basemap layers on map ─────────────────────────────────
   useEffect(() => {
     if (!map || initialized) return;
     const mapInstance = map; // non-null capture for async closure
+    let cancelled = false;
 
     async function init() {
       // Check if SurveyMap already created an OSM layer
@@ -88,6 +92,8 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
         createSatelliteLayer(),
         createBlankLayer(),
       ]);
+
+      if (cancelled) return;
 
       // Only create OSM layer if SurveyMap didn't already create one
       let osmLayer: Awaited<ReturnType<typeof createOSMLayer>> | null = null;
@@ -117,13 +123,23 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
 
       setInitialized(true);
 
-      // Update grid on view changes
-      const onMoveEnd = async () => {
-        if (gridEnabled) {
-          await updateGridOverlay(mapInstance, gridInterval);
-        }
+      // Update grid on view changes (debounced)
+      let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+      const onMoveEnd = () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+          if (gridEnabled) {
+            await updateGridOverlay(mapInstance, gridInterval);
+          }
+        }, 150);
       };
       mapInstance.on('moveend', onMoveEnd);
+
+      // Store cleanup for later use
+      moveendCleanupRef.current = () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        mapInstance.un('moveend', onMoveEnd);
+      };
 
       // Initial grid update if enabled
       if (gridEnabled) {
@@ -132,6 +148,12 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
     }
 
     init();
+
+    return () => {
+      cancelled = true;
+      moveendCleanupRef.current?.();
+      moveendCleanupRef.current = null;
+    };
   }, [map, initialized, gridEnabled, gridInterval]);
 
   // ─── Sync overlay opacity to layers ───────────────────────────────────

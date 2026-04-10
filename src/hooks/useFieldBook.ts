@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { SurveyType } from '@/types/project';
 import { FieldBookRow } from '@/types/fieldbook';
@@ -12,7 +12,7 @@ interface UseFieldBookOptions {
 }
 
 export function useFieldBook({ projectId, surveyType, initialRows = [] }: UseFieldBookOptions) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState<FieldBookRow[]>(initialRows);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

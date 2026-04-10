@@ -37,6 +37,7 @@ export class WebBluetoothGNSS {
   private connectionCallbacks: ConnectionCallback[] = [];
   private buffer: string = '';
   private isConnecting: boolean = false;
+  private boundNotificationHandler: ((event: Event) => void) | null = null;
 
   static isAvailable(): boolean {
     return typeof navigator !== 'undefined' && 'bluetooth' in navigator;
@@ -121,7 +122,8 @@ export class WebBluetoothGNSS {
       this.characteristic = await service.getCharacteristic(NMEA_CHARACTERISTIC_UUID);
 
       await this.characteristic.startNotifications();
-      this.characteristic.addEventListener('characteristicvaluechanged', this.handleNotification.bind(this));
+      this.boundNotificationHandler = this.handleNotification.bind(this);
+      this.characteristic.addEventListener('characteristicvaluechanged', this.boundNotificationHandler);
 
       this.notifyConnection(true);
     } catch (error) {
@@ -159,6 +161,10 @@ export class WebBluetoothGNSS {
   async disconnect(): Promise<void> {
     if (this.characteristic) {
       try {
+        if (this.boundNotificationHandler) {
+          this.characteristic.removeEventListener('characteristicvaluechanged', this.boundNotificationHandler);
+          this.boundNotificationHandler = null;
+        }
         await this.characteristic.stopNotifications();
       } catch {
         // Ignore

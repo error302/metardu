@@ -4,17 +4,17 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { 
-  MapPinIcon, 
-  ArrowPathIcon, 
-  ScaleIcon, 
-  RadioIcon,
-  XMarkIcon,
-  PlusIcon
-} from '@heroicons/react/24/outline'
-import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/solid'
+import {
+  MapPin,
+  RefreshCw,
+  Scale,
+  Radio,
+  X,
+  Plus,
+  CheckCircle2,
+  Upload,
+} from 'lucide-react'
 import { FieldBookMobile } from '@/components/fieldbook/FieldBookMobile'
-import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 
 type Tab = 'points' | 'traverse' | 'leveling' | 'radiation' | 'offline'
 type SyncStatus = 'synced' | 'pending' | 'offline'
@@ -292,9 +292,9 @@ export default function FieldPage() {
             </select>
           </div>
           <div className="flex items-center gap-2">
-            {syncStatus === 'synced' && <CheckCircleSolidIcon className="w-4 h-4 text-green-400" />}
-            {syncStatus === 'pending' && <ArrowPathIcon className="w-4 h-4 text-yellow-400 animate-spin" />}
-            {syncStatus === 'offline' && <XMarkIcon className="w-4 h-4 text-[var(--text-muted)]" />}
+            {syncStatus === 'synced' && <CheckCircle2 className="w-4 h-4 text-green-400" />}
+            {syncStatus === 'pending' && <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin" />}
+            {syncStatus === 'offline' && <X className="w-4 h-4 text-[var(--text-muted)]" />}
           </div>
         </div>
       </header>
@@ -335,7 +335,7 @@ export default function FieldPage() {
                 onClick={() => setShowBatch(!showBatch)}
                 className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] px-2 py-1 rounded flex items-center gap-1"
               >
-                {showBatch ? t('common.close') : <><PlusIcon className="w-3 h-3" /> {t('field.batchCSV')}</>}
+                {showBatch ? t('common.close') : <><Plus className="w-3 h-3" /> {t('field.batchCSV')}</>}
               </button>
             </div>
 
@@ -652,11 +652,11 @@ export default function FieldPage() {
       {/* Bottom Tabs */}
       <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border-color)]">
         <div className="flex">
-          {renderTabButton('points', MapPinIcon, 'Points')}
-          {renderTabButton('traverse', ArrowPathIcon, 'Traverse')}
-          {renderTabButton('leveling', ScaleIcon, 'Level')}
-          {renderTabButton('radiation', RadioIcon, 'Rad')}
-          {renderOfflineTabButton('offline', ArrowUpTrayIcon, 'Offline')}
+          {renderTabButton('points', MapPin, 'Points')}
+          {renderTabButton('traverse', RefreshCw, 'Traverse')}
+          {renderTabButton('leveling', Scale, 'Level')}
+          {renderTabButton('radiation', Radio, 'Rad')}
+          {renderOfflineTabButton('offline', Upload, 'Offline')}
         </div>
       </div>
     </div>

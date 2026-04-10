@@ -75,17 +75,23 @@ interface ServiceWorkerEvent extends Event {
 }
 
 // Register SW update detection — call this once from layout or a provider
+let swDetectorRegistered = false
+
 export function registerServiceWorkerUpdateDetector() {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
+  if (swDetectorRegistered) return
+  swDetectorRegistered = true
 
   navigator.serviceWorker?.getRegistration().then((registration) => {
     if (!registration) return
 
-    registration.addEventListener('updatefound', () => {
+    let stateChangeHandler: (() => void) | null = null
+
+    const updatefoundHandler = () => {
       const newWorker = registration.installing
       if (!newWorker) return
 
-      newWorker.addEventListener('statechange', () => {
+      stateChangeHandler = () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
           window.dispatchEvent(
             new CustomEvent('sw-update-available', {
@@ -93,7 +99,25 @@ export function registerServiceWorkerUpdateDetector() {
             }) as ServiceWorkerEvent
           )
         }
-      })
-    })
+      }
+      newWorker.addEventListener('statechange', stateChangeHandler)
+    }
+
+    registration.addEventListener('updatefound', updatefoundHandler)
+
+    // Store cleanup for potential module teardown
+    ;(registerServiceWorkerUpdateDetector as any)._cleanup = () => {
+      if (stateChangeHandler && registration.installing) {
+        registration.installing.removeEventListener('statechange', stateChangeHandler)
+      }
+      registration.removeEventListener('updatefound', updatefoundHandler)
+      swDetectorRegistered = false
+    }
   })
+}
+
+/** Clean up SW update detection listeners (call on app teardown if needed) */
+export function unregisterServiceWorkerUpdateDetector() {
+  const cleanup = (registerServiceWorkerUpdateDetector as any)._cleanup
+  if (typeof cleanup === 'function') cleanup()
 }

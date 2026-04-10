@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   computeStockpileVolume,
   computeGridVolume,
@@ -77,10 +77,12 @@ export function StockpileReport() {
     subtitle: 'DEM-based cut/fill volume computation and stockpile tonnage reporting',
   })
 
+  // Clear error when inputs change
+  useEffect(() => { setError(null); }, [csvInput, baseElevation, bulkDensity, designLevel, gridSize, activeTab])
+
   // Stockpile computation
   const stockpileResult = useMemo((): StockpileResult | null => {
     if (activeTab !== 'stockpile' || !csvInput.trim()) return null
-    setError(null)
     try {
       const points = parseDEMCSV(csvInput)
       if (points.length < 3) {
@@ -97,7 +99,6 @@ export function StockpileReport() {
   // DEM grid volume computation
   const gridResult = useMemo((): DEMVolumeResult | null => {
     if (activeTab !== 'dem' || !csvInput.trim()) return null
-    setError(null)
     try {
       const points = parseDEMCSV(csvInput)
       if (points.length < 3) {

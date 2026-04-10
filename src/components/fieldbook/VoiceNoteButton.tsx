@@ -162,6 +162,25 @@ export function VoiceNoteButton({
     });
   }, [isRecording, drawWaveform]);
 
+  // Clean up AudioContext on unmount (in case component unmounts while recording)
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = 0;
+      }
+      if (sourceRef.current) {
+        sourceRef.current.disconnect();
+        sourceRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+      analyserRef.current = null;
+    };
+  }, []);
+
   const handleStart = useCallback(() => {
     setError(null);
     setStatus('recording');
@@ -198,7 +217,7 @@ export function VoiceNoteButton({
 
     const finalNote: VoiceNote = {
       ...note,
-      transcript: '', // Will be set after transcription or by the caller
+      transcript: transcript || interimTranscript || '',
     };
 
     // Save to IndexedDB
@@ -218,7 +237,7 @@ export function VoiceNoteButton({
 
     // Reset status after a moment
     setTimeout(() => setStatus('idle'), 2000);
-  }, [stopRecording, stopListening, isListening, projectId, easting, northing, onNoteSaved]);
+  }, [stopRecording, stopListening, isListening, projectId, easting, northing, onNoteSaved, transcript, interimTranscript]);
 
   const handlePauseResume = useCallback(() => {
     if (isPaused) {

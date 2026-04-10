@@ -156,6 +156,21 @@ export function useSpeechToText(): UseSpeechToTextReturn {
     setInterimTranscript('');
   }, []);
 
+  // Clean up on unmount: prevent auto-restart after unmount
+  useEffect(() => {
+    return () => {
+      isStoppingRef.current = true;
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
+
   return {
     isListening,
     transcript,

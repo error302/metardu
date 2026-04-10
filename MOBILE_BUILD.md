@@ -1,4 +1,4 @@
-# GeoNova Mobile Build Guide
+# METARDU Mobile Build Guide
 
 ## Prerequisites
 

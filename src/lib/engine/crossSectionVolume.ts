@@ -210,6 +210,7 @@ export function computeCrossSectionVolumes(
     // Check if we can use prismoidal (need a mid-section with ~equal spacing)
     let usePrismoidal = false
     let midResult: CrossSectionAreaResult | null = null
+    let s3Result: CrossSectionAreaResult | null = null
 
     if (i + 2 < sorted.length) {
       const s3 = areaResults[i + 2]
@@ -218,24 +219,26 @@ export function computeCrossSectionVolumes(
       if (Math.abs(L - L2) / Math.max(L, L2) < 0.3 && L <= 10) {
         usePrismoidal = true
         midResult = s2
+        s3Result = s3
       }
     }
 
     let cutVol: number
     let fillVol: number
 
-    if (usePrismoidal && midResult) {
-      // Prismoidal formula: V = (L_total / 6) × (A1 + 4×Am + A2)
-      const LTotal = midResult.chainage - s1.chainage
-      cutVol = (LTotal / 6) * (s1.cutArea + 4 * midResult.cutArea + s2.cutArea)
-      fillVol = (LTotal / 6) * (s1.fillArea + 4 * midResult.fillArea + s2.fillArea)
+    if (usePrismoidal && midResult && s3Result) {
+      // Prismoidal formula: V = (L_total / 6) × (A1 + 4×Am + A3)
+      // s1 = from section, midResult = mid section, s3Result = end section
+      const LTotal = s3Result.chainage - s1.chainage
+      cutVol = (LTotal / 6) * (s1.cutArea + 4 * midResult.cutArea + s3Result.cutArea)
+      fillVol = (LTotal / 6) * (s1.fillArea + 4 * midResult.fillArea + s3Result.fillArea)
 
       segments.push({
         fromChainage: s1.chainage,
-        toChainage: s2.chainage,
+        toChainage: s3Result.chainage,
         distance: LTotal,
         endAreaFrom: s1.netArea,
-        endAreaTo: s2.netArea,
+        endAreaTo: s3Result.netArea,
         midArea: midResult.netArea,
         cutVolumeM3: cutVol,
         fillVolumeM3: fillVol,
@@ -243,7 +246,7 @@ export function computeCrossSectionVolumes(
         method: 'prismoidal',
       })
 
-      i += 2 // Skip the mid-section
+      i += 2 // Skip the mid-section and end-section (both consumed)
     } else {
       // End-Area method: V = (L / 2) × (A1 + A2)
       cutVol = (L / 2) * (s1.cutArea + s2.cutArea)

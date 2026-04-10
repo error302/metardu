@@ -118,7 +118,7 @@ This audit was performed after **Remediation Briefs A-G** were completed. The pl
 | Database & Auth Integrity | 🔴 Critical | Mixed auth methods, wrong surveyor fields, partial RLS coverage, inconsistent submission schema |
 | Navigation & UI Completeness | 🟡 Medium | Visible nav is not exact 4-item spec; advanced nav model still exists; DWG guidance is unwired |
 | Payments & Community | 🟡 Medium | Payment integrations exist; marketplace is still localStorage-grade and commission is not enforced |
-| Repo Hygiene | 🟡 Medium | Legacy GeoNova references and stray root audit/test files are still in repo |
+| Repo Hygiene | 🟡 Medium | Legacy METARDU references and stray root audit/test files are still in repo |
 
 ## Detailed Findings
 
@@ -473,7 +473,7 @@ The finer audit matrix below is therefore only partially represented in code.
   - `test-db.ts`
   - `test-supabase.mjs`
 
-- **Legacy GeoNova references present:**
+- **Legacy METARDU references present:**
   - Yes, in migration headers including:
   - `supabase/migrations/000_core_projects_and_survey_points.sql`
   - `supabase/migrations/001_postgis_spatial_index.sql`
@@ -500,7 +500,7 @@ The finer audit matrix below is therefore only partially represented in code.
 7. **Make the submission ZIP real:** include the missing statutory documents and replace the 3-sheet workbook with the actual required workbook.
 8. **Promote Transit to a real product path:** expose it in the API/UI and enforce one authoritative traverse QA engine.
 9. **Move topo IDW back off the main thread:** implement the worker, real progress events, and export round-trip validation.
-10. **Clean product structure and hygiene:** remove orphaned components, legacy GeoNova references, stray root files, and unresolved advanced-nav leftovers.
+10. **Clean product structure and hygiene:** remove orphaned components, legacy METARDU references, stray root files, and unresolved advanced-nav leftovers.
 
 ---
 

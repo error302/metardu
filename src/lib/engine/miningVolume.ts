@@ -5,7 +5,11 @@
  *   - N.N. Basak, Surveying and Levelling, Ch. 8 — End Area & Prismoidal methods
  *   - Ghilani & Wolf, Elementary Surveying, 16th Ed., §15-9 — Grid method for volumes
  *   - RDM 1.1 Kenya 2025, §8 — Earthwork volume computation accuracy requirements
- *
+ */
+
+import Delaunator from 'delaunator';
+
+/**
  * Conventions:
  *   - No intermediate rounding; full floating point throughout.
  *   - Cut: ground above design level (positive volume).
@@ -309,50 +313,34 @@ function triangleSurfaceArea(
 }
 
 /**
- * Simple triangulation using Delaunay-like constraint:
- * only accept triangles where the longest side < 0.7 × perimeter.
- * This avoids long, thin sliver triangles.
+ * Delaunay triangulation of DEM points using the Bowyer-Watson algorithm
+ * via the `delaunator` library.
  *
- * Source: Simplified Delaunay-like filtering. For production-grade
- *         triangulation, use Bowyer-Watson or similar.
+ * Produces a proper non-overlapping triangulation, replacing the previous
+ * combinatorial O(n³) approach that generated wildly over-estimated volumes.
  *
  * Ref: de Berg et al., Computational Geometry, Ch. 9 — Delaunay Triangulation.
  */
 export function triangulateDEM(points: DEMPoint[]): Array<[DEMPoint, DEMPoint, DEMPoint]> {
-  const triangles: Array<[DEMPoint, DEMPoint, DEMPoint]> = []
-
-  if (points.length < 3) return triangles
-
-  for (let i = 0; i < points.length - 2; i++) {
-    for (let j = i + 1; j < points.length - 1; j++) {
-      for (let k = j + 1; k < points.length; k++) {
-        const p1 = points[i]
-        const p2 = points[j]
-        const p3 = points[k]
-
-        const d12 = Math.sqrt((p2.easting - p1.easting) ** 2 + (p2.northing - p1.northing) ** 2)
-        const d23 = Math.sqrt((p3.easting - p2.easting) ** 2 + (p3.northing - p2.northing) ** 2)
-        const d31 = Math.sqrt((p1.easting - p3.easting) ** 2 + (p1.northing - p3.northing) ** 2)
-
-        const perimeter = d12 + d23 + d31
-        const maxSide = Math.max(d12, d23, d31)
-
-        // Reject elongated triangles (aspect ratio filter)
-        if (maxSide > perimeter * 0.7) continue
-
-        // Reject degenerate triangles (near-zero area)
-        const planArea = Math.abs(
-          (p2.easting - p1.easting) * (p3.northing - p1.northing) -
-          (p2.northing - p1.northing) * (p3.easting - p1.easting)
-        ) / 2
-        if (planArea < 1e-6) continue
-
-        triangles.push([p1, p2, p3])
-      }
+  if (points.length < 3) return [];
+  const coords = points.flatMap(p => [p.easting, p.northing]);
+  const delaunay = new Delaunator(coords);
+  const triangles: Array<[DEMPoint, DEMPoint, DEMPoint]> = [];
+  for (let i = 0; i < delaunay.triangles.length; i += 3) {
+    const i0 = delaunay.triangles[i];
+    const i1 = delaunay.triangles[i + 1];
+    const i2 = delaunay.triangles[i + 2];
+    const p0 = points[i0], p1 = points[i1], p2 = points[i2];
+    // Compute area, skip degenerate triangles
+    const area = Math.abs(
+      (p1.easting - p0.easting) * (p2.northing - p0.northing) -
+      (p2.easting - p0.easting) * (p1.northing - p0.northing)
+    ) / 2;
+    if (area >= 1e-6) {
+      triangles.push([p0, p1, p2]);
     }
   }
-
-  return triangles
+  return triangles;
 }
 
 /**
