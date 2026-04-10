@@ -1,5 +1,7 @@
 'use client';
 
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint';
+
 interface Reading {
   staff: number;
   face: 'FL' | 'FR';
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export default function CollimationReport({ readings = [] }: Props) {
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Collimation Report' });
   const flReadings = readings.filter((r) => r.face === 'FL');
   const frReadings = readings.filter((r) => r.face === 'FR');
 
@@ -28,7 +31,22 @@ export default function CollimationReport({ readings = [] }: Props) {
 
   return (
     <div className="rounded-lg border border-gray-200 p-4 bg-white">
-      <h3 className="font-semibold text-gray-800 mb-3">Collimation Report</h3>
+      <PrintHeader title="Collimation Report" />
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-gray-800">Collimation Report</h3>
+        <div className="no-print print-hide">
+          <PrintButton
+            print={print}
+            isPrinting={isPrinting}
+            paperSize={paperSize}
+            setPaperSize={setPaperSize}
+            orientation={orientation}
+            setOrientation={setOrientation}
+            printTitle="Collimation Report"
+            compact
+          />
+        </div>
+      </div>
       {readings.length === 0 ? (
         <p className="text-sm text-gray-400">No readings recorded yet.</p>
       ) : (

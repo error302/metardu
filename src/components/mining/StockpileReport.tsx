@@ -10,6 +10,7 @@ import {
   type StockpileResult,
   type DEMVolumeResult,
 } from '@/lib/engine/miningVolume'
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 
 type Tab = 'stockpile' | 'dem'
 
@@ -71,6 +72,10 @@ export function StockpileReport() {
   const [gridSize, setGridSize] = useState(5)
   const [designLevel, setDesignLevel] = useState(103.0)
   const [error, setError] = useState<string | null>(null)
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({
+    title: 'Mining Volume & Stockpile Report',
+    subtitle: 'DEM-based cut/fill volume computation and stockpile tonnage reporting',
+  })
 
   // Stockpile computation
   const stockpileResult = useMemo((): StockpileResult | null => {
@@ -163,16 +168,36 @@ export function StockpileReport() {
 
   return (
     <div className="space-y-6">
+      {/* Print header (only visible during print) */}
+      <PrintHeader
+        title={activeTab === 'stockpile' ? 'Stockpile Volume Report' : 'DEM Cut/Fill Volume Report'}
+        subtitle="METARDU — Mining Volume Module"
+      />
+
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-[#1B3A5C]">Mining Volume &amp; Stockpile Report</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          DEM-based cut/fill volume computation and stockpile tonnage reporting.
-          <br />
-          <span className="text-xs text-gray-400">
-            Ref: Basak Ch.8 — End Area &amp; Prismoidal methods · RDM 1.1 §8 — Earthwork accuracy
-          </span>
-        </p>
+      <div className="flex items-start justify-between no-print print-hide">
+        <div>
+          <h2 className="text-xl font-bold text-[#1B3A5C]">Mining Volume &amp; Stockpile Report</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            DEM-based cut/fill volume computation and stockpile tonnage reporting.
+            <br />
+            <span className="text-xs text-gray-400">
+              Ref: Basak Ch.8 — End Area &amp; Prismoidal methods · RDM 1.1 §8 — Earthwork accuracy
+            </span>
+          </p>
+        </div>
+        {(stockpileResult || gridResult) && (
+          <PrintButton
+            print={print}
+            isPrinting={isPrinting}
+            paperSize={paperSize}
+            setPaperSize={setPaperSize}
+            orientation={orientation}
+            setOrientation={setOrientation}
+            printTitle={activeTab === 'stockpile' ? 'Stockpile Volume Report' : 'DEM Cut/Fill Volume Report'}
+            printSubtitle="METARDU — Mining Volume Module"
+          />
+        )}
       </div>
 
       {/* Tabs */}
@@ -436,12 +461,23 @@ export function StockpileReport() {
 
       {/* Export */}
       {(stockpileResult || gridResult) && (
-        <div className="flex gap-3">
+        <div className="flex gap-3 no-print print-hide">
           <button
             onClick={exportCSV}
             className="px-5 py-2.5 bg-[#1B3A5C] text-white rounded-lg text-sm font-semibold hover:bg-[#1B3A5C]/90 transition-colors"
           >
             Export Report CSV
+          </button>
+          <button
+            onClick={() => print({
+              paperSize,
+              orientation,
+              title: activeTab === 'stockpile' ? 'Stockpile Volume Report' : 'DEM Cut/Fill Volume Report',
+              subtitle: 'METARDU — Mining Volume Module',
+            })}
+            className="px-5 py-2.5 border border-[#1B3A5C] text-[#1B3A5C] rounded-lg text-sm font-semibold hover:bg-[#1B3A5C]/5 transition-colors"
+          >
+            Print Report
           </button>
         </div>
       )}

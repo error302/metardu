@@ -4,6 +4,7 @@ import { Download } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { ValidationResult } from '@/types/cadastra'
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 
 interface ValidationReportProps {
   result: ValidationResult
@@ -11,6 +12,7 @@ interface ValidationReportProps {
 }
 
 export default function ValidationReport({ result, projectId }: ValidationReportProps) {
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Cadastral Validation Report' })
   const generatePDF = () => {
     const doc = new jsPDF()
     
@@ -60,15 +62,28 @@ export default function ValidationReport({ result, projectId }: ValidationReport
   
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg p-6">
+      <PrintHeader title="Cadastral Validation Report" subtitle={`Project: ${projectId}`} />
       <h3 className="text-lg font-semibold mb-4">Generate Report</h3>
       
-      <button
-        onClick={generatePDF}
-        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-      >
-        <Download className="h-5 w-5" />
-        Download PDF Report
-      </button>
+      <div className="flex items-center gap-3 no-print print-hide">
+        <button
+          onClick={generatePDF}
+          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          <Download className="h-5 w-5" />
+          Download PDF Report
+        </button>
+        <PrintButton
+          print={print}
+          isPrinting={isPrinting}
+          paperSize={paperSize}
+          setPaperSize={setPaperSize}
+          orientation={orientation}
+          setOrientation={setOrientation}
+          printTitle="Cadastral Validation Report"
+          printSubtitle={`Project: ${projectId}`}
+        />
+      </div>
     </div>
   )
 }

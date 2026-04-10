@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { computeTraverse, type RawObservation, type TraverseComputationResult } from '@/lib/computations/traverseEngine'
 import { parseTraverseCSV } from '@/lib/parsers/totalStation'
 import { bearingToString } from '@/lib/engine/angles'
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 
 interface TraverseFieldBookProps {
   projectId: string
@@ -20,6 +21,7 @@ function openPrint(html: string, title: string) {
 }
 
 export default function TraverseFieldBook({ projectId, onImport }: TraverseFieldBookProps) {
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Traverse Field Book' })
   const [observations, setObservations] = useState<RawObservation[]>([
     { station: '', bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5' },
   ])
@@ -211,6 +213,7 @@ Computed using METARDU | Survey Act Cap 299 | RDM 1.1 (2025) | Generated ${new D
 
   return (
     <div className="space-y-4">
+      <PrintHeader title="Traverse Field Book" />
       <div className="flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
         {(['input', 'compute', 'print'] as const).map((tab: any) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
@@ -417,10 +420,21 @@ Computed using METARDU | Survey Act Cap 299 | RDM 1.1 (2025) | Generated ${new D
               className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm">
               ← Back to Input
             </button>
-            <button onClick={handlePrint}
-              className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm">
-              Print Computation Sheet
-            </button>
+            <div className="flex gap-2 no-print print-hide">
+              <PrintButton
+                print={print}
+                isPrinting={isPrinting}
+                paperSize={paperSize}
+                setPaperSize={setPaperSize}
+                orientation={orientation}
+                setOrientation={setOrientation}
+                printTitle="Traverse Field Book"
+              />
+              <button onClick={handlePrint}
+                className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm">
+                Print Computation Sheet
+              </button>
+            </div>
           </div>
         </div>
       )}

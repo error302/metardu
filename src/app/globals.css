@@ -313,72 +313,219 @@ h1, h2, h3, h4 {
   animation: fadeIn 0.3s ease-out;
 }
 
-/* Print Styles */
+/* ================================================================== */
+/*  METARDU — Global Print Styles                                      */
+/*  Covers: dark→white theme, table borders, nav hiding, page setup    */
+/*  Note: usePrint() hook injects additional dynamic styles.            */
+/* ================================================================== */
+
+/* Screen-only: hide print header */
+.metardu-print-header {
+  display: none;
+}
+
 @media print {
-  nav, 
-  .sidebar, 
-  button,
-  .feedback-widget,
-  .mobile-nav,
-  .aside,
-  header nav,
-  .no-print {
+  /* ── Page Setup ──────────────────────────────────────────────── */
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+
+    @bottom-center {
+      content: "METARDU — Page " counter(page) " of " counter(pages);
+      font-size: 8pt;
+      color: #999;
+    }
+  }
+
+  /* ── Base: Override dark theme ──────────────────────────────── */
+  html, body {
+    background: white !important;
+    color: #1a1a1a !important;
+    font-size: 11pt;
+    line-height: 1.5;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── Hide non-printable elements ────────────────────────────── */
+  nav, .sidebar, .feedback-widget, .mobile-nav, .aside,
+  header nav, .no-print, .print-hide, [data-print="hide"],
+  .tooltip::after, ::-webkit-scrollbar {
     display: none !important;
   }
-  
-  .results-panel,
-  .calculation-output,
-  .card,
-  main {
+
+  /* Hide interactive buttons but keep visible structure */
+  button, .btn {
+    display: none !important;
+  }
+
+  /* ── Content containers → white ─────────────────────────────── */
+  .results-panel, .calculation-output, .card, main {
     width: 100% !important;
-    border: none !important;
     background: white !important;
-    color: black !important;
+    color: #1a1a1a !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
     page-break-inside: avoid;
   }
-  
-  body {
-    background: white !important;
-    color: black !important;
-    font-size: 12pt;
+
+  .card-header {
+    background: #f5f5f5 !important;
+    color: #333 !important;
+    border-bottom: 1px solid #ccc !important;
   }
-  
-  .print-header {
-    display: block !important;
+
+  .card-body {
+    padding: 12px !important;
   }
-  
+
+  /* ── Links ──────────────────────────────────────────────────── */
   a {
     color: black !important;
     text-decoration: underline !important;
   }
-  
+
+  /* ── Tables ─────────────────────────────────────────────────── */
   table {
     border-collapse: collapse !important;
+    width: 100% !important;
   }
-  
+
   th, td {
-    border: 1px solid #ddd !important;
-    padding: 8px !important;
+    border: 1px solid #bbb !important;
+    padding: 6px 8px !important;
+    color: black !important;
+    background: white !important;
   }
-  
-  th {
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  thead th {
     background: #f0f0f0 !important;
-  }
-}
-
-.print-header {
-  display: none;
-}
-
-/* Survey Plan Print Styles */
-@media print {
-  @page {
-    size: A3 landscape;
-    margin: 10mm;
+    color: #333 !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    position: static !important;
   }
 
+  /* ── Forms — show values as plain text ──────────────────────── */
+  input, select, textarea {
+    border: none !important;
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    padding: 2px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+  }
+
+  /* ── Color-coded text → print-safe colors ───────────────────── */
+  .result-positive, .text-green-400, .text-green-500, .text-green-600 {
+    color: #166534 !important;
+  }
+  .result-negative, .text-red-400, .text-red-500, .text-red-600 {
+    color: #991b1b !important;
+  }
+  .result-accent, .text-amber-500, .text-amber-600 {
+    color: #92400e !important;
+  }
+  .text-[var(--accent)] {
+    color: #c2410c !important;
+  }
+
+  /* ── Metric displays ────────────────────────────────────────── */
+  .metric {
+    background: #f9f9f9 !important;
+    border: 1px solid #ddd !important;
+    color: black !important;
+    page-break-inside: avoid;
+  }
+  .metric-value { color: #1B3A5C !important; }
+  .metric-label { color: #666 !important; }
+
+  /* ── Badges ─────────────────────────────────────────────────── */
+  .badge-success, .bg-green-50, .bg-emerald-50 {
+    background: #dcfce7 !important;
+    color: #166534 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .badge-error, .bg-red-50 {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .badge-warning, .bg-amber-50, .bg-yellow-50 {
+    background: #fef3c7 !important;
+    color: #92400e !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .bg-blue-50, .bg-[#1B3A5C]/10 {
+    background: #dbeafe !important;
+    color: #1e40af !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── Survey plan overlays ───────────────────────────────────── */
+  .sheet-layout-overlay {
+    display: block !important;
+  }
+  .sheet-title-block, .sheet-certificate {
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── Map canvas ─────────────────────────────────────────────── */
+  .ol-viewport canvas {
+    max-width: 100% !important;
+  }
+
+  /* ── Orphan/widow control ───────────────────────────────────── */
+  h2, h3, h4 {
+    page-break-after: avoid;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* ── SVG ────────────────────────────────────────────────────── */
   svg {
     max-width: 100% !important;
     height: auto !important;
+  }
+
+  /* ── Scrollbars ─────────────────────────────────────────────── */
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* ── Print header ───────────────────────────────────────────── */
+  .metardu-print-header {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 6mm;
+    padding-bottom: 4mm;
+    border-bottom: 2px solid #1B3A5C;
+    page-break-after: avoid;
+  }
+  .metardu-print-header h1 {
+    font-size: 16pt;
+    color: #1B3A5C !important;
+    margin: 0 0 2mm 0;
+    font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  }
+  .metardu-print-header p {
+    font-size: 9pt;
+    color: #666 !important;
+    margin: 0;
   }
 }

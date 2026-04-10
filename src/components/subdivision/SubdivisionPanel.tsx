@@ -27,10 +27,12 @@ import {
   Road,
   Eye,
   EyeOff,
+  Printer,
 } from 'lucide-react'
 import type { SubdivisionMethod, SubdivisionParams, SubdivisionResult, SubdividedLot } from '@/types/subdivision'
 import type { Point2D } from '@/lib/engine/types'
 import { useSubdivision } from '@/hooks/useSubdivision'
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 import type Map from 'ol/Map'
 
 interface SubdivisionPanelProps {
@@ -127,6 +129,10 @@ export default function SubdivisionPanel({
   })
 
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({
+    title: 'Subdivision Report',
+    subtitle: `Method: ${method} · ${result ? `${result.lots.length} lots` : 'No results'}`,
+  })
 
   // ─── Compute parent area ──────────────────────────────────────────────
   const parentArea = (() => {
@@ -143,6 +149,10 @@ export default function SubdivisionPanel({
 
   return (
     <div className={`bg-white rounded-lg shadow-lg border border-gray-200 ${className}`}>
+      <PrintHeader
+        title="Subdivision Report"
+        subtitle={`Project: ${projectName} · Method: ${method} · ${result ? `${result.lots.length} lots · Total: ${formatAreaHa(result.totalAreaHa)}` : ''}`}
+      />
       {/* ─── Header ──────────────────────────────────────────────────── */}
       <div
         className="flex items-center justify-between px-4 py-3 border-b border-gray-200 cursor-pointer select-none"
@@ -511,13 +521,22 @@ export default function SubdivisionPanel({
               </button>
 
               {result && result.lots.length > 0 && (
-                <button
-                  onClick={exportDXF}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#1B3A5C] bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors ml-auto"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Export DXF
-                </button>
+                <div className="flex items-center gap-2 ml-auto no-print print-hide">
+                  <button
+                    onClick={() => print({ title: 'Subdivision Report', subtitle: `Project: ${projectName} · ${result.lots.length} lots` })}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#1B3A5C] bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    Print
+                  </button>
+                  <button
+                    onClick={exportDXF}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#1B3A5C] bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Export DXF
+                  </button>
+                </div>
               )}
             </div>
           )}

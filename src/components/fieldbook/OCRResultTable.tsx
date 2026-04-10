@@ -14,6 +14,7 @@
 import { useState, useCallback } from 'react';
 import { AlertTriangle, CheckCircle2, Shield, Trash2, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import type { LevelBookRow, LevelBookFormat } from '@/lib/ocr/ocrParser';
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint';
 
 // ─── Confidence Colors ──────────────────────────────────────────
 
@@ -140,6 +141,10 @@ export function OCRResultTable({
   const [showRawText, setShowRawText] = useState(false);
   const [sortField, setSortField] = useState<'index' | 'confidence'>('index');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({
+    title: 'OCR Field Book Results',
+    subtitle: 'Extracted level book data with confidence indicators',
+  });
 
   const flaggedCount = rows.filter((r) => r.flagged).length;
   const avgConfidence =
@@ -176,6 +181,10 @@ export function OCRResultTable({
 
   return (
     <div className="card">
+      <PrintHeader
+        title="OCR Field Book Results"
+        subtitle={`Format: ${format === 'rise_and_fall' ? 'Rise & Fall' : 'Height of Collimation'} · ${rows.length} rows · Avg confidence: ${avgConfidence.toFixed(0)}%`}
+      />
       <div className="card-header flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="label">OCR Results</span>
@@ -184,7 +193,18 @@ export function OCRResultTable({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 no-print print-hide">
+          <PrintButton
+            print={print}
+            isPrinting={isPrinting}
+            paperSize={paperSize}
+            setPaperSize={setPaperSize}
+            orientation={orientation}
+            setOrientation={setOrientation}
+            compact
+            printTitle="OCR Field Book Results"
+            printSubtitle={`Format: ${format === 'rise_and_fall' ? 'Rise & Fall' : 'Height of Collimation'} · ${rows.length} rows`}
+          />
           {/* Confidence summary */}
           <div className={`text-xs font-mono px-2 py-1 rounded ${confidenceColor(avgConfidence)}`}>
             Avg: {avgConfidence.toFixed(0)}%

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint';
 import { SurveyType } from '@/types/project';
 import { FieldBookColumn, FieldBookRow } from '@/types/fieldbook';
 import { getFieldBookTemplate } from '@/lib/workflows/fieldBookTemplates';
@@ -63,6 +64,7 @@ function rowToDbRecord(
 }
 
 export default function DynamicFieldBook({ projectId, surveyType, initialRows = [], openingRL, closingRL, startPoint }: Props) {
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Field Book' });
   const supabase = createClient();
   const template = getFieldBookTemplate(surveyType);
 
@@ -244,12 +246,13 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+      <PrintHeader title="Field Book" />
       <div className="px-4 py-3 border-b border-gray-100 flex items-start justify-between gap-4">
         <div>
           <h3 className="font-semibold text-gray-900 text-sm">{template.title}</h3>
           <p className="text-xs text-gray-500 mt-0.5">{template.description}</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 no-print print-hide">
           {lastSaved && <span className="text-xs text-green-600">Saved {lastSaved.toLocaleTimeString()}</span>}
           <button onClick={handleCompute} disabled={saving} className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
             {getComputeButtonLabel()}
@@ -257,6 +260,16 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
           <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
             {saving ? 'Saving…' : 'Save'}
           </button>
+          <PrintButton
+            print={print}
+            isPrinting={isPrinting}
+            paperSize={paperSize}
+            setPaperSize={setPaperSize}
+            orientation={orientation}
+            setOrientation={setOrientation}
+            printTitle="Field Book"
+            compact
+          />
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { type SettingOutResult } from '@/lib/computations/settingOutEngine'
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 
 interface Props {
   result: SettingOutResult
@@ -8,10 +9,13 @@ interface Props {
 }
 
 export default function StakeOutSheet({ result, station }: Props) {
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Stake Out Sheet' })
   const { instrumentStation, backsight, bsBearing, rows } = result
   const date = new Date().toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' })
 
   return (
+    <div>
+      <PrintHeader title="Stake Out Sheet" />
     <div className="bg-white text-black p-6 font-mono" style={{ fontFamily: 'Courier New, monospace', fontSize: '13px' }}>
       {/* Header */}
       <div className="text-center border-b-2 border-black pb-3 mb-4">
@@ -63,6 +67,18 @@ export default function StakeOutSheet({ result, station }: Props) {
       <div className="mt-4 text-center text-xs text-gray-500">
         METARDU | Survey Act Cap 299 | RDM 1.1 (2025) | Generated {date}
       </div>
+    </div>
+    <div className="mt-3 flex justify-end no-print print-hide">
+      <PrintButton
+        print={print}
+        isPrinting={isPrinting}
+        paperSize={paperSize}
+        setPaperSize={setPaperSize}
+        orientation={orientation}
+        setOrientation={setOrientation}
+        printTitle="Stake Out Sheet"
+      />
+    </div>
     </div>
   )
 }

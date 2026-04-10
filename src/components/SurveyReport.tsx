@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 import { useCountry } from '@/lib/country'
 import RegistryIndexMap from './RegistryIndexMap'
 import { formatAreaByCountry, getTraverseValidation } from '@/lib/engine/country-math'
@@ -160,9 +161,7 @@ export default function SurveyReport({
     setValidated(errors.length === 0)
   }
 
-  function handlePrint() {
-    window.print()
-  }
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Survey Report' })
 
   const SectionHeader = ({ children }: { children: React.ReactNode }) => (
     <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4 mb-2">
@@ -201,6 +200,7 @@ export default function SurveyReport({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center overflow-y-auto p-4">
+      <PrintHeader title="Survey Report" subtitle={jobNo || undefined} />
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
           <div>
@@ -211,13 +211,17 @@ export default function SurveyReport({
               {t('surveyReport.subtitle')}
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handlePrint}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50"
-            >
-              {t('surveyReport.print')}
-            </button>
+          <div className="flex gap-2 no-print print-hide">
+            <PrintButton
+              print={print}
+              isPrinting={isPrinting}
+              paperSize={paperSize}
+              setPaperSize={setPaperSize}
+              orientation={orientation}
+              setOrientation={setOrientation}
+              printTitle="Survey Report"
+              printSubtitle={jobNo || undefined}
+            />
             <button
               onClick={onClose}
               className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50"
@@ -613,19 +617,23 @@ export default function SurveyReport({
               {t('surveyReport.validationHint')}
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex gap-2 no-print print-hide">
             <button
               onClick={handleValidate}
               className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               {t('surveyReport.validate')}
             </button>
-            <button
-              onClick={handlePrint}
-              className="px-4 py-1.5 text-sm bg-gray-800 text-white rounded hover:bg-gray-900"
-            >
-              {t('surveyReport.export')}
-            </button>
+            <PrintButton
+              print={print}
+              isPrinting={isPrinting}
+              paperSize={paperSize}
+              setPaperSize={setPaperSize}
+              orientation={orientation}
+              setOrientation={setOrientation}
+              printTitle="Survey Report"
+              printSubtitle={jobNo || undefined}
+            />
           </div>
         </div>
       </div>

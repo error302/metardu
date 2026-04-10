@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 import type { 
   SurveyReportInput, 
   SectionContent, 
@@ -54,6 +55,7 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
   const [isDirty, setIsDirty] = useState(false)
   const [reportId, setReportId] = useState(existingReportId || '')
   const [error, setError] = useState<string | null>(null)
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Survey Report' })
 
   const supabase = createClient()
 
@@ -916,13 +918,16 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
           </div>
         ) : (
           <div>
-            <div className="sticky top-0 bg-[var(--bg-primary)] py-4 border-b border-[var(--border-color)] mb-6 flex gap-2">
-              <button
-                onClick={() => setMode('edit')}
-                className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] rounded-lg text-sm"
-              >
-                ← Edit
-              </button>
+            <div className="sticky top-0 bg-[var(--bg-primary)] py-4 border-b border-[var(--border-color)] mb-6 flex gap-2 no-print print-hide">
+              <PrintButton
+                print={print}
+                isPrinting={isPrinting}
+                paperSize={paperSize}
+                setPaperSize={setPaperSize}
+                orientation={orientation}
+                setOrientation={setOrientation}
+                printTitle="Survey Report"
+              />
               <button
                 onClick={() => exportReport('pdf')}
                 className="px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-medium"
@@ -936,6 +941,7 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
                 Download Word
               </button>
             </div>
+            <PrintHeader title="Survey Report" />
             {renderPreview()}
           </div>
         )}

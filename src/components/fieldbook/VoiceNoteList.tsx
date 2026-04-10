@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint';
 import {
   Play,
   Pause,
@@ -228,6 +229,7 @@ function VoiceNoteItem({ note, onDelete }: VoiceNoteItemProps) {
 }
 
 export function VoiceNoteList({ projectId, stationId, onRefresh }: VoiceNoteListProps) {
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Voice Notes' });
   const [notes, setNotes] = useState<VoiceNoteRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -280,16 +282,29 @@ export function VoiceNoteList({ projectId, stationId, onRefresh }: VoiceNoteList
 
   return (
     <div className="card">
-      <div className="card-header flex items-center justify-between">
+      <PrintHeader title="Voice Notes" />
+      <div className="card-header flex items-center justify-between no-print print-hide">
         <span className="label mb-0">
           Voice Notes {notes.length > 0 && `(${notes.length})`}
         </span>
-        <button
-          onClick={loadNotes}
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-1">
+          <PrintButton
+            print={print}
+            isPrinting={isPrinting}
+            paperSize={paperSize}
+            setPaperSize={setPaperSize}
+            orientation={orientation}
+            setOrientation={setOrientation}
+            printTitle="Voice Notes"
+            compact
+          />
+          <button
+            onClick={loadNotes}
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="p-4">
