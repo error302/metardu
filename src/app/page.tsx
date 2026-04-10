@@ -10,6 +10,16 @@ const SubdivisionPanel = dynamic(
   { ssr: false }
 )
 
+const StockpileReport = dynamic(
+  () => import('@/components/mining/StockpileReport').then(m => ({ default: m.StockpileReport })),
+  { ssr: false }
+)
+
+const TidalReductionPanel = dynamic(
+  () => import('@/components/hydrographic/TidalReductionPanel').then(m => ({ default: m.TidalReductionPanel })),
+  { ssr: false }
+)
+
 const Icon = {
   map: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" /></svg>,
   calc: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V13.5zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V18zm2.498-6.75h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V13.5zm0 2.25h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V18zm2.504-6.75h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V13.5zm0 2.25h.008v.008h-.008v-.008zm0 2.25h.007v.008h-.007V18zm2.498-6.75h.008v.008h-.008v-.008zm0 4.5h.008v.008h-.008v-.008zM8.25 6h7.5v2.25h-7.5V6zM12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25z" /></svg>,
@@ -655,6 +665,42 @@ export default function Home() {
             <p className="text-xs text-[var(--text-muted)]">
               Demo parcel: 5 vertices, ~2.4 ha · Split Line requires an active map view (available in project workspace)
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Phase 36: Mining Volume & Stockpile ────────────────────────────── */}
+      <section className="py-24 bg-[var(--bg-secondary)] border-y border-[var(--border-color)]">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-3">
+              Mining Volume &amp; Stockpile Report
+            </h2>
+            <p className="text-[var(--text-secondary)] max-w-xl mx-auto">
+              DEM-based cut/fill volume computation and stockpile tonnage reporting.
+              TIN triangular prism method with configurable bulk density.
+            </p>
+          </div>
+          <div className="max-w-3xl mx-auto">
+            <StockpileReport />
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Phase 36: Hydrographic Tidal Reduction ────────────────────────── */}
+      <section className="py-24 bg-[var(--bg-primary)]">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-3">
+              Hydrographic Tidal Reduction
+            </h2>
+            <p className="text-[var(--text-secondary)] max-w-xl mx-auto">
+              Reduce echo-sounder soundings to Chart Datum using tide gauge observations.
+              IHO S-44 compliant with linear interpolation.
+            </p>
+          </div>
+          <div className="max-w-3xl mx-auto">
+            <TidalReductionPanel />
           </div>
         </div>
       </section>

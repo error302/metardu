@@ -23,3 +23,7 @@ export * from './topographic';
 export * from './leveling-standards';
 export * from './edm-corrections';
 export * from './datums';
+export { type DEMVolumeResult } from './miningVolume';
+export * from './miningVolume';
+export * from './tidalReduction';
+export * from './crossSectionVolume';
