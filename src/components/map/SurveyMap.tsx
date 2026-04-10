@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { registerProjections, arrayTo3857, to21037, SRID_3857 } from '@/lib/map/projection';
 import { nearestKenCORSStations, type KenCORSStation } from '@/lib/map/kencors';
 import type { AdjustedStation } from '@/lib/engine/planGeometry';
+import { createAnnotationLayer } from '@/lib/map/annotations';
 import { MeasurementTool } from './MeasurementTool';
 
 interface SurveyMapProps {
@@ -93,9 +94,20 @@ export default function SurveyMap({
         createKenCORSLayer(kenCORSWithCoords),
       ]);
 
+      // Create annotation layer with bearings, distances, and area
+      const stations21037 = adjustedStations.map(s => ({
+        pointName: s.pointName,
+        easting: s.adjustedEasting,
+        northing: s.adjustedNorthing,
+      }));
+      const annotationLayer = await createAnnotationLayer({
+        coords3857,
+        stations21037,
+      });
+
       map = new Map({
         target: mapRef.current!,
-        layers: [osmLayer, kenCORSLayer, parcelLayer, beaconLayer],
+        layers: [osmLayer, kenCORSLayer, parcelLayer, beaconLayer, annotationLayer],
         view: new View({
           center: savedState?.center ?? center3857,
           zoom: savedState?.zoom ?? 16,

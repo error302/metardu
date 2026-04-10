@@ -1,8 +1,14 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useCountry, ALL_COUNTRIES } from '@/lib/country'
+import dynamic from 'next/dynamic'
+
+const SubdivisionPanel = dynamic(
+  () => import('@/components/subdivision/SubdivisionPanel'),
+  { ssr: false }
+)
 
 const Icon = {
   map: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" /></svg>,
@@ -59,6 +65,15 @@ const TOOL_DEMOS_RAW: Record<string, { input: string[][]; output: string[][] }> 
     ],
   },
 }
+
+/** Demo parcel polygon for subdivision showcase (2.4 ha irregular pentagon in EPSG:21037) */
+const DEMO_PARCEL = [
+  { easting: 258400, northing: 9877300 },
+  { easting: 258600, northing: 9877350 },
+  { easting: 258650, northing: 9877200 },
+  { easting: 258550, northing: 9877100 },
+  { easting: 258380, northing: 9877150 },
+]
 
 export default function Home() {
   const { t } = useLanguage()
@@ -613,6 +628,33 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Subdivision Tool Demo ────────────────────────────────────────── */}
+      <section className="py-24 bg-[var(--bg-primary)]">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-3">
+              Parcel Subdivision Tool
+            </h2>
+            <p className="text-[var(--text-secondary)] max-w-xl mx-auto">
+              Split a parent parcel into smaller lots using Grid, Radial, Area-Based, or Line-Split methods.
+              Try it live below with a demo parcel.
+            </p>
+          </div>
+          <div className="max-w-sm mx-auto">
+            <SubdivisionPanel
+              parentVertices={DEMO_PARCEL}
+              map={null}
+              projectName="METARDU_Demo"
+            />
+          </div>
+          <div className="mt-6 text-center">
+            <p className="text-xs text-[var(--text-muted)]">
+              Demo parcel: 5 vertices, ~2.4 ha · Split Line requires an active map view (available in project workspace)
+            </p>
           </div>
         </div>
       </section>
