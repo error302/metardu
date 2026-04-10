@@ -1,0 +1,278 @@
+'use client';
+
+import { useState, useCallback, useRef } from 'react';
+import Map from 'ol/Map';
+import { Vector as VectorSource } from 'ol/source';
+import { Vector as VectorLayer } from 'ol/layer';
+import { Feature } from 'ol';
+import { LineString, Polygon, Point as OlPoint } from 'ol/geom';
+import { Style, Stroke, Fill, Circle, Text } from 'ol/style';
+import {
+  calculateDistance,
+  calculateArea,
+  calculateBearing,
+  formatBearingWCB,
+  formatDistance,
+  formatArea,
+  type Point,
+} from '@/lib/map/measurements';
+
+export type MeasurementMode = 'none' | 'distance' | 'area' | 'bearing' | 'coordinate';
+
+export interface MeasurementState {
+  mode: MeasurementMode;
+  points: Point[];
+  result: {
+    distance?: number;
+    area?: number;
+    bearing?: number;
+    coordinate?: Point;
+  } | null;
+  isActive: boolean;
+}
+
+export interface FormattedResult {
+  type: string;
+  raw: number;
+  formatted: string;
+}
+
+export function useMeasurement(map: Map | null) {
+  const [state, setState] = useState<MeasurementState>({
+    mode: 'none',
+    points: [],
+    result: null,
+    isActive: false,
+  });
+  
+  const sourceRef = useRef<VectorSource | null>(null);
+  const layerRef = useRef<VectorLayer | null>(null);
+  const clickHandlerRef = useRef<((evt: any) => void) | null>(null);
+
+  const createLayer = useCallback(() => {
+    if (!map) return null;
+    
+    const source = new VectorSource();
+    const layer = new VectorLayer({
+      source,
+      style: (feature) => {
+        const geometry = feature.getGeometry();
+        const type = feature.get('type') as string;
+        
+        if (geometry instanceof OlPoint) {
+          return new Style({
+            image: new Circle({
+              radius: 6,
+              fill: new Fill({ color: '#1B3A5C' }),
+              stroke: new Stroke({ color: '#FFFFFF', width: 2 }),
+            }),
+          });
+        } else if (geometry instanceof LineString) {
+          return new Style({
+            stroke: new Stroke({
+              color: '#1B3A5C',
+              width: 2,
+            }),
+          });
+        } else if (geometry instanceof Polygon) {
+          return new Style({
+            stroke: new Stroke({
+              color: '#1B3A5C',
+              width: 2,
+            }),
+            fill: new Fill({
+              color: 'rgba(27, 58, 92, 0.1)',
+            }),
+          });
+        }
+        
+        return new Style({});
+      },
+      zIndex: 100,
+    });
+    
+    map.addLayer(layer);
+    sourceRef.current = source;
+    layerRef.current = layer;
+    
+    return { source, layer };
+  }, [map]);
+
+  const clearSource = useCallback(() => {
+    if (sourceRef.current) {
+      sourceRef.current.clear();
+    }
+  }, []);
+
+  const addPointToMap = useCallback((point: Point) => {
+    if (!sourceRef.current) return;
+    const feature = new Feature(new OlPoint([point.easting, point.northing]));
+    feature.set('type', 'vertex');
+    sourceRef.current.addFeature(feature);
+  }, []);
+
+  const addLineToMap = useCallback((points: Point[]) => {
+    if (!sourceRef.current || points.length < 2) return;
+    const coords = points.map(p => [p.easting, p.northing] as [number, number]);
+    const feature = new Feature(new LineString(coords));
+    feature.set('type', 'line');
+    sourceRef.current.addFeature(feature);
+  }, []);
+
+  const addPolygonToMap = useCallback((points: Point[]) => {
+    if (!sourceRef.current || points.length < 3) return;
+    const coords = [...points.map(p => [p.easting, p.northing] as [number, number]), [points[0].easting, points[0].northing] as [number, number]];
+    const feature = new Feature(new Polygon([coords]));
+    feature.set('type', 'polygon');
+    sourceRef.current.addFeature(feature);
+  }, []);
+
+  const startMeasurement = useCallback((mode: MeasurementMode) => {
+    if (!map) return;
+    
+    if (!sourceRef.current) {
+      createLayer();
+    }
+    
+    clearSource();
+    
+    setState({
+      mode,
+      points: [],
+      result: null,
+      isActive: true,
+    });
+
+    const handleClick = (evt: any) => {
+      const coord = evt.coordinate;
+      
+      const point: Point = {
+        easting: coord[0],
+        northing: coord[1],
+      };
+      
+      handlePointClick(point, mode);
+    };
+    
+    clickHandlerRef.current = handleClick;
+    map.on('click', handleClick);
+  }, [map, createLayer, clearSource]);
+
+  const handlePointClick = useCallback((point: Point, mode: MeasurementMode) => {
+    setState((prev) => {
+      const newPoints = [...prev.points, point];
+      
+      addPointToMap(point);
+      
+      let result: MeasurementState['result'] = null;
+      
+      if (mode === 'distance' && newPoints.length === 2) {
+        const distance = calculateDistance(newPoints[0], newPoints[1]);
+        result = { distance };
+        addLineToMap(newPoints);
+      } else if (mode === 'bearing' && newPoints.length === 2) {
+        const bearing = calculateBearing(newPoints[0], newPoints[1]);
+        result = { bearing };
+        addLineToMap(newPoints);
+      } else if (mode === 'coordinate') {
+        result = { coordinate: point };
+      } else if (mode === 'area' && newPoints.length >= 3) {
+        addPolygonToMap(newPoints);
+      }
+      
+      const isFinished = mode !== 'area' && newPoints.length >= 2;
+      
+      return {
+        ...prev,
+        points: newPoints,
+        result: result || (mode === 'area' && newPoints.length >= 3 ? { area: calculateArea(newPoints) } : null),
+        isActive: mode === 'area' || !isFinished,
+      };
+    });
+  }, [addPointToMap, addLineToMap, addPolygonToMap]);
+
+  const finishAreaMeasurement = useCallback(() => {
+    if (state.points.length < 3) return;
+    
+    const area = calculateArea(state.points);
+    addPolygonToMap(state.points);
+    
+    setState((prev) => ({
+      ...prev,
+      result: { area },
+      isActive: false,
+    }));
+  }, [state.points, addPolygonToMap]);
+
+  const cancelMeasurement = useCallback(() => {
+    clearSource();
+    
+    if (map && clickHandlerRef.current) {
+      map.un('click', clickHandlerRef.current);
+      clickHandlerRef.current = null;
+    }
+    
+    setState({
+      mode: 'none',
+      points: [],
+      result: null,
+      isActive: false,
+    });
+  }, [map, clearSource]);
+
+  const clearMeasurement = useCallback(() => {
+    clearSource();
+    setState((prev) => ({
+      ...prev,
+      points: [],
+      result: null,
+    }));
+  }, [clearSource]);
+
+  const getFormattedResult = useCallback((): FormattedResult | null => {
+    if (!state.result) return null;
+    
+    if (state.result.distance !== undefined) {
+      return {
+        type: 'distance',
+        raw: state.result.distance,
+        formatted: formatDistance(state.result.distance),
+      };
+    }
+    
+    if (state.result.area !== undefined) {
+      return {
+        type: 'area',
+        raw: state.result.area,
+        formatted: formatArea(state.result.area),
+      };
+    }
+    
+    if (state.result.bearing !== undefined) {
+      return {
+        type: 'bearing',
+        raw: state.result.bearing,
+        formatted: formatBearingWCB(state.result.bearing),
+      };
+    }
+    
+    if (state.result.coordinate) {
+      return {
+        type: 'coordinate',
+        raw: 0,
+        formatted: `E ${state.result.coordinate.easting.toFixed(3)}  N ${state.result.coordinate.northing.toFixed(3)}`,
+      };
+    }
+    
+    return null;
+  }, [state.result]);
+
+  return {
+    state,
+    startMeasurement,
+    finishAreaMeasurement,
+    cancelMeasurement,
+    clearMeasurement,
+    getFormattedResult,
+  };
+}

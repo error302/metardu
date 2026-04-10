@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { registerProjections, arrayTo3857, to21037, SRID_3857 } from '@/lib/map/projection';
 import { nearestKenCORSStations, type KenCORSStation } from '@/lib/map/kencors';
 import type { AdjustedStation } from '@/lib/engine/planGeometry';
+import { MeasurementTool } from './MeasurementTool';
 
 interface SurveyMapProps {
   projectId: string;
@@ -184,6 +185,10 @@ export default function SurveyMap({
 
       <div className="relative flex-1">
         <div ref={mapRef} className="w-full h-full" />
+
+        <div className="absolute top-3 right-3 z-10">
+          <MeasurementTool map={mapInstanceRef.current} />
+        </div>
 
         {clickedCoord && (
           <div className="absolute bottom-3 left-3 bg-white border border-gray-200 rounded px-3 py-2 text-xs font-mono shadow">
