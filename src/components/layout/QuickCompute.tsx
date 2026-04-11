@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { BoltIcon, XIcon, ChevronRightIcon } from '@/components/map/PremiumIcons'
 
 const TOOLS = [
   {
@@ -67,61 +68,94 @@ export function QuickCompute() {
 
   return (
     <>
+      {/* ── FAB Button ────────────────────────────────────────── */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2
-                   bg-orange-500 hover:bg-orange-600 text-white
-                   px-4 py-3 rounded-full shadow-lg font-medium
-                   transition-colors"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5
+                   bg-gradient-to-r from-[#FFB84D] to-[#E8841A] text-white
+                   px-5 py-3 rounded-2xl font-semibold text-sm
+                   shadow-[0_0_20px_rgba(232,132,26,0.3)]
+                   hover:shadow-[0_0_30px_rgba(232,132,26,0.45)]
+                   transition-all duration-300 hover:scale-[1.02]
+                   active:scale-[0.98]"
       >
-        <span>⚡</span>
+        <BoltIcon className="w-4 h-4" active />
         <span>Quick Compute</span>
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex">
-          <div
-            className="flex-1 bg-black/60"
-            onClick={() => setOpen(false)}
-          />
+      {/* ── Slide-in Panel ────────────────────────────────────── */}
+      <div
+        className={`fixed inset-0 z-50 flex transition-all duration-300 ease-out ${
+          open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        {/* Backdrop */}
+        <div
+          className="flex-1 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+          onClick={() => setOpen(false)}
+        />
 
-          <div className="w-80 bg-[var(--bg-secondary)] border-l overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
-              <h2 className="font-semibold text-lg">Quick Compute</h2>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                ✕
-              </button>
+        {/* Panel */}
+        <div
+          className={`w-80 bg-[#0d0d14]/98 backdrop-blur-xl border-l border-white/[0.06]
+                      overflow-y-auto custom-scrollbar-quick
+                      transition-transform duration-300 ease-out
+                      ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        >
+          {/* Panel header */}
+          <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-[#0d0d14]/95 backdrop-blur-xl border-b border-white/[0.06]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[#E8841A]/10 flex items-center justify-center">
+                <BoltIcon className="w-4 h-4" active />
+              </div>
+              <h2 className="font-semibold text-white text-base tracking-wide">Quick Compute</h2>
             </div>
+            <button
+              onClick={() => setOpen(false)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/[0.06] transition-colors"
+            >
+              <XIcon className="w-4 h-4" />
+            </button>
+          </div>
 
-            <div className="p-4 space-y-6">
-              {TOOLS.map(group => (
-                <div key={group.category}>
-                  <p className="text-xs font-semibold text-[var(--text-muted)]
-                                uppercase tracking-wider mb-2">
-                    {group.category}
-                  </p>
-                  <div className="space-y-1">
-                    {group.items.map(item => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setOpen(false)}
-                        className="block px-3 py-2 rounded text-sm
-                                   hover:bg-[var(--bg-tertiary)] transition-colors"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
+          {/* Tools list */}
+          <div className="p-4 space-y-6">
+            {TOOLS.map(group => (
+              <div key={group.category}>
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-[0.15em] mb-2 px-1">
+                  {group.category}
+                </p>
+                <div className="space-y-0.5">
+                  {group.items.map(item => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center justify-between group px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all duration-200"
+                    >
+                      <span className="font-medium">{item.label}</span>
+                      <ChevronRightIcon className="w-3.5 h-3.5 text-gray-600 group-hover:text-[#E8841A] group-hover:translate-x-0.5 transition-all duration-200" />
+                    </Link>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
-      )}
+      </div>
+
+      <style jsx global>{`
+        .custom-scrollbar-quick::-webkit-scrollbar {
+          width: 3px;
+        }
+        .custom-scrollbar-quick::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar-quick::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.08);
+          border-radius: 3px;
+        }
+      `}</style>
     </>
   )
 }
