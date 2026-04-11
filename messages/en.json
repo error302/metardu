@@ -299,7 +299,8 @@
     "aiChecker": "AI Plan Checker",
     "projectTenders": "Project Tenders",
     "equipmentExchange": "Equipment Exchange",
-    "controlPointsMap": "Control Points Map"
+    "controlPointsMap": "Control Points Map",
+    "jobSchedule": "Job Schedule"
   },
   "points": {
     "addPoint": "Add Point",

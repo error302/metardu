@@ -111,6 +111,7 @@ const moreGroups = [
   {
     titleKey: 'nav.community',
     items: [
+      { href: '/schedule', labelKey: 'community.jobSchedule', badgeKey: 'new' },
       { href: '/jobs', labelKey: 'community.projectTenders' },
       { href: '/marketplace', labelKey: 'community.equipmentExchange' },
       { href: '/peer-review', labelKey: 'community.peerReview' },

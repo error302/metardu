@@ -16,7 +16,8 @@
     "verify:engine": "npx tsc -p scripts/engine-verify.tsconfig.json && node scripts/.out/scripts/engine-verify.js",
     "mobile:sync": "npx cap sync android",
     "mobile:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
-    "mobile:open": "npx cap open android"
+    "mobile:open": "npx cap open android",
+    "postinstall": "node scripts/patch-cssnano.js"
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^8.1.3",
@@ -32,7 +33,7 @@
     "@turf/turf": "^7.3.4",
     "bcryptjs": "^3.0.3",
     "canvas": "^3.2.1",
-    "clsx": "^2.1.0",
+    "clsx": "^2.1.1",
     "d3-array": "^3.2.4",
     "d3-contour": "^4.0.2",
     "d3-delaunay": "^6.0.4",
@@ -41,6 +42,7 @@
     "dxf-parser": "^1.1.2",
     "dxf-writer": "^1.18.4",
     "exceljs": "^4.4.0",
+    "framer-motion": "^12.38.0",
     "idb": "^8.0.3",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
@@ -54,6 +56,7 @@
     "next-intl": "^4.8.3",
     "ol": "^10.8.0",
     "papaparse": "^5.4.1",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.5.207",
     "pg": "^8.20.0",
     "proj4": "^2.20.6",
@@ -67,6 +70,7 @@
     "shapefile": "^0.6.6",
     "shp-write": "^0.3.2",
     "svg2pdf.js": "^2.7.0",
+    "tailwind-merge": "^3.5.0",
     "three": "^0.183.2",
     "xlsx": "^0.18.5",
     "zod": "^3.22.4"
@@ -94,6 +98,7 @@
     "eslint-config-next": "^14.2.0",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
+    "lightningcss": "^1.32.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^3.4.19",
     "ts-jest": "^29.4.9",
