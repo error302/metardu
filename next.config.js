@@ -1,6 +1,11 @@
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-})
+let withBundleAnalyzer = (c) => c
+try {
+  withBundleAnalyzer = require('@next/bundle-analyzer')({
+    enabled: process.env.ANALYZE === 'true',
+  })
+} catch (e) {
+  // bundle-analyzer not available, pass-through
+}
 
 const withPWA = require('@ducanh2912/next-pwa').default({
   dest: 'public',
