@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       submissionRef: ref,
       projectId,
       surveyor,
-      subtype: project.subtype || 'cadastral_subdivision',
+      subtype: project.survey_type || 'cadastral_subdivision',
       parcel: {
         lrNumber: project.lr_number || '',
         county: project.county || '',

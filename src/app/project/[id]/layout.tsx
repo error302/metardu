@@ -29,12 +29,12 @@ export default async function ProjectLayout({ children, params }: Props) {
   const supabase = await createClient()
   const { data: project } = await supabase
     .from('projects')
-    .select('subtype')
+    .select('survey_type')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()
 
-  const surveyType = project ? normalizeSurveyType(project.subtype) : undefined
+  const surveyType = project ? normalizeSurveyType(project.survey_type) : undefined
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">

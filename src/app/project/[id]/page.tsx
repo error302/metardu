@@ -30,14 +30,14 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Pro
   const supabase = await createClient()
   const { data: project, error } = await supabase
     .from('projects')
-    .select('id, name, subtype')
+    .select('id, name, survey_type')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()
 
   if (error || !project) redirect('/dashboard')
 
-  const surveyType = normalizeSurveyType(project.subtype)
+  const surveyType = normalizeSurveyType(project.survey_type)
   const workflow = getWorkflow(surveyType)
   const urlStep = parseInt(searchParams.step ?? '', 10)
   const stepIndex = Number.isFinite(urlStep) ? urlStep : 1

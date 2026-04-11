@@ -363,7 +363,7 @@ export function HydroPanel({ projectId, projectData }: Props) {
         bathyGrid,
         soundings: reduced.reducedSoundings,
         contourInterval: contourInt,
-        hydroType: projectData?.subtype ?? 'inland',
+        hydroType: projectData?.survey_type ?? 'inland',
         projectData,
         surveyorProfile: profile,
       })
@@ -385,7 +385,7 @@ export function HydroPanel({ projectId, projectData }: Props) {
       const profile = await getActiveSurveyorProfile()
       const content = buildReportOfSurveyContent({
         projectName: projectData?.name ?? 'Unnamed Survey',
-        hydroType: projectData?.subtype ?? 'inland',
+        hydroType: projectData?.survey_type ?? 'inland',
         startDate: rosData.startDate,
         endDate: rosData.endDate,
         surveyArea: projectData?.locality ?? '',
@@ -436,7 +436,7 @@ export function HydroPanel({ projectId, projectData }: Props) {
         .from('hydro_surveys')
         .upsert({
           project_id: projectId,
-          hydro_type: projectData?.subtype ?? 'inland',
+          hydro_type: projectData?.survey_type ?? 'inland',
           vessel_name: rosData.vesselName || null,
           sounder_model: rosData.sounderModel || null,
           survey_datum: datum,

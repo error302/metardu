@@ -29,7 +29,7 @@ export default async function SubmissionPage({ params }: Props) {
 
   const { data: project } = await supabase
     .from('projects')
-    .select('id, name, subtype')
+    .select('id, name, survey_type')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single();
@@ -57,7 +57,7 @@ export default async function SubmissionPage({ params }: Props) {
       project={{
         id: project.id,
         name: project.name,
-        survey_type: normalizeSurveyType(project.subtype),
+        survey_type: normalizeSurveyType(project.survey_type),
       }}
       existingDocs={mappedDocs}
       projectId={params.id}

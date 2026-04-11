@@ -127,7 +127,7 @@ export async function assembleSubmissionPackage(
     submissionRef: ref,
     projectId,
     surveyor,
-    subtype: proj.subtype || 'cadastral_subdivision',
+    subtype: proj.survey_type || 'cadastral_subdivision',
     parcel: {
       lrNumber: proj.lr_number || '',
       parcelNumber: proj.parcel_number || proj.lr_number || '',
