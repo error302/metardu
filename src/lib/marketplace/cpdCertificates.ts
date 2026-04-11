@@ -235,7 +235,7 @@ export function verifyCertificate(certificateNumber: string): CPDCertificate | n
   return {
     id: 'verified-cert',
     userId: 'user-001',
-    userName: 'Eng. John Doe',
+    userName: 'Surveyor',
     userLicense: 'RS/2020/1234',
     activityId: 'cpd-001',
     activityTitle: 'Advanced GNSS Processing',

@@ -169,7 +169,7 @@ export default function ProfilePage() {
                   value={profile.full_name}
                   onChange={e => setProfile({ ...profile, full_name: e.target.value })}
                   className="input w-full"
-                  placeholder="John Doe"
+                  placeholder="Enter your full name"
                 />
               </div>
               <div>
