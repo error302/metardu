@@ -11,6 +11,57 @@ import {
   MoonIcon, TerrainIcon, GridIcon, OpacityIcon,
 } from '@/components/map/PremiumIcons'
 
+// Client-side error catcher — prevents blank page on runtime errors
+function MapErrorBoundary({ children }: { children: React.ReactNode }) {
+  const [error, setError] = useState<{ message: string; stack?: string } | null>(null)
+
+  useEffect(() => {
+    const handler = (e: ErrorEvent) => {
+      console.error('MapPage error:', e.error)
+      setError({ message: e.message, stack: e.error?.stack })
+    }
+    const rejectionHandler = (e: PromiseRejectionEvent) => {
+      console.error('MapPage unhandled rejection:', e.reason)
+      setError({ message: String(e.reason) })
+    }
+    window.addEventListener('error', handler)
+    window.addEventListener('unhandledrejection', rejectionHandler)
+    return () => {
+      window.removeEventListener('error', handler)
+      window.removeEventListener('unhandledrejection', rejectionHandler)
+    }
+  }, [])
+
+  if (error) {
+    return (
+      <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] flex items-center justify-center">
+        <div className="text-center max-w-lg px-6">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-red-500/10 flex items-center justify-center">
+            <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-white font-semibold text-lg mb-2">Map failed to load</h3>
+          <p className="text-gray-400 text-sm mb-1">{error.message}</p>
+          {error.stack && (
+            <pre className="text-[10px] text-gray-600 mt-2 p-2 bg-white/[0.02] rounded-lg text-left overflow-auto max-h-32">
+              {error.stack.slice(0, 500)}
+            </pre>
+          )}
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-5 py-2 bg-[#E8841A] hover:bg-[#E8841A]/80 text-white text-sm rounded-lg transition-colors"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return <>{children}</>
+}
+
 /**
  * METARDU Global Map Page — Premium OpenLayers Interface
  *
@@ -1069,6 +1120,7 @@ export default function GlobalMapPage() {
   //  RENDER
   // ══════════════════════════════════════════════════════════════════
   return (
+    <MapErrorBoundary>
     <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden">
 
       {/* ── MAP CONTAINER ────────────────────────────────────────────── */}
@@ -1485,5 +1537,6 @@ export default function GlobalMapPage() {
         }
       `}</style>
     </div>
+    </MapErrorBoundary>
   )
 }
