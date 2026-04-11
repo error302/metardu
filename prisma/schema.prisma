@@ -1,0 +1,27 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Project {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  utmZone      Int
+  hemisphere   String
+  country      String
+  jurisdiction String?
+  datum        String?
+  standard     String?
+  surveyType   String
+  clientName   String?
+  surveyorName String?
+  surveyorEmail String?
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
