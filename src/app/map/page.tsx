@@ -1,107 +1,58 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import dynamic from 'next/dynamic'
 
 /**
  * Global Map Page
- *
- * Renders a full-screen OpenLayers map accessible from the navbar.
- * Uses next/dynamic to avoid SSR issues with the OL package.
+ * Full-screen OpenLayers map accessible from the navbar.
+ * Follows the same pattern as SurveyMap (which works in project workspaces).
  */
 
-function MapInner() {
+export default function GlobalMapPage() {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<any>(null)
-  const [ready, setReady] = useState(false)
-  const [error, setError] = useState('')
+  const [mapReady, setMapReady] = useState(false)
+  const [initError, setInitError] = useState('')
   const [projectCount, setProjectCount] = useState(0)
   const [basemap, setBasemap] = useState<'osm' | 'satellite'>('osm')
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return
-    let cancelled = false
+
     let map: any = null
+    let cancelled = false
 
-    async function init() {
+    async function initMap() {
       try {
-        // Register projections first (needed for UTM transforms)
-        const { registerProjections } = await import('@/lib/map/projection')
-        await registerProjections()
+        // Step 1: Register projections (needed for UTM)
+        await (await import('@/lib/map/projection')).registerProjections()
 
-        // Import all OL modules
-        const [
-          MapMod,
-          ViewMod,
-          TileLayerMod,
-          VectorLayerMod,
-          OSMMod,
-          XYZMod,
-          VectorSourceMod,
-          FeatureMod,
-          PointMod,
-          PolygonMod,
-          CircleStyleMod,
-          FillMod,
-          StrokeMod,
-          TextMod,
-          StyleMod,
-          SelectMod,
-          ScaleLineMod,
-          FullScreenMod,
-          AttrMod,
-          projMod,
-        ] = await Promise.all([
-          import('ol/Map'),
-          import('ol/View'),
-          import('ol/layer/Tile'),
-          import('ol/layer/Vector'),
-          import('ol/source/OSM'),
-          import('ol/source/XYZ'),
-          import('ol/source/Vector'),
-          import('ol/Feature'),
-          import('ol/geom/Point'),
-          import('ol/geom/Polygon'),
-          import('ol/style/Circle'),
-          import('ol/style/Fill'),
-          import('ol/style/Stroke'),
-          import('ol/style/Text'),
-          import('ol/style/Style'),
-          import('ol/interaction/Select'),
-          import('ol/control/ScaleLine'),
-          import('ol/control/FullScreen'),
-          import('ol/control/Attribution'),
-          import('ol/proj'),
-        ])
+        // Step 2: Import OL modules one at a time for better error diagnostics
+        const { default: Map } = await import('ol/Map')
+        const { default: View } = await import('ol/View')
+        const { default: TileLayer } = await import('ol/layer/Tile')
+        const { default: VectorLayer } = await import('ol/layer/Vector')
+        const { default: OSM } = await import('ol/source/OSM')
+        const { default: XYZ } = await import('ol/source/XYZ')
+        const { default: VectorSource } = await import('ol/source/Vector')
+        const { default: Feature } = await import('ol/Feature')
+        const { default: Point } = await import('ol/geom/Point')
+        const { default: Polygon } = await import('ol/geom/Polygon')
+        const { default: CircleStyle } = await import('ol/style/Circle')
+        const { default: Fill } = await import('ol/style/Fill')
+        const { default: Stroke } = await import('ol/style/Stroke')
+        const { default: Text } = await import('ol/style/Text')
+        const { default: Style } = await import('ol/style/Style')
+        const { default: ScaleLine } = await import('ol/control/ScaleLine')
+        const { default: FullScreen } = await import('ol/control/FullScreen')
+        const { default: Attribution } = await import('ol/control/Attribution')
+        const { fromLonLat, transform } = await import('ol/proj')
 
         if (cancelled || !mapRef.current) return
 
-        const Map = MapMod.default
-        const View = ViewMod.default
-        const TileLayer = TileLayerMod.default
-        const VectorLayer = VectorLayerMod.default
-        const OSM = OSMMod.default
-        const XYZ = XYZMod.default
-        const VectorSource = VectorSourceMod.default
-        const Feature = FeatureMod.default
-        const Point = PointMod.default
-        const Polygon = PolygonMod.default
-        const CircleStyle = CircleStyleMod.default
-        const Fill = FillMod.default
-        const Stroke = StrokeMod.default
-        const Text = TextMod.default
-        const Style = StyleMod.default
-        const Select = SelectMod.default
-        const ScaleLine = ScaleLineMod.default
-        const FullScreen = FullScreenMod.default
-        const Attribution = AttrMod.default
-        const { fromLonLat, transform } = projMod
-
-        // ── Basemap layers ─────────────────────────────────
+        // ── Basemap layers ──────────────────────────────────
         const osmLayer = new TileLayer({
-          source: new OSM({
-            crossOrigin: 'anonymous',
-          }),
+          source: new OSM({ crossOrigin: 'anonymous' }),
           visible: true,
         })
         osmLayer.set('basemapId', 'osm')
@@ -117,14 +68,11 @@ function MapInner() {
         })
         satelliteLayer.set('basemapId', 'satellite')
 
-        // ── Vector layer for project data ──────────────────
+        // ── Vector layer for project data ───────────────────
         const vectorSource = new VectorSource()
-        const vectorLayer = new VectorLayer({
-          source: vectorSource,
-          zIndex: 10,
-        })
+        const vectorLayer = new VectorLayer({ source: vectorSource, zIndex: 10 })
 
-        // ── Fetch projects from Supabase ───────────────────
+        // ── Fetch projects from Supabase ────────────────────
         try {
           const { createClient } = await import('@/lib/supabase/client')
           const supabase = createClient()
@@ -151,62 +99,50 @@ function MapInner() {
                 const epsg = hem === 'N' ? 32600 + zone : 32700 + zone
                 const projCode = `EPSG:${epsg}`
 
-                // Register UTM projection if needed
                 try {
-                  const proj4 = (await import('proj4')).default
+                  const proj4Module = await import('proj4')
+                  const proj4 = proj4Module.default
                   const { register } = await import('ol/proj/proj4')
                   register(proj4)
                   proj4.defs(projCode, `+proj=utm +zone=${zone} +${hem === 'S' ? 'south' : 'north'} +ellps=WGS84 +datum=WGS84 +units=m +no_defs`)
                 } catch {
-                  // Projection may already be registered
+                  // Already registered
                 }
 
-                // Add beacon points
                 for (const station of adjustedStations) {
                   const e = parseFloat(station.easting || station.E || station.e)
                   const n = parseFloat(station.northing || station.N || station.n)
                   if (isNaN(e) || isNaN(n)) continue
-
                   try {
                     const coords4326 = transform([e, n], projCode, 'EPSG:4326')
                     const coords3857 = fromLonLat(coords4326)
-
                     const feature = new Feature({
                       geometry: new Point(coords3857),
                       projectName: project.name,
                       stationName: station.name || station.station || station.id || '',
-                      type: 'beacon',
                     })
-
                     feature.setStyle(new Style({
                       image: new CircleStyle({
                         radius: 7,
                         fill: new Fill({ color: '#E8841A' }),
-                        stroke: new Stroke({ color: '#ffffff', width: 2 }),
+                        stroke: new Stroke({ color: '#fff', width: 2 }),
                       }),
                       text: new Text({
                         text: station.name || station.station || station.id || '',
                         offsetY: -16,
                         font: 'bold 11px Calibri, sans-serif',
                         fill: new Fill({ color: '#E8841A' }),
-                        stroke: new Stroke({ color: '#ffffff', width: 3 }),
+                        stroke: new Stroke({ color: '#fff', width: 3 }),
                       }),
                     }))
-
                     vectorSource.addFeature(feature)
-                  } catch {
-                    // Skip individual beacon on transform error
-                  }
+                  } catch { /* skip beacon */ }
                 }
 
-                // Add boundary polygon
+                // Boundary polygon
                 const validCoords = adjustedStations
-                  .map((s: any) => [
-                    parseFloat(s.easting || s.E || s.e),
-                    parseFloat(s.northing || s.N || s.n),
-                  ])
+                  .map((s: any) => [parseFloat(s.easting || s.E || s.e), parseFloat(s.northing || s.N || s.n)])
                   .filter((c: number[]) => !isNaN(c[0]) && !isNaN(c[1]))
-
                 if (validCoords.length >= 3) {
                   try {
                     const ring = [...validCoords, validCoords[0]]
@@ -217,34 +153,29 @@ function MapInner() {
                     const polygonFeature = new Feature({
                       geometry: new Polygon([transformed]),
                       projectName: project.name,
-                      type: 'boundary',
                     })
                     polygonFeature.setStyle(new Style({
-                      fill: new Fill({ color: 'rgba(232, 132, 26, 0.12)' }),
+                      fill: new Fill({ color: 'rgba(232,132,26,0.12)' }),
                       stroke: new Stroke({ color: '#E8841A', width: 2.5 }),
                     }))
                     vectorSource.addFeature(polygonFeature)
-                  } catch {
-                    // Skip polygon on error
-                  }
+                  } catch { /* skip polygon */ }
                 }
-              } catch {
-                // Skip individual project on error
-              }
+              } catch { /* skip project */ }
             }
           }
         } catch {
-          // Supabase not available or auth failed - show empty map
+          // Supabase unavailable
         }
 
         if (cancelled || !mapRef.current) return
 
-        // ── Create map ─────────────────────────────────────
+        // ── Create the map ──────────────────────────────────
         map = new Map({
           target: mapRef.current,
           layers: [osmLayer, satelliteLayer, vectorLayer],
           view: new View({
-            center: fromLonLat([37.0, -1.0]), // Kenya center
+            center: fromLonLat([37.0, -1.0]),
             zoom: 7,
             maxZoom: 22,
             minZoom: 2,
@@ -258,82 +189,26 @@ function MapInner() {
 
         mapInstance.current = map
 
-        // ── Click popup ────────────────────────────────────
-        const select = new Select({
-          layers: [vectorLayer],
-          hitTolerance: 5,
-        })
-        map.addInteraction(select)
-
-        select.on('select', (evt: any) => {
-          const popup = document.getElementById('map-popup')
-          const popupContent = document.getElementById('map-popup-content')
-          if (!popup || !popupContent) return
-
-          const feature = evt.selected[0]
-          if (feature) {
-            const name = feature.get('projectName') || 'Project'
-            const station = feature.get('stationName') || ''
-            const geom = feature.getGeometry()
-            if (!geom) return
-
-            const coord = geom.getCoordinates()
-            let lon = 0, lat = 0
-            try {
-              const [x, y] = transform(coord, 'EPSG:3857', 'EPSG:4326')
-              lon = x
-              lat = y
-            } catch {
-              // Use raw coords if transform fails
-            }
-
-            popupContent.innerHTML = `
-              <div style="font-weight:600;color:#E8841A;margin-bottom:2px;">${name}</div>
-              ${station ? `<div style="color:#aaa;">Beacon: ${station}</div>` : ''}
-              <div style="color:#888;font-size:10px;margin-top:3px;">
-                ${lat.toFixed(6)}, ${lon.toFixed(6)}
-              </div>
-            `
-            popup.style.display = 'block'
-            popup.style.left = `${evt.mapBrowserEvent.pixel[0] + 12}px`
-            popup.style.top = `${evt.mapBrowserEvent.pixel[1] - 12}px`
-          } else {
-            popup.style.display = 'none'
-          }
-        })
-
-        // Close popup on map click elsewhere
-        map.on('click', () => {
-          const popup = document.getElementById('map-popup')
-          if (popup && select.getFeatures().getLength() === 0) {
-            popup.style.display = 'none'
-          }
-        })
-
-        // ── Zoom to data extent if available ───────────────
-        const features = vectorSource.getFeatures()
-        if (features.length > 0) {
+        // ── Zoom to data if any ─────────────────────────────
+        if (vectorSource.getFeatures().length > 0) {
           try {
             const extent = vectorSource.getExtent()
-            if (extent[0] !== Infinity && extent[1] !== Infinity) {
-              map.getView().fit(extent, { padding: [80, 80, 80, 80], maxZoom: 18, duration: 800 })
+            if (extent[0] !== Infinity) {
+              map.getView().fit(extent, { padding: [80, 80, 80, 80], maxZoom: 18 })
             }
-          } catch {
-            // Keep default view
-          }
+          } catch { /* keep default */ }
         }
 
-        if (!cancelled) setReady(true)
+        if (!cancelled) setMapReady(true)
       } catch (err: any) {
-        console.error('Map init error:', err)
+        console.error('Map initialization failed:', err)
         if (!cancelled) {
-          setError(err?.message || 'Failed to load map. Please refresh the page.')
-          setReady(true) // Show the error state
+          setInitError(err?.message || 'Map failed to load')
         }
       }
     }
 
-    init()
+    initMap()
 
     return () => {
       cancelled = true
@@ -344,13 +219,10 @@ function MapInner() {
     }
   }, [])
 
-  // ── Basemap toggle handler ─────────────────────────────
+  // ── Basemap toggle ────────────────────────────────────
   const toggleBasemap = (mode: 'osm' | 'satellite') => {
     if (!mapInstance.current) return
-    const map = mapInstance.current
-    const layers = map.getLayers().getArray()
-
-    for (const layer of layers) {
+    for (const layer of mapInstance.current.getLayers().getArray()) {
       const id = layer.get('basemapId')
       if (id === 'osm') layer.setVisible(mode === 'osm')
       if (id === 'satellite') layer.setVisible(mode === 'satellite')
@@ -360,9 +232,8 @@ function MapInner() {
 
   const fitToKenya = () => {
     if (!mapInstance.current) return
-    const { fromLonLat } = (window as any).ol?.proj || {}
     mapInstance.current.getView().animate({
-      center: [-387647, -999571], // Kenya center in EPSG:3857
+      center: [-387647, -999571],
       zoom: 7,
       duration: 600,
     })
@@ -370,9 +241,12 @@ function MapInner() {
 
   return (
     <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden">
-      {/* Loading state */}
-      {!ready && !error && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#0a0a0f]">
+      {/* Map container — always rendered so OL can target it */}
+      <div ref={mapRef} className="w-full h-full" />
+
+      {/* Loading overlay */}
+      {!mapReady && !initError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0a0a0f]">
           <div className="text-center">
             <div className="w-10 h-10 border-2 border-[#E8841A] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm text-gray-400">Loading map...</p>
@@ -380,12 +254,12 @@ function MapInner() {
         </div>
       )}
 
-      {/* Error state */}
-      {error && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#0a0a0f]">
+      {/* Error overlay */}
+      {initError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0a0a0f]">
           <div className="text-center max-w-md px-6">
             <div className="text-red-400 text-lg mb-2">Map Error</div>
-            <p className="text-sm text-gray-400 mb-4">{error}</p>
+            <p className="text-sm text-gray-400 mb-4">{initError}</p>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 bg-[#E8841A] text-white rounded-lg text-sm hover:bg-[#E8841A]/80"
@@ -396,85 +270,45 @@ function MapInner() {
         </div>
       )}
 
-      {/* Map container - must be in DOM even during loading for OL to target */}
-      <div
-        ref={mapRef}
-        className="w-full h-full"
-        style={{ visibility: ready && !error ? 'visible' : 'hidden' }}
-      />
-
-      {/* Map toolbar - only show when ready */}
-      {ready && !error && (
+      {/* Toolbar — visible once map is ready */}
+      {mapReady && (
         <>
-          {/* Top-left controls */}
-          <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
-            {/* Basemap toggle */}
+          {/* Top-left: basemap toggle + fit */}
+          <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
             <div className="bg-[#0a0a0f]/90 border border-white/10 rounded-lg overflow-hidden backdrop-blur-sm">
               <button
                 onClick={() => toggleBasemap('osm')}
-                className={`px-3 py-2 text-xs font-medium transition-colors ${
-                  basemap === 'osm'
-                    ? 'bg-[#E8841A] text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
-                }`}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${basemap === 'osm' ? 'bg-[#E8841A] text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
               >
                 Streets
               </button>
               <button
                 onClick={() => toggleBasemap('satellite')}
-                className={`px-3 py-2 text-xs font-medium transition-colors ${
-                  basemap === 'satellite'
-                    ? 'bg-[#E8841A] text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
-                }`}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${basemap === 'satellite' ? 'bg-[#E8841A] text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
               >
                 Satellite
               </button>
             </div>
-
-            {/* Fit to extent */}
             <button
               onClick={fitToKenya}
-              className="bg-[#0a0a0f]/90 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 hover:text-white hover:bg-white/5 backdrop-blur-sm transition-colors"
-              title="Reset view to Kenya"
+              className="bg-[#0a0a0f]/90 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 hover:text-white hover:bg-white/5 backdrop-blur-sm"
             >
               Fit to Kenya
             </button>
           </div>
 
-          {/* Bottom-left info bar */}
-          <div className="absolute bottom-3 left-3 z-20 bg-[#0a0a0f]/90 border border-white/10 rounded-lg px-3 py-2 backdrop-blur-sm">
+          {/* Bottom-left: info */}
+          <div className="absolute bottom-3 left-3 z-10 bg-[#0a0a0f]/90 border border-white/10 rounded-lg px-3 py-2 backdrop-blur-sm">
             <p className="text-xs text-gray-400">
               {projectCount > 0 ? (
-                <span>
-                  <span className="text-[#E8841A] font-semibold">{projectCount}</span> project{projectCount > 1 ? 's' : ''} loaded
-                  with beacon data
-                </span>
+                <span><span className="text-[#E8841A] font-semibold">{projectCount}</span> project{projectCount > 1 ? 's' : ''} loaded</span>
               ) : (
-                <span>
-                  No project data to display.
-                  <a href="/project/new" className="text-[#E8841A] hover:underline ml-1">
-                    Create a project
-                  </a>{' '}
-                  to see survey data on the map.
-                </span>
+                <span>No project data. <a href="/project/new" className="text-[#E8841A] hover:underline">Create a project</a> to see survey data.</span>
               )}
             </p>
           </div>
         </>
       )}
-
-      {/* Click popup */}
-      <div
-        id="map-popup"
-        className="absolute z-30 bg-[#0a0a0f]/95 border border-white/10 rounded-lg px-3 py-2 text-xs max-w-[220px] backdrop-blur-sm shadow-xl pointer-events-none"
-        style={{ display: 'none' }}
-      >
-        <div id="map-popup-content" />
-      </div>
     </div>
   )
 }
-
-// Use dynamic import with ssr: false to prevent OL from being bundled server-side
-export default dynamic(() => Promise.resolve(MapInner), { ssr: false })
