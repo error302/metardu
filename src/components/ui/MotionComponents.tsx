@@ -216,18 +216,29 @@ export function GlassCard({
 export function AnimatedGradientText({
   children,
   className,
+  from,
+  via,
+  to,
 }: {
   children: React.ReactNode;
   className?: string;
+  from?: string;
+  via?: string;
+  to?: string;
 }) {
+  const gradientFrom = from || '#E8841A';
+  const gradientVia = via || '#FF6B35';
+  const gradientTo = to || '#FFB347';
   return (
     <motion.span
       className={cn(
         "inline-block bg-clip-text text-transparent bg-[length:200%_200%]",
-        "bg-gradient-to-r from-[#E8841A] via-[#FF6B35] to-[#FFB347]",
         "animate-gradient",
         className
       )}
+      style={{
+        backgroundImage: `linear-gradient(to right, ${gradientFrom}, ${gradientVia}, ${gradientTo})`,
+      }}
       animate={{
         backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
       }}
@@ -345,11 +356,13 @@ export function CounterAnimation({
    ======================================================================== */
 export function TypewriterText({
   text,
+  words,
   className,
   delay = 0,
   speed = 30,
 }: {
-  text: string;
+  text?: string;
+  words?: string[];
   className?: string;
   delay?: number;
   speed?: number;
@@ -357,18 +370,29 @@ export function TypewriterText({
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const [displayed, setDisplayed] = useState("");
+  const [wordIndex, setWordIndex] = useState(0);
+
+  // Resolve the current text to type
+  const currentText = text ?? (words ? words[wordIndex % words.length] : "");
 
   useEffect(() => {
-    if (!isInView) return;
+    if (!isInView || !currentText) return;
 
     let index = 0;
     const timeout = setTimeout(() => {
       const interval = setInterval(() => {
-        if (index < text.length) {
-          setDisplayed(text.slice(0, index + 1));
+        if (index < currentText.length) {
+          setDisplayed(currentText.slice(0, index + 1));
           index++;
         } else {
           clearInterval(interval);
+          // If cycling through words, move to next after a pause
+          if (words && words.length > 1) {
+            setTimeout(() => {
+              setWordIndex(prev => (prev + 1) % words.length);
+              setDisplayed("");
+            }, 1500);
+          }
         }
       }, speed);
 
@@ -376,7 +400,7 @@ export function TypewriterText({
     }, delay);
 
     return () => clearTimeout(timeout);
-  }, [isInView, text, delay, speed]);
+  }, [isInView, currentText, delay, speed, words]);
 
   return (
     <span ref={ref} className={cn("inline", className)}>

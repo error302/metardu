@@ -145,7 +145,4 @@ export default function AreaCalculator() {
       </div>
     </div>
   );
-
-  }
-
- 
+}

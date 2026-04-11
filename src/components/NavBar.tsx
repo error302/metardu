@@ -30,7 +30,7 @@ const toolGroups = [
   {
     titleKey: 'tools.levelling',
     items: [
-      { href: '/tools/levelling', labelKey: 'leveling.title' },
+      { href: '/tools/leveling', labelKey: 'leveling.title' },
       { href: '/tools/two-peg-test', labelKey: 'tools.twoPegTest' },
     ]
   },
@@ -68,7 +68,6 @@ const toolGroups = [
       { href: '/tools/pipe-gradient', labelKey: 'tools.pipeGradient', label: 'Pipe Gradient' },
       { href: '/tools/borrow-pit-volume', labelKey: 'tools.borrowPitVolume', label: 'Borrow Pit Volume' },
       { href: '/tools/stockpile-volume', labelKey: 'tools.stockpileVolume', label: 'Stockpile Volume' },
-      { href: '/tools/setting-out', labelKey: 'tools.settingOut', label: 'Setting Out' },
     ]
   },
 ]

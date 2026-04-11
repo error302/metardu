@@ -110,5 +110,4 @@ export default function DistanceCalculator() {
       </div>
     </div>
   );
-
-  }
+}

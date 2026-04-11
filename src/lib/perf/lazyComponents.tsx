@@ -9,7 +9,6 @@
 import dynamic from 'next/dynamic'
 
 // Helper to make dynamic imports — typed loosely since component exports vary
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function lazy(loader: () => Promise<any>) {
   return dynamic(loader, { ssr: false })
 }

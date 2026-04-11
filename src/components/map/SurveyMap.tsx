@@ -73,7 +73,6 @@ export default function SurveyMap({
   }, [adjustedStations]);
 
   // ── Dynamically import SheetLayout to avoid SSR issues ─────────
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [SheetLayoutComponent, setSheetLayoutComponent] = useState<React.ComponentType<any> | null>(null);
 
   useEffect(() => {

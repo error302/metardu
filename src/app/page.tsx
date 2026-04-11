@@ -188,7 +188,7 @@ const STATS = [
   { value: 60, suffix: '', label: 'UTM Zones' },
   { value: 50, suffix: '+', label: 'Countries' },
   { value: 10, suffix: 'K+', label: 'Surveyors' },
-  { value: null, suffix: '', label: 'Built in Africa' },
+  { value: 100, suffix: '%', label: 'Built in Africa' },
 ]
 
 const TRUST_COUNTRIES = [
@@ -869,16 +869,16 @@ function Footer() {
       { label: 'API Docs', href: '/docs' },
     ],
     Resources: [
-      { label: 'Blog', href: '/blog' },
-      { label: 'Tutorials', href: '/tutorials' },
-      { label: 'Survey Standards', href: '/standards' },
-      { label: 'Community', href: '/community' },
+      { label: 'Survey Guide', href: '/guide' },
+      { label: 'Tools', href: '/tools' },
+      { label: 'Survey Regulations', href: '/tools/survey-regulations' },
+      { label: 'Documentation', href: '/docs' },
     ],
     Company: [
-      { label: 'About', href: '/about' },
-      { label: 'Careers', href: '/careers' },
-      { label: 'Contact', href: '/contact' },
-      { label: 'Privacy Policy', href: '/privacy' },
+      { label: 'About', href: '#features' },
+      { label: 'Pricing', href: '#pricing' },
+      { label: 'Field Tools', href: '/field' },
+      { label: 'Documentation', href: '/docs' },
     ],
   }
 

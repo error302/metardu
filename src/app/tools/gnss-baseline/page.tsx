@@ -102,7 +102,7 @@ export default function GNSSBaselinePage() {
               <li>✓ Trimble (.tin, .tnx)</li>
               <li>✓ Leica (.mdb, .xml)</li>
             </ul>
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
+            <div className="mt-4 p-3 bg-blue-950/50 border border-blue-800/50 rounded-lg text-sm text-blue-300">
               <strong>Tip:</strong> Ensure your baseline file contains vector data (ΔE, ΔN, ΔU) from reference to rover station.
             </div>
           </div>
@@ -110,7 +110,7 @@ export default function GNSSBaselinePage() {
 
         <div
           className={`border-2 border-dashed rounded-xl p-8 text-center mb-6 transition ${
-            dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+            dragActive ? 'border-blue-500 bg-blue-950/30' : 'border-[var(--border-color)]'
           }`}
           onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
           onDragLeave={() => setDragActive(false)}
@@ -161,17 +161,17 @@ export default function GNSSBaselinePage() {
         )}
 
         {validation && (
-          <div className={`rounded-xl p-4 mb-6 ${validation.valid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-            <h4 className={`font-semibold mb-2 ${validation.valid ? 'text-green-800' : 'text-red-800'}`}>
+          <div className={`rounded-xl p-4 mb-6 ${validation.valid ? 'bg-green-950/30 border border-green-800' : 'bg-red-950/30 border border-red-800'}`}>
+            <h4 className={`font-semibold mb-2 ${validation.valid ? 'text-green-300' : 'text-red-300'}`}>
               {validation.valid ? '✓ Validation Passed' : '✗ Validation Issues'}
             </h4>
             {validation.errors.length > 0 && (
-              <ul className="text-sm text-red-700 space-y-1">
+              <ul className="text-sm text-red-400 space-y-1">
                 {validation.errors.map((e, i) => <li key={i}>• {e}</li>)}
               </ul>
             )}
             {validation.warnings.length > 0 && (
-              <ul className="text-sm text-yellow-700 space-y-1 mt-2">
+              <ul className="text-sm text-yellow-400 space-y-1 mt-2">
                 {validation.warnings.map((w, i) => <li key={i}>⚠ {w}</li>)}
               </ul>
             )}
@@ -185,7 +185,7 @@ export default function GNSSBaselinePage() {
             <div className="grid md:grid-cols-3 gap-4 mb-6">
               <div className="bg-[var(--bg-secondary)] rounded-lg p-4">
                 <p className="text-sm text-[var(--text-muted)]">Solution Type</p>
-                <p className="text-lg font-bold text-blue-600">{result.solutionType.toUpperCase()}</p>
+                <p className="text-lg font-bold text-blue-400">{result.solutionType.toUpperCase()}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-1">{getSolutionQualityDescription(result.solutionType)}</p>
               </div>
               <div className="bg-[var(--bg-secondary)] rounded-lg p-4">

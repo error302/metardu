@@ -107,6 +107,8 @@ export default function SurveyReport({
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [showRIM, setShowRIM] = useState(false)
 
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Survey Report' })
+
   if (!isOpen) return null
 
   const rimData = { district: '', location: '', parcels: [] as any[] }
@@ -160,8 +162,6 @@ export default function SurveyReport({
     setValidationErrors(errors)
     setValidated(errors.length === 0)
   }
-
-  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Survey Report' })
 
   const SectionHeader = ({ children }: { children: React.ReactNode }) => (
     <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4 mb-2">

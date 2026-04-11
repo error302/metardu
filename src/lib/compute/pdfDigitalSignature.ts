@@ -12,7 +12,6 @@ import {
   PDFDocument,
   rgb,
   StandardFonts,
-  PageDrawOptions,
 } from 'pdf-lib';
 import QRCode from 'qrcode';
 
