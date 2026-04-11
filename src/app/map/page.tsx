@@ -7,7 +7,7 @@ import {
   TrashIcon, BoltIcon, CompassIcon, RulerIcon,
   LayersIcon, EditIcon, UndoIcon, RedoIcon,
   TargetIcon, DownloadIcon, ChevronLeftIcon, ChevronRightIcon,
-  XIcon, MenuIcon, SearchIcon, LocationDotIcon,
+  XIcon, SearchIcon, LocationDotIcon,
   MoonIcon, TerrainIcon, GridIcon, OpacityIcon,
 } from '@/components/map/PremiumIcons'
 
@@ -1069,51 +1069,53 @@ export default function GlobalMapPage() {
   //  RENDER
   // ══════════════════════════════════════════════════════════════════
   return (
-    <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden flex flex-col">
-      {/* ── TOP BAR ──────────────────────────────────────────────────── */}
-      {mapReady && (
-        <div className="h-11 bg-[#0d0d14]/95 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between px-3 shrink-0 z-20">
-          {/* Left: Hamburger + Title */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setPanelOpen(!panelOpen)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
-            >
-              <MenuIcon className="w-4 h-4" />
-            </button>
-            <span className="text-sm font-semibold text-white tracking-wide">METARDU Map</span>
-          </div>
+    <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden">
 
-          {/* Center: Project count */}
-          <div className="hidden sm:block">
-            {projectCount > 0 ? (
-              <div className="bg-[#E8841A]/10 border border-[#E8841A]/20 rounded-full px-3 py-0.5">
-                <span className="text-[11px] text-[#E8841A] font-semibold">{projectCount} project{projectCount > 1 ? 's' : ''}</span>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Right: Coordinate search */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input
-                type="text"
-                placeholder="lat, lon"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCoordSearch()}
-                className="w-36 h-7 bg-white/[0.04] border border-white/[0.06] rounded-lg pl-8 pr-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MAIN CONTENT ──────────────────────────────────────────────── */}
-      <div className="flex-1 relative overflow-hidden">
+      {/* ── MAP CONTAINER ────────────────────────────────────────────── */}
+      <div className="w-full h-full relative">
         {/* Map container */}
         <div ref={mapRef} className="w-full h-full" />
+
+        {/* ── FLOATING TOP CONTROLS ──────────────────────────────────── */}
+        {mapReady && (
+          <>
+            {/* Hamburger toggle - only visible when panel is open, sits inside panel */}
+            {panelOpen && (
+              <button
+                onClick={() => setPanelOpen(false)}
+                className="absolute top-3 z-30 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                style={{ left: '280px' }}
+                title="Collapse panel"
+              >
+                <ChevronLeftIcon className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Search - top right */}
+            <div className="absolute top-3 right-3 z-20">
+              <div className="relative">
+                <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="lat, lon or E N"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCoordSearch()}
+                  className="w-44 h-8 bg-[#0d0d14]/90 backdrop-blur-xl border border-white/[0.06] rounded-xl pl-8 pr-3 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors shadow-lg"
+                />
+              </div>
+            </div>
+
+            {/* Project count - top center */}
+            {projectCount > 0 && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+                <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-white/[0.06] rounded-full px-3 py-1 shadow-lg">
+                  <span className="text-[11px] text-[#E8841A] font-semibold">{projectCount} project{projectCount > 1 ? 's' : ''}</span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         {/* Popup overlay element */}
         <div ref={popupRef} className="hidden">
