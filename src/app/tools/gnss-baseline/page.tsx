@@ -11,7 +11,7 @@ import {
 
 export default function GNSSBaselinePage() {
   const [file, setFile] = useState<GNSSBaselineFile | null>(null)
-  const [baseCoords, setBaseCoords] = useState({ easting: 500000, northing: 9800000, elevation: 1500 })
+  const [baseCoords, setBaseCoords] = useState({ easting: 0, northing: 0, elevation: 0 })
   const [result, setResult] = useState<BaselineResult | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)

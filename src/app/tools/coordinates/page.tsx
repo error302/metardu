@@ -7,7 +7,7 @@ import { dmsToDecimalSolved, geographicToUtmSolved, utmToGeographicSolved, decim
 
 export default function CoordinatesCalculator() {
   const [tab, setTab] = useState<'utm-to-geo' | 'geo-to-utm' | 'dms-dec'>('utm-to-geo');
-  const [utm, setUtm] = useState({ e: '500000', n: '5500000', z: '48', h: 'S' });
+  const [utm, setUtm] = useState({ e: '', n: '', z: '', h: 'S' });
   const [geo, setGeo] = useState({ lat: '40.7128', lon: '-74.0060' });
   const [dms, setDms] = useState({ value: '40° 42\' 46.08"', type: 'lat' });
   const [steps, setSteps] = useState<SolutionStep[] | null>(null);

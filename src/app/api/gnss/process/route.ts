@@ -85,31 +85,6 @@ export async function POST(request: NextRequest) {
 }
 
 function generateMockBaselines(stationLabels: string[]): any[] {
-  const baselines = []
-  
-  if (stationLabels.length >= 2) {
-    // Generate mock baselines between stations
-    for (let i = 0; i < stationLabels.length - 1; i++) {
-      const distance = 500 + Math.random() * 2000
-      const bearing = Math.random() * 360
-      
-      baselines.push({
-        fromStation: stationLabels[0],
-        toStation: stationLabels[i + 1],
-        deltaX: distance * Math.sin(bearing * Math.PI / 180),
-        deltaY: distance * Math.cos(bearing * Math.PI / 180),
-        deltaZ: (Math.random() - 0.5) * 50,
-        distance: Math.round(distance * 1000) / 1000,
-        rmsError: 0.005 + Math.random() * 0.015,
-        ratio: 5 + Math.random() * 20,
-        fixed: Math.random() > 0.3,
-        toEasting: 500000 + Math.random() * 100000,
-        toNorthing: 9900000 + Math.random() * 100000,
-        toElevation: 1500 + Math.random() * 500,
-        qualityClass: 'A'
-      })
-    }
-  }
-  
-  return baselines
+  // No fabricated baseline data — return empty result
+  return []
 }

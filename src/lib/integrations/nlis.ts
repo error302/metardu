@@ -40,63 +40,7 @@ export interface NLISResult {
   error?: string
 }
 
-const MOCK_NLIS_DATA: NLISParcel[] = [
-  {
-    parcelId: 'UGA/KLA/001',
-    titleNumber: 'KAMPALA/01234',
-    county: 'Kampala',
-    subCounty: 'Kampala Central',
-    parish: 'Kampala',
-    landUse: 'Commercial',
-    size: 0.75,
-    sizeUnit: 'acres',
-    registeredOwners: ['Kampala Development Ltd'],
-    tenureType: 'leasehold',
-    interest: 'Leasehold - 99 years from 2005',
-    leaseExpiryDate: '2104-12-31',
-    registrationDate: '2005-08-15'
-  },
-  {
-    parcelId: 'UGA/ENT/002',
-    titleNumber: 'ENTEBBE/00456',
-    county: 'Wakiso',
-    subCounty: 'Entebbe',
-    parish: 'Kigungu',
-    landUse: 'Residential',
-    size: 0.5,
-    sizeUnit: 'acres',
-    registeredOwners: ['Grace Nakato', 'Joseph Kato'],
-    tenureType: 'freehold',
-    interest: 'Freehold'
-  },
-  {
-    parcelId: 'UGA/JIN/003',
-    titleNumber: 'JINJA/00789',
-    county: 'Jinja',
-    subCounty: 'Jinja Municipality',
-    parish: 'Walukuba',
-    landUse: 'Industrial',
-    size: 2.0,
-    sizeUnit: 'acres',
-    registeredOwners: ['Jinja Industrial Park Ltd'],
-    tenureType: 'leasehold',
-    interest: 'Leasehold - 49 years',
-    leaseExpiryDate: '2045-06-30'
-  },
-  {
-    parcelId: 'UGA/MBL/004',
-    titleNumber: 'MBALE/00234',
-    county: 'Mbale',
-    subCounty: 'Mbale Municipality',
-    parish: 'Northern Division',
-    landUse: 'Agricultural',
-    size: 5.0,
-    sizeUnit: 'acres',
-    registeredOwners: ['Wekesa Family'],
-    tenureType: 'customary',
-    interest: 'Customary Land'
-  }
-]
+const MOCK_NLIS_DATA: NLISParcel[] = []
 
 export async function searchLand(params: NLISSearchParams): Promise<NLISResult> {
   await new Promise(resolve => setTimeout(resolve, 500))

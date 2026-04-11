@@ -21,13 +21,11 @@ interface ChainageResult {
 }
 
 export default function ChainageCalculator() {
-  const [startStation, setStartStation] = useState({ easting: '500000.0000', northing: '500000.0000' });
+  const [startStation, setStartStation] = useState({ easting: '', northing: '' });
   const [startChainage, setStartChainage] = useState('0');
   const [alignmentPoints, setAlignmentPoints] = useState<AlignmentPoint[]>([
-    { id: '1', name: 'A', easting: '500000.0000', northing: '500000.0000' },
-    { id: '2', name: 'B', easting: '500100.0000', northing: '500124.0000' },
-    { id: '3', name: 'C', easting: '500285.0000', northing: '500260.0000' },
-    { id: '4', name: 'D', easting: '500400.0000', northing: '500345.0000' },
+    { id: '1', name: 'A', easting: '', northing: '' },
+    { id: '2', name: 'B', easting: '', northing: '' },
   ]);
   const [reverseChainage, setReverseChainage] = useState('');
   const [reverseResult, setReverseResult] = useState<{ easting: number; northing: number } | null>(null);

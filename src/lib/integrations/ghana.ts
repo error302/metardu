@@ -31,42 +31,7 @@ export interface GhanaSearchResult {
   searchTime: number
 }
 
-const ghanaRegistryData: GhanaParcel[] = [
-  {
-    parcelId: 'GH-ACC-001',
-    blockNumber: 'B001',
-    plotNumber: 'P045',
-    schemeName: 'Tema Development Scheme',
-    district: 'Tema',
-    region: 'Greater Accra',
-    area: 0.5,
-    areaUnit: 'acre',
-    landUse: 'commercial',
-    ownerName: 'Acme Ghana Ltd',
-    ownerId: 'GHA-2020-1234',
-    registrationDate: Date.now() - 365 * 24 * 60 * 60 * 1000,
-    titleType: 'leasehold',
-    coordinates: { easting: 520000, northing: 5600000, zone: 30 },
-    status: 'registered',
-  },
-  {
-    parcelId: 'GH-KUM-002',
-    blockNumber: 'B012',
-    plotNumber: 'P089',
-    schemeName: 'Kumasi Residential',
-    district: 'Kumasi',
-    region: 'Ashanti',
-    area: 0.25,
-    areaUnit: 'acre',
-    landUse: 'residential',
-    ownerName: 'John Mensah',
-    ownerId: 'GHA-2018-5678',
-    registrationDate: Date.now() - 730 * 24 * 60 * 60 * 1000,
-    titleType: 'full',
-    coordinates: { easting: 400000, northing: 7400000, zone: 30 },
-    status: 'registered',
-  },
-]
+const ghanaRegistryData: GhanaParcel[] = []
 
 export function searchGhanaRegistry(query: string): GhanaSearchResult {
   const q = query.toLowerCase()

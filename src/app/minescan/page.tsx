@@ -14,27 +14,18 @@ interface Incident {
   status: 'resolved' | 'investigating' | 'pending'
 }
 
-const mockIncidents: Incident[] = [
-  { id: '1', type: 'Gas Leak Detected', location: 'Sector A-12', time: '2 hours ago', severity: 'critical', status: 'investigating' },
-  { id: '2', type: 'Equipment Failure', location: 'Sector B-3', time: '5 hours ago', severity: 'high', status: 'resolved' },
-  { id: '3', type: 'Unauthorized Entry', location: 'Sector C-7', time: '8 hours ago', severity: 'medium', status: 'pending' },
-  { id: '4', type: 'Temperature Anomaly', location: 'Sector A-8', time: '12 hours ago', severity: 'low', status: 'resolved' },
-]
+const mockIncidents: Incident[] = []
 
 const mockStats = {
-  totalIncidents: 156,
-  activeAlerts: 12,
-  resolvedToday: 8,
-  avgResponseTime: '4.2 min',
-  riskScore: 72,
-  camerasOnline: 24,
+  totalIncidents: 0,
+  activeAlerts: 0,
+  resolvedToday: 0,
+  avgResponseTime: '—',
+  riskScore: 0,
+  camerasOnline: 0,
 }
 
-const riskZones = [
-  { id: 'A-12', name: 'Deep Shaft Area', riskLevel: 'high', score: 85 },
-  { id: 'B-3', name: 'Processing Plant', riskLevel: 'medium', score: 62 },
-  { id: 'C-7', name: 'Storage Facility', riskLevel: 'low', score: 35 },
-]
+const riskZones: { id: string; name: string; riskLevel: string; score: number }[] = []
 
 export default function MineScanPage() {
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null)

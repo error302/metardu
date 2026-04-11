@@ -111,28 +111,25 @@ export default function DigitalFieldBookPage() {
   const [distanceKm, setDistanceKm] = useState('1')
   const [levelMethod, setLevelMethod] = useState<'rise_and_fall' | 'height_of_collimation'>('rise_and_fall')
   const [levelRows, setLevelRows] = useState<LevelRow[]>([
-    { id: crypto.randomUUID(), station: 'TP1', bs: '1.245', is: '', fs: '', remarks: '' },
-    { id: crypto.randomUUID(), station: 'TP2', bs: '', is: '', fs: '2.335', remarks: '' },
+    { id: crypto.randomUUID(), station: '', bs: '', is: '', fs: '', remarks: '' },
   ])
 
   const [travMode, setTravMode] = useState<'open' | 'closed' | 'link'>('closed')
   const [startStation, setStartStation] = useState('A')
-  const [startE, setStartE] = useState('500000.0000')
-  const [startN, setStartN] = useState('0.0000')
+  const [startE, setStartE] = useState('')
+  const [startN, setStartN] = useState('')
   const [closeE, setCloseE] = useState('')
   const [closeN, setCloseN] = useState('')
   const [travRows, setTravRows] = useState<TravRow[]>([
-    { id: crypto.randomUUID(), station: 'B', bearing: `045° 30' 00"`, distance: '100.000', remarks: '' },
-    { id: crypto.randomUUID(), station: 'C', bearing: `120° 15' 00"`, distance: '85.000', remarks: '' },
-    { id: crypto.randomUUID(), station: 'A', bearing: `200° 00' 00"`, distance: '95.000', remarks: '' },
+    { id: crypto.randomUUID(), station: '', bearing: '', distance: '', remarks: '' },
   ])
 
   const initialControlSetupId = useRef<string>(crypto.randomUUID()).current
   const [controlSetups, setControlSetups] = useState<ControlSetup[]>([
     {
       id: initialControlSetupId,
-      station: { name: 'STN', e: '500000.0000', n: '0.0000', z: '100.0000' },
-      rows: [{ id: crypto.randomUUID(), pointId: 'P1', instrumentHeight: '1.500', targetHeight: '1.500', bearing: `025° 30' 00"`, verticalAngle: '0', slopeDistance: '20.000', remarks: '' }],
+      station: { name: '', e: '', n: '', z: '' },
+      rows: [{ id: crypto.randomUUID(), pointId: '', instrumentHeight: '', targetHeight: '', bearing: '', verticalAngle: '', slopeDistance: '', remarks: '' }],
     },
   ])
   const [activeControlSetupId, setActiveControlSetupId] = useState<string>(initialControlSetupId)
@@ -188,7 +185,7 @@ export default function DigitalFieldBookPage() {
   }, [controlSetups, activeControlSetupId])
 
   const controlStation = useMemo(() => 
-    activeControlSetup?.station ?? { name: 'STN', e: '500000.0000', n: '0.0000', z: '100.0000' }
+    activeControlSetup?.station ?? { name: '', e: '', n: '', z: '' }
   , [activeControlSetup])
 
   const controlRows = useMemo(() => 
@@ -214,12 +211,12 @@ export default function DigitalFieldBookPage() {
   }
 
   const [hydroRows, setHydroRows] = useState<HydroRow[]>([
-    { id: crypto.randomUUID(), soundingId: 'S1', easting: '500000.0000', northing: '0.0000', depth: '4.250', tide: '-0.120', remarks: '' },
+    { id: crypto.randomUUID(), soundingId: '', easting: '', northing: '', depth: '', tide: '', remarks: '' },
   ])
 
-  const [miningStation, setMiningStation] = useState({ name: 'UG1', e: '500000.0000', n: '0.0000', z: '100.0000' })
+  const [miningStation, setMiningStation] = useState({ name: '', e: '', n: '', z: '' })
   const [miningRows, setMiningRows] = useState<MiningRow[]>([
-    { id: crypto.randomUUID(), pointId: 'P2', bearing: `082° 12' 00"`, verticalAngle: '-12.5', slopeDistance: '18.000', remarks: '' },
+    { id: crypto.randomUUID(), pointId: '', bearing: '', verticalAngle: '', slopeDistance: '', remarks: '' },
   ])
 
   const panelRef = useRef<HTMLDivElement>(null)
@@ -478,9 +475,9 @@ export default function DigitalFieldBookPage() {
           id: String(s.id || crypto.randomUUID()),
           station: {
             name: String(s.station?.name ?? 'STN'),
-            e: String(s.station?.e ?? '500000.0000'),
-            n: String(s.station?.n ?? '0.0000'),
-            z: String(s.station?.z ?? '100.0000'),
+            e: String(s.station?.e ?? ''),
+            n: String(s.station?.n ?? ''),
+            z: String(s.station?.z ?? ''),
           },
           rows: (s.rows ?? []).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })),
         }))
@@ -495,9 +492,9 @@ export default function DigitalFieldBookPage() {
             id,
             station: {
               name: String(data.station?.name ?? 'STN'),
-              e: String(data.station?.e ?? '500000.0000'),
-              n: String(data.station?.n ?? '0.0000'),
-              z: String(data.station?.z ?? '100.0000'),
+              e: String(data.station?.e ?? ''),
+              n: String(data.station?.n ?? ''),
+              z: String(data.station?.z ?? ''),
             },
             rows: (data.rows ?? []).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })),
           },

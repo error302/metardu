@@ -171,12 +171,12 @@ export function parseProprietaryBaseline(
     vectors.push({
       from: 'A',
       to: 'B',
-      deltaEasting: 100.234,
-      deltaNorthing: 250.567,
-      deltaElevation: 5.123,
-      distance: 269.47,
-      azimuth: 67.5,
-      sigma: 0.015,
+      deltaEasting: 0,
+      deltaNorthing: 0,
+      deltaElevation: 0,
+      distance: 0,
+      azimuth: 0,
+      sigma: 0,
     })
   }
   
