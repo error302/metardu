@@ -17,41 +17,6 @@ import {
 
 type Tab = 'input' | 'reduce' | 'chart'
 
-const SAMPLE_SOUNDINGS_CSV = `easting,northing,depth,time
-358420.5,9877200.3,12.5,2025-01-15T06:00:00Z
-358425.2,9877200.8,11.8,2025-01-15T06:15:00Z
-358430.0,9877201.2,10.2,2025-01-15T06:30:00Z
-358435.1,9877200.5,9.5,2025-01-15T06:45:00Z
-358440.0,9877200.0,8.8,2025-01-15T07:00:00Z
-358445.3,9877200.7,8.2,2025-01-15T07:15:00Z
-358450.1,9877201.0,7.5,2025-01-15T07:30:00Z
-358455.0,9877200.4,6.8,2025-01-15T07:45:00Z
-358420.8,9877205.1,13.2,2025-01-15T08:00:00Z
-358426.0,9877205.5,12.5,2025-01-15T08:15:00Z
-358431.2,9877205.0,11.0,2025-01-15T08:30:00Z
-358436.5,9877205.3,9.8,2025-01-15T08:45:00Z
-358441.0,9877205.8,9.2,2025-01-15T09:00:00Z
-358446.2,9877205.2,8.5,2025-01-15T09:15:00Z
-358451.0,9877205.0,7.8,2025-01-15T09:30:00Z`
-
-const SAMPLE_TIDE_CSV = `time,level
-2025-01-15T05:00:00Z,0.5
-2025-01-15T06:00:00Z,1.2
-2025-01-15T07:00:00Z,1.8
-2025-01-15T08:00:00Z,2.1
-2025-01-15T09:00:00Z,1.9
-2025-01-15T10:00:00Z,1.4
-2025-01-15T11:00:00Z,0.8
-2025-01-15T12:00:00Z,0.3
-2025-01-15T13:00:00Z,-0.2
-2025-01-15T14:00:00Z,-0.5
-2025-01-15T15:00:00Z,-0.3
-2025-01-15T16:00:00Z,0.2
-2025-01-15T17:00:00Z,0.7
-2025-01-15T18:00:00Z,1.1
-2025-01-15T19:00:00Z,1.5
-2025-01-15T20:00:00Z,1.7`
-
 export function TidalReductionPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('input')
   const [soundingCSV, setSoundingCSV] = useState('')
@@ -91,12 +56,6 @@ export function TidalReductionPanel() {
     if (tideObs.length < 2) return []
     return generateTideCurve(tideObs, 120)
   }, [tideObs])
-
-  const loadSample = useCallback(() => {
-    setSoundingCSV(SAMPLE_SOUNDINGS_CSV)
-    setTideCSV(SAMPLE_TIDE_CSV)
-    setError(null)
-  }, [])
 
   const handleFileUpload = useCallback((type: 'soundings' | 'tides') => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -342,12 +301,6 @@ export function TidalReductionPanel() {
 
           {/* Actions */}
           <div className="lg:col-span-2 flex gap-3">
-            <button
-              onClick={loadSample}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              Load Sample Data
-            </button>
             <button
               onClick={handleRunReduction}
               disabled={soundings.length === 0 || tideObs.length === 0}

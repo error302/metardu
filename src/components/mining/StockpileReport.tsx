@@ -14,56 +14,6 @@ import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 
 type Tab = 'stockpile' | 'dem'
 
-// Sample data for demonstration
-const SAMPLE_STOCKPILE_CSV = `easting,northing,elevation
-100.0,200.0,102.5
-105.0,200.0,103.8
-110.0,200.0,104.2
-115.0,200.0,103.5
-120.0,200.0,102.0
-100.0,205.0,103.2
-105.0,205.0,105.1
-110.0,205.0,105.8
-115.0,205.0,104.9
-120.0,205.0,102.8
-100.0,210.0,103.0
-105.0,210.0,104.6
-110.0,210.0,105.3
-115.0,210.0,104.2
-120.0,210.0,102.2
-100.0,215.0,102.1
-105.0,215.0,103.0
-110.0,215.0,103.5
-115.0,215.0,102.8
-120.0,215.0,101.5`
-
-const SAMPLE_DEM_CSV = `easting,northing,elevation
-100.0,100.0,105.2
-105.0,100.0,104.8
-110.0,100.0,106.1
-115.0,100.0,105.5
-120.0,100.0,104.0
-100.0,105.0,103.9
-105.0,105.0,104.5
-110.0,105.0,105.8
-115.0,105.0,104.2
-120.0,105.0,103.5
-100.0,110.0,103.2
-105.0,110.0,104.0
-110.0,110.0,104.9
-115.0,110.0,103.8
-120.0,110.0,102.8
-100.0,115.0,102.5
-105.0,115.0,103.2
-110.0,115.0,104.0
-115.0,115.0,103.5
-120.0,115.0,102.0
-100.0,120.0,102.0
-105.0,120.0,102.8
-110.0,120.0,103.5
-115.0,120.0,103.0
-120.0,120.0,101.5`
-
 export function StockpileReport() {
   const [activeTab, setActiveTab] = useState<Tab>('stockpile')
   const [csvInput, setCsvInput] = useState('')
@@ -116,16 +66,6 @@ export function StockpileReport() {
     if (!csvInput.trim()) return 0
     return parseDEMCSV(csvInput).length
   }, [csvInput])
-
-  const loadSample = useCallback(() => {
-    setCsvInput(activeTab === 'stockpile' ? SAMPLE_STOCKPILE_CSV : SAMPLE_DEM_CSV)
-    if (activeTab === 'stockpile') {
-      setBaseElevation(101.0)
-    } else {
-      setDesignLevel(103.0)
-    }
-    setError(null)
-  }, [activeTab])
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -294,12 +234,6 @@ export function StockpileReport() {
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-semibold text-gray-700">DEM Point Data</h3>
-          <button
-            onClick={loadSample}
-            className="text-xs text-[#1B3A5C] hover:underline font-medium"
-          >
-            Load Sample Data
-          </button>
           <label className="text-xs text-[#1B3A5C] hover:underline font-medium cursor-pointer">
             Upload CSV
             <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
