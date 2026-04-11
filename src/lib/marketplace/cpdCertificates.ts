@@ -100,47 +100,8 @@ const cpdRequirements: CPDRequirement[] = [
   },
 ]
 
-const sampleActivities: CPDActivity[] = [
-  {
-    id: 'cpd-001',
-    userId: 'user-001',
-    type: 'course',
-    title: 'Advanced GNSS Processing Techniques',
-    provider: 'METARDU Academy',
-    date: Date.now() - 30 * 24 * 60 * 60 * 1000,
-    hours: 8,
-    country: 'Kenya',
-    description: 'Advanced RTK and post-processing methods',
-    verified: true,
-    status: 'approved',
-  },
-  {
-    id: 'cpd-002',
-    userId: 'user-001',
-    type: 'seminar',
-    title: 'Land Boundary Law Updates 2024',
-    provider: 'ISK',
-    date: Date.now() - 60 * 24 * 60 * 60 * 1000,
-    hours: 5,
-    country: 'Kenya',
-    description: 'Recent changes to boundary dispute resolution',
-    verified: true,
-    status: 'approved',
-  },
-  {
-    id: 'cpd-003',
-    userId: 'user-001',
-    type: 'webinar',
-    title: 'UAV Survey Regulations in East Africa',
-    provider: 'Drone Survey Association',
-    date: Date.now() - 90 * 24 * 60 * 60 * 1000,
-    hours: 3,
-    country: 'Kenya',
-    description: 'FAA Part 107 and local regulations overview',
-    verified: true,
-    status: 'approved',
-  },
-]
+// CPD activities will be loaded from the database when the integration is complete.
+// Pending: backend storage for user CPD activity records.
 
 export function getCPDRequirements(country?: string): CPDRequirement[] {
   if (!country) return cpdRequirements
@@ -148,7 +109,8 @@ export function getCPDRequirements(country?: string): CPDRequirement[] {
 }
 
 export function getUserActivities(userId: string): CPDActivity[] {
-  return sampleActivities.filter((a: any) => a.userId === userId)
+  // Pending: fetch from database once CPD backend is integrated.
+  return []
 }
 
 export function calculateCPDSummary(userId: string, country: string): CPDSummary {
@@ -232,17 +194,6 @@ export function getActivityTypes() {
 }
 
 export function verifyCertificate(certificateNumber: string): CPDCertificate | null {
-  return {
-    id: 'verified-cert',
-    userId: 'user-001',
-    userName: 'Surveyor',
-    userLicense: 'RS/2020/1234',
-    activityId: 'cpd-001',
-    activityTitle: 'Advanced GNSS Processing',
-    activityDate: Date.now() - 30 * 24 * 60 * 60 * 1000,
-    hours: 8,
-    issuedAt: Date.now() - 25 * 24 * 60 * 60 * 1000,
-    certificateNumber,
-    verificationUrl: `https://metardu.app/verify/cpd/${certificateNumber}`,
-  }
+  // Pending: integrate with certificate verification backend.
+  return null
 }

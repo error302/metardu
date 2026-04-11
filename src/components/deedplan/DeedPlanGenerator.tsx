@@ -34,12 +34,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
     scale: 1000,
     datum: 'WGS84',
     projectionType: 'UTM',
-    boundaryPoints: initialPoints.length > 0 ? initialPoints : [
-      { id: 'BP1', easting: 200000, northing: 9900000, markType: 'PSC', markStatus: 'FOUND' },
-      { id: 'BP2', easting: 200100, northing: 9900000, markType: 'PSC', markStatus: 'FOUND' },
-      { id: 'BP3', easting: 200100, northing: 9900100, markType: 'PSC', markStatus: 'SET' },
-      { id: 'BP4', easting: 200000, northing: 9900100, markType: 'PSC', markStatus: 'SET' }
-    ],
+    boundaryPoints: initialPoints.length > 0 ? initialPoints : [],
     abuttalNorth: '',
     abuttalSouth: '',
     abuttalEast: '',

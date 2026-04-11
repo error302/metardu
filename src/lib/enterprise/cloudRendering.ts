@@ -80,10 +80,10 @@ export function submitCloudRender(
         job.completedAt = Date.now()
         job.result = {
           url: `https://cdn.metardu.app/renders/${job.id}.${parameters.format}`,
-          fileSize: Math.floor(Math.random() * 5000000) + 100000,
+          fileSize: 0,
           width: parameters.resolution === 'ultra' ? 8000 : parameters.resolution === 'high' ? 4000 : 2000,
           height: parameters.resolution === 'ultra' ? 6000 : parameters.resolution === 'high' ? 3000 : 1500,
-          renderTime: Math.floor(Math.random() * 30) + 10,
+          renderTime: 0,
         }
         clearInterval(interval)
       }

@@ -511,6 +511,18 @@ export default function NavBar() {
               Projects
             </Link>
 
+            {/* Map Link */}
+            <Link 
+              href="/map"
+              prefetch={false}
+              className="px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5 inline-flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              Map
+            </Link>
+
             {/* Community Link */}
             <Link 
               href="/community"
@@ -784,6 +796,9 @@ export default function NavBar() {
               </Link>
               <Link href="/guide" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {t('guides.title')}
+              </Link>
+              <Link href="/map" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                Map
               </Link>
               <Link href="/community" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {t('nav.community')}

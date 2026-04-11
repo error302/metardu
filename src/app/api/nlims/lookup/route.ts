@@ -4,30 +4,8 @@ import type { NLIMSSearchResult, NLIMSParcel } from '@/types/nlims'
 
 export const dynamic = 'force-dynamic'
 
-function deriveSectionFromParcel(parcelNumber: string): string {
-  const match = parcelNumber.match(/^([A-Za-z]+)/)
-  return match ? match[1].toUpperCase() : 'UNKNOWN'
-}
-
-function generateMockParcel(parcelNumber: string, county: string): NLIMSParcel {
-  return {
-    parcelNumber,
-    registrationSection: deriveSectionFromParcel(parcelNumber),
-    county: county || 'Unknown',
-    area: 450.0000,
-    areaHectares: 0.0450,
-    ownerName: '[NLIMS Integration Pending]',
-    ownerType: 'INDIVIDUAL',
-    titleDeedNumber: 'IR/12345',
-    titleDeedDate: '2020-01-15',
-    encumbrances: [],
-    status: 'REGISTERED',
-    lastTransactionDate: '2022-03-14',
-    lastTransactionType: 'TRANSFER',
-    source: 'NLIMS_CACHED',
-    fetchedAt: new Date().toISOString()
-  }
-}
+// NLIMS integration is pending — generateMockParcel removed.
+// Once the NLIMS API is connected, a real lookup function will replace this.
 
 export async function GET(request: NextRequest) {
   try {
@@ -120,20 +98,11 @@ export async function GET(request: NextRequest) {
     const apiKey = process.env.NLIMS_API_KEY
 
     if (!apiKey) {
-      const mockParcel = generateMockParcel(sanitizedParcel, county || '')
-
-      await db.query(
-        `INSERT INTO nlims_cache (parcel_number, county, data, fetched_at)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (parcel_number, county) DO UPDATE SET data = $3, fetched_at = $4`,
-        [sanitizedParcel, county || '', mockParcel, new Date().toISOString()]
+      // NLIMS integration is pending — no API key configured.
+      return NextResponse.json(
+        { found: false, error: 'NLIMS integration is pending — no API key configured', isMockData: false } as NLIMSSearchResult,
+        { status: 503 }
       )
-
-      return NextResponse.json({
-        found: true,
-        parcel: mockParcel,
-        isMockData: true
-      } as NLIMSSearchResult)
     }
 
     try {
@@ -171,20 +140,11 @@ export async function GET(request: NextRequest) {
       console.error('NLIMS API error:', apiError)
     }
 
-    const mockParcel = generateMockParcel(sanitizedParcel, county || '')
-
-    await db.query(
-      `INSERT INTO nlims_cache (parcel_number, county, data, fetched_at)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (parcel_number, county) DO UPDATE SET data = $3, fetched_at = $4`,
-      [sanitizedParcel, county || '', mockParcel, new Date().toISOString()]
+    // NLIMS API call failed — no fallback mock data.
+    return NextResponse.json(
+      { found: false, error: 'Parcel not found via NLIMS API', isMockData: false } as NLIMSSearchResult,
+      { status: 404 }
     )
-
-    return NextResponse.json({
-      found: true,
-      parcel: mockParcel,
-      isMockData: true
-    } as NLIMSSearchResult)
 
   } catch (error) {
     console.error('NLIMS lookup error:', error)

@@ -19,11 +19,9 @@ const pointFields: Array<keyof PointRow> = ['id', 'e', 'n', 'rl', 'th', 'desc']
 const pointHeaders = ['ID', 'Easting', 'Northing', 'RL', 'TH', 'Description', ''] as const
 
 export default function SettingOutCalculator() {
-  const [station, setStation] = useState({ e: '484620.000', n: '9863280.000', rl: '50.100', ih: '1.540' })
-  const [bs, setBs] = useState({ e: '484693.000', n: '9863310.000' })
-  const [points, setPoints] = useState<PointRow[]>([
-    { id: 'CL0+000', e: '484780.000', n: '9863390.000', rl: '48.900', th: '2.000', desc: 'Centreline peg' },
-  ])
+  const [station, setStation] = useState({ e: '', n: '', rl: '', ih: '' })
+  const [bs, setBs] = useState({ e: '', n: '' })
+  const [points, setPoints] = useState<PointRow[]>([])
   const [result, setResult] = useState<SettingOutResult | null>(null)
   const [showStakeOut, setShowStakeOut] = useState(false)
   const [checkResults, setCheckResults] = useState<{ pointId: string; obsHz: string; obsHD: string; obsRL: string }>({ pointId: '', obsHz: '', obsHD: '', obsRL: '' })

@@ -76,44 +76,44 @@ export default function COGOCalculator({ compact = false }: Props) {
   const [error, setError] = useState('')
 
   // ── INVERSE ──────────────────────────────────────────────────────────────────
-  const [invE1, setInvE1] = useState('484620.000')
-  const [invN1, setInvN1] = useState('9863280.000')
-  const [invE2, setInvE2] = useState('484693.000')
-  const [invN2, setInvN2] = useState('9863310.000')
+  const [invE1, setInvE1] = useState('')
+  const [invN1, setInvN1] = useState('')
+  const [invE2, setInvE2] = useState('')
+  const [invN2, setInvN2] = useState('')
   const [invL1, setInvL1] = useState('A')
   const [invL2, setInvL2] = useState('B')
   const [invResult, setInvResult] = useState<ReturnType<typeof inverseComputation> | null>(null)
 
   // ── POLAR ───────────────────────────────────────────────────────────────────
-  const [polE1, setPolE1] = useState('484620.000')
-  const [polN1, setPolN1] = useState('9863280.000')
-  const [polD, setPolD] = useState('78.943')
+  const [polE1, setPolE1] = useState('')
+  const [polN1, setPolN1] = useState('')
+  const [polD, setPolD] = useState('')
   const [polBear, setPolBear] = useState(DMSState())
   const [polResult, setPolResult] = useState<ReturnType<typeof polarComputation> | null>(null)
 
   // ── INTERSECTION ─────────────────────────────────────────────────────────────
-  const [intE1, setIntE1] = useState('5000.000')
-  const [intN1, setIntN1] = useState('5000.000')
-  const [intE2, setIntE2] = useState('5100.000')
-  const [intN2, setIntN2] = useState('5020.000')
+  const [intE1, setIntE1] = useState('')
+  const [intN1, setIntN1] = useState('')
+  const [intE2, setIntE2] = useState('')
+  const [intN2, setIntN2] = useState('')
   const [intBear1, setIntBear1] = useState(DMSState())
   const [intBear2, setIntBear2] = useState(DMSState())
   const [intResult, setIntResult] = useState<ReturnType<typeof intersectionComputation> | null>(null)
 
   // ── RESECTION ────────────────────────────────────────────────────────────────
-  const [resEA, setResEA] = useState('5000.000'); const [resNA, setResNA] = useState('5000.000')
-  const [resEB, setResEB] = useState('5120.000'); const [resNB, setResNB] = useState('5050.000')
-  const [resEC, setResEC] = useState('5100.000'); const [resNC, setResNC] = useState('5100.000')
+  const [resEA, setResEA] = useState(''); const [resNA, setResNA] = useState('')
+  const [resEB, setResEB] = useState(''); const [resNB, setResNB] = useState('')
+  const [resEC, setResEC] = useState(''); const [resNC, setResNC] = useState('')
   const [resAlpha, setResAlpha] = useState(DMSState())
   const [resBeta, setResBeta] = useState(DMSState())
   const [resResult, setResResult] = useState<ReturnType<typeof resectionComputation> | null>(null)
 
   // ── AREA ────────────────────────────────────────────────────────────────────
-  const [areaText, setAreaText] = useState('A,484620.000,9863280.000\nB,484693.000,9863310.000\nC,484750.000,9863250.000')
+  const [areaText, setAreaText] = useState('')
   const [areaResult, setAreaResult] = useState<ReturnType<typeof areaComputation> | null>(null)
 
   // ── JOIN ────────────────────────────────────────────────────────────────────
-  const [joinText, setJoinText] = useState('A,484620.000,9863280.000\nB,484693.000,9863310.000\nC,484750.000,9863250.000\nD,484720.000,9863200.000')
+  const [joinText, setJoinText] = useState('')
   const [joinResult, setJoinResult] = useState<ReturnType<typeof joinComputation> | null>(null)
 
   // ── COMPUTE HANDLERS ────────────────────────────────────────────────────────
@@ -481,7 +481,7 @@ export default function COGOCalculator({ compact = false }: Props) {
               <p className="text-xs text-[var(--text-muted)]">Enter one point per line: Label, Easting, Northing</p>
               <textarea value={areaText} onChange={e => setAreaText(e.target.value)}
                 className="w-full h-48 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm font-mono"
-                placeholder={'A,484620.000,9863280.000\nB,484693.000,9863310.000\nC,484750.000,9863250.000'} />
+                placeholder='Label, Easting, Northing (one point per line)' />
               <button onClick={handleArea} className="btn btn-primary w-full">Compute Area →</button>
             </div>
           )}
@@ -493,7 +493,7 @@ export default function COGOCalculator({ compact = false }: Props) {
               <p className="text-xs text-[var(--text-muted)]">Enter points in order: Label, Easting, Northing</p>
               <textarea value={joinText} onChange={e => setJoinText(e.target.value)}
                 className="w-full h-48 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm font-mono"
-                placeholder={'A,484620.000,9863280.000\nB,484693.000,9863310.000'} />
+                placeholder='Label, Easting, Northing (one point per line)' />
               <button onClick={handleJoin} className="btn btn-primary w-full">Compute Joins →</button>
             </div>
           )}

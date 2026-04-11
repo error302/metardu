@@ -31,42 +31,9 @@ export interface NigeriaSearchResult {
   searchTime: number
 }
 
-const nigeriaRegistryData: NigeriaParcel[] = [
-  {
-    parcelId: 'NG-LAG-001',
-    fileNumber: 'F/2020/001234',
-    plotNumber: 'PLT/001',
-    layoutName: 'Victoria Island Layout',
-    lga: 'Eti-Osa',
-    state: 'Lagos',
-    area: 0.2,
-    areaUnit: 'hectare',
-    landUse: 'commercial',
-    ownerName: 'Nigerian Oil Corporation',
-    ownerId: 'NIG-2020-5678',
-    registrationDate: Date.now() - 500 * 24 * 60 * 60 * 1000,
-    titleType: 'certificate_of_occupancy',
-    coordinates: { easting: 500000, northing: 6800000, zone: 31 },
-    status: 'registered',
-  },
-  {
-    parcelId: 'NG-ABJ-002',
-    fileNumber: 'F/2019/008756',
-    plotNumber: 'PLT/045',
-    layoutName: 'Gwagwalada Layout',
-    lga: 'Gwagwalada',
-    state: 'Abuja',
-    area: 0.5,
-    areaUnit: 'hectare',
-    landUse: 'residential',
-    ownerName: 'Dr. Ade Johnson',
-    ownerId: 'NIG-2019-1234',
-    registrationDate: Date.now() - 800 * 24 * 60 * 60 * 1000,
-    titleType: 'certificate_of_occupancy',
-    coordinates: { easting: 320000, northing: 9200000, zone: 32 },
-    status: 'registered',
-  },
-]
+// Pending: Nigeria land registry API integration.
+// nigeriaRegistryData will be populated from the real registry once connected.
+const nigeriaRegistryData: NigeriaParcel[] = []
 
 export function searchNigeriaRegistry(query: string): NigeriaSearchResult {
   const q = query.toLowerCase()
@@ -83,7 +50,7 @@ export function searchNigeriaRegistry(query: string): NigeriaSearchResult {
   return {
     query,
     results,
-    searchTime: Math.floor(Math.random() * 500) + 100,
+    searchTime: 0,
   }
 }
 
