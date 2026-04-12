@@ -64,3 +64,27 @@ Files Modified:
 7. src/lib/submission/generators/claForm4.ts
 8. src/lib/submission/generators/claForm5.ts
 9. src/lib/submission/generators/claForm9.ts
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix all broken @/math/ imports, commit and push to GitHub
+
+Work Log:
+- Verified map page (src/app/map/page.tsx + MapClient.tsx) is intact and properly structured
+- Ran tsc --noEmit: identified 5 real TypeScript errors (all @/math/ imports to deleted folder)
+- Fixed boundaryShapefile.ts: removed unused @/math/area import
+- Fixed deedPlanGeometry.ts: @/math/area → @/lib/engine/area (computePolygonArea → coordinateArea with Point2D shape)
+- Fixed volumetricReport.ts: replaced @/math/volume imports with inline trapezoidal/prismoidal functions
+- Added bearingDistanceToDelta to engine/coordinates.ts (was missing from engine)
+- Fixed traverse-csv.ts: @/math/coordinates → @/lib/engine/coordinates
+- Fixed universalImporter.ts: @/math/traverse → @/lib/engine/traverse (applyBowditchAdjustment → bowditchAdjustment with TraverseInput adapter)
+- Verified zero TS errors (excluding shadcn node_modules)
+- Verified lint passes (warnings only, no errors)
+- Committed and pushed to GitHub (commit c2a0370)
+
+Stage Summary:
+- All 5 @/math/ import errors resolved by migrating to @/lib/engine/
+- No duplicate /math-engine/ folder found on GitHub (only main branch, never existed in git history)
+- Map page confirmed working (JSX structure intact)
+- SSH to VM not possible (deploy key not available in this session)
