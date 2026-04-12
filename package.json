@@ -63,6 +63,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "d3-array": "^3.2.4",
+    "delaunator": "^5.0.1",
     "d3-contour": "^4.0.2",
     "dxf-writer": "^1.18.4",
     "embla-carousel-react": "^8.6.0",
