@@ -12,7 +12,6 @@ import {
 } from '@/lib/mining/volumeEngine'
 import { exportMineSectionsToDXF, exportGridToDXF } from '@/lib/mining/minePlanDXF'
 import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers'
-import Drawing from 'dxf-writer'
 
 const SectionSchema = z.object({
   station: z.number(),

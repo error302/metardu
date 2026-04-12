@@ -1,10 +1,14 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { Upload, FileText, Loader2, AlertTriangle } from 'lucide-react'
 import Papa from 'papaparse'
 import { cleanSurveyData } from '@/lib/compute/dataCleaner'
-import AnomalyHeatmap from './AnomalyHeatmap'
+const AnomalyHeatmap = dynamic(() => import('./AnomalyHeatmap'), {
+  ssr: false,
+  loading: () => <div className="animate-pulse bg-gray-200 rounded h-64" />,
+})
 import CleanedExport from './CleanedExport'
 import type { RawSurveyPoint, CleanDataResponse } from '@/types/fieldguard'
 

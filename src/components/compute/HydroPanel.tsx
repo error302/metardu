@@ -8,10 +8,15 @@ import { buildBathymetricSurface } from '@/lib/hydro/bathymetricSurface'
 import { generateBathymetricFairSheet } from '@/lib/hydro/bathymetricDXF'
 import { buildReportOfSurveyContent } from '@/lib/hydro/reportOfSurvey'
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfileClient'
-import { TopoCanvas } from '@/components/drawing/TopoCanvas'
+import dynamic from 'next/dynamic'
 import { generateContours } from '@/lib/topo/contourGenerator'
 import type { ContourLine } from '@/lib/topo/contourGenerator'
 import type { SpotHeight } from '@/components/drawing/TopoCanvas'
+
+const TopoCanvas = dynamic(() => import('@/components/drawing/TopoCanvas').then(m => ({ default: m.TopoCanvas })), {
+  ssr: false,
+  loading: () => <div className="animate-pulse bg-gray-200 rounded h-64" />,
+})
 
 interface Props {
   projectId: string

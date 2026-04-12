@@ -3,12 +3,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { TopoCanvas } from '@/components/drawing/TopoCanvas'
-import type { SpotHeight } from '@/components/drawing/TopoCanvas'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { generateContours } from '@/lib/topo/contourGenerator'
 import { runIDW as computeIDW } from '@/lib/topo/idwEngine'
+import type { SpotHeight } from '@/components/drawing/TopoCanvas'
 import type { ContourLine } from '@/lib/topo/contourGenerator'
+
+const TopoCanvas = dynamic(() => import('@/components/drawing/TopoCanvas').then(m => ({ default: m.TopoCanvas })), {
+  ssr: false,
+  loading: () => <div className="animate-pulse bg-gray-200 rounded h-64" />,
+})
 
 const INTERVAL_OPTIONS = [0.25, 0.5, 1, 2, 5, 10]
 const RESOLUTION_OPTIONS = [0.5, 1, 2, 5]

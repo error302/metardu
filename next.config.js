@@ -20,15 +20,28 @@ const withPWA = require('@ducanh2912/next-pwa').default({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Standalone output — smaller deploy, lower RAM
+  output: "standalone",
+
   reactStrictMode: true,
-  
-  // Image optimization
+
+  // ─── Native / server-only packages — NEVER bundle client-side ───
+  // This prevents pg, canvas, @google-cloud/storage from leaking into
+  // client chunks, saving ~30MB+ of RAM on cold starts
+  serverExternalPackages: [
+    'pg',
+    'canvas',
+    '@google-cloud/storage',
+    'bcryptjs',
+  ],
+
+  // ─── Image optimization (disabled — VM has no image optimization needs) ───
   images: {
     unoptimized: true,
-    minimumCacheTTL: 60 * 60 * 24, // 1 day
+    minimumCacheTTL: 60 * 60 * 24,
   },
-  
-  // Linting & TypeScript — always strict; never silently ignore errors in CI
+
+  // ─── Linting & TypeScript ───
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -36,21 +49,57 @@ const nextConfig = {
     ignoreBuildErrors: true,
     ignorePluginErrors: true,
   },
-  
+
   // Disable CSS minification — cssnano can't parse Tailwind arbitrary gradient values
   cssMinify: false,
-  
-  // Performance settings
+
+  // ─── Performance settings ───
   compress: true,
   poweredByHeader: false,
   generateEtags: true,
-  
-  // Experimental features
+
+  // ─── Tree-shaking for heavy packages ───
+  // Only imports the named exports actually used instead of the entire package
   experimental: {
-    optimizePackageImports: ['lucide-react'],
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'd3-array',
+      'd3-contour',
+      'd3-delaunay',
+      'd3-geo',
+      'd3-scale',
+      '@radix-ui/react-accordion',
+      '@radix-ui/react-alert-dialog',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-collapsible',
+      '@radix-ui/react-context-menu',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-hover-card',
+      '@radix-ui/react-label',
+      '@radix-ui/react-menubar',
+      '@radix-ui/react-navigation-menu',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-progress',
+      '@radix-ui/react-radio-group',
+      '@radix-ui/react-scroll-area',
+      '@radix-ui/react-select',
+      '@radix-ui/react-separator',
+      '@radix-ui/react-slider',
+      '@radix-ui/react-switch',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-toast',
+      '@radix-ui/react-toggle',
+      '@radix-ui/react-toggle-group',
+      '@radix-ui/react-tooltip',
+      'date-fns',
+      '@tanstack/react-table',
+    ],
   },
-  
-  // Headers for performance
+
+  // ─── Headers for performance & security ───
   async headers() {
     const isProd = process.env.NODE_ENV === 'production'
     return [

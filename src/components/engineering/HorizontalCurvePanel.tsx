@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { horizontalCurve, logEngineeringCompute } from '@/lib/engineering/compute';
 import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers';
 import { getMinRadius, getMinSSD, getMinSuperelevation } from '@/lib/standards/engineering';
-import Drawing from 'dxf-writer';
 
 const HorizontalCurveInputSchema = z.object({
   R: z.number().positive().min(30).max(2000),
@@ -84,9 +83,10 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
     }
   }, [R, deltaDeg, chainageStart, projectId, designSpeed]);
 
-  const exportDXF = () => {
+  const exportDXF = async () => {
     if (!result) return;
 
+    const { default: Drawing } = await import('dxf-writer');
     const drawing = new Drawing();
     initialiseDXFLayers(drawing);
     const tb: TitleBlockData = {

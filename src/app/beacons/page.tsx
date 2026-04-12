@@ -1,16 +1,22 @@
 'use client'
 import React from 'react'
 
-import { useState, useEffect, useCallback } from 'react'
-import dynamic from 'next/dynamic'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { utmToGeographic } from '@/lib/engine/coordinates'
 import Link from 'next/link'
-
-const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false })
-const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false })
-const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false })
-const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false })
+import Map from 'ol/Map'
+import View from 'ol/View'
+import TileLayer from 'ol/layer/Tile'
+import VectorLayer from 'ol/layer/Vector'
+import VectorSource from 'ol/source/Vector'
+import OSM from 'ol/source/OSM'
+import { Circle as CircleStyle, Fill, Stroke, Text } from 'ol/style'
+import Feature from 'ol/Feature'
+import Point from 'ol/geom/Point'
+import { fromLonLat } from 'ol/proj'
+import Overlay from 'ol/Overlay'
+import 'ol/ol.css'
 
 interface Beacon {
   id: string
@@ -33,6 +39,43 @@ interface Project {
   created_at: string
 }
 
+function getMarkerIcon(type: string) {
+  const icons: Record<string, string> = {
+    trig: '▲',
+    control: '●',
+    boundary: '■',
+    benchmark: '◆',
+    gnss: '★',
+    other: '●'
+  }
+  return icons[type] || '●'
+}
+
+function getMarkerColor(type: string) {
+  const colors: Record<string, string> = {
+    trig: '#ef4444',
+    control: '#f97316',
+    boundary: '#eab308',
+    benchmark: '#22c55e',
+    gnss: '#3b82f6',
+    other: '#6b7280'
+  }
+  return colors[type] || '#6b7280'
+}
+
+function getProjectIcon(type: string) {
+  const icons: Record<string, string> = {
+    boundary: '📐',
+    topographic: '🗺',
+    road: '🛣',
+    construction: '🏗',
+    control: '📍',
+    leveling: '📏',
+    other: '📌'
+  }
+  return icons[type || 'other'] || '📌'
+}
+
 export default function BeaconsPage() {
   const [importMsg, setImportMsg] = React.useState<{text:string;ok:boolean}|null>(null)
   const [view, setView] = useState<'beacons' | 'activity'>('beacons')
@@ -44,6 +87,11 @@ export default function BeaconsPage() {
   const [importProject, setImportProject] = useState('')
   const [importBeacon, setImportBeacon] = useState<Beacon | null>(null)
   const [importLoading, setImportLoading] = useState(false)
+
+  const mapRef = useRef<HTMLDivElement>(null)
+  const popupRef = useRef<HTMLDivElement>(null)
+  const mapInstance = useRef<Map | null>(null)
+  const overlayRef = useRef<Overlay | null>(null)
 
   const supabase = createClient()
 
@@ -57,47 +105,143 @@ export default function BeaconsPage() {
 
     if (beaconsRes.data) setBeacons(beaconsRes.data)
     if (projectsRes.data) setProjects(projectsRes.data)
-    
+    setLoading(false)
   }, [supabase])
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
 
-  const getMarkerIcon = (type: string) => {
-    const icons: Record<string, string> = {
-      trig: '▲',
-      control: '●',
-      boundary: '■',
-      benchmark: '◆',
-      gnss: '★',
-      other: '●'
+  // Initialize map once
+  useEffect(() => {
+    if (!mapRef.current) return
+
+    const map = new Map({
+      target: mapRef.current,
+      layers: [new TileLayer({ source: new OSM() })],
+      view: new View({
+        center: fromLonLat([36.8219, -1.2921]),
+        zoom: 6,
+      }),
+    })
+
+    if (popupRef.current) {
+      const overlay = new Overlay({
+        element: popupRef.current,
+        autoPan: { animation: { duration: 250 } },
+      })
+      map.addOverlay(overlay)
+      overlayRef.current = overlay
     }
-    return icons[type] || '●'
-  }
 
-  const getMarkerColor = (type: string) => {
-    const colors: Record<string, string> = {
-      trig: '#ef4444',
-      control: '#f97316',
-      boundary: '#eab308',
-      benchmark: '#22c55e',
-      gnss: '#3b82f6',
-      other: '#6b7280'
+    mapInstance.current = map
+
+    // Click handler for popup
+    map.on('click', (evt) => {
+      const overlay = overlayRef.current
+      if (!overlay || !popupRef.current) return
+
+      const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f)
+      if (feature && feature.get('popupHtml')) {
+        popupRef.current.innerHTML = feature.get('popupHtml')
+        overlay.setPosition(evt.coordinate)
+      } else {
+        overlay.setPosition(undefined)
+      }
+    })
+
+    return () => {
+      map.setTarget(undefined)
+      overlayRef.current = null
     }
-    return colors[type] || '#6b7280'
-  }
+  }, [])
 
-  const filteredBeacons = beacons.filter((b: any) => {
-    if (filter !== 'all' && b.beacon_type !== filter) return false
-    if (search && !b.name.toLowerCase().includes(search.toLowerCase()) && 
-        !b.authority?.toLowerCase().includes(search.toLowerCase())) return false
-    return true
-  })
+  // Update map features when data changes
+  useEffect(() => {
+    const map = mapInstance.current
+    if (!map || loading) return
 
-  const getProjectCenter = (project: Project) => {
-    return { lat: -1.5 + Math.random() * 10, lon: 30 + Math.random() * 15 }
-  }
+    const vectorSource = new VectorSource()
+
+    if (view === 'beacons') {
+      const filteredBeacons = beacons.filter((b: any) => {
+        if (filter !== 'all' && b.beacon_type !== filter) return false
+        if (search && !b.name.toLowerCase().includes(search.toLowerCase()) &&
+            !b.authority?.toLowerCase().includes(search.toLowerCase())) return false
+        return true
+      })
+
+      filteredBeacons.forEach((beacon) => {
+        const coords = utmToGeographic(beacon.easting, beacon.northing, beacon.utm_zone, beacon.hemisphere as 'N' | 'S')
+        const color = getMarkerColor(beacon.beacon_type)
+        const icon = getMarkerIcon(beacon.beacon_type)
+
+        const feature = new Feature({
+          geometry: new Point(fromLonLat([coords.lon, coords.lat])),
+        })
+        feature.setStyle(new CircleStyle({
+          radius: 8,
+          fill: new Fill({ color }),
+          stroke: new Stroke({ color: '#fff', width: 2 }),
+          text: new Text({ text: icon, font: '12px sans-serif', fill: new Fill({ color: '#fff' }) }),
+        }))
+        feature.set('popupHtml',
+          `<div class="text-sm min-w-[200px]" style="color:var(--text-primary)">` +
+          `<div style="font-weight:bold;font-size:1.1rem;color:${color}">${icon} ${beacon.name}</div>` +
+          (beacon.authority ? `<div style="color:var(--text-muted);margin-top:4px">Authority: ${beacon.authority}</div>` : '') +
+          `<div style="color:var(--text-muted);text-transform:capitalize">Type: ${beacon.beacon_type}</div>` +
+          `<div style="font-family:monospace;margin-top:8px">E: ${beacon.easting.toFixed(4)}<br/>N: ${beacon.northing.toFixed(4)}</div>` +
+          (beacon.elevation ? `<div style="color:var(--text-muted)">Elev: ${beacon.elevation.toFixed(3)} m</div>` : '') +
+          `<div style="color:var(--text-muted);font-size:0.75rem;margin-top:4px">UTM Zone ${beacon.utm_zone}${beacon.hemisphere}</div>` +
+          `</div>`
+        )
+        feature.set('beaconId', beacon.id)
+        vectorSource.addFeature(feature)
+      })
+
+      // Pan to Kenya/East Africa if beacons exist
+      if (filteredBeacons.length > 0) {
+        const extent = vectorSource.getExtent()
+        map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 10 })
+      }
+    } else if (view === 'activity') {
+      const surveyProjects = projects.filter((p) => p.survey_type)
+      surveyProjects.forEach((project) => {
+        const lat = -1.5 + Math.random() * 10
+        const lon = 30 + Math.random() * 15
+        const icon = getProjectIcon(project.survey_type || 'other')
+
+        const feature = new Feature({
+          geometry: new Point(fromLonLat([lon, lat])),
+        })
+        feature.setStyle(new CircleStyle({
+          radius: 8,
+          fill: new Fill({ color: '#3b82f6' }),
+          stroke: new Stroke({ color: '#fff', width: 2 }),
+          text: new Text({ text: icon, font: '12px sans-serif' }),
+        }))
+        feature.set('popupHtml',
+          `<div class="text-sm" style="color:var(--text-primary)">` +
+          `<div style="font-weight:bold;font-size:1.1rem">${icon} ${project.survey_type}</div>` +
+          `<div style="color:var(--text-muted)">Active Survey</div>` +
+          (project.location ? `<div style="color:var(--text-muted);margin-top:4px">Area: ${project.location}</div>` : '') +
+          `</div>`
+        )
+        vectorSource.addFeature(feature)
+      })
+    }
+
+    // Remove old vector layers, add new one
+    const existing = map.getLayers().getArray().find((l) => l instanceof VectorLayer)
+    if (existing) map.removeLayer(existing)
+    map.addLayer(new VectorLayer({ source: vectorSource }))
+
+    // Reset view if switching views
+    if (view === 'beacons') {
+      map.getView().setCenter(fromLonLat([36.8219, -1.2921]))
+      map.getView().setZoom(6)
+    }
+  }, [view, beacons, projects, filter, search, loading])
 
   const handleImport = async () => {
     if (!importBeacon || !importProject) return
@@ -197,77 +341,8 @@ export default function BeaconsPage() {
           </div>
         ) : (
           <div className="h-full" style={{ height: 'calc(100vh - 140px)' }}>
-            <MapContainer
-              center={[-1.2921, 36.8219]}
-              zoom={6}
-              style={{ height: '100%', width: '100%' }}
-            >
-              <TileLayer
-                attribution='&copy; OpenStreetMap'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-
-              {view === 'beacons' && filteredBeacons.map((beacon: any) => {
-                const coords = utmToGeographic(beacon.easting, beacon.northing, beacon.utm_zone, beacon.hemisphere as 'N' | 'S')
-                const color = getMarkerColor(beacon.beacon_type)
-                const icon = getMarkerIcon(beacon.beacon_type)
-                
-                return (
-                  <Marker key={beacon.id} position={[coords.lat, coords.lon]}>
-                    <Popup>
-                      <div className="text-sm min-w-[200px]">
-                        <div className="font-bold text-lg" style={{ color }}>
-                          {icon} {beacon.name}
-                        </div>
-                        {beacon.authority && (
-                          <div className="text-[var(--text-muted)] mt-1">Authority: {beacon.authority}</div>
-                        )}
-                        <div className="text-[var(--text-muted)] capitalize">Type: {beacon.beacon_type}</div>
-                        <div className="font-mono mt-2">
-                          E: {beacon.easting.toFixed(4)}<br/>
-                          N: {beacon.northing.toFixed(4)}
-                        </div>
-                        {beacon.elevation && (
-                          <div className="text-[var(--text-muted)]">Elev: {beacon.elevation.toFixed(3)} m</div>
-                        )}
-                        <div className="text-[var(--text-muted)] text-xs mt-1">
-                          UTM Zone {beacon.utm_zone}{beacon.hemisphere}
-                        </div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                )
-              })}
-
-              {view === 'activity' && projects.filter((p: any) => p.survey_type).map((project: any) => {
-                const center = getProjectCenter(project)
-                const icons: Record<string, string> = {
-                  boundary: '📐',
-                  topographic: '🗺',
-                  road: '🛣',
-                  construction: '🏗',
-                  control: '📍',
-                  leveling: '📏',
-                  other: '📌'
-                }
-                
-                return (
-                  <Marker key={project.id} position={[center.lat, center.lon]}>
-                    <Popup>
-                      <div className="text-sm">
-                        <div className="font-bold text-lg">
-                          {icons[project.survey_type || 'other']} {project.survey_type}
-                        </div>
-                        <div className="text-[var(--text-muted)]">Active Survey</div>
-                        {project.location && (
-                          <div className="text-[var(--text-muted)] mt-1">Area: {project.location}</div>
-                        )}
-                      </div>
-                    </Popup>
-                  </Marker>
-                )
-              })}
-            </MapContainer>
+            <div ref={mapRef} className="w-full h-full" />
+            <div ref={popupRef} className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded p-2 text-sm shadow-lg" style={{ display: 'none' }}></div>
           </div>
         )}
       </main>

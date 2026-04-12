@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react';
 import { z } from 'zod';
 import { crossSectionVolume, massHaulDiagram, logEngineeringCompute } from '@/lib/engineering/compute';
 import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers';
-import Drawing from 'dxf-writer';
 
 const VolumeInputSchema = z.object({
   areas: z.array(z.number()).min(2),
@@ -64,9 +63,10 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
     setAreas(newAreas);
   };
 
-  const exportDXF = () => {
+  const exportDXF = async () => {
     if (!result) return;
 
+    const { default: Drawing } = await import('dxf-writer');
     const drawing = new Drawing();
     initialiseDXFLayers(drawing);
 

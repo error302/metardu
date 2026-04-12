@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react';
 import { superelevationCalc, type SuperelevationResult, logEngineeringCompute } from '@/lib/engineering/compute';
 import { z } from 'zod';
 import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers';
-import Drawing from 'dxf-writer';
 
 const SuperelevationInputSchema = z.object({
   R: z.number().positive().min(50).max(2000),
@@ -89,9 +88,10 @@ export default function SuperelevationPanel({
     }
   }, [R, V, eMax, projectId]);
 
-  const exportToDXF = () => {
+  const exportToDXF = async () => {
     if (!result) return;
     
+    const { default: Drawing } = await import('dxf-writer');
     const drawing = new Drawing();
     initialiseDXFLayers(drawing);
     // Render title block via template system

@@ -5,7 +5,6 @@ import { z } from 'zod';
 import Konva from 'konva';
 import { logEngineeringCompute } from '@/lib/engineering/compute';
 import { initialiseDXFLayers, addStandardTitleBlock, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
-import Drawing from 'dxf-writer';
 
 const CrossSectionSchema = z.object({
   stations: z.array(z.object({
@@ -140,7 +139,8 @@ export function CrossSection({
     };
   }, [stations, sideSlope, width, height, validated]);
 
-  const exportBatchDXF = () => {
+  const exportBatchDXF = async () => {
+    const { default: Drawing } = await import('dxf-writer');
     const drawing = new Drawing();
     initialiseDXFLayers(drawing);
 

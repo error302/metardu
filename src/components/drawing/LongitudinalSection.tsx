@@ -4,7 +4,6 @@ import { useEffect, useRef, useMemo, useState } from 'react'
 import Konva from 'konva'
 import { logEngineeringCompute } from '@/lib/engineering/compute'
 import { initialiseDXFLayers, addStandardTitleBlock, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
-import Drawing from 'dxf-writer'
 
 export interface ProfilePoint {
   chainage: number
@@ -242,7 +241,8 @@ export function LongitudinalSection({
     return () => { stage.destroy() }
   }, [pointsWithDesign, title, hScale, vScale, width, height])
 
-  const exportDXF = () => {
+  const exportDXF = async () => {
+    const { default: Drawing } = await import('dxf-writer')
     const drawing = new Drawing()
     initialiseDXFLayers(drawing)
 

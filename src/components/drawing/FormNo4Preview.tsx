@@ -1,13 +1,16 @@
 'use client'
 
 import { useMemo } from 'react'
-import {
-  CoordinateCanvas,
-  type CanvasPoint,
-  type CanvasLine
-} from './CoordinateCanvas'
+import dynamic from 'next/dynamic'
+import type { CanvasPoint, CanvasLine } from './CoordinateCanvas'
 import type { SubmissionPackage } from '@/lib/submission/types'
+
 import { formatPlanDate, formatBearingDMS, formatDistanceM } from '@/lib/drawing/dxfLayers'
+
+const CoordinateCanvas = dynamic(() => import('./CoordinateCanvas').then(m => ({ default: m.CoordinateCanvas })), {
+  ssr: false,
+  loading: () => <div className="animate-pulse bg-gray-200 rounded h-64" />,
+})
 
 interface FormNo4PreviewProps {
   pkg: SubmissionPackage
