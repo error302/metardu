@@ -190,6 +190,15 @@ export function utmToGeographic(easting: number, northing: number, zone: number,
   return { lat, lon }
 }
 
+/** Convert a whole-circle bearing (degrees) + distance to coordinate deltas. */
+export function bearingDistanceToDelta(bearingDeg: number, distance: number): { deltaE: number; deltaN: number } {
+  const rad = (bearingDeg * Math.PI) / 180;
+  return {
+    deltaE: distance * Math.sin(rad),
+    deltaN: distance * Math.cos(rad),
+  };
+}
+
 export function latLonToString(lat: number, lon: number): string {
   const latDMS = decimalToDMS(lat, true);
   const lonDMS = decimalToDMS(lon, false);

@@ -1,5 +1,5 @@
 import { detectFormat, getParser } from './registry';
-import { applyBowditchAdjustment } from '@/math/traverse';
+import { bowditchAdjustment } from '@/lib/engine/traverse';
 import { ParseResult, SupportedFormat, ParsedPoint } from '@/types/importer';
 
 export { detectFormat, getParser } from './registry';
@@ -12,6 +12,15 @@ interface FieldbookEntry {
   deltaN?: number;
 }
 
+interface AdjustedLeg {
+  from: string;
+  to: string;
+  adjEasting: number;
+  adjNorthing: number;
+  bearing: number;
+  distance: number;
+}
+
 export interface SmartImportResult {
   success: boolean;
   entries: FieldbookEntry[];
@@ -20,7 +29,7 @@ export interface SmartImportResult {
   totalEntries: number;
   parserUsed?: string;
   processed?: boolean;
-  adjustedLegs?: ReturnType<typeof applyBowditchAdjustment>['correctedLegs'];
+  adjustedLegs?: AdjustedLeg[];
   relativePrecision?: string;
   message?: string;
 }
@@ -74,21 +83,31 @@ export const smartImport = async (file: File): Promise<SmartImportResult> => {
     deltaN: (p.raw_data as Record<string, number>)?.deltaN || 0,
   }));
 
-  const traverseRun = {
-    legs: entries.map((e, i) => ({
-      id: `leg-${i}`,
-      from: e.station,
-      to: entries[(i + 1) % entries.length]?.station || 'END',
-      length: e.distance,
-      bearing: e.bearing,
-      latitude: e.deltaN || 0,
-      departure: e.deltaE || 0,
+  // Build engine-compatible traverse input
+  const bowditchInput = {
+    points: entries.map((e) => ({
+      name: e.station,
+      easting: 0,
+      northing: 0,
     })),
-    startE: 0,
-    startN: 0,
+    distances: entries.map((e) => e.distance),
+    bearings: entries.map((e) => e.bearing),
   };
 
-  const bowditchResult = applyBowditchAdjustment(traverseRun);
+  const result = bowditchAdjustment(bowditchInput);
+
+  const adjustedLegs: AdjustedLeg[] = result.legs.map((leg) => ({
+    from: leg.from,
+    to: leg.to,
+    adjEasting: leg.adjEasting,
+    adjNorthing: leg.adjNorthing,
+    bearing: leg.bearing,
+    distance: leg.distance,
+  }));
+
+  const precisionStr = result.linearError > 0 && result.totalDistance > 0
+    ? `1:${Math.round(result.totalDistance / result.linearError).toLocaleString()}`
+    : '1:Perfect';
 
   return {
     success: true,
@@ -98,8 +117,8 @@ export const smartImport = async (file: File): Promise<SmartImportResult> => {
     totalEntries: entries.length,
     parserUsed: format,
     processed: true,
-    adjustedLegs: bowditchResult.correctedLegs,
-    relativePrecision: bowditchResult.relativePrecision,
-    message: `Imported ${entries.length} legs. Bowditch applied (${bowditchResult.relativePrecision})`
+    adjustedLegs,
+    relativePrecision: precisionStr,
+    message: `Imported ${entries.length} legs. Bowditch applied (${precisionStr})`
   };
 };

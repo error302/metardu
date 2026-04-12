@@ -1,7 +1,34 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { createClient } from '@/lib/supabase/client';
-import { computeVolumeTrapezoidal, computeVolumePrismoidal, CrossSection } from '@/math/volume';
+
+interface CrossSection {
+  chainage: number;
+  area: number;
+}
+
+/** End-Area Method: V = (L/2) * (A1 + A2) */
+function computeVolumeTrapezoidal(sections: CrossSection[]): number {
+  let total = 0;
+  for (let i = 0; i < sections.length - 1; i++) {
+    const L = sections[i + 1].chainage - sections[i].chainage;
+    total += (L / 2) * (sections[i].area + sections[i + 1].area);
+  }
+  return total;
+}
+
+/** Prismoidal Formula: V = (L/6) * (A1 + 4*Am + A2) */
+function computeVolumePrismoidal(sections: CrossSection[]): number {
+  if (sections.length < 3 || sections.length % 2 === 0) {
+    throw new Error('Prismoidal requires odd number of sections (>= 3)');
+  }
+  let total = 0;
+  for (let i = 0; i < sections.length - 1; i += 2) {
+    const L = sections[i + 2].chainage - sections[i].chainage;
+    total += (L / 6) * (sections[i].area + 4 * sections[i + 1].area + sections[i + 2].area);
+  }
+  return total;
+}
 
 export async function generateVolumetricReport(
   projectId: string,

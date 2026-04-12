@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
-import { computePolygonArea } from '@/math/area';
+import { coordinateArea } from '@/lib/engine/area';
 
 export interface TraverseStation {
   station: string;
@@ -143,10 +143,11 @@ export async function computeDeedPlanGeometry(
     });
   }
 
-  const pts = adjusted.map((s: any) => ({ e: s.easting, n: s.northing }));
-  const areaM2 = computePolygonArea(pts);
-  const areaHa = areaM2 / 10000;
-  const areaAcres = areaHa * 2.47105;
+  const pts = adjusted.map((s: any) => ({ easting: s.easting, northing: s.northing }));
+  const areaResult = coordinateArea(pts);
+  const areaM2 = areaResult.areaSqm;
+  const areaHa = areaResult.areaHa;
+  const areaAcres = areaResult.areaAcres;
 
   const bearingSchedule: BearingLeg[] = adjusted.map((st, i) => {
     const next = adjusted[(i + 1) % adjusted.length];
