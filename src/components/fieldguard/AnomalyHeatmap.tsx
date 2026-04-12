@@ -1,19 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import Map from 'ol/Map'
-import View from 'ol/View'
-import TileLayer from 'ol/layer/Tile'
-import VectorLayer from 'ol/layer/Vector'
-import VectorSource from 'ol/source/Vector'
-import OSM from 'ol/source/OSM'
-import { Style, Circle as CircleStyle, Fill, Stroke } from 'ol/style'
-import Feature from 'ol/Feature'
-import Point from 'ol/geom/Point'
-import { fromLonLat } from 'ol/proj'
-import Overlay from 'ol/Overlay'
 import type { CleanedPoint, Anomaly } from '@/types/fieldguard'
-import 'ol/ol.css'
 
 interface AnomalyHeatmapProps {
   points: CleanedPoint[]
@@ -23,8 +11,8 @@ interface AnomalyHeatmapProps {
 export default function AnomalyHeatmap({ points, anomalies }: AnomalyHeatmapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
-  const mapInstance = useRef<Map | null>(null)
-  const overlayRef = useRef<Overlay | null>(null)
+  const mapInstance = useRef<any>(null)
+  const overlayRef = useRef<any>(null)
 
   useEffect(() => {
     if (!mapRef.current) return
@@ -35,26 +23,67 @@ export default function AnomalyHeatmap({ points, anomalies }: AnomalyHeatmapProp
       overlayRef.current = null
     }
 
-    const map = new Map({
-      target: mapRef.current,
-      layers: [new TileLayer({ source: new OSM() })],
-      view: new View({ center: fromLonLat([0, 0]), zoom: 10 }),
-    })
+    let cancelled = false
 
-    // Setup popup overlay
-    if (popupRef.current) {
-      const overlay = new Overlay({
-        element: popupRef.current,
-        autoPan: { animation: { duration: 250 } },
-      })
-      map.addOverlay(overlay)
-      overlayRef.current = overlay
+    async function initMap() {
+      try {
+        const [
+          MapMod, ViewMod, TileLayerMod, VectorLayerMod, VectorSourceMod,
+          OSMMod, StyleMod, CircleStyleMod, FillMod, StrokeMod,
+          FeatureMod, PointMod, fromLonLatMod, OverlayMod,
+        ] = await Promise.all([
+          import('ol/Map'), import('ol/View'), import('ol/layer/Tile'),
+          import('ol/layer/Vector'), import('ol/source/Vector'),
+          import('ol/source/OSM'), import('ol/style/Style'),
+          import('ol/style/Circle'), import('ol/style/Fill'),
+          import('ol/style/Stroke'), import('ol/Feature'),
+          import('ol/geom/Point'), import('ol/proj'), import('ol/Overlay'),
+        ])
+
+        const Map = (MapMod as any).default
+        const View = (ViewMod as any).default
+        const TileLayer = (TileLayerMod as any).default
+        const VectorLayer = (VectorLayerMod as any).default
+        const VectorSource = (VectorSourceMod as any).default
+        const OSM = (OSMMod as any).default
+        const Style = (StyleMod as any).default
+        const CircleStyle = (CircleStyleMod as any).default
+        const Fill = (FillMod as any).default
+        const Stroke = (StrokeMod as any).default
+        const Feature = (FeatureMod as any).default
+        const Point = (PointMod as any).default
+        const fromLonLat = (fromLonLatMod as any).fromLonLat
+        const Overlay = (OverlayMod as any).default
+
+        if (cancelled || !mapRef.current) return
+
+        const map = new Map({
+          target: mapRef.current,
+          layers: [new TileLayer({ source: new OSM() })],
+          view: new View({ center: fromLonLat([0, 0]), zoom: 10 }),
+        })
+
+        // Setup popup overlay
+        if (popupRef.current) {
+          const overlay = new Overlay({
+            element: popupRef.current,
+            autoPan: { animation: { duration: 250 } },
+          })
+          map.addOverlay(overlay)
+          overlayRef.current = overlay
+        }
+
+        mapInstance.current = map
+      } catch (err) {
+        console.error('AnomalyHeatmap init failed:', err)
+      }
     }
 
-    mapInstance.current = map
+    initMap()
 
     return () => {
-      map.setTarget(undefined)
+      cancelled = true
+      if (mapInstance.current) mapInstance.current.setTarget(undefined)
       overlayRef.current = null
     }
   }, [])
@@ -63,66 +92,103 @@ export default function AnomalyHeatmap({ points, anomalies }: AnomalyHeatmapProp
     const map = mapInstance.current
     if (!map || points.length === 0) return
 
-    const anomalyIds = new Set(anomalies.map((a) => a.point_id))
+    let cancelled = false
 
-    const features = points.map((pt, i) => {
-      const isAnomaly = anomalyIds.has(String(i))
-      const color = !pt.cleaned ? '#ef4444' : pt.classification === 'ground' ? '#22c55e' : '#3b82f6'
-      const strokeColor = isAnomaly ? '#dc2626' : '#1e40af'
-      const strokeWidth = isAnomaly ? 3 : 1
+    async function updateFeatures() {
+      try {
+        const [
+          VectorLayerMod, VectorSourceMod, StyleMod, CircleStyleMod,
+          FillMod, StrokeMod, FeatureMod, PointMod, fromLonLatMod,
+        ] = await Promise.all([
+          import('ol/layer/Vector'), import('ol/source/Vector'),
+          import('ol/style/Style'), import('ol/style/Circle'),
+          import('ol/style/Fill'), import('ol/style/Stroke'),
+          import('ol/Feature'), import('ol/geom/Point'), import('ol/proj'),
+        ])
 
-      const feature = new Feature({
-        geometry: new Point(fromLonLat([pt.easting, pt.northing])),
-      })
-      feature.setStyle(new Style({
-        image: new CircleStyle({
-          radius: 6,
-          fill: new Fill({ color }),
-          stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
-        }),
-      }))
-      feature.set('popupText',
-        `<b>Point ${i}</b><br/>` +
-        `E: ${pt.easting.toFixed(3)}<br/>` +
-        `N: ${pt.northing.toFixed(3)}<br/>` +
-        `RL: ${pt.elevation?.toFixed(3) || 'N/A'}<br/>` +
-        `Status: ${pt.cleaned ? 'Clean' : 'Flagged'}<br/>` +
-        `Classification: ${pt.classification || 'N/A'}`
-      )
-      feature.set('index', i)
-      return feature
-    })
+        const VectorLayer = (VectorLayerMod as any).default
+        const VectorSource = (VectorSourceMod as any).default
+        const Style = (StyleMod as any).default
+        const CircleStyle = (CircleStyleMod as any).default
+        const Fill = (FillMod as any).default
+        const Stroke = (StrokeMod as any).default
+        const Feature = (FeatureMod as any).default
+        const Point = (PointMod as any).default
+        const fromLonLat = (fromLonLatMod as any).fromLonLat
 
-    const vectorSource = new VectorSource({ features })
+        if (cancelled) return
 
-    // Remove old vector layers, add new one
-    const existing = map.getLayers().getArray().find((l) => l instanceof VectorLayer)
-    if (existing) map.removeLayer(existing)
+        const anomalyIds = new Set(anomalies.map((a) => a.point_id))
 
-    map.addLayer(new VectorLayer({ source: vectorSource }))
+        const features = points.map((pt, i) => {
+          const isAnomaly = anomalyIds.has(String(i))
+          const color = !pt.cleaned ? '#ef4444' : pt.classification === 'ground' ? '#22c55e' : '#3b82f6'
+          const strokeColor = isAnomaly ? '#dc2626' : '#1e40af'
+          const strokeWidth = isAnomaly ? 3 : 1
 
-    // Fit to features
-    const extent = vectorSource.getExtent()
-    map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 18 })
+          const feature = new Feature({
+            geometry: new Point(fromLonLat([pt.easting, pt.northing])),
+          })
+          feature.setStyle(new Style({
+            image: new CircleStyle({
+              radius: 6,
+              fill: new Fill({ color }),
+              stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
+            }),
+          }))
+          feature.set('popupText',
+            `<b>Point ${i}</b><br/>` +
+            `E: ${pt.easting.toFixed(3)}<br/>` +
+            `N: ${pt.northing.toFixed(3)}<br/>` +
+            `RL: ${pt.elevation?.toFixed(3) || 'N/A'}<br/>` +
+            `Status: ${pt.cleaned ? 'Clean' : 'Flagged'}<br/>` +
+            `Classification: ${pt.classification || 'N/A'}`
+          )
+          feature.set('index', i)
+          return feature
+        })
 
-    // Click handler for popup
-    const handleClick = (evt: any) => {
-      const overlay = overlayRef.current
-      if (!overlay || !popupRef.current) return
+        const vectorSource = new VectorSource({ features })
 
-      const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f)
-      if (feature && feature.get('popupText')) {
-        popupRef.current.innerHTML = feature.get('popupText')
-        overlay.setPosition(evt.coordinate)
-      } else {
-        overlay.setPosition(undefined)
+        // Remove old vector layers, add new one
+        const existing = map.getLayers().getArray().find((l: any) => l instanceof VectorLayer)
+        if (existing) map.removeLayer(existing)
+
+        map.addLayer(new VectorLayer({ source: vectorSource }))
+
+        // Fit to features
+        const extent = vectorSource.getExtent()
+        map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 18 })
+
+        // Click handler for popup
+        const handleClick = (evt: any) => {
+          const overlay = overlayRef.current
+          if (!overlay || !popupRef.current) return
+
+          const feature = map.forEachFeatureAtPixel(evt.pixel, (f: any) => f)
+          if (feature && feature.get('popupText')) {
+            popupRef.current.innerHTML = feature.get('popupText')
+            overlay.setPosition(evt.coordinate)
+          } else {
+            overlay.setPosition(undefined)
+          }
+        }
+
+        map.on('click', handleClick)
+
+        return () => {
+          map.un('click', handleClick)
+        }
+      } catch (err) {
+        console.error('AnomalyHeatmap feature update failed:', err)
       }
     }
 
-    map.on('click', handleClick)
+    const cleanup = updateFeatures()
 
     return () => {
-      map.un('click', handleClick)
+      cancelled = true
+      if (typeof cleanup === 'function') cleanup()
     }
   }, [points, anomalies])
 

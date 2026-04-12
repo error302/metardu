@@ -1,12 +1,6 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import Map from 'ol/Map';
-import { Vector as VectorSource } from 'ol/source';
-import { Vector as VectorLayer } from 'ol/layer';
-import { Feature } from 'ol';
-import { LineString, Polygon, Point as OlPoint } from 'ol/geom';
-import { Style, Stroke, Fill, Circle, Text } from 'ol/style';
 import {
   calculateDistance,
   calculateArea,
@@ -37,7 +31,7 @@ export interface FormattedResult {
   formatted: string;
 }
 
-export function useMeasurement(map: Map | null) {
+export function useMeasurement(map: any) {
   const [state, setState] = useState<MeasurementState>({
     mode: 'none',
     points: [],
@@ -45,17 +39,39 @@ export function useMeasurement(map: Map | null) {
     isActive: false,
   });
   
-  const sourceRef = useRef<VectorSource | null>(null);
-  const layerRef = useRef<VectorLayer | null>(null);
+  const sourceRef = useRef<any>(null);
+  const layerRef = useRef<any>(null);
   const clickHandlerRef = useRef<((evt: any) => void) | null>(null);
 
-  const createLayer = useCallback(() => {
+  const createLayer = useCallback(async () => {
     if (!map) return null;
+
+    // Dynamic OL imports for SSR safety
+    const [
+      VectorSourceMod, VectorLayerMod, StyleMod, StrokeMod,
+      FillMod, CircleMod, LineStringMod, PolygonMod, PointMod,
+    ] = await Promise.all([
+      import('ol/source/Vector'), import('ol/layer/Vector'),
+      import('ol/style/Style'), import('ol/style/Stroke'),
+      import('ol/style/Fill'), import('ol/style/Circle'),
+      import('ol/geom/LineString'), import('ol/geom/Polygon'),
+      import('ol/geom/Point'),
+    ]);
+
+    const VectorSource = (VectorSourceMod as any).default;
+    const VectorLayer = (VectorLayerMod as any).default;
+    const Style = (StyleMod as any).default;
+    const Stroke = (StrokeMod as any).default;
+    const Fill = (FillMod as any).default;
+    const Circle = (CircleMod as any).default;
+    const OlLineString = (LineStringMod as any).default;
+    const OlPolygon = (PolygonMod as any).default;
+    const OlPoint = (PointMod as any).default;
     
     const source = new VectorSource();
     const layer = new VectorLayer({
       source,
-      style: (feature) => {
+      style: (feature: any) => {
         const geometry = feature.getGeometry();
         const type = feature.get('type') as string;
         
@@ -67,14 +83,14 @@ export function useMeasurement(map: Map | null) {
               stroke: new Stroke({ color: '#FFFFFF', width: 2 }),
             }),
           });
-        } else if (geometry instanceof LineString) {
+        } else if (geometry instanceof OlLineString) {
           return new Style({
             stroke: new Stroke({
               color: '#1B3A5C',
               width: 2,
             }),
           });
-        } else if (geometry instanceof Polygon) {
+        } else if (geometry instanceof OlPolygon) {
           return new Style({
             stroke: new Stroke({
               color: '#1B3A5C',
@@ -94,6 +110,9 @@ export function useMeasurement(map: Map | null) {
     map.addLayer(layer);
     sourceRef.current = source;
     layerRef.current = layer;
+
+    // Store constructors for later use
+    ;(sourceRef.current as any)._ctors = { VectorSource, VectorLayer, Feature: (await import('ol/Feature')).default, OlPoint, OlLineString, OlPolygon };
     
     return { source, layer };
   }, [map]);
@@ -104,34 +123,40 @@ export function useMeasurement(map: Map | null) {
     }
   }, []);
 
-  const addPointToMap = useCallback((point: Point) => {
+  const addPointToMap = useCallback(async (point: Point) => {
     if (!sourceRef.current) return;
+    const { Feature, OlPoint } = (sourceRef.current as any)._ctors || {};
+    if (!Feature || !OlPoint) return;
     const feature = new Feature(new OlPoint([point.easting, point.northing]));
     feature.set('type', 'vertex');
     sourceRef.current.addFeature(feature);
   }, []);
 
-  const addLineToMap = useCallback((points: Point[]) => {
+  const addLineToMap = useCallback(async (points: Point[]) => {
     if (!sourceRef.current || points.length < 2) return;
+    const { Feature, OlLineString } = (sourceRef.current as any)._ctors || {};
+    if (!Feature || !OlLineString) return;
     const coords = points.map(p => [p.easting, p.northing] as [number, number]);
-    const feature = new Feature(new LineString(coords));
+    const feature = new Feature(new OlLineString(coords));
     feature.set('type', 'line');
     sourceRef.current.addFeature(feature);
   }, []);
 
-  const addPolygonToMap = useCallback((points: Point[]) => {
+  const addPolygonToMap = useCallback(async (points: Point[]) => {
     if (!sourceRef.current || points.length < 3) return;
+    const { Feature, OlPolygon } = (sourceRef.current as any)._ctors || {};
+    if (!Feature || !OlPolygon) return;
     const coords = [...points.map(p => [p.easting, p.northing] as [number, number]), [points[0].easting, points[0].northing] as [number, number]];
-    const feature = new Feature(new Polygon([coords]));
+    const feature = new Feature(new OlPolygon([coords]));
     feature.set('type', 'polygon');
     sourceRef.current.addFeature(feature);
   }, []);
 
-  const startMeasurement = useCallback((mode: MeasurementMode) => {
+  const startMeasurement = useCallback(async (mode: MeasurementMode) => {
     if (!map) return;
     
     if (!sourceRef.current) {
-      createLayer();
+      await createLayer();
     }
     
     clearSource();

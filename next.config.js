@@ -63,6 +63,7 @@ const nextConfig = {
   // Only imports the named exports actually used instead of the entire package
   experimental: {
     optimizePackageImports: [
+      'ol',
       'lucide-react',
       'recharts',
       'd3-array',
@@ -117,8 +118,8 @@ const nextConfig = {
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com",
-              "connect-src 'self' blob: https://metardu.duckdns.org wss://metardu.duckdns.org https://ipapi.co https://*.upstash.io https://api.anthropic.com https://fonts.googleapis.com https://fonts.gstatic.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://server.arcgisonline.com https://*.arcgisonline.com",
+              "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
+              "connect-src 'self' blob: https://metardu.duckdns.org wss://metardu.duckdns.org https://ipapi.co https://*.upstash.io https://api.anthropic.com https://fonts.googleapis.com https://fonts.gstatic.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

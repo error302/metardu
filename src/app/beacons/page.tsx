@@ -5,18 +5,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { utmToGeographic } from '@/lib/engine/coordinates'
 import Link from 'next/link'
-import Map from 'ol/Map'
-import View from 'ol/View'
-import TileLayer from 'ol/layer/Tile'
-import VectorLayer from 'ol/layer/Vector'
-import VectorSource from 'ol/source/Vector'
-import OSM from 'ol/source/OSM'
-import { Style, Circle as CircleStyle, Fill, Stroke, Text } from 'ol/style'
-import Feature from 'ol/Feature'
-import Point from 'ol/geom/Point'
-import { fromLonLat } from 'ol/proj'
-import Overlay from 'ol/Overlay'
-import 'ol/ol.css'
 
 interface Beacon {
   id: string
@@ -90,8 +78,8 @@ export default function BeaconsPage() {
 
   const mapRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
-  const mapInstance = useRef<Map | null>(null)
-  const overlayRef = useRef<Overlay | null>(null)
+  const mapInstance = useRef<any>(null)
+  const overlayRef = useRef<any>(null)
 
   const supabase = createClient()
 
@@ -112,58 +100,135 @@ export default function BeaconsPage() {
     fetchData()
   }, [fetchData])
 
-  // Initialize map once
+  // Initialize map once (dynamic OL imports for SSR safety)
   useEffect(() => {
     if (!mapRef.current) return
 
-    const map = new Map({
-      target: mapRef.current,
-      layers: [new TileLayer({ source: new OSM() })],
-      view: new View({
-        center: fromLonLat([36.8219, -1.2921]),
-        zoom: 6,
-      }),
-    })
+    let map: any = null
+    let cancelled = false
 
-    if (popupRef.current) {
-      const overlay = new Overlay({
-        element: popupRef.current,
-        autoPan: { animation: { duration: 250 } },
-      })
-      map.addOverlay(overlay)
-      overlayRef.current = overlay
+    async function initMap() {
+      try {
+        const [MapMod, ViewMod, TileLayerMod, VectorLayerMod, VectorSourceMod,
+          OSMMod, StyleMod, CircleStyleMod, FillMod, StrokeMod, TextMod,
+          FeatureMod, PointMod, fromLonLatMod, OverlayMod] = await Promise.all([
+          import('ol/Map'), import('ol/View'), import('ol/layer/Tile'),
+          import('ol/layer/Vector'), import('ol/source/Vector'),
+          import('ol/source/OSM'), import('ol/style/Style'),
+          import('ol/style/Circle'), import('ol/style/Fill'),
+          import('ol/style/Stroke'), import('ol/style/Text'),
+          import('ol/Feature'), import('ol/geom/Point'),
+          import('ol/proj'), import('ol/Overlay'),
+        ])
+
+        const Map = (MapMod as any).default
+        const View = (ViewMod as any).default
+        const TileLayer = (TileLayerMod as any).default
+        const VectorLayer = (VectorLayerMod as any).default
+        const VectorSource = (VectorSourceMod as any).default
+        const OSM = (OSMMod as any).default
+        const Style = (StyleMod as any).default
+        const CircleStyle = (CircleStyleMod as any).default
+        const Fill = (FillMod as any).default
+        const Stroke = (StrokeMod as any).default
+        const Text = (TextMod as any).default
+        const Feature = (FeatureMod as any).default
+        const Point = (PointMod as any).default
+        const fromLonLat = (fromLonLatMod as any).fromLonLat
+        const Overlay = (OverlayMod as any).default
+
+        if (cancelled || !mapRef.current) return
+
+        map = new Map({
+          target: mapRef.current,
+          layers: [new TileLayer({ source: new OSM() })],
+          view: new View({
+            center: fromLonLat([36.8219, -1.2921]),
+            zoom: 6,
+          }),
+        })
+
+        if (popupRef.current) {
+          const overlay = new Overlay({
+            element: popupRef.current,
+            autoPan: { animation: { duration: 250 } },
+          })
+          map.addOverlay(overlay)
+          overlayRef.current = overlay
+        }
+
+        mapInstance.current = map
+
+        // Click handler for popup
+        map.on('click', (evt: any) => {
+          const overlay = overlayRef.current
+          if (!overlay || !popupRef.current) return
+
+          const feature = map.forEachFeatureAtPixel(evt.pixel, (f: any) => f)
+          if (feature && feature.get('popupHtml')) {
+            popupRef.current.innerHTML = feature.get('popupHtml')
+            overlay.setPosition(evt.coordinate)
+          } else {
+            overlay.setPosition(undefined)
+          }
+        })
+      } catch (err) {
+        console.error('Beacons map init failed:', err)
+      }
     }
 
-    mapInstance.current = map
-
-    // Click handler for popup
-    map.on('click', (evt) => {
-      const overlay = overlayRef.current
-      if (!overlay || !popupRef.current) return
-
-      const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f)
-      if (feature && feature.get('popupHtml')) {
-        popupRef.current.innerHTML = feature.get('popupHtml')
-        overlay.setPosition(evt.coordinate)
-      } else {
-        overlay.setPosition(undefined)
-      }
-    })
+    initMap()
 
     return () => {
-      map.setTarget(undefined)
+      cancelled = true
+      if (map) map.setTarget(undefined)
       overlayRef.current = null
     }
   }, [])
+
+
 
   // Update map features when data changes
   useEffect(() => {
     const map = mapInstance.current
     if (!map || loading) return
 
-    const vectorSource = new VectorSource()
+    // Dynamic imports for SSR safety
+    let vectorSource: any = null
+    let VectorLayer: any = null
+    let VectorSourceClass: any = null
+    let Feature: any = null
+    let Point: any = null
+    let Style: any = null
+    let CircleStyle: any = null
+    let Fill: any = null
+    let Stroke: any = null
+    let Text: any = null
+    let fromLonLat: any = null
 
-    if (view === 'beacons') {
+    async function updateFeatures() {
+      try {
+        const mods = await Promise.all([
+          import('ol/source/Vector'), import('ol/layer/Vector'),
+          import('ol/Feature'), import('ol/geom/Point'),
+          import('ol/style/Style'), import('ol/style/Circle'),
+          import('ol/style/Fill'), import('ol/style/Stroke'),
+          import('ol/style/Text'), import('ol/proj'),
+        ])
+        VectorSourceClass = (mods[0] as any).default
+        VectorLayer = (mods[1] as any).default
+        Feature = (mods[2] as any).default
+        Point = (mods[3] as any).default
+        Style = (mods[4] as any).default
+        CircleStyle = (mods[5] as any).default
+        Fill = (mods[6] as any).default
+        Stroke = (mods[7] as any).default
+        Text = (mods[8] as any).default
+        fromLonLat = (mods[9] as any).fromLonLat
+
+        vectorSource = new VectorSourceClass()
+
+        if (view === 'beacons') {
       const filteredBeacons = beacons.filter((b: any) => {
         if (filter !== 'all' && b.beacon_type !== filter) return false
         if (search && !b.name.toLowerCase().includes(search.toLowerCase()) &&
@@ -235,16 +300,23 @@ export default function BeaconsPage() {
       })
     }
 
-    // Remove old vector layers, add new one
-    const existing = map.getLayers().getArray().find((l) => l instanceof VectorLayer)
-    if (existing) map.removeLayer(existing)
-    map.addLayer(new VectorLayer({ source: vectorSource }))
+        // Remove old vector layers, add new one
+        const existing = map.getLayers().getArray().find((l: any) => l instanceof VectorLayer)
+        if (existing) map.removeLayer(existing)
+        map.addLayer(new VectorLayer({ source: vectorSource }))
 
-    // Reset view if switching views
-    if (view === 'beacons') {
-      map.getView().setCenter(fromLonLat([36.8219, -1.2921]))
-      map.getView().setZoom(6)
+        // Reset view if switching views
+        if (view === 'beacons') {
+          map.getView().setCenter(fromLonLat([36.8219, -1.2921]))
+          map.getView().setZoom(6)
+        }
+      } catch (err) {
+        console.error('Beacons map feature update failed:', err)
+      }
     }
+
+    updateFeatures()
+
   }, [view, beacons, projects, filter, search, loading])
 
   const handleImport = async () => {
