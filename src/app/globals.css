@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* OpenLayers — required for all map pages (global map, project map, hydro, beacons) */
+@import 'ol/ol.css';
+
 /* ========================================================================
    METARDU – Premium Dark Theme
    ======================================================================== */
