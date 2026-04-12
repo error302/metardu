@@ -22,3 +22,20 @@ Stage Summary:
 - All API route type narrowing fixed
 - Map page confirmed working
 - Engineering panels (Bridge/Dam/Tunnel) still pending (TODO items)
+
+---
+Task ID: 2
+Agent: main
+Task: Complete engineering panels (Bridge/Dam/Tunnel) and set up SSH
+
+Work Log:
+- Completed BridgePanel setting out: added computeBearing/computeDistance/nearestCP helpers, computed alignment bearing, skew adjustment, perpendicular offsets, abutment corner positions with live DMS bearings/distances
+- Completed DamPanel setting out: added computeBearing/computeDistance/formatChainage/computeSettingOut helpers, computed dam axis bearing from benchmarks, crest station coordinates at regular intervals, upstream/downstream toe positions using slope ratios
+- Completed TunnelPanel: computed bearing from Portal 1 to Portal 2 (was showing "—"), built full Profile tab with SVG profile visualization, chainage table at 50m intervals, computed inlet/outlet elevations from gradient
+- Installed ssh2 npm package for Node.js SSH connectivity
+- SSH connection attempt: the provided key is a Google-managed public key (google-ssh), private key not available locally. GCP VM requires either gcloud CLI auth or a matching private key.
+
+Stage Summary:
+- All 3 engineering panels fully functional with live computed values
+- 0 TypeScript errors across entire project
+- SSH requires private key or gcloud CLI — cannot connect from this environment with only the public key

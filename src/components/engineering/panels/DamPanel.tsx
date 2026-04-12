@@ -8,6 +8,132 @@ interface EngineeringPanelProps {
   subtype: EngineeringSubtype;
 }
 
+function computeBearing(from: { easting: number; northing: number }, to: { easting: number; northing: number }): number {
+  const dE = to.easting - from.easting;
+  const dN = to.northing - from.northing;
+  return (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360;
+}
+
+function computeDistance(from: { easting: number; northing: number }, to: { easting: number; northing: number }): number {
+  return Math.sqrt(Math.pow(to.easting - from.easting, 2) + Math.pow(to.northing - from.northing, 2));
+}
+
+function formatChainage(meters: number): string {
+  const km = Math.floor(meters / 1000);
+  const m = Math.round(meters % 1000);
+  return `${km}+${String(m).padStart(3, '0')}`;
+}
+
+interface StationPoint {
+  chainage: number;
+  label: string;
+  easting: number;
+  northing: number;
+  elevation: number;
+}
+
+interface ToePosition {
+  chainage: number;
+  stationLabel: string;
+  label: string;
+  easting: number;
+  northing: number;
+}
+
+interface SettingOutData {
+  bearing: number | null;
+  stations: StationPoint[];
+  upstreamToe: ToePosition[];
+  downstreamToe: ToePosition[];
+  heightDiff: number;
+  upstreamOffset: number;
+  downstreamOffset: number;
+}
+
+function computeSettingOut(
+  controlPoints: Array<{ easting: number; northing: number; elevation: number }>,
+  crestLength: number,
+  crestElevation: number,
+  foundationLevel: number,
+  upstreamSlopeH: number,
+  downstreamSlopeH: number
+): SettingOutData {
+  const empty: SettingOutData = {
+    bearing: null,
+    stations: [],
+    upstreamToe: [],
+    downstreamToe: [],
+    heightDiff: 0,
+    upstreamOffset: 0,
+    downstreamOffset: 0,
+  };
+
+  if (controlPoints.length < 2) return empty;
+
+  const bm1 = controlPoints[0];
+  const bm2 = controlPoints[1];
+  const bearing = computeBearing(bm1, bm2);
+  const heightDiff = crestElevation - foundationLevel;
+  if (heightDiff <= 0) return empty;
+
+  const upstreamOffset = upstreamSlopeH * heightDiff;
+  const downstreamOffset = downstreamSlopeH * heightDiff;
+
+  const interval = crestLength <= 100 ? 10 : 20;
+  const stations: StationPoint[] = [];
+
+  for (let d = 0; d <= crestLength; d += interval) {
+    const bearingRad = (bearing * Math.PI) / 180;
+    const easting = bm1.easting + d * Math.sin(bearingRad);
+    const northing = bm1.northing + d * Math.cos(bearingRad);
+    stations.push({
+      chainage: d,
+      label: formatChainage(d),
+      easting,
+      northing,
+      elevation: crestElevation,
+    });
+  }
+
+  // Ensure the final station is exactly at crestLength
+  const lastStation = stations[stations.length - 1];
+  if (!lastStation || lastStation.chainage !== crestLength) {
+    const bearingRad = (bearing * Math.PI) / 180;
+    stations.push({
+      chainage: crestLength,
+      label: formatChainage(crestLength),
+      easting: bm1.easting + crestLength * Math.sin(bearingRad),
+      northing: bm1.northing + crestLength * Math.cos(bearingRad),
+      elevation: crestElevation,
+    });
+  }
+
+  const upstreamToe: ToePosition[] = [];
+  const downstreamToe: ToePosition[] = [];
+
+  const perpUpRad = ((bearing - 90) * Math.PI) / 180;
+  const perpDownRad = ((bearing + 90) * Math.PI) / 180;
+
+  for (const st of stations) {
+    upstreamToe.push({
+      chainage: st.chainage,
+      stationLabel: st.label,
+      label: `US ${st.label}`,
+      easting: st.easting + upstreamOffset * Math.sin(perpUpRad),
+      northing: st.northing + upstreamOffset * Math.cos(perpUpRad),
+    });
+    downstreamToe.push({
+      chainage: st.chainage,
+      stationLabel: st.label,
+      label: `DS ${st.label}`,
+      easting: st.easting + downstreamOffset * Math.sin(perpDownRad),
+      northing: st.northing + downstreamOffset * Math.cos(perpDownRad),
+    });
+  }
+
+  return { bearing, stations, upstreamToe, downstreamToe, heightDiff, upstreamOffset, downstreamOffset };
+}
+
 export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
   const [activeTab, setActiveTab] = useState<'control' | 'geometry' | 'reservoir' | 'settingout'>('control');
   const qa = ENGINEERING_QA.dam;
@@ -199,44 +325,123 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
         </div>
       )}
 
-      {activeTab === 'settingout' && (
-        <div>
-          <div className="text-lg font-medium mb-3">Setting Out Points</div>
-          <div className="p-4 bg-zinc-800 rounded-lg text-sm">
-            <div className="text-zinc-400">Key points along dam crest</div>
-            <table className="w-full mt-3">
-              <thead>
-                <tr className="text-zinc-400 border-b border-zinc-700">
-                  <th className="text-left py-2">Station</th>
-                  <th className="text-left py-2">Easting</th>
-                  <th className="text-left py-2">Northing</th>
-                  <th className="text-left py-2">Elevation</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-zinc-800">
-                  <td className="py-2">0+000</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">{crestElevation.toFixed(3)}</td>
-                </tr>
-                <tr className="border-b border-zinc-800">
-                  <td className="py-2">{Math.round(crestLength / 2)}+{(crestLength / 2 % 100).toFixed(0).padStart(3, '0')}</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">{crestElevation.toFixed(3)}</td>
-                </tr>
-                <tr className="border-b border-zinc-800">
-                  <td className="py-2">{Math.round(crestLength / 100)}+{String(crestLength % 100).padStart(3, '0')}</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">{crestElevation.toFixed(3)}</td>
-                </tr>
-              </tbody>
-            </table>
+      {activeTab === 'settingout' && (() => {
+        const settingOut = computeSettingOut(controlPoints, crestLength, crestElevation, foundationLevel, upstreamSlopeH, downstreamSlopeH);
+        const hasEnoughCP = controlPoints.length >= 2;
+
+        return (
+          <div>
+            <div className="text-lg font-medium mb-3">Setting Out Points</div>
+
+            {!hasEnoughCP && (
+              <div className="p-4 bg-amber-900/30 border border-amber-700 rounded-lg text-sm text-amber-400">
+                Add at least 2 control points (benchmarks) in the Control Survey tab to compute setting out coordinates.
+              </div>
+            )}
+
+            {hasEnoughCP && settingOut.bearing !== null && (
+              <div className="p-3 bg-zinc-800 rounded-lg text-sm mb-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <span className="text-zinc-400">Dam Axis Bearing</span>
+                    <div className="text-lg font-mono">{settingOut.bearing.toFixed(4)}°</div>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400">BM1→BM2 Distance</span>
+                    <div className="text-lg font-mono">{computeDistance(controlPoints[0], controlPoints[1]).toFixed(3)} m</div>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400">Height (Crest − Foundation)</span>
+                    <div className="text-lg font-mono">{settingOut.heightDiff.toFixed(1)} m</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {settingOut.stations.length > 0 && (
+              <div className="p-4 bg-zinc-800 rounded-lg text-sm">
+                <div className="text-zinc-400 mb-3">Dam Crest Stations (interval: {crestLength <= 100 ? '10' : '20'} m)</div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-zinc-400 border-b border-zinc-700">
+                        <th className="text-left py-2 pr-4">Station</th>
+                        <th className="text-right py-2 pr-4">Easting</th>
+                        <th className="text-right py-2 pr-4">Northing</th>
+                        <th className="text-right py-2">Elevation (m)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {settingOut.stations.map((st, i) => (
+                        <tr key={i} className={i % 2 === 0 ? 'border-b border-zinc-800' : 'border-b border-zinc-800 bg-zinc-800/40'}>
+                          <td className="py-1.5 pr-4 font-mono font-medium">{st.label}</td>
+                          <td className="py-1.5 pr-4 text-right font-mono">{st.easting.toFixed(3)}</td>
+                          <td className="py-1.5 pr-4 text-right font-mono">{st.northing.toFixed(3)}</td>
+                          <td className="py-1.5 text-right font-mono">{st.elevation.toFixed(3)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {settingOut.upstreamToe.length > 0 && (
+              <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="p-4 bg-zinc-800 rounded-lg text-sm">
+                  <div className="text-zinc-400 mb-1">Upstream Toe Positions</div>
+                  <div className="text-xs text-zinc-500 mb-3">Offset: {settingOut.upstreamOffset.toFixed(1)} m perpendicular to alignment ({upstreamSlopeH}:1 × {settingOut.heightDiff.toFixed(1)} m)</div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-zinc-400 border-b border-zinc-700">
+                          <th className="text-left py-1.5 pr-3">Station</th>
+                          <th className="text-right py-1.5 pr-3">Easting</th>
+                          <th className="text-right py-1.5">Northing</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {settingOut.upstreamToe.map((pt, i) => (
+                          <tr key={i} className="border-b border-zinc-800">
+                            <td className="py-1 pr-3 font-mono text-xs">{pt.label}</td>
+                            <td className="py-1 pr-3 text-right font-mono text-xs">{pt.easting.toFixed(3)}</td>
+                            <td className="py-1 text-right font-mono text-xs">{pt.northing.toFixed(3)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-zinc-800 rounded-lg text-sm">
+                  <div className="text-zinc-400 mb-1">Downstream Toe Positions</div>
+                  <div className="text-xs text-zinc-500 mb-3">Offset: {settingOut.downstreamOffset.toFixed(1)} m perpendicular to alignment ({downstreamSlopeH}:1 × {settingOut.heightDiff.toFixed(1)} m)</div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-zinc-400 border-b border-zinc-700">
+                          <th className="text-left py-1.5 pr-3">Station</th>
+                          <th className="text-right py-1.5 pr-3">Easting</th>
+                          <th className="text-right py-1.5">Northing</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {settingOut.downstreamToe.map((pt, i) => (
+                          <tr key={i} className="border-b border-zinc-800">
+                            <td className="py-1 pr-3 font-mono text-xs">{pt.label}</td>
+                            <td className="py-1 pr-3 text-right font-mono text-xs">{pt.easting.toFixed(3)}</td>
+                            <td className="py-1 text-right font-mono text-xs">{pt.northing.toFixed(3)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

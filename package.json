@@ -105,6 +105,7 @@
     "shapefile": "^0.6.6",
     "shp-write": "^0.3.2",
     "sonner": "^2.0.7",
+    "ssh2": "^1.17.0",
     "svg2pdf.js": "^2.7.0",
     "tailwind-merge": "^3.5.0",
     "three": "^0.183.2",

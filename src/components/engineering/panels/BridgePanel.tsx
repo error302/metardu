@@ -26,6 +26,117 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
 
   const clearanceWarning = clearanceM !== undefined && clearanceM < 1.5;
 
+  // ── Setting-out helpers ──────────────────────────────────────────
+  function computeBearing(from: { easting: number; northing: number }, to: { easting: number; northing: number }): number {
+    const dE = to.easting - from.easting;
+    const dN = to.northing - from.northing;
+    return (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360;
+  }
+
+  function computeDistance(from: { easting: number; northing: number }, to: { easting: number; northing: number }): number {
+    return Math.sqrt((to.easting - from.easting) ** 2 + (to.northing - from.northing) ** 2);
+  }
+
+  function formatDMS(bearingDeg: number): string {
+    const d = Math.floor(bearingDeg);
+    const mFull = (bearingDeg - d) * 60;
+    const m = Math.floor(mFull);
+    const s = ((mFull - m) * 60).toFixed(1);
+    return `${d}\u00B0${String(m).padStart(2, '0')}'${s.padStart(4, '0')}"`;
+  }
+
+  function pointFromBearingAndDist(
+    origin: { easting: number; northing: number },
+    bearingDeg: number,
+    dist: number,
+  ): { easting: number; northing: number } {
+    const rad = (bearingDeg * Math.PI) / 180;
+    return {
+      easting: origin.easting + dist * Math.sin(rad),
+      northing: origin.northing + dist * Math.cos(rad),
+    };
+  }
+
+  function nearestControlPoint(
+    pt: { easting: number; northing: number },
+  ): { label: string; bearing: number; distance: number } | null {
+    if (centreLine.length === 0) return null;
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < centreLine.length; i++) {
+      const d = computeDistance(pt, centreLine[i]);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return {
+      label: `CP${best + 1}`,
+      bearing: computeBearing(centreLine[best], pt),
+      distance: bestD,
+    };
+  }
+
+  // ── Derived setting-out data ─────────────────────────────────────
+  const alignmentBearing = centreLine.length >= 2
+    ? computeBearing(centreLine[0], centreLine[1])
+    : 0;
+
+  const skewAdjustedBearing = (alignmentBearing + skewAngle + 360) % 360;
+  const perpBearing = (skewAdjustedBearing + 90) % 360;
+  const halfWidth = widthM / 2;
+
+  interface SettingOutRow {
+    id: string;
+    label: string;
+    fromCP: string;
+    bearing: number;
+    distance: number;
+    easting: number;
+    northing: number;
+  }
+
+  const settingOutRows: SettingOutRow[] = [];
+
+  if (centreLine.length >= 2) {
+    const startPt = centreLine[0];
+
+    const addRow = (label: string, pt: { easting: number; northing: number }) => {
+      const info = nearestControlPoint(pt);
+      if (info) {
+        settingOutRows.push({
+          id: `${label}-${pt.easting.toFixed(2)}-${pt.northing.toFixed(2)}`,
+          label,
+          fromCP: info.label,
+          bearing: info.bearing,
+          distance: info.distance,
+          easting: pt.easting,
+          northing: pt.northing,
+        });
+      }
+    };
+
+    // Abutment 1 – Left & Right corners
+    const a1Left = pointFromBearingAndDist(startPt, perpBearing, halfWidth);
+    const a1Right = pointFromBearingAndDist(startPt, (perpBearing + 180) % 360, halfWidth);
+    addRow('Abut 1 Left', a1Left);
+    addRow('Abut 1 Right', a1Right);
+
+    // Pier positions at span boundaries
+    let cumDist = 0;
+    for (let i = 0; i < spanLengths.length; i++) {
+      cumDist += spanLengths[i];
+      if (i < spanLengths.length - 1) {
+        const pierCenter = pointFromBearingAndDist(startPt, skewAdjustedBearing, cumDist);
+        addRow(`Pier ${i + 1}`, pierCenter);
+      }
+    }
+
+    // Abutment 2 – Left & Right corners at end of bridge
+    const endPt = pointFromBearingAndDist(startPt, skewAdjustedBearing, totalLength);
+    const a2Left = pointFromBearingAndDist(endPt, perpBearing, halfWidth);
+    const a2Right = pointFromBearingAndDist(endPt, (perpBearing + 180) % 360, halfWidth);
+    addRow('Abut 2 Left', a2Left);
+    addRow('Abut 2 Right', a2Right);
+  }
+
   const tabs = [
     { id: 'control', label: 'Control Survey' },
     { id: 'spans', label: 'Span Layout' },
@@ -204,45 +315,62 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
       {activeTab === 'settingout' && (
         <div>
           <div className="text-lg font-medium mb-3">Setting Out Schedule</div>
-          <div className="p-4 bg-zinc-800 rounded-lg text-sm">
-            <div className="text-zinc-400">Abutment positions computed from control points</div>
-            <table className="w-full mt-3">
-              <thead>
-                <tr className="text-zinc-400 border-b border-zinc-700">
-                  <th className="text-left py-2">Point</th>
-                  <th className="text-left py-2">From Control</th>
-                  <th className="text-left py-2">Bearing</th>
-                  <th className="text-left py-2">Distance</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-zinc-800">
-                  <td className="py-2">Abutment 1 Start</td>
-                  <td className="py-2">CP1</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">—</td>
-                </tr>
-                <tr className="border-b border-zinc-800">
-                  <td className="py-2">Abutment 1 End</td>
-                  <td className="py-2">CP1</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">—</td>
-                </tr>
-                <tr className="border-b border-zinc-800">
-                  <td className="py-2">Abutment 2 Start</td>
-                  <td className="py-2">CP1</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">—</td>
-                </tr>
-                <tr className="border-b border-zinc-800">
-                  <td className="py-2">Abutment 2 End</td>
-                  <td className="py-2">CP1</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">—</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+
+          {centreLine.length < 2 ? (
+            <div className="p-4 bg-zinc-800 rounded-lg text-sm text-zinc-400">
+              Add at least 2 control points on the Control Survey tab to compute setting-out data.
+            </div>
+          ) : (
+            <>
+              {/* Alignment summary cards */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="p-3 bg-zinc-800 rounded-lg">
+                  <div className="text-xs text-zinc-400">Alignment Bearing</div>
+                  <div className="text-amber-500 font-mono">{formatDMS(alignmentBearing)}</div>
+                </div>
+                <div className="p-3 bg-zinc-800 rounded-lg">
+                  <div className="text-xs text-zinc-400">Skew Adjusted</div>
+                  <div className="text-amber-500 font-mono">{formatDMS(skewAdjustedBearing)}</div>
+                </div>
+                <div className="p-3 bg-zinc-800 rounded-lg">
+                  <div className="text-xs text-zinc-400">Perpendicular</div>
+                  <div className="text-amber-500 font-mono">{formatDMS(perpBearing)}</div>
+                </div>
+              </div>
+
+              {/* Setting-out table */}
+              <div className="p-4 bg-zinc-800 rounded-lg text-sm">
+                <div className="text-zinc-400 mb-2">
+                  Computed from {centreLine.length} control point{centreLine.length > 1 ? 's' : ''}
+                  {' '}— half-width offset {halfWidth.toFixed(2)} m
+                </div>
+                <table className="w-full mt-2">
+                  <thead>
+                    <tr className="text-zinc-400 border-b border-zinc-700">
+                      <th className="text-left py-2">Point</th>
+                      <th className="text-left py-2">From</th>
+                      <th className="text-left py-2">Bearing</th>
+                      <th className="text-right py-2">Distance (m)</th>
+                      <th className="text-right py-2">Easting</th>
+                      <th className="text-right py-2">Northing</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {settingOutRows.map((row) => (
+                      <tr key={row.id} className="border-b border-zinc-800">
+                        <td className="py-2 font-medium">{row.label}</td>
+                        <td className="py-2">{row.fromCP}</td>
+                        <td className="py-2 text-amber-500 font-mono">{formatDMS(row.bearing)}</td>
+                        <td className="py-2 text-right font-mono">{row.distance.toFixed(3)}</td>
+                        <td className="py-2 text-right font-mono">{row.easting.toFixed(3)}</td>
+                        <td className="py-2 text-right font-mono">{row.northing.toFixed(3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
