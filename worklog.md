@@ -117,3 +117,22 @@ Stage Summary:
 - All compute endpoints working with native TypeScript
 - Database healthy
 - GitHub Actions deploy.yml corrected for future auto-deploys
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix map not working — missing ol/ol.css
+
+Work Log:
+- Investigated: all map components use OpenLayers (ol) library
+- Found root cause: ol/ol.css was NOT imported globally or in MapClient.tsx / SurveyMap.tsx
+- Only 3 files imported ol/ol.css: beacons/page.tsx, BathymetryMap.tsx, AnomalyHeatmap.tsx
+- The two main map pages (/map and /project/[id]/map) had no OL styles → maps invisible
+- Fixed: added `@import 'ol/ol.css'` to src/app/globals.css (loaded by layout.tsx globally)
+- Deployed: pull → build (EXIT_CODE=0) → PM2 restart → health check passed
+- Verified: OL CSS classes now present in served HTML
+
+Stage Summary:
+- Root cause: missing OpenLayers CSS stylesheet import
+- Fix: single line addition to globals.css
+- Site live at https://metardu.duckdns.org — all map pages should now render correctly
