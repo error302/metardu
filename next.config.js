@@ -37,6 +37,7 @@ const nextConfig = {
   },
   
   // Disable CSS minification — cssnano can't parse Tailwind arbitrary gradient values
+  cssMinify: false,
   
   // Performance settings
   compress: true,
