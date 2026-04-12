@@ -14,9 +14,12 @@ import { QuickCompute } from '@/components/layout/QuickCompute'
 import { ProjectionInit } from '@/components/layout/ProjectionInit'
 import { OfflineIndicator } from '@/components/app/OfflineIndicator'
 import { AppUpdateBanner } from '@/components/app/AppUpdateBanner'
+import { getPublicAppUrl } from '@/lib/site'
+
+const publicAppUrl = getPublicAppUrl()
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.vercel.app'),
+  metadataBase: new URL(publicAppUrl),
   title: 'METARDU - Precise earth measurements.',
   description:
     'Professional surveying platform for land surveyors worldwide. Traverse adjustment, leveling, COGO, GPS stakeout, PDF reports. Supports all 60 UTM zones. Built in Africa, used globally.',
@@ -46,7 +49,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.vercel.app',
+    url: publicAppUrl,
     siteName: 'METARDU',
     title: 'METARDU - Precise earth measurements.',
     description: 'Complete surveying platform for professional land surveyors across Africa and beyond.',

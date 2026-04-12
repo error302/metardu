@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next'
+import { getPublicAppUrl } from '@/lib/site'
 
-const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://metardu-henna.vercel.app'
+const BASE = getPublicAppUrl()
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = BASE

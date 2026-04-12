@@ -25,16 +25,6 @@ const nextConfig = {
 
   reactStrictMode: true,
 
-  // ─── Native / server-only packages — NEVER bundle client-side ───
-  // This prevents pg, canvas, @google-cloud/storage from leaking into
-  // client chunks, saving ~30MB+ of RAM on cold starts
-  serverExternalPackages: [
-    'pg',
-    'canvas',
-    '@google-cloud/storage',
-    'bcryptjs',
-  ],
-
   // ─── Image optimization (disabled — VM has no image optimization needs) ───
   images: {
     unoptimized: true,
@@ -51,9 +41,6 @@ const nextConfig = {
     // CI pipeline runs tsc --noEmit separately for strict type checking.
   },
 
-  // Disable CSS minification — cssnano can't parse Tailwind arbitrary gradient values
-  cssMinify: false,
-
   // ─── Performance settings ───
   compress: true,
   poweredByHeader: false,
@@ -62,6 +49,13 @@ const nextConfig = {
   // ─── Tree-shaking for heavy packages ───
   // Only imports the named exports actually used instead of the entire package
   experimental: {
+    // Next 14 expects server-only externals under the experimental flag.
+    serverComponentsExternalPackages: [
+      'pg',
+      'canvas',
+      '@google-cloud/storage',
+      'bcryptjs',
+    ],
     optimizePackageImports: [
       'ol',
       'lucide-react',

@@ -5,6 +5,8 @@
  * here rather than scattering `process.env.*` references throughout the app.
  */
 
+import { getPublicAppUrl } from '@/lib/site'
+
 /** Semantic version of the METARDU app — bump on each release. */
 export const APP_VERSION = '1.0.0'
 export const APP_BUILD_PHASE = '40' // last completed development phase
@@ -21,7 +23,7 @@ export const appConfig = {
   buildPhase: APP_BUILD_PHASE,
 
   /** Base URL (public) */
-  baseUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.vercel.app',
+  baseUrl: getPublicAppUrl(),
 
   /** Supabase */
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',

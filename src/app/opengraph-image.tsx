@@ -1,10 +1,13 @@
 import { ImageResponse } from 'next/og'
+import { getPublicAppHost } from '@/lib/site'
 
 export const dynamic = 'force-dynamic'
 
 export const alt = 'METARDU — Professional Surveying Platform'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
+
+const publicAppHost = getPublicAppHost()
 
 export default async function Image() {
   return new ImageResponse(
@@ -110,7 +113,7 @@ export default async function Image() {
 
         {/* URL */}
         <div style={{ position: 'absolute', bottom: 32, color: '#444', fontSize: 14 }}>
-{process.env.NEXT_PUBLIC_APP_URL ? process.env.NEXT_PUBLIC_APP_URL.replace('https://', '') : 'metardu.app'}
+          {publicAppHost}
         </div>
       </div>
     ),

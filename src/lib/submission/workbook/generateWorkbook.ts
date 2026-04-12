@@ -1,7 +1,6 @@
 import * as XLSX from 'xlsx'
 import type { TraverseResult, ParcelData, ReportPoint } from '@/lib/reports/surveyReport/types'
-import type { SubmissionSection } from '@/types/submission'
-import type { BoundaryPoint } from '@/lib/reports/surveyPlan/types' // Reuse boundary points
+import type { BoundaryPoint } from '@/lib/reports/surveyPlan/types'
 
 interface SubmissionWorkbookData {
   submission_number: string
@@ -13,15 +12,15 @@ interface SubmissionWorkbookData {
   traverse?: TraverseResult
   beacons: ReportPoint[]
   parcels: ParcelData[]
-  rtkResults?: any[]
-  theoreticalCoords: BoundaryPoint[] // Final coordinate list
+  rtkResults?: Array<Record<string, unknown>>
+  theoreticalCoords: BoundaryPoint[]
   datumJoins: Array<{ from: string; to: string; deltaN: number; deltaE: number; distance: number; bearing: number }>
   consistencyChecks: Array<{ station: string; computedN: number; computedE: number; planN: number; planE: number; deltaN: number; deltaE: number; status: string }>
 }
 
-function addSurveyorReportSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addReportSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
   const wsData = [
-    ['SURVEYOR REPORT', ''],
+    ['REPORT', ''],
     ['Submission No.', data.submission_number],
     ['Project', data.project_name],
     ['LR No.', data.lr_number],
@@ -40,31 +39,32 @@ function addSurveyorReportSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData)
     ['Signature / Date', ''],
   ]
   const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, '01_Surveyor_Report')
+  XLSX.utils.book_append_sheet(wb, ws, 'REPORT')
 }
 
 function addIndexSheet(wb: XLSX.WorkBook): void {
   const wsData = [
-    ['SUBMISSION PACKAGE INDEX', ''],
+    ['INDEX TO COMPUTATIONS', ''],
     ['No.', 'Section', 'Status', 'Pages'],
-    ['1', 'Surveyor Report', 'Complete', '1'],
+    ['1', 'Report', 'Complete', '1'],
     ['2', 'Index to Computations', 'Complete', '1'],
     ['3', 'Final Coordinate List', 'Complete', '1'],
-    ['4', 'Working Diagram', 'Complete', '1'],
-    ['5', 'Theoretical Computations', 'Complete', '2'],
-    ['6', 'RTK Result', 'N/A', '0'],
-    ['7', 'Consistency Checks', 'Complete', '1'],
-    ['8', 'Area Computations', 'Complete', '1'],
+    ['4', 'Datum Joins', 'Complete', '1'],
+    ['5', 'Consistency of Datum', 'Complete', '1'],
+    ['6', 'Theoreticals', 'Complete', '1'],
+    ['7', 'RTK Result', 'Conditional', '1'],
+    ['8', 'Consistency Checks', 'Complete', '1'],
+    ['9', 'Areas', 'Complete', '1'],
   ]
   const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, '02_Index')
+  XLSX.utils.book_append_sheet(wb, ws, 'INDEX TO COMPUTATIONS')
 }
 
 function addCoordinateListSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
   const wsData = [
     ['FINAL COORDINATE LIST', ''],
     ['Station', 'Northing', 'Easting', 'Height', 'Class', 'Description'],
-    ...data.beacons.map((b: any) => [
+    ...data.beacons.map((b) => [
       b.name,
       b.northing.toFixed(4),
       b.easting.toFixed(4),
@@ -74,14 +74,14 @@ function addCoordinateListSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData)
     ]),
   ]
   const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, '03_Coordinate_List')
+  XLSX.utils.book_append_sheet(wb, ws, 'FINAL COORDINATE LIST')
 }
 
 function addDatumJoinsSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
   const wsData = [
     ['DATUM JOINS', ''],
-    ['From', 'To', 'ΔNorthing', 'ΔEasting', 'Distance', 'Bearing'],
-    ...data.datumJoins.map((j: any) => [
+    ['From', 'To', 'Delta Northing', 'Delta Easting', 'Distance', 'Bearing'],
+    ...data.datumJoins.map((j) => [
       j.from,
       j.to,
       j.deltaN.toFixed(4),
@@ -91,36 +91,14 @@ function addDatumJoinsSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): vo
     ]),
   ]
   const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, '04_Datum_Joins')
+  XLSX.utils.book_append_sheet(wb, ws, 'DATUM JOINS')
 }
 
-function addTheoreticalComputationsSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addConsistencyOfDatumSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
   const wsData = [
-    ['THEORETICAL COORDINATES', ''],
-    ['Station', 'Northing', 'Easting', 'Class'],
-    ...data.theoreticalCoords.map((p: any) => [
-      p.name || '',
-      p.northing.toFixed(4),
-      p.easting.toFixed(4),
-      'Theoretical',
-    ]),
-  ]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, '05_Theoretical')
-}
-
-function addRTKResultSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
-  // Placeholder for RTK data
-  const wsData = [['RTK FIELD RESULTS', 'Placeholder - RTK data import needed']]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, '06_RTK')
-}
-
-function addConsistencyChecksSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
-  const wsData = [
-    ['CONSISTENCY CHECKS', ''],
-    ['Station', 'Computed N', 'Computed E', 'Plan N', 'Plan E', 'ΔN', 'ΔE', 'Status'],
-    ...data.consistencyChecks.map((c: any) => [
+    ['CONSISTENCY OF DATUM', ''],
+    ['Station', 'Computed N', 'Computed E', 'Plan N', 'Plan E', 'Delta N', 'Delta E', 'Status'],
+    ...data.consistencyChecks.map((c) => [
       c.station,
       c.computedN.toFixed(4),
       c.computedE.toFixed(4),
@@ -132,41 +110,88 @@ function addConsistencyChecksSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookDa
     ]),
   ]
   const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, '07_Consistency')
+  XLSX.utils.book_append_sheet(wb, ws, 'CONSISTENCY OF DATUM')
 }
 
-function addAreaComputationsSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addTheoreticalsSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
   const wsData = [
-    ['AREA COMPUTATIONS', ''],
-    ['Parcel', 'Area m²', 'Area Ha', 'F/R Area', 'Discrepancy', 'Status'],
-    ...data.parcels.map((parcel, i) => [
-      `Parcel ${i + 1}`,
+    ['THEORETICALS', ''],
+    ['Station', 'Northing', 'Easting', 'Class'],
+    ...data.theoreticalCoords.map((p) => [
+      p.name || '',
+      p.northing.toFixed(4),
+      p.easting.toFixed(4),
+      'Theoretical',
+    ]),
+  ]
+  const ws = XLSX.utils.aoa_to_sheet(wsData)
+  XLSX.utils.book_append_sheet(wb, ws, 'THEORETICALS')
+}
+
+function addRTKResultSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+  const rows = Array.isArray(data.rtkResults) ? data.rtkResults : []
+  const headerKeys = rows.length ? Object.keys(rows[0]) : []
+  const wsData = rows.length
+    ? [
+        ['RTK RESULT', ''],
+        headerKeys.map((key) => key.toUpperCase()),
+        ...rows.map((row) => headerKeys.map((key) => String(row[key] ?? ''))),
+      ]
+    : [
+        ['RTK RESULT', ''],
+        ['Status', 'No RTK field result attached to this package'],
+      ]
+  const ws = XLSX.utils.aoa_to_sheet(wsData)
+  XLSX.utils.book_append_sheet(wb, ws, 'RTK RESULT')
+}
+
+function addConsistencyChecksSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+  const wsData = [
+    ['CONSISTENCY CHECKS', ''],
+    ['Check', 'Detail', 'Status'],
+    ['Traverse result available', data.traverse ? 'Bowditch / traverse output attached' : 'Traverse result missing', data.traverse ? 'OK' : 'PENDING'],
+    ['Datum joins', `${data.datumJoins.length} join(s) prepared`, data.datumJoins.length ? 'OK' : 'PENDING'],
+    ['Consistency of datum', `${data.consistencyChecks.length} station check(s) prepared`, data.consistencyChecks.length ? 'OK' : 'PENDING'],
+    ['RTK result bundle', data.rtkResults?.length ? `${data.rtkResults.length} record(s) attached` : 'No RTK result attached', data.rtkResults?.length ? 'OK' : 'PENDING'],
+    ['Area computation', `${data.parcels.length} parcel area row(s) prepared`, data.parcels.length ? 'OK' : 'PENDING'],
+  ]
+  const ws = XLSX.utils.aoa_to_sheet(wsData)
+  XLSX.utils.book_append_sheet(wb, ws, 'CONSISTENCY CHECKS')
+}
+
+function addAreasSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+  const startRow = 3
+  const endRow = data.parcels.length + startRow - 1
+  const wsData = [
+    ['AREAS', ''],
+    ['Parcel', 'Area m^2', 'Area Ha', 'F/R Area', 'Discrepancy', 'Status'],
+    ...data.parcels.map((parcel, index) => [
+      `Parcel ${index + 1}`,
       parcel.area_sqm.toFixed(4),
       parcel.area_ha.toFixed(6),
-      '', // F/R from scheme
+      '',
       '0.00%',
       'OK',
     ]),
-    ['', '=SUM(B2:B' + (data.parcels.length + 1) + ')', '=SUM(C2:C' + (data.parcels.length + 1) + ')', '', '', ''],
+    ['', `=SUM(B${startRow}:B${endRow})`, `=SUM(C${startRow}:C${endRow})`, '', '', ''],
   ]
   const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, '08_Areas')
+  XLSX.utils.book_append_sheet(wb, ws, 'AREAS')
 }
 
 export function generateSubmissionWorkbook(data: SubmissionWorkbookData): ArrayBuffer {
   const wb = XLSX.utils.book_new()
 
-  // Benchmark sheet order
-  addSurveyorReportSheet(wb, data)
+  addReportSheet(wb, data)
   addIndexSheet(wb)
   addCoordinateListSheet(wb, data)
   addDatumJoinsSheet(wb, data)
-  addTheoreticalComputationsSheet(wb, data)
-  if (data.rtkResults?.length) addRTKResultSheet(wb, data)
+  addConsistencyOfDatumSheet(wb, data)
+  addTheoreticalsSheet(wb, data)
+  addRTKResultSheet(wb, data)
   addConsistencyChecksSheet(wb, data)
-  addAreaComputationsSheet(wb, data)
+  addAreasSheet(wb, data)
 
-  // Set workbook properties
   wb.Props = {
     Title: data.project_name,
     Subject: data.submission_number,
@@ -176,4 +201,3 @@ export function generateSubmissionWorkbook(data: SubmissionWorkbookData): ArrayB
 
   return XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
 }
-
