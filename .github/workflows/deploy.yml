@@ -1,0 +1,26 @@
+name: Deploy to VM
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd /home/mohameddosho20/metardu
+            git pull origin main
+            npm install --production=false
+            npm run build
+            pm2 restart metardu
+            echo "Deploy complete at $(date)"
