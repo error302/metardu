@@ -10,7 +10,6 @@ import {
   StaggerContainer,
   GlassCard,
   AnimatedGradientText,
-  GlowButton,
   SectionReveal,
   CounterAnimation,
   TypewriterText,
@@ -460,12 +459,13 @@ function HeroSection() {
 
         <FadeUp delay={0.4}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <GlowButton>
-              <Link href="/register" className="flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-black font-bold rounded-xl text-base hover:brightness-110 transition-all">
-                Get Started Free
-                {Icons.arrowRight}
-              </Link>
-            </GlowButton>
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#E8841A] via-[#FF6B35] to-[#FFB347] px-8 py-4 text-base font-bold text-black shadow-[0_2px_12px_rgba(232,132,26,0.25)] transition-all duration-200 ease-out hover:scale-[1.02] hover:brightness-110 hover:shadow-[0_4px_30px_rgba(232,132,26,0.45)]"
+            >
+              Get Started Free
+              {Icons.arrowRight}
+            </Link>
             <Link
               href="#demo"
               className="flex items-center gap-2 px-8 py-4 bg-[var(--bg-secondary)] text-[var(--text-primary)] font-semibold rounded-xl border border-[var(--border-color)] hover:border-[var(--accent)]/50 transition-all text-base"
@@ -837,15 +837,13 @@ function FinalCTA() {
             Start free — no credit card required.
           </p>
 
-          <GlowButton>
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-3 px-10 py-5 bg-[var(--accent)] text-black font-bold rounded-2xl text-lg hover:brightness-110 transition-all"
-            >
-              Get Started Free
-              {Icons.arrowRight}
-            </Link>
-          </GlowButton>
+          <Link
+            href="/register"
+            className="inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#E8841A] via-[#FF6B35] to-[#FFB347] px-10 py-5 text-lg font-bold text-black shadow-[0_2px_12px_rgba(232,132,26,0.25)] transition-all duration-200 ease-out hover:scale-[1.02] hover:brightness-110 hover:shadow-[0_4px_30px_rgba(232,132,26,0.45)]"
+          >
+            Get Started Free
+            {Icons.arrowRight}
+          </Link>
 
           <p className="mt-6 text-[var(--text-muted)] text-sm">
             Free forever plan available &middot; No credit card needed &middot; Setup in 60 seconds

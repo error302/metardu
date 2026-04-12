@@ -5,10 +5,6 @@ import {
   motion,
   type HTMLMotionProps,
   useInView,
-  useMotionValue,
-  useSpring,
-  useTransform,
-  animate,
 } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -328,26 +324,45 @@ export function CounterAnimation({
   suffix?: string;
   className?: string;
 }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const motionValue = useMotionValue(0);
-  const rounded = useSpring(motionValue, { duration: 2000, bounce: 0 });
+  const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
-    if (isInView) {
-      const controls = animate(motionValue, target, {
-        duration: 2,
-        ease: "easeOut",
-      });
-      return controls.stop;
+    if (typeof window !== "undefined") {
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (prefersReducedMotion) {
+        setDisplayValue(target);
+        return;
+      }
     }
-  }, [isInView, target, motionValue]);
+
+    let animationFrame = 0;
+    let startTime: number | null = null;
+    const duration = 2000;
+
+    setDisplayValue(0);
+
+    const step = (timestamp: number) => {
+      if (startTime === null) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+
+      setDisplayValue(target * easedProgress);
+
+      if (progress < 1) {
+        animationFrame = window.requestAnimationFrame(step);
+      }
+    };
+
+    animationFrame = window.requestAnimationFrame(step);
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [target]);
 
   return (
-    <motion.span ref={ref} className={cn("tabular-nums", className)}>
-      {rounded.get().toFixed(target % 1 !== 0 ? 1 : 0)}
+    <span className={cn("tabular-nums", className)}>
+      {displayValue.toFixed(target % 1 !== 0 ? 1 : 0)}
       {suffix}
-    </motion.span>
+    </span>
   );
 }
 

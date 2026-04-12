@@ -239,7 +239,7 @@ function MegaMenu({ groups, t, onSelect }: { groups: MenuGroup[]; t: Translator;
   )
 }
 
-function GlobalSearch({ t }: { t: Translator }) {
+function GlobalSearch({ t, isAuthenticated }: { t: Translator; isAuthenticated: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -264,14 +264,24 @@ function GlobalSearch({ t }: { t: Translator }) {
       { href: '/pricing', label: t('nav.pricing'), group: t('nav.docs') },
     ]
 
-    return [
+    const baseItems = [
       ...flatten(t('nav.tools'), toolGroups),
       ...flatten(t('nav.field'), fieldGroups),
       ...flatten(t('nav.more'), moreGroups),
       ...docsItems.map((x) => ({ category: x.group, group: x.group, href: x.href, label: x.label })),
-      { category: t('nav.projects'), group: t('nav.projects'), href: '/dashboard', label: t('nav.dashboard') },
     ]
-  }, [t])
+
+    return isAuthenticated
+      ? [
+          ...baseItems,
+          { category: t('nav.projects'), group: t('nav.projects'), href: '/dashboard', label: t('nav.dashboard') },
+        ]
+      : [
+          ...baseItems,
+          { category: t('nav.login'), group: t('nav.login'), href: '/login', label: t('nav.login') },
+          { category: t('nav.register'), group: t('nav.register'), href: '/register', label: t('nav.register') },
+        ]
+  }, [isAuthenticated, t])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -473,6 +483,21 @@ export default function NavBar() {
   }, [])
 
   const currentLang = languages.find((l: any) => l.code === language) || languages[0]
+  const desktopLinks = user
+    ? [
+        { href: '/dashboard', label: 'Dashboard' },
+        { href: '/projects', label: 'Projects' },
+        { href: '/map', label: 'Map', icon: true },
+        { href: '/community', label: 'Community' },
+        { href: '/account', label: 'Account' },
+      ]
+    : [
+        { href: '/tools', label: 'Tools' },
+        { href: '/guide', label: 'Guide' },
+        { href: '/online', label: 'Online' },
+        { href: '/community', label: 'Community' },
+        { href: '/docs', label: 'Docs' },
+      ]
 
   if (!mounted) {
     return (
@@ -492,59 +517,27 @@ export default function NavBar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
-            {/* Dashboard Link */}
-            <Link 
-              href="/dashboard"
-              prefetch={false}
-              className="px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
-            >
-              Dashboard
-            </Link>
-
-            {/* Projects Link */}
-            <Link 
-              href="/projects"
-              prefetch={false}
-              className="px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
-            >
-              Projects
-            </Link>
-
-            {/* Map Link */}
-            <Link 
-              href="/map"
-              prefetch={false}
-              className="px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5 inline-flex items-center gap-1.5"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              Map
-            </Link>
-
-            {/* Community Link */}
-            <Link 
-              href="/community"
-              prefetch={false}
-              className="px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
-            >
-              Community
-            </Link>
-
-            {/* Account Link */}
-            <Link 
-              href="/account"
-              prefetch={false}
-              className="px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
-            >
-              Account
-            </Link>
+            {desktopLinks.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={false}
+                className={`px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5 ${item.icon ? 'inline-flex items-center gap-1.5' : ''}`}
+              >
+                {item.icon ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                ) : null}
+                {item.label}
+              </Link>
+            ))}
           </div>
 
           {/* Right Side */}
           <div className="flex items-center gap-3">
             {/* Global Search */}
-            <GlobalSearch t={t} />
+            <GlobalSearch t={t} isAuthenticated={Boolean(user)} />
 
             {/* Language Selector */}
             <Dropdown
@@ -751,10 +744,10 @@ export default function NavBar() {
                   </div>
                 )}
               </div>
-            ) : (
+              ) : (
               <div className="hidden md:flex items-center gap-2">
                 <Link href="/login" className="px-4 py-2 text-sm border border-[var(--accent)] text-[var(--accent)] rounded hover:bg-[var(--accent)]/10 transition-colors">
-                  Account
+                  {t('nav.login')}
                 </Link>
                 <Link href="/register" className="px-4 py-2 text-sm bg-[var(--accent)] text-black font-semibold rounded hover:bg-[var(--accent-dim)] transition-colors">
                   {t('nav.register')}
@@ -784,9 +777,15 @@ export default function NavBar() {
           <div className="md:hidden bg-[#0a0a0f] border-t border-[var(--border-color)] max-h-[80vh] overflow-y-auto pb-4">
             <div className="py-2">
               {/* Quick Links */}
-              <Link href="/dashboard" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                {t('nav.projects')}
-              </Link>
+              {user ? (
+                <Link href="/dashboard" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                  {t('nav.projects')}
+                </Link>
+              ) : (
+                <Link href="/community" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                  {t('nav.community')}
+                </Link>
+              )}
               <Link href="/tools" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {t('nav.tools')}
               </Link>

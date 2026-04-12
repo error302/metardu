@@ -1,8 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { createClient } from '@/lib/supabase/client'
 
 const icons = {
   projects: (
@@ -33,7 +35,7 @@ const icons = {
   ),
 }
 
-const mobileNavItems = [
+const authenticatedNavItems = [
   { href: '/dashboard', icon: 'projects', labelKey: 'nav.projects' },
   { href: '/tools', icon: 'tools', labelKey: 'nav.tools' },
   { href: '/guide', icon: 'guides', labelKey: 'guides.title' },
@@ -41,9 +43,42 @@ const mobileNavItems = [
   { href: '/profile', icon: 'profile', labelKey: 'nav.profile' },
 ] as const
 
+const guestNavItems = [
+  { href: '/tools', icon: 'tools', labelKey: 'nav.tools' },
+  { href: '/guide', icon: 'guides', labelKey: 'guides.title' },
+  { href: '/beacons', icon: 'beacons', labelKey: 'community.controlPoints' },
+  { href: '/community', icon: 'projects', labelKey: 'nav.community' },
+  { href: '/login', icon: 'profile', labelKey: 'nav.login' },
+] as const
+
 export default function MobileNav() {
   const pathname = usePathname()
   const { t } = useLanguage()
+  const [user, setUser] = useState<{ id?: string } | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+
+    const supabase = createClient()
+
+    const loadSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user ?? null)
+    }
+
+    loadSession()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (!mounted) return null
+
+  const mobileNavItems = user ? authenticatedNavItems : guestNavItems
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] md:hidden z-50 safe-area-inset-bottom">

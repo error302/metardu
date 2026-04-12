@@ -113,7 +113,8 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
-              "connect-src 'self' blob: https://metardu.duckdns.org wss://metardu.duckdns.org https://ipapi.co https://*.upstash.io https://api.anthropic.com https://fonts.googleapis.com https://fonts.gstatic.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
+              "connect-src 'self' blob: https://metardu.duckdns.org wss://metardu.duckdns.org https://ipapi.co https://*.upstash.io https://api.anthropic.com https://sentry.io https://*.sentry.io https://fonts.googleapis.com https://fonts.gstatic.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
+              "worker-src 'self' blob:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
@@ -141,7 +142,9 @@ const nextConfig = {
 // Sentry (only wraps when NEXT_PUBLIC_SENTRY_DSN is set — no-op otherwise)
 const { withSentryConfig } = require('@sentry/nextjs')
 
-const hasSentry = Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN)
+const hasSentry =
+  process.env.NODE_ENV === 'production' &&
+  Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN)
 
 module.exports = hasSentry
   ? withSentryConfig(
