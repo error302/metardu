@@ -90,3 +90,30 @@ Stage Summary:
 - CI/CD pipeline completely overhauled: PR checks with invariant enforcement, PM2 deploy with rollback
 - GitHub push: cb11692 → origin/main
 - VM deploy: BLOCKED (SSH key not in authorized_keys)
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Deploy to VM and verify live
+
+Work Log:
+- SSH connected using correct username mohameddosho20 (not ubuntu)
+- npm install --legacy-peer-deps succeeded (npm ci failed due to lockfile mismatch)
+- delaunator was missing from VM node_modules — added to package.json, pushed, installed
+- npm run build: EXIT_CODE=0, compiled successfully, 206 static pages generated
+- PM2 restart: metardu online, pid 3367475
+- Health check: {"status":"healthy","checks":{"database":"ok"},"latency_ms":37}
+- External health: https://metardu.duckdns.org/api/public/health → healthy, 19ms latency
+- Main page: HTTP 200, 92849 bytes, 0.167s
+- TIN POST test: triangle_count=1, area=5000m2 — native TS working
+- Seabed POST test: processed successfully
+- Leaflet: NOT present in HTML — confirmed clean
+- OpenLayers: loaded via JS chunks (expected)
+- Fixed deploy.yml: username ubuntu→${{secrets.GCP_VM_USER}}, path corrected, npm ci→npm install
+- PM2 save completed
+
+Stage Summary:
+- Site is LIVE at https://metardu.duckdns.org
+- All compute endpoints working with native TypeScript
+- Database healthy
+- GitHub Actions deploy.yml corrected for future auto-deploys
