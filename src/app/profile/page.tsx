@@ -37,7 +37,8 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) {
         window.location.replace('/login?next=%2Fprofile')
         return
@@ -68,7 +69,8 @@ export default function ProfilePage() {
     setSaving(true)
     setSaved(false)
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const { error } = await supabase

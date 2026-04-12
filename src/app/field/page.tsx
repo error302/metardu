@@ -95,7 +95,8 @@ export default function FieldPage() {
   // Auth check
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) {
         window.location.replace('/login?next=%2Ffield')
         return

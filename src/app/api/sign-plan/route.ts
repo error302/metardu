@@ -2,10 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { apiSuccess, apiError } from '@/lib/api/response'
-import { Logger } from '@/lib/logger'
+import { log } from '@/lib/logger'
 import { requireEnv } from '@/lib/env'
-
-const logger = new Logger('SignPlanAPI')
 
 export async function POST(req: Request) {
   const cookieStore = cookies()
@@ -41,7 +39,7 @@ export async function POST(req: Request) {
     }).select('id, signed_at').single()
 
     if (error) {
-      logger.error('Failed to insert digital signature into database', error, { user_id: user.id, project_id: projectId })
+      log({ level: 'error', message: 'Failed to insert digital signature into database', metadata: { error, user_id: user.id, project_id: projectId } })
       return NextResponse.json(apiError('Failed to sign plan'), { status: 500 })
     }
 
@@ -52,7 +50,7 @@ export async function POST(req: Request) {
       signedAt: data.signed_at 
     }))
   } catch (err: any) {
-    logger.error('Unhandled exception during plan signing', err)
+    log({ level: 'error', message: 'Unhandled exception during plan signing', metadata: { error: err } })
     return NextResponse.json(apiError('Failed to process signing request'), { status: 500 })
   }
 }

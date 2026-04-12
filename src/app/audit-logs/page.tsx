@@ -23,13 +23,14 @@ export default function AuditLogsPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user)
-      if (data.user) {
+    supabase.auth.getSession().then(({ data }) => {
+      const user = data.session?.user
+      setUser(user)
+      if (user) {
         supabase
           .from('audit_logs')
           .select('*, projects:project_id(name)')
-          .eq('user_id', data.user.id)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(100)
           .then(({ data }) => {

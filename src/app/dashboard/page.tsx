@@ -5,13 +5,11 @@ import Link from 'next/link'
 import SubscriptionStatus from '@/components/SubscriptionStatus'
 import UpgradePrompt from '@/components/UpgradePrompt'
 import { getServerTranslator } from '@/lib/i18n/server'
-import { Logger } from '@/lib/logger'
+import { log } from '@/lib/logger'
 import { getAuthUser, isAdmin as checkIsAdmin } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
 
 import ProjectCard from '@/components/ProjectCard'
-
-const logger = new Logger('DashboardPage')
 
 export default async function DashboardPage() {
   let t = (k: string) => k
@@ -42,7 +40,7 @@ export default async function DashboardPage() {
       if (!sRes.error || sRes.error?.code === 'PGRST116') subscription = sRes.data ?? null
     }
   } catch (err) {
-    logger.error('Failed to load dashboard data', err)
+    log({ level: 'error', message: 'Failed to load dashboard data', metadata: { error: err } })
   }
 
   const canCreateProject = userIsAdmin || subscription?.plan_id !== 'free' || projects.length < 1

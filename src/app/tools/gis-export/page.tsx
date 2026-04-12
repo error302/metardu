@@ -77,7 +77,8 @@ export default function GISExportPage() {
 
   useEffect(() => {
     const sb = createClient()
-    sb.auth.getUser().then(({ data: { user } }) => {
+    sb.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user
       if (!user) return
       sb.from('projects').select('id,name,utm_zone,hemisphere').eq('user_id', user.id)
         .order('created_at', { ascending: false }).then(({ data }) => { if (data) setProjects(data) })

@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getStripeService } from '@/lib/payments/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { apiSuccess, apiError } from '@/lib/api/response'
-import { Logger } from '@/lib/logger'
-
-const logger = new Logger('PeerReviewPayments')
+import { log } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +18,7 @@ export async function POST(req: NextRequest) {
     // For peer reviews, they might not be fully registered but we can try to link if logged in
     const stripe = getStripeService()
     if (!stripe) {
-      logger.error('Stripe service is not configured or failed to initialize')
+      log({ level: 'error', message: 'Stripe service is not configured or failed to initialize' })
       return NextResponse.json(apiError('Stripe not configured', { fallback: true }), { status: 500 })
     }
 
@@ -42,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(apiSuccess({ url: checkoutSession.url }))
   } catch (error: any) {
-    logger.error('Peer review checkout error', error)
+    log({ level: 'error', message: 'Peer review checkout error', metadata: { error } })
     return NextResponse.json(apiError('Failed to initialize payment checkout session'), { status: 500 })
   }
 }

@@ -4,7 +4,24 @@ import db from '@/lib/db'
 import { getMpesaService } from '@/lib/payments/mpesa'
 import { getPlan } from '@/lib/subscription/catalog'
 
+// Safaricom IP whitelist for M-Pesa callbacks
+const SAFARICOM_IPS = [
+  '196.201.214.200', '196.201.214.206', '196.201.213.114',
+  '196.201.214.207', '196.201.214.208', '196.201.213.44',
+  '196.201.212.127', '196.201.212.138', '196.201.212.129',
+  '196.201.212.136', '196.201.212.74', '196.201.212.69',
+]
+
+function isSafaricomIP(req: NextRequest): boolean {
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+  return clientIp ? SAFARICOM_IPS.includes(clientIp) : false
+}
+
 export async function POST(request: NextRequest) {
+  // Reject requests not originating from Safaricom IPs
+  if (!isSafaricomIP(request)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
   const mpesa = getMpesaService()
   if (!mpesa) {
     return NextResponse.json({ error: 'M-Pesa not configured' }, { status: 500 })

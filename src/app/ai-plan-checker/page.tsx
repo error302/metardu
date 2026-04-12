@@ -398,7 +398,7 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">Closure limit</label>
-                    <input value={m.closureLimit} onChange={e => f('closureLimit', e.target.value)} placeholder="12√K mm" className="input w-full" />
+                    <input value={m.closureLimit} onChange={e => f('closureLimit', e.target.value)} placeholder="10√K mm" className="input w-full" />
                   </div>
                 </div>
               </div>

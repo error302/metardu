@@ -28,7 +28,8 @@ export default function GCPExportPage() {
   // Load projects
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user
       if (!user) return
       supabase.from('projects').select('id, name, utm_zone, hemisphere')
         .eq('user_id', user.id).order('created_at', { ascending: false })

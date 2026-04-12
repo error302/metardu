@@ -240,7 +240,7 @@ Never discard raw field notes. If a coordinate is challenged later, raw notes ar
     ],
     stopRules: [
       'Arithmetic check fails (ΣBS−ΣFS ≠ ΔRL)',
-      'Closing error exceeds allowable (ordinary: ±12√K mm) after re-checks',
+      'Closing error exceeds allowable (ordinary: ±10√K mm) after re-checks',
       'Turning point moved/unstable or staff point uncertain',
       'Sight lengths badly unbalanced and cannot be corrected by repositioning',
     ],
@@ -270,7 +270,7 @@ Plan your route:
 4) Compute the distance K (km) for tolerance checks.
 
 Allowable misclosure (Basak):
-• Ordinary leveling: ±12 √K mm
+• Ordinary leveling: ±10 √K mm
 • Precise leveling:  ±6 √K mm
 
 Booking template (copy into field book):
@@ -350,7 +350,7 @@ If arithmetic check FAILS (blunder isolation):
 4) If still failing, re-run the affected section in the field.
 
 If arithmetic check PASSES:
-• Check closing error against allowable tolerance (±12 √K mm ordinary).
+• Check closing error against allowable tolerance (±10 √K mm ordinary).
 • If out of tolerance: shorten sights, rebalance BS/FS, avoid heat shimmer, and re-run the section.
 
 Trainee stop gate:
@@ -370,13 +370,13 @@ Minimum report contents:
 • Start BM RL and closing BM RL (known + observed)
 • RL table (HI and/or Rise & Fall)
 • Arithmetic check statement and values (ΣBS, ΣFS, ΔRL)
-• Closing error and allowable tolerance (±12 √K mm ordinary)
+• Closing error and allowable tolerance (±10 √K mm ordinary)
 • If adjustment applied: method stated + corrected RLs
 • Notes: date/time, crew, instrument ID, any unbalanced sights and why
 
 Trainee rule:
 Keep the raw booking. If RLs are challenged later, your raw notes are the evidence.`,
-        seniorContent: `5. Generate Report. Precision should be ≤ ±12√K mm`
+        seniorContent: `5. Generate Report. Precision should be ≤ ±10√K mm`
       }
     ]
   },

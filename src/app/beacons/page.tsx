@@ -11,7 +11,7 @@ import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
 import OSM from 'ol/source/OSM'
-import { Circle as CircleStyle, Fill, Stroke, Text } from 'ol/style'
+import { Style, Circle as CircleStyle, Fill, Stroke, Text } from 'ol/style'
 import Feature from 'ol/Feature'
 import Point from 'ol/geom/Point'
 import { fromLonLat } from 'ol/proj'
@@ -179,10 +179,12 @@ export default function BeaconsPage() {
         const feature = new Feature({
           geometry: new Point(fromLonLat([coords.lon, coords.lat])),
         })
-        feature.setStyle(new CircleStyle({
-          radius: 8,
-          fill: new Fill({ color }),
-          stroke: new Stroke({ color: '#fff', width: 2 }),
+        feature.setStyle(new Style({
+          image: new CircleStyle({
+            radius: 8,
+            fill: new Fill({ color }),
+            stroke: new Stroke({ color: '#fff', width: 2 }),
+          }),
           text: new Text({ text: icon, font: '12px sans-serif', fill: new Fill({ color: '#fff' }) }),
         }))
         feature.set('popupHtml',
@@ -214,10 +216,12 @@ export default function BeaconsPage() {
         const feature = new Feature({
           geometry: new Point(fromLonLat([lon, lat])),
         })
-        feature.setStyle(new CircleStyle({
-          radius: 8,
-          fill: new Fill({ color: '#3b82f6' }),
-          stroke: new Stroke({ color: '#fff', width: 2 }),
+        feature.setStyle(new Style({
+          image: new CircleStyle({
+            radius: 8,
+            fill: new Fill({ color: '#3b82f6' }),
+            stroke: new Stroke({ color: '#fff', width: 2 }),
+          }),
           text: new Text({ text: icon, font: '12px sans-serif' }),
         }))
         feature.set('popupHtml',

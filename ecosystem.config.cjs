@@ -6,9 +6,9 @@ module.exports = {
     cwd: "/home/mohameddosho20/metardu",
     env: {
       NODE_ENV: "production",
-      NODE_OPTIONS: "--max-old-space-size=512"
+      NODE_OPTIONS: "--max-old-space-size=1024"
     },
-    max_memory_restart: "600M",
+    max_memory_restart: "2G",
     instances: 1,
     autorestart: true,
     max_restarts: 10,

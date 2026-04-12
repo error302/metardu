@@ -24,7 +24,8 @@ export default function CPDPage() {
   useEffect(() => {
     const loadUser = async () => {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       const uid = user?.id ?? null
       setUserId(uid)
       setRequirements(getCPDRequirements(country))

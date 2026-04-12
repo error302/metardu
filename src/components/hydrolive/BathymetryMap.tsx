@@ -7,7 +7,7 @@ import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
 import OSM from 'ol/source/OSM'
-import { Circle as CircleStyle, Fill, Stroke } from 'ol/style'
+import { Style, Circle as CircleStyle, Fill, Stroke } from 'ol/style'
 import Feature from 'ol/Feature'
 import Point from 'ol/geom/Point'
 import { fromLonLat } from 'ol/proj'
@@ -47,10 +47,12 @@ export default function BathymetryMap({ soundings, height = '400px' }: Bathymetr
       const feature = new Feature({
         geometry: new Point(fromLonLat([point.easting, point.northing])),
       })
-      feature.setStyle(new CircleStyle({
-        radius: 6,
-        fill: new Fill({ color: getDepthColor(point.depth, minDepth, maxDepth) }),
-        stroke: new Stroke({ color: '#fff', width: 1 }),
+      feature.setStyle(new Style({
+        image: new CircleStyle({
+          radius: 6,
+          fill: new Fill({ color: getDepthColor(point.depth, minDepth, maxDepth) }),
+          stroke: new Stroke({ color: '#fff', width: 1 }),
+        }),
       }))
       feature.set('depth', point.depth)
       return feature

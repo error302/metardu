@@ -300,9 +300,9 @@ export default function SchedulePage() {
 
   // Get user on mount
   useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => {
-      if (data?.user?.id) {
-        setUserId(data.user.id)
+    createClient().auth.getSession().then(({ data }) => {
+      if (data?.session?.user?.id) {
+        setUserId(data.session.user.id)
       }
       setAuthLoading(false)
     }).catch(() => setAuthLoading(false))

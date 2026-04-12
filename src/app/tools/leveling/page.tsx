@@ -217,7 +217,7 @@ export default function LevelingCalculator() {
             <div className="card-body space-y-3">
               <ResultRow label="Method" value={method === 'rf' ? 'Rise & Fall' : 'Height of Collimation'} />
               <ResultRow label="Misclosure" value={`${result.misclosure.toFixed(6)} m`} />
-              <ResultRow label="Allowable (±12√K)" value={`±${(result.allowableMisclosure * 1000).toFixed(3)} mm`} />
+              <ResultRow label="Allowable (±10√K)" value={`±${(result.allowableMisclosure * 1000).toFixed(3)} mm`} />
               <ResultRow 
                 label="Arithmetic Check" 
                 value={result.arithmeticCheck ? 'PASS ✓' : 'FAIL ✗'} 

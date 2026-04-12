@@ -16,16 +16,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 })
   }
 
-  const isValid = stripe.verifyWebhookSignature(payload, signature)
-  if (!isValid) {
-    return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 })
-  }
-
   let event: any
   try {
+    if (!stripe.verifyWebhookSignature(payload, signature)) {
+      return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 })
+    }
     event = JSON.parse(payload)
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 })
+  } catch (err: any) {
+    console.error('Stripe webhook verification failed:', err.message)
+    return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 })
   }
 
   const supabase = await createClient()

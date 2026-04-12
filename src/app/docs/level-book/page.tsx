@@ -134,7 +134,7 @@ export default function LevelBookPage() {
               The allowable misclosure for a level run is given by:
             </p>
             <p className="text-lg font-mono text-[var(--accent)] mb-3">
-              Allowable = ± 12√K mm (per RDM 1.1, where K = distance in km)
+              Allowable = ± 10√K mm (per RDM 1.1, Table 5.1, 2025, where K = distance in km)
             </p>
             <p className="text-[var(--text-secondary)]">
               If the actual misclosure is less than the allowable, the level run is accepted and

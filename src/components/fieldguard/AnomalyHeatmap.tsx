@@ -7,7 +7,7 @@ import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
 import OSM from 'ol/source/OSM'
-import { Circle as CircleStyle, Fill, Stroke } from 'ol/style'
+import { Style, Circle as CircleStyle, Fill, Stroke } from 'ol/style'
 import Feature from 'ol/Feature'
 import Point from 'ol/geom/Point'
 import { fromLonLat } from 'ol/proj'
@@ -74,10 +74,12 @@ export default function AnomalyHeatmap({ points, anomalies }: AnomalyHeatmapProp
       const feature = new Feature({
         geometry: new Point(fromLonLat([pt.easting, pt.northing])),
       })
-      feature.setStyle(new CircleStyle({
-        radius: 6,
-        fill: new Fill({ color }),
-        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
+      feature.setStyle(new Style({
+        image: new CircleStyle({
+          radius: 6,
+          fill: new Fill({ color }),
+          stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
+        }),
       }))
       feature.set('popupText',
         `<b>Point ${i}</b><br/>` +
