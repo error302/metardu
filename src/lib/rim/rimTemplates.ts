@@ -1002,7 +1002,7 @@ export function getTemplateCategories(): Array<{
     },
   }
 
-  const categories = [...new Set(RIM_TEMPLATES.map((t) => t.category))]
+  const categories = [...Array.from(new Set(RIM_TEMPLATES.map((t) => t.category)))]
 
   return categories.map((id) => ({
     id,

@@ -235,12 +235,12 @@ export function generateCLAForm9(input: CLA9Input): Uint8Array {
 
   // ── Section F: Attached Documents ───────────────────────────
   sectionHeader('PART F — ATTACHED DOCUMENTS CHECKLIST')
-  checkbox('Community Assembly Resolution', input.attachments.communityResolution)
-  checkbox('Survey Plan', input.attachments.surveyPlan)
-  checkbox('ID Copies (Applicant)', input.attachments.idCopies)
-  checkbox('Passport Photos', input.attachments.passportPhotos)
-  checkbox('Business Registration Certificate', input.attachments.businessRegistration ?? false)
-  if (input.attachments.otherDocuments) {
+  checkbox('Community Assembly Resolution', input.attachments?.communityResolution ?? false)
+  checkbox('Survey Plan', input.attachments?.surveyPlan ?? false)
+  checkbox('ID Copies (Applicant)', input.attachments?.idCopies ?? false)
+  checkbox('Passport Photos', input.attachments?.passportPhotos ?? false)
+  checkbox('Business Registration Certificate', input.attachments?.businessRegistration ?? false)
+  if (input.attachments?.otherDocuments) {
     checkbox(`Other: ${input.attachments.otherDocuments}`, true)
   }
   y += 4

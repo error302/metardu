@@ -32,6 +32,7 @@ interface ProjectData {
   closing_error_e: number
   closing_error_n: number
   client_name: string
+  survey_type?: string
 }
 
 export async function assembleSubmissionPackage(
@@ -127,7 +128,7 @@ export async function assembleSubmissionPackage(
     submissionRef: ref,
     projectId,
     surveyor,
-    subtype: proj.survey_type || 'cadastral_subdivision',
+    subtype: (proj.survey_type || 'cadastral_subdivision') as SurveySubtype,
     parcel: {
       lrNumber: proj.lr_number || '',
       parcelNumber: proj.parcel_number || proj.lr_number || '',

@@ -210,14 +210,16 @@ export default function GlobalMapPage() {
           import('ol/format/GeoJSON'),
           import('ol/format/KML'),
           import('ol/format/WKT'),
-          import('ol/proj'),
         ])
+
+        const [projModule] = await Promise.all([import('ol/proj')])
+        const proj = projModule as typeof import('ol/proj')
 
         const [Map, View, TileLayer, VectorLayer, LayerGroup, OSM, XYZ, VectorSource,
           Cluster, Feature, Point, Polygon, CircleGeom, LineString, Style, Fill, Stroke,
           CircleStyle, Text, Icon, ScaleLine, FullScreen, Attribution, MousePosition,
           OverviewMap, ZoomSlider, Draw, Select, Snap, Modify, DragAndDrop, Overlay, Geolocation,
-          GeoJSONFormat, KMLFormat, WKTFormat, proj] = imports.map(i => i.default || i)
+          GeoJSONFormat, KMLFormat, WKTFormat] = imports.map(i => ('default' in i ? i.default : i)) as any[]
 
         olModules.VectorSource = VectorSource
         olModules.VectorLayer = VectorLayer

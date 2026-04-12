@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     // ------------------------------------------------------------------
     if (userId) {
       console.log(
-        `[cla-form] User ${userId} generated CLA Form ${formNumber} (${metadata.title})` +
+        `[cla-form] User ${userId} generated CLA Form ${formNumber} (${metadata?.title})` +
         (projectId ? ` for project ${projectId}` : ''),
       );
     }
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="CLA-Form-${formNumber}-${metadata.title.replace(/\s+/g, '-').toLowerCase()}.pdf"`,
+        'Content-Disposition': `attachment; filename="CLA-Form-${formNumber}-${(metadata?.title ?? 'document').replace(/\s+/g, '-').toLowerCase()}.pdf"`,
         'Content-Length': String(pdfBuffer.byteLength),
       },
     });

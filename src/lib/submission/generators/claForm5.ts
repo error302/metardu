@@ -207,12 +207,12 @@ export function generateCLAForm5(input: CLA5Input): Uint8Array {
 
   // ── Section E: Applicant Details ────────────────────────────
   sectionHeader('PART E — APPLICANT DETAILS')
-  field('Full Name:', input.applicant.name)
-  field('Capacity:', input.applicant.capacity)
-  field('ID Number:', input.applicant.idNumber)
-  field('Phone:', input.applicant.phone)
-  field('Email:', input.applicant.email ?? '')
-  field('Address:', input.applicant.address ?? '')
+  field('Full Name:', input.applicant?.name ?? '')
+  field('Capacity:', input.applicant?.capacity ?? '')
+  field('ID Number:', input.applicant?.idNumber ?? '')
+  field('Phone:', input.applicant?.phone ?? '')
+  field('Email:', input.applicant?.email ?? '')
+  field('Address:', input.applicant?.address ?? '')
   y += 2
 
   // ── Section F: Attached Documents ───────────────────────────

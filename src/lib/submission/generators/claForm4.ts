@@ -125,7 +125,7 @@ export function generateCLAForm4(input: CLA4Input): Uint8Array {
   field('Page No.:', input.pageNumber)
   field('Entry No.:', input.entryNumber)
   field('Date of Entry:', input.dateOfEntry)
-  field('Entry Reason:', input.entryReason.replace(/_/g, ' ').toUpperCase())
+  field('Entry Reason:', (input.entryReason ?? '').replace(/_/g, ' ').toUpperCase())
   y += 2
 
   // ── Section B: Community and Land Details ───────────────────
@@ -230,7 +230,7 @@ export function generateCLAForm4(input: CLA4Input): Uint8Array {
   doc.setFont('helvetica', 'bold')
   doc.text('Official Stamp:', margin, y)
   doc.setFont('helvetica', 'normal')
-  doc.text(input.registrar.stampReference ?? '', margin + 40, y)
+  doc.text(input.registrar?.stampReference ?? '', margin + 40, y)
   if (!(input.registrar && input.registrar.stampReference)) {
     doc.line(margin + 40, y + 1, margin + 120, y + 1)
   }

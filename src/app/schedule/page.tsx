@@ -105,7 +105,7 @@ function ScheduleFormModal({
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Description</label>
-            <textarea value={form.description} onChange={e => f('description', e.target.value)} rows={2}
+            <textarea value={form.description ?? ''} onChange={e => f('description', e.target.value)} rows={2}
               placeholder="Brief description of the work..." className="input w-full resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -126,7 +126,7 @@ function ScheduleFormModal({
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Survey Type</label>
-              <select value={form.survey_type} onChange={e => f('survey_type', e.target.value)} className="input w-full">
+              <select value={form.survey_type ?? ''} onChange={e => f('survey_type', e.target.value)} className="input w-full">
                 <option value="">Select type...</option>
                 {SURVEY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -142,16 +142,16 @@ function ScheduleFormModal({
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Location</label>
-              <input value={form.location} onChange={e => f('location', e.target.value)}
+              <input value={form.location ?? ''} onChange={e => f('location', e.target.value)}
                 placeholder="e.g. Karen, Nairobi" className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Client Name</label>
-              <input value={form.client_name} onChange={e => f('client_name', e.target.value)} className="input w-full" />
+              <input value={form.client_name ?? ''} onChange={e => f('client_name', e.target.value)} className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Client Contact</label>
-              <input value={form.client_contact} onChange={e => f('client_contact', e.target.value)} className="input w-full" />
+              <input value={form.client_contact ?? ''} onChange={e => f('client_contact', e.target.value)} className="input w-full" />
             </div>
           </div>
           <div>
@@ -225,7 +225,7 @@ function ScheduleFormModal({
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Notes</label>
-            <textarea value={form.notes} onChange={e => f('notes', e.target.value)} rows={2}
+            <textarea value={form.notes ?? ''} onChange={e => f('notes', e.target.value)} rows={2}
               placeholder="Any additional notes..." className="input w-full resize-none" />
           </div>
         </div>
@@ -400,7 +400,7 @@ export default function SchedulePage() {
           <div className="space-y-1">
             {reminders.slice(0, 3).map(r => (
               <p key={r.id} className="text-xs text-amber-200/70">
-                <strong>{r.title}</strong> — {getRelativeDate(r.scheduled_date)} {formatTime(r.scheduled_time)}
+                <strong>{r.title}</strong> — {getRelativeDate(r.scheduled_date)} {formatTime(r.scheduled_time ?? null)}
               </p>
             ))}
             {reminders.length > 3 && (
