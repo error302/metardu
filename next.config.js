@@ -57,7 +57,10 @@ const nextConfig = {
       'bcryptjs',
     ],
     optimizePackageImports: [
-      'ol',
+      // NOTE: 'ol' removed — it breaks dynamic imports of 42+ ol/* submodules
+      // used by MapClient.tsx. The ol package uses side-effectful modules
+      // (e.g. ol/proj/proj4 register()) that conflict with tree-shaking
+      // when combined with output: "standalone".
       'lucide-react',
       'recharts',
       'd3-array',
@@ -95,6 +98,36 @@ const nextConfig = {
   // ─── Headers for performance & security ───
   async headers() {
     const isProd = process.env.NODE_ENV === 'production'
+    // Allow the CSP to work with any domain (production, staging, dev)
+    // instead of hardcoding metardu.duckdns.org which breaks other environments
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || ''
+    const siteHost = siteUrl ? new URL(siteUrl).hostname : ''
+    const wssHost = siteHost ? `wss://${siteHost}` : ''
+    const httpsHost = siteHost ? `https://${siteHost}` : ''
+
+    // Build connect-src with dynamic host or fallback to 'self'
+    const connectSrcParts = [
+      "'self'",
+      "blob:",
+    ]
+    if (httpsHost) connectSrcParts.push(httpsHost)
+    if (wssHost) connectSrcParts.push(wssHost)
+    // Always allow these external services
+    connectSrcParts.push(
+      "https://ipapi.co",
+      "https://*.upstash.io",
+      "https://api.anthropic.com",
+      "https://sentry.io",
+      "https://*.sentry.io",
+      "https://fonts.googleapis.com",
+      "https://fonts.gstatic.com",
+      "https://tile.openstreetmap.org",
+      "https://*.tile.openstreetmap.org",
+      "https://server.arcgisonline.com",
+      "https://*.arcgisonline.com",
+      "https://*.basemaps.cartocdn.com",
+    )
+
     return [
       {
         source: '/:path*',
@@ -109,11 +142,11 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
+              "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
-              "connect-src 'self' blob: https://metardu.duckdns.org wss://metardu.duckdns.org https://ipapi.co https://*.upstash.io https://api.anthropic.com https://sentry.io https://*.sentry.io https://fonts.googleapis.com https://fonts.gstatic.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
+              `connect-src ${connectSrcParts.join(' ')}`,
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
               "base-uri 'self'",

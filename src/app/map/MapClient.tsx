@@ -11,55 +11,70 @@ import {
   MoonIcon, TerrainIcon, GridIcon, OpacityIcon,
 } from '@/components/map/PremiumIcons'
 
-// Client-side error catcher — prevents blank page on runtime errors
-function MapErrorBoundary({ children }: { children: React.ReactNode }) {
-  const [error, setError] = useState<{ message: string; stack?: string } | null>(null)
+// ─── Proper React Error Boundary (class component required) ───────────
+// The previous implementation only caught window.error / unhandledrejection
+// events, which does NOT catch React rendering errors (those bypass it and
+// propagate to Next.js error.tsx showing the generic "Something went wrong").
+// A true error boundary MUST be a class component with getDerivedStateFromError.
 
-  useEffect(() => {
-    const handler = (e: ErrorEvent) => {
-      console.error('MapPage error:', e.error)
-      setError({ message: e.message, stack: e.error?.stack })
-    }
-    const rejectionHandler = (e: PromiseRejectionEvent) => {
-      console.error('MapPage unhandled rejection:', e.reason)
-      setError({ message: String(e.reason) })
-    }
-    window.addEventListener('error', handler)
-    window.addEventListener('unhandledrejection', rejectionHandler)
-    return () => {
-      window.removeEventListener('error', handler)
-      window.removeEventListener('unhandledrejection', rejectionHandler)
-    }
-  }, [])
+interface ErrorBoundaryState {
+  hasError: boolean
+  error: Error | null
+}
 
-  if (error) {
-    return (
-      <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] flex items-center justify-center">
-        <div className="text-center max-w-lg px-6">
-          <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-red-500/10 flex items-center justify-center">
-            <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h3 className="text-white font-semibold text-lg mb-2">Map failed to load</h3>
-          <p className="text-gray-400 text-sm mb-1">{error.message}</p>
-          {error.stack && (
-            <pre className="text-[10px] text-gray-600 mt-2 p-2 bg-white/[0.02] rounded-lg text-left overflow-auto max-h-32">
-              {error.stack.slice(0, 500)}
-            </pre>
-          )}
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-5 py-2 bg-[#E8841A] hover:bg-[#E8841A]/80 text-white text-sm rounded-lg transition-colors"
-          >
-            Reload Page
-          </button>
-        </div>
-      </div>
-    )
+class MapErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  ErrorBoundaryState
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false, error: null }
   }
 
-  return <>{children}</>
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[MapErrorBoundary] Caught render error:', error, errorInfo)
+  }
+
+  private handleReload = () => {
+    this.setState({ hasError: false, error: null })
+    // Force a full remount by using setTimeout
+    window.location.reload()
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] flex items-center justify-center">
+          <div className="text-center max-w-lg px-6">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-red-500/10 flex items-center justify-center">
+              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-white font-semibold text-lg mb-2">Map failed to load</h3>
+            <p className="text-gray-400 text-sm mb-1">{this.state.error?.message || 'An unexpected error occurred'}</p>
+            {this.state.error?.stack && (
+              <pre className="text-[10px] text-gray-600 mt-2 p-2 bg-white/[0.02] rounded-lg text-left overflow-auto max-h-32">
+                {this.state.error.stack.slice(0, 500)}
+              </pre>
+            )}
+            <button
+              onClick={this.handleReload}
+              className="mt-4 px-5 py-2 bg-[#E8841A] hover:bg-[#E8841A]/80 text-white text-sm rounded-lg transition-colors"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
 }
 
 /**
@@ -1466,79 +1481,103 @@ export default function MapClient() {
       </div>
 
       {/* ════════════════════════════════════════════════════════════
-          GLOBAL STYLES
+          GLOBAL STYLES (injected via useEffect to avoid styled-jsx
+          issues with next/dynamic ssr:false components)
       ════════════════════════════════════════════════════════════ */}
-      <style jsx global>{`
-        .ol-mouse-position {
-          display: none !important;
-        }
-        .ol-overviewmap {
-          bottom: 50px !important;
-          left: 50% !important;
-          right: auto !important;
-          transform: translateX(-50%);
-          border: 1px solid rgba(232,132,26,0.3) !important;
-          border-radius: 10px !important;
-          overflow: hidden !important;
-          background: rgba(13,13,20,0.95) !important;
-        }
-        .ol-overviewmap .ol-overviewmap-map {
-          border: none !important;
-        }
-        .ol-overviewmap button {
-          background: rgba(13,13,20,0.9) !important;
-          color: #E8841A !important;
-          border-radius: 6px !important;
-        }
-        .ol-zoomslider {
-          background: rgba(13,13,20,0.9) !important;
-          border: 1px solid rgba(255,255,255,0.06) !important;
-          border-radius: 10px !important;
-          left: auto !important;
-          right: 8px !important;
-          top: 50% !important;
-          transform: translateY(-50%);
-          height: 120px !important;
-        }
-        .ol-zoomslider:hover {
-          background: rgba(13,13,20,1) !important;
-        }
-        .ol-zoomslider .ol-zoomslider-thumb {
-          background: #E8841A !important;
-          border-radius: 6px !important;
-          border: none !important;
-        }
-        .ol-zoomslider .ol-zoomslider-range {
-          background: rgba(232,132,26,0.2) !important;
-        }
-        .ol-scale-line {
-          display: none !important;
-        }
-        .ol-control button {
-          background: rgba(13,13,20,0.9) !important;
-          color: #9ca3af !important;
-          border-radius: 8px !important;
-          border: 1px solid rgba(255,255,255,0.06) !important;
-        }
-        .ol-control button:hover {
-          background: rgba(13,13,20,1) !important;
-          color: #E8841A !important;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.08);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255,255,255,0.15);
-        }
-      `}</style>
+      <MapGlobalStyles />
     </div>
     </MapErrorBoundary>
   )
+}
+
+// ─── Global Styles Injector ──────────────────────────────────────────────
+// Injects OpenLayers and custom scrollbar styles via a <style> element.
+// This replaces styled-jsx which doesn't work reliably inside components
+// loaded via next/dynamic with ssr:false.
+
+function MapGlobalStyles() {
+  useEffect(() => {
+    const id = 'metardu-map-global-styles'
+    if (document.getElementById(id)) return // prevent duplicates
+
+    const style = document.createElement('style')
+    style.id = id
+    style.textContent = `
+      .ol-mouse-position {
+        display: none !important;
+      }
+      .ol-overviewmap {
+        bottom: 50px !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%);
+        border: 1px solid rgba(232,132,26,0.3) !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
+        background: rgba(13,13,20,0.95) !important;
+      }
+      .ol-overviewmap .ol-overviewmap-map {
+        border: none !important;
+      }
+      .ol-overviewmap button {
+        background: rgba(13,13,20,0.9) !important;
+        color: #E8841A !important;
+        border-radius: 6px !important;
+      }
+      .ol-zoomslider {
+        background: rgba(13,13,20,0.9) !important;
+        border: 1px solid rgba(255,255,255,0.06) !important;
+        border-radius: 10px !important;
+        left: auto !important;
+        right: 8px !important;
+        top: 50% !important;
+        transform: translateY(-50%);
+        height: 120px !important;
+      }
+      .ol-zoomslider:hover {
+        background: rgba(13,13,20,1) !important;
+      }
+      .ol-zoomslider .ol-zoomslider-thumb {
+        background: #E8841A !important;
+        border-radius: 6px !important;
+        border: none !important;
+      }
+      .ol-zoomslider .ol-zoomslider-range {
+        background: rgba(232,132,26,0.2) !important;
+      }
+      .ol-scale-line {
+        display: none !important;
+      }
+      .ol-control button {
+        background: rgba(13,13,20,0.9) !important;
+        color: #9ca3af !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(255,255,255,0.06) !important;
+      }
+      .ol-control button:hover {
+        background: rgba(13,13,20,1) !important;
+        color: #E8841A !important;
+      }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.08);
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.15);
+      }
+    `
+    document.head.appendChild(style)
+
+    return () => {
+      document.getElementById(id)?.remove()
+    }
+  }, [])
+
+  return null
 }

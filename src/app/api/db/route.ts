@@ -3,6 +3,7 @@
  * 
  * Client components send query specs here, this route executes them
  * against the VM PostgreSQL. Auth is verified via NextAuth session.
+ * Rate-limited to prevent abuse of the database proxy.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -11,6 +12,7 @@ import { authOptions } from '@/lib/auth'
 import { Pool } from 'pg'
 import { QueryBuilder } from '@/lib/db/queryBuilder'
 import { env } from '@/lib/env'
+import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 
 let pool: Pool | null = null
 
@@ -71,6 +73,30 @@ const OP_MAP: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   try {
+    // ─── Rate limiting ──────────────────────────────────────────────
+    // Prevents brute-force / DoS attacks on the database proxy.
+    // 120 requests per minute per IP for authenticated users,
+    // 30 requests per minute for unauthenticated (public tables only).
+    const clientId = getClientIdentifier(request)
+    const isWriteOp = ['insert', 'update', 'delete', 'upsert'].includes(
+      request.headers.get('x-operation') || ''
+    )
+    const maxReqs = isWriteOp ? 30 : 120
+    const { allowed, remaining } = await rateLimit(clientId, maxReqs, 60000)
+
+    if (!allowed) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Too many requests. Please slow down.', code: 'RATE_LIMITED' } },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': '60',
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      )
+    }
+
     const body = await request.json()
     const { table, operation, columns, filters, orFilters, order, limit, offset, single, maybeSingle, count, head, payload } = body
 
@@ -146,7 +172,9 @@ export async function POST(request: NextRequest) {
 
     // Execute
     const result = await qb
-    return NextResponse.json(result)
+    return NextResponse.json(result, {
+      headers: { 'X-RateLimit-Remaining': String(remaining) },
+    })
   } catch (err: any) {
     console.error('[/api/db] Error:', err.message)
     return NextResponse.json(
