@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { riseAndFall, heightOfCollimation } from '@/lib/engine/leveling';
+import { riseAndFall, heightOfCollimation, type LevelingInput } from '@/lib/engine/leveling';
 import { apiSuccess, apiError } from '@/lib/api/response';
 
 const levelingSchema = z.object({
@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
   };
 
   const result = method === 'height_of_collimation'
-    ? heightOfCollimation(input)
-    : riseAndFall(input);
+    ? heightOfCollimation(input as LevelingInput)
+    : riseAndFall(input as LevelingInput);
 
   const misclosureMm = Math.abs(result.misclosure) * 1000;
   const allowableMm = result.allowableMisclosure * 1000;

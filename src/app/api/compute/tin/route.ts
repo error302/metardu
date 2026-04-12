@@ -6,9 +6,10 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
   const python = await callPythonCompute<any>('/surface/tin', body, { timeoutMs: 15000 })
   if (!python.ok) {
+    const err = python as { ok: false; status: number; error: string; fallback?: boolean; details?: unknown }
     return NextResponse.json(
-      { error: python.error, fallback: python.fallback ?? true, details: python.details, python_required: true },
-      { status: python.status }
+      { error: err.error, fallback: err.fallback ?? true, details: err.details, python_required: true },
+      { status: err.status }
     )
   }
   return NextResponse.json(python.value)

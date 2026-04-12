@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-import { generateGeoJSON } from '@/lib/export/generateGeoJSON'
+import { generateGeoJSON, type SurveyPoint } from '@/lib/export/generateGeoJSON'
 
 const requestSchema = z.object({
   projectName: z.string().min(1),
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   }
 
   const input = parsed.data
-  const geojson = generateGeoJSON(input.points, input.projectName, input.utmZone, input.hemisphere)
+  const geojson = generateGeoJSON(input.points as SurveyPoint[], input.projectName, input.utmZone, input.hemisphere)
   return NextResponse.json({
     kind: 'geojson',
     filename: `${input.projectName.replace(/\s+/g, '_')}.geojson`,

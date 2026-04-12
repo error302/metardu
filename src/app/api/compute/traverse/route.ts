@@ -7,7 +7,9 @@ import {
   TRAVERSE_PRECISION_STANDARDS,
   evaluateTraverseClosure,
   angularClosureTolerance,
-  type SurveyTypeKey
+  type SurveyTypeKey,
+  type ForwardTraverseInput,
+  type TraverseInput,
 } from '@/lib/engine/traverse';
 import { coordinateArea } from '@/lib/engine/area';
 import { apiSuccess, apiError } from '@/lib/api/response';
@@ -59,7 +61,7 @@ export async function POST(request: NextRequest) {
       stations: legs.map((l) => l.station),
       distances,
       bearings,
-    });
+    } as ForwardTraverseInput);
 
     return NextResponse.json(
       apiSuccess({
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
     distances,
     bearings,
     closingPoint,
-  };
+  } as TraverseInput;
 
   const adjusted = method === 'transit'
     ? transitAdjustment(traverseInput)

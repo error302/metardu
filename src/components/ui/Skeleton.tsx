@@ -65,6 +65,5 @@ export function SkeletonButton() {
   )
 }
 
-export function Skeleton({ className }: { className?: string }) {
-  return <div className={`bg-gray-700 animate-pulse ${className}`} />
-}
+// NOTE: Skeleton is defined above with full React.HTMLAttributes support.
+// This duplicate was removed to fix TS2323/TS2393.

@@ -8,7 +8,8 @@ export async function POST(req: NextRequest) {
     if (result.ok) {
       return NextResponse.json(result.value)
     } else {
-      return NextResponse.json({ error: result.error }, { status: result.status })
+      const err = result as { ok: false; status: number; error: string }
+      return NextResponse.json({ error: err.error }, { status: err.status })
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { callPythonCompute } from '@/lib/compute/pythonService'
-import { generateDXF } from '@/lib/export/generateDXF'
-import { generateGeoJSON } from '@/lib/export/generateGeoJSON'
-import { cutFillVolumeFromSignedSections, surfaceCutFillVolumeGrid, volumeFromSections } from '@/lib/engine/volume'
+import { generateDXF, type DXFExportOptions } from '@/lib/export/generateDXF'
+import { generateGeoJSON, type SurveyPoint as GeoJSONSurveyPoint } from '@/lib/export/generateGeoJSON'
+import { cutFillVolumeFromSignedSections, surfaceCutFillVolumeGrid, volumeFromSections, type VolumeSection, type SurfaceVolumeGridInput } from '@/lib/engine/volume'
 import { apiSuccess, apiError } from '@/lib/api/response'
 
 const taskSchema = z.object({
@@ -33,10 +33,10 @@ export async function POST(request: NextRequest) {
     if (cross.success) {
       const { method, sections } = cross.data
       if (method === 'cut_fill') {
-        const r = cutFillVolumeFromSignedSections(sections)
+        const r = cutFillVolumeFromSignedSections(sections as VolumeSection[])
         return NextResponse.json(apiSuccess({ task, kind: 'cross_section', method, cutVolume: r.cutVolume, fillVolume: r.fillVolume, netVolume: r.netVolume, segments: r.segments }))
       }
-      const r = volumeFromSections(sections, method === 'end_area' ? 'end_area' : 'prismoidal')
+      const r = volumeFromSections(sections as VolumeSection[], method === 'end_area' ? 'end_area' : 'prismoidal')
       return NextResponse.json(apiSuccess({ task, kind: 'cross_section', method: r.method, totalVolume: r.totalVolume, segments: r.segments }))
     }
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       gridSpacing: surface.data.gridSpacing,
       power: surface.data.power,
       maxDistance: surface.data.maxDistance,
-    })
+    } as SurfaceVolumeGridInput)
     return NextResponse.json(apiSuccess({
       task,
       kind: 'surface',
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       points: input.points,
       traverseLegs: input.traverseLegs ?? [],
       includeElevations: input.includeElevations,
-    })
+    } as DXFExportOptions)
 
     return NextResponse.json(apiSuccess({
       task,
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsedExport.data
-    const geojson = generateGeoJSON(input.points, input.projectName, input.utmZone, input.hemisphere)
+    const geojson = generateGeoJSON(input.points as GeoJSONSurveyPoint[], input.projectName, input.utmZone, input.hemisphere)
     return NextResponse.json(apiSuccess({
       task,
       kind: 'geojson',
@@ -173,7 +173,10 @@ export async function POST(request: NextRequest) {
   }
 
   const python = await callPythonCompute<any>(mapping[task], payload, { timeoutMs: 30000 })
-  if (!python.ok) return NextResponse.json(apiError(python.error, { fallback: python.fallback ?? true, details: python.details, python_required: true }), { status: python.status })
+  if (!python.ok) {
+    const err = python as { ok: false; status: number; error: string; fallback?: boolean; details?: unknown }
+    return NextResponse.json(apiError(err.error, { fallback: err.fallback ?? true, details: err.details, python_required: true }), { status: err.status })
+  }
   
   // Return the python value directly since the python microservice should now be enveloped securely as well
   return NextResponse.json(python.value)

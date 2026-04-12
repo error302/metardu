@@ -48,14 +48,14 @@ export async function POST(request: NextRequest) {
 
     if (result.ok) {
       results = result.value?.baselines || []
-    } else if (result.fallback) {
+    } else if ((result as { ok: false; fallback?: boolean }).fallback) {
       // Simulation mode - generate mock results
       status = 'simulated'
       results = generateMockBaselines(stationLabels)
-      errorMsg = result.error
+      errorMsg = (result as { error: string }).error
     } else {
       status = 'failed'
-      errorMsg = result.error
+      errorMsg = (result as { error: string }).error
     }
 
     // Update session with results

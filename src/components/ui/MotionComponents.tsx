@@ -203,7 +203,7 @@ export function GlassCard({
           "transition-colors duration-300 hover:bg-white/[0.06] hover:border-white/[0.12] hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
         className
       )}
-      {...(props as React.ComponentPropsWithoutRef<typeof motion.div>)}
+      {...(({ onDrag: _onDrag, ...rest }: any) => rest)(props) as any}
     >
       {children}
     </motion.div>
@@ -280,7 +280,7 @@ export function GlowButton({
         "disabled:pointer-events-none disabled:opacity-50",
         className
       )}
-      {...(props as React.ComponentPropsWithoutRef<typeof motion.button>)}
+      {...(({ onDrag: _onDrag, ...rest }: any) => rest)(props) as any}
     >
       {children}
     </motion.button>

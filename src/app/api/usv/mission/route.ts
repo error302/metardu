@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
     )
     
     if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: result.status })
+      const err = result as { ok: false; status: number; error: string }
+      return NextResponse.json({ error: err.error }, { status: err.status })
     }
     
     return NextResponse.json(result.value)
