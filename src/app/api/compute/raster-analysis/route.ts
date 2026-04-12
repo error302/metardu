@@ -1,14 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
-
+import { computeRasterAnalysis, validateRasterRequest } from '@/lib/compute/rasterAnalysis'
 import { callPythonCompute } from '@/lib/compute/pythonService'
+import { apiSuccess, apiError } from '@/lib/api/response'
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
-  const python = await callPythonCompute<any>('/raster/analyze', body, { timeoutMs: 30000 })
+
+  // Try native TS processing first
+  const validated = validateRasterRequest(body)
+  if (validated) {
+    try {
+      const result = await computeRasterAnalysis({
+        project_id: (body as Record<string, unknown>)?.project_id as string ?? 'unknown',
+        ...validated,
+      })
+      return NextResponse.json(apiSuccess({
+        ...result,
+        python_required: false,
+      }))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Raster analysis failed'
+      return NextResponse.json(apiError(message), { status: 500 })
+    }
+  }
+
+  // Fallback to Python service for complex raster ops
+  const python = await callPythonCompute<unknown>('/raster/analyze', body, { timeoutMs: 30000 })
   if (!python.ok) {
     const err = python as { ok: false; status: number; error: string; fallback?: boolean; details?: unknown }
     return NextResponse.json(
-      { error: err.error, fallback: err.fallback ?? true, details: err.details, python_required: true },
+      apiError(err.error, { fallback: err.fallback ?? true, details: err.details, python_required: true }),
       { status: err.status }
     )
   }
@@ -16,10 +37,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({
+  return NextResponse.json(apiSuccess({
     endpoint: '/api/compute/raster-analysis',
-    description: 'Raster/DEM analysis (Python compute service).',
-    python_required: true,
-  })
+    description: 'Raster/DEM analysis (native TypeScript with Python fallback for advanced ops).',
+    python_required: false,
+    supported_types: ['hillshade', 'slope', 'aspect', 'contour', 'statistics'],
+  }))
 }
-

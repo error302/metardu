@@ -47,7 +47,8 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
-    ignorePluginErrors: true,
+    // Note: ignoreBuildErrors enabled for rapid development.
+    // CI pipeline runs tsc --noEmit separately for strict type checking.
   },
 
   // Disable CSS minification — cssnano can't parse Tailwind arbitrary gradient values
@@ -66,9 +67,6 @@ const nextConfig = {
       'recharts',
       'd3-array',
       'd3-contour',
-      'd3-delaunay',
-      'd3-geo',
-      'd3-scale',
       '@radix-ui/react-accordion',
       '@radix-ui/react-alert-dialog',
       '@radix-ui/react-avatar',

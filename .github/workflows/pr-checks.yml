@@ -1,0 +1,125 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  audit-and-check:
+    name: Security Audit & Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Security audit ──────────────────────────────────────────────────
+      - name: npm audit (critical only)
+        run: |
+          npm audit --audit-level=critical 2>&1 | tee audit-report.txt
+          # Known unfixable: jspdf CRITICAL, next HIGH, xlsx HIGH
+          # Fail only on NEW criticals not in the known list
+          CRITICAL_COUNT=$(npm audit --audit-level=critical --json 2>/dev/null \
+            | jq '.metadata.vulnerabilities.critical // 0')
+          echo "Critical vulnerabilities found: $CRITICAL_COUNT"
+          # Baseline from 2026-04-10 cleanup: jspdf = 1 critical
+          # Fail if count increases above baseline
+          if [ "$CRITICAL_COUNT" -gt "1" ]; then
+            echo "::error::New critical vulnerabilities introduced — baseline was 1 (jspdf)"
+            exit 1
+          fi
+          echo "No new critical vulnerabilities above baseline"
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: audit-report.txt
+          retention-days: 30
+
+      # ── TypeScript ───────────────────────────────────────────────────────
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      # ── Lint ─────────────────────────────────────────────────────────────
+      - name: ESLint
+        run: npx eslint src/ --ext .ts,.tsx --max-warnings 0
+        continue-on-error: false
+
+      # ── Forbidden patterns ───────────────────────────────────────────────
+      - name: Check forbidden code patterns
+        run: |
+          echo "Checking for forbidden patterns..."
+
+          # Levelling tolerance — 12√K must never appear
+          if grep -r "12.*sqrt\|12√\|12 \* Math.sqrt\|tolerance.*12" src/ --include="*.ts" --include="*.tsx"; then
+            echo "::error::Found forbidden levelling tolerance value 12√K — must be 10√K (RDM 1.1 Table 5.1)"
+            exit 1
+          fi
+
+          # Service role key must not be in NEXT_PUBLIC_ vars
+          if grep -r "NEXT_PUBLIC_.*SERVICE_ROLE\|NEXT_PUBLIC_.*service_role" src/ --include="*.ts" --include="*.tsx"; then
+            echo "::error::SUPABASE_SERVICE_ROLE_KEY exposed as NEXT_PUBLIC_ variable"
+            exit 1
+          fi
+
+          # Wrong profile column names
+          if grep -r "registration_number\|isk_active" src/ --include="*.ts" --include="*.tsx"; then
+            echo "::error::Wrong surveyor_profiles column name — use isk_number / verified_isk"
+            exit 1
+          fi
+
+          # Wrong import path
+          if grep -r "@/types/metardu" src/ --include="*.ts" --include="*.tsx"; then
+            echo "::error::@/types/metardu does not exist — import SurveyorProfile from @/lib/supabase/community"
+            exit 1
+          fi
+
+          # getUser() causes timeouts — must use getSession()
+          if grep -r "supabase\.auth\.getUser\(\)" src/ --include="*.ts" --include="*.tsx"; then
+            echo "::error::getUser() causes timeouts — use getSession() instead"
+            exit 1
+          fi
+
+          # DWG import references
+          if grep -r "\.dwg" src/ --include="*.ts" --include="*.tsx"; then
+            echo "::error::DWG import is unsupported — direct users to convert to DXF first"
+            exit 1
+          fi
+
+          echo "All forbidden pattern checks passed"
+
+      # ── DXF layer init check ─────────────────────────────────────────────
+      - name: Check initialiseDXFLayers is called in all DXF generators
+        run: |
+          DXF_FILES=$(grep -rl "generateDXF\|dxf\|\.toDxfString\|new Drawing" src/ --include="*.ts" --include="*.tsx" | grep -v "dxfLayers.ts" || true)
+          if [ -n "$DXF_FILES" ]; then
+            for f in $DXF_FILES; do
+              if ! grep -q "initialiseDXFLayers" "$f"; then
+                echo "::error::$f contains DXF generation but does not call initialiseDXFLayers()"
+                exit 1
+              fi
+            done
+          fi
+          echo "initialiseDXFLayers check passed"
+
+      # ── Build test ───────────────────────────────────────────────────────
+      - name: Next.js build (dry run on CI)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:8000
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-for-ci-build
+          NEXT_PUBLIC_APP_URL: https://metardu.duckdns.org
+          NODE_ENV: production

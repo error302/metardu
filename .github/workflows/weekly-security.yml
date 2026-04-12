@@ -1,0 +1,41 @@
+name: Weekly Security Scan
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # Every Monday at 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Full npm audit report
+        run: npm audit --json > audit-full.json || true
+
+      - name: Check for new high/critical vulns
+        run: |
+          HIGH=$(cat audit-full.json | jq '.metadata.vulnerabilities.high // 0')
+          CRIT=$(cat audit-full.json | jq '.metadata.vulnerabilities.critical // 0')
+          echo "High: $HIGH | Critical: $CRIT"
+          # Known baseline (post 2026-04-10 cleanup): critical=1 (jspdf), high=2 (next14, xlsx)
+          if [ "$CRIT" -gt "1" ] || [ "$HIGH" -gt "2" ]; then
+            echo "::error::Vulnerability count increased above baseline — review required"
+            exit 1
+          fi
+
+      - name: Upload full audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-security-scan-${{ github.run_id }}
+          path: audit-full.json
+          retention-days: 90

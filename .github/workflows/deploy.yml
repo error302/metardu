@@ -1,26 +1,81 @@
-name: Deploy to VM
+name: Deploy to Production
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+  workflow_dispatch:   # Allow manual trigger from GitHub UI
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false   # Never cancel a deploy mid-flight
 
 jobs:
   deploy:
+    name: Deploy to GCP VM
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    environment: production    # Requires environment approval if configured
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── SSH deploy ───────────────────────────────────────────────────────
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          script: |
-            cd /home/mohameddosho20/metardu
-            git pull origin main
-            npm install --production=false
+          ssh-private-key: ${{ secrets.GCP_VM_SSH_KEY }}
+
+      - name: Add VM to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.GCP_VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to VM
+        run: |
+          ssh ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }} -p ${{ secrets.GCP_VM_PORT }} << 'ENDSSH'
+            set -euo pipefail
+
+            echo "=== [1/6] Pulling latest code ==="
+            cd /home/ubuntu/metardu
+            git fetch origin main
+
+            # Save current commit for rollback
+            PREV_COMMIT=$(git rev-parse HEAD)
+            echo "Previous commit: $PREV_COMMIT"
+            echo $PREV_COMMIT > /tmp/metardu_prev_commit
+
+            git reset --hard origin/main
+            CURR_COMMIT=$(git rev-parse HEAD)
+            echo "Deploying commit: $CURR_COMMIT"
+
+            echo "=== [2/6] Installing dependencies ==="
+            npm ci --production=false
+
+            echo "=== [3/6] Building Next.js ==="
             npm run build
-            pm2 restart metardu
-            echo "Deploy complete at $(date)"
+
+            echo "=== [4/6] Restarting via PM2 ==="
+            # PM2 only — never use systemctl
+            pm2 restart metardu --update-env
+
+            echo "=== [5/6] Waiting for startup ==="
+            sleep 8
+
+            echo "=== [6/6] Health check ==="
+            HEALTH=$(curl -sf --max-time 10 https://metardu.duckdns.org/api/public/health || echo "FAILED")
+            echo "Health response: $HEALTH"
+
+            if echo "$HEALTH" | grep -q '"status":"healthy"'; then
+              echo "Deploy successful — app is healthy"
+              pm2 save
+            else
+              echo "Health check failed — rolling back to $PREV_COMMIT"
+              git reset --hard $PREV_COMMIT
+              npm ci --production=false
+              npm run build
+              pm2 restart metardu --update-env
+              sleep 5
+              echo "Rollback complete"
+              exit 1
+            fi
+          ENDSSH
