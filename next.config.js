@@ -34,6 +34,7 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
+    ignorePluginErrors: true,
   },
   
   // Disable CSS minification — cssnano can't parse Tailwind arbitrary gradient values

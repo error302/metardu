@@ -64,3 +64,7 @@ export function SkeletonButton() {
     <div className="h-10 bg-gray-700 rounded w-24 animate-pulse"/>
   )
 }
+
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={`bg-gray-700 animate-pulse ${className}`} />
+}

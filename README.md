@@ -35,7 +35,7 @@ Every project follows the same workflow:
 - **Universal Importer** — Auto-detects format: LAS, LAZ, PLY, CSV, XML, DXF, GSI, JobXML, RINEX, Trimble RW5
 - **Drone Support** — Pix4D, DJI flight logs, point cloud processing
 
-### Calculations (via math-engine)
+### Calculations (via src/lib/engine)
 - Traverse adjustment (Bowditch/Transit)
 - Levelling (Rise & Fall, Height of Collimation)
 - COGO (radiation, intersection, resection)
