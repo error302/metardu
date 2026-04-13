@@ -1,7 +1,4 @@
-/* OpenLayers — required for all map pages (global map, project map, hydro, beacons)
-   MUST come before @tailwind directives so postcss-import resolves it first */
-@import 'ol/ol.css';
-
+/* OpenLayers CSS - loaded via component */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
