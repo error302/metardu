@@ -98,6 +98,23 @@ const nextConfig = {
     ],
   },
 
+  // ─── Webpack configuration for OpenLayers ───
+  webpack: (config, { isServer }) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      crypto: false,
+    }
+
+    if (isServer) {
+      config.externals = config.externals || []
+      config.externals.push(/^ol/)
+    }
+
+    return config
+  },
+
   // ─── Headers for performance & security ───
   async headers() {
     const isProd = process.env.NODE_ENV === 'production'

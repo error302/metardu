@@ -92,6 +92,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta charSet="utf-8" />
         <meta name="google" content="notranslate" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#111111" />
