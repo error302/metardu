@@ -7,10 +7,15 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    # Copy .env.local from your VM to the repo BEFORE building:
+    # scp metardu:~/.env.local ./
     env_file:
       - .env.local
     environment:
       - NODE_ENV=production
+      # Fallback values - override with env_file
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://metardu.duckdns.org}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://metardu:Dosho10701$@localhost:5432/metardu}
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
