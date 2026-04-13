@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY package*.json ./
+COPY scripts/ ./scripts/
 RUN npm install --omit=dev
 
 # ---- Stage 2: Build ----
