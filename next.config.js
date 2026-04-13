@@ -25,6 +25,9 @@ const nextConfig = {
 
   reactStrictMode: true,
 
+  // Disabled — SWC minifier breaks OpenLayers tile rendering in production builds
+  swcMinify: false,
+
   // ─── Image optimization (disabled — VM has no image optimization needs) ───
   images: {
     unoptimized: true,
