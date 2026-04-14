@@ -44,8 +44,8 @@ const authenticatedNavItems = [
 ] as const
 
 const guestNavItems = [
+  { href: '/dashboard', icon: 'projects', labelKey: 'nav.dashboard' },
   { href: '/tools', icon: 'tools', labelKey: 'nav.tools' },
-  { href: '/guide', icon: 'guides', labelKey: 'guides.title' },
   { href: '/beacons', icon: 'beacons', labelKey: 'community.controlPoints' },
   { href: '/community', icon: 'projects', labelKey: 'nav.community' },
   { href: '/login', icon: 'profile', labelKey: 'nav.login' },

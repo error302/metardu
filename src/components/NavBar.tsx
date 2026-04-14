@@ -492,11 +492,11 @@ export default function NavBar() {
         { href: '/account', label: 'Account' },
       ]
     : [
+        { href: '/dashboard', label: 'Dashboard' },
         { href: '/tools', label: 'Tools' },
-        { href: '/guide', label: 'Guide' },
-        { href: '/online', label: 'Online' },
+        { href: '/map', label: 'Map', icon: true },
         { href: '/community', label: 'Community' },
-        { href: '/docs', label: 'Docs' },
+        { href: '/guide', label: 'Guide' },
       ]
 
   if (!mounted) {
@@ -506,7 +506,7 @@ export default function NavBar() {
   }
 
   return (
-    <nav className="border-b border-[var(--border-color)] bg-[#0a0a0f] sticky top-0 z-50 border-t-2 border-t-[var(--accent)]">
+    <nav className="border-b border-[var(--border-color)] bg-[#0a0a0f] sticky top-0 z-50">
       <div ref={navRef} className="max-w-7xl mx-auto px-4">
         {/* Main Navbar */}
         <div className="h-16 flex items-center justify-between">
@@ -747,7 +747,7 @@ export default function NavBar() {
               ) : (
               <div className="hidden md:flex items-center gap-2">
                 <Link href="/login" className="px-4 py-2 text-sm border border-[var(--accent)] text-[var(--accent)] rounded hover:bg-[var(--accent)]/10 transition-colors">
-                  {t('nav.login')}
+                  Account
                 </Link>
                 <Link href="/register" className="px-4 py-2 text-sm bg-[var(--accent)] text-black font-semibold rounded hover:bg-[var(--accent-dim)] transition-colors">
                   {t('nav.register')}
