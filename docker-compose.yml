@@ -7,8 +7,8 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    # Copy .env.local from your VM to the repo BEFORE building:
-    # scp metardu:~/.env.local ./
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env.local
     environment:
