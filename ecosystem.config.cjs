@@ -1,8 +1,7 @@
 module.exports = {
   apps: [{
     name: "metardu",
-    script: "node_modules/.bin/next",
-    args: "start",
+    script: ".next/standalone/server.js",
     cwd: "/home/mohameddosho20/metardu",
     env: {
       NODE_ENV: "production",
