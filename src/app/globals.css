@@ -53,6 +53,36 @@ html {
   /* --- Shadows --------------------------------------------------------- */
   --shadow-glow: 0 0 40px rgba(232, 132, 26, 0.15);
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+
+  /* ====================================================================
+     shadcn/ui compatibility variables (dark theme values)
+     These map the shadcn/ui color system to the METARDU dark palette
+     ==================================================================== */
+  --background: 0 0% 4%;
+  --foreground: 0 0% 90%;
+  --card: 0 0% 6%;
+  --card-foreground: 0 0% 90%;
+  --popover: 0 0% 6%;
+  --popover-foreground: 0 0% 90%;
+  --primary: 28 79% 50%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 0 0% 90%;
+  --muted: 0 0% 10%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 28 79% 50%;
+  --accent-foreground: 0 0% 0%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 90%;
+  --border: 0 0% 17%;
+  --input: 0 0% 17%;
+  --ring: 28 79% 50%;
+  --radius: 0.625rem;
+  --chart-1: 28 79% 50%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
 }
 
 /* ========================================================================

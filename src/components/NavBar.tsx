@@ -506,7 +506,7 @@ export default function NavBar() {
   }
 
   return (
-    <nav className="border-b border-[var(--border-color)] bg-[#0a0a0f] sticky top-0 z-50">
+    <nav className="border-b border-[var(--border-color)] bg-[#0a0a0f] sticky top-0 z-50 border-t-2 border-t-[var(--accent)]">
       <div ref={navRef} className="max-w-7xl mx-auto px-4">
         {/* Main Navbar */}
         <div className="h-16 flex items-center justify-between">
