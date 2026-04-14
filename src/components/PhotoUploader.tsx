@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import Image from 'next/image'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, type BrowserClient } from '@/lib/supabase/client'
 import type { Photo } from '@/lib/reports/surveyReport/types'
 
 interface PhotoUploaderProps {
@@ -16,7 +16,7 @@ export default function PhotoUploader({ projectId, photos, onChange, maxPhotos =
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClient()
+  const supabase: BrowserClient = createClient()
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return

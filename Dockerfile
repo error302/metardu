@@ -22,4 +22,4 @@ COPY node_modules ./node_modules
 COPY package.json ./package.json
 
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["node", ".next/standalone/server.js"]

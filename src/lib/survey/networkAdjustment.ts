@@ -96,16 +96,16 @@ export function adjustNetwork(
     throw new Error('At least one baseline observation is required.')
   }
 
-  const free = stations.filter(s => !s.isFixed)
-  const n = free.length * 2
-  const m = observations.length * 2
-  const dof = m - n
+   const free = stations.filter(s => !s.isFixed)
+   const n = free.length * 2
+   const m = observations.length * 2
+   const dof = m - n
 
-  if (dof < 1) {
-    throw new Error(
-      `Insufficient observations. Need at least ${n + 1} observations for ${free.length} free stations. Currently have ${observations.length}.`
-    )
-  }
+   if (dof < 0) {
+     throw new Error(
+       `Insufficient observations. Need at least ${n / 2} observations for ${free.length} free stations. Currently have ${observations.length}.`
+     )
+   }
 
   const stationIndex = new Map<string, number>()
   free.forEach((s, i) => stationIndex.set(s.id, i))

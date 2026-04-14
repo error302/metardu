@@ -1,26 +1,30 @@
 module.exports = {
-  apps: [{
-    name: "metardu",
-    script: ".next/standalone/server.js",
-    cwd: "/home/mohameddosho20/metardu",
-    env: {
-      NODE_ENV: "production",
-      NODE_OPTIONS: "--max-old-space-size=1024"
+  apps: [
+    {
+      name: 'metardu',
+      script: '.next/standalone/server.js',
+      cwd: '/home/mohameddosho20/metardu',
+      instances: 1,
+      exec_mode: 'fork',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3000,
+        NODE_OPTIONS: '--max-old-space-size=768',
+      },
+      max_memory_restart: '900M',
+      watch: false,
+      autorestart: true,
+      restart_delay: 3000,
+      min_uptime: '10s',
+      max_restarts: 5,
+      exp_backoff_restart_delay: 100,
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      out_file: '/home/mohameddosho20/.pm2/logs/metardu-out.log',
+      error_file: '/home/mohameddosho20/.pm2/logs/metardu-error.log',
+      merge_logs: true,
+      listen_timeout: 30000,
+      kill_timeout: 10000,
+      wait_ready: false,
     },
-    max_memory_restart: "2G",
-    instances: 1,
-    autorestart: true,
-    max_restarts: 10,
-    restart_delay: 5000,
-    watch: false,
-    log_date_format: "YYYY-MM-DD HH:mm:ss",
-    error_file: "/home/mohameddosho20/.pm2/logs/metardu-error.log",
-    out_file: "/home/mohameddosho20/.pm2/logs/metardu-out.log",
-    merge_logs: true,
-    // Kill the process if it takes more than 30s to start
-    listen_timeout: 30000,
-    // Graceful shutdown — give Next.js time to finish requests
-    kill_timeout: 10000,
-    wait_ready: false,
-  }]
+  ],
 }

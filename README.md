@@ -94,12 +94,25 @@ npm run dev
 # Build for production
 npm run build
 
+# Run standalone build locally
+npm run start:standalone
+
 # Run tests
 npm test
 
 # Build mobile app (requires Java)
 npm run mobile:build
 ```
+
+## Production
+
+METARDU currently uses one canonical production path:
+
+- `next build` with standalone output
+- `pm2 start ecosystem.config.cjs`
+- one active PM2 process only
+
+During stabilization, Docker stays in the repo but is not the active production run path. The current runbook is in [DEPLOYMENT.md](/C:/Users/ADMIN/Desktop/Survey%20-ENG/DEPLOYMENT.md).
 
 ## Pages
 

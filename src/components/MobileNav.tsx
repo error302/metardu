@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
+import { isNavItemActive } from '@/lib/navigation-shell'
 
 const icons = {
   projects: (
@@ -36,26 +36,18 @@ const icons = {
 }
 
 const authenticatedNavItems = [
-  { href: '/dashboard', icon: 'projects', labelKey: 'nav.projects' },
-  { href: '/tools', icon: 'tools', labelKey: 'nav.tools' },
-  { href: '/guide', icon: 'guides', labelKey: 'guides.title' },
-  { href: '/beacons', icon: 'beacons', labelKey: 'community.controlPoints' },
-  { href: '/profile', icon: 'profile', labelKey: 'nav.profile' },
-] as const
-
-const guestNavItems = [
-  { href: '/dashboard', icon: 'projects', labelKey: 'nav.dashboard' },
-  { href: '/tools', icon: 'tools', labelKey: 'nav.tools' },
-  { href: '/beacons', icon: 'beacons', labelKey: 'community.controlPoints' },
-  { href: '/community', icon: 'projects', labelKey: 'nav.community' },
-  { href: '/login', icon: 'profile', labelKey: 'nav.login' },
+  { href: '/dashboard', icon: 'projects', label: 'Dashboard' },
+  { href: '/projects', icon: 'tools', label: 'Projects' },
+  { href: '/map', icon: 'beacons', label: 'Map' },
+  { href: '/community', icon: 'guides', label: 'Community' },
+  { href: '/account', icon: 'profile', label: 'Account' },
 ] as const
 
 export default function MobileNav() {
   const pathname = usePathname()
-  const { t } = useLanguage()
   const [user, setUser] = useState<{ id?: string } | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setMounted(true)
@@ -65,27 +57,28 @@ export default function MobileNav() {
     const loadSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
+      setLoading(false)
     }
 
     loadSession()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      setLoading(false)
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  if (!mounted) return null
+  if (!mounted || loading || !user) return null
 
-  const mobileNavItems = user ? authenticatedNavItems : guestNavItems
+  const mobileNavItems = authenticatedNavItems
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] md:hidden z-50 safe-area-inset-bottom">
       <div className="flex justify-around items-stretch py-1">
         {mobileNavItems.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href))
+          const isActive = isNavItemActive(pathname, item.href)
           return (
             <Link
               key={item.href}
@@ -97,7 +90,7 @@ export default function MobileNav() {
               <span className={`w-5 h-5 transition-colors ${isActive ? 'text-[var(--accent)]' : ''}`}>
                 {icons[item.icon]}
               </span>
-              <span className="truncate">{t(item.labelKey)}</span>
+              <span className="truncate">{item.label}</span>
             </Link>
           )
         })}

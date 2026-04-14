@@ -3,10 +3,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useLanguage, languages } from '@/lib/i18n/LanguageContext'
 import MetarduLogo from '@/components/MetarduLogo'
 import SubscriptionBadge from '@/components/SubscriptionBadge'
 import type { PlanId } from '@/lib/subscription/catalog'
+import { APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isNavItemActive } from '@/lib/navigation-shell'
 
 const toolGroups = [
   {
@@ -373,7 +375,7 @@ function GlobalSearch({ t, isAuthenticated }: { t: Translator; isAuthenticated: 
 }
 
 export default function NavBar() {
-  const [user, setUser] = useState<{ email: string } | null>(null)
+  const [user, setUser] = useState<{ email: string; id?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [installPrompt, setInstallPrompt] = useState<any>(null)
   const [showInstall, setShowInstall] = useState(false)
@@ -385,6 +387,7 @@ export default function NavBar() {
   const navRef = useRef<HTMLDivElement>(null)
 
   const { language, setLanguage, t, hydrated } = useLanguage()
+  const pathname = usePathname()
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -394,7 +397,7 @@ export default function NavBar() {
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       const user = session?.user ?? null
-      setUser(user as { email: string } | null)
+      setUser(user as { email: string; id?: string } | null)
       if (user) {
         const { data: sub } = await supabase
           .from('user_subscriptions')
@@ -482,22 +485,15 @@ export default function NavBar() {
     }
   }, [])
 
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setOpenDropdown(null)
+  }, [pathname])
+
   const currentLang = languages.find((l: any) => l.code === language) || languages[0]
-  const desktopLinks = user
-    ? [
-        { href: '/dashboard', label: 'Dashboard' },
-        { href: '/projects', label: 'Projects' },
-        { href: '/map', label: 'Map', icon: true },
-        { href: '/community', label: 'Community' },
-        { href: '/account', label: 'Account' },
-      ]
-    : [
-        { href: '/dashboard', label: 'Dashboard' },
-        { href: '/tools', label: 'Tools' },
-        { href: '/map', label: 'Map', icon: true },
-        { href: '/community', label: 'Community' },
-        { href: '/guide', label: 'Guide' },
-      ]
+  const shellVariant = !loading && !user && isExplicitPublicRoute(pathname) ? 'public' : 'app'
+  const desktopLinks = shellVariant === 'app' ? APP_SHELL_LINKS : PUBLIC_SHELL_LINKS
+  const mobileLinks = shellVariant === 'app' ? APP_SHELL_LINKS : PUBLIC_SHELL_LINKS
 
   if (!mounted) {
     return (
@@ -522,9 +518,13 @@ export default function NavBar() {
                 key={item.href}
                 href={item.href}
                 prefetch={false}
-                className={`px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5 ${item.icon ? 'inline-flex items-center gap-1.5' : ''}`}
+                className={`px-3 py-2 text-sm transition-colors rounded-lg ${item.icon ? 'inline-flex items-center gap-1.5' : ''} ${
+                  isNavItemActive(pathname, item.href)
+                    ? 'text-[var(--accent)] bg-white/5'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-white/5'
+                }`}
               >
-                {item.icon ? (
+                {item.icon === 'map' ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                   </svg>
@@ -747,10 +747,10 @@ export default function NavBar() {
               ) : (
               <div className="hidden md:flex items-center gap-2">
                 <Link href="/login" className="px-4 py-2 text-sm border border-[var(--accent)] text-[var(--accent)] rounded hover:bg-[var(--accent)]/10 transition-colors">
-                  Account
+                  Log In
                 </Link>
                 <Link href="/register" className="px-4 py-2 text-sm bg-[var(--accent)] text-black font-semibold rounded hover:bg-[var(--accent-dim)] transition-colors">
-                  {t('nav.register')}
+                  Get Started
                 </Link>
               </div>
             )}
@@ -776,41 +776,36 @@ export default function NavBar() {
         {mobileMenuOpen && (
           <div className="md:hidden bg-[#0a0a0f] border-t border-[var(--border-color)] max-h-[80vh] overflow-y-auto pb-4">
             <div className="py-2">
-              {/* Quick Links */}
-              {user ? (
-                <Link href="/dashboard" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                  {t('nav.projects')}
+              {mobileLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={false}
+                  className={`block px-4 py-2 transition-colors ${
+                    isNavItemActive(pathname, item.href)
+                      ? 'text-[var(--accent)]'
+                      : 'text-[var(--text-primary)] hover:text-[var(--accent)]'
+                  }`}
+                >
+                  {item.label}
                 </Link>
-              ) : (
-                <Link href="/community" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                  {t('nav.community')}
-                </Link>
+              ))}
+
+              {shellVariant === 'app' && (
+                <>
+                  <div className="border-t border-[var(--border-color)] my-2"></div>
+                  <Link href="/field" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                    {t('field.fieldMode')}
+                  </Link>
+                  <Link href="/docs" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                    Documentation
+                  </Link>
+                </>
               )}
-              <Link href="/tools" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                {t('nav.tools')}
-              </Link>
-              <Link href="/field" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                {t('field.fieldMode')}
-              </Link>
-              <Link href="/guide" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                {t('guides.title')}
-              </Link>
-              <Link href="/map" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                Map
-              </Link>
-              <Link href="/community" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                {t('nav.community')}
-              </Link>
-              <Link href="/docs" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                {t('nav.docs')}
-              </Link>
               
               {user && (
                 <>
                   <div className="border-t border-[var(--border-color)] my-2"></div>
-                  <Link href="/profile" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                    {t('nav.profile')}
-                  </Link>
                   <Link href="/account" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     Account
                   </Link>
@@ -824,10 +819,10 @@ export default function NavBar() {
                 <>
                   <div className="border-t border-[var(--border-color)] my-2"></div>
                   <Link href="/login" className="block px-4 py-2 text-[var(--accent)]">
-                    {t('nav.login')}
+                    Log In
                   </Link>
                   <Link href="/register" className="block px-4 py-2 text-[var(--accent)] font-semibold">
-                    {t('nav.register')}
+                    Get Started
                   </Link>
                 </>
               )}

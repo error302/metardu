@@ -16,6 +16,7 @@ import {
   generateMutationForm, generateLevelingSummary, generateControlSubmission,
   ProjectData, PointData, TraverseData, AreaData,
 } from '@/lib/reports/documentPackage'
+import type { SurveyPoint } from '@/types/surveyPoint'
 import type { SurveyPlanData, ControlPoint } from '@/lib/reports/surveyPlan/types'
 import SurveyPlanViewer from '@/components/SurveyPlanViewer'
 import SurveyPlanExport from '@/components/SurveyPlanExport'
@@ -147,29 +148,29 @@ function ExtraFieldsForm({
     </div>
   )
 
-  if (docId === 'beacon_descriptions') return (
-    <div className="space-y-3">
-      <p className="text-xs text-[var(--text-muted)]">Describe each control/boundary beacon. These descriptions appear in the official document.</p>
-      {points.filter((p: any) => p.is_control).map((pt: any) => (
-        <div key={pt.name} className="border border-[var(--border-color)] rounded-lg p-3">
-          <p className="text-sm font-semibold text-[var(--text-primary)] mb-2">Beacon {pt.name}</p>
-          <div className="space-y-2">
-            <div>
-              <label className="text-xs text-[var(--text-muted)] block mb-0.5">Beacon type and condition</label>
-              <input value={extraFields[`beacon_type_${pt.name}`]||''} onChange={e=>f(`beacon_type_${pt.name}`,e.target.value)} className="input w-full text-sm" placeholder="Concrete beacon with iron pin — Good condition" />
-            </div>
-            <div>
-              <label className="text-xs text-[var(--text-muted)] block mb-0.5">Physical description and location</label>
-              <textarea value={extraFields[`beacon_desc_${pt.name}`]||''} onChange={e=>f(`beacon_desc_${pt.name}`,e.target.value)} rows={2} className="input w-full resize-none text-sm" placeholder="Located at the NE corner of the plot, 2m from the road fence..." />
-            </div>
-          </div>
-        </div>
-      ))}
-      {points.filter((p: any) => p.is_control).length === 0 && (
-        <p className="text-xs text-amber-400 bg-amber-900/20 border border-amber-700/30 rounded px-3 py-2">No control points in this project. Mark points as control in the workspace to generate beacon descriptions.</p>
-      )}
-    </div>
-  )
+   if (docId === 'beacon_descriptions') return (
+     <div className="space-y-3">
+       <p className="text-xs text-[var(--text-muted)]">Describe each control/boundary beacon. These descriptions appear in the official document.</p>
+        {points.filter((p: SurveyPoint) => p.is_control).map((pt: SurveyPoint) => (
+         <div key={pt.name} className="border border-[var(--border-color)] rounded-lg p-3">
+           <p className="text-sm font-semibold text-[var(--text-primary)] mb-2">Beacon {pt.name}</p>
+           <div className="space-y-2">
+             <div>
+               <label className="text-xs text-[var(--text-muted)] block mb-0.5">Beacon type and condition</label>
+               <input value={extraFields[`beacon_type_${pt.name}`]||''} onChange={e=>f(`beacon_type_${pt.name}`,e.target.value)} className="input w-full text-sm" placeholder="Concrete beacon with iron pin — Good condition" />
+             </div>
+             <div>
+               <label className="text-xs text-[var(--text-muted)] block mb-0.5">Physical description and location</label>
+               <textarea value={extraFields[`beacon_desc_${pt.name}`]||''} onChange={e=>f(`beacon_desc_${pt.name}`,e.target.value)} rows={2} className="input w-full resize-none text-sm" placeholder="Located at the NE corner of the plot, 2m from the road fence..." />
+             </div>
+           </div>
+         </div>
+       ))}
+        {points.filter((p: SurveyPoint) => p.is_control).length === 0 && (
+         <p className="text-xs text-amber-400 bg-amber-900/20 border border-amber-700/30 rounded px-3 py-2">No control points in this project. Mark points as control in the workspace to generate beacon descriptions.</p>
+       )}
+     </div>
+   )
 
   if (docId === 'area_certificate') return (
     <div className="space-y-3">
@@ -213,7 +214,7 @@ function ExtraFieldsForm({
           </div>
         ))}
       </div>
-      {points.filter((p: any) =>p.is_control).map((pt: any) => (
+       {points.filter((p: PointData) => p.is_control).map((pt: PointData) => (
         <div key={pt.name}>
           <label className="text-xs text-[var(--text-muted)] block mb-1">Beacon {pt.name} — description</label>
           <input value={extraFields[`beacon_desc_${pt.name}`]||''} onChange={e=>onChange({...extraFields,[`beacon_desc_${pt.name}`]:e.target.value})} className="input w-full text-sm" placeholder="Concrete beacon at NE corner..." />
@@ -306,10 +307,10 @@ export default function DocumentsPage({ params }: PageProps) {
     ])
 
     if (proj) setProject(proj)
-    if (pts) setPoints(pts.map((p: any) => ({
-      name: p.name, easting: p.easting, northing: p.northing,
-      elevation: p.elevation ?? undefined, is_control: p.is_control,
-    })))
+     if (pts) setPoints(pts.map((p: SurveyPoint) => ({
+       name: p.name, easting: p.easting, northing: p.northing,
+       elevation: p.elevation ?? undefined, is_control: p.is_control,
+     })))
     setLoading(false)
   }, [params.id])
 
@@ -373,9 +374,9 @@ export default function DocumentsPage({ params }: PageProps) {
   // Build SurveyPlanData from project
   const buildSurveyPlanData = (): SurveyPlanData | null => {
     if (!project) return null
-    const controlPts: ControlPoint[] = points
-      .filter((p: any) => p.is_control)
-      .map((p: any) => ({
+     const controlPts: ControlPoint[] = points
+       .filter((p: SurveyPoint) => p.is_control)
+       .map((p: SurveyPoint) => ({
         name: p.name,
         easting: p.easting,
         northing: p.northing,
