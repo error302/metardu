@@ -31,18 +31,24 @@ export function SupportingDocUpload({ projectId }: { projectId: string }) {
   async function handleUpload(docId: string, docType: string, file: File) {
     setUploading(docId)
     try {
-      const path = `${projectId}/${docType}/${file.name}`
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('bucket', `submission-docs/${projectId}/${docType}`)
 
-      const { error: uploadError } = await supabase.storage
-        .from('submission-docs')
-        .upload(path, file, { upsert: true })
+      const res = await fetch('/api/storage', {
+        method: 'POST',
+        body: formData
+      })
 
-      if (uploadError) throw uploadError
+      if (!res.ok) throw new Error('Upload failed')
+
+      const json = await res.json()
+      const fileUrl = json.url
 
       await supabase
         .from('supporting_documents')
         .update({
-          file_url: path,
+          file_url: fileUrl,
           uploaded_at: new Date().toISOString()
         })
         .eq('id', docId)

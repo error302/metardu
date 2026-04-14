@@ -1,12 +1,7 @@
 // src/lib/supabase/cadastraValidations.ts
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import type { CadastraValidation, BoundaryPolygon } from '@/types/cadastra'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export async function createValidation(params: {
   project_id: string
@@ -17,6 +12,7 @@ export async function createValidation(params: {
   gaps: any[]
   report_url?: string
 }) {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('cadastra_validations')
     .insert({
@@ -30,29 +26,31 @@ export async function createValidation(params: {
     })
     .select()
     .single()
-  
+
   if (error) throw error
   return data as CadastraValidation
 }
 
 export async function getValidations(projectId: string) {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('cadastra_validations')
     .select('*')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
-  
+
   if (error) throw error
   return data as CadastraValidation[]
 }
 
 export async function getValidation(id: string) {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('cadastra_validations')
     .select('*')
     .eq('id', id)
     .single()
-  
+
   if (error) throw error
   return data as CadastraValidation
 }

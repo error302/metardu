@@ -1,9 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import type { NLIMSParcel } from '@/types/nlims'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseKey)
 
 export type VaultFreshness = 'FRESH' | 'VERIFY' | 'STALE'
 
@@ -63,6 +59,7 @@ export async function searchVault(
   county: string,
   userId: string
 ): Promise<VaultSearchResult | null> {
+  const supabase = await createClient()
   const sanitized = parcelNumber.trim().toUpperCase().replace(/\s+/g, '')
 
   const { data: personal } = await supabase
@@ -75,8 +72,8 @@ export async function searchVault(
   if (personal) {
     return {
       source: 'personal',
-      freshness: personal.freshness,
-      certificateDate: personal.certificate_date,
+      freshness: (personal as any).freshness,
+      certificateDate: (personal as any).certificate_date,
       data: personal as any
     }
   }
@@ -90,8 +87,8 @@ export async function searchVault(
   if (shared) {
     return {
       source: 'shared',
-      freshness: shared.freshness as VaultFreshness,
-      certificateDate: shared.certificate_date,
+      freshness: (shared as any).freshness as VaultFreshness,
+      certificateDate: (shared as any).certificate_date,
       data: shared as any
     }
   }
@@ -106,6 +103,7 @@ export async function saveToVault(
   share: boolean,
   userId: string
 ): Promise<void> {
+  const supabase = await createClient()
   const sanitized = parcel.parcelNumber.trim().toUpperCase().replace(/\s+/g, '')
 
   await supabase
@@ -138,7 +136,7 @@ export async function saveToVault(
         encumbrances_count: parcel.encumbrances.length,
         status: parcel.status,
         certificate_date: certificateDate,
-        freshness: new Date(certificateDate) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) ? 'FRESH' : 
+        freshness: new Date(certificateDate) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) ? 'FRESH' :
                    new Date(certificateDate) > new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) ? 'VERIFY' : 'STALE',
         last_updated: new Date().toISOString()
       }, { onConflict: 'parcel_number' })
@@ -146,6 +144,7 @@ export async function saveToVault(
 }
 
 export async function getUserVault(userId: string): Promise<ParcelVaultEntry[]> {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('parcel_vault')
     .select('*')
@@ -157,6 +156,7 @@ export async function getUserVault(userId: string): Promise<ParcelVaultEntry[]> 
 }
 
 export async function getVaultStats(): Promise<VaultStats> {
+  const supabase = await createClient()
   const [total, shared, fresh, verify, stale] = await Promise.all([
     supabase.from('parcel_vault').select('id', { count: 'exact', head: true }),
     supabase.from('parcel_vault_shared').select('id', { count: 'exact', head: true }),
@@ -166,15 +166,16 @@ export async function getVaultStats(): Promise<VaultStats> {
   ])
 
   return {
-    totalParcels: total.count || 0,
-    sharedParcels: shared.count || 0,
-    freshParcels: fresh.count || 0,
-    verifyParcels: verify.count || 0,
-    staleParcels: stale.count || 0
+    totalParcels: (total as any).count || 0,
+    sharedParcels: (shared as any).count || 0,
+    freshParcels: (fresh as any).count || 0,
+    verifyParcels: (verify as any).count || 0,
+    staleParcels: (stale as any).count || 0
   }
 }
 
 export async function deleteVaultEntry(parcelNumber: string, userId: string): Promise<void> {
+  const supabase = await createClient()
   await supabase
     .from('parcel_vault')
     .delete()

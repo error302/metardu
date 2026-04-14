@@ -1,7 +1,8 @@
 /**
- * Client-side Supabase-compatible client
+ * Client-side database client
  * Routes data queries through /api/db proxy → VM PostgreSQL.
  * Auth is handled by NextAuth (useSession / getSession).
+ * Storage goes through /api/storage endpoint (GCS-backed).
  */
 
 interface QueryResult<T = any> {
@@ -10,7 +11,6 @@ interface QueryResult<T = any> {
   count?: number | null
 }
 
-// Explicit public interface — fixes TS2339 on .storage and .rpc callers
 export interface BrowserClient {
   from(table: string): ClientQueryBuilder
   auth: {
@@ -157,7 +157,6 @@ export function createClient(): BrowserClient {
     },
     auth: {
       async getUser() {
-        // Fetch from NextAuth session endpoint instead
         try {
           const res = await fetch('/api/auth/session')
           const session = await res.json()
@@ -205,7 +204,6 @@ export function createClient(): BrowserClient {
         return { data: { user: null }, error: { message: 'Use /api/auth/register instead' } }
       },
       async signOut() {
-        // NextAuth sign out
         try {
           await fetch('/api/auth/signout', { method: 'POST' })
         } catch {}
@@ -234,7 +232,6 @@ export function createClient(): BrowserClient {
         return { data: { session: null }, error: null }
       },
       onAuthStateChange(callback: (event: string, session: any) => void) {
-        // Poll session every 30s for changes
         let lastSession: string | null = null
         const interval = setInterval(async () => {
           try {
@@ -267,38 +264,21 @@ export function createClient(): BrowserClient {
       }
     },
     async removeChannel(_channel: any) {},
+    // Storage stubs — use /api/storage endpoint (GCS-backed) instead
     storage: {
-      from(bucket: string) {
+      from(_bucket: string) {
         return {
-          upload: async (path: string, file: any) => {
-            try {
-              const formData = new FormData()
-              formData.append('file', file)
-              formData.append('bucket', bucket)
-              formData.append('path', path)
-              
-              const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-              })
-              
-              if (!res.ok) throw new Error('Upload failed')
-              const json = await res.json()
-              return { data: { path: json.path }, error: null }
-            } catch (err: any) {
-              return { data: null, error: { message: err.message || 'Local upload failed' } }
-            }
-          },
-          getPublicUrl: (path: string) => ({ data: { publicUrl: `/uploads/${bucket}/${path}` } }),
-          createSignedUrl: async (path: string, expiresIn: number) => ({ data: { signedUrl: `/uploads/${bucket}/${path}` }, error: null }),
-          download: async () => ({ data: null, error: { message: 'Storage not fully migrated.' } }),
-          remove: async () => ({ data: null, error: null }),
+          upload: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
+          getPublicUrl: () => ({ data: { publicUrl: '' }, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
+          createSignedUrl: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
+          download: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
+          remove: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
         }
       }
     },
-    rpc: async (fn: string, args?: any) => {
-      console.warn(`[supabase/client] rpc(${fn}) called but not implemented.`)
-      return { data: null, error: { message: 'RPC not implemented on VM' } }
+    rpc: async (fn: string, _args?: any) => {
+      console.warn(`[db/client] rpc(${fn}) called but not implemented.`)
+      return { data: null, error: { message: 'RPC not implemented' } }
     }
   }
 }

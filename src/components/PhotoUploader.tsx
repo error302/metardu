@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import Image from 'next/image'
-import { createClient, type BrowserClient } from '@/lib/supabase/client'
 import type { Photo } from '@/lib/reports/surveyReport/types'
 
 interface PhotoUploaderProps {
@@ -16,7 +15,6 @@ export default function PhotoUploader({ projectId, photos, onChange, maxPhotos =
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const supabase: BrowserClient = createClient()
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -29,24 +27,28 @@ export default function PhotoUploader({ projectId, photos, onChange, maxPhotos =
     try {
       for (const file of toUpload) {
         const ext = file.name.split('.').pop()
-        const filename = `${projectId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+        const filename = `${projectId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
 
-        const { error: uploadError } = await supabase.storage
-          .from('survey_photos')
-          .upload(filename, file, { contentType: file.type })
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('bucket', `survey_photos/${projectId}`)
 
-        if (uploadError) {
-          console.error('Upload error:', uploadError)
+        const res = await fetch('/api/storage', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!res.ok) {
+          console.error('Upload failed:', res.statusText)
           continue
         }
 
-        const { data: urlData } = supabase.storage
-          .from('survey_photos')
-          .getPublicUrl(filename)
+        const json = await res.json()
+        const url = json.url
 
         const newPhoto: Photo = {
           filename,
-          url: urlData.publicUrl,
+          url,
           caption: file.name.replace(/\.[^.]+$/, ''),
           orientation: '',
           dateTaken: new Date().toISOString().slice(0, 10),

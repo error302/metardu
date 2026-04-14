@@ -1,12 +1,7 @@
 // src/lib/supabase/workflows.ts
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import type { Workflow, WorkflowNode, WorkflowEdge } from '@/types/workflow'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export async function createWorkflow(params: {
   project_id: string
@@ -15,6 +10,7 @@ export async function createWorkflow(params: {
   nodes: WorkflowNode[]
   edges: WorkflowEdge[]
 }) {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('workflows')
     .insert({
@@ -27,41 +23,44 @@ export async function createWorkflow(params: {
     })
     .select()
     .single()
-  
+
   if (error) throw error
   return data as Workflow
 }
 
 export async function getWorkflows(projectId: string) {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('workflows')
     .select('*')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
-  
+
   if (error) throw error
   return data as Workflow[]
 }
 
 export async function getWorkflow(id: string) {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('workflows')
     .select('*')
     .eq('id', id)
     .single()
-  
+
   if (error) throw error
   return data as Workflow
 }
 
 export async function updateWorkflow(id: string, updates: Partial<Workflow>) {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('workflows')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single()
-  
+
   if (error) throw error
   return data as Workflow
 }

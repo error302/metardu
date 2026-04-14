@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import type { SurveyJob, JobApplication, JobReview, SurveyorProfile as SurveyorProfileJob } from '@/types/jobs'
 import type { PeerReviewRequest, PeerReviewer } from '@/types/peerReview'
 
@@ -15,10 +15,6 @@ export interface SurveyorProfileSubmission {
   isKMemberActive: boolean
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabase = createClient(supabaseUrl, supabaseKey)
-
 export interface CommunityStats {
   totalSurveyors: number
   totalJobsPosted: number
@@ -33,6 +29,7 @@ export async function getOpenJobs(filters?: {
   minBudget?: number
   maxBudget?: number
 }): Promise<SurveyJob[]> {
+  const supabase = await createClient()
   let query = supabase
     .from('survey_jobs')
     .select('*')
@@ -44,23 +41,25 @@ export async function getOpenJobs(filters?: {
   if (filters?.minBudget) query = query.gte('budget_amount', filters.minBudget)
   if (filters?.maxBudget) query = query.lte('budget_amount', filters.maxBudget)
 
-  const { data, error } = await query
-  if (error) throw error
-  return data || []
+  const result = await query
+  if ((result as any).error) throw (result as any).error
+  return (result as any).data || []
 }
 
 export async function getJobById(id: string): Promise<SurveyJob | null> {
-  const { data, error } = await supabase
+  const supabase = await createClient()
+  const result = await supabase
     .from('survey_jobs')
     .select('*')
     .eq('id', id)
     .single()
-  if (error) return null
-  return data
+  if ((result as any).error) return null
+  return (result as any).data
 }
 
 export async function createJob(job: Partial<SurveyJob>, userId: string): Promise<string> {
-  const { data, error } = await supabase
+  const supabase = await createClient()
+  const result = await supabase
     .from('survey_jobs')
     .insert({
       posted_by: userId,
@@ -80,11 +79,12 @@ export async function createJob(job: Partial<SurveyJob>, userId: string): Promis
     .select()
     .single()
 
-  if (error) throw error
-  return data.id
+  if ((result as any).error) throw (result as any).error
+  return (result as any).data.id
 }
 
 export async function applyToJob(jobId: string, application: Partial<JobApplication>, userId: string): Promise<void> {
+  const supabase = await createClient()
   await supabase
     .from('job_applications')
     .insert({
@@ -99,6 +99,7 @@ export async function applyToJob(jobId: string, application: Partial<JobApplicat
 }
 
 export async function awardJob(jobId: string, surveyorId: string): Promise<void> {
+  const supabase = await createClient()
   await supabase
     .from('survey_jobs')
     .update({ status: 'AWARDED', awarded_to: surveyorId })
@@ -112,6 +113,7 @@ export async function awardJob(jobId: string, surveyorId: string): Promise<void>
 }
 
 export async function completeJob(jobId: string): Promise<void> {
+  const supabase = await createClient()
   await supabase
     .from('survey_jobs')
     .update({ status: 'COMPLETED', completed_at: new Date().toISOString() })
@@ -120,16 +122,18 @@ export async function completeJob(jobId: string): Promise<void> {
 
 // Surveyor Profiles
 export async function getSurveyorProfile(userId: string): Promise<SurveyorProfile | null> {
-  const { data, error } = await supabase
+  const supabase = await createClient()
+  const result = await supabase
     .from('surveyor_profiles')
     .select('*')
     .eq('user_id', userId)
     .single()
-  if (error) return null
-  return data
+  if ((result as any).error) return null
+  return (result as any).data
 }
 
 export async function createOrUpdateProfile(userId: string, profile: Partial<SurveyorProfile>): Promise<void> {
+  const supabase = await createClient()
   await supabase
     .from('surveyor_profiles')
     .upsert({
@@ -149,6 +153,7 @@ export async function getSurveyors(filters?: {
   county?: string
   specialization?: string
 }): Promise<SurveyorProfile[]> {
+  const supabase = await createClient()
   let query = supabase
     .from('surveyor_profiles')
     .select('*')
@@ -157,21 +162,22 @@ export async function getSurveyors(filters?: {
 
   if (filters?.county) query = query.eq('county', filters.county)
 
-  const { data, error } = await query
-  if (error) throw error
-  return data || []
+  const result = await query
+  if ((result as any).error) throw (result as any).error
+  return (result as any).data || []
 }
 
 // Peer Reviews
 export async function getOpenPeerReviews(): Promise<PeerReviewRequest[]> {
-  const { data, error } = await supabase
+  const supabase = await createClient()
+  const result = await supabase
     .from('peer_review_requests')
     .select('*')
     .eq('status', 'OPEN')
     .order('created_at', { ascending: false })
 
-  if (error) throw error
-  return data || []
+  if ((result as any).error) throw (result as any).error
+  return (result as any).data || []
 }
 
 export async function submitPeerReview(
@@ -180,7 +186,8 @@ export async function submitPeerReview(
   verdict: string,
   comments: any[]
 ): Promise<void> {
-  const { data: reviewer } = await supabase
+  const supabase = await createClient()
+  const result = await supabase
     .from('peer_reviewers')
     .insert({
       request_id: requestId,
@@ -192,6 +199,7 @@ export async function submitPeerReview(
     .select()
     .single()
 
+  const reviewer = (result as any).data
   if (reviewer && comments.length > 0) {
     await supabase
       .from('review_comments')
@@ -214,6 +222,7 @@ export async function submitPeerReview(
 
 // Community Stats
 export async function getCommunityStats(): Promise<CommunityStats> {
+  const supabase = await createClient()
   const [surveyors, jobs, reviews, cpd] = await Promise.all([
     supabase.from('surveyor_profiles').select('id', { count: 'exact', head: true }),
     supabase.from('survey_jobs').select('id', { count: 'exact', head: true }),
@@ -221,12 +230,13 @@ export async function getCommunityStats(): Promise<CommunityStats> {
     supabase.from('cpd_records').select('points', { count: 'exact', head: false })
   ])
 
-  const totalCPD = (cpd.data || []).reduce((sum, r) => sum + (r.points || 0), 0)
+  const cpdData = (cpd as any).data || []
+  const totalCPD = cpdData.reduce((sum: number, r: any) => sum + (r.points || 0), 0)
 
   return {
-    totalSurveyors: surveyors.count || 0,
-    totalJobsPosted: jobs.count || 0,
-    totalReviewsCompleted: reviews.count || 0,
+    totalSurveyors: (surveyors as any).count || 0,
+    totalJobsPosted: (jobs as any).count || 0,
+    totalReviewsCompleted: (reviews as any).count || 0,
     totalCPDPointsAwarded: totalCPD
   }
 }

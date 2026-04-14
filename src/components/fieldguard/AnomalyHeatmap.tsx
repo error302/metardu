@@ -184,11 +184,11 @@ export default function AnomalyHeatmap({ points, anomalies }: AnomalyHeatmapProp
       }
     }
 
-    const cleanup = updateFeatures()
+    const cleanupPromise = updateFeatures()
 
     return () => {
       cancelled = true
-      if (typeof cleanup === 'function') cleanup()
+      cleanupPromise.then((cleanup) => { if (cleanup) cleanup() }).catch(() => {})
     }
   }, [points, anomalies])
 

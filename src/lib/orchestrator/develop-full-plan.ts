@@ -192,27 +192,29 @@ async function packageAndUpload(
   files: Record<string, string>
 ): Promise<string> {
   const JSZip = await import('jszip')
-  const sb = createClient()
-  
+
   const zip = new JSZip.default()
   for (const [filename, content] of Object.entries(files)) {
     zip.file(filename, content)
   }
-  
+
   const buffer = await zip.generateAsync({ type: 'nodebuffer' })
   const fileName = `plan-packages/${projectId}/package-${Date.now()}.zip`
-  
-  const { error } = await sb.storage
-    .from('reports')
-    .upload(fileName, buffer, { contentType: 'application/zip' })
-  
-  if (error) throw error
-  
-  const { data: urlData } = sb.storage
-    .from('reports')
-    .getPublicUrl(fileName)
-  
-  return urlData.publicUrl
+
+  const formData = new FormData()
+  const blob = new Blob([new Uint8Array(buffer)], { type: 'application/zip' })
+  formData.append('file', blob, fileName)
+  formData.append('bucket', 'reports')
+
+  const res = await fetch('/api/storage', {
+    method: 'POST',
+    body: formData
+  })
+
+  if (!res.ok) throw new Error('Upload failed')
+
+  const json = await res.json()
+  return json.url
 }
 
 export async function developFullPlan(

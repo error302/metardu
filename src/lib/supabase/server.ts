@@ -1,9 +1,9 @@
 /**
- * Server-side Supabase-compatible client
- * Uses direct PostgreSQL via pg Pool instead of Supabase cloud.
- * 
- * Drop-in replacement: `import { createClient } from '@/lib/supabase/server'`
- * still works, but queries go to VM PostgreSQL instead of Supabase.
+ * Server-side database client
+ * Uses direct PostgreSQL via pg Pool.
+ *
+ * This file replaces the old Supabase-compatible shim.
+ * All auth goes through NextAuth. Storage goes through GCS.
  */
 
 import { Pool } from 'pg'
@@ -11,8 +11,6 @@ import { QueryBuilder } from '@/lib/db/queryBuilder'
 import { env } from '@/lib/env'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { dirname, join } from 'path'
-import { mkdir, readFile, unlink, writeFile } from 'fs/promises'
 
 let pool: Pool | null = null
 
@@ -20,7 +18,6 @@ function getPool(): Pool {
   if (!pool) {
     const connectionString = env.DATABASE_URL
     if (!connectionString) {
-      // Fallback to individual params
       if (env.DB_HOST && env.DB_NAME && env.DB_USER) {
         pool = new Pool({
           host: env.DB_HOST,
@@ -47,13 +44,12 @@ function getPool(): Pool {
   return pool
 }
 
-export interface CompatClient {
+export interface DbClient {
   from(table: string): QueryBuilder
   auth: {
     getUser(): Promise<{ data: { user: any | null }; error: { message: string } | null }>
     getSession(): Promise<{ data: { session: any | null }; error: { message: string } | null }>
-    updateUser(_params: any): Promise<{ data: { user: any | null }; error: { message: string } | null }>
-    exchangeCodeForSession(_code: string): Promise<{ data: { session: any | null }; error: { message: string } | null }>
+    exchangeCodeForSession(code: string): Promise<{ data: { session: any | null }; error: null }>
   }
   channel(name: string): any
   removeChannel(channel: any): Promise<void>
@@ -61,6 +57,7 @@ export interface CompatClient {
     from(bucket: string): {
       upload(path: string, file: any, opts?: any): Promise<{ data: any; error: any }>
       getPublicUrl(path: string): { data: { publicUrl: string } }
+      createSignedUrl(path: string, expiresIn: number): Promise<{ data: { signedUrl: string } | null; error: any }>
       download(path: string): Promise<{ data: any; error: any }>
       remove(paths: string[]): Promise<{ data: any; error: any }>
     }
@@ -68,24 +65,12 @@ export interface CompatClient {
   rpc(fn: string, args?: any): Promise<{ data: any; error: any }>
 }
 
-export async function createClient(): Promise<CompatClient> {
+export async function createClient(): Promise<DbClient> {
   const p = getPool()
-  const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'public', 'uploads')
-
-  const toBuffer = async (file: any): Promise<Buffer> => {
-    if (Buffer.isBuffer(file)) return file
-    if (file instanceof Uint8Array) return Buffer.from(file)
-    if (file?.arrayBuffer && typeof file.arrayBuffer === 'function') {
-      const arr = await file.arrayBuffer()
-      return Buffer.from(arr)
-    }
-    throw new Error('Unsupported file type for server upload')
-  }
 
   const getCompatSession = async () => {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) return null
-
     return {
       ...session,
       user: {
@@ -100,7 +85,6 @@ export async function createClient(): Promise<CompatClient> {
     from(table: string): QueryBuilder {
       return new QueryBuilder(p, table)
     },
-    // Auth stubs — all auth goes through NextAuth now
     auth: {
       async getUser() {
         const session = await getCompatSession()
@@ -110,14 +94,12 @@ export async function createClient(): Promise<CompatClient> {
         const session = await getCompatSession()
         return { data: { session }, error: null }
       },
-      async updateUser(_params: any) {
-        return { data: { user: null }, error: { message: 'Use custom API endpoint to update user.' } }
-      },
       async exchangeCodeForSession(_code: string) {
+        // No-op — auth code exchange handled by NextAuth
         return { data: { session: null }, error: null }
       },
     },
-    // Realtime stubs
+    // Realtime stubs — use @/lib/realtime for polling-based realtime
     channel(_name: string) {
       return {
         on(..._args: any[]) { return this },
@@ -128,50 +110,21 @@ export async function createClient(): Promise<CompatClient> {
       }
     },
     async removeChannel(_channel: any) {},
+    // Storage stubs — use /api/storage endpoint (GCS-backed) instead
     storage: {
-      from(bucket: string) {
+      from(_bucket: string) {
         return {
-          upload: async (path: string, file: any) => {
-            try {
-              const buffer = await toBuffer(file)
-              const fullPath = join(UPLOAD_DIR, bucket, path)
-              await mkdir(dirname(fullPath), { recursive: true })
-              await writeFile(fullPath, buffer)
-              return { data: { path: `${bucket}/${path}` }, error: null }
-            } catch (err: any) {
-              return { data: null, error: { message: err?.message || 'Local upload failed' } }
-            }
-          },
-          getPublicUrl: (path: string) => ({ data: { publicUrl: `/uploads/${bucket}/${path}` } }),
-          download: async (path: string) => {
-            try {
-              const fullPath = join(UPLOAD_DIR, bucket, path)
-              const data = await readFile(fullPath)
-              return { data, error: null }
-            } catch (err: any) {
-              return { data: null, error: { message: err?.message || 'Download failed' } }
-            }
-          },
-          remove: async (paths: string[]) => {
-            try {
-              await Promise.all(paths.map(async (path: string) => {
-                try {
-                  await unlink(join(UPLOAD_DIR, bucket, path))
-                } catch {
-                  // Ignore missing files to keep Supabase-compatible behavior.
-                }
-              }))
-              return { data: null, error: null }
-            } catch (err: any) {
-              return { data: null, error: { message: err?.message || 'Remove failed' } }
-            }
-          },
+          upload: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
+          getPublicUrl: () => ({ data: { publicUrl: '' }, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
+          createSignedUrl: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
+          download: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
+          remove: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
         }
       }
     },
-    rpc: async (fn: string, args?: any) => {
-      console.warn(`[supabase/server] rpc(${fn}) called but not implemented.`)
-      return { data: null, error: { message: 'RPC not implemented on VM' } }
+    rpc: async (fn: string, _args?: any) => {
+      console.warn(`[db/server] rpc(${fn}) called but not implemented.`)
+      return { data: null, error: { message: 'RPC not implemented' } }
     }
   }
 }

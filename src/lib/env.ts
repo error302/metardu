@@ -29,10 +29,6 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url().optional().or(z.literal('')),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional().or(z.literal('')),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
 
@@ -55,8 +51,6 @@ if (!parsedEnv.success) {
 }
 
 const defaults = {
-  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
   ADMIN_EMAILS: process.env.ADMIN_EMAILS || '',
 } as const
 

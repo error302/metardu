@@ -1,18 +1,18 @@
 import Link from 'next/link'
 import { Check, X, AlertTriangle } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import type { VerifySignatureResponse } from '@/types/signature'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseKey)
-
 async function getVerification(token: string): Promise<VerifySignatureResponse> {
-  const { data, error } = await supabase
+  const supabase = await createClient()
+  const result = await supabase
     .from('document_signatures')
     .select('*')
     .eq('verification_token', token.toUpperCase())
     .single()
+
+  const data = (result as any).data
+  const error = (result as any).error
 
   if (error || !data) {
     return { status: 'NOT_FOUND', valid: false }

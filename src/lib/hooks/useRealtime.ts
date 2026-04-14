@@ -1,14 +1,19 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import type { User } from '@supabase/supabase-js'
 import { subscribeToProjectChanges, type PresenceUser } from '@/lib/realtime'
 import { createClient } from '@/lib/supabase/client'
 import { savePointsOffline, getOfflinePoints } from '@/lib/offline/syncQueue'
 
+interface AppUser {
+  id: string
+  email?: string | null
+  name?: string | null
+}
+
 export function useRealtimeCollaboration(
   projectId: string | null,
-  user: User | null,
+  user: AppUser | null,
   options?: {
     enablePoints?: boolean
     enableTraverse?: boolean
@@ -94,7 +99,7 @@ export function useRealtimeCollaboration(
 
 export function useProjectRealtime(
   projectId: string | null,
-  user: User | null
+  user: AppUser | null
 ) {
   const [points, setPoints] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)

@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase/client';
+import { uploadFile, getSignedUrl } from '@/lib/storage';
 
 interface GenerateDocumentInput {
   projectId: string;
   documentId: string;
   surveyType: string;
-  supabase: ReturnType<typeof createClient>;
+  supabase: any;
 }
 
 interface GenerateDocumentResult {
@@ -134,20 +134,9 @@ export async function generateDocument(
   }
 
   const storagePath = `submissions/${projectId}/${fileName}`;
-  const { error: uploadError } = await supabase.storage
-    .from('documents')
-    .upload(storagePath, buffer, {
-      contentType: mimeType,
-      upsert: true,
-    });
+  const publicUrl = await uploadFile(buffer, fileName, mimeType, storagePath);
 
-  if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
+  const signedUrl = await getSignedUrl(storagePath, 60 * 60 * 24 * 7);
 
-  const { data: signedUrl } = await supabase.storage
-    .from('documents')
-    .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
-
-  if (!signedUrl?.signedUrl) throw new Error('Failed to create signed URL');
-
-  return { fileUrl: signedUrl.signedUrl };
+  return { fileUrl: signedUrl };
 }

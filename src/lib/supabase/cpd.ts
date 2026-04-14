@@ -1,10 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import type { CPDRecord, CPDCertificate, CPDActivity } from '@/types/cpd'
 import { CPD_POINTS } from '@/types/cpd'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabase = createClient(supabaseUrl, supabaseKey)
 
 function generateVerificationCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -22,9 +18,10 @@ export async function awardCPDPoints(
   referenceId?: string,
   customPoints?: number
 ): Promise<string> {
+  const supabase = await createClient()
   const points = customPoints ?? CPD_POINTS[activity]
-  
-  const { data, error } = await supabase
+
+  const result = await supabase
     .from('cpd_records')
     .insert({
       user_id: userId,
@@ -37,15 +34,16 @@ export async function awardCPDPoints(
     .select()
     .single()
 
-  if (error) throw error
-  return data.id
+  if ((result as any).error) throw (result as any).error
+  return (result as any).data.id
 }
 
 export async function getUserCPDForYear(userId: string, year: number): Promise<CPDRecord[]> {
+  const supabase = await createClient()
   const startDate = new Date(year, 0, 1).toISOString()
   const endDate = new Date(year, 11, 31, 23, 59, 59).toISOString()
 
-  const { data, error } = await supabase
+  const result = await supabase
     .from('cpd_records')
     .select('*')
     .eq('user_id', userId)
@@ -53,8 +51,8 @@ export async function getUserCPDForYear(userId: string, year: number): Promise<C
     .lte('earned_at', endDate)
     .order('earned_at', { ascending: false })
 
-  if (error) throw error
-  return data || []
+  if ((result as any).error) throw (result as any).error
+  return (result as any).data || []
 }
 
 export async function getTotalCPDForYear(userId: string, year: number): Promise<number> {
@@ -68,11 +66,12 @@ export async function generateCPDCertificate(
   surveyorName: string,
   iskNumber: string
 ): Promise<CPDCertificate> {
+  const supabase = await createClient()
   const records = await getUserCPDForYear(userId, year)
   const totalPoints = records.reduce((sum, r) => sum + r.points, 0)
   const verificationCode = generateVerificationCode()
 
-  const { data, error } = await supabase
+  const result = await supabase
     .from('cpd_certificates')
     .insert({
       user_id: userId,
@@ -83,7 +82,8 @@ export async function generateCPDCertificate(
     .select()
     .single()
 
-  if (error) throw error
+  if ((result as any).error) throw (result as any).error
+  const data = (result as any).data
 
   return {
     id: data.id,
@@ -99,22 +99,33 @@ export async function generateCPDCertificate(
 }
 
 export async function verifyCPDCertificate(code: string): Promise<CPDCertificate | null> {
-  const { data, error } = await supabase
+  const supabase = await createClient()
+  const result = await supabase
     .from('cpd_certificates')
-    .select('*, cpd_records(*), profiles!inner(full_name, isk_number)')
+    .select('*')
     .eq('verification_code', code.toUpperCase())
     .single()
 
-  if (error || !data) return null
+  if ((result as any).error || !(result as any).data) return null
+  const data = (result as any).data
+
+  // Fetch associated records and profile separately (no nested joins in QueryBuilder)
+  const [recordsResult, profileResult] = await Promise.all([
+    supabase.from('cpd_records').select('*').eq('user_id', data.user_id),
+    supabase.from('profiles').select('full_name, isk_number').eq('id', data.user_id).single()
+  ])
+
+  const records = (recordsResult as any).data || []
+  const profile = (profileResult as any).data
 
   return {
     id: data.id,
     userId: data.user_id,
-    surveyorName: data.profiles?.full_name || 'Unknown',
-    iskNumber: data.profiles?.isk_number || 'N/A',
+    surveyorName: profile?.full_name || 'Unknown',
+    iskNumber: profile?.isk_number || 'N/A',
     year: data.year,
     totalPoints: data.total_points,
-    activities: data.cpd_records || [],
+    activities: records,
     generatedAt: data.generated_at,
     verificationCode: data.verification_code,
     pdfPath: data.pdf_path

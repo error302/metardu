@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const DEFAULT_MODEL = 'gpt-4o-mini'
 
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY
+const NVIDIA_BASE_URL = process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1'
+const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'minimaxai/minimax-m2.7'
+
 const SURVEYING_SYSTEM_PROMPT = `You are METARDU AI, an expert land surveyor assistant. You must answer like a certified professional surveyor, referencing authoritative textbooks.
 
 CORE PRINCIPLES:
@@ -38,38 +42,66 @@ Always format responses clearly with:
 
 export async function POST(request: NextRequest) {
   try {
-    if (!OPENAI_API_KEY) {
-      return NextResponse.json({
-        error: 'OpenAI not configured',
-        hint: 'Add OPENAI_API_KEY to environment variables'
-      }, { status: 500 })
-    }
-
     const body = await request.json()
-    const { messages, model = DEFAULT_MODEL, stream = true } = body
+    const { messages, model = DEFAULT_MODEL, stream = true, provider = 'openai' } = body
 
     const userMessages = messages.filter((m: { role: string }) => m.role !== 'system')
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: SURVEYING_SYSTEM_PROMPT },
-          ...userMessages
-        ],
-        stream,
-        temperature: 0.3
+    let response: Response
+    let apiKey: string
+    let baseUrl: string
+
+    if (provider === 'nvidia' && NVIDIA_API_KEY) {
+      apiKey = NVIDIA_API_KEY
+      baseUrl = NVIDIA_BASE_URL
+      response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: NVIDIA_MODEL,
+          messages: [
+            { role: 'system', content: SURVEYING_SYSTEM_PROMPT },
+            ...userMessages
+          ],
+          stream,
+          temperature: 1,
+          top_p: 0.95,
+          max_tokens: 8192
+        })
       })
-    })
+    } else {
+      if (!OPENAI_API_KEY) {
+        return NextResponse.json({
+          error: 'OpenAI not configured',
+          hint: 'Add OPENAI_API_KEY or NVIDIA_API_KEY to environment variables'
+        }, { status: 500 })
+      }
+      apiKey = OPENAI_API_KEY
+      baseUrl = 'https://api.openai.com/v1'
+      response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: SURVEYING_SYSTEM_PROMPT },
+            ...userMessages
+          ],
+          stream,
+          temperature: 0.3
+        })
+})
+    }
 
     if (!response.ok) {
       const error = await response.text()
-      throw new Error(`OpenAI error: ${error}`)
+      throw new Error(`AI API error: ${error}`)
     }
 
     if (stream) {

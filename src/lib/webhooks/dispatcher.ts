@@ -1,20 +1,14 @@
 import 'server-only'
 import crypto from 'crypto'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import { WebhookPayload, WebhookEvent, WEBHOOK_SIGNATURE_HEADER } from './types'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false }
-})
 
 export async function dispatchWebhook(
   event: WebhookEvent,
   data: Record<string, unknown>,
   options?: { userId?: string; projectId?: string }
 ): Promise<{ delivered: number; failed: number }> {
+  const supabaseAdmin = await createClient()
   const payload: WebhookPayload = {
     event,
     timestamp: new Date().toISOString(),
@@ -23,11 +17,14 @@ export async function dispatchWebhook(
     projectId: options?.projectId
   }
 
-  const { data: webhooks, error } = await supabaseAdmin
+  const result = await supabaseAdmin
     .from('webhooks')
     .select('*')
     .eq('active', true)
     .contains('events', [event])
+
+  const webhooks = (result as any).data
+  const error = (result as any).error
 
   if (error || !webhooks || webhooks.length === 0) {
     return { delivered: 0, failed: 0 }
@@ -39,7 +36,7 @@ export async function dispatchWebhook(
   for (const webhook of webhooks) {
     try {
       const signature = generateSignature(payload, webhook.secret)
-      
+
       const response = await fetch(webhook.url, {
         method: 'POST',
         headers: {
@@ -57,15 +54,15 @@ export async function dispatchWebhook(
         failed++
         await recordDelivery(webhook.id, event, payload, 'failed', response.status, await response.text())
       }
-    } catch (error) {
+    } catch {
       failed++
       await recordDelivery(
-        webhook.id, 
-        event, 
-        payload, 
-        'failed', 
-        undefined, 
-        error instanceof Error ? error.message : 'Unknown error'
+        webhook.id,
+        event,
+        payload,
+        'failed',
+        undefined,
+        'Unknown error'
       )
     }
   }
@@ -87,6 +84,7 @@ async function recordDelivery(
   responseCode?: number,
   responseBody?: string
 ) {
+  const supabaseAdmin = await createClient()
   await supabaseAdmin.from('webhook_deliveries').insert({
     webhook_id: webhookId,
     event,

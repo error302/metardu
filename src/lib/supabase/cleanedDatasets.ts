@@ -1,12 +1,7 @@
 // src/lib/supabase/cleanedDatasets.ts
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import type { CleanedDataset, RawSurveyPoint, CleanedPoint, Anomaly } from '@/types/fieldguard'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export async function createCleanedDataset(params: {
   project_id: string
@@ -17,6 +12,7 @@ export async function createCleanedDataset(params: {
   confidence_scores: Record<string, number>
   data_type: 'gnss' | 'totalstation' | 'lidar'
 }) {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('cleaned_datasets')
     .insert({
@@ -30,38 +26,41 @@ export async function createCleanedDataset(params: {
     })
     .select()
     .single()
-  
+
   if (error) throw error
   return data as CleanedDataset
 }
 
 export async function getCleanedDatasets(projectId: string) {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('cleaned_datasets')
     .select('*')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
-  
+
   if (error) throw error
   return data as CleanedDataset[]
 }
 
 export async function getCleanedDataset(id: string) {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('cleaned_datasets')
     .select('*')
     .eq('id', id)
     .single()
-  
+
   if (error) throw error
   return data as CleanedDataset
 }
 
 export async function deleteCleanedDataset(id: string) {
+  const supabase = await createClient()
   const { error } = await supabase
     .from('cleaned_datasets')
     .delete()
     .eq('id', id)
-  
+
   if (error) throw error
 }
