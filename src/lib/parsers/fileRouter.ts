@@ -15,7 +15,6 @@ import { parseBOQSpreadsheet } from './parseBOQ'
 
 export interface RouteFileOptions {
   file: File
-  enhanceWithAI?: boolean
 }
 
 export function getFileType(filename: string): ParsedInputType {
@@ -44,7 +43,7 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
 }
 
 export async function routeFile(options: RouteFileOptions): Promise<ParsedInput> {
-  const { file, enhanceWithAI = true } = options
+  const { file } = options
   const type = getFileType(file.name)
   
   const baseResult: ParsedInput = {
@@ -62,19 +61,19 @@ export async function routeFile(options: RouteFileOptions): Promise<ParsedInput>
   try {
     switch (type) {
       case 'DXF':
-        return await parseDXF(file, baseResult, enhanceWithAI)
+        return await parseDXF(file, baseResult)
       case 'DWG':
-        return await parseDWG(file, baseResult, enhanceWithAI)
+        return await parseDWG(file, baseResult)
       case 'IFC':
-        return await parseIFC(file, baseResult, enhanceWithAI)
+        return await parseIFC(file, baseResult)
       case 'PDF':
-        return await parsePDF(file, baseResult, enhanceWithAI)
+        return await parsePDF(file, baseResult)
       case 'IMAGE':
-        return await parseImage(file, baseResult, enhanceWithAI)
+        return await parseImage(file, baseResult)
       case 'GLTF':
-        return await parseGLTF(file, baseResult, enhanceWithAI)
+        return await parseGLTF(file, baseResult)
       case 'OBJ':
-        return await parseOBJ(file, baseResult, enhanceWithAI)
+        return await parseOBJ(file, baseResult)
       case 'BOQ':
         return await parseBOQ(file, baseResult)
       default:
@@ -88,19 +87,19 @@ export async function routeFile(options: RouteFileOptions): Promise<ParsedInput>
   }
 }
 
-async function parseDXF(file: File, base: ParsedInput, enhance: boolean): Promise<ParsedInput> {
+async function parseDXF(file: File, base: ParsedInput): Promise<ParsedInput> {
   const content = await file.text()
   return await parseDXFFileContent(content, file.name)
 }
 
-async function parseDWG(file: File, base: ParsedInput, enhance: boolean): Promise<ParsedInput> {
+async function parseDWG(file: File, base: ParsedInput): Promise<ParsedInput> {
   return {
     ...base,
     errors: ['DWG files require conversion to DXF. Please export from AutoCAD as DXF or use LibreCAD.'],
   }
 }
 
-async function parseIFC(file: File, base: ParsedInput, enhance: boolean): Promise<ParsedInput> {
+async function parseIFC(file: File, base: ParsedInput): Promise<ParsedInput> {
   return {
     ...base,
     errors: ['IFC parsing not yet implemented'],
@@ -108,11 +107,11 @@ async function parseIFC(file: File, base: ParsedInput, enhance: boolean): Promis
   }
 }
 
-async function parsePDF(file: File, base: ParsedInput, enhance: boolean): Promise<ParsedInput> {
+async function parsePDF(file: File, base: ParsedInput): Promise<ParsedInput> {
   return await parsePDFContent(file)
 }
 
-async function parseImage(file: File, base: ParsedInput, enhance: boolean): Promise<ParsedInput> {
+async function parseImage(file: File, base: ParsedInput): Promise<ParsedInput> {
   return {
     ...base,
     errors: ['Image parsing not yet implemented'],
@@ -120,11 +119,11 @@ async function parseImage(file: File, base: ParsedInput, enhance: boolean): Prom
   }
 }
 
-async function parseGLTF(file: File, base: ParsedInput, enhance: boolean): Promise<ParsedInput> {
+async function parseGLTF(file: File, base: ParsedInput): Promise<ParsedInput> {
   return await parseGLTFFile(file)
 }
 
-async function parseOBJ(file: File, base: ParsedInput, enhance: boolean): Promise<ParsedInput> {
+async function parseOBJ(file: File, base: ParsedInput): Promise<ParsedInput> {
   return await parseOBJFile(file)
 }
 
@@ -134,20 +133,12 @@ async function parseBOQ(file: File, base: ParsedInput): Promise<ParsedInput> {
 
 export function calculateConfidence(data: ExtractedBuildingData): number {
   let score = 0.5
-  
+
   if (data.walls.length > 0) score += 0.15
   if (data.rooms.length > 0) score += 0.15
   if (data.annotations.length > 0) score += 0.1
   if (data.metadata.projectName) score += 0.05
   if (data.metadata.scale) score += 0.05
-  
-  return Math.min(1, score)
-}
 
-export async function enhanceWithAI(
-  data: ExtractedBuildingData,
-  format: ParsedInputType,
-  context?: string
-): Promise<ExtractedBuildingData> {
-  throw new Error('TODO: enhanceWithAI not implemented - requires Anthropic/Claude API')
+  return Math.min(1, score)
 }

@@ -3,7 +3,6 @@ import { calculateConfidence } from './fileRouter'
 
 export interface PDFParseOptions {
   scale?: number
-  enhanceWithAI?: boolean
 }
 
 export async function parsePDFContent(file: File, options: PDFParseOptions = {}): Promise<ParsedInput> {
