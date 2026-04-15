@@ -21,7 +21,8 @@ const withPWA = require('@ducanh2912/next-pwa').default({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Standalone output — smaller deploy, lower RAM
-  output: "standalone",
+  // Use 'export' for Capacitor mobile builds (set MOBILE_BUILD=true)
+  output: process.env.MOBILE_BUILD === 'true' ? 'export' : 'standalone',
 
   reactStrictMode: true,
 
@@ -30,7 +31,7 @@ const nextConfig = {
 
   // ─── Image optimization (disabled — VM has no image optimization needs) ───
   images: {
-    unoptimized: true,
+    unoptimized: process.env.MOBILE_BUILD === 'true' || true,
     minimumCacheTTL: 60 * 60 * 24,
   },
 
