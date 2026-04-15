@@ -185,8 +185,13 @@ export default function MapClient() {
 
     async function initMap() {
       try {
-        // Register projections
-        await (await import('@/lib/map/projection')).registerProjections()
+        // Register projections with error handling
+        try {
+          const { registerProjections } = await import('@/lib/map/projection')
+          await registerProjections()
+        } catch (projErr) {
+          console.warn('Projection registration failed, using defaults:', projErr)
+        }
 
         const imports = await Promise.all([
           import('ol/Map'),
@@ -398,7 +403,9 @@ export default function MapClient() {
               } catch { /* skip */ }
             }
           }
-        } catch { /* Supabase unavailable */ }
+        } catch (err) { 
+          console.warn('Supabase query failed:', err) 
+        }
 
         // ── Popup overlay ──
         const popupOverlay = new Overlay({
