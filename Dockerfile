@@ -21,5 +21,10 @@ COPY public ./public
 COPY node_modules ./node_modules
 COPY package.json ./package.json
 
+# Standalone server runs from .next/standalone/ but static files are excluded
+# from the standalone trace. Copy them into the expected location.
+RUN cp -r .next/static .next/standalone/.next/static
+
 EXPOSE 3000
 CMD ["node", ".next/standalone/server.js"]
+
