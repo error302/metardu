@@ -156,7 +156,11 @@ export function adjustNetwork(
   }
 
   const vWv = residuals.reduce((sum, v, i) => sum + W[i] * v * v, 0)
-  const sigmaZero = Math.sqrt(vWv / dof)
+  const sigmaZero = dof > 0 ? Math.sqrt(vWv / dof) : 0
+
+  if (dof === 0) {
+    warnings.push('Zero degrees of freedom — cannot compute reliable error estimates.')
+  }
 
   const Qxx = invertMatrix(N, n)
 

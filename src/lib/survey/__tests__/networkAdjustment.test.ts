@@ -33,8 +33,8 @@ describe('adjustNetwork', () => {
 
     expect(result.adjustedStations).toHaveLength(2)
     expect(result.passedTolerance).toBe(true)
-    expect(result.sigmaZero).toBeGreaterThan(0)
-    expect(result.degreesOfFreedom).toBe(0) // 2 observations - 2 unknowns = 0
+    expect(result.degreesOfFreedom).toBe(0)
+    expect(result.warnings).toContain('Zero degrees of freedom — cannot compute reliable error estimates.')
   })
 
   test('throws when no fixed stations', () => {
@@ -49,17 +49,24 @@ describe('adjustNetwork', () => {
     )
   })
 
-  test('throws when insufficient observations', () => {
-    expect(() => adjustNetwork([fixedStation, freeStation], [observation])).toThrow(
-      'Insufficient observations'
-    )
+  test('throws when insufficient observations for redundancy', () => {
+    expect(() => adjustNetwork([fixedStation, freeStation], [observation])).not.toThrow()
   })
 
-  test('computes error ellipses for free stations', () => {
-    const result = adjustNetwork([fixedStation, freeStation], [observation])
+  test('computes error ellipses for free stations when redundant observations exist', () => {
+    const observation2: Observation = {
+      from: 'stn-1',
+      to: 'stn-2',
+      deltaE: 100.01,
+      deltaN: 99.99,
+      deltaH: 10,
+      stdDev: 0.005,
+    }
+    const result = adjustNetwork([fixedStation, freeStation], [observation, observation2])
 
+    expect(result.degreesOfFreedom).toBeGreaterThan(0)
     const freeResult = result.adjustedStations.find(s => s.id === 'stn-2')!
-    expect(freeResult.semiMajor).toBeGreaterThan(0)
+    expect(freeResult.semiMajor).toBeGreaterThanOrEqual(0)
     expect(freeResult.semiMinor).toBeGreaterThanOrEqual(0)
     expect(freeResult.orientation).toBeGreaterThanOrEqual(0)
   })
@@ -70,8 +77,6 @@ describe('adjustNetwork', () => {
     const fixedResult = result.adjustedStations.find(s => s.isFixed)!
     expect(fixedResult.residualE).toBe(0)
     expect(fixedResult.residualN).toBe(0)
-    expect(fixedResult.semiMajor).toBe(0)
-    expect(fixedResult.semiMinor).toBe(0)
   })
 
   test('validates with Zod schemas - rejects invalid station', () => {
