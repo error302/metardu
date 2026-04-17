@@ -1,5 +1,4 @@
-# Deferred path: keep for experiments and fallback work, but do not run this
-# alongside the canonical PM2 standalone deployment during stabilization.
+# Native PostgreSQL deployment (no Supabase dependency)
 services:
   metardu:
     build:
@@ -9,22 +8,23 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env.local
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://metardu.duckdns.org}
-      # Point to Supabase postgres container
-      - DATABASE_URL=postgresql://postgres:postgres@supabase-db:5432/postgres
+      # Connect to native PostgreSQL on host machine
+      - DATABASE_URL=${DATABASE_URL}
+      - AUTH_TRUST_HOST=true
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:3000/api/public/health"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 60s
-    networks:
-      - supabase_default
+      retries: 3
+      start_period: 40s
 
 networks:
-  supabase_default:
-    external: true
+  default:
+    driver: bridge
