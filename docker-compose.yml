@@ -9,13 +9,13 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     env_file:
       - .env.local
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://metardu.duckdns.org}
+      # Point to Supabase postgres container
+      - DATABASE_URL=postgresql://postgres:postgres@supabase-db:5432/postgres
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:3000/api/public/health"]
       interval: 30s
@@ -23,8 +23,8 @@ services:
       retries: 5
       start_period: 60s
     networks:
-      - metardu_network
+      - supabase_default
 
 networks:
-  metardu_network:
-    driver: bridge
+  supabase_default:
+    external: true
