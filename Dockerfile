@@ -1,7 +1,7 @@
 # ---- Production Runner (pre-built on host) ----
 FROM node:22-slim
 
-# Install only the RUNTIME libraries needed by canvas
+# Install runtime libraries + curl for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     libpango-1.0-0 \
@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgif7 \
     librsvg2-2 \
     libpixman-1-0 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -27,4 +28,3 @@ RUN cp -r .next/static .next/standalone/.next/static
 
 EXPOSE 3000
 CMD ["node", ".next/standalone/server.js"]
-
