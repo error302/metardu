@@ -140,5 +140,8 @@
     "glob": "^10.5.0",
     "jszip": "^3.10.1",
     "serialize-javascript": "^7.0.5"
+  },
+  "optionalDependencies": {
+    "puppeteer": "^24.41.0"
   }
 }
