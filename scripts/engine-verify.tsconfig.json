@@ -16,6 +16,7 @@
   },
   "include": [
     "engine-verify.ts",
+    "test-excel.ts",
     "../src/lib/engine/**/*.ts"
   ]
 }

@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { PlanId } from '@/lib/subscription/catalog'
 import type { CurrencyCode } from '@/lib/subscription/catalog'
 
@@ -44,7 +44,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function BillingPage() {
-  const supabase = createClient()
+  const dbClient = createClient()
   const [user, setUser] = useState<any>(null)
   const [subscription, setSubscription] = useState<SubscriptionRecord | null>(null)
   const [payments, setPayments] = useState<PaymentRecord[]>([])
@@ -53,20 +53,20 @@ export default function BillingPage() {
   const [message, setMessage] = useState('')
 
   const loadData = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
     setUser(user)
 
     if (user) {
       const [{ data: sub }, { data: pay }] = await Promise.all([
-        supabase.from('user_subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
-        supabase.from('payment_history').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+        dbClient.from('user_subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
+        dbClient.from('payment_history').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
       ])
       setSubscription(sub as any)
       setPayments((pay || []) as any)
     }
     setLoading(false)
-  }, [supabase])
+  }, [dbClient])
 
   useEffect(() => {
     loadData()

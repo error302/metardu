@@ -1,6 +1,6 @@
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { callAI, isProError } from '@/lib/api/ai-client'
 
 interface Project {

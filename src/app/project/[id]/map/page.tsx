@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import type { AdjustedStation } from '@/lib/engine/planGeometry';
 
 const SurveyMap = dynamic(() => import('@/components/map/SurveyMap'), { ssr: false });
@@ -15,14 +15,14 @@ export default function MapPage({ params }: MapPageProps) {
   const [stations, setStations] = useState<AdjustedStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const dbClient = createClient();
 
   useEffect(() => {
     async function load() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await dbClient.auth.getSession();
       if (!session) { setError('Not authenticated'); return; }
 
-      const { data: project, error: projErr } = await supabase
+      const { data: project, error: projErr } = await dbClient
         .from('projects')
         .select('boundary_data, id')
         .eq('id', params.id)

@@ -170,7 +170,7 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
     setIsDeleting(true)
     setDeleteError('')
     try {
-      const { createClient } = await import('@/lib/supabase/client')
+      const { createClient } = await import('@/lib/api-client/client')
       const sb = createClient()
       const { error } = await sb.from('projects').delete().eq('id', project.id)
       if (error) {

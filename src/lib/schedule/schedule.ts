@@ -1,10 +1,10 @@
 /**
  * Job Scheduling Library
  * Database-backed scheduling for survey jobs with reminders.
- * Uses the job_schedule table via Supabase/postgres proxy.
+ * Uses the job_schedule table via DbClient/postgres proxy.
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 export type SchedulePriority = 'low' | 'normal' | 'high' | 'urgent'
 export type ScheduleStatus = 'upcoming' | 'in_progress' | 'completed' | 'cancelled' | 'postponed'
@@ -81,7 +81,7 @@ export function enrichWithAlerts(schedule: JobSchedule): JobScheduleWithAlerts {
   return { ...schedule, isReminderDue, daysUntil, isOverdue, isToday }
 }
 
-// ── CRUD Operations (via Supabase client proxy) ───────────────────────────
+// ── CRUD Operations (via DbClient client proxy) ───────────────────────────
 
 export async function getSchedules(userId: string): Promise<JobSchedule[]> {
   const sb = createClient()

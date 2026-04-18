@@ -1,9 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 export default function AccountPage() {
-  const supabase = createClient()
+  const dbClient = createClient()
   const [user, setUser] = useState<any>(null)
   const [subscription, setSubscription] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -12,12 +12,12 @@ export default function AccountPage() {
 
   useEffect(() => {
     async function loadData() {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await dbClient.auth.getSession()
       const user = session?.user ?? null
       setUser(user)
 
       if (user) {
-        const { data: sub } = await supabase
+        const { data: sub } = await dbClient
           .from('user_subscriptions')
           .select('*')
           .eq('user_id', user.id)
@@ -27,13 +27,13 @@ export default function AccountPage() {
       setLoading(false)
     }
     loadData()
-  }, [supabase])
+  }, [dbClient])
 
   async function updatePassword(currentPassword: string, newPassword: string) {
     setSaving(true)
     setMessage('')
 
-    const { error } = await supabase.auth.updateUser({
+    const { error } = await dbClient.auth.updateUser({
       password: newPassword
     })
 

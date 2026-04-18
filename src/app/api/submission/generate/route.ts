@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/api-client/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const dbClient = await createClient();
+  const { data: { session } } = await dbClient.auth.getSession();
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing projectId or documentId' }, { status: 400 });
   }
 
-  const { data: project, error: projectError } = await supabase
+  const { data: project, error: projectError } = await dbClient
     .from('projects')
     .select('id, survey_type')
     .eq('id', projectId)
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }
 
-  await supabase
+  await dbClient
     .from('submission_documents')
     .upsert({
       project_id: projectId,
@@ -38,9 +38,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const { generateDocument } = await import('@/lib/submission/assembleDocument');
-    const result = await generateDocument({ projectId, documentId, surveyType: project.survey_type, supabase: supabase as any });
+    const result = await generateDocument({ projectId, documentId, surveyType: project.survey_type, dbClient: dbClient as any });
 
-    await supabase
+    await dbClient
       .from('submission_documents')
       .upsert({
         project_id: projectId,
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, fileUrl: result.fileUrl });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    await supabase
+    await dbClient
       .from('submission_documents')
       .upsert({
         project_id: projectId,

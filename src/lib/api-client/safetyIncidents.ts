@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { SafetyIncident, SafetyReport } from '@/types/safety'
 
 export async function createIncident(params: {
@@ -9,12 +9,12 @@ export async function createIncident(params: {
   description: string
   evidence_images?: string[]
 }) {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('safety_incidents')
     .insert({
       project_id: params.project_id,
@@ -33,8 +33,8 @@ export async function createIncident(params: {
 }
 
 export async function getIncidents(projectId: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('safety_incidents')
     .select('*')
     .eq('project_id', projectId)
@@ -45,8 +45,8 @@ export async function getIncidents(projectId: string) {
 }
 
 export async function updateIncidentStatus(id: string, status: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('safety_incidents')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', id)

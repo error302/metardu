@@ -1,15 +1,15 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/api-client/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import ProfileForm from './ProfileForm';
 
 export default async function ProfileSettingsPage() {
-  const supabase = await createClient();
+  const dbClient = await createClient();
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await dbClient.auth.getSession();
   if (!session) redirect('/login');
 
-  const { data: profile } = await supabase
+  const { data: profile } = await dbClient
     .from('profiles')
     .select('full_name, isk_number, firm_name, phone, email')
     .eq('id', session.user.id)

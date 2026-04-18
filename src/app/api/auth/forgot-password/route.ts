@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { z } from 'zod'
-import { Resend } from 'resend'
+import { sendEmail } from '@/lib/email'
 import db from '@/lib/db'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 
@@ -9,11 +9,7 @@ const forgotSchema = z.object({
   email: z.string().email('Invalid email address'),
 })
 
-function getResend() {
-  const key = process.env.RESEND_API_KEY
-  if (!key) return null
-  return new Resend(key)
-}
+
 
 function okResponse() {
   return NextResponse.json({
@@ -55,29 +51,26 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
     const resetUrl = `${appUrl.replace(/\/+$/, '')}/auth/reset-password?token=${encodeURIComponent(token)}`
-    const resend = getResend()
-
-    if (resend) {
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'METARDU <hello@metardu.app>',
-        to: user.email,
-        subject: 'Reset your METARDU password',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto;">
-            <h2 style="color:#111;">Reset your password</h2>
-            <p>Hi ${user.full_name || 'there'},</p>
-            <p>We received a request to reset your METARDU password.</p>
-            <p>
-              <a href="${resetUrl}" style="display:inline-block;padding:12px 18px;background:#E8841A;color:#111;text-decoration:none;border-radius:6px;font-weight:700;">
-                Reset Password
-              </a>
-            </p>
-            <p>This link expires in 1 hour. If you did not request this, you can ignore this email.</p>
-          </div>
-        `,
-      })
-    } else {
-      console.warn('[forgot-password] RESEND_API_KEY missing. Reset link:', resetUrl)
+    const emailResult = await sendEmail({
+      to: user.email,
+      subject: 'Reset your METARDU password',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto;">
+          <h2 style="color:#111;">Reset your password</h2>
+          <p>Hi ${user.full_name || 'there'},</p>
+          <p>We received a request to reset your METARDU password.</p>
+          <p>
+            <a href="${resetUrl}" style="display:inline-block;padding:12px 18px;background:#E8841A;color:#111;text-decoration:none;border-radius:6px;font-weight:700;">
+              Reset Password
+            </a>
+          </p>
+          <p>This link expires in 1 hour. If you did not request this, you can ignore this email.</p>
+        </div>
+      `,
+    })
+    
+    if (!emailResult.success && emailResult.error === 'Email service not configured') {
+      console.warn('[forgot-password] SMTP not configured. Reset link:', resetUrl)
     }
 
     return okResponse()

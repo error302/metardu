@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/api-client/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { transformCoordinates, TransformInput } from '@/lib/geo/transform';
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const dbClient = await createClient();
+  const { data: { session } } = await dbClient.auth.getSession();
   
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   try {
     const result = transformCoordinates(body);
 
-    await supabase.from('online_service_logs').insert({
+    await dbClient.from('online_service_logs').insert({
       user_id: session.user.id,
       project_id: body.projectId ?? null,
       service: 'coordinate-transform',

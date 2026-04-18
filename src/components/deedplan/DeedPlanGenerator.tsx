@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { FileText, Download, Save, CheckCircle, AlertCircle } from 'lucide-react'
 import type { DeedPlanInput, DeedPlanOutput, BoundaryPoint, BeaconType } from '@/types/deedPlan'
 import { generateDeedPlan } from '@/lib/compute/deedPlanApi'
-import { saveDeedPlan } from '@/lib/supabase/deedPlans'
+import { saveDeedPlan } from '@/lib/api-client/deedPlans'
 
 interface DeedPlanGeneratorProps {
   projectId: string

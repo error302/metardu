@@ -33,13 +33,13 @@ export interface ReviewComment {
   postedAt: string
 }
 
-import { createClient } from '../supabase/client'
+import { createClient } from '../api-client/client'
 
 export async function getRequests(status?: ReviewStatus): Promise<ReviewRequest[]> {
   if (typeof window === 'undefined') return []
-  const supabase = createClient()
+  const dbClient = createClient()
   
-  let q = supabase.from('peer_reviews').select(`
+  let q = dbClient.from('peer_reviews').select(`
     id, project_name, survey_type, description, country, submitter_name, submitter_contact, 
     attachment_note, status, posted_at, payment_status,
     peer_review_comments(id, request_id, reviewer_name, reviewer_title, comment, category, rating, posted_at)
@@ -76,12 +76,12 @@ export async function getRequests(status?: ReviewStatus): Promise<ReviewRequest[
 }
 
 export async function postRequest(data: Omit<ReviewRequest, 'id' | 'postedAt' | 'comments' | 'status' | 'paymentStatus'>): Promise<ReviewRequest> {
-  const supabase = createClient()
+  const dbClient = createClient()
   
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
 
-  const { data: ret, error } = await supabase.from('peer_reviews').insert({
+  const { data: ret, error } = await dbClient.from('peer_reviews').insert({
     user_id: user?.id || null,
     project_name: data.projectName,
     survey_type: data.surveyType,
@@ -102,9 +102,9 @@ export async function postRequest(data: Omit<ReviewRequest, 'id' | 'postedAt' | 
 }
 
 export async function postComment(data: Omit<ReviewComment, 'id' | 'postedAt'>): Promise<ReviewComment> {
-  const supabase = createClient()
+  const dbClient = createClient()
   
-  const { data: ret, error } = await supabase.from('peer_review_comments').insert({
+  const { data: ret, error } = await dbClient.from('peer_review_comments').insert({
     request_id: data.requestId,
     reviewer_name: data.reviewerName,
     reviewer_title: data.reviewerTitle,
@@ -116,19 +116,19 @@ export async function postComment(data: Omit<ReviewComment, 'id' | 'postedAt'>):
   if (error) throw new Error(error.message)
   
   // Mark review as requested and bump updated_at
-  await supabase.from('peer_reviews').update({ status: 'reviewed', updated_at: new Date().toISOString() }).eq('id', data.requestId)
+  await dbClient.from('peer_reviews').update({ status: 'reviewed', updated_at: new Date().toISOString() }).eq('id', data.requestId)
   
   return { ...data, id: ret.id, postedAt: ret.posted_at }
 }
 
 export async function closeRequest(id: string) {
-  const supabase = createClient()
-  await supabase.from('peer_reviews').update({ status: 'closed' }).eq('id', id)
+  const dbClient = createClient()
+  await dbClient.from('peer_reviews').update({ status: 'closed' }).eq('id', id)
 }
 
 export async function deleteRequest(id: string) {
-  const supabase = createClient()
-  await supabase.from('peer_reviews').delete().eq('id', id)
+  const dbClient = createClient()
+  await dbClient.from('peer_reviews').delete().eq('id', id)
 }
 
 export const SURVEY_TYPES: { id: SurveyTypeOption; label: string }[] = [

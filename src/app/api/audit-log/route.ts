@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import { z } from 'zod'
 
 const insertSchema = z.object({
@@ -10,15 +10,15 @@ const insertSchema = z.object({
 
 export async function GET() {
   try {
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('audit_logs')
       .select('id, event_type, description, metadata, created_at')
       .eq('user_id', user.id)
@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 })
     }
 
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
 
     if (!user) {
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     const { event_type, description, metadata } = parsed.data
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('audit_logs')
       .insert({
         user_id: user.id,
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     ]
 
     if (cpdEvents.includes(event_type)) {
-      await supabase.from('cpd_activities').insert({
+      await dbClient.from('cpd_activities').insert({
         user_id: user.id,
         title: 'METARDU Professional Practice',
         provider: 'METARDU Platform — auto-logged',

@@ -30,14 +30,14 @@ export interface METARDUProjectExport {
 
 export async function exportProject(
   projectId: string,
-  supabase: any
+  dbClient: any
 ): Promise<void> {
   const [project, points, traverses, parcels, alignments] = await Promise.all([
-    supabase.from('projects').select('*').eq('id', projectId).single(),
-    supabase.from('survey_points').select('*').eq('project_id', projectId),
-    supabase.from('traverses').select('*').eq('project_id', projectId),
-    supabase.from('parcels').select('*').eq('project_id', projectId),
-    supabase.from('alignments').select('*').eq('project_id', projectId)
+    dbClient.from('projects').select('*').eq('id', projectId).single(),
+    dbClient.from('survey_points').select('*').eq('project_id', projectId),
+    dbClient.from('traverses').select('*').eq('project_id', projectId),
+    dbClient.from('parcels').select('*').eq('project_id', projectId),
+    dbClient.from('alignments').select('*').eq('project_id', projectId)
   ])
 
   const exportData: METARDUProjectExport = {
@@ -76,7 +76,7 @@ export async function exportProject(
 
 export async function importProject(
   file: File,
-  supabase: any
+  dbClient: any
 ): Promise<{ success: boolean; projectId?: string; error?: string }> {
   try {
     const text = await file.text()
@@ -86,13 +86,13 @@ export async function importProject(
       return { success: false, error: 'Unsupported file version' }
     }
 
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
     if (!user) {
       return { success: false, error: 'Must be logged in to import' }
     }
 
-    const { data: newProject, error: projectError } = await supabase
+    const { data: newProject, error: projectError } = await dbClient
       .from('projects')
       .insert({
         name: data.project.name + ' (Imported)',
@@ -123,7 +123,7 @@ export async function importProject(
         control_order: p.control_order
       }))
 
-      const { error: pointsError } = await supabase
+      const { error: pointsError } = await dbClient
         .from('survey_points')
         .insert(pointsToInsert)
 

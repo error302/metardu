@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { generateGeoJSON } from '@/lib/export/generateGeoJSON'
 import { generateLandXML } from '@/lib/export/generateLandXML'
 import { utmToGeographic } from '@/lib/engine/coordinates'

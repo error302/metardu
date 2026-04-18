@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import { coordinateArea } from '@/lib/engine/area';
 
 export interface TraverseStation {
@@ -59,9 +59,9 @@ function decimalToDMS(deg: number): string {
 
 export async function computeDeedPlanGeometry(
   projectId: string,
-  supabase: ReturnType<typeof createClient>
+  dbClient: ReturnType<typeof createClient>
 ): Promise<DeedPlanGeometry> {
-  const { data: entries, error } = await supabase
+  const { data: entries, error } = await dbClient
     .from('project_fieldbook_entries')
     .select('row_index, station, raw_data')
     .eq('project_id', projectId)
@@ -72,7 +72,7 @@ export async function computeDeedPlanGeometry(
     throw new Error('Deed Plan requires at least 3 traverse stations. Add observations in the Field Book panel.');
   }
 
-  const { data: project } = await supabase
+  const { data: project } = await dbClient
     .from('projects')
     .select('boundary_data, utm_zone, hemisphere')
     .eq('id', projectId)

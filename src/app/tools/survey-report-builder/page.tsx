@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import SurveyReportBuilder from '@/components/surveyreport/SurveyReportBuilder'
 
 interface Project {
@@ -20,17 +20,17 @@ export default function SurveyReportBuilderPage() {
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [loading, setLoading] = useState(true)
   
-  const supabase = createClient()
+  const dbClient = createClient()
 
   useEffect(() => {
     async function load() {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await dbClient.auth.getSession()
       if (!session?.user) {
         window.location.href = '/login'
         return
       }
 
-      const { data } = await supabase
+      const { data } = await dbClient
         .from('projects')
         .select('id, name, location')
         .eq('user_id', session.user.id)
@@ -42,7 +42,7 @@ export default function SurveyReportBuilderPage() {
     }
 
     load()
-  }, [supabase])
+  }, [dbClient])
 
   if (loading) {
     return (

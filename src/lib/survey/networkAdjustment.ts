@@ -32,14 +32,14 @@ export const ObservationSchema = z.object({
 
 export type Observation = z.infer<typeof ObservationSchema>
 
-let supabase: any = null
+let dbClient: any = null
 
 async function logNetworkAdjustment(stations: Station[], observations: Observation[]) {
   if (typeof window === 'undefined') return // Client-side only
   try {
-    const { createClient } = await import('@/lib/supabase/client')
-    supabase = createClient()
-    await supabase.from('network_adjustments').insert({
+    const { createClient } = await import('@/lib/api-client/client')
+    dbClient = createClient()
+    await dbClient.from('network_adjustments').insert({
       stations,
       observations,
       status: 'pending',

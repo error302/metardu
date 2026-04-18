@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { bowditchAdjustment } from '@/lib/engine/traverse'
 import { dmsToDecimal, decimalToDMS } from '@/lib/engine/angles'
 import { distanceBearing } from '@/lib/engine/distance'
@@ -251,10 +251,10 @@ export default function TraverseModal({
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [error, setError] = useState('')
   
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const fetchControlPoints = useCallback(async () => {
-    const { data } = await supabase
+    const { data } = await dbClient
       .from('survey_points')
       .select('id, name, easting, northing')
       .eq('project_id', projectId)
@@ -268,7 +268,7 @@ export default function TraverseModal({
         setClosingPointId(data[0].id)
       }
     }
-  }, [supabase, projectId])
+  }, [dbClient, projectId])
 
   useEffect(() => {
     if (isOpen) {
@@ -594,7 +594,7 @@ export default function TraverseModal({
 
     try {
       // Delete existing non-control traverse stations first
-      await supabase
+      await dbClient
         .from('survey_points')
         .delete()
         .eq('project_id', projectId)
@@ -621,7 +621,7 @@ export default function TraverseModal({
             is_control: false
           }))
 
-        const { error: insertError } = await supabase
+        const { error: insertError } = await dbClient
           .from('survey_points')
           .insert(pointsToInsert)
 

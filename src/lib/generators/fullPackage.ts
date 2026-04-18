@@ -1,12 +1,12 @@
 import JSZip from 'jszip';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 
 export async function generateFullPackage(
   projectId: string,
-  supabase: ReturnType<typeof createClient>
+  dbClient: ReturnType<typeof createClient>
 ): Promise<Buffer> {
 
-  const { data: readyDocs } = await supabase
+  const { data: readyDocs } = await dbClient
     .from('submission_documents')
     .select('document_id, file_url')
     .eq('project_id', projectId)

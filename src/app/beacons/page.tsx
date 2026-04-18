@@ -2,7 +2,7 @@
 import React from 'react'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { utmToGeographic } from '@/lib/engine/coordinates'
 import Link from 'next/link'
 
@@ -81,20 +81,20 @@ export default function BeaconsPage() {
   const mapInstance = useRef<any>(null)
   const overlayRef = useRef<any>(null)
 
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     
     const [beaconsRes, projectsRes] = await Promise.all([
-      supabase.from('public_beacons').select('*').eq('status', 'verified'),
-      supabase.from('projects').select('id, name, location, survey_type, created_at')
+      dbClient.from('public_beacons').select('*').eq('status', 'verified'),
+      dbClient.from('projects').select('id, name, location, survey_type, created_at')
     ])
 
     if (beaconsRes.data) setBeacons(beaconsRes.data)
     if (projectsRes.data) setProjects(projectsRes.data)
     setLoading(false)
-  }, [supabase])
+  }, [dbClient])
 
   useEffect(() => {
     fetchData()
@@ -325,7 +325,7 @@ export default function BeaconsPage() {
     setImportLoading(true)
     
     try {
-      const { error } = await supabase.from('survey_points').insert({
+      const { error } = await dbClient.from('survey_points').insert({
         project_id: importProject,
         name: importBeacon.name,
         easting: importBeacon.easting,

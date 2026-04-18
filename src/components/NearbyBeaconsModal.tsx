@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 interface NearbyBeacon {
   id: string
@@ -31,12 +31,12 @@ export default function NearbyBeaconsModal({
   const [loading, setLoading] = useState(true)
   const [selectedBeacon, setSelectedBeacon] = useState<NearbyBeacon | null>(null)
 
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const fetchNearbyBeacons = useCallback(async () => {
     setLoading(true)
     
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('public_beacons')
       .select('*')
       .eq('status', 'verified')
@@ -55,7 +55,7 @@ export default function NearbyBeaconsModal({
     }
     
     setLoading(false)
-  }, [supabase, projectEasting, projectNorthing])
+  }, [dbClient, projectEasting, projectNorthing])
 
   useEffect(() => {
     fetchNearbyBeacons()
@@ -64,7 +64,7 @@ export default function NearbyBeaconsModal({
   const handleImport = async () => {
     if (!selectedBeacon) return
 
-    const { error } = await supabase.from('survey_points').insert({
+    const { error } = await dbClient.from('survey_points').insert({
       project_id: projectId,
       name: selectedBeacon.name,
       easting: selectedBeacon.easting,

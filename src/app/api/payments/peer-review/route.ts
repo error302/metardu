@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripeService } from '@/lib/payments/stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import { apiSuccess, apiError } from '@/lib/api/response'
 import { log } from '@/lib/logger'
 
@@ -11,8 +11,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(apiError('Missing reviewRequestId'), { status: 400 })
     }
 
-    const supabase = await createClient()
-    const { data: authSession } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: authSession } = await dbClient.auth.getSession()
     const user = authSession.session?.user ?? null
 
     // For peer reviews, they might not be fully registered but we can try to link if logged in

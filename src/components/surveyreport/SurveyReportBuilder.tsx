@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 import type { 
   SurveyReportInput, 
@@ -57,7 +57,7 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
   const [error, setError] = useState<string | null>(null)
   const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Survey Report' })
 
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const generateReport = useCallback(async (input: Partial<SurveyReportInput>) => {
     setIsGenerating(true)
@@ -88,7 +88,7 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
   const loadReport = useCallback(async () => {
     if (existingReportId) {
       try {
-        const { getSurveyReportById } = await import('@/lib/supabase/surveyReports')
+        const { getSurveyReportById } = await import('@/lib/api-client/surveyReports')
         const report = await getSurveyReportById(existingReportId)
         if (report) {
           setReportInput({

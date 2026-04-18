@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 interface Doc {
   id: string
@@ -14,14 +14,14 @@ interface Doc {
 export function SupportingDocUpload({ projectId }: { projectId: string }) {
   const [docs, setDocs] = useState<Doc[]>([])
   const [uploading, setUploading] = useState<string | null>(null)
-  const supabase = createClient()
+  const dbClient = createClient()
 
   useEffect(() => {
     loadDocs()
   }, [projectId])
 
   async function loadDocs() {
-    const { data } = await supabase
+    const { data } = await dbClient
       .from('supporting_documents')
       .select('*')
       .eq('project_id', projectId)
@@ -45,7 +45,7 @@ export function SupportingDocUpload({ projectId }: { projectId: string }) {
       const json = await res.json()
       const fileUrl = json.url
 
-      await supabase
+      await dbClient
         .from('supporting_documents')
         .update({
           file_url: fileUrl,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,12 +8,12 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json()
-    const { error } = await supabase
+    const { error } = await dbClient
       .from('hydro_surveys')
       .upsert({ project_id: params.id, ...body, updated_at: new Date().toISOString() },
               { onConflict: 'project_id' })
@@ -30,11 +30,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('hydro_surveys')
       .select('*')
       .eq('project_id', params.id)

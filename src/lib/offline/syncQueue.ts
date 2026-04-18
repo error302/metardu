@@ -146,7 +146,7 @@ async function sleep(ms: number): Promise<void> {
 
 // Enhanced sync with conflict resolution
 export async function syncPendingOperations(
-  supabase: any, 
+  dbClient: any, 
   options: { onConflict?: (conflict: ConflictRecord) => Promise<'local' | 'remote' | 'merged'> } = {}
 ): Promise<{ synced: number; failed: number; conflicts: number }> {
   const pending = await getPendingOperations()
@@ -161,7 +161,7 @@ export async function syncPendingOperations(
 
       // Check for conflicts using timestamp
       const timestamp = op.data.updated_at || op.timestamp
-      const existing = await checkRemoteVersion(supabase, op.table, op.data.id, timestamp)
+      const existing = await checkRemoteVersion(dbClient, op.table, op.data.id, timestamp)
 
       if (existing.hasConflict && options.onConflict) {
         const conflict: ConflictRecord = {
@@ -175,10 +175,10 @@ export async function syncPendingOperations(
         
         if (resolution === 'local') {
           // Force local - delete remote and re-insert
-          await forceLocalUpdate(supabase, op)
+          await forceLocalUpdate(dbClient, op)
         } else if (resolution === 'merged') {
           // Use merged data
-          await applyMergedUpdate(supabase, op, existing.data)
+          await applyMergedUpdate(dbClient, op, existing.data)
         } else {
           // Keep remote - skip local
           if (op.id) await removeSyncedOperation(op.id)
@@ -190,7 +190,7 @@ export async function syncPendingOperations(
       }
 
       // Attempt sync
-      const success = await attemptSync(supabase, op)
+      const success = await attemptSync(dbClient, op)
       
       if (success) {
         if (op.id) await removeSyncedOperation(op.id)
@@ -211,9 +211,9 @@ export async function syncPendingOperations(
   return results
 }
 
-async function checkRemoteVersion(supabase: any, table: string, id: string, localTimestamp: string) {
+async function checkRemoteVersion(dbClient: any, table: string, id: string, localTimestamp: string) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from(table)
       .select('id, updated_at')
       .eq('id', id)
@@ -233,18 +233,18 @@ async function checkRemoteVersion(supabase: any, table: string, id: string, loca
   }
 }
 
-async function attemptSync(supabase: any, op: SyncOperation): Promise<boolean> {
+async function attemptSync(dbClient: any, op: SyncOperation): Promise<boolean> {
   try {
     if (op.type === 'INSERT') {
-      const { error } = await supabase.from(op.table).insert(op.data)
+      const { error } = await dbClient.from(op.table).insert(op.data)
       return !error
     }
     if (op.type === 'UPDATE') {
-      const { error } = await supabase.from(op.table).update(op.data).eq('id', op.data.id)
+      const { error } = await dbClient.from(op.table).update(op.data).eq('id', op.data.id)
       return !error
     }
     if (op.type === 'DELETE') {
-      const { error } = await supabase.from(op.table).delete().eq('id', op.data.id)
+      const { error } = await dbClient.from(op.table).delete().eq('id', op.data.id)
       return !error
     }
     return false
@@ -253,22 +253,22 @@ async function attemptSync(supabase: any, op: SyncOperation): Promise<boolean> {
   }
 }
 
-async function forceLocalUpdate(supabase: any, op: SyncOperation): Promise<void> {
+async function forceLocalUpdate(dbClient: any, op: SyncOperation): Promise<void> {
   // Delete remote and re-insert with local data
-  await supabase.from(op.table).delete().eq('id', op.data.id)
-  await supabase.from(op.table).insert(op.data)
+  await dbClient.from(op.table).delete().eq('id', op.data.id)
+  await dbClient.from(op.table).insert(op.data)
 }
 
-async function applyMergedUpdate(supabase: any, op: SyncOperation, remoteData: any): Promise<void> {
+async function applyMergedUpdate(dbClient: any, op: SyncOperation, remoteData: any): Promise<void> {
   // Merge: take remote created_at but local updated values
   const merged = { ...remoteData, ...op.data }
-  await supabase.from(op.table).update(merged).eq('id', op.data.id)
+  await dbClient.from(op.table).update(merged).eq('id', op.data.id)
 }
 
 // Background sync service
 let syncInterval: ReturnType<typeof setInterval> | null = null
 
-export function startBackgroundSync(supabase: any, options?: { interval?: number; onConflict?: (conflict: ConflictRecord) => Promise<'local' | 'remote' | 'merged'> }) {
+export function startBackgroundSync(dbClient: any, options?: { interval?: number; onConflict?: (conflict: ConflictRecord) => Promise<'local' | 'remote' | 'merged'> }) {
   if (syncInterval) return
   
   const interval = options?.interval || SYNC_INTERVAL
@@ -276,7 +276,7 @@ export function startBackgroundSync(supabase: any, options?: { interval?: number
   syncInterval = setInterval(async () => {
     if (!isOnline()) return
     
-    const results = await syncPendingOperations(supabase, { onConflict: options?.onConflict })
+    const results = await syncPendingOperations(dbClient, { onConflict: options?.onConflict })
     
     if (results.synced > 0) {
       if (process.env.NODE_ENV !== 'production') console.log(`[Sync] Synced ${results.synced} operations`)

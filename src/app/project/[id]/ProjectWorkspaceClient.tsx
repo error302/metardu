@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import { SurveyType } from '@/types/project';
 import { SurveyWorkflow } from '@/types/workflow';
 import { nextStepIndex } from '@/lib/workflows/workflowRegistry';
@@ -24,7 +24,7 @@ interface Props {
 
 export default function ProjectWorkspaceClient({ project, workflow }: Props) {
   const router = useRouter();
-  const supabase = createClient();
+  const dbClient = createClient();
 
   const [currentStep, setCurrentStep] = useState(project.workflowStep);
   const [maxUnlocked, setMaxUnlocked] = useState(project.maxUnlocked);
@@ -34,7 +34,7 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
     setSaving(true);
     const newMax = Math.max(maxUnlocked, newStep);
 
-    await supabase
+    await dbClient
       .from('projects')
       .update({
         workflow_step: newStep,
@@ -45,7 +45,7 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
     setCurrentStep(newStep);
     setMaxUnlocked(newMax);
     setSaving(false);
-  }, [project.id, maxUnlocked, supabase]);
+  }, [project.id, maxUnlocked, dbClient]);
 
   const handleContinue = async () => {
     const next = nextStepIndex(project.surveyType, currentStep);

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
   const type = requestUrl.searchParams.get('type')
 
   if (code) {
-    const supabase = await createClient()
-    await supabase.auth.exchangeCodeForSession(code)
+    const dbClient = await createClient()
+    await dbClient.auth.exchangeCodeForSession(code)
   }
 
   // Password recovery → redirect to reset page with code

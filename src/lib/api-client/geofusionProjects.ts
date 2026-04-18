@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { GeoFusionProject, FusionLayer, FusionAlignment } from '@/types/geofusion'
 
 export async function createGeoFusionProject(params: {
@@ -9,12 +9,12 @@ export async function createGeoFusionProject(params: {
   target_srid?: number
   config?: any
 }) {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('geofusion_projects')
     .insert({
       project_id: params.project_id,
@@ -33,8 +33,8 @@ export async function createGeoFusionProject(params: {
 }
 
 export async function getGeoFusionProjects(projectId: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('geofusion_projects')
     .select('*')
     .eq('project_id', projectId)
@@ -45,8 +45,8 @@ export async function getGeoFusionProjects(projectId: string) {
 }
 
 export async function getGeoFusionProject(id: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('geofusion_projects')
     .select('*')
     .eq('id', id)
@@ -57,8 +57,8 @@ export async function getGeoFusionProject(id: string) {
 }
 
 export async function updateGeoFusionProject(id: string, updates: Partial<GeoFusionProject>) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('geofusion_projects')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -78,8 +78,8 @@ export async function createFusionLayer(params: {
   properties?: any
   style_config?: any
 }) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('fusion_layers')
     .insert({
       geofusion_project_id: params.geofusion_project_id,
@@ -98,8 +98,8 @@ export async function createFusionLayer(params: {
 }
 
 export async function getFusionLayers(geofusionProjectId: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('fusion_layers')
     .select('*')
     .eq('geofusion_project_id', geofusionProjectId)
@@ -110,8 +110,8 @@ export async function getFusionLayers(geofusionProjectId: string) {
 }
 
 export async function updateFusionLayer(id: string, updates: Partial<FusionLayer>) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('fusion_layers')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -123,8 +123,8 @@ export async function updateFusionLayer(id: string, updates: Partial<FusionLayer
 }
 
 export async function deleteFusionLayer(id: string) {
-  const supabase = createClient()
-  const { error } = await supabase
+  const dbClient = createClient()
+  const { error } = await dbClient
     .from('fusion_layers')
     .delete()
     .eq('id', id)
@@ -140,8 +140,8 @@ export async function createFusionAlignment(params: {
   transform_type: string
   transform_params?: any
 }) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('fusion_alignments')
     .insert({
       geofusion_project_id: params.geofusion_project_id,
@@ -159,8 +159,8 @@ export async function createFusionAlignment(params: {
 }
 
 export async function getFusionAlignments(geofusionProjectId: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('fusion_alignments')
     .select('*')
     .eq('geofusion_project_id', geofusionProjectId)
@@ -171,8 +171,8 @@ export async function getFusionAlignments(geofusionProjectId: string) {
 }
 
 export async function updateAlignmentStatus(id: string, status: string, accuracy_score?: number) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('fusion_alignments')
     .update({ 
       status, 

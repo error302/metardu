@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import type { SurveyJob, JobApplication, JobReview, SurveyorProfile as SurveyorProfileJob } from '@/types/jobs'
 import type { PeerReviewRequest, PeerReviewer } from '@/types/peerReview'
 
@@ -29,8 +29,8 @@ export async function getOpenJobs(filters?: {
   minBudget?: number
   maxBudget?: number
 }): Promise<SurveyJob[]> {
-  const supabase = await createClient()
-  let query = supabase
+  const dbClient = await createClient()
+  let query = dbClient
     .from('survey_jobs')
     .select('*')
     .eq('status', 'OPEN')
@@ -47,8 +47,8 @@ export async function getOpenJobs(filters?: {
 }
 
 export async function getJobById(id: string): Promise<SurveyJob | null> {
-  const supabase = await createClient()
-  const result = await supabase
+  const dbClient = await createClient()
+  const result = await dbClient
     .from('survey_jobs')
     .select('*')
     .eq('id', id)
@@ -58,8 +58,8 @@ export async function getJobById(id: string): Promise<SurveyJob | null> {
 }
 
 export async function createJob(job: Partial<SurveyJob>, userId: string): Promise<string> {
-  const supabase = await createClient()
-  const result = await supabase
+  const dbClient = await createClient()
+  const result = await dbClient
     .from('survey_jobs')
     .insert({
       posted_by: userId,
@@ -84,8 +84,8 @@ export async function createJob(job: Partial<SurveyJob>, userId: string): Promis
 }
 
 export async function applyToJob(jobId: string, application: Partial<JobApplication>, userId: string): Promise<void> {
-  const supabase = await createClient()
-  await supabase
+  const dbClient = await createClient()
+  await dbClient
     .from('job_applications')
     .insert({
       job_id: jobId,
@@ -99,13 +99,13 @@ export async function applyToJob(jobId: string, application: Partial<JobApplicat
 }
 
 export async function awardJob(jobId: string, surveyorId: string): Promise<void> {
-  const supabase = await createClient()
-  await supabase
+  const dbClient = await createClient()
+  await dbClient
     .from('survey_jobs')
     .update({ status: 'AWARDED', awarded_to: surveyorId })
     .eq('id', jobId)
 
-  await supabase
+  await dbClient
     .from('job_applications')
     .update({ status: 'AWARDED' })
     .eq('job_id', jobId)
@@ -113,8 +113,8 @@ export async function awardJob(jobId: string, surveyorId: string): Promise<void>
 }
 
 export async function completeJob(jobId: string): Promise<void> {
-  const supabase = await createClient()
-  await supabase
+  const dbClient = await createClient()
+  await dbClient
     .from('survey_jobs')
     .update({ status: 'COMPLETED', completed_at: new Date().toISOString() })
     .eq('id', jobId)
@@ -122,8 +122,8 @@ export async function completeJob(jobId: string): Promise<void> {
 
 // Surveyor Profiles
 export async function getSurveyorProfile(userId: string): Promise<SurveyorProfile | null> {
-  const supabase = await createClient()
-  const result = await supabase
+  const dbClient = await createClient()
+  const result = await dbClient
     .from('surveyor_profiles')
     .select('*')
     .eq('user_id', userId)
@@ -133,8 +133,8 @@ export async function getSurveyorProfile(userId: string): Promise<SurveyorProfil
 }
 
 export async function createOrUpdateProfile(userId: string, profile: Partial<SurveyorProfile>): Promise<void> {
-  const supabase = await createClient()
-  await supabase
+  const dbClient = await createClient()
+  await dbClient
     .from('surveyor_profiles')
     .upsert({
       user_id: userId,
@@ -153,8 +153,8 @@ export async function getSurveyors(filters?: {
   county?: string
   specialization?: string
 }): Promise<SurveyorProfile[]> {
-  const supabase = await createClient()
-  let query = supabase
+  const dbClient = await createClient()
+  let query = dbClient
     .from('surveyor_profiles')
     .select('*')
     .eq('profile_public', true)
@@ -169,8 +169,8 @@ export async function getSurveyors(filters?: {
 
 // Peer Reviews
 export async function getOpenPeerReviews(): Promise<PeerReviewRequest[]> {
-  const supabase = await createClient()
-  const result = await supabase
+  const dbClient = await createClient()
+  const result = await dbClient
     .from('peer_review_requests')
     .select('*')
     .eq('status', 'OPEN')
@@ -186,8 +186,8 @@ export async function submitPeerReview(
   verdict: string,
   comments: any[]
 ): Promise<void> {
-  const supabase = await createClient()
-  const result = await supabase
+  const dbClient = await createClient()
+  const result = await dbClient
     .from('peer_reviewers')
     .insert({
       request_id: requestId,
@@ -201,7 +201,7 @@ export async function submitPeerReview(
 
   const reviewer = (result as any).data
   if (reviewer && comments.length > 0) {
-    await supabase
+    await dbClient
       .from('review_comments')
       .insert(
         comments.map((c: any) => ({
@@ -214,7 +214,7 @@ export async function submitPeerReview(
       )
   }
 
-  await supabase
+  await dbClient
     .from('peer_review_requests')
     .update({ status: 'COMPLETE' })
     .eq('id', requestId)
@@ -222,12 +222,12 @@ export async function submitPeerReview(
 
 // Community Stats
 export async function getCommunityStats(): Promise<CommunityStats> {
-  const supabase = await createClient()
+  const dbClient = await createClient()
   const [surveyors, jobs, reviews, cpd] = await Promise.all([
-    supabase.from('surveyor_profiles').select('id', { count: 'exact', head: true }),
-    supabase.from('survey_jobs').select('id', { count: 'exact', head: true }),
-    supabase.from('job_reviews').select('id', { count: 'exact', head: true }),
-    supabase.from('cpd_records').select('points', { count: 'exact', head: false })
+    dbClient.from('surveyor_profiles').select('id', { count: 'exact', head: true }),
+    dbClient.from('survey_jobs').select('id', { count: 'exact', head: true }),
+    dbClient.from('job_reviews').select('id', { count: 'exact', head: true }),
+    dbClient.from('cpd_records').select('points', { count: 'exact', head: false })
   ])
 
   const cpdData = (cpd as any).data || []

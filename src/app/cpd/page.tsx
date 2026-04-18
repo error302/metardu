@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import {
   getCPDRequirements,
   getUserActivities,
@@ -23,8 +23,8 @@ export default function CPDPage() {
 
   useEffect(() => {
     const loadUser = async () => {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const dbClient = createClient()
+      const { data: { session } } = await dbClient.auth.getSession()
       const user = session?.user
       const uid = user?.id ?? null
       setUserId(uid)

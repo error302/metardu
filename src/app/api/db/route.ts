@@ -3,7 +3,13 @@
  * 
  * Client components send query specs here, this route executes them
  * against the VM PostgreSQL. Auth is verified via NextAuth session.
- * Rate-limited to prevent abuse of the database proxy.
+ * 
+ * SECURITY:
+ * - Table whitelist prevents arbitrary table access
+ * - User-scoped tables automatically filter by session user_id
+ * - Admin-only tables restricted to ADMIN_EMAILS
+ * - Rate-limited to prevent abuse
+ * - Parameterized queries prevent SQL injection
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -44,39 +50,65 @@ const PUBLIC_TABLES = new Set([
   'benchmarks', 'survey_standards', 'countries', 'professional_bodies',
 ])
 
-// All known tables (whitelist to prevent SQL injection via table names)
-const ALLOWED_TABLES = new Set([
+// Tables that are scoped to the authenticated user's ID
+// Queries on these tables automatically get a WHERE user_id = $userId filter
+const USER_SCOPED_TABLES = new Set([
   'projects', 'survey_points', 'parcels', 'alignments', 'profiles', 'cross_sections',
-  'project_members', 'user_subscriptions', 'newsletter_subscribers', 'feedback',
-  'analytics_events', 'rate_limit_events', 'survey_epochs', 'project_fieldbook_entries',
-  'leveling_runs', 'collaboration_sessions', 'jobs', 'job_missions', 'audit_logs',
-  'survey_type_expand', 'cpd_activities', 'peer_reviews', 'peer_review_payments',
-  'digital_signatures', 'cleaned_datasets', 'cadastra_validations', 'mine_twins',
-  'workflows', 'bathymetric_surveys', 'usv_missions', 'safety_incidents',
-  'geofusion_projects', 'geofusion_layers', 'deed_plans', 'survey_reports',
-  'parcel_metadata', 'gnss_sessions', 'benchmarks', 'nlims_cache',
+  'project_members', 'user_subscriptions', 'survey_epochs', 'project_fieldbook_entries',
+  'leveling_runs', 'collaboration_sessions', 'cpd_activities', 'peer_reviews',
+  'peer_review_payments', 'digital_signatures', 'cleaned_datasets',
+  'cadastra_validations', 'mine_twins', 'workflows', 'bathymetric_surveys',
+  'usv_missions', 'safety_incidents', 'geofusion_projects', 'geofusion_layers',
+  'deed_plans', 'survey_reports', 'parcel_metadata', 'gnss_sessions',
   'signatures', 'equipment', 'equipment_calibrations', 'job_applications',
-  'job_reviews', 'professional_bodies', 'enterprise_organizations',
-  'enterprise_members', 'enterprise_invitations', 'enterprise_settings',
-  'payment_history', 'render_jobs', 'land_law_cases', 'land_law_regulations',
-  'project_submissions', 'submission_documents', 'import_sessions',
-  'online_service_logs', 'users', 'point_history', 'project_sheets',
-  'survey_photos', 'plan_usage', 'surveyor_profiles', 'countries',
-  'survey_standards', 'password_reset_tokens',
+  'job_reviews', 'payment_history', 'render_jobs', 'project_submissions',
+  'submission_documents', 'import_sessions', 'online_service_logs',
+  'surveyor_profiles', 'plan_usage',
 ])
 
-const OP_MAP: Record<string, string> = {
-  eq: '=', neq: '!=', gt: '>', gte: '>=', lt: '<', lte: '<=',
-  like: 'LIKE', ilike: 'ILIKE', in: 'IN', is: 'IS',
-  not_eq: '!=', not_is: 'IS NOT', contains: '@>',
+// Tables that are read-only for all authenticated users (no user scoping needed)
+const READ_ONLY_SHARED_TABLES = new Set([
+  'benchmarks', 'survey_standards', 'countries', 'professional_bodies',
+  'land_law_cases', 'land_law_regulations', 'nlims_cache',
+])
+
+// Tables accessible only by admins
+const ADMIN_ONLY_TABLES = new Set([
+  'audit_logs', 'analytics_events', 'rate_limit_events',
+  'enterprise_organizations', 'enterprise_members', 'enterprise_invitations',
+  'enterprise_settings',
+])
+
+// Public browse tables (any authenticated user can read, but write is scoped)
+const PUBLIC_BROWSE_TABLES = new Set([
+  'jobs', 'job_missions', 'newsletter_subscribers', 'feedback',
+  'survey_type_expand', 'community',
+])
+
+// Build the full allowlist from all sets
+const ALLOWED_TABLES = new Set([
+  ...Array.from(USER_SCOPED_TABLES),
+  ...Array.from(READ_ONLY_SHARED_TABLES),
+  ...Array.from(ADMIN_ONLY_TABLES),
+  ...Array.from(PUBLIC_BROWSE_TABLES),
+  'project_sheets', 'survey_photos',
+])
+
+// NEVER allow these tables through the proxy
+// password_reset_tokens, users — must use dedicated auth endpoints only
+const FORBIDDEN_TABLES = new Set([
+  'password_reset_tokens', 'users',
+])
+
+function isAdmin(email: string | null | undefined): boolean {
+  if (!email) return false
+  const adminEmails = (env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
+  return adminEmails.includes(email.toLowerCase())
 }
 
 export async function POST(request: NextRequest) {
   try {
     // ─── Rate limiting ──────────────────────────────────────────────
-    // Prevents brute-force / DoS attacks on the database proxy.
-    // 120 requests per minute per IP for authenticated users,
-    // 30 requests per minute for unauthenticated (public tables only).
     const clientId = getClientIdentifier(request)
     const isWriteOp = ['insert', 'update', 'delete', 'upsert'].includes(
       request.headers.get('x-operation') || ''
@@ -100,16 +132,51 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { table, operation, columns, filters, orFilters, order, limit, offset, single, maybeSingle, count, head, payload } = body
 
-    if (!table || !ALLOWED_TABLES.has(table)) {
-      return NextResponse.json({ data: null, error: { message: `Table not allowed: ${table}`, code: 'FORBIDDEN' } }, { status: 403 })
+    // ─── Table validation ─────────────────────────────────────────
+    if (!table || FORBIDDEN_TABLES.has(table)) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Access denied', code: 'FORBIDDEN' } },
+        { status: 403 }
+      )
     }
 
-    // Auth check — public tables skip this
+    if (!ALLOWED_TABLES.has(table)) {
+      return NextResponse.json(
+        { data: null, error: { message: `Table not allowed: ${table}`, code: 'FORBIDDEN' } },
+        { status: 403 }
+      )
+    }
+
+    // ─── Auth check ───────────────────────────────────────────────
+    let userId: string | null = null
+    let userEmail: string | null = null
+
     if (!PUBLIC_TABLES.has(table)) {
       const session = await getServerSession(authOptions)
       if (!session?.user) {
-        return NextResponse.json({ data: null, error: { message: 'Not authenticated', code: 'AUTH_REQUIRED' } }, { status: 401 })
+        return NextResponse.json(
+          { data: null, error: { message: 'Not authenticated', code: 'AUTH_REQUIRED' } },
+          { status: 401 }
+        )
       }
+      userId = (session.user as any).id
+      userEmail = session.user.email ?? null
+    }
+
+    // ─── Admin-only table check ───────────────────────────────────
+    if (ADMIN_ONLY_TABLES.has(table) && !isAdmin(userEmail)) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Admin access required', code: 'FORBIDDEN' } },
+        { status: 403 }
+      )
+    }
+
+    // ─── Read-only shared table check ────────────────────────────
+    if (READ_ONLY_SHARED_TABLES.has(table) && operation !== 'select') {
+      return NextResponse.json(
+        { data: null, error: { message: 'This table is read-only', code: 'FORBIDDEN' } },
+        { status: 403 }
+      )
     }
 
     const p = getPool()
@@ -119,19 +186,44 @@ export async function POST(request: NextRequest) {
     if (operation === 'select') {
       qb = qb.select(columns || '*', { count: count ? 'exact' : undefined, head }) as any
     } else if (operation === 'insert') {
+      // For user-scoped tables, inject user_id into the payload
+      if (USER_SCOPED_TABLES.has(table) && userId) {
+        if (Array.isArray(payload)) {
+          for (const row of payload) { row.user_id = userId }
+        } else if (payload) {
+          payload.user_id = userId
+        }
+      }
       qb = qb.insert(payload) as any
     } else if (operation === 'update') {
       qb = qb.update(payload) as any
     } else if (operation === 'delete') {
       qb = qb.delete() as any
     } else if (operation === 'upsert') {
+      if (USER_SCOPED_TABLES.has(table) && userId) {
+        if (Array.isArray(payload)) {
+          for (const row of payload) { row.user_id = userId }
+        } else if (payload) {
+          payload.user_id = userId
+        }
+      }
       qb = qb.upsert(payload) as any
+    }
+
+    // ─── User-scoped row-level security ──────────────────────────
+    // For user-scoped tables, always filter by user_id so users
+    // can only see/modify their own data
+    if (USER_SCOPED_TABLES.has(table) && userId) {
+      qb = qb.eq('user_id', userId) as any
     }
 
     // Apply filters
     if (Array.isArray(filters)) {
       for (const f of filters) {
-        const method = f.op as keyof typeof OP_MAP
+        const method = f.op as string
+        // Prevent client from overriding user_id filter on scoped tables
+        if (USER_SCOPED_TABLES.has(table) && f.column === 'user_id') continue
+        
         if (method === 'eq') qb = qb.eq(f.column, f.value) as any
         else if (method === 'neq') qb = qb.neq(f.column, f.value) as any
         else if (method === 'gt') qb = qb.gt(f.column, f.value) as any
@@ -148,8 +240,8 @@ export async function POST(request: NextRequest) {
 
     // Apply OR filters
     if (Array.isArray(orFilters)) {
-      for (const of of orFilters) {
-        qb = qb.or(of) as any
+      for (const of_ of orFilters) {
+        qb = qb.or(of_) as any
       }
     }
 

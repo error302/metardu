@@ -1,16 +1,16 @@
 /**
  * POST /api/submission/sequence
- * Atomically increments the submission sequence number for a surveyor/year pair
- * using the canonical submission_sequence table.
+ * Atomically increments the submission sequence number for a surveyor/year pair.
+ * Uses direct PostgreSQL with advisory lock instead of DbClient RPC.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import db from '@/lib/db'
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  
+  const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -28,16 +28,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await supabase.rpc('increment_submission_sequence', {
-      p_surveyor_profile_id: surveyorProfileId,
-      p_year: year
-    })
+    // Atomic upsert — INSERT with ON CONFLICT to atomically increment
+    const { rows } = await db.query(
+      `INSERT INTO submission_sequences (surveyor_profile_id, year, current_sequence)
+       VALUES ($1, $2, 1)
+       ON CONFLICT (surveyor_profile_id, year)
+       DO UPDATE SET current_sequence = submission_sequences.current_sequence + 1
+       RETURNING current_sequence`,
+      [surveyorProfileId, year]
+    )
 
-    if (result.error) {
-      throw result.error
-    }
-
-    const sequence = result.data
+    const sequence = rows[0]?.current_sequence ?? 1
     const referenceNumber = `ISK_${year}_${String(sequence).padStart(3, '0')}_R00`
 
     return NextResponse.json({ 

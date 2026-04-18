@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { BathymetricSurvey, SoundingPoint, ContourLine, Hazard } from '@/types/bathymetry'
 
 export interface CreateSurveyInput {
@@ -10,12 +10,12 @@ export interface CreateSurveyInput {
 }
 
 export async function createSurvey(params: CreateSurveyInput): Promise<BathymetricSurvey> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('bathymetric_surveys')
     .insert({
       project_id: params.project_id,
@@ -33,8 +33,8 @@ export async function createSurvey(params: CreateSurveyInput): Promise<Bathymetr
 }
 
 export async function getSurveys(projectId: string): Promise<BathymetricSurvey[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('bathymetric_surveys')
     .select('*')
     .eq('project_id', projectId)
@@ -45,8 +45,8 @@ export async function getSurveys(projectId: string): Promise<BathymetricSurvey[]
 }
 
 export async function getSurvey(id: string): Promise<BathymetricSurvey | null> {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('bathymetric_surveys')
     .select('*')
     .eq('id', id)
@@ -57,8 +57,8 @@ export async function getSurvey(id: string): Promise<BathymetricSurvey | null> {
 }
 
 export async function updateSurvey(id: string, updates: Partial<BathymetricSurvey>): Promise<BathymetricSurvey> {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('bathymetric_surveys')
     .update(updates)
     .eq('id', id)
@@ -70,8 +70,8 @@ export async function updateSurvey(id: string, updates: Partial<BathymetricSurve
 }
 
 export async function deleteSurvey(id: string): Promise<void> {
-  const supabase = createClient()
-  const { error } = await supabase
+  const dbClient = createClient()
+  const { error } = await dbClient
     .from('bathymetric_surveys')
     .delete()
     .eq('id', id)

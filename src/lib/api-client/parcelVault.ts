@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import type { NLIMSParcel } from '@/types/nlims'
 
 export type VaultFreshness = 'FRESH' | 'VERIFY' | 'STALE'
@@ -59,10 +59,10 @@ export async function searchVault(
   county: string,
   userId: string
 ): Promise<VaultSearchResult | null> {
-  const supabase = await createClient()
+  const dbClient = await createClient()
   const sanitized = parcelNumber.trim().toUpperCase().replace(/\s+/g, '')
 
-  const { data: personal } = await supabase
+  const { data: personal } = await dbClient
     .from('parcel_vault')
     .select('*')
     .eq('parcel_number', sanitized)
@@ -78,7 +78,7 @@ export async function searchVault(
     }
   }
 
-  const { data: shared } = await supabase
+  const { data: shared } = await dbClient
     .from('parcel_vault_shared')
     .select('*')
     .eq('parcel_number', sanitized)
@@ -103,10 +103,10 @@ export async function saveToVault(
   share: boolean,
   userId: string
 ): Promise<void> {
-  const supabase = await createClient()
+  const dbClient = await createClient()
   const sanitized = parcel.parcelNumber.trim().toUpperCase().replace(/\s+/g, '')
 
-  await supabase
+  await dbClient
     .from('parcel_vault')
     .upsert({
       user_id: userId,
@@ -125,7 +125,7 @@ export async function saveToVault(
     }, { onConflict: 'user_id,parcel_number' })
 
   if (share) {
-    await supabase
+    await dbClient
       .from('parcel_vault_shared')
       .upsert({
         parcel_number: sanitized,
@@ -144,8 +144,8 @@ export async function saveToVault(
 }
 
 export async function getUserVault(userId: string): Promise<ParcelVaultEntry[]> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
+  const dbClient = await createClient()
+  const { data, error } = await dbClient
     .from('parcel_vault')
     .select('*')
     .eq('user_id', userId)
@@ -156,13 +156,13 @@ export async function getUserVault(userId: string): Promise<ParcelVaultEntry[]> 
 }
 
 export async function getVaultStats(): Promise<VaultStats> {
-  const supabase = await createClient()
+  const dbClient = await createClient()
   const [total, shared, fresh, verify, stale] = await Promise.all([
-    supabase.from('parcel_vault').select('id', { count: 'exact', head: true }),
-    supabase.from('parcel_vault_shared').select('id', { count: 'exact', head: true }),
-    supabase.from('parcel_vault').select('id', { count: 'exact', head: true }).eq('freshness', 'FRESH'),
-    supabase.from('parcel_vault').select('id', { count: 'exact', head: true }).eq('freshness', 'VERIFY'),
-    supabase.from('parcel_vault').select('id', { count: 'exact', head: true }).eq('freshness', 'STALE')
+    dbClient.from('parcel_vault').select('id', { count: 'exact', head: true }),
+    dbClient.from('parcel_vault_shared').select('id', { count: 'exact', head: true }),
+    dbClient.from('parcel_vault').select('id', { count: 'exact', head: true }).eq('freshness', 'FRESH'),
+    dbClient.from('parcel_vault').select('id', { count: 'exact', head: true }).eq('freshness', 'VERIFY'),
+    dbClient.from('parcel_vault').select('id', { count: 'exact', head: true }).eq('freshness', 'STALE')
   ])
 
   return {
@@ -175,8 +175,8 @@ export async function getVaultStats(): Promise<VaultStats> {
 }
 
 export async function deleteVaultEntry(parcelNumber: string, userId: string): Promise<void> {
-  const supabase = await createClient()
-  await supabase
+  const dbClient = await createClient()
+  await dbClient
     .from('parcel_vault')
     .delete()
     .eq('parcel_number', parcelNumber)

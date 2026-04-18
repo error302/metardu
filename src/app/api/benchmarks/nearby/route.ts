@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 // Haversine formula to calculate distance between two points
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all active benchmarks (simple approach without PostGIS)
-    const supabase = createClient()
-    const { data: benchmarks, error } = await supabase
+    const dbClient = createClient()
+    const { data: benchmarks, error } = await dbClient
       .from('benchmarks')
       .select('*')
       .eq('status', 'ACTIVE')

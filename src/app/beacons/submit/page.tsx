@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import Link from 'next/link'
 
 export default function SubmitBeaconPage() {
@@ -20,7 +20,7 @@ export default function SubmitBeaconPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
 
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,10 +28,10 @@ export default function SubmitBeaconPage() {
     setError('')
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await dbClient.auth.getSession()
       const user = session?.user
       
-      const { error: insertError } = await supabase.from('public_beacons').insert({
+      const { error: insertError } = await dbClient.from('public_beacons').insert({
         name: form.name,
         easting: parseFloat(form.easting),
         northing: parseFloat(form.northing),

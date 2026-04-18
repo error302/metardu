@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/api-client/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const dbClient = await createClient();
+  const { data: { session } } = await dbClient.auth.getSession();
   
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing projectId or entries' }, { status: 400 });
   }
 
-  const { data: project } = await supabase
+  const { data: project } = await dbClient
     .from('projects')
     .select('id')
     .eq('id', projectId)
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }
 
-  const { data: importSession } = await supabase
+  const { data: importSession } = await dbClient
     .from('import_sessions')
     .insert({
       project_id: projectId,
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  const { data: existing } = await supabase
+  const { data: existing } = await dbClient
     .from('project_fieldbook_entries')
     .select('row_index')
     .eq('project_id', projectId)
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  const { error } = await supabase
+  const { error } = await dbClient
     .from('project_fieldbook_entries')
     .upsert(fieldbookEntries, { onConflict: 'project_id,row_index' });
 
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await supabase
+  await dbClient
     .from('projects')
     .update({ last_fieldbook_update: new Date().toISOString() })
     .eq('id', projectId);

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { useRouter } from 'next/navigation'
 
 interface Profile {
@@ -33,18 +33,18 @@ export default function ProfilePage() {
   })
 
   const router = useRouter()
-  const supabase = createClient()
+  const dbClient = createClient()
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await dbClient.auth.getSession()
       const user = session?.user
       if (!user) {
         window.location.replace('/login?next=%2Fprofile')
         return
       }
 
-      const { data } = await supabase
+      const { data } = await dbClient
         .from('profiles')
         .select('*')
         .eq('id', user.id)
@@ -69,11 +69,11 @@ export default function ProfilePage() {
     setSaving(true)
     setSaved(false)
 
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user
     if (!user) return
 
-    const { error } = await supabase
+    const { error } = await dbClient
       .from('profiles')
       .upsert({
         id: user.id,

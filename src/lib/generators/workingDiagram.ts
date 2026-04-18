@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import { computeDeedPlanGeometry } from './deedPlanGeometry';
 import { renderBoundaryPlan } from './deedPlanRenderer';
 import { addPageFooter } from './pdfTitleBlock';
@@ -14,10 +14,10 @@ const TABLE_W = A4_W - PLAN_W - MARGIN * 1.5;
 
 export async function generateWorkingDiagramPdf(
   projectId: string,
-  supabase: ReturnType<typeof createClient>
+  dbClient: ReturnType<typeof createClient>
 ): Promise<Buffer> {
 
-  const { data: project } = await supabase
+  const { data: project } = await dbClient
     .from('projects')
     .select('name, survey_type, lr_number, utm_zone, hemisphere, datum, field_book_no, computations_no')
     .eq('id', projectId)
@@ -25,7 +25,7 @@ export async function generateWorkingDiagramPdf(
 
   if (!project) throw new Error('Project not found.');
 
-  const geom = await computeDeedPlanGeometry(projectId, supabase);
+  const geom = await computeDeedPlanGeometry(projectId, dbClient);
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 

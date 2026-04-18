@@ -3,7 +3,9 @@ import { z } from 'zod'
 import { getStripeService } from '@/lib/payments/stripe'
 import { getPayPalService } from '@/lib/payments/paypal'
 import { getMpesaService } from '@/lib/payments/mpesa'
-import { createClient } from '@/lib/supabase/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import db from '@/lib/db'
 import type { CurrencyCode, PlanId } from '@/lib/subscription/catalog'
 import { getPlan } from '@/lib/subscription/catalog'
 
@@ -22,9 +24,8 @@ export async function POST(request: NextRequest) {
     const { provider, action } = parsed.data
     const params = (body ?? {}) as Record<string, any>
 
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    const user = session?.user ?? null
+    const session = await getServerSession(authOptions)
+    const user = session?.user ? { id: (session.user as any).id, email: session.user.email } : null
 
     const requireUser = () => {
       if (!user) {
@@ -59,38 +60,32 @@ export async function POST(request: NextRequest) {
 
       if (input.status === 'completed') {
         // Upsert-style: replace existing subscription row for this user.
-        const { data: existing } = await supabase
-          .from('user_subscriptions')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle()
+        const { rows: existing } = await db.query(
+          'SELECT id FROM user_subscriptions WHERE user_id = $1 LIMIT 1',
+          [user.id]
+        )
 
-        const payload = {
-          user_id: user.id,
-          plan_id: input.planId,
-          status: 'active',
-          payment_method: input.payment_method,
-          currency: input.currency,
-          current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        }
+        const now = new Date().toISOString()
+        const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
-        if (existing?.id) {
-          await supabase.from('user_subscriptions').update(payload).eq('id', existing.id)
+        if (existing.length > 0) {
+          await db.query(
+            `UPDATE user_subscriptions SET plan_id = $1, status = 'active', payment_method = $2, currency = $3, current_period_start = $4, current_period_end = $5 WHERE id = $6`,
+            [input.planId, input.payment_method, input.currency, now, periodEnd, existing[0].id]
+          )
         } else {
-          await supabase.from('user_subscriptions').insert(payload)
+          await db.query(
+            `INSERT INTO user_subscriptions (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end) VALUES ($1, $2, 'active', $3, $4, $5, $6)`,
+            [user.id, input.planId, input.payment_method, input.currency, now, periodEnd]
+          )
         }
       }
 
       if (input.paymentId) {
-        await supabase
-          .from('payment_history')
-          .update({
-            status: input.status,
-            transaction_id: input.transaction_id ?? null,
-          })
-          .eq('id', input.paymentId)
-          .eq('user_id', user.id)
+        await db.query(
+          `UPDATE payment_history SET status = $1, transaction_id = $2 WHERE id = $3 AND user_id = $4`,
+          [input.status, input.transaction_id ?? null, input.paymentId, user.id]
+        )
       }
     }
 
@@ -128,24 +123,17 @@ export async function POST(request: NextRequest) {
       }
 
       // Create payment history row first (links provider callbacks to a user safely).
-      const { data: paymentRow, error: payErr } = await supabase
-        .from('payment_history')
-        .insert({
-          user_id: user!.id,
-          amount: priced.amount,
-          currency: priced.currency,
-          status: 'pending',
-          payment_method: provider,
-          plan_id: planId,
-        })
-        .select('id')
-        .single()
-
-      if (payErr || !paymentRow?.id) {
-        return NextResponse.json({ error: payErr?.message || 'Failed to create payment record' }, { status: 500 })
+      let paymentId: string
+      try {
+        const { rows } = await db.query(
+          `INSERT INTO payment_history (user_id, amount, currency, status, payment_method, plan_id) VALUES ($1, $2, $3, 'pending', $4, $5) RETURNING id`,
+          [user!.id, priced.amount, priced.currency, provider, planId]
+        )
+        if (!rows[0]?.id) throw new Error('No ID returned')
+        paymentId = rows[0].id
+      } catch (err: any) {
+        return NextResponse.json({ error: err.message || 'Failed to create payment record' }, { status: 500 })
       }
-
-      const paymentId = paymentRow.id as string
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
       if (provider === 'stripe') {
@@ -167,7 +155,7 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        await supabase.from('payment_history').update({ transaction_id: session.id }).eq('id', paymentId)
+        await db.query('UPDATE payment_history SET transaction_id = $1 WHERE id = $2 AND user_id = $3', [session.id, paymentId, user!.id])
 
         return NextResponse.json({ kind: 'redirect', provider: 'stripe', url: session.url, paymentId })
       }
@@ -189,7 +177,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'PayPal did not return approval link' }, { status: 500 })
         }
 
-        await supabase.from('payment_history').update({ transaction_id: order.id }).eq('id', paymentId)
+        await db.query('UPDATE payment_history SET transaction_id = $1 WHERE id = $2 AND user_id = $3', [order.id, paymentId, user!.id])
 
         return NextResponse.json({ kind: 'redirect', provider: 'paypal', url: approval, paymentId })
       }
@@ -215,7 +203,7 @@ export async function POST(request: NextRequest) {
           callbackUrl,
         })
 
-        await supabase.from('payment_history').update({ transaction_id: result.checkoutRequestId }).eq('id', paymentId)
+        await db.query('UPDATE payment_history SET transaction_id = $1 WHERE id = $2 AND user_id = $3', [result.checkoutRequestId, paymentId, user!.id])
 
         return NextResponse.json({
           kind: 'mpesa',
@@ -243,12 +231,11 @@ export async function POST(request: NextRequest) {
             const s = z.object({ sessionId: z.string().min(1), paymentId: z.string().uuid(), planId: z.enum(['free','pro','team']) }).safeParse(params)
             if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
 
-            const { data: pay } = await supabase
-              .from('payment_history')
-              .select('id, plan_id, currency, amount, transaction_id, status')
-              .eq('id', s.data.paymentId)
-              .eq('user_id', user!.id)
-              .maybeSingle()
+            const { rows: payRows } = await db.query(
+              'SELECT id, plan_id, currency, amount, transaction_id, status FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
+              [s.data.paymentId, user!.id]
+            )
+            const pay = payRows[0] ?? null
 
             if (!pay) return NextResponse.json({ error: 'Payment not found.' }, { status: 404 })
             if (pay.plan_id !== s.data.planId) return NextResponse.json({ error: 'Plan mismatch.' }, { status: 400 })
@@ -321,12 +308,11 @@ export async function POST(request: NextRequest) {
             const s = z.object({ orderId: z.string().min(1), paymentId: z.string().uuid(), planId: z.enum(['free','pro','team']) }).safeParse(params)
             if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
 
-            const { data: pay } = await supabase
-              .from('payment_history')
-              .select('id, plan_id, currency, amount, transaction_id, status')
-              .eq('id', s.data.paymentId)
-              .eq('user_id', user!.id)
-              .maybeSingle()
+            const { rows: payRows } = await db.query(
+              'SELECT id, plan_id, currency, amount, transaction_id, status FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
+              [s.data.paymentId, user!.id]
+            )
+            const pay = payRows[0] ?? null
 
             if (!pay) return NextResponse.json({ error: 'Payment not found.' }, { status: 404 })
             if (pay.plan_id !== s.data.planId) return NextResponse.json({ error: 'Plan mismatch.' }, { status: 400 })
@@ -415,12 +401,11 @@ export async function POST(request: NextRequest) {
             const s = z.object({ paymentId: z.string().uuid(), checkoutRequestId: z.string().min(1) }).safeParse(params)
             if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
 
-            const { data: pay } = await supabase
-              .from('payment_history')
-              .select('id, plan_id, currency, amount, status')
-              .eq('id', s.data.paymentId)
-              .eq('user_id', user!.id)
-              .maybeSingle()
+            const { rows: payRows } = await db.query(
+              'SELECT id, plan_id, currency, amount, status FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
+              [s.data.paymentId, user!.id]
+            )
+            const pay = payRows[0] ?? null
 
             if (!pay) return NextResponse.json({ error: 'Payment not found.' }, { status: 404 })
             if (pay.status === 'completed') return NextResponse.json({ status: 'completed' })
@@ -461,19 +446,24 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  // Only report providers that have real (non-mock) keys configured
+  const isReal = (key: string | undefined) => !!key && !key.includes('mockup') && !key.includes('Mock')
+
+  const stripe = isReal(process.env.STRIPE_SECRET_KEY)
+  const paypal = isReal(process.env.PAYPAL_CLIENT_ID)
+  const mpesa = isReal(process.env.MPESA_CONSUMER_KEY)
+  const airtel = isReal(process.env.AIRTEL_CLIENT_ID)
+
+  const paymentMethods = [
+    ...(stripe || paypal ? [{ id: 'card', name: 'Credit/Debit Card', providers: [stripe && 'stripe', paypal && 'paypal'].filter(Boolean) }] : []),
+    ...(mpesa ? [{ id: 'mpesa', name: 'M-Pesa', providers: ['mpesa'] }] : []),
+    ...(airtel ? [{ id: 'airtel_money', name: 'Airtel Money', providers: ['airtel'] }] : []),
+    ...(paypal ? [{ id: 'paypal', name: 'PayPal', providers: ['paypal'] }] : []),
+  ]
+
   return NextResponse.json({
-    providers: {
-      stripe: !!process.env.STRIPE_SECRET_KEY,
-      paypal: !!process.env.PAYPAL_CLIENT_ID,
-      mpesa: !!process.env.MPESA_CONSUMER_KEY,
-      airtel: !!process.env.AIRTEL_CLIENT_ID
-    },
+    providers: { stripe, paypal, mpesa, airtel },
     currencies: ['USD', 'KES', 'UGX', 'TZ', 'EUR', 'GBP'],
-    paymentMethods: [
-      { id: 'card', name: 'Credit/Debit Card', providers: ['stripe', 'paypal'] },
-      { id: 'mpesa', name: 'M-Pesa', providers: ['mpesa'] },
-      { id: 'airtel_money', name: 'Airtel Money', providers: ['airtel'] },
-      { id: 'paypal', name: 'PayPal', providers: ['paypal'] }
-    ]
+    paymentMethods,
   })
 }

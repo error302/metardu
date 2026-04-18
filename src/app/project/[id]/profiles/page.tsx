@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import Link from 'next/link';
 import { computeChainageTable } from '@/lib/engine/chainage'
 import { generateLongitudinalProfileSvg } from '@/lib/reports/profileSvg'
@@ -50,7 +50,7 @@ interface CrossSection {
 }
 
 export default function ProfilesPage({ params }: PageProps) {
-  const supabase = createClient();
+  const dbClient = createClient();
   const [profileError, setProfileError] = useState<string|null>(null)
   const [project, setProject] = useState<Project | null>(null);
   const [points, setPoints] = useState<SurveyPoint[]>([]);
@@ -74,21 +74,21 @@ export default function ProfilesPage({ params }: PageProps) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: projectData } = await supabase
+      const { data: projectData } = await dbClient
         .from('projects')
         .select('*')
         .eq('id', params.id)
         .single();
       if (projectData) setProject(projectData);
 
-      const { data: pointsData } = await supabase
+      const { data: pointsData } = await dbClient
         .from('survey_points')
         .select('*')
         .eq('project_id', params.id)
         .order('name');
       if (pointsData) setPoints(pointsData);
 
-      const { data: alignmentsData } = await supabase
+      const { data: alignmentsData } = await dbClient
         .from('alignments')
         .select('*')
         .eq('project_id', params.id)
@@ -99,21 +99,21 @@ export default function ProfilesPage({ params }: PageProps) {
     } finally {
       setLoading(false);
     }
-  }, [supabase, params.id]);
+  }, [dbClient, params.id]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   const loadAlignmentData = async (alignmentId: string) => {
-    const { data: cpData } = await supabase
+    const { data: cpData } = await dbClient
       .from('chainage_points')
       .select('*')
       .eq('alignment_id', alignmentId)
       .order('chainage');
     if (cpData) setChainagePoints(cpData);
 
-    const { data: csData } = await supabase
+    const { data: csData } = await dbClient
       .from('cross_sections')
       .select('*')
       .eq('alignment_id', alignmentId)
@@ -125,7 +125,7 @@ export default function ProfilesPage({ params }: PageProps) {
     if (!newAlignmentName || selectedPoints.length < 2) return;
 
     try {
-      const { data: alignment, error } = await supabase
+      const { data: alignment, error } = await dbClient
         .from('alignments')
         .insert({
           project_id: params.id,
@@ -158,7 +158,7 @@ export default function ProfilesPage({ params }: PageProps) {
         }
       })
 
-      await supabase.from('chainage_points').insert(chainageData)
+      await dbClient.from('chainage_points').insert(chainageData)
 
       setNewAlignmentName('');
       setSelectedPoints([]);
@@ -191,7 +191,7 @@ export default function ProfilesPage({ params }: PageProps) {
 
     const centerPoint = chainagePoints.find((cp: any) => Math.abs(cp.chainage - chainage) < 0.001);
     
-    await supabase.from('cross_sections').insert({
+    await dbClient.from('cross_sections').insert({
       alignment_id: selectedAlignment.id,
       chainage,
       offset_distance: 0,

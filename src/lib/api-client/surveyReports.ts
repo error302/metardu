@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type {
   SurveyReportInput,
   SectionContent,
@@ -26,12 +26,12 @@ export async function createSurveyReport(
   completeness: number,
   projectId: string
 ): Promise<string> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('survey_reports')
     .insert({
       project_id: projectId,
@@ -57,12 +57,12 @@ export async function saveSurveyReport(
   sections: SectionContent[],
   completeness: number
 ): Promise<void> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { error } = await supabase
+  const { error } = await dbClient
     .from('survey_reports')
     .update({
       input_data: input,
@@ -79,12 +79,12 @@ export async function saveSurveyReport(
 export async function getSurveyReportsByProject(
   projectId: string
 ): Promise<SurveyReportSummary[]> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('survey_reports')
     .select('id, report_number, report_title, revision, status, completeness, created_at, updated_at')
     .eq('project_id', projectId)
@@ -108,12 +108,12 @@ export async function getSurveyReportsByProject(
 export async function getSurveyReportById(
   id: string
 ): Promise<(SurveyReportInput & { sections: SectionContent[]; completeness: number; status: string; reportNumber: string; reportTitle: string; revision: string }) | null> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('survey_reports')
     .select('*')
     .eq('id', id)
@@ -141,12 +141,12 @@ export async function updateReportStatus(
   id: string,
   status: 'draft' | 'review' | 'finalised'
 ): Promise<void> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { error } = await supabase
+  const { error } = await dbClient
     .from('survey_reports')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -156,12 +156,12 @@ export async function updateReportStatus(
 }
 
 export async function deleteSurveyReport(id: string): Promise<void> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { error } = await supabase
+  const { error } = await dbClient
     .from('survey_reports')
     .delete()
     .eq('id', id)

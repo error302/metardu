@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 export interface MetarduJob {
   id: string
@@ -30,12 +30,12 @@ export interface JobChecklist {
 export type CreateJobInput = Omit<MetarduJob, 'id' | 'created_at' | 'updated_at' | 'user_id'>
 
 export async function getUserJobs(): Promise<MetarduJob[]> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) return []
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('jobs')
     .select('*')
     .eq('user_id', user.id)
@@ -46,12 +46,12 @@ export async function getUserJobs(): Promise<MetarduJob[]> {
 }
 
 export async function createJob(job: CreateJobInput): Promise<MetarduJob> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('jobs')
     .insert({ ...job, user_id: user.id })
     .select()
@@ -62,8 +62,8 @@ export async function createJob(job: CreateJobInput): Promise<MetarduJob> {
 }
 
 export async function getJob(id: string): Promise<MetarduJob | null> {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('jobs')
     .select('*')
     .eq('id', id)
@@ -74,8 +74,8 @@ export async function getJob(id: string): Promise<MetarduJob | null> {
 }
 
 export async function updateJob(id: string, updates: Partial<MetarduJob>): Promise<MetarduJob> {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('jobs')
     .update(updates)
     .eq('id', id)
@@ -87,8 +87,8 @@ export async function updateJob(id: string, updates: Partial<MetarduJob>): Promi
 }
 
 export async function deleteJob(id: string): Promise<void> {
-  const supabase = createClient()
-  const { error } = await supabase
+  const dbClient = createClient()
+  const { error } = await dbClient
     .from('jobs')
     .delete()
     .eq('id', id)
@@ -97,8 +97,8 @@ export async function deleteJob(id: string): Promise<void> {
 }
 
 export async function getEquipmentByType(survey_type: string): Promise<string[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('equipment_recommendations')
     .select('equipment')
     .eq('survey_type', survey_type)
@@ -109,8 +109,8 @@ export async function getEquipmentByType(survey_type: string): Promise<string[]>
 }
 
 export async function getChecklistByType(survey_type: string): Promise<string[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('job_checklists')
     .select('tasks')
     .eq('survey_type', survey_type)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import { z } from 'zod'
 
 export async function POST(req: NextRequest) {
@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
 
     const { event, properties, url } = parsed.data
 
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
 
     // Prevent abuse via huge blobs (keep a small, predictable payload).
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await supabase.from('analytics_events').insert({
+    await dbClient.from('analytics_events').insert({
       user_id: user?.id || null,
       event,
       properties: safeProps,

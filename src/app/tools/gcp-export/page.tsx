@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { exportGCPs, GCP_FORMATS, GCPFormat, GCPPoint } from '@/lib/export/gcpExport'
 import Link from 'next/link'
 
@@ -27,11 +27,11 @@ export default function GCPExportPage() {
 
   // Load projects
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const dbClient = createClient()
+    dbClient.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user
       if (!user) return
-      supabase.from('projects').select('id, name, utm_zone, hemisphere')
+      dbClient.from('projects').select('id, name, utm_zone, hemisphere')
         .eq('user_id', user.id).order('created_at', { ascending: false })
         .then(({ data }) => { if (data) setProjects(data) })
     })
@@ -41,9 +41,9 @@ export default function GCPExportPage() {
   useEffect(() => {
     if (!selectedProject) { setPoints([]); return }
     setLoading(true)
-    const supabase = createClient()
+    const dbClient = createClient()
     const project = projects.find((p: any) => p.id === selectedProject)
-    supabase.from('survey_points').select('*')
+    dbClient.from('survey_points').select('*')
       .eq('project_id', selectedProject)
       .eq('is_control', true)
       .then(({ data }) => {

@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import { Check, X, AlertTriangle } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import type { VerifySignatureResponse } from '@/types/signature'
 
 async function getVerification(token: string): Promise<VerifySignatureResponse> {
-  const supabase = await createClient()
-  const result = await supabase
+  const dbClient = await createClient()
+  const result = await dbClient
     .from('document_signatures')
     .select('*')
     .eq('verification_token', token.toUpperCase())

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 interface AuditLog {
   id: string
@@ -22,12 +22,12 @@ export default function AuditLogsPage() {
   const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getSession().then(({ data }) => {
+    const dbClient = createClient()
+    dbClient.auth.getSession().then(({ data }) => {
       const user = data.session?.user
       setUser(user)
       if (user) {
-        supabase
+        dbClient
           .from('audit_logs')
           .select('*, projects:project_id(name)')
           .eq('user_id', user.id)

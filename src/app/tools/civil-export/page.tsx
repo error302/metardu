@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { exportCivil, CIVIL_FORMATS, CivilFormat, CivilPoint } from '@/lib/export/civilHandoff'
 import Link from 'next/link'
 

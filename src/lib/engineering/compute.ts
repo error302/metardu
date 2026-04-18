@@ -12,11 +12,11 @@
 
 import { z } from 'zod';
 
-let supabase: any = null;
+let dbClient: any = null;
 
 export async function initComputeLogger() {
-  const { createClient } = await import('@/lib/supabase/client');
-  supabase = createClient();
+  const { createClient } = await import('@/lib/api-client/client');
+  dbClient = createClient();
 }
 
 async function logComputation(
@@ -26,20 +26,20 @@ async function logComputation(
   projectId?: string,
   userId?: string
 ) {
-  if (!supabase) {
+  if (!dbClient) {
     try {
-      const { createClient } = await import('@/lib/supabase/client');
-      supabase = createClient();
+      const { createClient } = await import('@/lib/api-client/client');
+      dbClient = createClient();
     } catch (e) {
-      console.warn('Compute logger: Supabase not available');
+      console.warn('Compute logger: DbClient not available');
       return;
     }
   }
   
-  if (!supabase) return;
+  if (!dbClient) return;
   
   try {
-    await supabase.from('engineering_compute_logs').insert({
+    await dbClient.from('engineering_compute_logs').insert({
       computation_type: computationType,
       project_id: projectId,
       user_id: userId,

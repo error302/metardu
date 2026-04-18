@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { useRouter } from 'next/navigation'
 import { getUTMZoneFromLatLng } from '@/lib/engine/utmZones'
 import { useCountry, ALL_COUNTRIES } from '@/lib/country'
@@ -26,7 +26,7 @@ export default function NewProjectPage() {
   const [loading, setLoading] = useState(false)
   const [detecting, setDetecting] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const handleCountryChange = (newCountry: SurveyingCountry) => {
     setSelectedCountry(newCountry)
@@ -135,7 +135,7 @@ export default function NewProjectPage() {
     let mounted = true
 
     const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await dbClient.auth.getSession()
       if (mounted && session?.user?.email) {
         setSurveyorName(session.user.email)
       }
@@ -144,20 +144,20 @@ export default function NewProjectPage() {
     void getUser()
 
     return () => { mounted = false }
-  }, [supabase])
+  }, [dbClient])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await dbClient.auth.getSession()
     if (!session?.user) {
       window.location.replace('/login?next=%2Fproject%2Fnew')
       return
     }
 
-    const { error } = await supabase.from('projects').insert({
+    const { error } = await dbClient.from('projects').insert({
       name,
       location,
       utm_zone: parseInt(utmZone),

@@ -1,12 +1,12 @@
 /**
- * Realtime module — Supabase-free stub
+ * Realtime module — DbClient-free stub
  * 
- * Provides the same API surface but uses the local Supabase compat client.
+ * Provides the same API surface but uses the local DbClient compat client.
  * Real-time features (presence, live updates) require a WebSocket server
  * on the VM (future enhancement). For now, presence is a no-op.
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 export interface PresenceUser {
   id: string

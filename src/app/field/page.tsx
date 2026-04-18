@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
@@ -71,31 +71,31 @@ export default function FieldPage() {
   const [rBearingSec, setRBearingSec] = useState('')
   const [rDist, setRDist] = useState('')
 
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const fetchProjects = useCallback(async (userId: string) => {
-    const { data } = await supabase
+    const { data } = await dbClient
       .from('projects')
       .select('id, name, survey_type')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
     if (data) setProjects(data)
-  }, [supabase])
+  }, [dbClient])
 
   const fetchProjectPoints = useCallback(async (projectId: string) => {
     if (!projectId) return
-    const { data } = await supabase
+    const { data } = await dbClient
       .from('survey_points')
       .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
     if (data) setPoints(data)
-  }, [supabase])
+  }, [dbClient])
 
   // Auth check
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await dbClient.auth.getSession()
       const user = session?.user
       if (!user) {
         window.location.replace('/login?next=%2Ffield')
@@ -107,12 +107,12 @@ export default function FieldPage() {
       fetchProjectPoints(selectedProject)
     }
     checkAuth()
-  }, [router, supabase, selectedProject, fetchProjects, fetchProjectPoints])
+  }, [router, dbClient, selectedProject, fetchProjects, fetchProjectPoints])
 
   useEffect(() => {
     if (!user) return
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = dbClient.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         setUser(null)
         window.location.replace('/login?next=%2Ffield')
@@ -121,7 +121,7 @@ export default function FieldPage() {
       }
     })
     return () => subscription.unsubscribe()
-  }, [user, supabase, router])
+  }, [user, dbClient, router])
 
   // Point batch parser
   const parseBatchCSV = () => {
@@ -169,7 +169,7 @@ export default function FieldPage() {
     if (!selectedProject || batchParseResults.length === 0) return
 
     try {
-      await supabase.from('survey_points').insert(
+      await dbClient.from('survey_points').insert(
         batchParseResults.map((p: any) => ({ ...p, project_id: selectedProject }))
       )
       setBatchCSV('')
@@ -188,7 +188,7 @@ export default function FieldPage() {
     if (!pName || !pE || !pN || !selectedProject) return
 
     try {
-      await supabase.from('survey_points').insert({
+      await dbClient.from('survey_points').insert({
         name: pName,
         easting: parseFloat(pE),
         northing: parseFloat(pN),

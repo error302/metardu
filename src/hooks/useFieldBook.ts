@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import { SurveyType } from '@/types/project';
 import { FieldBookRow } from '@/types/fieldbook';
 
@@ -12,7 +12,7 @@ interface UseFieldBookOptions {
 }
 
 export function useFieldBook({ projectId, surveyType, initialRows = [] }: UseFieldBookOptions) {
-  const supabase = useMemo(() => createClient(), []);
+  const dbClient = useMemo(() => createClient(), []);
   const [rows, setRows] = useState<FieldBookRow[]>(initialRows);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -24,7 +24,7 @@ export function useFieldBook({ projectId, surveyType, initialRows = [] }: UseFie
     setLoading(true);
     setError(null);
     
-    const { data, error: fetchError } = await supabase
+    const { data, error: fetchError } = await dbClient
       .from('project_fieldbook_entries')
       .select('*')
       .eq('project_id', projectId)
@@ -50,7 +50,7 @@ export function useFieldBook({ projectId, surveyType, initialRows = [] }: UseFie
     }
     
     setLoading(false);
-  }, [projectId, surveyType, supabase]);
+  }, [projectId, surveyType, dbClient]);
 
   const save = useCallback(async (rowsToSave: FieldBookRow[]) => {
     if (saveTimer.current) {
@@ -72,7 +72,7 @@ export function useFieldBook({ projectId, surveyType, initialRows = [] }: UseFie
         };
       });
 
-      const { error: saveError } = await supabase
+      const { error: saveError } = await dbClient
         .from('project_fieldbook_entries')
         .upsert(records, { onConflict: 'project_id,survey_type,row_index' });
 
@@ -83,7 +83,7 @@ export function useFieldBook({ projectId, surveyType, initialRows = [] }: UseFie
       }
       setSaving(false);
     }, 500);
-  }, [projectId, surveyType, supabase]);
+  }, [projectId, surveyType, dbClient]);
 
   useEffect(() => {
     load();

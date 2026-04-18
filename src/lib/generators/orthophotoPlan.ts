@@ -2,7 +2,7 @@ import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { jsPDF } from 'jspdf';
-import type { createClient } from '@/lib/supabase/client';
+import type { createClient } from '@/lib/api-client/client';
 import {
   chooseBoundaryPoints,
   chooseOrthophotoCandidate,
@@ -65,7 +65,7 @@ const PANEL_H = 78;
 
 export async function generateOrthophotoPlan(
   projectId: string,
-  supabase: CompatSupabaseClient
+  dbClient: CompatSupabaseClient
 ): Promise<Buffer> {
   const [
     projectRes,
@@ -76,13 +76,13 @@ export async function generateOrthophotoPlan(
     docsRes,
     submissionRes,
   ] = await Promise.all([
-    supabase.from('projects').select('*').eq('id', projectId).single(),
-    supabase.from('parcels').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('survey_points').select('*').eq('project_id', projectId).order('created_at', { ascending: true }),
-    supabase.from('cadastra_validations').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('project_attachments').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
-    supabase.from('documents').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
-    supabase.from('project_submissions').select('supporting_attachments').eq('project_id', projectId).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+    dbClient.from('projects').select('*').eq('id', projectId).single(),
+    dbClient.from('parcels').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    dbClient.from('survey_points').select('*').eq('project_id', projectId).order('created_at', { ascending: true }),
+    dbClient.from('cadastra_validations').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    dbClient.from('project_attachments').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
+    dbClient.from('documents').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
+    dbClient.from('project_submissions').select('supporting_attachments').eq('project_id', projectId).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const project = projectRes.data as ProjectRecord | null;
@@ -91,7 +91,7 @@ export async function generateOrthophotoPlan(
   }
 
   const profile = project.user_id
-    ? (await supabase
+    ? (await dbClient
         .from('profiles')
         .select('full_name, firm_name, isk_number')
         .eq('id', project.user_id)

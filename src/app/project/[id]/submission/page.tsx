@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/api-client/server';
 import { getAuthUser } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
 import SubmissionClient from './SubmissionClient';
@@ -25,9 +25,9 @@ export default async function SubmissionPage({ params }: Props) {
   const user = await getAuthUser();
   if (!user) redirect('/login');
 
-  const supabase = await createClient();
+  const dbClient = await createClient();
 
-  const { data: project } = await supabase
+  const { data: project } = await dbClient
     .from('projects')
     .select('id, name, survey_type')
     .eq('id', params.id)
@@ -36,7 +36,7 @@ export default async function SubmissionPage({ params }: Props) {
 
   if (!project) redirect('/dashboard');
 
-  const { data: existingDocs } = await supabase
+  const { data: existingDocs } = await dbClient
     .from('submission_documents')
     .select('*')
     .eq('project_id', params.id);

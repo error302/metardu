@@ -1,6 +1,6 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { detectTotalStationFormat, TotalStationFormat } from '@/lib/import/totalStation/detectFormat'
 import { parseGSI } from '@/lib/import/totalStation/parseGSI'
 import { parseJobXML } from '@/lib/import/totalStation/parseJobXML'
@@ -21,7 +21,7 @@ interface Project {
 }
 
 export default function ImportPage() {
-  const supabase = createClient()
+  const dbClient = createClient()
   const [file, setFile] = useState<File | null>(null)
   const [content, setContent] = useState<string>('')
   const [format, setFormat] = useState<TotalStationFormat>('unknown')
@@ -35,11 +35,11 @@ export default function ImportPage() {
 
   useEffect(() => {
     async function loadProjects() {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await dbClient.auth.getSession()
       const user = session?.user
       if (!user) return
 
-      const { data } = await supabase
+      const { data } = await dbClient
         .from('projects')
         .select('id, name')
         .eq('user_id', user.id)
@@ -119,7 +119,7 @@ export default function ImportPage() {
       is_control: false
     }))
 
-    const { error } = await supabase.from('survey_points').insert(insertData)
+    const { error } = await dbClient.from('survey_points').insert(insertData)
 
     if (error) {
       console.error('Import error:', error)

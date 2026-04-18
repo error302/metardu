@@ -5,7 +5,7 @@ import Link from 'next/link'
 // papaparse loaded dynamically on CSV export
 // jsPDF loaded dynamically on PDF generation
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { heightOfCollimation, riseAndFall } from '@/lib/engine/leveling'
 import { bowditchAdjustment, forwardTraverse } from '@/lib/engine/traverse'
@@ -90,7 +90,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 
 export default function DigitalFieldBookPage() {
   const { t } = useLanguage()
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const [type, setType] = useState<FieldbookType>('leveling')
   const [projectId, setProjectId] = useState('')
@@ -226,16 +226,16 @@ export default function DigitalFieldBookPage() {
     let isMounted = true
     ;(async () => {
       try {
-        const session = await supabase.auth.getSession()
+        const session = await dbClient.auth.getSession()
         if (!session.data.session?.user) return
-        const { data, error } = await supabase.from('projects').select('id, name').order('created_at', { ascending: false })
+        const { data, error } = await dbClient.from('projects').select('id, name').order('created_at', { ascending: false })
         if (!error && data && isMounted) setProjects(data as any)
       } catch {}
     })()
     return () => {
       isMounted = false
     }
-  }, [supabase])
+  }, [dbClient])
 
   useEffect(() => {
     let isMounted = true
@@ -247,7 +247,7 @@ export default function DigitalFieldBookPage() {
 
       if (!projectId || !isOnline()) return
       try {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
           .from('fieldbooks')
           .select('id, type, name, data, updated_at, created_at')
           .eq('project_id', projectId)
@@ -265,16 +265,16 @@ export default function DigitalFieldBookPage() {
     return () => {
       isMounted = false
     }
-  }, [projectId, type, supabase])
+  }, [projectId, type, dbClient])
 
   useEffect(() => {
     setupOnlineListener(async () => {
       try {
-        const r = await syncPendingOperations(supabase)
+        const r = await syncPendingOperations(dbClient)
         setSyncStatus(r)
       } catch {}
     })
-  }, [supabase])
+  }, [dbClient])
 
     const levelingComputed = useMemo(() => {
       const open = asNumber(openingRL)
@@ -519,7 +519,7 @@ export default function DigitalFieldBookPage() {
   async function handleSyncNow() {
     setSyncStatus(null)
     try {
-      const r = await syncPendingOperations(supabase)
+      const r = await syncPendingOperations(dbClient)
       setSyncStatus(r)
     } catch {
       setSyncStatus({ synced: 0, failed: 1 })
@@ -535,7 +535,7 @@ export default function DigitalFieldBookPage() {
     setSaveStatus({ kind: 'saving' })
     const now = niceNow()
 
-    const session = await supabase.auth.getSession()
+    const session = await dbClient.auth.getSession()
     const userId = session.data.session?.user?.id
     if (!userId) {
       setSaveStatus({ kind: 'error', message: 'You must be signed in to save.' })
@@ -557,7 +557,7 @@ export default function DigitalFieldBookPage() {
       await saveFieldbookOffline(record)
 
       if (isOnline()) {
-        const { error } = await supabase.from('fieldbooks').upsert({ ...record, updated_at: undefined }).select('id')
+        const { error } = await dbClient.from('fieldbooks').upsert({ ...record, updated_at: undefined }).select('id')
         if (error) throw error
       } else {
         await queueOperation({

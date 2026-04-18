@@ -3,7 +3,7 @@ import type { SurveyType } from '@/types/project'
 import { getWorkflow } from '@/lib/workflows/workflowRegistry'
 import ProjectWorkspaceClient from './ProjectWorkspaceClient'
 import { getAuthUser } from '@/lib/auth/session'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 
 interface Props {
   params: { id: string }
@@ -27,8 +27,8 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Pro
   const user = await getAuthUser()
   if (!user) redirect('/login')
 
-  const supabase = await createClient()
-  const { data: project, error } = await supabase
+  const dbClient = await createClient()
+  const { data: project, error } = await dbClient
     .from('projects')
     .select('id, name, survey_type')
     .eq('id', params.id)

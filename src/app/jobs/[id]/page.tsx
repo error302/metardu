@@ -2,7 +2,7 @@
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getJob, getEquipmentByType, getChecklistByType, MetarduJob } from '@/lib/supabase/jobs'
+import { getJob, getEquipmentByType, getChecklistByType, MetarduJob } from '@/lib/api-client/jobs'
 import { useEffect, useState, useCallback } from 'react'
 import JobCard from '@/components/jobs/JobCard'
 

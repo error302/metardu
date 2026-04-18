@@ -1,5 +1,8 @@
 import JSZip from 'jszip'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import db from '@/lib/db'
 import { getActiveSurveyorProfile } from './surveyorProfile'
 import { generateSubmissionRef } from './revisionNumber'
 import { validateSubmission } from './validateSubmission'
@@ -38,16 +41,16 @@ interface ProjectData {
 export async function assembleSubmissionPackage(
   projectId: string
 ): Promise<{ zipBuffer: Buffer; ref: string; qa: QAGateResult }> {
-  const supabase = await createClient()
+  const dbClient = await createClient()
   const surveyor = await getActiveSurveyorProfile()
   const asNum = (value: unknown, fallback = 0): number => {
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : fallback
   }
 
-  // QueryBuilder does not support Supabase-style nested relation selects,
+  // QueryBuilder does not support DbClient-style nested relation selects,
   // so fetch project, points, and docs in separate queries.
-  const { data: project, error: projectError } = await supabase
+  const { data: project, error: projectError } = await dbClient
     .from('projects')
     .select('*')
     .eq('id', projectId)
@@ -55,7 +58,7 @@ export async function assembleSubmissionPackage(
 
   if (projectError || !project) throw new Error('Project not found')
 
-  const { data: surveyPoints, error: pointsError } = await supabase
+  const { data: surveyPoints, error: pointsError } = await dbClient
     .from('survey_points')
     .select('*')
     .eq('project_id', projectId)
@@ -64,7 +67,7 @@ export async function assembleSubmissionPackage(
     throw new Error(`Failed to load survey points: ${pointsError.message}`)
   }
 
-  const { data: supportingDocuments, error: docsError } = await supabase
+  const { data: supportingDocuments, error: docsError } = await dbClient
     .from('supporting_documents')
     .select('*')
     .eq('project_id', projectId)
@@ -343,52 +346,58 @@ export async function assembleSubmissionPackage(
 
   const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-  const { data: authSession } = await supabase.auth.getSession()
-  const userId = authSession.session?.user?.id ?? ''
+  // Get user from NextAuth session
+  const authSession = await getServerSession(authOptions)
+  const userId = (authSession?.user as any)?.id ?? ''
   
-  const { data: profile } = await supabase
-    .from('surveyor_profiles')
-    .select('id, user_id, isk_number, verified_isk')
-    .eq('user_id', userId)
-    .single()
+  const { rows: profileRows } = await db.query(
+    'SELECT id, user_id, isk_number, verified_isk FROM surveyor_profiles WHERE user_id = $1 LIMIT 1',
+    [userId]
+  )
+  const profile = profileRows[0]
 
   if (!profile) {
     throw new Error('Surveyor profile not found')
   }
 
   const currentYear = new Date().getFullYear()
-  const { data: existingSubmissions } = await supabase
-    .from('project_submissions')
-    .select('revision_number')
-    .eq('project_id', projectId)
-    .order('revision_number', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const { rows: existingRows } = await db.query(
+    'SELECT revision_number FROM project_submissions WHERE project_id = $1 ORDER BY revision_number DESC LIMIT 1',
+    [projectId]
+  )
 
-  const revisionNumber = (existingSubmissions?.revision_number ?? -1) + 1
+  const revisionNumber = (existingRows[0]?.revision_number ?? -1) + 1
 
-  const sequenceNumber = await supabase.rpc('increment_submission_sequence', {
-    p_surveyor_profile_id: profile.id,
-    p_year: currentYear
-  })
+  // Direct SQL replaces dbClient.rpc('increment_submission_sequence')
+  const { rows: seqRows } = await db.query(
+    `INSERT INTO submission_sequences (surveyor_profile_id, year, current_sequence)
+     VALUES ($1, $2, 1)
+     ON CONFLICT (surveyor_profile_id, year)
+     DO UPDATE SET current_sequence = submission_sequences.current_sequence + 1
+     RETURNING current_sequence`,
+    [profile.id, currentYear]
+  )
 
-  const sequence = sequenceNumber.data ?? 1
+  const sequence = seqRows[0]?.current_sequence ?? 1
   const submissionNumber = `${profile.isk_number}_${currentYear}_${String(sequence).padStart(3, '0')}_R${String(revisionNumber).padStart(2, '0')}`
 
-  await supabase.from('project_submissions').insert({
-    project_id: projectId,
-    surveyor_profile_id: profile.id,
-    submission_number: submissionNumber,
-    revision_code: `R${String(revisionNumber).padStart(2, '0')}`,
-    submission_year: currentYear,
-    package_status: 'ready',
-    generated_artifacts: {
-      form_no_4: 'form_no_4.dxf',
-      computation_workbook: 'computation_workbook.xlsx',
-      working_diagram: 'working_diagram.dxf'
-    },
-    validation_results: qa
-  })
+  await db.query(
+    `INSERT INTO project_submissions (project_id, surveyor_profile_id, submission_number, revision_code, submission_year, package_status, generated_artifacts, validation_results)
+     VALUES ($1, $2, $3, $4, $5, 'ready', $6, $7)`,
+    [
+      projectId,
+      profile.id,
+      submissionNumber,
+      `R${String(revisionNumber).padStart(2, '0')}`,
+      currentYear,
+      JSON.stringify({
+        form_no_4: 'form_no_4.dxf',
+        computation_workbook: 'computation_workbook.xlsx',
+        working_diagram: 'working_diagram.dxf'
+      }),
+      JSON.stringify(qa)
+    ]
+  )
 
   return { zipBuffer, ref, qa }
 }

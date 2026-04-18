@@ -1,7 +1,7 @@
 /**
- * Realtime Service — Polling-based replacement for Supabase Realtime
+ * Realtime Service — Polling-based replacement for DbClient Realtime
  *
- * Since we migrated from Supabase to direct PostgreSQL, native postgres_changes
+ * Since we migrated from DbClient to direct PostgreSQL, native postgres_changes
  * are no longer available. This service uses HTTP polling + Server-Sent Events
  * to simulate realtime collaboration features.
  */

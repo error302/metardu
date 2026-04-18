@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import { getStripeService } from '@/lib/payments/stripe'
 import type { CurrencyCode } from '@/lib/subscription/catalog'
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  const dbClient = await createClient()
 
   switch (event.type) {
     case 'checkout.session.completed': {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       if (session.metadata?.type === 'peer_review') {
         const reviewReqId = session.metadata.review_request_id
         if (reviewReqId) {
-          await supabase
+          await dbClient
             .from('peer_reviews')
             .update({ 
               payment_status: 'paid', 
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       const now = new Date()
       const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-      const { data: existing } = await supabase
+      const { data: existing } = await dbClient
         .from('user_subscriptions')
         .select('id')
         .eq('user_id', userId)
@@ -75,12 +75,12 @@ export async function POST(request: NextRequest) {
       }
 
       if (existing?.id) {
-        await supabase.from('user_subscriptions').update(payload).eq('id', existing.id)
+        await dbClient.from('user_subscriptions').update(payload).eq('id', existing.id)
       } else {
-        await supabase.from('user_subscriptions').insert(payload)
+        await dbClient.from('user_subscriptions').insert(payload)
       }
 
-      await supabase
+      await dbClient
         .from('payment_history')
         .update({
           status: 'completed',
@@ -98,14 +98,14 @@ export async function POST(request: NextRequest) {
       const status = sub.status
       const planId = sub.metadata?.plan_id || 'free'
 
-      const { data: user } = await supabase
+      const { data: user } = await dbClient
         .from('user_subscriptions')
         .select('user_id')
         .eq('user_id', sub.metadata?.user_id || '')
         .maybeSingle()
 
       if (user) {
-        await supabase
+        await dbClient
           .from('user_subscriptions')
           .update({ status: status === 'active' ? 'active' : status === 'past_due' ? 'active' : 'cancelled' })
           .eq('user_id', user.user_id)
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       const userId = sub.metadata?.user_id
 
       if (userId) {
-        await supabase
+        await dbClient
           .from('user_subscriptions')
           .update({ status: 'cancelled' })
           .eq('user_id', userId)
@@ -130,14 +130,14 @@ export async function POST(request: NextRequest) {
       const invoice = event.data.object
       const customerId = invoice.customer
 
-      const { data: userSub } = await supabase
+      const { data: userSub } = await dbClient
         .from('user_subscriptions')
         .select('user_id')
         .eq('user_id', invoice.metadata?.user_id || '')
         .maybeSingle()
 
       if (userSub) {
-        await supabase
+        await dbClient
           .from('user_subscriptions')
           .update({ status: 'expired' })
           .eq('user_id', userSub.user_id)

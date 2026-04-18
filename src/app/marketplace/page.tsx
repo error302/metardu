@@ -9,7 +9,7 @@ import {
 } from '@/lib/marketplace/instruments'
 import { compressImage, isImageFile, MAX_IMAGES, base64Bytes } from '@/lib/marketplace/imageUtils'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 // ── tiny helpers ─────────────────────────────────────────────────────────────
 

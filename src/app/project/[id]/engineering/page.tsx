@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { EngineeringData, EngineeringMode, EngineeringStandard, RoadDesignData, DrainageData, StationData, IntersectionPoint, VerticalIP, CrossSectionTemplate, StepStatus, Manhole, PipeRun } from '@/types/engineering'
 import { KRDM2017, KeRRA, getDesignSpeedRange, getCarriagewayWidth, getShoulderWidth } from '@/lib/standards/engineering'
 import { HorizontalCurvePanel } from '@/components/engineering/HorizontalCurvePanel'
@@ -15,7 +15,7 @@ import { NetworkAdjustmentPanel } from '@/components/compute/NetworkAdjustmentPa
 // import { TacheometryPanel } from '@/components/compute/TacheometryPanel'
 // import { CrossSectionsPanel } from '@/components/compute/CrossSectionsPanel'
 // import { SettingOutPanel } from '@/components/compute/SettingOutPanel'
-import type { SurveyorProfileSubmission } from '@/lib/supabase/community'
+import type { SurveyorProfileSubmission } from '@/lib/api-client/community'
 
 type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs'
 
@@ -1370,7 +1370,7 @@ export default function EngineeringWorkspacePage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const [project, setProject] = useState<EngineeringProject | null>(null)
   const [surveyorProfile, setSurveyorProfile] = useState<SurveyorProfileSubmission | null>(null)
@@ -1384,7 +1384,7 @@ export default function EngineeringWorkspacePage() {
 
   const fetchProject = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('projects')
       .select('*')
       .eq('id', params.id)
@@ -1398,7 +1398,7 @@ export default function EngineeringWorkspacePage() {
     const engData = (data as any).engineering_data as EngineeringData | null
     setProject({ ...data, engineering_data: engData } as EngineeringProject)
     
-    const { data: profile } = await supabase
+    const { data: profile } = await dbClient
       .from('surveyor_profiles')
       .select('isk_number, verified_isk, full_name, name, firm_name, company')
       .eq('user_id', (data as any).user_id)
@@ -1416,7 +1416,7 @@ export default function EngineeringWorkspacePage() {
     }
     
     setLoading(false)
-  }, [params.id, supabase])
+  }, [params.id, dbClient])
 
   useEffect(() => {
     fetchProject()
@@ -1433,7 +1433,7 @@ export default function EngineeringWorkspacePage() {
       standard: current.standard || 'KRDM2017'
     }
 
-    await supabase
+    await dbClient
       .from('projects')
       .update({ engineering_data: updated })
       .eq('id', project.id)
@@ -1466,7 +1466,7 @@ export default function EngineeringWorkspacePage() {
       }
     }
 
-    await supabase
+    await dbClient
       .from('projects')
       .update({ engineering_data: updated })
       .eq('id', project.id)

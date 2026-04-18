@@ -5,7 +5,7 @@ import { FileJson, FileSpreadsheet, FileText, Save, Loader2 } from 'lucide-react
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { CleanDataResponse } from '@/types/fieldguard'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 interface CleanedExportProps {
   cleanedData: CleanDataResponse
@@ -109,8 +109,8 @@ export default function CleanedExport({ cleanedData, projectId }: CleanedExportP
   const handleSaveToDB = async () => {
     setSaving(true)
     try {
-      const supabase = createClient()
-      await supabase.from('cleaned_datasets').insert({
+      const dbClient = createClient()
+      await dbClient.from('cleaned_datasets').insert({
         project_id: projectId,
         user_id: 'current-user',
         raw_data: [],

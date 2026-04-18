@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextResponse } from 'next/server'
@@ -14,15 +14,15 @@ export async function POST(req: Request) {
     const { projectId, hash } = await req.json()
     if (!projectId || !hash) return NextResponse.json(apiError('Missing inputs'), { status: 400 })
 
-    const supabase = await createClient()
+    const dbClient = await createClient()
 
-    const profileResult = await supabase.from('profiles').select('full_name, license_number').eq('id', (session.user as { id?: string }).id ?? '').single()
+    const profileResult = await dbClient.from('profiles').select('full_name, license_number').eq('id', (session.user as { id?: string }).id ?? '').single()
     const profile = (profileResult as any).data
 
     const signerName = profile?.full_name || user.email || 'Unknown Surveyor'
     const iskNumber = profile?.license_number || 'Unknown LS'
 
-    const result = await supabase.from('signatures').insert({
+    const result = await dbClient.from('signatures').insert({
       user_id: (session.user as { id?: string }).id ?? '',
       project_id: projectId,
       document_hash: hash,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -11,8 +11,8 @@ export async function GET(req: Request) {
   }
 
   try {
-    const supabase = await createClient()
-    const result = await supabase
+    const dbClient = await createClient()
+    const result = await dbClient
       .from(table)
       .select('*')
       .eq('project_id', projectId)

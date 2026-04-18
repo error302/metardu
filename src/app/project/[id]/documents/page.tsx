@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { getOrCreateProjectSubmission, updateProjectSubmission } from '@/lib/supabase/projectSubmissions'
+import { createClient } from '@/lib/api-client/client'
+import { getOrCreateProjectSubmission, updateProjectSubmission } from '@/lib/api-client/projectSubmissions'
 import {
   detailsRecordToSurveyorProfile,
   getOwnSurveyorDocumentProfile,
   saveOwnSurveyorDocumentProfile,
   surveyorProfileToDetailsRecord,
-} from '@/lib/supabase/surveyorProfiles'
+} from '@/lib/api-client/surveyorProfiles'
 import {
   getDocsForType, DocumentDef, SurveyDocType,
   generateCoverLetter, generateComputationSheet, generateAreaCertificate,
@@ -293,17 +293,17 @@ export default function DocumentsPage({ params }: PageProps) {
   const [generated, setGenerated] = useState<Set<SurveyDocType>>(new Set())
 
   const load = useCallback(async () => {
-    const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     if (!session?.user) {
       window.location.replace(`/login?next=/project/${params.id}/documents`)
       return
     }
 
     const [{ data: proj }, { data: pts }, { data: parcels }] = await Promise.all([
-      supabase.from('projects').select('*').eq('id', params.id).single(),
-      supabase.from('survey_points').select('*').eq('project_id', params.id).order('created_at'),
-      supabase.from('parcels').select('*').eq('project_id', params.id).limit(1).single(),
+      dbClient.from('projects').select('*').eq('id', params.id).single(),
+      dbClient.from('survey_points').select('*').eq('project_id', params.id).order('created_at'),
+      dbClient.from('parcels').select('*').eq('project_id', params.id).limit(1).single(),
     ])
 
     if (proj) setProject(proj)

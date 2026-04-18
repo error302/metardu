@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/api-client/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import WorkingDiagramClient from './WorkingDiagramClient';
@@ -11,12 +11,12 @@ export default async function WorkingDiagramPage({ searchParams }: Props) {
   const { projectId } = searchParams;
   if (!projectId) redirect('/projects');
 
-  const supabase = await createClient();
+  const dbClient = await createClient();
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await dbClient.auth.getSession();
   if (!session) redirect('/login');
 
-  const { data: project } = await supabase
+  const { data: project } = await dbClient
     .from('projects')
     .select(`
       id, name, survey_type, lr_number, locality,
@@ -28,7 +28,7 @@ export default async function WorkingDiagramPage({ searchParams }: Props) {
 
   if (!project) redirect('/projects');
 
-  const { data: entries } = await supabase
+  const { data: entries } = await dbClient
     .from('project_fieldbook_entries')
     .select('row_index, station, raw_data, bs, remark')
     .eq('project_id', projectId)

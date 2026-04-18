@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { parseDelimitedFile, validatePoints } from '@/lib/engine/parser'
 
 interface CSVUploadModalProps {
@@ -30,7 +30,7 @@ export default function CSVUploadModal({
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'upload' | 'preview' | 'importing'>('upload')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -79,7 +79,7 @@ export default function CSVUploadModal({
         is_control: false
       }))
 
-      const { error } = await supabase.from('survey_points').insert(pointsToInsert)
+      const { error } = await dbClient.from('survey_points').insert(pointsToInsert)
 
       if (error) {
         setError(error.message)

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import ProjectTabs from '@/components/project/ProjectTabs'
 import { getAuthUser } from '@/lib/auth/session'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import { redirect } from 'next/navigation'
 import type { SurveyType } from '@/types/project'
 
@@ -26,8 +26,8 @@ export default async function ProjectLayout({ children, params }: Props) {
   const user = await getAuthUser()
   if (!user) redirect('/login')
 
-  const supabase = await createClient()
-  const { data: project } = await supabase
+  const dbClient = await createClient()
+  const { data: project } = await dbClient
     .from('projects')
     .select('survey_type')
     .eq('id', params.id)

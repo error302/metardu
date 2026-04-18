@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 interface Notification {
   id: string
@@ -80,11 +80,11 @@ export default function NotificationsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const dbClient = createClient()
+      const { data: { session } } = await dbClient.auth.getSession()
       const user = session?.user
       if (user) {
-        const { data } = await supabase
+        const { data } = await dbClient
           .from('notifications')
           .select('*')
           .eq('user_id', user.id)

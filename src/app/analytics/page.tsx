@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 interface AnalyticsData {
   totalProjects: number
@@ -32,8 +32,8 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     async function fetchAnalytics() {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const dbClient = createClient()
+      const { data: { session } } = await dbClient.auth.getSession()
       if (!session?.user) {
         setLoading(false)
         return
@@ -42,8 +42,8 @@ export default function AnalyticsPage() {
       const userId = session.user.id
 
       const [projectsRes, pointsRes] = await Promise.all([
-        supabase.from('projects').select('id, survey_type, created_at').eq('user_id', userId),
-        supabase.from('survey_points').select('id, created_at').eq('user_id', userId)
+        dbClient.from('projects').select('id, survey_type, created_at').eq('user_id', userId),
+        dbClient.from('survey_points').select('id, created_at').eq('user_id', userId)
       ])
 
       const projects = projectsRes.data || []

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 
 interface Observation {
   from: string;
@@ -31,13 +31,13 @@ export default function FieldBookAIPage() {
   const [selectedProject, setSelectedProject] = useState('');
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
+  const dbClient = createClient();
 
   const loadProjects = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await dbClient.auth.getSession();
     const user = session?.user;
     if (user) {
-      const { data } = await supabase.from('projects').select('id, name').eq('user_id', user.id);
+      const { data } = await dbClient.from('projects').select('id, name').eq('user_id', user.id);
       if (data) setProjects(data);
     }
   };
@@ -163,7 +163,7 @@ export default function FieldBookAIPage() {
         is_control: false
       }));
 
-      const { error } = await supabase.from('survey_points').insert(insertData);
+      const { error } = await dbClient.from('survey_points').insert(insertData);
 
       if (error) {
         setError('Failed to save to project');

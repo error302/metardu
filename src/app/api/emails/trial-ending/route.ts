@@ -1,11 +1,5 @@
-import { Resend } from 'resend'
-
-function getResend() {
-  const key = process.env.RESEND_API_KEY
-  if (!key) return null
-  return new Resend(key)
-}
 import { NextRequest, NextResponse } from 'next/server'
+import { sendEmail } from '@/lib/email'
 
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://metardu-henna.vercel.app'
@@ -15,7 +9,7 @@ export async function POST(req: NextRequest) {
   try {
     // Internal endpoint — only callable with service role key header
     const authHeader = req.headers.get('authorization')
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const serviceKey = process.env.API_ADMIN_KEY
     if (!serviceKey || authHeader !== `Bearer ${serviceKey}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -32,10 +26,7 @@ export async function POST(req: NextRequest) {
       year: 'numeric'
     })
 
-    const resend = getResend()
-    if (!resend) return NextResponse.json({ error: 'Email service not configured' }, { status: 503 })
-    await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'METARDU <hello@metardu.app>',
+    const emailResult = await sendEmail({
       to: email,
       subject: 'Your METARDU Pro trial ends in 3 days',
       html: `
@@ -100,6 +91,10 @@ export async function POST(req: NextRequest) {
         </div>
       `
     })
+
+    if (!emailResult.success) {
+      return NextResponse.json({ error: emailResult.error || 'Failed to send email' }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

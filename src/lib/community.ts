@@ -1,7 +1,7 @@
 import db from '@/lib/db'
 import type { SurveyJob, JobApplication, JobReview } from '@/types/jobs'
 import type { PeerReviewRequest, PeerReviewer } from '@/types/peerReview'
-import type { SurveyorProfile } from '@/lib/supabase/community'
+import type { SurveyorProfile } from '@/lib/api-client/community'
 
 export interface CommunityStats {
   totalSurveyors: number

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { callPythonCompute } from '@/lib/compute/pythonService'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
-    const { data: authSession } = await supabase.auth.getSession()
+    const dbClient = createClient()
+    const { data: authSession } = await dbClient.auth.getSession()
     const user = authSession.session?.user ?? null
     
     if (!user) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create session record
-    const { data: gnssSession, error: sessionError } = await supabase
+    const { data: gnssSession, error: sessionError } = await dbClient
       .from('gnss_sessions')
       .insert({
         project_id: projectId,
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update session with results
-    await supabase
+    await dbClient
       .from('gnss_sessions')
       .update({
         status: results.length > 0 ? 'complete' : 'failed',

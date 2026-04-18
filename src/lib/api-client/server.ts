@@ -2,7 +2,7 @@
  * Server-side database client
  * Uses direct PostgreSQL via pg Pool.
  *
- * This file replaces the old Supabase-compatible shim.
+ * This file replaces the old DbClient-compatible shim.
  * All auth goes through NextAuth. Storage goes through GCS.
  */
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile'
 import { generateSubmissionRef } from '@/lib/submission/revisionNumber'
 
@@ -10,10 +10,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'projectId required' }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const dbClient = await createClient()
     const surveyor = await getActiveSurveyorProfile()
 
-    const { data: project } = await supabase
+    const { data: project } = await dbClient
       .from('projects')
       .select('*, survey_points(*), supporting_documents(*)')
       .eq('id', projectId)

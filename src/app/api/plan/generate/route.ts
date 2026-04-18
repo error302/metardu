@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { developFullPlan, DevelopPlanOptions } from '@/lib/orchestrator/develop-full-plan'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 
 export async function POST(request: Request) {
   try {

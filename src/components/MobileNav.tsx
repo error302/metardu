@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { isNavItemActive } from '@/lib/navigation-shell'
 
 const icons = {
@@ -52,17 +52,17 @@ export default function MobileNav() {
   useEffect(() => {
     setMounted(true)
 
-    const supabase = createClient()
+    const dbClient = createClient()
 
     const loadSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await dbClient.auth.getSession()
       setUser(session?.user ?? null)
       setLoading(false)
     }
 
     loadSession()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = dbClient.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       setLoading(false)
     })

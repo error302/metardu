@@ -1,7 +1,7 @@
 /**
  * Submission numbering — VM PostgreSQL edition
  *
- * Replaces the old supabase.rpc('increment_submission_sequence') call which
+ * Replaces the old dbClient.rpc('increment_submission_sequence') call which
  * was a no-op stub on the VM.  Now calls /api/submission/sequence directly.
  */
 

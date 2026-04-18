@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import {
   type FeedbackCategory,
   buildFeedbackPayload,
@@ -61,13 +61,13 @@ export default function FeedbackWidget() {
         screenshot || undefined
       )
 
-      // Try Supabase first
+      // Try DbClient first
       try {
-        const supabase = createClient()
-        const { data: { session } } = await supabase.auth.getSession()
+        const dbClient = createClient()
+        const { data: { session } } = await dbClient.auth.getSession()
         const user = session?.user
 
-        await supabase.from('feedback').insert({
+        await dbClient.from('feedback').insert({
           type,
           message: payload.message,
           email: email || null,
@@ -77,7 +77,7 @@ export default function FeedbackWidget() {
           screenshot_url: payload.screenshotDataUrl || null,
         })
       } catch {
-        // Supabase may not be configured — fallback to console
+        // DbClient may not be configured — fallback to console
         logFeedbackToConsole(payload)
       }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createJob, getEquipmentByType, getChecklistByType, CreateJobInput } from '@/lib/supabase/jobs'
+import { createJob, getEquipmentByType, getChecklistByType, CreateJobInput } from '@/lib/api-client/jobs'
 
 interface JobFormProps {
   surveyType?: string

@@ -23,7 +23,7 @@ import {
   ToleranceCheckResult 
 } from '@/lib/validation/toleranceEngine'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 export default function ProcessPage() {
   const [processError, setProcessError] = useState<string | null>(null)
@@ -43,14 +43,14 @@ export default function ProcessPage() {
   const [saveSuccess, setSaveSuccess] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const fetchProjects = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user
     if (!user) return
 
-    const { data } = await supabase
+    const { data } = await dbClient
       .from('projects')
       .select('*')
       .eq('user_id', user.id)
@@ -60,7 +60,7 @@ export default function ProcessPage() {
     if (data) {
       setProjects(data)
     }
-  }, [supabase])
+  }, [dbClient])
 
   useEffect(() => {
     fetchProjects()
@@ -286,7 +286,7 @@ export default function ProcessPage() {
           })
         }
 
-        const { error: insertError } = await supabase.from('survey_points').insert(points)
+        const { error: insertError } = await dbClient.from('survey_points').insert(points)
         if (insertError) {
           throw new Error(`Failed to save points: ${insertError.message}`)
         }
@@ -301,7 +301,7 @@ export default function ProcessPage() {
           is_control: false
         }))
 
-        const { error: insertError } = await supabase.from('survey_points').insert(points)
+        const { error: insertError } = await dbClient.from('survey_points').insert(points)
         if (insertError) {
           throw new Error(`Failed to save points: ${insertError.message}`)
         }

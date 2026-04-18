@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useLanguage, languages } from '@/lib/i18n/LanguageContext'
@@ -392,14 +392,14 @@ export default function NavBar() {
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
-    const supabase = createClient()
+    const dbClient = createClient()
     
     const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await dbClient.auth.getSession()
       const user = session?.user ?? null
       setUser(user as { email: string; id?: string } | null)
       if (user) {
-        const { data: sub } = await supabase
+        const { data: sub } = await dbClient
           .from('user_subscriptions')
           .select('plan_id')
           .eq('user_id', user.id)
@@ -413,11 +413,11 @@ export default function NavBar() {
     
     getUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = dbClient.auth.onAuthStateChange(async (_event, session) => {
       const u = session?.user as { email: string; id?: string } | null
       setUser(u)
       if (u?.id) {
-        const { data: sub } = await supabase
+        const { data: sub } = await dbClient
           .from('user_subscriptions')
           .select('plan_id')
           .eq('user_id', u.id)

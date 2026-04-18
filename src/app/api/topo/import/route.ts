@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
     
     if (!user) {
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid request: projectId and points array required' }, { status: 400 })
     }
 
-    const project = await supabase
+    const project = await dbClient
       .from('projects')
       .select('id')
       .eq('id', projectId)
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No valid points provided' }, { status: 400 })
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('survey_points')
       .upsert(validPoints, { onConflict: 'project_id,point_type,name' })
       .select()

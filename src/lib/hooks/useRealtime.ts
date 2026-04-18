@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { subscribeToProjectChanges, type PresenceUser } from '@/lib/realtime'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { savePointsOffline, getOfflinePoints } from '@/lib/offline/syncQueue'
 
 interface AppUser {
@@ -120,15 +120,15 @@ export function useProjectRealtime(
         setPoints(offlinePoints)
       }
 
-      const supabase = createClient()
+      const dbClient = createClient()
 
-      if (!supabase) {
-        console.error('Supabase not initialized')
+      if (!dbClient) {
+        console.error('DbClient not initialized')
         if (mounted) setIsLoading(false)
         return
       }
 
-      const { data: remotePoints } = await supabase
+      const { data: remotePoints } = await dbClient
         .from('survey_points')
         .select('*')
         .eq('project_id', projectId)
@@ -146,11 +146,11 @@ export function useProjectRealtime(
 
     if (typeof window === 'undefined') return
 
-    const supabase = createClient()
+    const dbClient = createClient()
 
-    // Note: real-time postgres_changes require a native Supabase connection.
+    // Note: real-time postgres_changes require a native DbClient connection.
     // With the VM-based client, subscribe() is a no-op.
-    const subscription = supabase
+    const subscription = dbClient
       .channel(`project-points:${projectId}`)
       .on('broadcast', { event: 'update' }, (payload: any) => {
         if (!mounted) return
@@ -165,7 +165,7 @@ export function useProjectRealtime(
 
     return () => {
       mounted = false
-      supabase.removeChannel(subscription)
+      dbClient.removeChannel(subscription)
     }
   }, [projectId, user])
 

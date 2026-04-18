@@ -1,14 +1,14 @@
-import { createClient } from '@/lib/supabase/server'
-import type { SurveyorProfileSubmission } from '@/lib/supabase/community'
+import { createClient } from '@/lib/api-client/server'
+import type { SurveyorProfileSubmission } from '@/lib/api-client/community'
 
 export async function getActiveSurveyorProfile(): Promise<SurveyorProfileSubmission> {
-  const supabase = await createClient()
+  const dbClient = await createClient()
 
-  const { data: { session }, error: authError } = await supabase.auth.getSession()
+  const { data: { session }, error: authError } = await dbClient.auth.getSession()
   if (authError || !session?.user) throw new Error('Not authenticated')
   const user = session.user
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('surveyor_profiles')
     .select('*')
     .eq('user_id', user.id)

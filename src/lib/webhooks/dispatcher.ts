@@ -1,6 +1,6 @@
 import 'server-only'
 import crypto from 'crypto'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import { WebhookPayload, WebhookEvent, WEBHOOK_SIGNATURE_HEADER } from './types'
 
 export async function dispatchWebhook(
@@ -8,7 +8,7 @@ export async function dispatchWebhook(
   data: Record<string, unknown>,
   options?: { userId?: string; projectId?: string }
 ): Promise<{ delivered: number; failed: number }> {
-  const supabaseAdmin = await createClient()
+  const dbClientAdmin = await createClient()
   const payload: WebhookPayload = {
     event,
     timestamp: new Date().toISOString(),
@@ -17,7 +17,7 @@ export async function dispatchWebhook(
     projectId: options?.projectId
   }
 
-  const result = await supabaseAdmin
+  const result = await dbClientAdmin
     .from('webhooks')
     .select('*')
     .eq('active', true)
@@ -84,8 +84,8 @@ async function recordDelivery(
   responseCode?: number,
   responseBody?: string
 ) {
-  const supabaseAdmin = await createClient()
-  await supabaseAdmin.from('webhook_deliveries').insert({
+  const dbClientAdmin = await createClient()
+  await dbClientAdmin.from('webhook_deliveries').insert({
     webhook_id: webhookId,
     event,
     payload,

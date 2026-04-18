@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { DeedPlanInput, DeedPlanOutput, DeedPlanDocument } from '@/types/deedPlan'
 
 export async function saveDeedPlan(
@@ -6,12 +6,12 @@ export async function saveDeedPlan(
   input: DeedPlanInput,
   output: DeedPlanOutput
 ): Promise<DeedPlanDocument> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('deed_plans')
     .insert({
       project_id: projectId,
@@ -36,8 +36,8 @@ export async function saveDeedPlan(
 }
 
 export async function getDeedPlansByProject(projectId: string): Promise<DeedPlanDocument[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('deed_plans')
     .select('*')
     .eq('project_id', projectId)
@@ -48,8 +48,8 @@ export async function getDeedPlansByProject(projectId: string): Promise<DeedPlan
 }
 
 export async function getDeedPlanById(id: string): Promise<DeedPlanDocument | null> {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('deed_plans')
     .select('*')
     .eq('id', id)
@@ -63,8 +63,8 @@ export async function updateDeedPlanStatus(
   id: string,
   status: 'draft' | 'finalised'
 ): Promise<DeedPlanDocument> {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('deed_plans')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', id)

@@ -1,6 +1,6 @@
-// src/lib/supabase/workflows.ts
+// src/lib/dbClient/workflows.ts
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import type { Workflow, WorkflowNode, WorkflowEdge } from '@/types/workflow'
 
 export async function createWorkflow(params: {
@@ -10,8 +10,8 @@ export async function createWorkflow(params: {
   nodes: WorkflowNode[]
   edges: WorkflowEdge[]
 }) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
+  const dbClient = await createClient()
+  const { data, error } = await dbClient
     .from('workflows')
     .insert({
       project_id: params.project_id,
@@ -29,8 +29,8 @@ export async function createWorkflow(params: {
 }
 
 export async function getWorkflows(projectId: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
+  const dbClient = await createClient()
+  const { data, error } = await dbClient
     .from('workflows')
     .select('*')
     .eq('project_id', projectId)
@@ -41,8 +41,8 @@ export async function getWorkflows(projectId: string) {
 }
 
 export async function getWorkflow(id: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
+  const dbClient = await createClient()
+  const { data, error } = await dbClient
     .from('workflows')
     .select('*')
     .eq('id', id)
@@ -53,8 +53,8 @@ export async function getWorkflow(id: string) {
 }
 
 export async function updateWorkflow(id: string, updates: Partial<Workflow>) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
+  const dbClient = await createClient()
+  const { data, error } = await dbClient
     .from('workflows')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)

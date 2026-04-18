@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { generateAllSections } from '@/lib/compute/surveyReportSections'
 import { computeReportCompleteness } from '@/lib/compute/reportCompleteness'
 import { riseAndFall } from '@/lib/engine/leveling'
@@ -7,8 +7,8 @@ import type { SurveyReportInput, SectionContent, ControlPoint, LevellingRun } fr
 
 export async function POST(request: Request) {
   try {
-    const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
     
     if (!user) {
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
     }
 
-    const { data: project } = await supabase
+    const { data: project } = await dbClient
       .from('projects')
       .select('*')
       .eq('id', projectId)
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    const { data: points } = await supabase
+    const { data: points } = await dbClient
       .from('survey_points')
       .select('*')
       .eq('project_id', projectId)
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       cp.markType.toLowerCase().includes('benchmark')
     )
 
-    const { data: levelingRunsData } = await supabase
+    const { data: levelingRunsData } = await dbClient
       .from('leveling_runs')
       .select('*')
       .eq('project_id', projectId)
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 
     let traversePrecision: number | undefined
     try {
-      const { data: traverseData } = await supabase
+      const { data: traverseData } = await dbClient
         .from('traverse_results')
         .select('precision_ratio')
         .eq('project_id', projectId)

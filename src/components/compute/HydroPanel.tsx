@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { reduceSoundings } from '@/lib/hydro/tidalReduction'
 import type { RawSounding, TideObservation, ReducedSounding, RosData, HydroSurveyRecord } from '@/lib/hydro/types'
 import { buildBathymetricSurface } from '@/lib/hydro/bathymetricSurface'
@@ -48,7 +48,7 @@ interface BathymetricGridOutput {
 }
 
 export function HydroPanel({ projectId, projectData }: Props) {
-  const supabase = createClient()
+  const dbClient = createClient()
   const [activeTab, setActiveTab] = useState<Tab>('soundings')
   const [loading, setLoading] = useState(true)
 
@@ -89,7 +89,7 @@ export function HydroPanel({ projectId, projectData }: Props) {
     async function loadSurvey() {
       setLoading(true)
       try {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
           .from('hydro_surveys')
           .select('*')
           .eq('project_id', projectId)
@@ -166,7 +166,7 @@ export function HydroPanel({ projectId, projectData }: Props) {
     if (projectId) {
       loadSurvey()
     }
-  }, [projectId, supabase, contourInt])
+  }, [projectId, dbClient, contourInt])
 
   function parseCSV(text: string, expectedCols: number): Record<string, string>[] {
     const lines = text.trim().split(/\r?\n/)
@@ -437,7 +437,7 @@ export function HydroPanel({ projectId, projectData }: Props) {
   const saveToDatabase = async (reducedResult: ReducedResult | null, gridResult: BathymetricGridOutput | null) => {
     setSaving(true)
     try {
-      await supabase
+      await dbClient
         .from('hydro_surveys')
         .upsert({
           project_id: projectId,

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { generateContours } from '@/lib/topo/contourGenerator'
 import { runIDW as computeIDW } from '@/lib/topo/idwEngine'
 import type { SpotHeight } from '@/components/drawing/TopoCanvas'
@@ -20,7 +20,7 @@ const RESOLUTION_OPTIONS = [0.5, 1, 2, 5]
 
 export default function TopoPage() {
   const { id } = useParams()
-  const [supabase] = useState(() => createClient())
+  const [dbClient] = useState(() => createClient())
 
   const [spotHeights, setSpotHeights] = useState<SpotHeight[]>([])
   const [contours, setContours] = useState<ContourLine[]>([])
@@ -33,7 +33,7 @@ export default function TopoPage() {
   const loadSpotHeights = useCallback(async () => {
     setStatus('loading')
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('survey_points')
       .select('*')
       .eq('project_id', id)
@@ -55,7 +55,7 @@ export default function TopoPage() {
     setSpotHeights(points)
     setPointCount(points.length)
     setStatus('idle')
-  }, [id, supabase])
+  }, [id, dbClient])
 
   useEffect(() => {
     void loadSpotHeights()

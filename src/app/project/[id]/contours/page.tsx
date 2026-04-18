@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, use } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { generateContours, SpotHeight, ContourLine } from '@/lib/engine/contours'
 
 type EngineMode = 'python' | 'typescript' | null
@@ -9,7 +9,7 @@ interface ContourSegment { elevation: number; segments: number[][][] }
 
 export default function ContoursPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params)
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const [points, setPoints] = useState<SpotHeight[]>([])
   const [contours, setContours] = useState<ContourLine[]>([])
@@ -21,7 +21,7 @@ export default function ContoursPage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     async function loadPoints() {
-      const { data } = await supabase
+      const { data } = await dbClient
         .from('survey_points')
         .select('name, easting, northing, elevation')
         .eq('project_id', projectId)

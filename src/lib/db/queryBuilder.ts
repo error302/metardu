@@ -1,9 +1,9 @@
 /**
- * PostgreSQL Query Builder — Supabase-Compatible API
+ * PostgreSQL Query Builder — DbClient-Compatible API
  * 
- * Drop-in replacement for Supabase's `.from().select().eq()` chain.
+ * Drop-in replacement for DbClient's `.from().select().eq()` chain.
  * Uses the existing `pg` Pool from db.ts for direct PostgreSQL queries.
- * Returns { data, error, count } matching Supabase's response shape.
+ * Returns { data, error, count } matching DbClient's response shape.
  */
 
 import { Pool } from 'pg'
@@ -138,7 +138,7 @@ export class QueryBuilder<T = any> {
   }
 
   not(column: string, op: string, value: any): this {
-    // Map Supabase's .not() to negated filters
+    // Map DbClient's .not() to negated filters
     if (op === 'eq') this.filters.push({ column, op: '!=', value })
     else if (op === 'is') this.filters.push({ column, op: 'IS NOT', value })
     else if (op === 'in') {
@@ -185,7 +185,7 @@ export class QueryBuilder<T = any> {
     return this as any
   }
 
-  // Make the builder thenable so `await supabase.from('x').select('*')` works
+  // Make the builder thenable so `await dbClient.from('x').select('*')` works
   then<TResult1 = QueryResult<T>, TResult2 = never>(
     resolve?: ((value: QueryResult<T>) => TResult1 | PromiseLike<TResult1>) | null,
     reject?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
@@ -219,7 +219,7 @@ export class QueryBuilder<T = any> {
       }
     }
 
-    // Handle raw OR filters (Supabase-style: "col.eq.val,col2.eq.val2")
+    // Handle raw OR filters (DbClient-style: "col.eq.val,col2.eq.val2")
     for (const orFilter of this.orFilters) {
       const parsed = this.parseOrFilter(orFilter, params)
       if (parsed) conditions.push(`(${parsed})`)
@@ -229,7 +229,7 @@ export class QueryBuilder<T = any> {
   }
 
   private parseOrFilter(filter: string, params: any[]): string | null {
-    // Parse Supabase-style OR filter: "status.eq.active,status.eq.pending"
+    // Parse DbClient-style OR filter: "status.eq.active,status.eq.pending"
     const parts = filter.split(',')
     const orParts: string[] = []
 

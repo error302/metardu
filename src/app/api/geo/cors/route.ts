@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/api-client/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { findNearestCORS } from '@/lib/geo/cors';
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const dbClient = await createClient();
+  const { data: { session } } = await dbClient.auth.getSession();
   
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

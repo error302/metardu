@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 
 export async function POST(
   request: NextRequest,
@@ -9,8 +9,8 @@ export async function POST(
     const { id: projectId } = await params
     const body = await request.json()
 
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
 
     if (!user) {
@@ -29,7 +29,7 @@ export async function POST(
       volumeResult = calculateGridVolumes(gridPoints, gridSpacing || 10, designElevation || 1000, materialDensity || 1.8)
     }
 
-    const { data: miningSurvey, error } = await supabase
+    const { data: miningSurvey, error } = await dbClient
       .from('mining_surveys')
       .insert({
         project_id: projectId,
@@ -69,15 +69,15 @@ export async function GET(
 ) {
   try {
     const { id: projectId } = await params
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: miningSurveys, error } = await supabase
+    const { data: miningSurveys, error } = await dbClient
       .from('mining_surveys')
       .select('*')
       .eq('project_id', projectId)

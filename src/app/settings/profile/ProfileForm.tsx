@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 
 interface ProfileFormProps {
   initialData: {
@@ -29,8 +29,8 @@ export default function ProfileForm({ initialData, userId }: ProfileFormProps): 
     setLoading(true);
     setSaved(false);
 
-    const supabase = createClient();
-    const { error } = await supabase
+    const dbClient = createClient();
+    const { error } = await dbClient
       .from('profiles')
       .upsert({
         id: userId,

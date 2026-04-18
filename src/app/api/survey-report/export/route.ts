@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { getSurveyReportById } from '@/lib/supabase/surveyReports'
+import { getSurveyReportById } from '@/lib/api-client/surveyReports'
 import type { SectionContent } from '@/types/surveyReport'
 
 export async function POST(request: Request) {
   try {
-    const { createClient } = await import('@/lib/supabase/client')
-    const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const { createClient } = await import('@/lib/api-client/client')
+    const dbClient = createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
     
     if (!user) {

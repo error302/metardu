@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 
 const AI_BASE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || 'https://metardu-ai.up.railway.app'
 
@@ -19,8 +19,8 @@ export interface AIResponse<T> {
 export async function callAI<T>(options: AICallOptions): Promise<AIResponse<T>> {
   const { endpoint, body, requirePro = true } = options
 
-  const supabase = createClient()
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session }, error: sessionError } = await dbClient.auth.getSession()
 
   if (sessionError || !session) {
     return {
@@ -33,7 +33,7 @@ export async function callAI<T>(options: AICallOptions): Promise<AIResponse<T>> 
   }
 
   if (requirePro) {
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await dbClient
       .from('profiles')
       .select('tier, ai_calls_remaining')
       .eq('id', session.user.id)

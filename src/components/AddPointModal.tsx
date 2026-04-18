@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { geographicToUTM } from '@/lib/engine/coordinates'
 
 interface AddPointModalProps {

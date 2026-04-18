@@ -80,10 +80,8 @@ export async function rateLimit(
   }
 
   if (process.env.NODE_ENV === 'production') {
-    console.error(
-      '[METARDU] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not set. ' +
-      'Rate limiting is disabled in production. Set these env vars in Vercel immediately.'
-    )
+    // Single VM deployment: in-memory rate limiting is acceptable.
+    // For multi-instance, set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.
   }
 
   return Promise.resolve(inMemoryRateLimit(identifier, maxRequests, windowMs))

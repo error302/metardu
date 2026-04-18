@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import type { CPDRecord, CPDCertificate, CPDActivity } from '@/types/cpd'
 import { CPD_POINTS } from '@/types/cpd'
 
@@ -18,10 +18,10 @@ export async function awardCPDPoints(
   referenceId?: string,
   customPoints?: number
 ): Promise<string> {
-  const supabase = await createClient()
+  const dbClient = await createClient()
   const points = customPoints ?? CPD_POINTS[activity]
 
-  const result = await supabase
+  const result = await dbClient
     .from('cpd_records')
     .insert({
       user_id: userId,
@@ -39,11 +39,11 @@ export async function awardCPDPoints(
 }
 
 export async function getUserCPDForYear(userId: string, year: number): Promise<CPDRecord[]> {
-  const supabase = await createClient()
+  const dbClient = await createClient()
   const startDate = new Date(year, 0, 1).toISOString()
   const endDate = new Date(year, 11, 31, 23, 59, 59).toISOString()
 
-  const result = await supabase
+  const result = await dbClient
     .from('cpd_records')
     .select('*')
     .eq('user_id', userId)
@@ -66,12 +66,12 @@ export async function generateCPDCertificate(
   surveyorName: string,
   iskNumber: string
 ): Promise<CPDCertificate> {
-  const supabase = await createClient()
+  const dbClient = await createClient()
   const records = await getUserCPDForYear(userId, year)
   const totalPoints = records.reduce((sum, r) => sum + r.points, 0)
   const verificationCode = generateVerificationCode()
 
-  const result = await supabase
+  const result = await dbClient
     .from('cpd_certificates')
     .insert({
       user_id: userId,
@@ -99,8 +99,8 @@ export async function generateCPDCertificate(
 }
 
 export async function verifyCPDCertificate(code: string): Promise<CPDCertificate | null> {
-  const supabase = await createClient()
-  const result = await supabase
+  const dbClient = await createClient()
+  const result = await dbClient
     .from('cpd_certificates')
     .select('*')
     .eq('verification_code', code.toUpperCase())
@@ -111,8 +111,8 @@ export async function verifyCPDCertificate(code: string): Promise<CPDCertificate
 
   // Fetch associated records and profile separately (no nested joins in QueryBuilder)
   const [recordsResult, profileResult] = await Promise.all([
-    supabase.from('cpd_records').select('*').eq('user_id', data.user_id),
-    supabase.from('profiles').select('full_name, isk_number').eq('id', data.user_id).single()
+    dbClient.from('cpd_records').select('*').eq('user_id', data.user_id),
+    dbClient.from('profiles').select('full_name, isk_number').eq('id', data.user_id).single()
   ])
 
   const records = (recordsResult as any).data || []

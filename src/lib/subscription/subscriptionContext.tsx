@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { PlanId } from '@/lib/subscription/catalog'
 
 interface SubscriptionContextType {
@@ -53,9 +53,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return
     }
 
-    const supabase = createClient()
+    const dbClient = createClient()
 
-    const { data: sub } = await supabase
+    const { data: sub } = await dbClient
       .from('user_subscriptions')
       .select('*')
       .eq('user_id', userId)
@@ -76,7 +76,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       }
     }
 
-    const { count } = await supabase
+    const { count } = await dbClient
       .from('projects')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)

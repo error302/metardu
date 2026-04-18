@@ -1,18 +1,18 @@
 import ExcelJS from 'exceljs';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 
 export async function generateCoordinateSchedule(
   projectId: string,
-  supabase: ReturnType<typeof createClient>
+  dbClient: ReturnType<typeof createClient>
 ): Promise<Buffer> {
 
-  const { data: project } = await supabase
+  const { data: project } = await dbClient
     .from('projects')
     .select('name, survey_type, ref_no')
     .eq('id', projectId)
     .single();
 
-  const { data: beacons } = await supabase
+  const { data: beacons } = await dbClient
     .from('project_beacons')
     .select('*')
     .eq('project_id', projectId)

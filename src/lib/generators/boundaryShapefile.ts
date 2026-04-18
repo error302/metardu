@@ -1,12 +1,12 @@
 import JSZip from 'jszip';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import { computeDeedPlanGeometry } from './deedPlanGeometry';
 
 export async function generateBoundaryShapefile(
   projectId: string,
-  supabase: ReturnType<typeof createClient>
+  dbClient: ReturnType<typeof createClient>
 ): Promise<Buffer> {
-  const { data: project } = await supabase
+  const { data: project } = await dbClient
     .from('projects')
     .select('name, utm_zone, hemisphere')
     .eq('id', projectId)
@@ -14,7 +14,7 @@ export async function generateBoundaryShapefile(
 
   if (!project) throw new Error('Project not found');
 
-  const geom = await computeDeedPlanGeometry(projectId, supabase);
+  const geom = await computeDeedPlanGeometry(projectId, dbClient);
 
   const beacons = geom.stations.map((s, i) => ({
     name: s.station,

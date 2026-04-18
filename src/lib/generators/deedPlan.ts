@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import { computeDeedPlanGeometry } from './deedPlanGeometry';
 import { renderBoundaryPlan } from './deedPlanRenderer';
 import { addPageFooter } from './pdfTitleBlock';
@@ -14,9 +14,9 @@ const SCHEDULE_W = A3_W - PLAN_WIDTH - MARGIN * 1.5;
 
 export async function generateDeedPlan(
   projectId: string,
-  supabase: ReturnType<typeof createClient>
+  dbClient: ReturnType<typeof createClient>
 ): Promise<Buffer> {
-  const { data: project, error: projError } = await supabase
+  const { data: project, error: projError } = await dbClient
     .from('projects')
     .select(`
       name, survey_type, lr_number, folio_number, register_number,
@@ -30,13 +30,13 @@ export async function generateDeedPlan(
 
   if (projError || !project) throw new Error('Project not found: ' + projError?.message);
 
-  const { data: profile } = await supabase
+  const { data: profile } = await dbClient
     .from('profiles')
     .select('full_name, isk_number, firm_name')
     .eq('id', project.user_id)
     .single();
 
-  const geom = await computeDeedPlanGeometry(projectId, supabase);
+  const geom = await computeDeedPlanGeometry(projectId, dbClient);
 
   const doc = new jsPDF({
     orientation: 'landscape',

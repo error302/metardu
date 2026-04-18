@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { SurveyorDocumentProfile } from '@/types/submission'
 
 interface SurveyorProfileRow {
@@ -66,15 +66,15 @@ export function detailsRecordToSurveyorProfile(
 }
 
 export async function getOwnSurveyorDocumentProfile(): Promise<SurveyorDocumentProfile> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
 
   if (!user) {
     throw new Error('Not authenticated')
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('surveyor_profiles')
     .select('user_id, display_name, isk_number, firm_name, county, phone, email, office_address, seal_image_path, profile_public, verified_isk')
     .eq('user_id', user.id)
@@ -88,8 +88,8 @@ export async function getOwnSurveyorDocumentProfile(): Promise<SurveyorDocumentP
 }
 
 export async function saveOwnSurveyorDocumentProfile(profile: SurveyorDocumentProfile): Promise<SurveyorDocumentProfile> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
 
   if (!user) {
@@ -109,7 +109,7 @@ export async function saveOwnSurveyorDocumentProfile(profile: SurveyorDocumentPr
     profile_public: profile.profilePublic,
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('surveyor_profiles')
     .upsert(payload, { onConflict: 'user_id' })
     .select('user_id, display_name, isk_number, firm_name, county, phone, email, office_address, seal_image_path, profile_public, verified_isk')

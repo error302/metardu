@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getCommunityStats, getOpenPeerReviews, getSurveyors } from '@/lib/supabase/community'
+import { getCommunityStats, getOpenPeerReviews, getSurveyors } from '@/lib/api-client/community'
 
 export const dynamic = 'force-dynamic'
 

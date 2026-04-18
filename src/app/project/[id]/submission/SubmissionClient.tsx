@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import { DocumentStatus, ProjectDocument } from '@/types/submission';
 import { getDocumentsForSurveyType } from '@/lib/submission/submissionDocuments';
 import { SurveyType } from '@/types/project';
@@ -46,7 +46,7 @@ interface SubmissionPackage {
 }
 
 export default function SubmissionClient({ project, existingDocs, projectId }: Props) {
-  const supabase = createClient();
+  const dbClient = createClient();
   const [previewPkg, setPreviewPkg] = useState<SubmissionPackage | null>(null);
   const [docStates, setDocStates] = useState<Record<string, DocState>>(() => {
     const initial: Record<string, DocState> = {};
@@ -129,7 +129,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
 
       const result = await response.json();
 
-      await supabase.from('submission_documents').upsert({
+      await dbClient.from('submission_documents').upsert({
         project_id: project.id,
         document_id: docId,
         status: 'ready',
@@ -158,7 +158,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
         },
       }));
     }
-  }, [documents, project.id, supabase]);
+  }, [documents, project.id, dbClient]);
 
   const retryDocument = useCallback((docId: string) => {
     generateDocument(docId);

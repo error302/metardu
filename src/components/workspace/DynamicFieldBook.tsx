@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint';
 import { SurveyType } from '@/types/project';
 import { FieldBookColumn, FieldBookRow } from '@/types/fieldbook';
@@ -65,7 +65,7 @@ function rowToDbRecord(
 
 export default function DynamicFieldBook({ projectId, surveyType, initialRows = [], openingRL, closingRL, startPoint }: Props) {
   const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Field Book' });
-  const supabase = createClient();
+  const dbClient = createClient();
   const template = getFieldBookTemplate(surveyType);
 
   const [rows, setRows] = useState<FieldBookRow[]>(
@@ -109,14 +109,14 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
       const records = rowsRef.current.map((row: any, idx: any) =>
         rowToDbRecord(row, idx, projectId, surveyType, template.columns)
       );
-      const { error: dbError } = await supabase
+      const { error: dbError } = await dbClient
         .from('project_fieldbook_entries')
         .upsert(records, { onConflict: 'project_id,row_index' });
       if (!dbError) setLastSaved(new Date());
       setSaving(false);
     }, 500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [surveyType, projectId, template.columns, supabase]);
+  }, [surveyType, projectId, template.columns, dbClient]);
 
   const handleCompute = useCallback(() => {
     try {
@@ -184,7 +184,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
       rowToDbRecord(row, idx, projectId, surveyType, template.columns)
     );
 
-    const { error: dbError } = await supabase
+    const { error: dbError } = await dbClient
       .from('project_fieldbook_entries')
       .upsert(records, { onConflict: 'project_id,row_index' });
 

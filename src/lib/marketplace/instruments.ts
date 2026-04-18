@@ -28,7 +28,7 @@ export interface InstrumentListing {
   images: string[]    // base64 or URLs — kept empty initially
   postedAt: string
   sold: boolean
-  userId?: string      // Supabase user ID of poster
+  userId?: string      // DbClient user ID of poster
   verified: boolean    // true if poster was Pro/Team at time of posting
 }
 

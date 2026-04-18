@@ -348,14 +348,14 @@ export default function MapClient() {
           zIndex: 10,
         })
 
-        // ── Fetch projects from Supabase ──
+        // ── Fetch projects from DbClient ──
         try {
-          const { createClient } = await import('@/lib/supabase/client')
-          const supabase = createClient()
-          const { data: { session } } = await supabase.auth.getSession()
+          const { createClient } = await import('@/lib/api-client/client')
+          const dbClient = createClient()
+          const { data: { session } } = await dbClient.auth.getSession()
 
           if (session?.user) {
-            const { data } = await supabase
+            const { data } = await dbClient
               .from('projects')
               .select('id, name, location, utm_zone, hemisphere, survey_type, boundary_data')
               .eq('user_id', session.user.id)
@@ -404,7 +404,7 @@ export default function MapClient() {
             }
           }
         } catch (err) { 
-          console.warn('Supabase query failed:', err) 
+          console.warn('DbClient query failed:', err) 
         }
 
         // ── Popup overlay ──

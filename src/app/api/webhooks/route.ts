@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 import type { WebhookEvent } from '@/lib/webhooks/types'
 import { WEBHOOK_SECRET_PREFIX } from '@/lib/webhooks/types'
 
@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     const secret = `${WEBHOOK_SECRET_PREFIX}${crypto.randomBytes(24).toString('hex')}`
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('webhooks')
       .insert({
         url,
@@ -69,14 +69,14 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const dbClient = await createClient()
+    const { data: { session } } = await dbClient.auth.getSession()
     const user = session?.user ?? null
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('webhooks')
       .select('*')
       .eq('user_id', user.id)

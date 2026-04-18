@@ -1,11 +1,11 @@
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import { computeDeedPlanGeometry } from './deedPlanGeometry';
 
 export async function generateSettingOutDxf(
   projectId: string,
-  supabase: ReturnType<typeof createClient>
+  dbClient: ReturnType<typeof createClient>
 ): Promise<Buffer> {
-  const { data: project } = await supabase
+  const { data: project } = await dbClient
     .from('projects')
     .select('name')
     .eq('id', projectId)
@@ -13,7 +13,7 @@ export async function generateSettingOutDxf(
 
   if (!project) throw new Error('Project not found');
 
-  const geom = await computeDeedPlanGeometry(projectId, supabase);
+  const geom = await computeDeedPlanGeometry(projectId, dbClient);
 
   const beacons = geom.stations.map((s: any) => ({
     name: s.station,

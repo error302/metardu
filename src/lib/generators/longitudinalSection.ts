@@ -1,12 +1,12 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 
 export async function generateLongitudinalSection(
   projectId: string,
-  supabase: ReturnType<typeof createClient>
+  dbClient: ReturnType<typeof createClient>
 ): Promise<Buffer> {
-  const { data: project } = await supabase
+  const { data: project } = await dbClient
     .from('projects')
     .select('name')
     .eq('id', projectId)
@@ -14,7 +14,7 @@ export async function generateLongitudinalSection(
 
   if (!project) throw new Error('Project not found');
 
-  const { data: entries } = await supabase
+  const { data: entries } = await dbClient
     .from('project_fieldbook_entries')
     .select('row_index, station, raw_data')
     .eq('project_id', projectId)

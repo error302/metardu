@@ -1,13 +1,14 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
+import db from '@/lib/db'
 
 export async function generateSubmissionRef(
   projectId: string,
   iskNumber: string
 ): Promise<{ ref: string; revision: number; sequence: number }> {
-  const supabase = await createClient()
+  const dbClient = await createClient()
   const currentYear = new Date().getFullYear()
 
-  const { data: profile } = await supabase
+  const { data: profile } = await dbClient
     .from('surveyor_profiles')
     .select('id')
     .eq('isk_number', iskNumber)
@@ -17,7 +18,7 @@ export async function generateSubmissionRef(
     throw new Error('Surveyor profile not found')
   }
 
-  const { data: existingSubmissions } = await supabase
+  const { data: existingSubmissions } = await dbClient
     .from('project_submissions')
     .select('revision_number')
     .eq('project_id', projectId)
@@ -28,12 +29,17 @@ export async function generateSubmissionRef(
   const revision = (existingSubmissions?.revision_number ?? -1) + 1
   const paddedRev = String(revision).padStart(2, '0')
 
-  const sequenceResult = await supabase.rpc('increment_submission_sequence', {
-    p_surveyor_profile_id: profile.id,
-    p_year: currentYear
-  })
+  // Direct SQL replaces the old dbClient.rpc('increment_submission_sequence')
+  const { rows } = await db.query(
+    `INSERT INTO submission_sequences (surveyor_profile_id, year, current_sequence)
+     VALUES ($1, $2, 1)
+     ON CONFLICT (surveyor_profile_id, year)
+     DO UPDATE SET current_sequence = submission_sequences.current_sequence + 1
+     RETURNING current_sequence`,
+    [profile.id, currentYear]
+  )
 
-  const sequence = sequenceResult.data ?? 1
+  const sequence = rows[0]?.current_sequence ?? 1
   const paddedSeq = String(sequence).padStart(3, '0')
 
   const ref = `${iskNumber}_${currentYear}_${paddedSeq}_R${paddedRev}`

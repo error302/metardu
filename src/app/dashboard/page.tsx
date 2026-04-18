@@ -7,7 +7,7 @@ import UpgradePrompt from '@/components/UpgradePrompt'
 import { getServerTranslator } from '@/lib/i18n/server'
 import { log } from '@/lib/logger'
 import { getAuthUser, isAdmin as checkIsAdmin } from '@/lib/auth/session'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 
 import ProjectCard from '@/components/ProjectCard'
 
@@ -25,16 +25,16 @@ export default async function DashboardPage() {
   let subscription: any = null
 
   try {
-    const supabase = await createClient()
+    const dbClient = await createClient()
 
     if (userIsAdmin) {
       subscription = { plan_id: 'premium', trial_ends_at: null }
-      const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false })
+      const { data, error } = await dbClient.from('projects').select('*').order('created_at', { ascending: false })
       if (!error) projects = data ?? []
     } else {
       const [pRes, sRes] = await Promise.all([
-        supabase.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('user_subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
+        dbClient.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        dbClient.from('user_subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
       ])
       if (!pRes.error) projects = pRes.data ?? []
       if (!sRes.error || sRes.error?.code === 'PGRST116') subscription = sRes.data ?? null
@@ -51,10 +51,10 @@ export default async function DashboardPage() {
   const projectsWithCounts = await Promise.all(
     projects.map(async (project) => {
       try {
-        const supabase = await createClient()
+        const dbClient = await createClient()
         const [pointsRes, parcelsRes] = await Promise.all([
-          supabase.from('survey_points').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
-          supabase.from('parcels').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
+          dbClient.from('survey_points').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
+          dbClient.from('parcels').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
         ])
         return {
           ...project,

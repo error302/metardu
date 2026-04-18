@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { USVMission, USVTelemetry, Waypoint } from '@/types/usv'
 
 export async function createMission(params: {
@@ -9,12 +9,12 @@ export async function createMission(params: {
   pattern_type?: string
   scheduled_start?: string
 }) {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('usv_missions')
     .insert({
       project_id: params.project_id,
@@ -34,8 +34,8 @@ export async function createMission(params: {
 }
 
 export async function getMissions(projectId: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('usv_missions')
     .select('*')
     .eq('project_id', projectId)
@@ -46,8 +46,8 @@ export async function getMissions(projectId: string) {
 }
 
 export async function getTelemetry(missionId: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+  const dbClient = createClient()
+  const { data, error } = await dbClient
     .from('usv_telemetry')
     .select('*')
     .eq('mission_id', missionId)
@@ -59,7 +59,7 @@ export async function getTelemetry(missionId: string) {
 }
 
 export async function updateMissionStatus(id: string, status: string) {
-  const supabase = createClient()
+  const dbClient = createClient()
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
   
   if (status === 'running' && !updates.actual_start) {
@@ -69,7 +69,7 @@ export async function updateMissionStatus(id: string, status: string) {
     updates.actual_end = new Date().toISOString()
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('usv_missions')
     .update(updates)
     .eq('id', id)

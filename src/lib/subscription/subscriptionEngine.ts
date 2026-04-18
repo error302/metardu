@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { TIERS, canAccess, getLimit, type FeatureKey } from './featureGates'
 import type { PlanId } from './catalog'
 
@@ -28,8 +28,8 @@ export interface AccessCheck {
 }
 
 export async function getSubscription(userId: string): Promise<SubscriptionInfo | null> {
-  const supabase = createClient()
-  const { data: sub } = await supabase
+  const dbClient = createClient()
+  const { data: sub } = await dbClient
     .from('user_subscriptions')
     .select('*')
     .eq('user_id', userId)
@@ -55,11 +55,11 @@ export async function getSubscription(userId: string): Promise<SubscriptionInfo 
 }
 
 export async function getUsage(userId: string): Promise<UsageInfo> {
-  const supabase = createClient()
+  const dbClient = createClient()
 
   const [{ count: projectCount }, { count: memberCount }] = await Promise.all([
-    supabase.from('projects').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-    supabase.from('project_members').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    dbClient.from('projects').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    dbClient.from('project_members').select('*', { count: 'exact', head: true }).eq('user_id', userId),
   ])
 
   return {
@@ -131,15 +131,15 @@ export function getTrialDaysLeft(trialEndsAt: string | null): number {
 }
 
 export async function cancelSubscription(userId: string): Promise<void> {
-  const supabase = createClient()
-  const { data: sub } = await supabase
+  const dbClient = createClient()
+  const { data: sub } = await dbClient
     .from('user_subscriptions')
     .select('id')
     .eq('user_id', userId)
     .maybeSingle()
 
   if (sub) {
-    await supabase
+    await dbClient
       .from('user_subscriptions')
       .update({ status: 'cancelled' })
       .eq('id', sub.id)
@@ -147,8 +147,8 @@ export async function cancelSubscription(userId: string): Promise<void> {
 }
 
 export async function reactivateSubscription(userId: string): Promise<void> {
-  const supabase = createClient()
-  const { data: sub } = await supabase
+  const dbClient = createClient()
+  const { data: sub } = await dbClient
     .from('user_subscriptions')
     .select('id')
     .eq('user_id', userId)
@@ -156,7 +156,7 @@ export async function reactivateSubscription(userId: string): Promise<void> {
 
   if (sub) {
     const now = new Date()
-    await supabase
+    await dbClient
       .from('user_subscriptions')
       .update({
         status: 'active',

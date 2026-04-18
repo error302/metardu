@@ -2,7 +2,7 @@
  * Auth session helpers — server-side
  * 
  * Provides getAuthUser() for server components and API routes.
- * Replaces all supabase.auth.getUser() / supabase.auth.getSession() calls.
+ * Replaces all dbClient.auth.getUser() / dbClient.auth.getSession() calls.
  */
 
 import { getServerSession } from 'next-auth'

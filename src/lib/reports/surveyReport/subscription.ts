@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { SubscriptionStatus, SubscriptionTier } from './types'
 
 export async function checkReportAccess(userId: string): Promise<SubscriptionStatus> {
-  const supabase = createClient()
+  const dbClient = createClient()
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('user_subscriptions')
     .select('plan_id, status, current_period_end')
     .eq('user_id', userId)
@@ -38,9 +38,9 @@ export async function checkReportAccess(userId: string): Promise<SubscriptionSta
 }
 
 export async function seedProfessionalTier(userId: string): Promise<void> {
-  const supabase = createClient()
+  const dbClient = createClient()
 
-  const { data: existing } = await supabase
+  const { data: existing } = await dbClient
     .from('user_subscriptions')
     .select('id')
     .eq('user_id', userId)
@@ -48,7 +48,7 @@ export async function seedProfessionalTier(userId: string): Promise<void> {
 
   if (existing) return
 
-  await supabase
+  await dbClient
     .from('user_subscriptions')
     .insert({
       user_id: userId,

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, use } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import { useRouter } from 'next/navigation'
 import UTMZonePicker from '@/components/ui/UTMZonePicker'
 import { computeTraverseAccuracy, getAccuracyBadgeLabel, getAccuracyBadgeClass } from '@/lib/reports/traverseAccuracy'
@@ -8,7 +8,7 @@ import { computeTraverseAccuracy, getAccuracyBadgeLabel, getAccuracyBadgeClass }
 export default function ProjectSettingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params)
   const router = useRouter()
-  const supabase = createClient()
+  const dbClient = createClient()
   
   const [project, setProject] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -39,7 +39,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
 
   useEffect(() => {
     async function loadProject() {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('projects')
         .select('*')
         .eq('id', projectId)
@@ -74,13 +74,13 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
     }
 
     loadProject()
-  }, [projectId, supabase, router])
+  }, [projectId, dbClient, router])
 
   const handleSave = async () => {
     setSaving(true)
     setMessage('')
 
-    const { error } = await supabase
+    const { error } = await dbClient
       .from('projects')
       .update({
         name,
@@ -120,7 +120,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
       return
     }
 
-    const { error } = await supabase
+    const { error } = await dbClient
       .from('projects')
       .delete()
       .eq('id', projectId)

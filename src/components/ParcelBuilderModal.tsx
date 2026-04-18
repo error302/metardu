@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/api-client/client';
 import { coordinateArea } from '@/lib/engine/area';
 import { distanceBearing } from '@/lib/engine/distance';
 
@@ -50,7 +50,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
     perimeter: number;
   } | null>(null);
   const [saving, setSaving] = useState(false);
-  const supabase = createClient();
+  const dbClient = createClient();
 
   const computeParcel = useCallback(() => {
     if (selectedPoints.length < 3) {
@@ -121,10 +121,10 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
 
     setSaving(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await dbClient.auth.getSession();
       const user = session?.user;
 
-      const { data, error } = await supabase.from('parcels').insert({
+      const { data, error } = await dbClient.from('parcels').insert({
         project_id: projectId,
         name: parcelName,
         point_ids: selectedPoints.map((p: any) => p.id),

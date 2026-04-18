@@ -50,6 +50,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  // Block non-admin users from admin-only routes
+  if (isAdminRoute && isAuthenticated) {
+    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
+    const userEmail = (token?.email as string || '').toLowerCase()
+    if (!adminEmails.includes(userEmail)) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+
   // Redirect authenticated users away from login/register
   if (isAuthRoute && isAuthenticated) {
     return NextResponse.redirect(new URL('/dashboard', request.url))

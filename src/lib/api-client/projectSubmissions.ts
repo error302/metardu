@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/api-client/client'
 import type { ProjectSubmissionRecord, SubmissionPackageStatus } from '@/types/submission'
 
 interface ProjectSubmissionRow {
@@ -40,15 +40,15 @@ function mapSubmissionRow(row: ProjectSubmissionRow): ProjectSubmissionRecord {
 }
 
 export async function getOrCreateProjectSubmission(projectId: string): Promise<ProjectSubmissionRecord> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
 
   if (!user) {
     throw new Error('Not authenticated')
   }
 
-  const { data: existing, error: existingError } = await supabase
+  const { data: existing, error: existingError } = await dbClient
     .from('project_submissions')
     .select('*')
     .eq('project_id', projectId)
@@ -65,7 +65,7 @@ export async function getOrCreateProjectSubmission(projectId: string): Promise<P
     return mapSubmissionRow(existing as ProjectSubmissionRow)
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('project_submissions')
     .insert({
       project_id: projectId,
@@ -103,8 +103,8 @@ export async function updateProjectSubmission(
     validationResults: Record<string, unknown>
   }>
 ): Promise<ProjectSubmissionRecord> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const dbClient = createClient()
+  const { data: { session } } = await dbClient.auth.getSession()
   const user = session?.user ?? null
 
   if (!user) {
@@ -127,7 +127,7 @@ export async function updateProjectSubmission(
     Object.entries(payload).filter(([, value]) => value !== undefined)
   )
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('project_submissions')
     .update(sanitized)
     .eq('id', id)

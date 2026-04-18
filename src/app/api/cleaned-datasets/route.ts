@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/api-client/server'
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
+  const dbClient = await createClient()
   const body = await request.json()
   
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('cleaned_datasets')
     .insert({
       project_id: body.project_id,
