@@ -67,6 +67,7 @@
     "d3-array": "^3.2.4",
     "d3-contour": "^4.0.2",
     "delaunator": "^5.0.1",
+    "docx": "^9.6.1",
     "dxf-writer": "^1.18.4",
     "embla-carousel-react": "^8.6.0",
     "exceljs": "^4.4.0",

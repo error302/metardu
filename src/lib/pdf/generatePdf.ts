@@ -45,20 +45,19 @@ export async function generatePdf(options: PdfGenerationOptions): Promise<Buffer
     // Wait for fonts and images to load
     await new Promise(resolve => setTimeout(resolve, 1000))
 
-    // Generate PDF
-    const pdfBuffer = await page.pdf({
-      format: paperSize,
-      orientation,
-      printBackground: true,
-      margin: {
-        top: '10mm',
-        right: '10mm',
-        bottom: '10mm',
-        left: '10mm',
-      },
-      displayHeaderFooter: false,
-      preferCSSPageSize: true,
-    })
+  // Generate PDF
+  const pdfBuffer = await page.pdf({
+    format: paperSize as any,
+    printBackground: true,
+    margin: {
+      top: '10mm',
+      right: '10mm',
+      bottom: '10mm',
+      left: '10mm',
+    },
+    displayHeaderFooter: false,
+    preferCSSPageSize: true,
+  })
 
     return Buffer.from(pdfBuffer)
   } finally {

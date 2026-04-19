@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSurveyReportById } from '@/lib/api-client/surveyReports'
-import type { SectionContent } from '@/types/surveyReport'
 import { generatePdf } from '@/lib/pdf/generatePdf'
+import { generateDocx } from '@/lib/docx/generateDocx'
 
 export async function POST(request: Request) {
   try {
@@ -39,16 +39,22 @@ export async function POST(request: Request) {
         orientation: 'portrait',
       })
 
-      return new NextResponse(pdfBuffer, {
+      return new NextResponse(Buffer.from(pdfBuffer), {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="${report.reportNumber?.replace(/[^a-z0-9]/gi, '_') || 'survey_report'}.pdf"`,
         }
       })
     } else if (format === 'docx') {
-      const docxBuffer = generateDocxFromSections(report.sections, report.reportTitle, report.reportNumber || '')
+      const docxBuffer = await generateDocx({
+        title: report.reportTitle || 'Survey Report',
+        reportNumber: report.reportNumber,
+        sections: report.sections,
+        clientName: (report as any).clientName,
+        projectName: (report as any).projectLocation,
+      })
 
-      return new NextResponse(docxBuffer as unknown as BodyInit, {
+      return new NextResponse(Buffer.from(docxBuffer), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           'Content-Disposition': `attachment; filename="${report.reportNumber?.replace(/[^a-z0-9]/gi, '_') || 'report'}.docx"`,
@@ -64,19 +70,4 @@ export async function POST(request: Request) {
       { status: 500 }
     )
   }
-}
-
-function generateDocxFromSections(sections: SectionContent[], title: string, reportNumber: string): Buffer {
-  const content = `<?xml version="1.0" encoding="UTF-8"?>
-<!-- DOCX generation requires docx npm package for full implementation -->
-<document>
-  <title>${escapeXml(title)}</title>
-  <reportNumber>${escapeXml(reportNumber)}</reportNumber>
-  <sections>${sections.length}</sections>
-</document>`
-  return Buffer.from(content, 'utf-8')
-}
-
-function escapeXml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 }
