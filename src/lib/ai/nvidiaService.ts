@@ -121,6 +121,8 @@ export async function extractCoordinates(text: string): Promise<{
   "warnings": ["Any issues or ambiguities found"]
 }
 
+IMPORTANT: Respond with ONLY the raw JSON object. Do not include any explanations, markdown formatting, or code. ONLY JSON.
+
 Survey text:
 ${text}
 
@@ -140,9 +142,19 @@ If no valid coordinates found, return empty arrays.`
   const response = await chat({ messages, model: 'meta/llama-3.1-70b-instruct', temperature: 0.1 })
   
   try {
-    // Extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/)
-    const jsonStr = jsonMatch ? jsonMatch[0] : '{}'
+    // Extract JSON block if surrounded by markdown
+    const blockMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/)
+    let jsonStr = blockMatch ? blockMatch[1] : response
+
+    // Fallback: finding first { and last }
+    if (!blockMatch) {
+      const firstBrace = jsonStr.indexOf('{')
+      const lastBrace = jsonStr.lastIndexOf('}')
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        jsonStr = jsonStr.slice(firstBrace, lastBrace + 1)
+      }
+    }
+
     const parsed = JSON.parse(jsonStr)
     
     return {
@@ -215,7 +227,7 @@ ${expected ? `Expected Values:\n${Object.entries(expected).map(([k, v]) => `- ${
 
 ${tolerances ? `Tolerances:\n${Object.entries(tolerances).map(([k, v]) => `- ${k}: ±${v}`).join('\n')}` : ''}
 
-Return JSON:
+Return ONLY raw JSON with no other text, markdown, or code:
 {
   "passed": true/false,
   "findings": ["Finding 1", "Finding 2"],
@@ -240,11 +252,23 @@ Return JSON:
   })
   
   try {
-    const jsonMatch = response.match(/\{[\s\S]*\}/)
-    const jsonStr = jsonMatch ? jsonMatch[0] : '{}'
+    // Extract JSON block if surrounded by markdown
+    const blockMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/)
+    let jsonStr = blockMatch ? blockMatch[1] : response
+
+    // Fallback: finding first { and last }
+    if (!blockMatch) {
+      const firstBrace = jsonStr.indexOf('{')
+      const lastBrace = jsonStr.lastIndexOf('}')
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        jsonStr = jsonStr.slice(firstBrace, lastBrace + 1)
+      }
+    }
+
     return JSON.parse(jsonStr)
   } catch (e) {
     console.error('Failed to parse validation response:', e)
+    console.error('Raw LLM Response was:', response)
     return {
       passed: false,
       findings: ['Failed to parse AI validation'],

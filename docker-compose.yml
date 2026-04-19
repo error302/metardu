@@ -1,29 +1,43 @@
-# Native PostgreSQL deployment (no Supabase dependency)
 services:
-  metardu:
+  web:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: metardu_nextjs
-    restart: unless-stopped
     ports:
       - "3000:3000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    env_file:
-      - .env.local
     environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://metardu.duckdns.org}
-      # DATABASE_URL is pulled from .env.local — never hardcode credentials here
-      - AUTH_TRUST_HOST=true
+      - DATABASE_URL=postgresql://metardu:Dosho10701$@db:5432/metardu
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=pYn8VpG3fX7rQ9zW5mK2tB4vE6hJ1nM8 # Replace with secure secret
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - metardu-network
+    restart: always
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      - POSTGRES_USER=metardu
+      - POSTGRES_PASSWORD=Dosho10701$
+      - POSTGRES_DB=metardu
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://127.0.0.1:3000/api/public/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      test: ["CMD-SHELL", "pg_isready -U metardu"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - metardu-network
+    restart: always
 
 networks:
-  default:
+  metardu-network:
     driver: bridge
+
+volumes:
+  postgres_data:

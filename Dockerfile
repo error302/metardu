@@ -1,56 +1,51 @@
-# ---- Base Stage ----
-FROM node:22-slim AS base
+# Stage 1: Dependencies
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
-
-# ---- Dependencies Stage ----
-FROM base AS deps
-COPY package*.json ./
-# Install system dependencies needed for canvas/jspdf if necessary
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    make \
-    g++ \
-    libcairo2-dev \
-    libpango1.0-dev \
-    libjpeg62-turbo-dev \
-    libgif-dev \
-    librsvg2-dev \
-    && rm -rf /var/lib/apt/lists/*
-
+COPY package.json package-lock.json* ./
 RUN npm ci
 
-# ---- Builder Stage ----
-FROM base AS builder
+# Stage 2: Builder
+FROM node:20-alpine AS builder
+WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# We need to ensure environment variables for the build are provided if necessary
-# NEXT_PUBLIC_ variables are baked in during build time
+
+# Disable telemetry during the build
+ENV NEXT_TELEMETRY_DISABLED 1
+
+# Note: We skip build here if we want to run in dev mode inside docker,
+# or we run build for production. 
+# For "simulation" we can use dev mode or production. Let's do production build for scalability.
 RUN npm run build
 
-# ---- Production Runner ----
-FROM base AS runner
-# Install runtime libraries for document generation
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libcairo2 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libjpeg62-turbo \
-    libgif7 \
-    librsvg2-2 \
-    libpixman-1-0 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Stage 3: Runner
+FROM node:20-alpine AS runner
+WORKDIR /app
 
-ENV NODE_ENV=production
-ENV HOSTNAME="0.0.0.0"
-ENV PORT=3000
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
 
-# Standalone server files
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
 COPY --from=builder /app/public ./public
 
-EXPOSE 3000
-CMD ["node", "server.js"]
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
 
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT 3000
+# set hostname to localhost
+ENV HOSTNAME "0.0.0.0"
+
+CMD ["node", "server.js"]

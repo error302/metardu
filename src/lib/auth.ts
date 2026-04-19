@@ -1,4 +1,5 @@
 import NextAuth, { AuthOptions } from 'next-auth'
+import type { Session } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { Pool } from 'pg'
@@ -32,7 +33,7 @@ export const authOptions: AuthOptions = {
         try {
           const p = getPool()
           const { rows } = await p.query(
-            'SELECT id, email, password_hash, full_name FROM users WHERE email = $1 LIMIT 1',
+            'SELECT id, email, password_hash, full_name, isk_number, verified_isk FROM users WHERE email = $1 LIMIT 1',
             [credentials.email.toLowerCase().trim()]
           )
 
@@ -46,6 +47,8 @@ export const authOptions: AuthOptions = {
             id: user.id,
             email: user.email,
             name: user.full_name || user.email.split('@')[0],
+            isk_number: user.isk_number,
+            verified_isk: user.verified_isk,
           }
         } catch (err) {
           console.error('[auth] Login DB error:', err)
@@ -59,15 +62,19 @@ export const authOptions: AuthOptions = {
       if (user) {
         token.id = user.id
         token.email = user.email
-        token.name = user.name
+        token.name = user.name || user.email.split('@')[0]
+        token.isk_number = (user as any).isk_number || ''
+        token.verified_isk = (user as any).verified_isk || false
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id
-        session.user.email = token.email as string
-        session.user.name = token.name as string
+        session.user.id = token.id
+        session.user.email = token.email
+        session.user.name = token.name
+        session.user.isk_number = token.isk_number as string
+        session.user.verified_isk = token.verified_isk as boolean
       }
       return session
     },

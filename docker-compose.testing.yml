@@ -1,0 +1,151 @@
+# Enterprise Testing Environment for METARDU
+# Mirrors Google Cloud VM production setup exactly
+# Run: docker-compose -f docker-compose.testing.yml up --build
+
+version: '3.8'
+
+services:
+  # PostgreSQL with PostGIS - Exact production replica
+  postgres:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: metardu-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-metardu_test}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-}
+      POSTGRES_DB: metardu_test
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+    ports:
+      - "5433:5432"  # Port 5433 to avoid conflict with production DB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-metardu_test} -d metardu_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - metardu-test-network
+    # Security: Restrict to localhost only
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  # Next.js Application - Test Instance
+  metardu-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: metardu-app-test
+    restart: unless-stopped
+    environment:
+      # App Configuration
+      NODE_ENV: test
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3001}
+      
+      # Database Connection (Docker network)
+      DATABASE_URL: postgresql://${DB_USER:-metardu_test}:${DB_PASSWORD:-testpass}@postgres:5432/metardu_test
+      
+      # Authentication
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_TRUST_HOST: "true"
+      NEXTAUTH_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3001}
+      
+      # NVIDIA AI
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY}
+      
+      # Optional: External Services (Test Mode)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
+      
+      # Email (Test Mode - Log to console)
+      RESEND_API_KEY: ${RESEND_API_KEY:-re_test_placeholder}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-1025}  # Mailhog default
+      
+      # Security Headers
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN}
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: test
+      
+      # Admin Configuration
+      ADMIN_EMAILS: ${ADMIN_EMAILS}
+    ports:
+      - "3001:3000"  # Port 3001 for test instance
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:3000/api/public/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - metardu-test-network
+    # Security: Non-root user
+    user: node
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+
+  # Automated Test Runner
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: metardu-test-runner
+    environment:
+      # Test Configuration
+      TEST_DATABASE_URL: postgresql://${DB_USER:-metardu_test}:${DB_PASSWORD:-testpass}@postgres:5432/metardu_test
+      TEST_APP_URL: http://metardu-test:3000
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 0
+      CI: "true"
+    depends_on:
+      metardu-test:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./test-results:/app/test-results
+      - ./playwright-report:/app/playwright-report
+    networks:
+      - metardu-test-network
+    # Run tests on startup
+    command: >
+      sh -c "
+        echo 'Waiting for app to be ready...' &&
+        sleep 10 &&
+        echo 'Running automated tests...' &&
+        npm run test:live &&
+        echo 'Tests complete. Results in /app/test-results' &&
+        tail -f /dev/null
+      "
+
+  # Mailhog - Test Email Server (Optional)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: metardu-mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - metardu-test-network
+    profiles:
+      - email-testing  # Only start when needed
+
+volumes:
+  postgres_test_data:
+    driver: local
+
+networks:
+  metardu-test-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

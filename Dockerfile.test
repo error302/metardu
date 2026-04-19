@@ -1,0 +1,48 @@
+# Test Runner Dockerfile
+# Runs automated tests against the test environment
+
+FROM node:20-alpine
+
+# Install Playwright dependencies
+RUN apk add --no-cache \
+    chromium \
+    playwright \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig*.json ./
+COPY next.config.js ./
+
+# Install dependencies
+RUN npm ci --legacy-peer-deps
+
+# Copy test scripts
+COPY scripts/live-browser-test.ts ./scripts/
+COPY scripts/test-all-survey-types.ts ./scripts/
+COPY scripts/generate-all-reports.ts ./scripts/
+
+# Copy test utilities
+COPY src/lib/ ./src/lib/
+COPY src/types/ ./src/types/
+
+# Install Playwright browsers
+RUN npx playwright install --with-deps chromium
+
+# Create test results directory
+RUN mkdir -p /app/test-results /app/playwright-report
+
+# Set environment
+ENV CI=true
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV NODE_ENV=test
+
+# Default command
+CMD ["npm", "run", "test:live"]

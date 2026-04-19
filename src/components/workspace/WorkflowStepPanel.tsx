@@ -3,12 +3,13 @@
 import { SurveyType } from '@/types/project';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { FileText, Map, Download, Loader2 } from 'lucide-react';
+import { FileText, Map, Download, Loader2, Sparkles } from 'lucide-react';
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile';
 import { HydroPanel } from '@/components/compute/HydroPanel';
 import { useState } from 'react';
 
 const DynamicFieldBook = dynamic(() => import('./DynamicFieldBook'), { ssr: false });
+const GenerateReportModal = dynamic(() => import('./GenerateReportModal'), { ssr: false });
 
 interface Props {
   projectId: string;
@@ -101,6 +102,7 @@ function ComputeStepPanel({ surveyType, projectId }: { surveyType: SurveyType; p
 function ReviewStepPanel({ surveyType, projectId }: { surveyType: SurveyType; projectId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   const handleSurveyReport = async () => {
     setLoading('report');
@@ -167,6 +169,14 @@ function ReviewStepPanel({ surveyType, projectId }: { surveyType: SurveyType; pr
       
       <div className="flex flex-wrap gap-3">
         <button
+          onClick={() => setIsAiModalOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
+        >
+          <Sparkles className="w-4 h-4" />
+          Generate Report
+        </button>
+
+        <button
           onClick={handleSurveyReport}
           disabled={loading !== null}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
@@ -198,6 +208,13 @@ function ReviewStepPanel({ surveyType, projectId }: { surveyType: SurveyType; pr
           After reviewing your computation results, generate the outputs above and proceed to the Submission tab to compile your survey package.
         </p>
       </div>
+
+      <GenerateReportModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        surveyType={surveyType}
+        projectId={projectId}
+      />
     </div>
   );
 }
