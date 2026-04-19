@@ -21,7 +21,7 @@ async function main() {
   const pool = new Pool({ connectionString: databaseUrl })
 
   const email = 'mohameddosho20@gmail.com'
-  const password = 'Dosho10701$'
+  const password = 'Z7m7066C6UJBUK'
   const fullName = 'Mohamed Dosho'
 
   console.log(`Seeding admin user: ${email}`)

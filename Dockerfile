@@ -1,7 +1,36 @@
-# ---- Production Runner (pre-built on host) ----
-FROM node:22-slim
+# ---- Base Stage ----
+FROM node:22-slim AS base
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install runtime libraries + curl for healthcheck
+# ---- Dependencies Stage ----
+FROM base AS deps
+COPY package*.json ./
+# Install system dependencies needed for canvas/jspdf if necessary
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg62-turbo-dev \
+    libgif-dev \
+    librsvg2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm ci
+
+# ---- Builder Stage ----
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# We need to ensure environment variables for the build are provided if necessary
+# NEXT_PUBLIC_ variables are baked in during build time
+RUN npm run build
+
+# ---- Production Runner ----
+FROM base AS runner
+# Install runtime libraries for document generation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     libpango-1.0-0 \
@@ -13,20 +42,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
-# Copy the pre-built application
-COPY .next ./.next
-COPY public ./public
-COPY node_modules ./node_modules
-COPY package.json ./package.json
-
-# Standalone server runs from .next/standalone/ but static files are excluded
-# from the standalone trace. Copy them into the expected location.
-RUN cp -r .next/static .next/standalone/.next/static
+# Standalone server files
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 
 EXPOSE 3000
-CMD ["node", ".next/standalone/server.js"]
+CMD ["node", "server.js"]
+

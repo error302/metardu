@@ -3,7 +3,9 @@
 import { useState, useRef, useEffect } from 'react'
 import type { SurveyPlanData, PlanOptions } from '@/lib/reports/surveyPlan/types'
 import { SurveyPlanRenderer } from '@/lib/reports/surveyPlan/renderer'
+import { SurveyPlanDataSchema } from '@/lib/validation/surveySchema'
 import ComplianceChecklistModal from '@/components/ComplianceChecklistModal'
+import { AlertCircle } from 'lucide-react'
 
 interface SurveyPlanViewerProps {
   data: SurveyPlanData
@@ -18,17 +20,30 @@ export default function SurveyPlanViewer({ data, options, className = '' }: Surv
   const [currentSheet, setCurrentSheet] = useState(0)
   const [svgContent, setSvgContent] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showCompliance, setShowCompliance] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<SurveyPlanRenderer | null>(null)
 
   useEffect(() => {
+    setLoading(true)
+    setError(null)
+    
     try {
+      // Quality Hardening: Validate data before rendering
+      const validation = SurveyPlanDataSchema.safeParse(data)
+      if (!validation.success) {
+        console.error('Survey plan data validation failed:', validation.error)
+        setError(validation.error.errors[0].message)
+        return
+      }
+
       const renderer = new SurveyPlanRenderer(data, options)
       rendererRef.current = renderer
       setSvgContent(renderer.render())
     } catch (e) {
       console.error('Survey plan render error:', e)
+      setError(e instanceof Error ? e.message : 'Unknown rendering error')
       setSvgContent('')
     } finally {
       setLoading(false)
@@ -109,7 +124,26 @@ export default function SurveyPlanViewer({ data, options, className = '' }: Surv
       )}
       <div ref={containerRef} className="flex-1 overflow-auto bg-[#e8e8e8] p-4">
         {loading ? (
-          <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">Generating plan...</div>
+          <div className="flex flex-col items-center justify-center h-full text-[var(--text-secondary)] gap-3">
+            <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+            <div className="font-mono text-xs uppercase tracking-widest">Generating plan...</div>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-full max-w-md mx-auto text-center gap-4">
+            <div className="p-4 rounded-full bg-red-500/10 text-red-500">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-red-500 uppercase tracking-tight">Render Failed</h3>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">{error}</p>
+            </div>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-tertiary)]"
+            >
+              Retry Renderer
+            </button>
+          </div>
         ) : svgContent ? (
           svgContent.includes('Sheet ') ? (
             <div

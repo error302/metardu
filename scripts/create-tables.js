@@ -3,7 +3,7 @@ const c = new pg.Client({
   host: '34.170.248.156',
   port: 5432,
   user: 'metardu',
-  password: 'Dosho10701$',
+  password: 'Z7m7066C6UJBUK',
   database: 'metardu'
 })
 

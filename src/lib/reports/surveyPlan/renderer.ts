@@ -70,22 +70,25 @@ export class SurveyPlanRenderer {
     const bb = boundingBox(parcel.boundaryPoints)
     const drawW = this.drawingAreaW - mmToPx(20)
     const drawH = this.drawingAreaH - mmToPx(20)
+    
     if (this.opts.scale > 0) {
       this.scale = this.opts.scale
     } else {
-      const scaleByWidth = drawW / bb.rangeE
-      const scaleByHeight = drawH / bb.rangeN
-      const rawScale = Math.min(scaleByWidth, scaleByHeight) * PX_PER_M
+      const actualPxPerM = Math.min(drawW / bb.rangeE, drawH / bb.rangeN)
+      const rawScale = PX_PER_M / actualPxPerM
       this.scale = STANDARD_SCALES.find((s: any) => s >= rawScale) || 500
     }
-    this.mPerPx = this.scale / PX_PER_M
-    const offsetX = (drawW - bb.rangeE * PX_PER_M) / 2
-    const offsetY = (drawH - bb.rangeN * PX_PER_M) / 2
-    const minE = bb.minE
-    const minN = bb.minN
-    this.toSvgX = (m) => this.drawingX + mmToPx(10) + offsetX + (m - minE) * PX_PER_M
-    this.toSvgY = (m) => this.drawingY + mmToPx(10) + offsetY + (m - minN) * PX_PER_M
+    
+    const pxPerM = PX_PER_M / this.scale
+    this.mPerPx = 1 / pxPerM
+
+    const offsetX = (drawW - bb.rangeE * pxPerM) / 2
+    const offsetY = (drawH - bb.rangeN * pxPerM) / 2
+    
+    this.toSvgX = (m) => this.drawingX + mmToPx(10) + offsetX + (m - bb.minE) * pxPerM
+    this.toSvgY = (m) => this.drawingY + mmToPx(10) + offsetY + (bb.maxN - m) * pxPerM
   }
+
 
   private getTransformedPoints(): Array<{ easting: number; northing: number }> {
     const pts = this.data.parcel.boundaryPoints
@@ -112,39 +115,54 @@ export class SurveyPlanRenderer {
   private drawGrid(): string {
     const parcel = this.data.parcel
     const bb = boundingBox(parcel.boundaryPoints)
-    const gridMinE = Math.floor(bb.minE / 50) * 50 - 50
-    const gridMaxE = Math.ceil(bb.maxE / 50) * 50 + 50
-    const gridMinN = Math.floor(bb.minN / 50) * 50 - 50
-    const gridMaxN = Math.ceil(bb.maxN / 50) * 50 + 50
+    
+    // Use nice round numbers for grid lines (every 50m)
+    const gridMinE = Math.floor(bb.minE / 50) * 50
+    const gridMaxE = Math.ceil(bb.maxE / 50) * 50
+    const gridMinN = Math.floor(bb.minN / 50) * 50
+    const gridMaxN = Math.ceil(bb.maxN / 50) * 50
+    
     let svg = ''
+    
+    // Vertical lines (Easting)
     for (let e = gridMinE; e <= gridMaxE; e += 50) {
       const x = this.toSvgX(e)
+      const y1 = this.toSvgY(gridMinN)
+      const y2 = this.toSvgY(gridMaxN)
       const isMajor = e % 100 === 0
       const stroke = isMajor ? C_GRID_MAJOR : C_GRID_MINOR
       const width = isMajor ? 0.8 : 0.4
       const dash = isMajor ? 'none' : '2,4'
-      svg += `<line x1="${x}" y1="${this.toSvgY(gridMinN)}" x2="${x}" y2="${this.toSvgY(gridMaxN)}" stroke="${stroke}" stroke-width="${width}" stroke-dasharray="${dash}" opacity="0.7"/>`
+      
+      svg += `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${stroke}" stroke-width="${width}" stroke-dasharray="${dash}" opacity="0.7"/>`
+      
       if (isMajor) {
-        const lx = this.drawingX - 4
-        const ly = this.toSvgY(e) + 3
-        svg += `<text x="${lx}" y="${ly}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="8" fill="${C_BLACK}" opacity="0.6">${e}</text>`
+        const ly = this.drawingY + this.drawingAreaH + 12
+        svg += `<text x="${x}" y="${ly}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" fill="${C_BLACK}" opacity="0.6">${e}</text>`
       }
     }
+    
+    // Horizontal lines (Northing)
     for (let n = gridMinN; n <= gridMaxN; n += 50) {
       const y = this.toSvgY(n)
+      const x1 = this.toSvgX(gridMinE)
+      const x2 = this.toSvgX(gridMaxE)
       const isMajor = n % 100 === 0
       const stroke = isMajor ? C_GRID_MAJOR : C_GRID_MINOR
       const width = isMajor ? 0.8 : 0.4
       const dash = isMajor ? 'none' : '2,4'
-      svg += `<line x1="${this.toSvgX(gridMinE)}" y1="${y}" x2="${this.toSvgX(gridMaxE)}" y2="${y}" stroke="${stroke}" stroke-width="${width}" stroke-dasharray="${dash}" opacity="0.7"/>`
+      
+      svg += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${stroke}" stroke-width="${width}" stroke-dasharray="${dash}" opacity="0.7"/>`
+      
       if (isMajor) {
-        const lx = this.toSvgX(n) - 4
-        const ly = this.drawingY + this.drawingAreaH + 12
-        svg += `<text x="${lx}" y="${ly}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="8" fill="${C_BLACK}" opacity="0.6" transform="rotate(-45,${lx},${ly})">${n}</text>`
+        const lx = this.drawingX - 4
+        svg += `<text x="${lx}" y="${y + 3}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="8" fill="${C_BLACK}" opacity="0.6">${n}</text>`
       }
     }
+    
     return svg
   }
+
 
   private drawLotFill(): string {
     const pts = this.data.parcel.boundaryPoints
@@ -777,14 +795,14 @@ export class SurveyPlanRenderer {
     let svg = `<rect x="${this.margin}" y="${footerY}" width="${this.pageW - this.margin * 2}" height="${footerH}" fill="#F8F8F8"/>`
     svg += `<line x1="${this.margin}" y1="${footerY}" x2="${this.pageW - this.margin}" y2="${footerY}" stroke="${C_BLACK}" stroke-width="2"/>`
     const fields: Array<[string, string]> = [
-      ['Field', ''],
+      ['Field', p.location || ''],
       ['Drawing', p.drawing_no || `MD-${Date.now().toString().slice(-6)}`],
       ['Checked', ''],
       ['Address', p.firm_address || ''],
       ['Date', new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
       ['Work Order', ''],
       ['Job No.', p.reference || ''],
-      [p.firm_name || 'METARDU', ''],
+      [p.firm_name || p.name || 'METARDU', ''],
     ]
     let x = this.margin
     for (let i = 0; i < cols; i++) {

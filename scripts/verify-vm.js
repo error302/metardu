@@ -5,7 +5,7 @@ const supabase = new Client({
   host: '10.122.139.3',  // Supabase direct IP - we'll need to discover this
   port: 5432,
   user: 'postgres',
-  password: 'Dosho10701$',
+  password: 'Z7m7066C6UJBUK',
   database: 'postgres'
 })
 
@@ -13,7 +13,7 @@ const vm = new Client({
   host: '34.170.248.156',
   port: 5432,
   user: 'metardu',
-  password: 'Dosho10701$',
+  password: 'Z7m7066C6UJBUK',
   database: 'metardu'
 })
 
