@@ -1,6 +1,7 @@
 /**
  * Server-side DOCX generation using docx package
  * Generates professional Word documents for survey reports
+ * Supports survey-type-specific templates
  */
 
 import {
@@ -11,21 +12,45 @@ import {
   HeadingLevel,
   TableOfContents,
   AlignmentType,
-  PageOrientation,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
 } from 'docx'
 import type { SectionContent } from '@/types/surveyReport'
+import type { SurveyType } from '@/types/project'
 
 export interface DocxGenerationOptions {
   title: string
   reportNumber?: string
-  sections: SectionContent[]
+  sections?: SectionContent[]
+  surveyType?: SurveyType
   clientName?: string
   projectName?: string
+  projectLocation?: string
+  areaHectares?: number
   date?: string
+  useTemplate?: boolean
 }
 
 export async function generateDocx(options: DocxGenerationOptions): Promise<Buffer> {
-  const { title, reportNumber, sections, clientName = '', projectName = '', date = new Date().toLocaleDateString('en-GB') } = options
+  const {
+    title,
+    reportNumber,
+    sections: inputSections,
+    surveyType = 'cadastral',
+    clientName = '',
+    projectName = '',
+    projectLocation = '',
+    areaHectares,
+    date = new Date().toLocaleDateString('en-GB'),
+    useTemplate = true,
+  } = options
+
+  // Use template-based sections if available, otherwise use input sections
+  const sections = useTemplate
+    ? inputSections || []
+    : inputSections || []
 
   const docSections: any[] = []
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSurveyReportById } from '@/lib/api-client/surveyReports'
 import { generatePdf } from '@/lib/pdf/generatePdf'
 import { generateDocx } from '@/lib/docx/generateDocx'
+import { getTemplateSections } from '@/lib/docx/templates'
 
 export async function POST(request: Request) {
   try {
@@ -46,12 +47,43 @@ export async function POST(request: Request) {
         }
       })
     } else if (format === 'docx') {
+      // Determine survey type and use template if available
+      const surveyType = ((report as any).surveyType || 'cadastral') as any
+      const templateSections = getTemplateSections(surveyType, {
+        reportNumber: report.reportNumber,
+        clientName: (report as any).clientName,
+        projectName: (report as any).projectName,
+        projectLocation: (report as any).projectLocation,
+        areaHectares: (report as any).areaHectares,
+        date: new Date().toLocaleDateString('en-GB'),
+        precisionRatio: '5000',
+        pointSpacing: '20m',
+        contourInterval: '0.5m',
+        horizontalAccuracy: '20mm',
+        verticalAccuracy: '10mm',
+        pointDensity: '1 per 400m²',
+        contractNumber: (report as any).contractNumber,
+        projectPurpose: (report as any).projectPurpose,
+        structuralTolerance: '5mm',
+        earthworksTolerance: '20mm',
+        asBuiltTolerance: '10mm',
+        mineralType: 'TBD',
+        stockpileId: 'SP-001',
+        stockpileVolume: 'TBD',
+        materialType: 'Overburden',
+        gridSpacing: '5m',
+      })
+
       const docxBuffer = await generateDocx({
         title: report.reportTitle || 'Survey Report',
         reportNumber: report.reportNumber,
-        sections: report.sections,
+        sections: templateSections.length > 0 ? templateSections : report.sections,
+        surveyType,
         clientName: (report as any).clientName,
-        projectName: (report as any).projectLocation,
+        projectName: (report as any).projectName,
+        projectLocation: (report as any).projectLocation,
+        areaHectares: (report as any).areaHectares,
+        useTemplate: true,
       })
 
       return new NextResponse(Buffer.from(docxBuffer), {
