@@ -42,6 +42,8 @@ const envSchema = z.object({
   DB_NAME: z.string().optional(),
   DB_USER: z.string().optional(),
   DB_PASSWORD: z.string().optional(),
+  
+  NVIDIA_API_KEY: z.string().optional(),
 })
 
 const parsedEnv = envSchema.safeParse(process.env)
