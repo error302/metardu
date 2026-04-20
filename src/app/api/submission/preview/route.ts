@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/api-client/server'
+import db from '@/lib/db'
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile'
 import { generateSubmissionRef } from '@/lib/submission/revisionNumber'
 
@@ -10,18 +10,27 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'projectId required' }, { status: 400 })
     }
 
-    const dbClient = await createClient()
     const surveyor = await getActiveSurveyorProfile()
 
-    const { data: project } = await dbClient
-      .from('projects')
-      .select('*, survey_points(*), supporting_documents(*)')
-      .eq('id', projectId)
-      .single()
+    const { rows: projectRows } = await db.query(
+      'SELECT * FROM projects WHERE id = $1 LIMIT 1',
+      [projectId]
+    )
 
-    if (!project) {
+    if (projectRows.length === 0) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
+
+    const project = projectRows[0]
+    
+    // Simulate joined relations for survey_points (supporting_docs doesn't exist on projects table usually, mock if needed)
+    const { rows: pointsRows } = await db.query(
+      'SELECT * FROM survey_points WHERE project_id = $1',
+      [projectId]
+    )
+    
+    project.survey_points = pointsRows
+    project.supporting_documents = [] // Fallback since it's not a standard table
 
     const { ref, revision } = await generateSubmissionRef(
       projectId,

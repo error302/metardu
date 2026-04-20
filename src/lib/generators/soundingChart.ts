@@ -1,24 +1,19 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { createClient } from '@/lib/api-client/client';
+import db from '@/lib/db';
 
 export async function generateSoundingChart(
-  projectId: string,
-  dbClient: ReturnType<typeof createClient>
+  projectId: string
 ): Promise<Buffer> {
-  const { data: project } = await dbClient
-    .from('projects')
-    .select('name')
-    .eq('id', projectId)
-    .single();
-
+  const projectRes = await db.query('SELECT name FROM projects WHERE id = $1', [projectId]);
+  const project = projectRes.rows[0];
   if (!project) throw new Error('Project not found');
 
-  const { data: entries } = await dbClient
-    .from('project_fieldbook_entries')
-    .select('row_index, station, raw_data')
-    .eq('project_id', projectId)
-    .order('row_index', { ascending: true });
+  const entriesRes = await db.query(
+    'SELECT row_index, station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
+    [projectId]
+  );
+  const entries = entriesRes.rows;
 
   if (!entries || entries.length === 0) {
     throw new Error('No sounding data found.');

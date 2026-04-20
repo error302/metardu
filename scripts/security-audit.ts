@@ -90,7 +90,7 @@ async function scanFile(filePath: string): Promise<SecurityIssue[]> {
   const content = fs.readFileSync(filePath, 'utf-8')
   const issues: SecurityIssue[] = []
   
-  for (const [patternName, pattern] of Object.entries(PATTERNSS)) {
+  for (const [patternName, pattern] of Object.entries(PATTERNS)) {
     const lines = content.split('\n')
     lines.forEach((line, index) => {
       if (pattern.regex.test(line)) {

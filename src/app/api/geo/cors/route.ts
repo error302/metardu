@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/api-client/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { findNearestCORS } from '@/lib/geo/cors';
 
 export async function GET(req: NextRequest) {
-  const dbClient = await createClient();
-  const { data: { session } } = await dbClient.auth.getSession();
+  const session = await getServerSession(authOptions);
   
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/api-client/client';
+import db from '@/lib/db';
 import { coordinateArea } from '@/lib/engine/area';
 
 export interface TraverseStation {
@@ -58,25 +58,23 @@ function decimalToDMS(deg: number): string {
 }
 
 export async function computeDeedPlanGeometry(
-  projectId: string,
-  dbClient: ReturnType<typeof createClient>
+  projectId: string
 ): Promise<DeedPlanGeometry> {
-  const { data: entries, error } = await dbClient
-    .from('project_fieldbook_entries')
-    .select('row_index, station, raw_data')
-    .eq('project_id', projectId)
-    .order('row_index', { ascending: true });
+  const entriesRes = await db.query(
+    'SELECT row_index, station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
+    [projectId]
+  );
+  const entries = entriesRes.rows;
 
-  if (error) throw new Error('Failed to load fieldbook: ' + error.message);
   if (!entries || entries.length < 3) {
     throw new Error('Deed Plan requires at least 3 traverse stations. Add observations in the Field Book panel.');
   }
 
-  const { data: project } = await dbClient
-    .from('projects')
-    .select('boundary_data, utm_zone, hemisphere')
-    .eq('id', projectId)
-    .single();
+  const projectRes = await db.query(
+    'SELECT boundary_data, utm_zone, hemisphere FROM projects WHERE id = $1',
+    [projectId]
+  );
+  const project = projectRes.rows[0];
 
   const legs: TraverseStation[] = entries
     .map((e: any) => ({

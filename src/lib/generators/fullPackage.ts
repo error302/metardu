@@ -1,17 +1,15 @@
 import JSZip from 'jszip';
-import { createClient } from '@/lib/api-client/client';
+import db from '@/lib/db';
 
 export async function generateFullPackage(
-  projectId: string,
-  dbClient: ReturnType<typeof createClient>
+  projectId: string
 ): Promise<Buffer> {
 
-  const { data: readyDocs } = await dbClient
-    .from('submission_documents')
-    .select('document_id, file_url')
-    .eq('project_id', projectId)
-    .eq('status', 'ready')
-    .neq('document_id', 'full-package');
+  const readyDocsRes = await db.query(
+    "SELECT document_id, file_url FROM submission_documents WHERE project_id = $1 AND status = 'ready' AND document_id != 'full-package'",
+    [projectId]
+  );
+  const readyDocs = readyDocsRes.rows;
 
   if (!readyDocs || readyDocs.length === 0) {
     throw new Error('No ready documents found. Generate individual documents before creating the full package.');

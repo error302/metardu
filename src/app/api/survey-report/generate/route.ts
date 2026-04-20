@@ -7,9 +7,12 @@ import type { SurveyReportInput, SectionContent, ControlPoint, LevellingRun } fr
 
 export async function POST(request: Request) {
   try {
-    const dbClient = createClient()
-    const { data: { session } } = await dbClient.auth.getSession()
-    const user = session?.user ?? null
+    const { getServerSession } = await import('next-auth')
+    const { authOptions } = await import('@/lib/auth')
+    const db = (await import('@/lib/db')).default
+    
+    const session = await getServerSession(authOptions)
+    const user = session?.user as any | null
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -22,21 +25,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
     }
 
-    const { data: project } = await dbClient
-      .from('projects')
-      .select('*')
-      .eq('id', projectId)
-      .single()
+    const { rows: projectRows } = await db.query(
+      'SELECT * FROM projects WHERE id = $1 LIMIT 1',
+      [projectId]
+    )
 
-    if (!project) {
+    if (projectRows.length === 0) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
+    const project = projectRows[0]
 
-    const { data: points } = await dbClient
-      .from('survey_points')
-      .select('*')
-      .eq('project_id', projectId)
-      .eq('is_control', true)
+    const { rows: points } = await db.query(
+      'SELECT * FROM survey_points WHERE project_id = $1 AND is_control = true',
+      [projectId]
+    )
 
     const controlPoints: ControlPoint[] = (points || []).map((p: any) => ({
       id: p.name || p.id,
@@ -54,33 +56,35 @@ export async function POST(request: Request) {
       cp.markType.toLowerCase().includes('benchmark')
     )
 
-    const { data: levelingRunsData } = await dbClient
-      .from('leveling_runs')
-      .select('*')
-      .eq('project_id', projectId)
+    let levellingRuns: LevellingRun[] = []
+    try {
+      const { rows: levelingRunsData } = await db.query(
+        'SELECT * FROM leveling_runs WHERE project_id = $1',
+        [projectId]
+      )
 
-    const levellingRuns: LevellingRun[] = (levelingRunsData || []).map((run: any) => ({
-      runId: run.run_id || run.id,
-      fromBM: run.from_bm || 'BM1',
-      toBM: run.to_bm || 'BM2',
-      distance: run.distance || 0,
-      misclosure: run.misclosure || 0,
-      allowable: run.allowable || 10,
-      passes: run.passes ?? true
-    }))
+      levellingRuns = (levelingRunsData || []).map((run: any) => ({
+        runId: run.run_id || run.id,
+        fromBM: run.from_bm || 'BM1',
+        toBM: run.to_bm || 'BM2',
+        distance: run.distance || 0,
+        misclosure: run.misclosure || 0,
+        allowable: run.allowable || 10,
+        passes: run.passes ?? true
+      }))
+    } catch {
+      // Ignore missing table error
+    }
 
     let traversePrecision: number | undefined
     try {
-      const { data: traverseData } = await dbClient
-        .from('traverse_results')
-        .select('precision_ratio')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
+      const { rows: traverseData } = await db.query(
+        'SELECT precision_ratio FROM traverse_results WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [projectId]
+      )
       
-      if (traverseData?.precision_ratio) {
-        traversePrecision = traverseData.precision_ratio
+      if (traverseData.length > 0 && traverseData[0].precision_ratio) {
+        traversePrecision = traverseData[0].precision_ratio
       }
     } catch {
       // No traverse data yet

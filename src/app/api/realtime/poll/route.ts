@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/api-client/server'
+import db from '@/lib/db'
+
+// Only allow specific tables to be queried for security
+const ALLOWED_TABLES = [
+  'projects',
+  'project_fieldbook_entries',
+  'survey_points',
+  'signatures',
+  'audit_logs'
+]
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -10,15 +19,17 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Missing table or projectId' }, { status: 400 })
   }
 
-  try {
-    const dbClient = await createClient()
-    const result = await dbClient
-      .from(table)
-      .select('*')
-      .eq('project_id', projectId)
-      .order('updated_at', { ascending: false })
+  if (!ALLOWED_TABLES.includes(table)) {
+    return NextResponse.json({ error: 'Invalid table' }, { status: 400 })
+  }
 
-    return NextResponse.json({ data: (result as any).data || [], error: (result as any).error })
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM ${table} WHERE project_id = $1 ORDER BY updated_at DESC`,
+      [projectId]
+    )
+
+    return NextResponse.json({ data: rows, error: null })
   } catch (err: any) {
     return NextResponse.json({ data: [], error: err.message }, { status: 500 })
   }

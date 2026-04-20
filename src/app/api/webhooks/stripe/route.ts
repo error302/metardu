@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 })
   }
 
-  const dbClient = await createClient()
+  const db = (await import('@/lib/db')).default
 
   switch (event.type) {
     case 'checkout.session.completed': {
@@ -39,13 +39,10 @@ export async function POST(request: NextRequest) {
       if (session.metadata?.type === 'peer_review') {
         const reviewReqId = session.metadata.review_request_id
         if (reviewReqId) {
-          await dbClient
-            .from('peer_reviews')
-            .update({ 
-              payment_status: 'paid', 
-              stripe_payment_intent_id: session.payment_intent 
-            })
-            .eq('id', reviewReqId)
+          await db.query(
+            'UPDATE peer_reviews SET payment_status = $1, stripe_payment_intent_id = $2 WHERE id = $3',
+            ['paid', session.payment_intent, reviewReqId]
+          )
         }
         break
       }
@@ -58,36 +55,33 @@ export async function POST(request: NextRequest) {
       const now = new Date()
       const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-      const { data: existing } = await dbClient
-        .from('user_subscriptions')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle()
+      const { rows: existingRows } = await db.query(
+        'SELECT id FROM user_subscriptions WHERE user_id = $1 LIMIT 1',
+        [userId]
+      )
+      const existing = existingRows[0]
 
-      const payload = {
-        user_id: userId,
-        plan_id: planId,
-        status: 'active',
-        payment_method: 'stripe',
-        currency: (session.currency || 'USD').toUpperCase() as CurrencyCode,
-        current_period_start: now.toISOString(),
-        current_period_end: periodEnd.toISOString(),
-      }
+      const currency = (session.currency || 'USD').toUpperCase()
 
       if (existing?.id) {
-        await dbClient.from('user_subscriptions').update(payload).eq('id', existing.id)
+        await db.query(
+          `UPDATE user_subscriptions 
+           SET plan_id = $1, status = $2, payment_method = $3, currency = $4, current_period_start = $5, current_period_end = $6
+           WHERE id = $7`,
+          [planId, 'active', 'stripe', currency, now.toISOString(), periodEnd.toISOString(), existing.id]
+        )
       } else {
-        await dbClient.from('user_subscriptions').insert(payload)
+        await db.query(
+          `INSERT INTO user_subscriptions (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [userId, planId, 'active', 'stripe', currency, now.toISOString(), periodEnd.toISOString()]
+        )
       }
 
-      await dbClient
-        .from('payment_history')
-        .update({
-          status: 'completed',
-          transaction_id: session.id,
-        })
-        .eq('id', paymentId)
-        .eq('user_id', userId)
+      await db.query(
+        'UPDATE payment_history SET status = $1, transaction_id = $2 WHERE id = $3 AND user_id = $4',
+        ['completed', session.id, paymentId, userId]
+      )
 
       break
     }
@@ -98,17 +92,18 @@ export async function POST(request: NextRequest) {
       const status = sub.status
       const planId = sub.metadata?.plan_id || 'free'
 
-      const { data: user } = await dbClient
-        .from('user_subscriptions')
-        .select('user_id')
-        .eq('user_id', sub.metadata?.user_id || '')
-        .maybeSingle()
+      const { rows: userRows } = await db.query(
+        'SELECT user_id FROM user_subscriptions WHERE user_id = $1 LIMIT 1',
+        [sub.metadata?.user_id || '']
+      )
+      const user = userRows[0]
 
       if (user) {
-        await dbClient
-          .from('user_subscriptions')
-          .update({ status: status === 'active' ? 'active' : status === 'past_due' ? 'active' : 'cancelled' })
-          .eq('user_id', user.user_id)
+        const newStatus = status === 'active' ? 'active' : status === 'past_due' ? 'active' : 'cancelled'
+        await db.query(
+          'UPDATE user_subscriptions SET status = $1 WHERE user_id = $2',
+          [newStatus, user.user_id]
+        )
       }
       break
     }
@@ -118,10 +113,10 @@ export async function POST(request: NextRequest) {
       const userId = sub.metadata?.user_id
 
       if (userId) {
-        await dbClient
-          .from('user_subscriptions')
-          .update({ status: 'cancelled' })
-          .eq('user_id', userId)
+        await db.query(
+          'UPDATE user_subscriptions SET status = $1 WHERE user_id = $2',
+          ['cancelled', userId]
+        )
       }
       break
     }
@@ -130,17 +125,17 @@ export async function POST(request: NextRequest) {
       const invoice = event.data.object
       const customerId = invoice.customer
 
-      const { data: userSub } = await dbClient
-        .from('user_subscriptions')
-        .select('user_id')
-        .eq('user_id', invoice.metadata?.user_id || '')
-        .maybeSingle()
+      const { rows: userSubRows } = await db.query(
+        'SELECT user_id FROM user_subscriptions WHERE user_id = $1 LIMIT 1',
+        [invoice.metadata?.user_id || '']
+      )
+      const userSub = userSubRows[0]
 
       if (userSub) {
-        await dbClient
-          .from('user_subscriptions')
-          .update({ status: 'expired' })
-          .eq('user_id', userSub.user_id)
+        await db.query(
+          'UPDATE user_subscriptions SET status = $1 WHERE user_id = $2',
+          ['expired', userSub.user_id]
+        )
       }
       break
     }

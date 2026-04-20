@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/api-client/client'
+import db from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { callPythonCompute } from '@/lib/compute/pythonService'
 
 export async function POST(request: NextRequest) {
   try {
-    const dbClient = createClient()
-    const { data: authSession } = await dbClient.auth.getSession()
-    const user = authSession.session?.user ?? null
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const session = await getServerSession(authOptions)
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = session.user as any
 
     const body = await request.json()
     const { projectId, files, stationLabels } = body
@@ -23,18 +21,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Create session record
-    const { data: gnssSession, error: sessionError } = await dbClient
-      .from('gnss_sessions')
-      .insert({
-        project_id: projectId,
-        user_id: user.id,
-        status: 'processing',
-        input_files: files
-      })
-      .select()
-      .single()
-
-    if (sessionError) throw sessionError
+    const sessionRes = await db.query(
+      `INSERT INTO gnss_sessions (
+        project_id, user_id, status, input_files
+      ) VALUES ($1, $2, $3, $4)
+      RETURNING id`,
+      [projectId, user.id, 'processing', JSON.stringify(files)]
+    )
+    const gnssSessionId = sessionRes.rows[0].id
 
     // Call Python service for processing
     const result = await callPythonCompute<any>('/gnss/process', {
@@ -59,18 +53,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Update session with results
-    await dbClient
-      .from('gnss_sessions')
-      .update({
-        status: results.length > 0 ? 'complete' : 'failed',
-        results,
-        error_msg: errorMsg,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', gnssSession.id)
+    await db.query(
+      `UPDATE gnss_sessions SET
+        status = $1,
+        results = $2,
+        error_msg = $3,
+        updated_at = $4
+      WHERE id = $5`,
+      [
+        results.length > 0 ? 'complete' : 'failed',
+        JSON.stringify(results),
+        errorMsg,
+        new Date().toISOString(),
+        gnssSessionId
+      ]
+    )
 
     return NextResponse.json({
-      sessionId: gnssSession.id,
+      sessionId: gnssSessionId,
       results,
       status,
       message: status === 'simulated' ? 'Simulation mode — upload valid RINEX for real processing' : undefined

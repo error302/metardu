@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/api-client/server'
+import db from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import type { EngineeringSubtype } from '@/lib/engine/engineering'
 
 export async function GET(request: NextRequest) {
   try {
-    const dbClient = await createClient()
-    const { data: { session } } = await dbClient.auth.getSession()
+    const session = await getServerSession(authOptions)
     
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -18,17 +19,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing projectId' }, { status: 400 })
     }
 
-    const { data, error } = await dbClient
-      .from('engineering_survey_data')
-      .select('*')
-      .eq('project_id', projectId)
-      .single()
+    const { rows } = await db.query(
+      'SELECT * FROM engineering_survey_data WHERE project_id = $1 LIMIT 1',
+      [projectId]
+    )
 
-    if (error || !data) {
+    if (rows.length === 0) {
       return NextResponse.json({ data: null })
     }
 
-    return NextResponse.json({ data })
+    return NextResponse.json({ data: rows[0] })
   } catch (error) {
     console.error('Engineering data GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 })
@@ -37,8 +37,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const dbClient = await createClient()
-    const { data: { session } } = await dbClient.auth.getSession()
+    const session = await getServerSession(authOptions)
     
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -55,22 +54,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const { data: result, error } = await dbClient
-      .from('engineering_survey_data')
-      .upsert(
-        { project_id: projectId, subtype, data },
-        { onConflict: 'project_id' }
-      )
-      .select()
-      .single()
+    const { rows } = await db.query(
+      `INSERT INTO engineering_survey_data (project_id, subtype, data)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (project_id) DO UPDATE SET subtype = EXCLUDED.subtype, data = EXCLUDED.data
+       RETURNING *`,
+      [projectId, subtype, JSON.stringify(data)]
+    )
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ data: result })
+    return NextResponse.json({ data: rows[0] })
   } catch (error) {
     console.error('Engineering data POST error:', error)
     return NextResponse.json({ error: 'Failed to save data' }, { status: 500 })
   }
-}
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/api-client/client'
+import db from '@/lib/db'
 
 // Haversine formula to calculate distance between two points
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -38,20 +38,34 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all active benchmarks (simple approach without PostGIS)
-    const dbClient = createClient()
-    const { data: benchmarks, error } = await dbClient
-      .from('benchmarks')
-      .select('*')
-      .eq('status', 'ACTIVE')
-      .limit(100)
-
-    if (error) throw error
+    // Note: assuming status column exists based on old code
+    const baseQuery = `
+      SELECT * 
+      FROM benchmarks 
+      WHERE status = 'ACTIVE' 
+      LIMIT 100
+    `;
+    
+    // Fallback if status doesn't exist in some environments
+    let benchmarks = [];
+    try {
+      const { rows } = await db.query(baseQuery);
+      benchmarks = rows;
+    } catch (err: any) {
+      // If status column doesn't exist, try without it
+      if (err.message?.includes('column "status" does not exist')) {
+        const { rows } = await db.query('SELECT * FROM benchmarks LIMIT 100');
+        benchmarks = rows;
+      } else {
+        throw err;
+      }
+    }
 
     // Calculate distance for each benchmark and filter
-    const results = (benchmarks || [])
+    const results = benchmarks
       .map((bm: any) => ({
         ...bm,
-        distanceKm: calculateDistance(latitude, longitude, bm.latitude, bm.longitude)
+        distanceKm: calculateDistance(latitude, longitude, bm.latitude ?? bm.northing, bm.longitude ?? bm.easting)
       }))
       .filter((bm: any) => bm.distanceKm <= radius)
       .sort((a: any, b: any) => a.distanceKm - b.distanceKm)

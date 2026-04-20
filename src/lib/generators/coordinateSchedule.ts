@@ -1,22 +1,21 @@
 import ExcelJS from 'exceljs';
-import { createClient } from '@/lib/api-client/client';
+import db from '@/lib/db';
 
 export async function generateCoordinateSchedule(
-  projectId: string,
-  dbClient: ReturnType<typeof createClient>
+  projectId: string
 ): Promise<Buffer> {
 
-  const { data: project } = await dbClient
-    .from('projects')
-    .select('name, survey_type, ref_no')
-    .eq('id', projectId)
-    .single();
+  const projectRes = await db.query(
+    'SELECT name, survey_type, ref_no FROM projects WHERE id = $1',
+    [projectId]
+  );
+  const project = projectRes.rows[0];
 
-  const { data: beacons } = await dbClient
-    .from('project_beacons')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('beacon_no', { ascending: true });
+  const beaconsRes = await db.query(
+    'SELECT * FROM project_beacons WHERE project_id = $1 ORDER BY beacon_no ASC',
+    [projectId]
+  );
+  const beacons = beaconsRes.rows;
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Metardu';

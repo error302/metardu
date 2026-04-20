@@ -1,22 +1,21 @@
 import ExcelJS from 'exceljs';
-import { createClient } from '@/lib/api-client/client';
+import db from '@/lib/db';
 
 export async function generateFieldBookExcel(
-  projectId: string,
-  dbClient: ReturnType<typeof createClient>
+  projectId: string
 ): Promise<Buffer> {
 
-  const { data: project } = await dbClient
-    .from('projects')
-    .select('name, survey_type, ref_no')
-    .eq('id', projectId)
-    .single();
+  const projectRes = await db.query(
+    'SELECT name, survey_type, ref_no FROM projects WHERE id = $1',
+    [projectId]
+  );
+  const project = projectRes.rows[0];
 
-  const { data: entries } = await dbClient
-    .from('project_fieldbook_entries')
-    .select('row_index, raw_data')
-    .eq('project_id', projectId)
-    .order('row_index', { ascending: true });
+  const entriesRes = await db.query(
+    'SELECT row_index, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
+    [projectId]
+  );
+  const entries = entriesRes.rows;
 
   const rows = (entries ?? []).map((e: any) => e.raw_data as Record<string, unknown>);
 

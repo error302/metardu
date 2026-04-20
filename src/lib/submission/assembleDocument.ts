@@ -4,7 +4,6 @@ interface GenerateDocumentInput {
   projectId: string;
   documentId: string;
   surveyType: string;
-  dbClient: any;
 }
 
 interface GenerateDocumentResult {
@@ -14,7 +13,7 @@ interface GenerateDocumentResult {
 export async function generateDocument(
   input: GenerateDocumentInput
 ): Promise<GenerateDocumentResult> {
-  const { projectId, documentId, surveyType, dbClient } = input;
+  const { projectId, documentId, surveyType } = input;
 
   let buffer: Buffer;
   let fileName: string;
@@ -23,35 +22,35 @@ export async function generateDocument(
   switch (documentId) {
     case 'traverse-report': {
       const { generateTraverseReport } = await import('../generators/traverseReport');
-      buffer = await generateTraverseReport(projectId, dbClient);
+      buffer = await generateTraverseReport(projectId);
       fileName = `traverse-report-${projectId}.pdf`;
       mimeType = 'application/pdf';
       break;
     }
     case 'levelling-report': {
       const { generateLevellingReport } = await import('../generators/levellingReport');
-      buffer = await generateLevellingReport(projectId, dbClient);
+      buffer = await generateLevellingReport(projectId);
       fileName = `levelling-report-${projectId}.pdf`;
       mimeType = 'application/pdf';
       break;
     }
     case 'field-book': {
       const { generateFieldBookExcel } = await import('../generators/fieldBookExcel');
-      buffer = await generateFieldBookExcel(projectId, dbClient);
+      buffer = await generateFieldBookExcel(projectId);
       fileName = `field-book-${projectId}.xlsx`;
       mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       break;
     }
     case 'control-schedule': {
       const { generateCoordinateSchedule } = await import('../generators/coordinateSchedule');
-      buffer = await generateCoordinateSchedule(projectId, dbClient);
+      buffer = await generateCoordinateSchedule(projectId);
       fileName = `coordinate-schedule-${projectId}.xlsx`;
       mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       break;
     }
     case 'full-package': {
       const { generateFullPackage } = await import('../generators/fullPackage');
-      buffer = await generateFullPackage(projectId, dbClient);
+      buffer = await generateFullPackage(projectId);
       fileName = `submission-package-${projectId}.zip`;
       mimeType = 'application/zip';
       break;
@@ -61,70 +60,70 @@ export async function generateDocument(
         throw new Error('Deed Plan is only available for cadastral surveys.');
       }
       const { generateDeedPlan } = await import('../generators/deedPlan');
-      buffer = await generateDeedPlan(projectId, dbClient);
+      buffer = await generateDeedPlan(projectId);
       fileName = `deed-plan-${projectId}.pdf`;
       mimeType = 'application/pdf';
       break;
     }
     case 'working-diagram': {
       const { generateWorkingDiagramPdf } = await import('../generators/workingDiagram');
-      buffer = await generateWorkingDiagramPdf(projectId, dbClient);
+      buffer = await generateWorkingDiagramPdf(projectId);
       fileName = `working-diagram-${projectId}.pdf`;
       mimeType = 'application/pdf';
       break;
     }
     case 'boundary-shapefile': {
       const { generateBoundaryShapefile } = await import('../generators/boundaryShapefile');
-      buffer = await generateBoundaryShapefile(projectId, dbClient);
+      buffer = await generateBoundaryShapefile(projectId);
       fileName = `boundary-shapefile-${projectId}.zip`;
       mimeType = 'application/zip';
       break;
     }
     case 'setting-out-dxf': {
       const { generateSettingOutDxf } = await import('../generators/settingOutDxf');
-      buffer = await generateSettingOutDxf(projectId, dbClient);
+      buffer = await generateSettingOutDxf(projectId);
       fileName = `setting-out-${projectId}.dxf`;
       mimeType = 'application/dxf';
       break;
     }
     case 'longitudinal-section': {
       const { generateLongitudinalSection } = await import('../generators/longitudinalSection');
-      buffer = await generateLongitudinalSection(projectId, dbClient);
+      buffer = await generateLongitudinalSection(projectId);
       fileName = `longitudinal-section-${projectId}.pdf`;
       mimeType = 'application/pdf';
       break;
     }
     case 'volumetric-report': {
       const { generateVolumetricReport } = await import('../generators/volumetricReport');
-      buffer = await generateVolumetricReport(projectId, dbClient);
+      buffer = await generateVolumetricReport(projectId);
       fileName = `volumetric-report-${projectId}.pdf`;
       mimeType = 'application/pdf';
       break;
     }
     case 'gcp-report': {
       const { generateGcpReport } = await import('../generators/gcpReport');
-      buffer = await generateGcpReport(projectId, dbClient);
+      buffer = await generateGcpReport(projectId);
       fileName = `gcp-report-${projectId}.pdf`;
       mimeType = 'application/pdf';
       break;
     }
     case 'orthophoto-plan': {
       const { generateOrthophotoPlan } = await import('../generators/orthophotoPlan');
-      buffer = await generateOrthophotoPlan(projectId, dbClient);
+      buffer = await generateOrthophotoPlan(projectId);
       fileName = `orthophoto-plan-${projectId}.pdf`;
       mimeType = 'application/pdf';
       break;
     }
     case 'sounding-chart': {
       const { generateSoundingChart } = await import('../generators/soundingChart');
-      buffer = await generateSoundingChart(projectId, dbClient);
+      buffer = await generateSoundingChart(projectId);
       fileName = `sounding-chart-${projectId}.pdf`;
       mimeType = 'application/pdf';
       break;
     }
     case 'deformation-report': {
       const { generateDeformationReport } = await import('../generators/deformationReport');
-      buffer = await generateDeformationReport(projectId, dbClient);
+      buffer = await generateDeformationReport(projectId);
       fileName = `deformation-report-${projectId}.pdf`;
       mimeType = 'application/pdf';
       break;

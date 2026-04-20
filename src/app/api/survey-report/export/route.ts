@@ -6,9 +6,9 @@ import { getTemplateSections } from '@/lib/docx/templates'
 
 export async function POST(request: Request) {
   try {
-    const { createClient } = await import('@/lib/api-client/client')
-    const dbClient = createClient()
-    const { data: { session } } = await dbClient.auth.getSession()
+    const { getServerSession } = await import('next-auth')
+    const { authOptions } = await import('@/lib/auth')
+    const session = await getServerSession(authOptions)
     const user = session?.user ?? null
 
     if (!user) {

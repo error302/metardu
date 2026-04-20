@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { createClient } from '@/lib/api-client/client';
+import db from '@/lib/db';
 import { computeDeedPlanGeometry } from './deedPlanGeometry';
 import { renderBoundaryPlan } from './deedPlanRenderer';
 import { addPageFooter } from './pdfTitleBlock';
@@ -13,30 +13,29 @@ const SCHEDULE_X = PLAN_WIDTH + MARGIN;
 const SCHEDULE_W = A3_W - PLAN_WIDTH - MARGIN * 1.5;
 
 export async function generateDeedPlan(
-  projectId: string,
-  dbClient: ReturnType<typeof createClient>
+  projectId: string
 ): Promise<Buffer> {
-  const { data: project, error: projError } = await dbClient
-    .from('projects')
-    .select(`
+  const projectRes = await db.query(
+    `SELECT
       name, survey_type, lr_number, folio_number, register_number,
       fir_number, registration_block, registration_district,
       locality, computations_no, field_book_no, file_reference,
       client_name, survey_date, area_ha, utm_zone, hemisphere,
       user_id, created_at
-    `)
-    .eq('id', projectId)
-    .single();
+    FROM projects WHERE id = $1`,
+    [projectId]
+  );
+  const project = projectRes.rows[0];
 
-  if (projError || !project) throw new Error('Project not found: ' + projError?.message);
+  if (!project) throw new Error('Project not found');
 
-  const { data: profile } = await dbClient
-    .from('profiles')
-    .select('full_name, isk_number, firm_name')
-    .eq('id', project.user_id)
-    .single();
+  const profileRes = await db.query(
+    'SELECT full_name, isk_number, firm_name FROM profiles WHERE id = $1',
+    [project.user_id]
+  );
+  const profile = profileRes.rows[0];
 
-  const geom = await computeDeedPlanGeometry(projectId, dbClient);
+  const geom = await computeDeedPlanGeometry(projectId);
 
   const doc = new jsPDF({
     orientation: 'landscape',

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { createClient } from '@/lib/api-client/server'
+import db from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import type { WebhookEvent } from '@/lib/webhooks/types'
 import { WEBHOOK_SECRET_PREFIX } from '@/lib/webhooks/types'
 
@@ -25,31 +27,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const dbClient = await createClient()
-    const { data: { session } } = await dbClient.auth.getSession()
-    const user = session?.user ?? null
+    const session = await getServerSession(authOptions)
+    const user = session?.user as any | null
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const secret = `${WEBHOOK_SECRET_PREFIX}${crypto.randomBytes(24).toString('hex')}`
 
-    const { data, error } = await dbClient
-      .from('webhooks')
-      .insert({
-        url,
-        events,
-        secret,
-        name: name || 'Webhook',
-        user_id: user.id,
-        active: true
-      })
-      .select()
-      .single()
+    const { rows } = await db.query(
+      `INSERT INTO webhooks (url, events, secret, name, user_id, active)
+       VALUES ($1, $2, $3, $4, $5, true)
+       RETURNING *`,
+      [url, JSON.stringify(events), secret, name || 'Webhook', user.id]
+    )
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Failed to create webhook' }, { status: 500 })
     }
+
+    const data = rows[0]
 
     return NextResponse.json({
       id: data.id,
@@ -69,24 +66,18 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const dbClient = await createClient()
-    const { data: { session } } = await dbClient.auth.getSession()
-    const user = session?.user ?? null
+    const session = await getServerSession(authOptions)
+    const user = session?.user as any | null
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data, error } = await dbClient
-      .from('webhooks')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    const { rows } = await db.query(
+      'SELECT * FROM webhooks WHERE user_id = $1 ORDER BY created_at DESC',
+      [user.id]
+    )
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ webhooks: data || [] })
+    return NextResponse.json({ webhooks: rows || [] })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch webhooks' },

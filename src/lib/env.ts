@@ -36,7 +36,9 @@ const envSchema = z.object({
   NEXT_PUBLIC_WHATSAPP_NUMBER: z.string().regex(/^\d*$/).optional(),
   ADMIN_EMAILS: z.string().optional(),
 
-  DATABASE_URL: z.string().optional(),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  AUTH_SECRET: z.string().min(1, 'AUTH_SECRET is required'),
+  
   DB_HOST: z.string().optional(),
   DB_PORT: z.coerce.number().optional(),
   DB_NAME: z.string().optional(),

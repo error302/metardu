@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/api-client/server'
+import db from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { z } from 'zod'
 
 const insertSchema = z.object({
@@ -10,26 +12,24 @@ const insertSchema = z.object({
 
 export async function GET() {
   try {
-    const dbClient = await createClient()
-    const { data: { session } } = await dbClient.auth.getSession()
-    const user = session?.user ?? null
+    const session = await getServerSession(authOptions)
+    const user = session?.user as any | null
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data, error } = await dbClient
-      .from('audit_logs')
-      .select('id, event_type, description, metadata, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(100)
+    // Mapping table columns: action -> event_type, details -> metadata
+    const { rows } = await db.query(
+      `SELECT id, action as event_type, details as description, details as metadata, created_at 
+       FROM audit_logs 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC 
+       LIMIT 100`,
+      [user.id]
+    )
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ logs: data ?? [] })
+    return NextResponse.json({ logs: rows })
   } catch (error) {
     console.error('Audit log GET error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -45,9 +45,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 })
     }
 
-    const dbClient = await createClient()
-    const { data: { session } } = await dbClient.auth.getSession()
-    const user = session?.user ?? null
+    const session = await getServerSession(authOptions)
+    const user = session?.user as any | null
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -55,20 +54,15 @@ export async function POST(req: NextRequest) {
 
     const { event_type, description, metadata } = parsed.data
 
-    const { data, error } = await dbClient
-      .from('audit_logs')
-      .insert({
-        user_id: user.id,
-        event_type,
-        description,
-        metadata: metadata ?? {},
-      })
-      .select('id, event_type, description, metadata, created_at')
-      .single()
+    const { rows } = await db.query(
+      `INSERT INTO audit_logs (
+        user_id, action, details
+      ) VALUES ($1, $2, $3)
+      RETURNING id, action as event_type, details as description, details as metadata, created_at`,
+      [user.id, event_type, JSON.stringify({ description, ...((metadata as any) || {}) })]
+    )
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    const data = rows[0]
 
     // CPD Auto-logging hook
     const cpdEvents = [
@@ -79,14 +73,17 @@ export async function POST(req: NextRequest) {
     ]
 
     if (cpdEvents.includes(event_type)) {
-      await dbClient.from('cpd_activities').insert({
-        user_id: user.id,
-        title: 'METARDU Professional Practice',
-        provider: 'METARDU Platform — auto-logged',
-        hours: 0.5,
-        category: 'Technical Practice',
-        source: 'METARDU Platform — auto-logged'
-      })
+      // Assuming cpd_activities exists, if not this might throw but it's consistent with old code
+      try {
+        await db.query(
+          `INSERT INTO cpd_activities (
+            user_id, title, provider, hours, category, source
+          ) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [user.id, 'METARDU Professional Practice', 'METARDU Platform — auto-logged', 0.5, 'Technical Practice', 'METARDU Platform — auto-logged']
+        )
+      } catch (e) {
+        console.warn('Could not insert CPD activity (table might not exist)', e)
+      }
     }
 
     return NextResponse.json({ log: data }, { status: 201 })

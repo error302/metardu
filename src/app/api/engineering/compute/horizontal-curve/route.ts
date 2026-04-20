@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/api-client/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { computeHorizontalCurve } from '@/lib/engine/engineering'
 
 export async function POST(request: NextRequest) {
   try {
-    const dbClient = await createClient()
-    const { data: { session } } = await dbClient.auth.getSession()
-    
+    const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

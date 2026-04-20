@@ -1,11 +1,12 @@
-import { createClient } from '@/lib/api-client/server';
 import { NextRequest, NextResponse } from 'next/server';
+import db from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
-  const dbClient = await createClient();
-  const { data: { session } } = await dbClient.auth.getSession();
+  const session = await getServerSession(authOptions);
 
-  if (!session) {
+  if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -16,53 +17,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing projectId or documentId' }, { status: 400 });
   }
 
-  const { data: project, error: projectError } = await dbClient
-    .from('projects')
-    .select('id, survey_type')
-    .eq('id', projectId)
-    .eq('user_id', session.user.id)
-    .single();
+  const { rows } = await db.query(
+    'SELECT id, survey_type FROM projects WHERE id = $1 AND user_id = $2 LIMIT 1',
+    [projectId, (session.user as any).id]
+  );
 
-  if (projectError || !project) {
+  if (rows.length === 0) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }
 
-  await dbClient
-    .from('submission_documents')
-    .upsert({
-      project_id: projectId,
-      document_id: documentId,
-      status: 'generating',
-      error_message: null,
-    }, { onConflict: 'project_id,document_id' });
+  const project = rows[0];
+
+  await db.query(
+    `INSERT INTO submission_documents (project_id, document_id, status, error_message)
+     VALUES ($1, $2, 'generating', null)
+     ON CONFLICT (project_id, document_id) 
+     DO UPDATE SET status = 'generating', error_message = null`,
+    [projectId, documentId]
+  );
 
   try {
     const { generateDocument } = await import('@/lib/submission/assembleDocument');
-    const result = await generateDocument({ projectId, documentId, surveyType: project.survey_type, dbClient: dbClient as any });
+    const result = await generateDocument({ projectId, documentId, surveyType: project.survey_type });
 
-    await dbClient
-      .from('submission_documents')
-      .upsert({
-        project_id: projectId,
-        document_id: documentId,
-        status: 'ready',
-        file_url: result.fileUrl,
-        error_message: null,
-        generated_at: new Date().toISOString(),
-      }, { onConflict: 'project_id,document_id' });
+    await db.query(
+      `INSERT INTO submission_documents (project_id, document_id, status, file_url, error_message, generated_at)
+       VALUES ($1, $2, 'ready', $3, null, $4)
+       ON CONFLICT (project_id, document_id) 
+       DO UPDATE SET status = 'ready', file_url = $3, error_message = null, generated_at = $4`,
+      [projectId, documentId, result.fileUrl, new Date().toISOString()]
+    );
 
     return NextResponse.json({ success: true, fileUrl: result.fileUrl });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    await dbClient
-      .from('submission_documents')
-      .upsert({
-        project_id: projectId,
-        document_id: documentId,
-        status: 'error',
-        error_message: message,
-      }, { onConflict: 'project_id,document_id' });
+    
+    await db.query(
+      `INSERT INTO submission_documents (project_id, document_id, status, error_message)
+       VALUES ($1, $2, 'error', $3)
+       ON CONFLICT (project_id, document_id) 
+       DO UPDATE SET status = 'error', error_message = $3`,
+      [projectId, documentId, message]
+    );
 
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+}

@@ -4,8 +4,9 @@ import { transformCoordinates, type CoordSystem } from '@/lib/geo/transform'
 
 export async function POST(request: NextRequest) {
   try {
-    const dbClient = createClient()
-    const { data: { session } } = await dbClient.auth.getSession()
+    const { getServerSession } = await import('next-auth')
+    const { authOptions } = await import('@/lib/auth')
+    const session = await getServerSession(authOptions)
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -2,7 +2,7 @@ import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { jsPDF } from 'jspdf';
-import type { createClient } from '@/lib/api-client/client';
+import db from '@/lib/db';
 import {
   chooseBoundaryPoints,
   chooseOrthophotoCandidate,
@@ -13,7 +13,7 @@ import {
   type WorldPoint,
 } from './orthophotoPlanHelpers';
 
-type CompatSupabaseClient = ReturnType<typeof createClient>;
+// Direct database queries used instead of Supabase proxy client
 
 interface ProjectRecord {
   id: string;
@@ -64,8 +64,7 @@ const PANEL_Y = 205;
 const PANEL_H = 78;
 
 export async function generateOrthophotoPlan(
-  projectId: string,
-  dbClient: CompatSupabaseClient
+  projectId: string
 ): Promise<Buffer> {
   const [
     projectRes,
@@ -76,31 +75,32 @@ export async function generateOrthophotoPlan(
     docsRes,
     submissionRes,
   ] = await Promise.all([
-    dbClient.from('projects').select('*').eq('id', projectId).single(),
-    dbClient.from('parcels').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    dbClient.from('survey_points').select('*').eq('project_id', projectId).order('created_at', { ascending: true }),
-    dbClient.from('cadastra_validations').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    dbClient.from('project_attachments').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
-    dbClient.from('documents').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
-    dbClient.from('project_submissions').select('supporting_attachments').eq('project_id', projectId).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+    db.query('SELECT * FROM projects WHERE id = $1', [projectId]),
+    db.query('SELECT * FROM parcels WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1', [projectId]),
+    db.query('SELECT * FROM survey_points WHERE project_id = $1 ORDER BY created_at ASC', [projectId]),
+    db.query('SELECT * FROM cadastra_validations WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1', [projectId]),
+    db.query('SELECT * FROM project_attachments WHERE project_id = $1 ORDER BY created_at DESC', [projectId]),
+    db.query('SELECT * FROM documents WHERE project_id = $1 ORDER BY created_at DESC', [projectId]),
+    db.query('SELECT supporting_attachments FROM project_submissions WHERE project_id = $1 ORDER BY updated_at DESC LIMIT 1', [projectId]),
   ]);
 
-  const project = projectRes.data as ProjectRecord | null;
+  const project = projectRes.rows[0] as ProjectRecord | null;
   if (!project) {
     throw new Error('Project not found');
   }
 
-  const profile = project.user_id
-    ? (await dbClient
-        .from('profiles')
-        .select('full_name, firm_name, isk_number')
-        .eq('id', project.user_id)
-        .maybeSingle()).data as ProfileRecord | null
+  const profileRes = project.user_id
+    ? await db.query(
+        'SELECT full_name, firm_name, isk_number FROM profiles WHERE id = $1',
+        [project.user_id]
+      )
     : null;
+  
+  const profile = profileRes?.rows[0] as ProfileRecord | null;
 
-  const parcel = parcelRes.data as ParcelRecord | null;
-  const surveyPoints = (pointsRes.data ?? []) as SurveyPointRecord[];
-  const validation = validationRes.data as Record<string, unknown> | null;
+  const parcel = parcelRes.rows[0] as ParcelRecord | null;
+  const surveyPoints = (pointsRes.rows ?? []) as SurveyPointRecord[];
+  const validation = validationRes.rows[0] as Record<string, unknown> | null;
   const overlays = extractOverlayPolygons(validation);
   const boundaryPoints = chooseBoundaryPoints(
     parcel?.boundary_points ?? ((validation?.boundary_data as { points?: unknown } | undefined)?.points ?? []),
@@ -113,9 +113,9 @@ export async function generateOrthophotoPlan(
 
   const orthophotoCandidate = chooseOrthophotoCandidate(
     validation?.satellite_overlay,
-    submissionRes.data,
-    attachmentsRes.data,
-    docsRes.data,
+    submissionRes.rows[0],
+    attachmentsRes.rows,
+    docsRes.rows,
     project
   );
 

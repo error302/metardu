@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/api-client/server'
+import db from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextResponse } from 'next/server'
@@ -14,28 +14,28 @@ export async function POST(req: Request) {
     const { projectId, hash } = await req.json()
     if (!projectId || !hash) return NextResponse.json(apiError('Missing inputs'), { status: 400 })
 
-    const dbClient = await createClient()
-
-    const profileResult = await dbClient.from('profiles').select('full_name, license_number').eq('id', (session.user as { id?: string }).id ?? '').single()
-    const profile = (profileResult as any).data
+    const { rows: profileResult } = await db.query(
+      'SELECT full_name, isk_number FROM profiles WHERE id = $1 LIMIT 1',
+      [(session.user as { id?: string }).id]
+    )
+    const profile = profileResult[0]
 
     const signerName = profile?.full_name || user.email || 'Unknown Surveyor'
-    const iskNumber = profile?.license_number || 'Unknown LS'
+    const iskNumber = profile?.isk_number || 'Unknown LS'
 
-    const result = await dbClient.from('signatures').insert({
-      user_id: (session.user as { id?: string }).id ?? '',
-      project_id: projectId,
-      document_hash: hash,
-      signer_name: signerName,
-      isk_number: iskNumber,
-    }).select('id, signed_at').single()
+    const { rows } = await db.query(
+      `INSERT INTO signatures (user_id, project_id, signature_data, signer_name, isk_number) 
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING id, signed_at`,
+      [(session.user as { id?: string }).id, projectId, hash, signerName, iskNumber]
+    )
 
-    if ((result as any).error) {
-      log({ level: 'error', message: 'Failed to insert digital signature into database', metadata: { error: (result as any).error, user_id: user.id, project_id: projectId } })
+    if (rows.length === 0) {
+      log({ level: 'error', message: 'Failed to insert digital signature into database', metadata: { user_id: (session.user as { id?: string }).id, project_id: projectId } })
       return NextResponse.json(apiError('Failed to sign plan'), { status: 500 })
     }
 
-    const data = (result as any).data
+    const data = rows[0]
     return NextResponse.json(apiSuccess({
       id: data.id,
       signerName,

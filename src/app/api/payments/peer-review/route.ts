@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripeService } from '@/lib/payments/stripe'
-import { createClient } from '@/lib/api-client/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { apiSuccess, apiError } from '@/lib/api/response'
 import { log } from '@/lib/logger'
 
@@ -11,9 +12,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(apiError('Missing reviewRequestId'), { status: 400 })
     }
 
-    const dbClient = await createClient()
-    const { data: authSession } = await dbClient.auth.getSession()
-    const user = authSession.session?.user ?? null
+    const session = await getServerSession(authOptions)
+    const user = session?.user as any | null
 
     // For peer reviews, they might not be fully registered but we can try to link if logged in
     const stripe = getStripeService()

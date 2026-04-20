@@ -1,10 +1,11 @@
-import { createClient } from '@/lib/api-client/server';
+import db from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { transformCoordinates, TransformInput } from '@/lib/geo/transform';
 
 export async function POST(req: NextRequest) {
-  const dbClient = await createClient();
-  const { data: { session } } = await dbClient.auth.getSession();
+  const session = await getServerSession(authOptions);
   
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -23,12 +24,18 @@ export async function POST(req: NextRequest) {
   try {
     const result = transformCoordinates(body);
 
-    await dbClient.from('online_service_logs').insert({
-      user_id: session.user.id,
-      project_id: body.projectId ?? null,
-      service: 'coordinate-transform',
-      input_summary: `${body.points.length} points, ${body.fromCRS} → ${body.toCRS}`,
-    });
+    await db.query(
+      `INSERT INTO online_service_logs (
+        user_id, project_id, service, input_summary, status
+      ) VALUES ($1, $2, $3, $4, $5)`,
+      [
+        (session.user as any).id,
+        body.projectId ?? null,
+        'coordinate-transform',
+        `${body.points.length} points, ${body.fromCRS} → ${body.toCRS}`,
+        'success'
+      ]
+    );
 
     return NextResponse.json(result);
   } catch (err: unknown) {

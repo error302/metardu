@@ -1,19 +1,18 @@
-import { createClient } from '@/lib/api-client/client';
+import db from '@/lib/db';
 import { computeDeedPlanGeometry } from './deedPlanGeometry';
 
 export async function generateSettingOutDxf(
-  projectId: string,
-  dbClient: ReturnType<typeof createClient>
+  projectId: string
 ): Promise<Buffer> {
-  const { data: project } = await dbClient
-    .from('projects')
-    .select('name')
-    .eq('id', projectId)
-    .single();
+  const projectRes = await db.query(
+    'SELECT name FROM projects WHERE id = $1',
+    [projectId]
+  );
+  const project = projectRes.rows[0];
 
   if (!project) throw new Error('Project not found');
 
-  const geom = await computeDeedPlanGeometry(projectId, dbClient);
+  const geom = await computeDeedPlanGeometry(projectId);
 
   const beacons = geom.stations.map((s: any) => ({
     name: s.station,
