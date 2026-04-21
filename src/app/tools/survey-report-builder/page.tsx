@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/api-client/client'
 import SurveyReportBuilder from '@/components/surveyreport/SurveyReportBuilder'
 
@@ -15,25 +16,25 @@ export default function SurveyReportBuilderPage() {
   const params = useSearchParams()
   const projectId = params.get('projectId') || ''
   const reportId = params.get('reportId') || undefined
-  
+  const { data: session, status: sessionStatus } = useSession()
+
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [loading, setLoading] = useState(true)
-  
+
   const dbClient = createClient()
 
   useEffect(() => {
-    async function load() {
-      const { data: { session } } = await dbClient.auth.getSession()
-      if (!session?.user) {
-        window.location.href = '/login'
-        return
-      }
+    if (sessionStatus === 'loading') return
+    if (!session?.user) {
+      setLoading(false)
+      return
+    }
 
+    async function load() {
       const { data } = await dbClient
         .from('projects')
         .select('id, name, location')
-        .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -42,14 +43,21 @@ export default function SurveyReportBuilderPage() {
     }
 
     load()
-  }, [dbClient])
+  }, [session, sessionStatus, dbClient])
 
-  if (loading) {
+  if (sessionStatus === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
       </div>
     )
+  }
+
+  if (!session?.user) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return null
   }
 
   if (!projectId) {

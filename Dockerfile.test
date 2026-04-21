@@ -10,10 +10,11 @@ RUN apk add --no-cache \
     ca-certificates \
     ttf-freefont
 
-# Install Playwright globally
-RUN npm install -g playwright && \
-    playwright install chromium && \
-    playwright install-deps chromium
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
+# Install Playwright globally but skip its built-in deps installer since our OS is Alpine
+RUN npm install -g playwright
 
 WORKDIR /app
 

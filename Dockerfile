@@ -2,6 +2,8 @@
 # Multi-stage build: deps → build → minimal runtime
 FROM node:20-alpine AS deps
 WORKDIR /app
+# Install node-gyp and canvas dependencies for Alpine
+RUN apk add --no-cache python3 make g++ cairo-dev pango-dev libjpeg-turbo-dev giflib-dev
 COPY package.json package-lock.json* ./
 RUN npm ci --legacy-peer-deps
 
@@ -24,6 +26,9 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 
+# Install runtime canvas dependencies
+RUN apk add --no-cache cairo pango libjpeg-turbo giflib
+
 # Non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
@@ -42,3 +47,4 @@ USER nextjs
 EXPOSE 3000
 
 CMD ["node", "server.js"]
+
