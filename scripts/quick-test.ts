@@ -71,7 +71,7 @@ async function runQuickTests() {
   }
   
   // Test 3: Dashboard (should redirect to login if not authenticated)
-  console.log('\n3. Testing Dashboard (public access)...')
+  console.log('\n3. Testing Dashboard Auth Redirect...')
   try {
     await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: 15000 })
     await page.screenshot({ path: path.join(RESULTS_DIR, 'dashboard.png'), fullPage: true })
