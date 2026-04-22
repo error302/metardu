@@ -20,6 +20,7 @@ import type { SurveyPoint } from '@/types/surveyPoint'
 import type { SurveyPlanData, ControlPoint } from '@/lib/reports/surveyPlan/types'
 import SurveyPlanViewer from '@/components/SurveyPlanViewer'
 import SurveyPlanExport from '@/components/SurveyPlanExport'
+import ShapefileExport from '@/components/ShapefileExport'
 import Link from 'next/link'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import {
@@ -456,22 +457,110 @@ export default function DocumentsPage({ params }: PageProps) {
     ? computeTraverseAccuracy(traverse.linearError, planData.parcel.perimeter_m)
     : null
 
+// Fetch submission number if available
+  const [submissionNumber, setSubmissionNumber] = useState<string>('')
+  const [isCreatingSubmission, setIsCreatingSubmission] = useState(false)
+
+  useEffect(() => {
+    if (params.id) {
+      const dbClient = createClient()
+      dbClient.from('project_submissions')
+        .select('submission_number')
+        .eq('project_id', params.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .then(({ data }) => {
+          if (data?.[0]?.submission_number) {
+            setSubmissionNumber(data[0].submission_number)
+          }
+        })
+    }
+  }, [params.id])
+
+  const handleCreateSubmission = async () => {
+    if (!project || isCreatingSubmission) return
+    
+    setIsCreatingSubmission(true)
+    try {
+      const response = await fetch('/api/submissions/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: params.id })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success && result.submissionNumber) {
+        setSubmissionNumber(result.submissionNumber)
+        alert(`Submission created: ${result.submissionNumber}`)
+      } else {
+        alert(result.error || 'Failed to create submission')
+      }
+    } catch (error) {
+      console.error('Error creating submission:', error)
+      alert('Error creating submission. Please try again.')
+    } finally {
+      setIsCreatingSubmission(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-4xl mx-auto px-4 py-8">
 
-        {/* Header */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Link href={`/project/${params.id}`} className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)]">← Back to project</Link>
-            </div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Documents & Plans</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-1">
-              {project.name} · {project.survey_type || 'Survey'} · {project.location || ''}
-            </p>
+{/* Header */}
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Link href={`/project/${params.id}`} className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)]">← Back to project</Link>
           </div>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Documents & Plans</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
+            {project.name} · {project.survey_type || 'Survey'} · {project.location || ''}
+          </p>
         </div>
+        
+        {/* Submission Actions */}
+        <div className="flex flex-col items-end gap-2">
+          {submissionNumber ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              <p className="text-xs text-green-600 font-mono">Submission: {submissionNumber}</p>
+            </div>
+          ) : (
+            <button
+              onClick={handleCreateSubmission}
+              disabled={isCreatingSubmission || !project}
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-black font-semibold rounded-lg text-sm hover:bg-[var(--accent-dim)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isCreatingSubmission ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Create Submission
+                </>
+              )}
+            </button>
+          )}
+          
+          {submissionNumber && (
+            <button
+              onClick={() => alert('Download full submission package coming soon!')}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg text-sm hover:bg-green-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Download Package
+            </button>
+          )}
+        </div>
+      </div>
 
         {/* Tab bar */}
         <div className="flex gap-1 mb-6 border-b border-[var(--border-color)]">
@@ -521,14 +610,60 @@ export default function DocumentsPage({ params }: PageProps) {
                 </span>
               </div>
             )}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden" style={{ height: '70vh' }}>
-              {planData ? <SurveyPlanViewer data={planData} className="h-full" /> : (
-                <div className="flex items-center justify-center h-full text-[var(--text-muted)]">Loading...</div>
-              )}
-            </div>
-            <div className="flex justify-end">
-              {planData && <SurveyPlanExport data={planData} projectId={params.id} plan={plan} />}
-            </div>
+<div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden" style={{ height: '70vh' }}>
+          {planData ? (
+            <SurveyPlanViewer 
+              data={planData} 
+              className="h-full" 
+              submissionNumber={submissionNumber}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-[var(--text-muted)]">Loading...</div>
+          )}
+        </div>
+        <div className="flex justify-end gap-3">
+          {planData && (
+            <>
+              <ShapefileExport 
+                data={{
+                  beacons: planData.controlPoints.map(cp => ({
+                    station: cp.name,
+                    easting: cp.easting,
+                    northing: cp.northing,
+                    elevation: cp.elevation,
+                    beacon_class: cp.monumentType,
+                    description: cp.beaconDescription
+                  })),
+                  boundaries: (planData.project.bearingSchedule || []).map(b => ({
+                    from: b.from,
+                    to: b.to,
+                    from_easting: 0, // Will be populated from actual data
+                    from_northing: 0,
+                    to_easting: 0,
+                    to_northing: 0,
+                    bearing: b.bearing,
+                    distance: b.distance
+                  })),
+                  parcels: [{
+                    id: planData.project.parcel_id || 'P1',
+                    lr_number: planData.project.lrNumber,
+                    area_sqm: planData.parcel.area_sqm,
+                    area_ha: planData.parcel.area_sqm / 10000,
+                    coordinates: planData.parcel.boundaryPoints.map(p => [p.easting, p.northing] as [number, number])
+                  }],
+                  projection: {
+                    zone: planData.project.utm_zone || 37,
+                    hemisphere: planData.project.hemisphere || 'S',
+                    datum: planData.project.datum || 'ARC1960',
+                    ellipsoid: 'WGS84'
+                  }
+                }}
+                projectName={project?.name || 'survey'}
+              />
+              <SurveyPlanExport data={planData} projectId={params.id} plan={plan} />
+            </>
+          )}
+        </div>
           </div>
         )}
 
