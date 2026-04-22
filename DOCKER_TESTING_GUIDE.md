@@ -1,291 +1,158 @@
-# METARDU Docker Testing Environment Guide
+# METARDU Docker Testing Guide
 
-## 🎯 Purpose
+## Quick Start
 
-This Docker-based testing environment provides an **enterprise-grade, production-ready** setup that:
-- ✅ Mirrors your Google Cloud VM exactly (PostgreSQL + PostGIS + Next.js)
-- ✅ Runs automated tests against real data
-- ✅ Catches bugs before they reach production
-- ✅ Follows security best practices (no hardcoded secrets, least-privilege DB)
-- ✅ Scales from local development to production
+### Option 1: Using PowerShell Script (Windows)
 
----
-
-## 📋 Prerequisites
-
-- Docker Desktop installed on your PC
-- Node.js 20+ installed
-- Your NVIDIA API key (already configured)
-
----
-
-## 🚀 Quick Start
-
-### 1. Setup Environment
-
-```bash
-# Copy test environment template
-cp .env.test .env.test.local
-
-# Edit .env.test.local if needed (already configured with defaults)
-```
-
-### 2. Start Testing Environment
-
-```bash
-# Start full stack (PostgreSQL + Next.js + Test Runner)
-npm run docker:test
-
-# This will:
-# - Build Docker images
-# - Start PostgreSQL with PostGIS
-# - Start Next.js app on port 3001
-# - Run automated tests
-# - Generate reports
-```
-
-### 3. View Results
-
-```bash
-# Open test results in browser
-open live-test-results/report.html
-
-# Or view in file explorer:
-# C:\Users\ADMIN\Desktop\Survey -ENG\live-test-results\report.html
-```
-
-### 4. Stop Environment
-
-```bash
-# Stop all containers and clean up
-npm run docker:test:down
-```
-
----
-
-## 🧪 What Gets Tested
-
-### Automated Test Suite
-
-| Test | Description | Status |
-|------|-------------|--------|
-| **Authentication** | Login page loads, form exists | ✅ Auto |
-| **Project Creation** | New project form accessible | ✅ Auto |
-| **Traverse Computation** | Computation engine works | ✅ Auto |
-| **Levelling Computation** | Level book functions | ✅ Auto |
-| **Area Computation** | Coordinate-based area calc | ✅ Auto |
-| **Survey Report Builder** | Report generation UI | ✅ Auto |
-| **PDF Export** | Server-side PDF generation | ✅ Auto |
-| **DOCX Export** | Word document generation | ✅ Auto |
-| **Database Connection** | PostgreSQL + PostGIS | ✅ Auto |
-| **Security Headers** | CSP, HSTS, etc. | ✅ Auto |
-
-### Manual Testing Checklist
-
-- [ ] Login with test account
-- [ ] Create new survey project
-- [ ] Enter field data
-- [ ] Run traverse computation
-- [ ] Generate survey report
-- [ ] Export PDF
-- [ ] Export DOCX
-- [ ] Check error handling
-
----
-
-## 🔧 Commands
-
-### Docker Commands
-
-```bash
-# Start environment
-npm run docker:test
+```powershell
+# Start the testing environment
+.\scripts\run-docker-tests.ps1
 
 # View logs
-npm run docker:test:logs
+.\scripts\run-docker-tests.ps1 -Logs
 
-# Stop and cleanup
-npm run docker:test:down
+# Stop the environment
+.\scripts\run-docker-tests.ps1 -Down
 
-# Rebuild images
-npm run docker:test -- --build
+# Rebuild from scratch
+.\scripts\run-docker-tests.ps1 -Build
 ```
 
-### Test Commands
+### Option 2: Using Docker Compose Directly
 
 ```bash
-# Run live browser tests
+# Start the full testing stack
+docker compose -f docker-compose.testing.yml up --build -d
+
+# Wait for health check (about 60 seconds)
+curl http://localhost:3001/api/public/health
+
+# Run quick smoke tests
+npm run test:quick
+
+# Run full browser tests
 npm run test:live
 
-# Run security audit
+# View logs
+docker compose -f docker-compose.testing.yml logs -f
+
+# Stop and clean up
+docker compose -f docker-compose.testing.yml down -v
+```
+
+## Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| PostgreSQL | 5433 | Test database with PostGIS |
+| Next.js App | 3001 | METARDU application (test instance) |
+| Test Runner | - | Automated browser tests |
+
+## Database
+
+- **User**: `metardu_test`
+- **Password**: `TestPass_2026!secure`
+- **Database**: `metardu_test`
+- **Connection**: `postgresql://metardu_test:TestPass_2026!secure@localhost:5433/metardu_test`
+
+## Test Accounts
+
+Pre-configured in the test database:
+
+- **Admin**: `mohameddosho20@gmail.com` / `Dosho10701$`
+- **Test User**: `test.surveyor@metardu.com` / `TestPass123!`
+
+## Running Tests
+
+### Quick Smoke Test (30 seconds)
+```bash
+npm run test:quick
+```
+
+Tests:
+- Home page loads
+- Login form works
+- Dashboard requires auth
+- Traverse tool works
+- Survey Report Builder works
+
+### Full Browser Test (2-3 minutes)
+```bash
+npm run test:live
+```
+
+Tests:
+- Authentication flow
+- Login with credentials
+- Project creation
+- Traverse computation
+- Survey Report Builder
+- Dashboard access
+
+### Security Audit
+```bash
 npm run test:security
-
-# Run computation tests
-npm run test:engineering
 ```
 
----
+## Troubleshooting
 
-## 🛡️ Security Features
-
-### 1. Database Security
-
-- ✅ **Least-privilege user**: `metardu_test_user` has minimal permissions
-- ✅ **Isolated network**: Docker network `172.28.0.0/16`
-- ✅ **No root access**: Containers run as non-root user
-- ✅ **Port isolation**: Test DB on 5433 (production on 5432)
-
-### 2. Application Security
-
-- ✅ **Environment variables only**: No hardcoded secrets
-- ✅ **Secure headers**: CSP, HSTS, X-Frame-Options
-- ✅ **Input validation**: Zod schemas on all inputs
-- ✅ **Parameterized queries**: No SQL injection risk
-- ✅ **Rate limiting**: API protected from abuse
-
-### 3. Authentication Security
-
-- ✅ **Secure AUTH_SECRET**: 32+ character random string
-- ✅ **JWT best practices**: Short expiry, secure cookies
-- ✅ **Admin role checks**: Middleware enforces permissions
-- ✅ **Row-level security**: User data isolated
-
----
-
-## 📊 Test Results
-
-### Where to Find Results
-
-```
-live-test-results/
-├── report.html              # HTML report with screenshots
- ├── login-page.png          # Screenshot: Login page
-├── project-creation.png     # Screenshot: Project form
-├── traverse-computation.png # Screenshot: Traverse tool
-├── survey-report-builder.png# Screenshot: Report builder
-├── dashboard.png            # Screenshot: Dashboard
-└── test-results.json        # Raw JSON results
-```
-
-### Interpreting Results
-
-**PASS**: Feature working as expected  
-**FAIL**: Bug detected - check screenshot and error message  
-**SKIP**: Test skipped (missing dependency)
-
----
-
-## 🐛 Debugging
-
-### Common Issues
-
-#### 1. Containers Won't Start
-
+### Port already in use
 ```bash
-# Check Docker is running
-docker ps
-
-# Check ports not in use
+# Check what's using port 3001
 netstat -ano | findstr :3001
-netstat -ano | findstr :5433
 
-# Free up ports or change in .env.test.local
+# Stop any existing containers
+docker compose -f docker-compose.testing.yml down -v
 ```
 
-#### 2. Database Connection Fails
-
+### Database not connecting
 ```bash
-# Check DB health
-docker-compose -f docker-compose.testing.yml ps postgres
-
-# View DB logs
-docker-compose -f docker-compose.testing.yml logs postgres
+# Check postgres container logs
+docker compose -f docker-compose.testing.yml logs postgres
 
 # Reset database
-docker-compose -f docker-compose.testing.yml down -v
-docker-compose -f docker-compose.testing.yml up --build
+docker volume rm metardu_postgres_test_data
+docker compose -f docker-compose.testing.yml up -d
 ```
 
-#### 3. Tests Timeout
-
+### App not starting
 ```bash
-# Increase timeout in live-browser-test.ts
-const BASE_URL = 'http://localhost:3001'
-const TIMEOUT = 30000 // Increase to 30s
+# Check app logs
+docker compose -f docker-compose.testing.yml logs metardu-app
+
+# Rebuild from scratch
+docker compose -f docker-compose.testing.yml down -v
+docker compose -f docker-compose.testing.yml up --build -d
 ```
 
----
+## Production Parity
 
-## 📈 Production Deployment
+This Docker environment mirrors your Google Cloud VM:
 
-### Before Deploying to Google Cloud VM
+- ✅ PostgreSQL 15 + PostGIS 3.3
+- ✅ Node.js 20 Alpine
+- ✅ Same environment variables
+- ✅ Same build process
+- ✅ Health checks configured
 
-1. **Run Security Audit**
-   ```bash
-   npm run test:security
-   ```
+## CI/CD Integration
 
-2. **Run All Tests**
-   ```bash
-   npm test && npm run test:live
-   ```
+Add to GitHub Actions:
 
-3. **Check Production Readiness**
-   - See `PRODUCTION_READINESS.md`
-   - Complete checklist items
+```yaml
+- name: Run Docker Tests
+  run: |
+    docker compose -f docker-compose.testing.yml up --build -d
+    sleep 60
+    curl -f http://localhost:3001/api/public/health
+    npm run test:quick
+    docker compose -f docker-compose.testing.yml down -v
+```
 
-4. **Deploy**
-   ```bash
-   git push origin main
-   ```
+## Next Steps
 
-5. **Verify Deployment**
-   ```bash
-   curl -sf https://metardu.duckdns.org/api/public/health
-   ```
-
----
-
-## 🎯 Next Steps
-
-### Phase 1: Local Testing (Current)
-- ✅ Docker environment setup
-- ✅ Automated browser tests
-- ✅ Security audit
-- [ ] Fix any failing tests
-
-### Phase 2: CI/CD Integration
-- [ ] GitHub Actions workflow
-- [ ] Auto-test on push
-- [ ] Auto-deploy on main branch
-
-### Phase 3: Production Monitoring
-- [ ] Sentry integration
-- [ ] Uptime monitoring
-- [ ] Alert configuration
-
----
-
-## 📞 Support
-
-If you encounter issues:
-
-1. Check logs: `npm run docker:test:logs`
-2. Review error messages in test report
-3. Verify environment variables in `.env.test.local`
-4. Check Docker Desktop for container status
-
----
-
-## 🎓 Learning Resources
-
-- [Docker Compose documentation](https://docs.docker.com/compose/)
-- [Playwright testing guide](https://playwright.dev/docs/intro)
-- [Next.js security best practices](https://nextjs.org/docs/pages/building-your-application/authentication)
-- [PostgreSQL security](https://www.postgresql.org/docs/current/security.html)
-
----
-
-**Last Updated:** 2026-04-19  
-**Version:** 1.0.0  
-**Status:** Production Ready ✅
+1. ✅ Basic Docker setup complete
+2. ⏳ Add end-to-end test scenarios for all survey types
+3. ⏳ Test document generation (PDF/DOCX)
+4. ⏳ Add load testing
+5. ⏳ Add security penetration testing

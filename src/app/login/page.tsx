@@ -50,33 +50,42 @@ function LoginForm() {
     return ''
   }
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setEmailTouched(true)
-    setPasswordTouched(true)
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault()
+  console.log('[DEBUG] Login form submitted')
+  setEmailTouched(true)
+  setPasswordTouched(true)
 
-    const emailErr = validateEmail(email)
-    const passErr = validatePassword(password)
-    setEmailError(emailErr)
-    setPasswordError(passErr)
-    if (emailErr || passErr) return
+  const emailErr = validateEmail(email)
+  const passErr = validatePassword(password)
+  setEmailError(emailErr)
+  setPasswordError(passErr)
+  if (emailErr || passErr) {
+    console.log('[DEBUG] Validation error:', { emailErr, passErr })
+    return
+  }
 
-    setError('')
-    setLoading(true)
+  setError('')
+  setLoading(true)
+  console.log('[DEBUG] Calling signIn with credentials...')
 
+  try {
     const result = await signIn('credentials', {
       email,
       password,
       redirect: false,
     })
+    console.log('[DEBUG] signIn result:', result)
 
     setLoading(false)
 
     if (result?.error) {
+      console.log('[DEBUG] signIn error:', result.error)
       setError('Incorrect email or password. Please try again.')
       return
     }
 
+    console.log('[DEBUG] Login successful, redirecting...')
     if (rememberMe) {
       localStorage.setItem('metardu_remember', 'true')
     } else {
@@ -85,7 +94,12 @@ function LoginForm() {
 
     localStorage.removeItem('auth:redirect')
     window.location.href = getRedirectTo()
+  } catch (err) {
+    console.error('[DEBUG] signIn threw error:', err)
+    setLoading(false)
+    setError('An error occurred. Please try again.')
   }
+}
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
