@@ -48,7 +48,7 @@ export async function generateShapefileZip(
   // Projection file (common for all)
   const prjContent = generatePRJ(data.projection)
   folder.file(`${submissionName}.prj`, prjContent)
-  folder.file(`${submissionName}.cpg", "UTF-8")
+  folder.file(`${submissionName}.cpg`, 'UTF-8')
   
   return zip.generateAsync({ type: 'blob' })
 }
@@ -362,20 +362,20 @@ function generatePRJ(projection: { zone: number; hemisphere: 'N' | 'S'; datum: s
   const hemi = projection.hemisphere === 'N' ? 'Northern' : 'Southern'
   const falseNorthing = projection.hemisphere === 'S' ? 10000000 : 0
   const centralMeridian = -183 + projection.zone * 6
-  
-  return `PROJCS["WGS 84 / UTM zone ${projection.zone}${projection.hemisphere}",
-GEOGCS["WGS 84",
-DATUM["WGS_1984",
-SPHEROID["WGS 84",6378137,298.257223563]],
-PRIMEM["Greenwich",0],
-UNIT["degree",0.0174532925199433]],
-PROJECTION["Transverse_Mercator"],
-PARAMETER["latitude_of_origin",0],
-PARAMETER["central_meridian",${centralMeridian}],
-PARAMETER["scale_factor",0.9996],
-PARAMETER["false_easting",500000],
-PARAMETER["false_northing",${falseNorthing}],
-UNIT["metre",1]]`
+
+  return 'PROJCS["WGS 84 / UTM zone ' + projection.zone + projection.hemisphere + '",' +
+    'GEOGCS["WGS 84",' +
+    'DATUM["WGS_1984",' +
+    'SPHEROID["WGS 84",6378137,298.257223563]],' +
+    'PRIMEM["Greenwich",0],' +
+    'UNIT["degree",0.0174532925199433]],' +
+    'PROJECTION["Transverse_Mercator"],' +
+    'PARAMETER["latitude_of_origin",0],' +
+    'PARAMETER["central_meridian",' + centralMeridian + '],' +
+    'PARAMETER["scale_factor",0.9996],' +
+    'PARAMETER["false_easting",500000],' +
+    'PARAMETER["false_northing",' + falseNorthing + '],' +
+    'UNIT["metre",1]]'
 }
 
 export default generateShapefileZip

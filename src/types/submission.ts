@@ -394,3 +394,26 @@ export interface ShapefileProjection {
   datum: string
   ellipsoid: string
 }
+
+// ============================================================================
+// Legacy Submission Types (for compatibility)
+// ============================================================================
+
+export type DocumentStatus = 'missing' | 'pending' | 'ready' | 'error'
+
+export interface ProjectDocument {
+  id: string
+  document_id?: string // For DB compatibility
+  type: string
+  label: string
+  description?: string
+  required: boolean
+  status: DocumentStatus
+  fileUrl?: string
+  file_url?: string // DB compatibility
+  uploadedAt?: string
+  uploaded_at?: string // DB compatibility
+  generatedAt?: string
+  generated_at?: string // DB compatibility
+  errorMessage?: string
+}
