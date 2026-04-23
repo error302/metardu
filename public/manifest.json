@@ -112,6 +112,18 @@
           "sizes": "192x192"
         }
       ]
+    },
+    {
+      "name": "Field Collection",
+      "short_name": "Field",
+      "description": "Collect survey data in the field",
+      "url": "/mobile/field",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
   "related_applications": [],
