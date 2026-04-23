@@ -189,6 +189,24 @@ const nextConfig = {
           { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
         ],
       },
+      {
+        source: '/api/projects/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=60, stale-while-revalidate=300' },
+        ],
+      },
+      {
+        source: '/api/survey-report/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=300, stale-while-revalidate=600' },
+        ],
+      },
+      {
+        source: '/api/tools/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=3600' },
+        ],
+      },
     ]
   },
 }
