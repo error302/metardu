@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { FieldBookMobile } from '@/components/fieldbook/FieldBookMobile'
 
-type Tab = 'points' | 'traverse' | 'leveling' | 'radiation' | 'offline'
+type Tab = 'points' | 'traverse' | 'leveling' | 'radiation' | 'offline' | 'map'
 type SyncStatus = 'synced' | 'pending' | 'offline'
 
 const STORAGE_KEY = 'metardu_pending_observations'
@@ -323,6 +323,12 @@ export default function FieldPage() {
               className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] px-2 py-1.5 rounded"
             >
               Field Guides
+            </button>
+            <button
+              onClick={() => setActiveTab('map')}
+              className="text-[10px] bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black px-2 py-1.5 rounded"
+            >
+              GPS Map & Collection
             </button>
           </div>
         </div>
@@ -648,6 +654,21 @@ export default function FieldPage() {
             <p className="text-sm">Select a project first to use offline field book</p>
           </div>
         )}
+
+        {activeTab === 'map' && (
+          <div className="space-y-3 h-full flex flex-col">
+            <h2 className="text-xs font-semibold text-white uppercase tracking-wide">GPS Field Collection</h2>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => router.push('/field/map')} className="w-full py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-xs font-bold text-center">Offline Maps</button>
+              <button onClick={() => router.push('/field/collect')} className="w-full py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-xs font-bold text-center">Collect Beacons</button>
+              <button onClick={() => router.push('/field/walk')} className="w-full py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-xs font-bold text-center">Walk Perimeter</button>
+              <button onClick={() => router.push('/field/projects')} className="w-full py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-xs font-bold text-center">Local Projects</button>
+            </div>
+            <div className="mt-4 p-4 rounded-xl bg-amber-900/30 border border-amber-700 text-amber-300 text-sm">
+              <strong>Kenya Survey Regulations 1994:</strong> All GPS coordinates collected in the field must be verified against control beacons before submission. Field data is a draft — not a final survey.
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Bottom Tabs */}
@@ -658,6 +679,7 @@ export default function FieldPage() {
           {renderTabButton('leveling', Scale, 'Level')}
           {renderTabButton('radiation', Radio, 'Rad')}
           {renderOfflineTabButton('offline', Upload, 'Offline')}
+          {renderTabButton('map', MapPin, 'Map')}
         </div>
       </div>
     </div>

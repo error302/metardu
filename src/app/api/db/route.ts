@@ -63,7 +63,7 @@ const USER_SCOPED_TABLES = new Set([
   'signatures', 'equipment', 'equipment_calibrations', 'job_applications',
   'job_reviews', 'payment_history', 'render_jobs', 'project_submissions',
   'submission_documents', 'import_sessions', 'online_service_logs',
-  'surveyor_profiles', 'plan_usage',
+  'surveyor_profiles', 'plan_usage', 'field_projects'
 ])
 
 // Tables that are read-only for all authenticated users (no user scoping needed)

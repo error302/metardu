@@ -5,19 +5,15 @@
  */
 
 import { SurveyPlanRenderer } from './renderer'
-import type { SurveyPlanData, PlanOptions, CoordinateScheduleEntry, InsetDiagram } from './types'
+import type { SurveyPlanData, PlanOptions, CoordinateScheduleEntry } from './types'
 import {
   DPI, PX_PER_MM, PX_PER_M,
   PAGE_WIDTH_MM, PAGE_HEIGHT_MM,
-  mmToPx, mToPx,
-  bearingFromDelta, bearingToDMS, distance, midpoint,
-  formatBearingDegMinSec,
-  boundingBox,
+  mmToPx,
 } from './geometry'
 import {
   escapeXml,
-  C_BLACK, C_GREEN, C_RED, C_GRID_MINOR, C_GRID_MAJOR,
-  C_LOT_FILL, C_WARNING_BG,
+  C_BLACK, C_GREEN, C_RED,
 } from './symbols'
 
 /**
@@ -96,7 +92,7 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     layers.push(this.drawSubmissionNumberHeader())
     layers.push(this.drawLegalReferenceLine())
     
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.getPageWidth()} ${this.getPageHeight()}" width="${this.getPageWidth()}" height="${this.getPageHeight()}" style="font-family: 'Share Tech Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'Share Tech Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
   }
 
   /**
@@ -108,12 +104,12 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     if (controlPts.length === 0) return ''
 
     // Split beacons: P/K-series on left, N/D-series on right
-    const leftSideBeacons = controlPts.filter(p => 
-      p.name.startsWith('P') || p.name.startsWith('K')
-    )
-    const rightSideBeacons = controlPts.filter(p => 
-      p.name.startsWith('N') || p.name.startsWith('D')
-    )
+const leftSideBeacons = controlPts.filter(p =>
+  p.station.startsWith('P') || p.station.startsWith('K')
+)
+const rightSideBeacons = controlPts.filter(p =>
+  p.station.startsWith('N') || p.station.startsWith('D')
+)
 
     let svg = ''
     
@@ -124,8 +120,8 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     
     // Right table
     if (rightSideBeacons.length > 0) {
-      svg += this.drawCoordinateTable(rightSideBeacons, 'right', 
-        this.getPageWidth() - mmToPx(15) - mmToPx(65), mmToPx(25))
+svg += this.drawCoordinateTable(rightSideBeacons, 'right',
+      this.pageW - mmToPx(15) - mmToPx(65), mmToPx(25))
     }
 
     return svg
@@ -193,19 +189,19 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
   /**
    * Draw LR numbers on parcels (Form No. 4 Rule 4)
    */
-  private drawLRNumbersOnParcels(): string {
-    const p = this.getData().project
+private drawLRNumbersOnParcels(): string {
+  const p = this.data.project
     if (!p.lrNumber) return ''
 
-    const boundaryPts = this.getRotatedPoints()
+    const boundaryPts = this.rotatedPoints
     if (boundaryPts.length < 3) return ''
 
     // Calculate centroid of parcel
     const centroid = this.calculateCentroid(boundaryPts)
-    const cx = this.toSvgX(centroid.easting)
-    const cy = this.toSvgY(centroid.northing)
+  const cx = this.toSvgX(centroid.easting)
+  const cy = this.toSvgY(centroid.northing)
 
-    const parcelArea = this.getData().parcel.area_sqm || 0
+  const parcelArea = this.data.parcel.area_sqm || 0
     const areaHa = (parcelArea / 10000).toFixed(4)
 
     let svg = ''
@@ -227,13 +223,12 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
   /**
    * Draw road annotations (Form No. 4 Rule 3)
    */
-  private drawRoadAnnotations(): string {
-    const p = this.getData().project
-    
-    // Find a suitable location for annotations (bottom of drawing area)
-    const minE = Math.min(...this.getRotatedPoints().map(p => p.easting))
-    const maxE = Math.max(...this.getRotatedPoints().map(p => p.easting))
-    const minN = Math.min(...this.getRotatedPoints().map(p => p.northing))
+private drawRoadAnnotations(): string {
+  const p = this.data.project
+
+  const minE = Math.min(...this.rotatedPoints.map(p => p.easting))
+  const maxE = Math.max(...this.rotatedPoints.map(p => p.easting))
+  const minN = Math.min(...this.rotatedPoints.map(p => p.northing))
     
     const cx = this.toSvgX((minE + maxE) / 2)
     const cy = this.toSvgY(minN) + mmToPx(15)
@@ -252,11 +247,11 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
   /**
    * Draw Form No. 4 right panel
    */
-  private drawFormNo4RightPanel(): string {
-    const p = this.getData().project
-    const d = this.formNo4Data
-    const panelX = this.getPanelX()
-    const panelW = this.getPanelWidth()
+private drawFormNo4RightPanel(): string {
+  const p = this.data.project
+  const d = this.formNo4Data
+  const panelX = this.panelX
+  const panelW = this.panelW
     const margin = mmToPx(10)
     
     let y = margin + mmToPx(5)
@@ -369,11 +364,11 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
    */
   private drawFormNo4TitleBlock(): string {
     const d = this.formNo4Data
-    const footerY = this.getPageHeight() - mmToPx(50)
-    const footerH = mmToPx(44)
-    const margin = mmToPx(10)
-    const cols = 6
-    const colW = (this.getPageWidth() - margin * 2) / cols
+  const footerY = this.pageH - mmToPx(50)
+  const footerH = mmToPx(44)
+  const margin = mmToPx(10)
+  const cols = 6
+  const colW = (this.pageW - margin * 2) / cols
 
     let svg = `<g class="form-no-4-title-block">`
     
@@ -391,15 +386,15 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     const folioY = footerY + footerH + mmToPx(3)
     
     if (d.folioNumber) {
-      svg += `<text x="${this.getPageWidth()/2 - mmToPx(40)}" y="${folioY}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="14" font-weight="bold" fill="${C_BLACK}">Folio No. ${escapeXml(d.folioNumber)}</text>`
+      svg += `<text x="${this.pageW/2 - mmToPx(40)}" y="${folioY}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="14" font-weight="bold" fill="${C_BLACK}">Folio No. ${escapeXml(d.folioNumber)}</text>`
     }
     
     if (d.registerNumber) {
-      svg += `<text x="${this.getPageWidth()/2 + mmToPx(40)}" y="${folioY}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="14" font-weight="bold" fill="${C_BLACK}">Register No. ${escapeXml(d.registerNumber)}</text>`
+      svg += `<text x="${this.pageW/2 + mmToPx(40)}" y="${folioY}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="14" font-weight="bold" fill="${C_BLACK}">Register No. ${escapeXml(d.registerNumber)}</text>`
     }
     
     if (d.firNumber) {
-      svg += `<text x="${this.getPageWidth()/2}" y="${folioY + mmToPx(6)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="10" fill="${C_BLACK}">FIR No. ${escapeXml(d.firNumber)}</text>`
+      svg += `<text x="${this.pageW/2}" y="${folioY + mmToPx(6)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="10" fill="${C_BLACK}">FIR No. ${escapeXml(d.firNumber)}</text>`
     }
 
     svg += '</g>'
@@ -413,20 +408,14 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     const d = this.formNo4Data
     if (!d.submissionNumber) return ''
 
-    const y = mmToPx(8)
-    const cx = this.getPageWidth() / 2
+  const y = mmToPx(8)
+  const cx = this.pageW / 2
 
     return `<text x="${cx}" y="${y}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}">Submission: ${escapeXml(d.submissionNumber)}</text>`
   }
 
-  // Helper methods to access private parent properties
-  private getPageWidth(): number { return (this as any).pageW }
-  private getPageHeight(): number { return (this as any).pageH }
-  private getPanelX(): number { return (this as any).panelX }
-  private getPanelWidth(): number { return (this as any).panelW }
-  private getControlPoints(): CoordinateScheduleEntry[] {
-    const data = this.getData()
-    return data.controlPoints.map(cp => ({
+private getControlPoints(): CoordinateScheduleEntry[] {
+    return this.data.controlPoints.map(cp => ({
       station: cp.name,
       northing: cp.northing,
       easting: cp.easting,
@@ -435,27 +424,11 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
       description: cp.beaconDescription
     }))
   }
-  
+
   private mapMonumentTypeToClass(mt: string): 'new' | 'old' | 'theoretical' | 'IPCU' {
     if (mt === 'set') return 'new'
     if (mt === 'found') return 'old'
     return 'theoretical'
-  }
-  
-  private getRotatedPoints(): Array<{ easting: number; northing: number }> {
-    return (this as any).rotatedPoints
-  }
-  
-  private getData(): SurveyPlanData {
-    return (this as any).data
-  }
-  
-  private toSvgX(m: number): number {
-    return (this as any).toSvgX(m)
-  }
-  
-  private toSvgY(m: number): number {
-    return (this as any).toSvgY(m)
   }
   
   private calculateCentroid(points: Array<{ easting: number; northing: number }>): { easting: number; northing: number } {

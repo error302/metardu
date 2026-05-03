@@ -9,24 +9,24 @@ export const BOUNDARY_ATTACHMENT_SLOTS: AttachmentSlot[] = [
     label: 'Physical Planning Approval (PPA2)',
     required: true,
     accepts: ['application/pdf', 'image/jpeg', 'image/png'],
-    maxSizeMB: 10,
-    helpText: 'Approval from local authority for subdivision / change of user',
+    max_size_mb: 10,
+    help_text: 'Approval from local authority for subdivision / change of user',
   },
   {
     id: 'lcb_consent',
     label: 'Land Control Board Consent',
     required: true,
     accepts: ['application/pdf'],
-    maxSizeMB: 10,
-    helpText: 'Required for subdivisions under the Land Control Act Cap 302',
+    max_size_mb: 10,
+    help_text: 'Required for subdivisions under the Land Control Act Cap 302',
   },
   {
     id: 'mutation_form',
     label: 'Mutation Form / Subdivision Scheme',
     required: true,
     accepts: ['application/pdf', 'image/jpeg', 'image/png'],
-    maxSizeMB: 20,
-    helpText: 'Form LRA 67 or equivalent, signed by landowner and registered surveyor',
+    max_size_mb: 20,
+    help_text: 'Form LRA 67 or equivalent, signed by landowner and registered surveyor',
   },
   {
     id: 'rtk_raw',
@@ -38,8 +38,8 @@ export const BOUNDARY_ATTACHMENT_SLOTS: AttachmentSlot[] = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/xml'
     ],
-    maxSizeMB: 50,
-    helpText: 'Raw GNSS field data from RTK session (CSV, TXT, RINEX, etc.)',
+    max_size_mb: 50,
+    help_text: 'Raw GNSS field data from RTK session (CSV, TXT, RINEX, etc.)',
   },
   {
     id: 'field_book_export',
@@ -51,8 +51,8 @@ export const BOUNDARY_ATTACHMENT_SLOTS: AttachmentSlot[] = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/xml'
     ],
-    maxSizeMB: 20,
-    helpText: 'Exported from total station / GNSS instrument (.FBK, CSV, LandXML)',
+    max_size_mb: 20,
+    help_text: 'Exported from total station / GNSS instrument (.FBK, CSV, LandXML)',
   },
 ]
 

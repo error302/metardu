@@ -208,7 +208,7 @@ class OfflineStorage {
   }
 
   async getUnsyncedObservations(): Promise<FieldObservation[]> {
-    return this.getAll(STORES.FIELD_OBSERVATIONS, 'synced', false)
+    return this.getAll(STORES.FIELD_OBSERVATIONS, 'synced', 0 as unknown as IDBValidKey)
   }
 
   // Photo storage
@@ -262,8 +262,8 @@ class OfflineStorage {
     return {
       observations: observations.length,
       photos: photos.length,
-      pendingSync: queue.filter((i) => i.status === 'pending').length,
-      failedSync: queue.filter((i) => i.status === 'failed').length,
+      pendingSync: queue.filter((i: any) => i.status === 'pending').length,
+      failedSync: queue.filter((i: any) => i.status === 'failed').length,
       storageUsed: this.estimateStorageSize(observations, photos),
     }
   }

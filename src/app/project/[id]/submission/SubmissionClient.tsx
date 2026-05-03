@@ -225,7 +225,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
       ) : (
         <div className="space-y-4">
           {documents.map((doc) => {
-            const state = docStates[doc.id] ?? { id: doc.id, status: 'pending' as DocumentStatus, progress: 0 };
+            const state: DocState = docStates[doc.id] ?? { id: doc.id, status: 'pending' as DocumentStatus, progress: 0 };
             const isGenerating = state.status === 'generating';
             const isReady = state.status === 'ready';
             const isError = state.status === 'error';

@@ -89,10 +89,10 @@ export default function DocumentCard({ doc, projectId, existing, onStatusChange 
         )}
       </p>
 
-      {(localError || (status === 'error' && existing?.error_message)) && (
-        <p className="text-xs text-red-500 bg-red-50 rounded p-2 leading-relaxed">
-          {localError ?? existing?.error_message}
-        </p>
+{(localError || (status === 'error' && existing?.errorMessage)) && (
+    <p className="text-xs text-red-500 bg-red-50 rounded p-2 leading-relaxed">
+      {localError ?? existing?.errorMessage}
+    </p>
       )}
 
       <div className="flex gap-2 mt-auto">

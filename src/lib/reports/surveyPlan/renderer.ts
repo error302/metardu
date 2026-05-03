@@ -25,23 +25,23 @@ import {
 } from './symbols'
 
 export class SurveyPlanRenderer {
-  private data: SurveyPlanData
-  private opts: Required<PlanOptions>
-  private pageW: number
-  private pageH: number
-  private drawingAreaW: number
-  private drawingAreaH: number
-  private drawingX: number
-  private drawingY: number
-  private panelX: number
-  private panelW: number
-  private margin = mmToPx(10)
-  private titleBlockH = mmToPx(44)
-  private scale = 500
-  private mPerPx = 1
-  private toSvgX!: (m: number) => number
-  private toSvgY!: (m: number) => number
-  private rotatedPoints: Array<{ easting: number; northing: number }> = []
+  protected data: SurveyPlanData
+  protected opts: Required<PlanOptions>
+  protected pageW: number
+  protected pageH: number
+  protected drawingAreaW: number
+  protected drawingAreaH: number
+  protected drawingX: number
+  protected drawingY: number
+  protected panelX: number
+  protected panelW: number
+  protected margin = mmToPx(10)
+  protected titleBlockH = mmToPx(44)
+  protected scale = 500
+  protected mPerPx = 1
+  protected toSvgX!: (m: number) => number
+  protected toSvgY!: (m: number) => number
+  protected rotatedPoints: Array<{ easting: number; northing: number }> = []
 
   constructor(data: SurveyPlanData, options?: PlanOptions) {
     this.data = data
@@ -65,7 +65,7 @@ export class SurveyPlanRenderer {
     this.rotatedPoints = this.getTransformedPoints()
   }
 
-  private computeScale(): void {
+  protected computeScale(): void {
     const parcel = this.data.parcel
     const bb = boundingBox(parcel.boundaryPoints)
     const drawW = this.drawingAreaW - mmToPx(20)
@@ -100,19 +100,19 @@ export class SurveyPlanRenderer {
     return rotatePoints(pts, rotDeg, cx, cy)
   }
 
-  private drawBackground(): string {
+  protected drawBackground(): string {
     return `<rect x="0" y="0" width="${this.pageW}" height="${this.pageH}" fill="white"/>`
   }
 
-  private drawSheetBorder(): string {
+  protected drawSheetBorder(): string {
     return svgSheetBorder(this.pageW, this.pageH)
   }
 
-  private drawPanelDivider(): string {
+  protected drawPanelDivider(): string {
     return svgPanelDivider(this.panelX, this.pageH, this.margin, this.titleBlockH + this.margin)
   }
 
-  private drawGrid(): string {
+  protected drawGrid(): string {
     const parcel = this.data.parcel
     const bb = boundingBox(parcel.boundaryPoints)
     
@@ -164,7 +164,7 @@ export class SurveyPlanRenderer {
   }
 
 
-  private drawLotFill(): string {
+  protected drawLotFill(): string {
     const pts = this.data.parcel.boundaryPoints
     if (pts.length < 3) return ''
     const coords: string[] = []
@@ -173,7 +173,7 @@ export class SurveyPlanRenderer {
     return `<polygon points="${coords.join(' ')}" fill="${C_LOT_FILL}" stroke="none"/>`
   }
 
-  private drawAdjacentLots(): string {
+  protected drawAdjacentLots(): string {
     const lots = this.data.adjacentLots
     if (!lots || lots.length === 0) return ''
     let svg = ''
@@ -184,13 +184,13 @@ export class SurveyPlanRenderer {
     return svg
   }
 
-  private drawBoundary(): string {
+  protected drawBoundary(): string {
     const pts = this.data.parcel.boundaryPoints
     if (pts.length < 2) return ''
     return polylineFromPoints(pts, this.toSvgX, this.toSvgY, true).replace('stroke-width="1"', 'stroke-width="2.5"')
   }
 
-  private drawBoundaryLabels(): string {
+  protected drawBoundaryLabels(): string {
     const pts = this.rotatedPoints
     let svg = ''
     for (let i = 0; i < pts.length; i++) {
@@ -221,7 +221,7 @@ export class SurveyPlanRenderer {
     return svg
   }
 
-  private drawMonuments(): string {
+  protected drawMonuments(): string {
     let svg = ''
     const rawPts = this.data.parcel.boundaryPoints
     const rotPts = this.rotatedPoints
@@ -359,7 +359,7 @@ export class SurveyPlanRenderer {
     return svg
   }
 
-  private drawNorthArrow(): string {
+  protected drawNorthArrow(): string {
     const rotDeg = this.data.project.northRotationDeg || 0
     const nx = this.drawingX + mmToPx(8)
     const ny = this.drawingY + mmToPx(10) + 30
@@ -379,7 +379,7 @@ export class SurveyPlanRenderer {
     return svg
   }
 
-  private drawScaleBar(): string {
+  protected drawScaleBar(): string {
     const scaleBarPx = mmToPx(40)
     const segmentMetres = calcScaleBarMetres(this.scale)
     const x = this.drawingX + mmToPx(8)
@@ -821,7 +821,7 @@ export class SurveyPlanRenderer {
     return svg
   }
 
-  private drawLegalReferenceLine(): string {
+  protected drawLegalReferenceLine(): string {
     const p = this.data.project
     const zone = `${p.utm_zone || 37}${p.hemisphere || 'S'}`
     const datum = p.datum || 'ARC1960'

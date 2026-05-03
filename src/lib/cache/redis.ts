@@ -114,6 +114,7 @@ class RedisCache {
 // Singleton instance
 const redisCache = new RedisCache()
 export default redisCache
+export { RedisCache }
 
 // Initialize on import if in production
 if (process.env.NODE_ENV === 'production') {

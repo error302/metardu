@@ -26,7 +26,7 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
   const [showCompliance, setShowCompliance] = useState(false)
   const [useFormNo4, setUseFormNo4] = useState(true) // Default to Form No. 4 for Kenya
   const containerRef = useRef<HTMLDivElement>(null)
-  const rendererRef = useRef<SurveyPlanRenderer | null>(null)
+  const rendererRef = useRef<SurveyPlanRenderer | FormNo4Renderer | null>(null)
 
   useEffect(() => {
     setLoading(true)

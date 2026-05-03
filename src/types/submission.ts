@@ -399,7 +399,7 @@ export interface ShapefileProjection {
 // Legacy Submission Types (for compatibility)
 // ============================================================================
 
-export type DocumentStatus = 'missing' | 'pending' | 'ready' | 'error'
+export type DocumentStatus = 'missing' | 'pending' | 'generating' | 'ready' | 'error'
 
 export interface ProjectDocument {
   id: string
@@ -416,4 +416,48 @@ export interface ProjectDocument {
   generatedAt?: string
   generated_at?: string // DB compatibility
   errorMessage?: string
+  error_message?: string
+}
+
+export interface SubmissionDocument {
+  id: string
+  label: string
+  description: string
+  format: string
+  surveyTypes: string[]
+  requiredData: string[]
+}
+
+export interface ProjectSubmissionRecord {
+  id: string
+  project_id: string
+  user_id: string
+  surveyor_profile_user_id: string | null
+  submission_year: number
+  sequence_number: number | null
+  revision_number: number
+  submission_number: string | null
+  package_status: PackageStatus
+  required_documents: unknown[]
+  generated_artifacts: Record<string, unknown>
+  supporting_attachments: Record<string, unknown>
+  validation_results: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export type SubmissionPackageStatus = PackageStatus
+
+export interface SurveyorDocumentProfile {
+  userId: string
+  name: string
+  firm: string
+  licence: string
+  phone: string
+  email: string
+  address: string
+  county: string
+  sealImagePath: string
+  profilePublic: boolean
+  verifiedLicence: boolean
 }

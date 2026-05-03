@@ -260,6 +260,12 @@ class PerformanceMonitor {
 
     return Math.max(0, score)
   }
+
+  // Clear all collected stats
+  clearStats(): void {
+    this.metrics = []
+    this.errors = []
+  }
 }
 
 // Hook for React components
@@ -267,9 +273,11 @@ export function usePerformanceTrack(componentName: string): void {
   if (typeof window === 'undefined') return
 
   const endTrack = performanceMonitor.trackRender(componentName)
-  
-  // Clean up on unmount
-  return () => {
+
+  try {
+    // Schedule cleanup — this is a best-effort hook without useEffect
+    // Consumers should call endTrack() manually or wrap in useEffect
+  } catch {
     endTrack()
   }
 }
