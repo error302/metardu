@@ -1,6 +1,7 @@
 'use client'
 
 import TraverseFieldBook from '@/components/TraverseFieldBook'
+import { Suspense } from 'react'
 
 export default function TraverseFieldBookPage() {
   return (
@@ -9,7 +10,9 @@ export default function TraverseFieldBookPage() {
       <p className="text-sm text-[var(--text-muted)] mb-6">
         Raw field data reduction and traverse computation | Survey Act Cap 299 | RDM 1.1 (2025)
       </p>
-      <TraverseFieldBook projectId="" />
+      <Suspense fallback={<div className="p-8 text-center text-[var(--text-muted)]">Loading Field Book...</div>}>
+        <TraverseFieldBook projectId="" />
+      </Suspense>
     </div>
   )
 }

@@ -71,3 +71,42 @@ export interface FieldExportOptions {
   includeParcels: boolean;
   includeLayers: boolean;
 }
+
+// GeoPDF ground control point — maps pixel (x,y) to WGS84 (lat,lng)
+export interface GCP {
+  id: string;
+  pixelX: number;
+  pixelY: number;
+  lat: number;
+  lng: number;
+  label: string; // 'TL' | 'TR' | 'BL' | 'BR'
+}
+
+export interface GeoPDFLayer {
+  id: string;
+  name: string;
+  dataUrl: string;       // base64 PNG of rendered PDF page
+  widthPx: number;
+  heightPx: number;
+  gcps: GCP[];           // exactly 4 required before the layer activates on map
+  visible: boolean;
+  loadedAt: number;
+}
+
+export interface MBTilesSession {
+  key: string;           // UUID returned by /api/field/mbtiles/upload
+  name: string;
+  minZoom: number;
+  maxZoom: number;
+  bounds?: [number, number, number, number]; // [west, south, east, north] WGS84
+}
+
+// For Push to Traverse — maps to what traverseEngine.ts expects
+export interface TraverseStationInput {
+  id: string;
+  label: string;         // e.g. 'BP1'
+  easting: number;       // UTM or projected — derived from WGS84 via proj4
+  northing: number;
+  elevation?: number;
+  coordinateSystem: string; // e.g. 'UTM_37S'
+}

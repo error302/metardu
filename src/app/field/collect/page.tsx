@@ -8,6 +8,7 @@ import { MapPin, Crosshair, Trash2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 const MapViewer = dynamic(() => import('@/components/field/MapViewer'), { ssr: false });
+import PushToTraverse from '@/components/field/PushToTraverse';
 
 // Labels auto-increment: BP1, BP2, BP3…
 function nextLabel(beacons: FieldBeacon[]): string {
@@ -118,6 +119,9 @@ export default function CollectPage() {
               </button>
             </div>
           ))}
+          <div className="mt-4 pt-4 border-t border-gray-700">
+            <PushToTraverse beacons={beacons} />
+          </div>
         </div>
       )}
     </div>

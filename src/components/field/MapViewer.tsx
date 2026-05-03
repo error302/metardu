@@ -1,16 +1,18 @@
 'use client';
 // HARD RULE: dynamic import with ssr:false required — OpenLayers uses window/document
 import { useEffect, useRef } from 'react';
-import { MapLayer, FieldBeacon, FieldParcel } from '@/types/field';
+import { MapLayer, FieldBeacon, FieldParcel, GeoPDFLayer, MBTilesSession } from '@/types/field';
 
 interface Props {
   layers: MapLayer[];
   beacons: FieldBeacon[];
   parcels: FieldParcel[];
+  geoPDFLayers?: GeoPDFLayer[];
+  mbtilesSessions?: MBTilesSession[];
   onMapClick?: (lat: number, lng: number) => void;
 }
 
-export default function MapViewer({ layers, beacons, parcels, onMapClick }: Props) {
+export default function MapViewer({ layers, beacons, parcels, geoPDFLayers, mbtilesSessions, onMapClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
 
@@ -159,6 +161,24 @@ export default function MapViewer({ layers, beacons, parcels, onMapClick }: Prop
         });
       }
 
+      // GeoPDF layers
+      if (geoPDFLayers?.length) {
+        import('@/lib/field/geopdf').then(({ buildOLGeoPDFLayer }) => {
+          geoPDFLayers.filter(g => g.visible && g.gcps.length === 4).forEach(g => {
+            map.addLayer(buildOLGeoPDFLayer(g));
+          });
+        });
+      }
+
+      // MBTiles layers
+      if (mbtilesSessions?.length) {
+        import('@/lib/field/mbtiles').then(({ buildOLMBTilesLayer }) => {
+          mbtilesSessions.forEach(s => {
+            map.addLayer(buildOLMBTilesLayer(s));
+          });
+        });
+      }
+
       mapRef.current = map;
     });
 
@@ -168,7 +188,7 @@ export default function MapViewer({ layers, beacons, parcels, onMapClick }: Prop
         mapRef.current = null;
       }
     };
-  }, [layers, beacons, parcels, onMapClick]);
+  }, [layers, beacons, parcels, geoPDFLayers, mbtilesSessions, onMapClick]);
 
   return <div ref={containerRef} className="w-full h-full z-0" />;
 }

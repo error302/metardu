@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { computeTraverse, type RawObservation, type TraverseComputationResult } from '@/lib/computations/traverseEngine'
 import { parseTraverseCSV } from '@/lib/parsers/totalStation'
 import { bearingToString } from '@/lib/engine/angles'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
+import { TraverseStationInput } from '@/types/field'
 
 interface TraverseFieldBookProps {
   projectId: string
@@ -39,6 +41,32 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'input' | 'compute' | 'print'>('input')
   const fileRef = useRef<HTMLInputElement>(null)
+  
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const raw = searchParams.get('field_import')
+    if (!raw) return
+    try {
+      const stations: TraverseStationInput[] = JSON.parse(decodeURIComponent(raw))
+      const mapped = stations.map(s => ({
+        station: s.label,
+        bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5'
+      }))
+      setObservations(mapped.length > 0 ? mapped : [
+        { station: '', bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5' }
+      ])
+      
+      if (stations.length > 0) {
+        setOpeningName(stations[0].label)
+        setOpeningE(stations[0].easting.toString())
+        setOpeningN(stations[0].northing.toString())
+        if (stations[0].elevation) setOpeningRL(stations[0].elevation.toString())
+      }
+    } catch {
+      console.error('Failed to parse field_import param')
+    }
+  }, [searchParams])
 
   const addRow = () => setObservations(prev => [...prev, {
     station: '', bs: '', fs: '',
