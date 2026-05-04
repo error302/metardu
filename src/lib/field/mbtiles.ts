@@ -1,6 +1,4 @@
 import { MBTilesSession } from '@/types/field';
-import XYZ from 'ol/source/XYZ';
-import TileLayer from 'ol/layer/Tile';
 
 export async function uploadMBTiles(file: File): Promise<MBTilesSession> {
   const form = new FormData();
@@ -13,7 +11,13 @@ export async function uploadMBTiles(file: File): Promise<MBTilesSession> {
   return res.json() as Promise<MBTilesSession>;
 }
 
-export function buildOLMBTilesLayer(session: MBTilesSession): TileLayer<XYZ> {
+// buildOLMBTilesLayer is only called inside MapViewer useEffect (browser-only)
+// so the OL imports are safe here — this function is dynamically imported
+export function buildOLMBTilesLayer(session: MBTilesSession) {
+  // Dynamic require to keep top-level clean for SSR
+  const { default: XYZ } = require('ol/source/XYZ');
+  const { default: TileLayer } = require('ol/layer/Tile');
+  
   return new TileLayer({
     source: new XYZ({
       url: `/api/field/mbtiles/tiles/${session.key}/{z}/{x}/{y}`,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/api-client/client'
@@ -12,7 +12,7 @@ interface Project {
   location: string | null
 }
 
-export default function SurveyReportBuilderPage() {
+function SurveyReportBuilderContent() {
   const params = useSearchParams()
   const projectId = params.get('projectId') || ''
   const reportId = params.get('reportId') || undefined
@@ -116,4 +116,16 @@ export default function SurveyReportBuilderPage() {
   }
 
   return <SurveyReportBuilder projectId={projectId} existingReportId={reportId} />
+}
+
+export default function SurveyReportBuilderPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <SurveyReportBuilderContent />
+    </Suspense>
+  )
 }

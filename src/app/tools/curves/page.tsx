@@ -173,9 +173,12 @@ export default function CurvesCalculator() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Curve Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Horizontal and vertical curve calculations</p>
+      <p className="text-sm text-[var(--text-muted)] mb-1">Horizontal and vertical curve calculations</p>
+      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
+        RDM 1.1 (2025) Geometric Design &nbsp;|&nbsp; Kenya Highway Design Manual
+      </p>
 
       <div className="flex gap-2 mb-6 flex-wrap">
         <button onClick={() => { setCurveType('simple'); setResult(null); setVResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'simple' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Simple Curve</button>

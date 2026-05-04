@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function ToolsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
@@ -9,8 +11,8 @@ export default function ToolsPage() {
         <section>
           <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Field Layout</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/setting-out" title="Setting Out" />
-            <ToolLink href="/tools/missing-line" title="Missing Line" />
+            <ToolLink href="/tools/setting-out" title="Setting Out" description="Stakeout from known coords | RDM 1.1" />
+            <ToolLink href="/tools/missing-line" title="Missing Line" description="Distance & bearing between two points" />
           </div>
         </section>
 
@@ -18,10 +20,10 @@ export default function ToolsPage() {
         <section>
           <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Leveling</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/leveling" title="Leveling" />
-            <ToolLink href="/tools/level-book" title="Level Book" />
-            <ToolLink href="/tools/two-peg-test" title="Two Peg Test" />
-            <ToolLink href="/tools/height-of-object" title="Height of Object" />
+            <ToolLink href="/tools/leveling" title="Leveling" description="Quick differential levelling | 10√K closure" />
+            <ToolLink href="/tools/level-book" title="Level Book" description="HPC / Rise & Fall field book | 10√K closure" />
+            <ToolLink href="/tools/two-peg-test" title="Two Peg Test" description="Instrument collimation error check" />
+            <ToolLink href="/tools/height-of-object" title="Height of Object" description="Trigonometric height measurement" />
           </div>
         </section>
 
@@ -29,10 +31,10 @@ export default function ToolsPage() {
         <section>
           <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Calculations</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/distance" title="Distance & Bearing" />
-            <ToolLink href="/tools/bearing" title="Bearing" />
-            <ToolLink href="/tools/area" title="Area" />
-            <ToolLink href="/tools/grade" title="Grade" />
+            <ToolLink href="/tools/distance" title="Distance & Bearing" description="WCB & distance from coordinates" />
+            <ToolLink href="/tools/bearing" title="Bearing" description="Forward & back bearing computation" />
+            <ToolLink href="/tools/area" title="Area" description="Area from coordinate list" />
+            <ToolLink href="/tools/grade" title="Grade" description="Gradient & slope percentage" />
           </div>
         </section>
 
@@ -40,11 +42,11 @@ export default function ToolsPage() {
         <section>
           <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Traverse & Adjustment</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/traverse" title="Traverse" />
-            <ToolLink href="/tools/traverse-field-book" title="Traverse Field Book" />
-            <ToolLink href="/tools/coordinates" title="Coordinates" />
-            <ToolLink href="/tools/cogo" title="COGO Calculator" />
-            <ToolLink href="/tools/gnss" title="GNSS" />
+            <ToolLink href="/tools/traverse" title="Traverse" description="Bowditch/Transit closed traverse | RDM 1.1 grading" />
+            <ToolLink href="/tools/traverse-field-book" title="Traverse Field Book" description="Field observations with angular closure" />
+            <ToolLink href="/tools/coordinates" title="Coordinates" description="Survey Regulations 1994 | Kenya UTM Zones 36S/37S" />
+            <ToolLink href="/tools/cogo" title="COGO Calculator" description="Coordinate geometry computations" />
+            <ToolLink href="/tools/gnss" title="GNSS" description="GNSS observation & baseline processing" />
           </div>
         </section>
 
@@ -52,10 +54,10 @@ export default function ToolsPage() {
         <section>
           <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Road Design</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/road-design" title="Road Design" />
-            <ToolLink href="/tools/earthworks" title="Earthworks" />
-            <ToolLink href="/tools/curves" title="Horizontal Curves" />
-            <ToolLink href="/tools/tacheometry" title="Tacheometry" />
+            <ToolLink href="/tools/road-design" title="Road Design" description="Full road design workflow | RDM 1.1 (2025)" />
+            <ToolLink href="/tools/earthworks" title="Earthworks" description="Cut/fill volumes | Prismoidal formula | RDM 1.1" />
+            <ToolLink href="/tools/curves" title="Horizontal Curves" description="Horizontal/vertical curve elements | RDM 1.1" />
+            <ToolLink href="/tools/tacheometry" title="Tacheometry" description="Stadia/EDM distance & elevation | RDM 1.1 Section 5.6" />
           </div>
         </section>
 
@@ -63,9 +65,9 @@ export default function ToolsPage() {
         <section>
           <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Specialized Surveys</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/mining" title="⛏ Mining Survey" />
-            <ToolLink href="/tools/hydrographic" title="🌊 Hydrographic" />
-            <ToolLink href="/tools/drone" title="🚁 Drone/UAV" />
+            <ToolLink href="/tools/mining" title="⛏ Mining Survey" description="Volume computation & DXF export" />
+            <ToolLink href="/tools/hydrographic" title="🌊 Hydrographic" description="Water survey & depth reduction" />
+            <ToolLink href="/tools/drone" title="🚁 Drone/UAV" description="UAV survey & GCP processing" />
           </div>
         </section>
       </div>
@@ -73,10 +75,11 @@ export default function ToolsPage() {
   );
 }
 
-function ToolLink({ href, title }: { href: string; title: string }) {
+function ToolLink({ href, title, description }: { href: string; title: string; description?: string }) {
   return (
-    <a href={href} className="card p-5 hover:border-[var(--accent)] transition-all">
-      <h3 className="font-semibold">{title}</h3>
-    </a>
+    <Link href={href} className="card p-4 hover:border-[var(--accent)] transition-colors block">
+      <p className="font-semibold text-sm">{title}</p>
+      {description && <p className="text-xs text-[var(--text-muted)] mt-1">{description}</p>}
+    </Link>
   );
 }

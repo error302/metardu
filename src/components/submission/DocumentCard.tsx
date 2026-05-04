@@ -11,10 +11,11 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<DocumentStatus, { label: string; color: string }> = {
-  pending:    { label: 'Not generated', color: 'text-gray-400' },
-  generating: { label: 'Generating…',  color: 'text-blue-500' },
-  ready:      { label: 'Ready',         color: 'text-green-600' },
-  error:      { label: 'Failed',        color: 'text-red-500' },
+  missing: { label: 'Missing', color: 'text-gray-500' },
+  pending: { label: 'Not generated', color: 'text-gray-400' },
+  generating: { label: 'Generating…', color: 'text-blue-500' },
+  ready: { label: 'Ready', color: 'text-green-600' },
+  error: { label: 'Failed', color: 'text-red-500' },
 };
 
 const FORMAT_BADGE: Record<string, string> = {

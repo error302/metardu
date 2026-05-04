@@ -17,18 +17,20 @@ export default function MissingLineCalculator() {
     const n1 = parseFloat(pointA.n);
     const e2 = parseFloat(pointB.e);
     const n2 = parseFloat(pointB.n);
-
     if (isNaN(e1) || isNaN(n1) || isNaN(e2) || isNaN(n2)) return;
-
     const s = distanceBearingSolvedFromCoords({ e1, n1, e2, n2 })
-    setSteps(s.steps)
-    setSolutionTitle(s.solution.title)
+    setSteps(s.steps); setSolutionTitle(s.solution.title)
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Missing Line</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Calculate distance and bearing between two points</p>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-1">Missing Line Measurement</h1>
+      <p className="text-sm text-[var(--text-muted)] mb-1">
+        Compute WCB and horizontal distance between two known points
+      </p>
+      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
+        Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; WCB (Whole Circle Bearing)
+      </p>
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="card">
@@ -62,5 +64,4 @@ export default function MissingLineCalculator() {
       </div>
     </div>
   );
-
-  }
+}

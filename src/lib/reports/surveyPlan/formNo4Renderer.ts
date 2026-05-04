@@ -296,7 +296,7 @@ private drawFormNo4RightPanel(): string {
     y += mmToPx(40)
 
     // Surveyor certificate
-    svg += this.drawSurveyorCertificate(panelX + margin/2, y, panelW - margin)
+    svg += this.drawSurveyorCertificateInternal(panelX + margin/2, y, panelW - margin)
 
     svg += '</g>'
     return svg
@@ -323,7 +323,7 @@ private drawFormNo4RightPanel(): string {
     return svg
   }
 
-  private drawSurveyorCertificate(x: number, y: number, w: number): string {
+  private drawSurveyorCertificateInternal(x: number, y: number, w: number): string {
     const d = this.formNo4Data
     const h = mmToPx(45)
     

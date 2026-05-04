@@ -19,36 +19,31 @@ export default function DistanceCalculator() {
       const n1 = parseFloat(p1.n), e1 = parseFloat(p1.e);
       const n2 = parseFloat(p2.n), e2 = parseFloat(p2.e);
       if (isNaN(n1) || isNaN(e1) || isNaN(n2) || isNaN(e2)) return;
-
       const s = distanceBearingSolvedFromCoords({ e1, n1, e2, n2 })
-      setSteps(s.steps)
-      setSolutionTitle(s.solution.title)
+      setSteps(s.steps); setSolutionTitle(s.solution.title)
     } else {
       const sd = parseFloat(slope.dist), va = parseFloat(slope.angle);
       if (isNaN(sd) || isNaN(va)) return;
-
       const s = slopeReductionSolved({ slopeDistance: sd, verticalAngleDeg: va })
-      setSteps(s.steps)
-      setSolutionTitle(s.solution.title)
+      setSteps(s.steps); setSolutionTitle(s.solution.title)
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Distance & Bearing Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Calculate distance, bearing, and slope corrections</p>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-1">Distance &amp; Bearing Calculator</h1>
+      <p className="text-sm text-[var(--text-muted)] mb-1">
+        WCB and horizontal distance from coordinates, or slope distance reduction
+      </p>
+      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
+        Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; WCB (Whole Circle Bearing)
+      </p>
 
       <div className="flex gap-4 mb-6">
-        <button 
-          onClick={() => { setMode('coords'); setSteps(null); setSolutionTitle(undefined); }}
-          className={`btn ${mode === 'coords' ? 'btn-primary' : 'btn-secondary'}`}
-        >
+        <button onClick={() => { setMode('coords'); setSteps(null); setSolutionTitle(undefined); }} className={`btn ${mode === 'coords' ? 'btn-primary' : 'btn-secondary'}`}>
           By Coordinates
         </button>
-        <button 
-          onClick={() => { setMode('slope'); setSteps(null); setSolutionTitle(undefined); }}
-          className={`btn ${mode === 'slope' ? 'btn-primary' : 'btn-secondary'}`}
-        >
+        <button onClick={() => { setMode('slope'); setSteps(null); setSolutionTitle(undefined); }} className={`btn ${mode === 'slope' ? 'btn-primary' : 'btn-secondary'}`}>
           By Slope Distance
         </button>
       </div>
@@ -57,9 +52,7 @@ export default function DistanceCalculator() {
         <div className="space-y-6">
           {mode === 'coords' ? (
             <div className="card">
-              <div className="card-header">
-                <span className="label">Point A → Point B</span>
-              </div>
+              <div className="card-header"><span className="label">Point A → Point B</span></div>
               <div className="card-body space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -85,9 +78,7 @@ export default function DistanceCalculator() {
             </div>
           ) : (
             <div className="card">
-              <div className="card-header">
-                <span className="label">Slope Measurement</span>
-              </div>
+              <div className="card-header"><span className="label">Slope Measurement</span></div>
               <div className="card-body space-y-4">
                 <div>
                   <label className="label">Slope Distance (m)</label>
@@ -101,9 +92,7 @@ export default function DistanceCalculator() {
             </div>
           )}
 
-          <button onClick={calculate} className="btn btn-primary w-full">
-            Calculate
-          </button>
+          <button onClick={calculate} className="btn btn-primary w-full">Calculate</button>
         </div>
 
         {steps ? <SolutionStepsRenderer title={solutionTitle} steps={steps} /> : null}

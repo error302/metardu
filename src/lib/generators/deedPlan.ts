@@ -69,7 +69,7 @@ export async function generateDeedPlan(
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text('DEED PLAN', SCHEDULE_X + SCHEDULE_W / 2, ry + 4, { align: 'center' });
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
@@ -101,7 +101,7 @@ export async function generateDeedPlan(
     head: [['Field', 'Value']],
     body: infoRows,
     styles: { fontSize: 7, cellPadding: 1.5 },
-    headStyles: { fillColor: [30, 80, 100], textColor: 255, fontSize: 7 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255, fontSize: 7 },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 32 }, 1: { cellWidth: SCHEDULE_W - 34 } },
     margin: { left: SCHEDULE_X, right: MARGIN },
     tableWidth: SCHEDULE_W,
@@ -112,7 +112,7 @@ export async function generateDeedPlan(
 
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text('AREA', SCHEDULE_X, ry);
   ry += 4;
 
@@ -134,7 +134,7 @@ export async function generateDeedPlan(
 
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text('BEARING & DISTANCE SCHEDULE', SCHEDULE_X, ry);
   ry += 4;
 
@@ -145,7 +145,7 @@ export async function generateDeedPlan(
     head: [['From', 'To', 'Bearing', 'Distance (m)']] as unknown as (string | number)[][],
     body: bearingBody as (string | number)[][],
     styles: { fontSize: 6.5, cellPadding: 1.2 },
-    headStyles: { fillColor: [30, 80, 100], textColor: 255 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 248, 250] },
     columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 14 }, 2: { cellWidth: 28 }, 3: { cellWidth: SCHEDULE_W - 58 } },
     margin: { left: SCHEDULE_X, right: MARGIN },
@@ -157,7 +157,7 @@ export async function generateDeedPlan(
 
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text('COORDINATE SCHEDULE', SCHEDULE_X, ry);
   ry += 4;
 
@@ -166,7 +166,7 @@ export async function generateDeedPlan(
     head: [['Stn', 'Easting (m)', 'Northing (m)', 'Beacon No.']] as unknown as (string | number)[][],
     body: geom.stations.map((s: any) => [s.station, s.easting.toFixed(3), s.northing.toFixed(3), s.beaconNo ?? '—']) as unknown as (string | number)[][],
     styles: { fontSize: 6.5, cellPadding: 1.2 },
-    headStyles: { fillColor: [30, 80, 100], textColor: 255 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 248, 250] },
     columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 24 }, 2: { cellWidth: 24 }, 3: { cellWidth: SCHEDULE_W - 62 } },
     margin: { left: SCHEDULE_X, right: MARGIN },
@@ -178,7 +178,7 @@ export async function generateDeedPlan(
 
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text('TRAVERSE ACCURACY', SCHEDULE_X, ry);
   ry += 4;
 
@@ -210,13 +210,13 @@ export async function generateDeedPlan(
   const certY = ry;
   const certH = A3_H - MARGIN - 2 - certY;
 
-  doc.setDrawColor(30, 80, 100);
+  doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.4);
   doc.rect(SCHEDULE_X, certY, SCHEDULE_W, certH);
 
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text("SURVEYOR'S CERTIFICATE", SCHEDULE_X + SCHEDULE_W / 2, certY + 4, { align: 'center' });
 
   const iskNo = profile?.isk_number ?? '___________';

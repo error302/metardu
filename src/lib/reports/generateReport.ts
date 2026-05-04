@@ -53,20 +53,21 @@ export function generateSurveyReport(options: ReportOptions, onBlob?: (blob: Blo
   const { project, points, traverse, area, solutions } = options
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   
-  const amber = [232, 132, 26] as [number, number, number]
-  const dark = [15, 15, 20] as [number, number, number]
+  const amber = [0, 0, 0] as [number, number, number]
+  const dark = [0, 0, 0] as [number, number, number]
   const white = [255, 255, 255] as [number, number, number]
-  const gray = [200, 200, 200] as [number, number, number]
+  const gray = [100, 100, 100] as [number, number, number]
+  const black = [0, 0, 0] as [number, number, number]
 
-  doc.setFillColor(...dark)
+  doc.setFillColor(...white)
   doc.rect(0, 0, 210, 35, 'F')
   
-  doc.setTextColor(...amber)
+  doc.setTextColor(...black)
   doc.setFontSize(22)
   doc.setFont('helvetica', 'bold')
   doc.text('METARDU', 15, 15)
   
-  doc.setTextColor(...white)
+  doc.setTextColor(...gray)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.text('Professional Surveying Platform', 15, 22)
@@ -76,7 +77,7 @@ export function generateSurveyReport(options: ReportOptions, onBlob?: (blob: Blo
     day: '2-digit', month: 'long', year: 'numeric' 
   })}`, 15, 29)
 
-  doc.setTextColor(...dark)
+  doc.setTextColor(...black)
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.text(project.name.toUpperCase(), 15, 48)
@@ -128,10 +129,12 @@ export function generateSurveyReport(options: ReportOptions, onBlob?: (blob: Blo
       p.is_control ? 'Control' : 'Survey'
     ]),
     headStyles: {
-      fillColor: dark,
-      textColor: amber,
+      fillColor: [240, 240, 240],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 9
+      fontSize: 9,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.2
     },
     bodyStyles: { fontSize: 8, textColor: [30, 30, 30] },
     alternateRowStyles: { fillColor: [245, 245, 245] },
@@ -173,10 +176,12 @@ export function generateSurveyReport(options: ReportOptions, onBlob?: (blob: Blo
         ]
       }),
       headStyles: {
-        fillColor: dark,
-        textColor: amber,
+        fillColor: [240, 240, 240],
+        textColor: [0, 0, 0],
         fontStyle: 'bold',
-        fontSize: 7
+        fontSize: 7,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.2
       },
       bodyStyles: { fontSize: 7 },
       alternateRowStyles: { fillColor: [245, 245, 245] },
@@ -255,8 +260,11 @@ export function generateSurveyReport(options: ReportOptions, onBlob?: (blob: Blo
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
-    doc.setFillColor(...dark)
+    doc.setFillColor(...white)
     doc.rect(0, 282, 210, 15, 'F')
+    doc.setDrawColor(...black)
+    doc.setLineWidth(0.2)
+    doc.line(15, 282, 195, 282)
     doc.setTextColor(...gray)
     doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
@@ -308,11 +316,12 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
   const { project, points, parcel, traverse } = options
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   
-  const amber = [232, 132, 26] as [number, number, number]
-  const dark = [15, 15, 20] as [number, number, number]
+  const amber = [0, 0, 0] as [number, number, number]
+  const dark = [0, 0, 0] as [number, number, number]
   const white = [255, 255, 255] as [number, number, number]
-  const gray = [120, 120, 120] as [number, number, number]
+  const gray = [100, 100, 100] as [number, number, number]
   const lightGray = [230, 230, 230] as [number, number, number]
+  const black = [0, 0, 0] as [number, number, number]
 
   const bounds = getBounds(points)
 
@@ -333,20 +342,20 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
   const transform = createPlanTransform(bounds, frame)
 
   // Header band
-  doc.setFillColor(...dark)
+  doc.setFillColor(...white)
   doc.rect(0, 0, 297, 20, 'F')
 
-  doc.setTextColor(...amber)
+  doc.setTextColor(...black)
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.text('METARDU', 10, 14)
 
-  doc.setTextColor(...white)
+  doc.setTextColor(...gray)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.text('SURVEY PLAN', 60, 14)
 
-  doc.setTextColor(...dark)
+  doc.setTextColor(...black)
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.text(project.name.toUpperCase(), 10, 32)
@@ -370,9 +379,8 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
     y: titleBlockY,
     w: titleBlockW,
     h: titleBlockH,
-    amber,
-    dark,
-    white,
+    black,
+    gray,
     project: {
       name: project.name,
       location: project.location || 'N/A',
@@ -405,17 +413,17 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
   doc.addPage()
   let yPos = 18
 
-  doc.setFillColor(...dark)
+  doc.setFillColor(...white)
   doc.rect(0, 0, 297, 16, 'F')
-  doc.setTextColor(...amber)
+  doc.setTextColor(...black)
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.text('SCHEDULES', 10, 11)
 
   yPos = 24
-  doc.setFillColor(...dark)
+  doc.setFillColor(...lightGray)
   doc.rect(10, yPos, 277, 8, 'F')
-  doc.setTextColor(...amber)
+  doc.setTextColor(...black)
   doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
   doc.text('COORDINATE LIST', 12, yPos + 5.5)
@@ -431,10 +439,12 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
       p.is_control ? (p.control_order === 'primary' ? 'Primary Control' : p.control_order === 'secondary' ? 'Secondary Control' : 'Control') : 'Survey Point'
     ]),
     headStyles: {
-      fillColor: dark,
-      textColor: amber,
+      fillColor: [240, 240, 240],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 8
+      fontSize: 8,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.2
     },
     bodyStyles: { fontSize: 7, textColor: [30, 30, 30] },
     alternateRowStyles: { fillColor: [248, 248, 248] },
@@ -457,9 +467,9 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
       yPos = 20
     }
 
-    doc.setFillColor(...dark)
+    doc.setFillColor(...lightGray)
     doc.rect(10, yPos, 277, 8, 'F')
-    doc.setTextColor(...amber)
+    doc.setTextColor(...black)
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.text('PARCEL COMPUTATION', 12, yPos + 5.5)
@@ -481,10 +491,12 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
       head: [['Line', 'Bearing', 'Distance']],
       body: lines,
       headStyles: {
-        fillColor: dark,
-        textColor: amber,
+        fillColor: [240, 240, 240],
+        textColor: [0, 0, 0],
         fontStyle: 'bold',
-        fontSize: 8
+        fontSize: 8,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.2
       },
       bodyStyles: { fontSize: 7, textColor: [30, 30, 30] },
       columnStyles: {
@@ -514,8 +526,11 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
-    doc.setFillColor(...dark)
+    doc.setFillColor(...white)
     doc.rect(0, 180, 297, 12, 'F')
+    doc.setDrawColor(...black)
+    doc.setLineWidth(0.2)
+    doc.line(10, 180, 287, 180)
     doc.setTextColor(...gray)
     doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
@@ -726,32 +741,31 @@ function drawTitleBlock(
     y: number
     w: number
     h: number
-    amber: [number, number, number]
-    dark: [number, number, number]
-    white: [number, number, number]
+    black: [number, number, number]
+    gray: [number, number, number]
     project: { name: string; location: string; utm: string; datum: string; date: string; scale: string; drawingNo: string }
   }
 ) {
-  const { x, y, w, h, amber, dark, white, project } = args
+  const { x, y, w, h, black, gray, project } = args
 
-  doc.setFillColor(...dark)
+  doc.setFillColor(255, 255, 255)
   doc.rect(x, y, w, h, 'F')
 
-  doc.setDrawColor(...amber)
+  doc.setDrawColor(...black)
   doc.setLineWidth(0.6)
   doc.rect(x, y, w, h, 'S')
 
-  doc.setTextColor(...amber)
+  doc.setTextColor(...black)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
   doc.text('METARDU', x + w / 2, y + 10, { align: 'center' })
 
-  doc.setTextColor(...white)
+  doc.setTextColor(...gray)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(6.5)
   doc.text('Professional Surveying Platform', x + w / 2, y + 15, { align: 'center' })
 
-  doc.setDrawColor(...amber)
+  doc.setDrawColor(...black)
   doc.setLineWidth(0.2)
   doc.line(x + 3, y + 18, x + w - 3, y + 18)
 
@@ -767,12 +781,12 @@ function drawTitleBlock(
 
   let cy = y + 26
   for (const [label, value] of rows) {
-    doc.setTextColor(190, 190, 190)
+    doc.setTextColor(...gray)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(6)
     doc.text(label, x + 4, cy)
 
-    doc.setTextColor(...white)
+    doc.setTextColor(...black)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(6.5)
     const v = value.length > 26 ? value.slice(0, 26) + '…' : value
@@ -782,12 +796,12 @@ function drawTitleBlock(
 
   // Legend
   cy += 4
-  doc.setDrawColor(...amber)
+  doc.setDrawColor(...black)
   doc.setLineWidth(0.2)
   doc.line(x + 3, cy, x + w - 3, cy)
   cy += 8
 
-  doc.setTextColor(...amber)
+  doc.setTextColor(...black)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7)
   doc.text('LEGEND', x + 4, cy)
@@ -795,7 +809,7 @@ function drawTitleBlock(
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(6.5)
-  doc.setTextColor(...white)
+  doc.setTextColor(...gray)
 
   // Control point symbol (triangle)
   doc.setFillColor(239, 68, 68)
@@ -804,23 +818,23 @@ function drawTitleBlock(
   cy += 6
 
   // Survey point symbol (circle)
-  doc.setFillColor(...amber)
+  doc.setFillColor(...black)
   doc.circle(x + 6, cy - 1, 1.4, 'F')
   doc.text('Survey Point', x + 12, cy)
 
   // Sign-off box
   const signY = y + h - 36
-  doc.setDrawColor(...amber)
+  doc.setDrawColor(...black)
   doc.setLineWidth(0.4)
   doc.rect(x + 3, signY, w - 6, 33, 'S')
 
-  doc.setTextColor(...white)
+  doc.setTextColor(...black)
   doc.setFontSize(6.5)
   doc.text('Surveyor:', x + 5, signY + 9)
   doc.text('Signature:', x + 5, signY + 18)
   doc.text('Date:', x + 5, signY + 27)
 
-  doc.setDrawColor(120, 120, 120)
+  doc.setDrawColor(...gray)
   doc.setLineWidth(0.2)
   doc.line(x + 22, signY + 9, x + w - 5, signY + 9)
   doc.line(x + 22, signY + 18, x + w - 5, signY + 18)

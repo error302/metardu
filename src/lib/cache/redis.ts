@@ -31,7 +31,7 @@ class RedisCache {
 
     try {
       const value = await this.client.get(key)
-      return value ? JSON.parse(value) : null
+      return value ? JSON.parse(value as string) : null
     } catch {
       return null
     }
@@ -83,7 +83,7 @@ class RedisCache {
     if (!this.isConnected || !this.client) return 0
 
     try {
-      return await this.client.incrBy(key, amount)
+      return await this.client.incrBy(key, amount) as number
     } catch {
       return 0
     }

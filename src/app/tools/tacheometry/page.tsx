@@ -7,9 +7,9 @@ import { tacheometrySolved } from '@/lib/engine/solution/wrappers/tacheometry'
 
 export default function TacheometryCalculator() {
   const [inputs, setInputs] = useState({
-    hi: '',           // instrument height
+    hi: '',           // instrument height above ground (h.i.)
     upper: '',        // upper staff reading
-    middle: '',       // middle staff reading  
+    middle: '',       // middle staff reading
     lower: '',        // lower staff reading
     vertDeg: '',      // vertical angle degrees
     vertMin: '',      // vertical angle minutes
@@ -49,38 +49,47 @@ export default function TacheometryCalculator() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Tacheometry</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Calculate horizontal distance and elevation from staff intercept and vertical angle</p>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-1">Tacheometry</h1>
+      <p className="text-sm text-[var(--text-muted)] mb-1">
+        Horizontal distance and elevation from staff intercept and vertical angle (stadia method)
+      </p>
+      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
+        Survey Regulations 1994 &nbsp;|&nbsp; RDM 1.1 (2025) Section 5.6 &nbsp;|&nbsp; Survey Act Cap 299
+      </p>
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="card">
           <div className="card-header"><span className="label">Tacheometry Data</span></div>
           <div className="card-body space-y-4">
             <div>
-              <label className="label">Instrument Height HI (m)</label>
+              {/* h.i. = height of instrument above ground (not HPC — different context) */}
+              <label className="label">Instrument Height above Ground, h.i. (m)</label>
               <input className="input" value={inputs.hi} onChange={e => setInputs({...inputs, hi: e.target.value})} placeholder="1.500" />
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="label">Upper</label>
-                <input className="input" value={inputs.upper} onChange={e => setInputs({...inputs, upper: e.target.value})} placeholder="1.850" />
-              </div>
-              <div>
-                <label className="label">Middle</label>
-                <input className="input" value={inputs.middle} onChange={e => setInputs({...inputs, middle: e.target.value})} placeholder="1.500" />
-              </div>
-              <div>
-                <label className="label">Lower</label>
-                <input className="input" value={inputs.lower} onChange={e => setInputs({...inputs, lower: e.target.value})} placeholder="1.150" />
+            <div>
+              <label className="label">Staff Readings (m)</label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="label text-xs">Upper</label>
+                  <input className="input" value={inputs.upper} onChange={e => setInputs({...inputs, upper: e.target.value})} placeholder="1.850" />
+                </div>
+                <div>
+                  <label className="label text-xs">Middle</label>
+                  <input className="input" value={inputs.middle} onChange={e => setInputs({...inputs, middle: e.target.value})} placeholder="1.500" />
+                </div>
+                <div>
+                  <label className="label text-xs">Lower</label>
+                  <input className="input" value={inputs.lower} onChange={e => setInputs({...inputs, lower: e.target.value})} placeholder="1.150" />
+                </div>
               </div>
             </div>
             <div>
-              <label className="label">Vertical Angle</label>
+              <label className="label">Vertical Angle (D° M&apos; S&quot;)</label>
               <div className="flex gap-2">
-                <input className="input flex-1" value={inputs.vertDeg} onChange={e => setInputs({...inputs, vertDeg: e.target.value})} placeholder="05" />
-                <input className="input flex-1" value={inputs.vertMin} onChange={e => setInputs({...inputs, vertMin: e.target.value})} placeholder="30" />
-                <input className="input flex-1" value={inputs.vertSec} onChange={e => setInputs({...inputs, vertSec: e.target.value})} placeholder="00" />
+                <input className="input flex-1" value={inputs.vertDeg} onChange={e => setInputs({...inputs, vertDeg: e.target.value})} placeholder="05°" />
+                <input className="input flex-1" value={inputs.vertMin} onChange={e => setInputs({...inputs, vertMin: e.target.value})} placeholder="30'" />
+                <input className="input flex-1" value={inputs.vertSec} onChange={e => setInputs({...inputs, vertSec: e.target.value})} placeholder="00&quot;" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -93,6 +102,7 @@ export default function TacheometryCalculator() {
                 <input className="input" value={inputs.c} onChange={e => setInputs({...inputs, c: e.target.value})} placeholder="0" />
               </div>
             </div>
+            {calcError && <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">{calcError}</div>}
             <button onClick={calculate} className="btn btn-primary w-full">Calculate</button>
           </div>
         </div>
@@ -101,5 +111,4 @@ export default function TacheometryCalculator() {
       </div>
     </div>
   );
-
-  }
+}

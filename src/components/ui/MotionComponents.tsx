@@ -249,16 +249,13 @@ export function AnimatedGradientText({
   );
 }
 
-/* ========================================================================
-   GlowButton – button with glow effect on hover
-   ======================================================================== */
 export function GlowButton({
   children,
   className,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <motion.button
+    <motion.div
       whileHover={{
         scale: 1.02,
         boxShadow: "0 4px 24px rgba(232, 132, 26, 0.4)",
@@ -266,20 +263,17 @@ export function GlowButton({
       whileTap={{ scale: 0.98 }}
       transition={springBouncy}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5",
-        "text-sm font-semibold text-white",
+        "inline-flex items-center justify-center rounded-lg p-[1px]",
         "bg-gradient-to-r from-[#E8841A] via-[#FF6B35] to-[#FFB347] bg-[length:200%_200%]",
         "shadow-[0_2px_12px_rgba(232,132,26,0.25)]",
         "transition-all duration-200 ease-out",
         "hover:bg-[100%_50%] hover:shadow-[0_4px_30px_rgba(232,132,26,0.45)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]",
-        "disabled:pointer-events-none disabled:opacity-50",
         className
       )}
       {...(({ onDrag: _onDrag, ...rest }: any) => rest)(props) as any}
     >
       {children}
-    </motion.button>
+    </motion.div>
   );
 }
 

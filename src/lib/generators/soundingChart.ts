@@ -51,7 +51,7 @@ export async function generateSoundingChart(
     head: [['Point', 'Easting (m)', 'Northing (m)', 'Depth (m)']],
     body: tableData,
     styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [30, 80, 100], textColor: 255 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 248, 250] },
   });
 

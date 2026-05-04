@@ -43,13 +43,16 @@ export default function LevelingCalculator() {
     setReadings(readings.map((r: any) => r.id === id ? { ...r, [field]: value } : r));
   };
 
+  // method label helper — HPC = Height of Plane of Collimation (British/East African convention)
+  const methodLabel = method === 'rf' ? 'Rise & Fall' : 'Height of Collimation (HPC)';
 
   const copyResults = () => {
     if (!result) return
     const lines = [
-      `METARDU Leveling — ${method === 'rf' ? 'Rise & Fall' : 'HOC'}`,
+      `METARDU Levelling — ${methodLabel}`,
       `Opening RL: ${bm} m`,
       `Misclosure: ${result.misclosure.toFixed(6)} m`,
+      `Allowable (10√K mm, K=${distanceKm} km): ±${(result.allowableMisclosure * 1000).toFixed(3)} mm`,
       `Check: ${result.isAcceptable ? 'PASS' : 'FAIL'}`,
       '',
       ...result.readings.map((r: any) =>
@@ -103,9 +106,14 @@ export default function LevelingCalculator() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Leveling Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Rise & Fall and Height of Collimation methods</p>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-1">Levelling Calculator</h1>
+      <p className="text-sm text-[var(--text-muted)] mb-1">
+        Quick differential levelling — Rise &amp; Fall or Height of Plane of Collimation (HPC) reduction
+      </p>
+      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
+        RDM 1.1 (2025) Table 5.1 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; Survey Regulations 1994
+      </p>
 
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <div className="card p-4">
@@ -124,10 +132,11 @@ export default function LevelingCalculator() {
           <label className="label">Method</label>
           <div className="flex gap-2 mt-2">
             <button onClick={() => { setMethod('rf'); setResult(null); setSteps(null); setSolutionTitle(undefined); setCalcError(null); }} className={`flex-1 btn text-xs ${method === 'rf' ? 'btn-primary' : 'btn-secondary'}`}>
-              Rise & Fall
+              Rise &amp; Fall
             </button>
+            {/* "Height of Collimation" = HPC method; British/East African convention */}
             <button onClick={() => { setMethod('hoc'); setResult(null); setSteps(null); setSolutionTitle(undefined); setCalcError(null); }} className={`flex-1 btn text-xs ${method === 'hoc' ? 'btn-primary' : 'btn-secondary'}`}>
-              HOC
+              Height of Collimation
             </button>
           </div>
         </div>
@@ -142,7 +151,7 @@ export default function LevelingCalculator() {
 
       <div className="card mb-6">
         <div className="card-header">
-          <span className="label">Level Book</span>
+          <span className="label">Level Book — {methodLabel}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="table">
@@ -201,7 +210,7 @@ export default function LevelingCalculator() {
         <div className="grid md:grid-cols-2 gap-6">
           <div className="card">
             <div className="card-header flex justify-between items-center">
-              <span className="label">Results</span>
+              <span className="label">Results — {methodLabel}</span>
               <div className="flex items-center gap-2">
                 <span className={`badge ${result.isAcceptable ? 'badge-success' : 'badge-error'}`}>
                   {result.isAcceptable ? 'Acceptable' : 'Unacceptable'}
@@ -215,12 +224,12 @@ export default function LevelingCalculator() {
               </div>
             </div>
             <div className="card-body space-y-3">
-              <ResultRow label="Method" value={method === 'rf' ? 'Rise & Fall' : 'Height of Collimation'} />
+              <ResultRow label="Method" value={methodLabel} />
               <ResultRow label="Misclosure" value={`${result.misclosure.toFixed(6)} m`} />
-              <ResultRow label="Allowable (±10√K)" value={`±${(result.allowableMisclosure * 1000).toFixed(3)} mm`} />
-              <ResultRow 
-                label="Arithmetic Check" 
-                value={result.arithmeticCheck ? 'PASS ✓' : 'FAIL ✗'} 
+              <ResultRow label="Allowable (C = 10√K mm)" value={`±${(result.allowableMisclosure * 1000).toFixed(3)} mm`} />
+              <ResultRow
+                label="Arithmetic Check (ΣBS − ΣFS = Last RL − First RL)"
+                value={result.arithmeticCheck ? 'PASS ✓' : 'FAIL ✗'}
                 highlight={result.arithmeticCheck}
               />
             </div>
@@ -260,13 +269,13 @@ export default function LevelingCalculator() {
 
           {result && result.readings.length > 0 && (
             <div className="mt-4">
-              <button 
+              <button
                 onClick={() => setShowProfile(!showProfile)}
                 className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded"
               >
-                {showProfile ? 'Hide Profile' : 'View Profile'}
+                {showProfile ? 'Hide Profile' : 'View Longitudinal Profile'}
               </button>
-              
+
               {showProfile && (
                 <div className="mt-4 bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-xl p-4">
                   <h3 className="font-semibold text-[var(--text-primary)] mb-4">Longitudinal Profile</h3>
@@ -321,9 +330,7 @@ function LevelingProfile({ readings }: { readings: any[] }) {
         </pattern>
       </defs>
       <rect width={width} height={height} fill="url(#grid)"/>
-      
       <path d={pathData} stroke="#E8841A" strokeWidth={2} fill="none"/>
-      
       {validReadings.map((r, i) => {
         const rl = r.adjustedRL || r.reducedLevel;
         return (
@@ -334,10 +341,8 @@ function LevelingProfile({ readings }: { readings: any[] }) {
           </g>
         );
       })}
-      
       <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="white" strokeWidth={1}/>
       <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="white" strokeWidth={1}/>
-      
       <text x={width/2} y={height - 2} fill="gray" fontSize={9} textAnchor="middle">Station</text>
       <text x={12} y={height/2} fill="gray" fontSize={9} textAnchor="middle" transform={`rotate(-90, 12, ${height/2})`}>Reduced Level (m)</text>
     </svg>

@@ -53,7 +53,7 @@ export async function generateGcpReport(
     head: [['GCP Name', 'Easting (m)', 'Northing (m)', 'Elevation (m)', 'RMS Error (m)']],
     body: tableData,
     styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [30, 80, 100], textColor: 255 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 248, 250] },
   });
 

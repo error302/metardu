@@ -65,32 +65,21 @@ export default function GNSSProcessor() {
       baseECEF.name = baseStation.name;
 
       if (mode === 'baseline') {
-        // Single baseline calculation
         const obs = observations[0];
         if (!obs.lat || !obs.lon) return;
-
         const obsECEF = geodeticToECEF(
           parseFloat(obs.lat),
           parseFloat(obs.lon),
           parseFloat(obs.h) || 0
         );
         obsECEF.name = obs.name;
-
         const baseline = computeBaseline(
           { pointName: baseStation.name, ...baseECEF },
           { pointName: obs.name, x: obsECEF.x, y: obsECEF.y, z: obsECEF.z, sigmaX: parseFloat(obs.sigma) }
         );
-
         const enu = ecefToENU(obsECEF.x, obsECEF.y, obsECEF.z, parseFloat(origin.lat), parseFloat(origin.lon), 0);
-
-        setResult({
-          baseline,
-          enu,
-          baseECEF,
-          obsECEF
-        });
+        setResult({ baseline, enu, baseECEF, obsECEF });
       } else {
-        // Network processing
         const obsData = observations.map((o: any) => ({
           pointName: o.name,
           x: 0, y: 0, z: 0,
@@ -103,7 +92,6 @@ export default function GNSSProcessor() {
           );
           return { ...o, x: ecef.x, y: ecef.y, z: ecef.z };
         });
-
         const network = processGNSSNetwork(
           baseECEF as any,
           obsData,
@@ -111,7 +99,6 @@ export default function GNSSProcessor() {
           parseFloat(origin.lon),
           0
         );
-
         setResult(network);
       }
     } catch (e) {
@@ -120,9 +107,14 @@ export default function GNSSProcessor() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">GNSS Baseline Processing</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Process GPS/GNSS observations, compute baselines, and convert coordinates</p>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-1">GNSS Baseline Processing</h1>
+      <p className="text-sm text-[var(--text-muted)] mb-1">
+        Process GPS/GNSS observations, compute baselines and network adjustments
+      </p>
+      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
+        Survey Regulations 1994 &nbsp;|&nbsp; RDM 1.1 (2025) Section 5.6 &nbsp;|&nbsp; WGS84 / SRID 21037
+      </p>
 
       <div className="flex gap-4 mb-6">
         <button onClick={() => { setMode('baseline'); setResult(null); }} className={`btn ${mode === 'baseline' ? 'btn-primary' : 'btn-secondary'}`}>
@@ -135,7 +127,6 @@ export default function GNSSProcessor() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-6">
-          {/* Base Station */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-4">
             <h3 className="font-semibold mb-4">Base Station</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -144,21 +135,20 @@ export default function GNSSProcessor() {
                 <input type="text" value={baseStation.name} onChange={e => setBaseStation({...baseStation, name: e.target.value})} className="input w-full" />
               </div>
               <div>
-                <label className="block text-sm mb-1">Height (m)</label>
+                <label className="block text-sm mb-1">Ellipsoidal Height (m)</label>
                 <input type="text" value={baseStation.h} onChange={e => setBaseStation({...baseStation, h: e.target.value})} className="input w-full" />
               </div>
               <div>
-                <label className="block text-sm mb-1">Latitude</label>
+                <label className="block text-sm mb-1">Latitude (decimal °)</label>
                 <input type="text" value={baseStation.lat} onChange={e => setBaseStation({...baseStation, lat: e.target.value})} className="input w-full" placeholder="-1.2921" />
               </div>
               <div>
-                <label className="block text-sm mb-1">Longitude</label>
+                <label className="block text-sm mb-1">Longitude (decimal °)</label>
                 <input type="text" value={baseStation.lon} onChange={e => setBaseStation({...baseStation, lon: e.target.value})} className="input w-full" placeholder="36.8219" />
               </div>
             </div>
           </div>
 
-          {/* Origin for ENU */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-4">
             <h3 className="font-semibold mb-4">Local Origin (for ENU)</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -173,7 +163,6 @@ export default function GNSSProcessor() {
             </div>
           </div>
 
-          {/* Observations */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold">Rover Observations</h3>
@@ -187,19 +176,19 @@ export default function GNSSProcessor() {
                     <input type="text" value={obs.name} onChange={e => updateObservation(obs.id, 'name', e.target.value)} className="input w-full text-sm" />
                   </div>
                   <div className="col-span-1">
-                    <label className="block text-xs mb-1">Latitude</label>
+                    <label className="block text-xs mb-1">Lat</label>
                     <input type="text" value={obs.lat} onChange={e => updateObservation(obs.id, 'lat', e.target.value)} className="input w-full text-sm" />
                   </div>
                   <div className="col-span-1">
-                    <label className="block text-xs mb-1">Longitude</label>
+                    <label className="block text-xs mb-1">Lon</label>
                     <input type="text" value={obs.lon} onChange={e => updateObservation(obs.id, 'lon', e.target.value)} className="input w-full text-sm" />
                   </div>
                   <div className="col-span-1">
-                    <label className="block text-xs mb-1">Height</label>
+                    <label className="block text-xs mb-1">Ht (m)</label>
                     <input type="text" value={obs.h} onChange={e => updateObservation(obs.id, 'h', e.target.value)} className="input w-full text-sm" />
                   </div>
                   <div className="col-span-1">
-                    <label className="block text-xs mb-1">Sigma (m)</label>
+                    <label className="block text-xs mb-1">σ (m)</label>
                     <input type="text" value={obs.sigma} onChange={e => updateObservation(obs.id, 'sigma', e.target.value)} className="input w-full text-sm" />
                   </div>
                   <button onClick={() => removeObservation(obs.id)} className="text-red-500 text-sm mb-1">✕</button>
@@ -213,7 +202,6 @@ export default function GNSSProcessor() {
           </button>
         </div>
 
-        {/* Results */}
         <div>
           {result && (
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-4">
@@ -236,7 +224,6 @@ export default function GNSSProcessor() {
                       <div><span className="text-[var(--text-secondary)]">Sigma:</span> ±{result.baseline.sigma.toFixed(4)} m</div>
                     </div>
                   </div>
-
                   <div className="bg-[var(--bg)] p-3 rounded">
                     <h4 className="text-sm font-medium mb-2">Local ENU Coordinates</h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -245,7 +232,6 @@ export default function GNSSProcessor() {
                       <div><span className="text-[var(--text-secondary)]">Up:</span> {result.enu.up.toFixed(4)} m</div>
                     </div>
                   </div>
-
                   <div className="bg-[var(--bg)] p-3 rounded">
                     <h4 className="text-sm font-medium mb-2">ECEF Coordinates</h4>
                     <div className="grid grid-cols-3 gap-2 text-sm">
@@ -284,7 +270,6 @@ export default function GNSSProcessor() {
                       </tbody>
                     </table>
                   </div>
-
                   <div className="bg-[var(--bg)] p-3 rounded">
                     <h4 className="text-sm font-medium mb-2">Adjustment Statistics</h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">

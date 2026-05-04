@@ -20,31 +20,28 @@ export default function BearingCalculator() {
       const n2 = parseFloat(p2.n), e2 = parseFloat(p2.e);
       if (isNaN(n1) || isNaN(e1) || isNaN(n2) || isNaN(e2)) return;
       const s = bearingSolvedFromCoords({ e1, n1, e2, n2 })
-      setSteps(s.steps)
-      setSolutionTitle(s.solution.title)
+      setSteps(s.steps); setSolutionTitle(s.solution.title)
     } else {
       const s = backBearingSolved({ bearingDmsOrDeg: forward })
-      setSteps(s.steps)
-      setSolutionTitle(s.solution.title)
+      setSteps(s.steps); setSolutionTitle(s.solution.title)
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Bearing Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Whole-Circle Bearing and Quadrant Bearing</p>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-1">Bearing Calculator</h1>
+      <p className="text-sm text-[var(--text-muted)] mb-1">
+        WCB (Whole Circle Bearing) and Quadrant Bearing from coordinates or back bearing
+      </p>
+      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
+        Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; WCB in degrees 0–360°
+      </p>
 
       <div className="flex gap-4 mb-6">
-        <button 
-          onClick={() => { setMode('coords'); setSteps(null); setSolutionTitle(undefined); }}
-          className={`btn ${mode === 'coords' ? 'btn-primary' : 'btn-secondary'}`}
-        >
+        <button onClick={() => { setMode('coords'); setSteps(null); setSolutionTitle(undefined); }} className={`btn ${mode === 'coords' ? 'btn-primary' : 'btn-secondary'}`}>
           From Coordinates
         </button>
-        <button 
-          onClick={() => { setMode('forward'); setSteps(null); setSolutionTitle(undefined); }}
-          className={`btn ${mode === 'forward' ? 'btn-primary' : 'btn-secondary'}`}
-        >
+        <button onClick={() => { setMode('forward'); setSteps(null); setSolutionTitle(undefined); }} className={`btn ${mode === 'forward' ? 'btn-primary' : 'btn-secondary'}`}>
           Back Bearing
         </button>
       </div>
@@ -53,9 +50,7 @@ export default function BearingCalculator() {
         <div className="space-y-6">
           {mode === 'coords' ? (
             <div className="card">
-              <div className="card-header">
-                <span className="label">Calculate Bearing A → B</span>
-              </div>
+              <div className="card-header"><span className="label">Calculate WCB A → B</span></div>
               <div className="card-body space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -81,32 +76,22 @@ export default function BearingCalculator() {
             </div>
           ) : (
             <div className="card">
-              <div className="card-header">
-                <span className="label">Back Bearing Calculation</span>
-              </div>
+              <div className="card-header"><span className="label">Back Bearing Calculation</span></div>
               <div className="card-body space-y-4">
                 <div>
-                  <label className="label">Forward Bearing (degrees or DMS)</label>
-                  <input 
-                    className="input" 
-                    value={forward} 
-                    onChange={e => setForward(e.target.value)} 
-                    placeholder="45° 30' 22.5&quot; or 45.5"
-                  />
-                  <p className="text-xs text-[var(--text-muted)] mt-2">Accepts: 45.5, 45°30'22.5", 45 30 22.5</p>
+                  <label className="label">Forward Bearing (WCB — degrees or DMS)</label>
+                  <input className="input" value={forward} onChange={e => setForward(e.target.value)} placeholder="45° 30' 22.5&quot; or 45.5" />
+                  <p className="text-xs text-[var(--text-muted)] mt-2">Accepts: 45.5 &nbsp;|&nbsp; 45°30&apos;22.5&quot; &nbsp;|&nbsp; 45 30 22.5</p>
                 </div>
               </div>
             </div>
           )}
 
-          <button onClick={calculate} className="btn btn-primary w-full">
-            Calculate
-          </button>
+          <button onClick={calculate} className="btn btn-primary w-full">Calculate</button>
         </div>
 
         {steps ? <SolutionStepsRenderer title={solutionTitle} steps={steps} /> : null}
       </div>
     </div>
   );
-
-  }
+}

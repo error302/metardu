@@ -1,8 +1,5 @@
 // pdfjs-dist v5 API — note: GlobalWorkerOptions must be set before getDocument()
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
-import ImageLayer from 'ol/layer/Image';
-import ImageStatic from 'ol/source/ImageStatic';
-import { transformExtent } from 'ol/proj';
 import { GeoPDFLayer } from '@/types/field';
 
 let pdfjsLib: typeof import('pdfjs-dist') | null = null;
@@ -49,9 +46,15 @@ export async function renderPDFPageToDataURL(
 
 // Build an OpenLayers ImageStatic layer from a GeoPDFLayer with 4 GCPs.
 // GCPs define the bounding box: min/max lat/lng of the 4 corners.
-export function buildOLGeoPDFLayer(layer: GeoPDFLayer): ImageLayer<ImageStatic> {
-  const lats = layer.gcps.map(g => g.lat);
-  const lngs = layer.gcps.map(g => g.lng);
+// OL imports are done via require() since this function is only called
+// inside MapViewer's browser-only useEffect via dynamic import.
+export function buildOLGeoPDFLayer(layer: GeoPDFLayer) {
+  const { default: ImageLayer } = require('ol/layer/Image');
+  const { default: ImageStatic } = require('ol/source/ImageStatic');
+  const { transformExtent } = require('ol/proj');
+
+  const lats = layer.gcps.map((g: any) => g.lat);
+  const lngs = layer.gcps.map((g: any) => g.lng);
   const extent4326: [number, number, number, number] = [
     Math.min(...lngs),
     Math.min(...lats),

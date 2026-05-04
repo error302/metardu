@@ -239,7 +239,113 @@ Computed using METARDU | Survey Act Cap 299 | RDM 1.1 (2025) | Generated ${new D
     openPrint(html, 'Traverse Computation Sheet')
   }
 
+  const handlePrintDeed = () => {
+    if (!result) return
+    const r = result
+    
+    // Area Computation using Shoelace on adjusted coordinates
+    const coords = r.coordinates.filter(c => !c.station.startsWith('T'))
+    let areaSqM = 0
+    if (coords.length > 2) {
+      const pts = [...coords]
+      if (pts[0].station !== pts[pts.length - 1].station) pts.push(pts[0])
+      for (let i = 0; i < pts.length - 1; i++) {
+        areaSqM += pts[i].easting * pts[i+1].northing - pts[i+1].easting * pts[i].northing
+      }
+      areaSqM = Math.abs(areaSqM) / 2
+    }
+    const areaHa = areaSqM / 10000
+
+    const html = `
+<html><head><title>Final Surveyor's Report</title>
+<style>
+  body { font-family: 'Times New Roman', serif; font-size: 13px; margin: 40px; color: #000; }
+  .header { text-align: center; margin-bottom: 20px; }
+  .header h1 { font-size: 18px; text-decoration: underline; margin-bottom: 5px; }
+  .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+  .section-title { font-size: 15px; font-weight: bold; background: #eee; border: 1px solid #000; text-align: center; padding: 4px; margin-top: 20px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 5px; text-align: center; font-size: 12px; }
+  th, td { border: 1px solid #000; padding: 4px; }
+  th { background: #f9f9f9; }
+  .summary-box { border: 1px solid #000; padding: 10px; margin-top: 5px; display: flex; justify-content: space-between; }
+  .footer { margin-top: 60px; display: flex; justify-content: space-between; text-align: center; }
+  .line { border-bottom: 1px solid #000; width: 200px; display: inline-block; margin-bottom: 5px; }
+  @media print { body { margin: 20px; } }
+</style></head><body>
+
+<div class="header">
+  <h1>SURVEYOR'S REPORT</h1>
+</div>
+<div class="info-row">
+  <div>
+    <p><strong>Ref:</strong> Approval to Subdivide</p>
+    <p><strong>Letter Reference number:</strong> _________________</p>
+  </div>
+  <div>
+    <p><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB')}</p>
+  </div>
+</div>
+
+<hr style="border: 1px solid #000; margin-bottom: 20px;" />
+
+<div class="section-title">FINAL CO-ORDINATE LIST</div>
+<table>
+  <tr><th>STATION</th><th>Y(NORTHINGS)</th><th>-X(EASTINGS)</th><th>CLASS OF BEACON</th><th>DESCRIPTION</th></tr>
+  ${coords.map(c => `<tr>
+    <td><b>${c.station}</b></td>
+    <td>${c.northing.toFixed(3)}</td>
+    <td>${c.easting.toFixed(3)}</td>
+    <td>New</td>
+    <td>Iron Pin</td>
+  </tr>`).join('')}
+</table>
+
+<div class="section-title">THEORETICAL COMPUTATIONS</div>
+<table>
+  <tr><th>LINE</th><th>BEARING</th><th>DISTANCE</th><th>ΔN (Lat)</th><th>ΔE (Dep)</th></tr>
+  ${r.legs.map(l => `<tr>
+    <td>${l.from} - ${l.to}</td>
+    <td>${l.wcbDMS}</td>
+    <td>${l.hd.toFixed(3)}</td>
+    <td>${l.latitude.toFixed(3)}</td>
+    <td>${l.departure.toFixed(3)}</td>
+  </tr>`).join('')}
+</table>
+
+<div class="section-title">CONSISTENCY CHECKS & ADJUSTMENTS</div>
+<div class="summary-box">
+  <div>
+    <p><strong>Total Perimeter:</strong> ${r.totalPerimeter.toFixed(3)} m</p>
+    <p><strong>Linear Misclosure:</strong> ${r.linearError.toFixed(4)} m</p>
+    <p><strong>Precision Ratio:</strong> 1 : ${r.precisionRatio > 0 ? Math.round(r.precisionRatio).toLocaleString() : '—'}</p>
+  </div>
+  <div>
+    <p><strong>Sum Departures:</strong> ${r.sumDepartures.toFixed(4)}</p>
+    <p><strong>Sum Latitudes:</strong> ${r.sumLatitudes.toFixed(4)}</p>
+    <p><strong>Accuracy Class:</strong> ${r.accuracyOrder} (${r.C_mm <= r.allowable ? 'PASS' : 'FAIL'})</p>
+  </div>
+</div>
+
+<div class="section-title">AREA OF PARCELS</div>
+<div class="summary-box" style="justify-content: center; font-size: 14px;">
+  <b>Total Area Enclosed By Traverse: ${areaHa.toFixed(4)} Ha</b>
+</div>
+
+<div class="footer">
+  <div>
+    <span class="line"></span><br>Prepared By (Surveyor)
+  </div>
+  <div>
+    <span class="line"></span><br>Date
+  </div>
+</div>
+
+</body></html>`
+    openPrint(html, 'Final Surveyors Report')
+  }
+
   return (
+
     <div className="space-y-4">
       <PrintHeader title="Traverse Field Book" />
       <div className="flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
@@ -459,8 +565,12 @@ Computed using METARDU | Survey Act Cap 299 | RDM 1.1 (2025) | Generated ${new D
                 printTitle="Traverse Field Book"
               />
               <button onClick={handlePrint}
-                className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm">
-                Print Computation Sheet
+                className="px-5 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] font-semibold rounded text-sm border border-[var(--border-color)]">
+                Print Raw Comp Sheet
+              </button>
+              <button onClick={handlePrintDeed}
+                className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm shadow-lg">
+                Print Surveyor's Report
               </button>
             </div>
           </div>

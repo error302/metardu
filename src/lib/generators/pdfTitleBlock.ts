@@ -13,13 +13,13 @@ export function drawTitleBlock(doc: jsPDF, data: TitleBlockData): number {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
 
-  doc.setDrawColor(30, 80, 100);
+  doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.8);
   doc.rect(margin, 10, pageWidth - margin * 2, 42);
 
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text('METARDU', margin + 4, 22);
 
   doc.setFontSize(7);

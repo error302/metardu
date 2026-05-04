@@ -96,7 +96,7 @@ export async function generateVolumetricReport(
     head: [['Chainage (m)', 'Area (m²)', 'Remark']],
     body: tableData,
     styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [30, 80, 100], textColor: 255 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255 },
   });
 
   const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;

@@ -1,5 +1,4 @@
 'use client';
-// HARD RULE: dynamic import with ssr:false required — OpenLayers uses window/document
 import { useEffect, useRef } from 'react';
 import { MapLayer, FieldBeacon, FieldParcel, GeoPDFLayer, MBTilesSession } from '@/types/field';
 
@@ -17,172 +16,171 @@ export default function MapViewer({ layers, beacons, parcels, geoPDFLayers, mbti
   const mapRef = useRef<any>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !containerRef.current) return;
+    if (!containerRef.current) return;
+    let mounted = true;
 
-    // Dynamic imports — OpenLayers is browser-only
-    Promise.all([
-      import('ol/Map'),
-      import('ol/View'),
-      import('ol/layer/Tile'),
-      import('ol/layer/Vector'),
-      import('ol/source/OSM'),
-      import('ol/source/Vector'),
-      import('ol/format/GeoJSON'),
-      import('ol/format/KML'),
-      import('ol/geom/Point'),
-      import('ol/geom/Polygon'),
-      import('ol/Feature'),
-      import('ol/style'),
-      import('ol/proj'),
-      import('ol/coordinate'),
-      import('ol/css'),
-    ]).then(([
-      { default: Map },
-      { default: View },
-      { default: TileLayer },
-      { default: VectorLayer },
-      { default: OSM },
-      { default: VectorSource },
-      { default: GeoJSONFormat },
-      { default: KMLFormat },
-      { default: Point },
-      { default: Polygon },
-      { default: Feature },
-      { Style, Circle, Fill, Stroke, Text },
-      proj,
-      coordinate,
-    ]) => {
-      if (!containerRef.current) return;
-      if (mapRef.current) {
-        mapRef.current.setTarget(undefined);
-        mapRef.current = null;
-      }
+    async function initMap() {
+      try {
+        // Inject OpenLayers CSS via link tag (dynamic import of CSS crashes in Next.js)
+        if (!document.querySelector('link[href*="ol/ol.css"]')) {
+          try { await import('ol/ol.css' as any); } catch {
+            // Fallback: inject from CDN if bundler CSS import fails
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/ol@10.8.0/ol.css';
+            document.head.appendChild(link);
+          }
+        }
+        
+        // Import OpenLayers modules individually
+        const { default: Map } = await import('ol/Map');
+        const { default: View } = await import('ol/View');
+        const { default: TileLayer } = await import('ol/layer/Tile');
+        const { default: VectorLayer } = await import('ol/layer/Vector');
+        const { default: OSM } = await import('ol/source/OSM');
+        const { default: VectorSource } = await import('ol/source/Vector');
+        const { default: GeoJSONFormat } = await import('ol/format/GeoJSON');
+        const { default: Feature } = await import('ol/Feature');
+        const { default: Point } = await import('ol/geom/Point');
+        const { default: Polygon } = await import('ol/geom/Polygon');
+        const { default: Style } = await import('ol/style/Style');
+        const { default: CircleStyle } = await import('ol/style/Circle');
+        const { default: Fill } = await import('ol/style/Fill');
+        const { default: Stroke } = await import('ol/style/Stroke');
+        const { default: TextStyle } = await import('ol/style/Text');
+        const { fromLonLat, toLonLat } = await import('ol/proj');
 
-      // Nairobi default center — EPSG:4326 → EPSG:3857
-      const defaultCenter = proj.fromLonLat([36.817223, -1.286389]);
+        if (!mounted || !containerRef.current) return;
 
-      // Base OSM tile layer
-      const baseLayer = new TileLayer({ source: new OSM() });
+        // Cleanup previous map
+        if (mapRef.current) {
+          mapRef.current.setTarget(undefined);
+          mapRef.current = null;
+        }
 
-      // GeoJSON / KML vector layers
-      const vectorLayers = layers
-        .filter(l => l.visible && l.geojson)
-        .map(l => {
-          const features = new GeoJSONFormat().readFeatures(l.geojson, {
-            dataProjection: 'EPSG:4326',
-            featureProjection: 'EPSG:3857',
+        // Nairobi default center
+        const defaultCenter = fromLonLat([36.817223, -1.286389]);
+
+        // Base OSM tile layer
+        const baseLayer = new TileLayer({ source: new OSM() });
+
+        // GeoJSON vector layers
+        const vectorLayers = layers
+          .filter(l => l.visible && l.geojson)
+          .map(l => {
+            const features = new GeoJSONFormat().readFeatures(l.geojson, {
+              dataProjection: 'EPSG:4326',
+              featureProjection: 'EPSG:3857',
+            });
+            return new VectorLayer({
+              source: new VectorSource({ features }),
+              style: new Style({
+                stroke: new Stroke({ color: '#3b82f6', width: 2 }),
+                fill: new Fill({ color: 'rgba(59,130,246,0.1)' }),
+              }),
+            });
           });
-          return new VectorLayer({
-            source: new VectorSource({ features }),
-            style: new Style({
-              stroke: new Stroke({ color: '#3b82f6', width: 2 }),
-              fill: new Fill({ color: 'rgba(59,130,246,0.1)' }),
-            }),
-          });
-        });
 
-      // Beacon point layer
-      const beaconFeatures = beacons.map(b => {
-        const f = new Feature({
-          geometry: new Point(proj.fromLonLat([b.coordinate.lng, b.coordinate.lat])),
-          label: b.label,
-          type: b.beaconType,
-        });
-        return f;
-      });
-
-      const beaconLayer = new VectorLayer({
-        source: new VectorSource({ features: beaconFeatures }),
-        style: (feature) => new Style({
-          image: new Circle({
-            radius: 8,
-            fill: new Fill({ color: '#f59e0b' }),
-            stroke: new Stroke({ color: '#ffffff', width: 2 }),
-          }),
-          text: new Text({
-            text: feature.get('label'),
-            offsetY: -16,
-            fill: new Fill({ color: '#f59e0b' }),
-            stroke: new Stroke({ color: '#000', width: 3 }),
-            font: 'bold 12px monospace',
-          }),
-        }),
-      });
-
-      // Parcel polygon layer
-      const parcelFeatures = parcels
-        .filter(p => p.walkPoints.length >= 3)
-        .map(p => {
-          const coords = p.walkPoints.map(wp =>
-            proj.fromLonLat([wp.coordinate.lng, wp.coordinate.lat])
-          );
-          coords.push(coords[0]); // close ring
-
+        // Beacon point layer
+        const beaconFeatures = beacons.map(b => {
           const f = new Feature({
-            geometry: new Polygon([coords]),
-            label: p.label,
-            areaHa: p.computedAreaM2 ? (p.computedAreaM2 / 10000).toFixed(4) : '',
+            geometry: new Point(fromLonLat([b.coordinate.lng, b.coordinate.lat])),
           });
+          f.set('label', b.label);
           return f;
         });
 
-      const parcelLayer = new VectorLayer({
-        source: new VectorSource({ features: parcelFeatures }),
-        style: new Style({
-          stroke: new Stroke({ color: '#10b981', width: 2 }),
-          fill: new Fill({ color: 'rgba(16,185,129,0.08)' }),
-        }),
-      });
-
-      const map = new Map({
-        target: containerRef.current,
-        layers: [baseLayer, ...vectorLayers, parcelLayer, beaconLayer],
-        view: new View({
-          center: defaultCenter,
-          zoom: 13,
-          projection: 'EPSG:3857',
-        }),
-      });
-
-      // Fit to beacon extent if beacons exist
-      if (beaconFeatures.length > 0) {
-        const extent = beaconLayer.getSource()!.getExtent();
-        map.getView().fit(extent, { padding: [60, 60, 60, 60], maxZoom: 17 });
-      } else if (parcelFeatures.length > 0) {
-        const extent = parcelLayer.getSource()!.getExtent();
-        map.getView().fit(extent, { padding: [60, 60, 60, 60], maxZoom: 17 });
-      }
-
-      // Map click handler — convert EPSG:3857 → WGS84
-      if (onMapClick) {
-        map.on('click', (e: any) => {
-          const [lng, lat] = proj.toLonLat(e.coordinate);
-          onMapClick(lat, lng);
+        const beaconLayer = new VectorLayer({
+          source: new VectorSource({ features: beaconFeatures }),
+          style: (feature: any) => new Style({
+            image: new CircleStyle({
+              radius: 8,
+              fill: new Fill({ color: '#f59e0b' }),
+              stroke: new Stroke({ color: '#ffffff', width: 2 }),
+            }),
+            text: new TextStyle({
+              text: feature.get('label') || '',
+              offsetY: -16,
+              fill: new Fill({ color: '#f59e0b' }),
+              stroke: new Stroke({ color: '#000', width: 3 }),
+              font: 'bold 12px monospace',
+            }),
+          }),
         });
-      }
 
-      // GeoPDF layers
-      if (geoPDFLayers?.length) {
-        import('@/lib/field/geopdf').then(({ buildOLGeoPDFLayer }) => {
+        // Parcel polygon layer
+        const parcelFeatures = parcels
+          .filter(p => p.walkPoints.length >= 3)
+          .map(p => {
+            const coords = p.walkPoints.map(wp =>
+              fromLonLat([wp.coordinate.lng, wp.coordinate.lat])
+            );
+            coords.push(coords[0]);
+            const f = new Feature({ geometry: new Polygon([coords]) });
+            f.set('label', p.label);
+            return f;
+          });
+
+        const parcelLayer = new VectorLayer({
+          source: new VectorSource({ features: parcelFeatures }),
+          style: new Style({
+            stroke: new Stroke({ color: '#10b981', width: 2 }),
+            fill: new Fill({ color: 'rgba(16,185,129,0.08)' }),
+          }),
+        });
+
+        const map = new Map({
+          target: containerRef.current,
+          layers: [baseLayer, ...vectorLayers, parcelLayer, beaconLayer],
+          view: new View({
+            center: defaultCenter,
+            zoom: 13,
+          }),
+        });
+
+        // Fit to data extent
+        if (beaconFeatures.length > 0) {
+          const src = beaconLayer.getSource();
+          if (src) map.getView().fit(src.getExtent(), { padding: [60, 60, 60, 60], maxZoom: 17 });
+        } else if (parcelFeatures.length > 0) {
+          const src = parcelLayer.getSource();
+          if (src) map.getView().fit(src.getExtent(), { padding: [60, 60, 60, 60], maxZoom: 17 });
+        }
+
+        // Map click handler
+        if (onMapClick) {
+          map.on('click', (e: any) => {
+            const [lng, lat] = toLonLat(e.coordinate);
+            onMapClick(lat, lng);
+          });
+        }
+
+        // GeoPDF layers
+        if (geoPDFLayers?.length) {
+          const { buildOLGeoPDFLayer } = await import('@/lib/field/geopdf');
           geoPDFLayers.filter(g => g.visible && g.gcps.length === 4).forEach(g => {
             map.addLayer(buildOLGeoPDFLayer(g));
           });
-        });
-      }
+        }
 
-      // MBTiles layers
-      if (mbtilesSessions?.length) {
-        import('@/lib/field/mbtiles').then(({ buildOLMBTilesLayer }) => {
+        // MBTiles layers
+        if (mbtilesSessions?.length) {
+          const { buildOLMBTilesLayer } = await import('@/lib/field/mbtiles');
           mbtilesSessions.forEach(s => {
             map.addLayer(buildOLMBTilesLayer(s));
           });
-        });
-      }
+        }
 
-      mapRef.current = map;
-    });
+        mapRef.current = map;
+      } catch (err) {
+        console.error('[MapViewer] Init error:', err);
+      }
+    }
+
+    initMap();
 
     return () => {
+      mounted = false;
       if (mapRef.current) {
         mapRef.current.setTarget(undefined);
         mapRef.current = null;
@@ -190,5 +188,5 @@ export default function MapViewer({ layers, beacons, parcels, geoPDFLayers, mbti
     };
   }, [layers, beacons, parcels, geoPDFLayers, mbtilesSessions, onMapClick]);
 
-  return <div ref={containerRef} className="w-full h-full z-0" />;
+  return <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: '400px' }} />;
 }

@@ -44,7 +44,7 @@ export async function generateLevellingReport(
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text('1. LEVEL BOOK (HEIGHT OF COLLIMATION METHOD)', 15, y);
   y += 6;
 
@@ -61,7 +61,7 @@ export async function generateLevellingReport(
       String(r.remark ?? ''),
     ]),
     styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [30, 80, 100], textColor: 255 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 248, 250] },
     margin: { left: 15, right: 15 },
     theme: 'grid',
@@ -74,7 +74,7 @@ export async function generateLevellingReport(
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text('2. CLOSURE CHECK', 15, y);
   y += 6;
 
@@ -94,7 +94,7 @@ export async function generateLevellingReport(
       ['Adjustment method', 'Proportional to distance (Bowditch)'],
     ],
     styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [30, 80, 100], textColor: 255 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 80 } },
     margin: { left: 15, right: 15 },
     theme: 'grid',

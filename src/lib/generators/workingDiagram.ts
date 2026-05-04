@@ -50,7 +50,7 @@ export async function generateWorkingDiagramPdf(
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text('WORKING DIAGRAM', TABLE_X + TABLE_W / 2, ry + 3, { align: 'center' });
 
   doc.setFontSize(6.5);
@@ -72,7 +72,7 @@ export async function generateWorkingDiagramPdf(
 
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text("GALE'S TABLE", TABLE_X, ry);
   ry += 3;
 
@@ -104,8 +104,8 @@ export async function generateWorkingDiagramPdf(
       ['Σ', '', totalDist.toFixed(3), lastSt.easting - firstSt.easting, lastSt.northing - firstSt.northing, '', '']
     ],
     styles: { fontSize: 6, cellPadding: 1.2 },
-    headStyles: { fillColor: [30, 80, 100], textColor: 255 },
-    footStyles: { fillColor: [30, 80, 100], textColor: 255, fontStyle: 'bold' },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255 },
+    footStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [245, 248, 250] },
     columnStyles: {
       0: { cellWidth: 10 },
@@ -137,7 +137,7 @@ export async function generateWorkingDiagramPdf(
       ['Adj. method', 'Bowditch (Compass Rule)'],
     ],
     styles: { fontSize: 6, cellPadding: 1.2 },
-    headStyles: { fillColor: [30, 80, 100], textColor: 255 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 32 },
       1: { cellWidth: TABLE_W - 34 },

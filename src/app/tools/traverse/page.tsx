@@ -1,137 +1,306 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { bowditchAdjustment, transitAdjustment } from '@/lib/engine/traverse';
-import { trackEvent } from '@/lib/analytics/events';
+import { useState } from 'react'
+import { bowditchAdjustment, transitAdjustment } from '@/lib/engine/traverse'
+import { trackEvent } from '@/lib/analytics/events'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { bowditchAdjustmentSolvedFromResult, transitAdjustmentSolvedFromResult } from '@/lib/engine/solution/wrappers/traverse'
 import { computeTraverseAccuracy } from '@/lib/reports/traverseAccuracy'
+import { buildPrintDocument, openPrint } from '@/lib/print/buildPrintDocument'
+import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
+
+// ── Types ──────────────────────────────────────────────────────────────────
 
 interface Leg {
-  id: number;
-  name: string;
-  n: string;
-  e: string;
-  dist: string;
-  bearingD: string;
-  bearingM: string;
-  bearingS: string;
+  id: number
+  name: string
+  n: string
+  e: string
+  dist: string
+  bearingD: string
+  bearingM: string
+  bearingS: string
 }
+
+interface DMS { d: string; m: string; s: string }
+
+interface AzmResult {
+  totalMisclosureSec: number
+  misclosurePerStationSec: number
+  numStations: number
+  passes: boolean
+  numCourses: number
+  coursesWarning: boolean
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 function dmsToDecimal(d: string, m: string, s: string): number {
-  const deg = parseFloat(d) || 0;
-  const min = parseFloat(m) || 0;
-  const sec = parseFloat(s) || 0;
-  return deg + min / 60 + sec / 3600;
+  return (parseFloat(d) || 0) + (parseFloat(m) || 0) / 60 + (parseFloat(s) || 0) / 3600
 }
 
+/**
+ * Compute angular (azimuth) misclosure.
+ * RDM 1.1 (2025) Table 5.1: ≤ 3.0″ per station, max 15 courses without intermediate check.
+ */
+function computeAzmMisclosure(
+  init: DMS,
+  close: DMS,
+  numStations: number,
+): AzmResult | null {
+  const iD = parseFloat(init.d), cD = parseFloat(close.d)
+  if (isNaN(iD) || isNaN(cD)) return null
+
+  const initialDeg = dmsToDecimal(init.d, init.m, init.s)
+  const closingDeg = dmsToDecimal(close.d, close.m, close.s)
+
+  let diffSec = Math.abs(initialDeg - closingDeg) * 3600
+  // Handle 360° wrap-around
+  if (diffSec > 648000) diffSec = 1296000 - diffSec
+
+  const perStation = numStations > 0 ? diffSec / numStations : 0
+
+  return {
+    totalMisclosureSec:     diffSec,
+    misclosurePerStationSec: perStation,
+    numStations,
+    passes:         perStation <= 3.0,
+    numCourses:     numStations,
+    coursesWarning: numStations > 15,
+  }
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
 export default function TraverseCalculator() {
+  // Traverse legs
   const [legs, setLegs] = useState<Leg[]>([
-    { id: 1, name: 'A', n: '5000', e: '3000', dist: '250.0', bearingD: '45', bearingM: '32', bearingS: '08' },
-    { id: 2, name: 'B', n: '', e: '', dist: '180.5', bearingD: '120', bearingM: '07', bearingS: '24' },
-    { id: 3, name: 'C', n: '', e: '', dist: '220.75', bearingD: '200', bearingM: '20', bearingS: '44' },
-    { id: 4, name: 'D', n: '', e: '', dist: '190.25', bearingD: '290', bearingM: '34', bearingS: '04' },
-  ]);
-  const [method, setMethod] = useState<'bowditch' | 'transit'>('bowditch');
-  const [result, setResult] = useState<any>(null);
-  const [steps, setSteps] = useState<SolutionStep[] | null>(null)
+    { id: 1, name: 'A', n: '5000', e: '3000', dist: '250.0',  bearingD: '45',  bearingM: '32', bearingS: '08' },
+    { id: 2, name: 'B', n: '',     e: '',     dist: '180.5',  bearingD: '120', bearingM: '07', bearingS: '24' },
+    { id: 3, name: 'C', n: '',     e: '',     dist: '220.75', bearingD: '200', bearingM: '20', bearingS: '44' },
+    { id: 4, name: 'D', n: '',     e: '',     dist: '190.25', bearingD: '290', bearingM: '34', bearingS: '04' },
+  ])
+  const [method, setMethod]       = useState<'bowditch' | 'transit'>('bowditch')
+  const [result, setResult]       = useState<any>(null)
+  const [steps,  setSteps]        = useState<SolutionStep[] | null>(null)
   const [solutionTitle, setSolutionTitle] = useState<string | undefined>(undefined)
   const [calcError, setCalcError] = useState<string | null>(null)
   const [calculating, setCalculating] = useState(false)
-  const [copied, setCopied] = useState(false)
+
+  // Angular misclosure (RDM 1.1 Table 5.1)
+  const [initBearing,  setInitBearing]  = useState<DMS>({ d: '', m: '', s: '' })
+  const [closeBearing, setCloseBearing] = useState<DMS>({ d: '', m: '', s: '' })
+  const [azmResult, setAzmResult]       = useState<AzmResult | null>(null)
+
+  // Print
+  const [printMeta, setPrintMeta] = useState<PrintMeta>(defaultPrintMeta)
+
+  // ── Leg management ───────────────────────────────────────────────────────
 
   const addLeg = () => {
-    const nextChar = String.fromCharCode(65 + legs.length);
-    setLegs([...legs, { id: Date.now(), name: nextChar, n: '', e: '', dist: '', bearingD: '', bearingM: '', bearingS: '' }]);
-  };
-
-  const updateLeg = (id: number, field: keyof Leg, value: string) => {
-    setLegs(legs.map((l: any) => l.id === id ? { ...l, [field]: value } : l));
-  };
-
-
-  const copyResults = () => {
-    if (!result) return
-    const header = [
-      `METARDU Traverse — ${method === 'bowditch' ? 'Bowditch' : 'Transit'} Method`,
-      `Total Distance: ${result.totalDistance.toFixed(4)} m`,
-      `Linear Error: ${result.linearError.toFixed(6)} m`,
-      `Precision Ratio: 1 : ${Math.round(1 / result.precisionRatio)}`,
-      `Grade: ${result.precisionGrade}`,
-      '',
-      'Adjusted Coordinates:',
-    ]
-    const rows = result.legs.map((l: any) =>
-      `  ${l.pointName ?? '—'}  E: ${l.adjEasting?.toFixed(4) ?? '—'}  N: ${l.adjNorthing?.toFixed(4) ?? '—'}`
-    )
-    navigator.clipboard.writeText([...header, ...rows].join('\n'))
-      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
-      .catch(() => {})
+    const nextChar = String.fromCharCode(65 + legs.length)
+    setLegs([...legs, { id: Date.now(), name: nextChar, n: '', e: '', dist: '', bearingD: '', bearingM: '', bearingS: '' }])
   }
+
+  const updateLeg = (id: number, field: keyof Leg, value: string) =>
+    setLegs(legs.map(l => l.id === id ? { ...l, [field]: value } : l))
+
+  // ── Calculate ────────────────────────────────────────────────────────────
 
   const calculate = () => {
     setCalcError(null)
     setCalculating(true)
     try {
-      const points = legs
-        .filter((l: any) => l.n && l.e)
-        .map((l: any) => ({ name: l.name, northing: parseFloat(l.n), easting: parseFloat(l.e) }));
-
-      const distances = legs.map((l: any) => parseFloat(l.dist)).filter((d: any) => !isNaN(d));
-      const bearings = legs.map((l: any) => dmsToDecimal(l.bearingD, l.bearingM, l.bearingS)).filter((b: any) => !isNaN(b));
+      const points   = legs.filter(l => l.n && l.e).map(l => ({ name: l.name, northing: parseFloat(l.n), easting: parseFloat(l.e) }))
+      const distances = legs.map(l => parseFloat(l.dist)).filter(d => !isNaN(d))
+      const bearings  = legs.map(l => dmsToDecimal(l.bearingD, l.bearingM, l.bearingS)).filter(b => !isNaN(b))
 
       if (points.length < 2 || distances.length < 2 || bearings.length < 2) {
-        setCalcError('Please enter at least 2 legs with valid distances, bearings, and at least one known coordinate.')
+        setCalcError('Enter at least 2 legs with valid distances, bearings, and at least one known coordinate.')
         return
       }
 
       const r = method === 'bowditch'
         ? bowditchAdjustment({ points, distances, bearings })
-        : transitAdjustment({ points, distances, bearings });
-      setResult(r);
-      trackEvent('tool_used', { tool: 'traverse', method });
+        : transitAdjustment({ points, distances, bearings })
+      setResult(r)
+      trackEvent('tool_used', { tool: 'traverse', method })
+
       try {
-        const s = method === 'bowditch' ? bowditchAdjustmentSolvedFromResult(r) : transitAdjustmentSolvedFromResult(r)
+        const s = method === 'bowditch'
+          ? bowditchAdjustmentSolvedFromResult(r)
+          : transitAdjustmentSolvedFromResult(r)
         setSteps(s.steps)
         setSolutionTitle(s.solution.title)
-      } catch {
-        setSteps(null)
-        setSolutionTitle(undefined)
+      } catch { setSteps(null); setSolutionTitle(undefined) }
+
+      // Angular misclosure — RDM 1.1 Table 5.1
+      if (initBearing.d && closeBearing.d) {
+        setAzmResult(computeAzmMisclosure(initBearing, closeBearing, legs.length))
+      } else {
+        setAzmResult(null)
       }
+
     } catch (err: any) {
       setCalcError(err?.message || 'Calculation failed. Check your inputs.')
-      setResult(null)
-      setSteps(null)
+      setResult(null); setSteps(null)
     } finally {
       setCalculating(false)
     }
-  };
+  }
+
+  // ── Print ────────────────────────────────────────────────────────────────
+
+  const handlePrint = () => {
+    if (!result) return
+    const mLabel = method === 'bowditch' ? 'Bowditch Rule' : 'Transit Rule'
+
+    const table1Rows = result.legs.map((l: any) => `
+<tr>
+  <td class="bold">${l.from} → ${l.to}</td>
+  <td class="mono">${l.bearingDMS}</td>
+  <td class="right mono">${l.distance.toFixed(4)}</td>
+  <td class="right mono">${l.departure >= 0 ? '+' : ''}${l.departure.toFixed(4)}</td>
+  <td class="right mono">${l.latitude >= 0 ? '+' : ''}${l.latitude.toFixed(4)}</td>
+</tr>`).join('')
+
+    const table2Rows = result.legs.map((l: any) => `
+<tr>
+  <td class="bold">${l.from} → ${l.to}</td>
+  <td class="right mono">${l.distance.toFixed(4)}</td>
+  <td class="right mono">${(l.correctedDeparture - l.departure).toFixed(4)}</td>
+  <td class="right mono">${(l.correctedLatitude  - l.latitude ).toFixed(4)}</td>
+  <td class="right mono bold">${l.correctedDeparture.toFixed(4)}</td>
+  <td class="right mono bold">${l.correctedLatitude.toFixed(4)}</td>
+</tr>`).join('')
+
+    const table3Rows = result.legs.map((l: any) => `
+<tr>
+  <td class="bold">${l.to}</td>
+  <td class="right mono bold">${l.adjEasting.toFixed(4)}</td>
+  <td class="right mono bold">${l.adjNorthing.toFixed(4)}</td>
+</tr>`).join('')
+
+    const acc = computeTraverseAccuracy(result.linearError, result.totalDistance)
+
+    const azmSection = azmResult ? `
+<h2>Table 4 — Angular Misclosure — RDM 1.1 (2025) Table 5.1</h2>
+<div class="summary-box">
+  <div class="summary-row"><span class="summary-label">Number of Stations</span><span class="summary-value">${azmResult.numStations}</span></div>
+  <div class="summary-row"><span class="summary-label">Total Misclosure</span><span class="summary-value">${azmResult.totalMisclosureSec.toFixed(1)}&#8243;</span></div>
+  <div class="summary-row"><span class="summary-label">Misclosure per Station</span><span class="summary-value">${azmResult.misclosurePerStationSec.toFixed(2)}&#8243;</span></div>
+  <div class="summary-row"><span class="summary-label">Allowable (RDM 1.1 Table 5.1)</span><span class="summary-value">&#8804; 3.0&#8243; per station</span></div>
+  <div class="summary-row"><span class="summary-label">Maximum Courses Without Check</span><span class="summary-value">15</span></div>
+  <div class="summary-row"><span class="summary-label">Status</span><span class="summary-value ${azmResult.passes ? 'pass' : 'fail'}">${azmResult.passes ? 'ACCEPTABLE' : 'EXCEEDS TOLERANCE'}</span></div>
+  ${azmResult.coursesWarning ? '<div class="summary-row"><span class="summary-label warn">&#9888; Intermediate azimuth check required (&gt;15 courses)</span></div>' : ''}
+</div>` : `
+<h2>Angular Misclosure</h2>
+<p style="color:#666;font-size:9pt;font-style:italic">No closing azimuth provided. RDM 1.1 (2025) Table 5.1 requires an azimuth check (&#8804;3.0&#8243;/station) for formal survey submissions.</p>`
+
+    const bodyHtml = `
+<h2>Table 1 — Traverse Computation (${mLabel})</h2>
+<table>
+  <tr>
+    <th>Line</th>
+    <th>WCB</th>
+    <th class="right">HD (m)</th>
+    <th class="right">Departure (m)</th>
+    <th class="right">Latitude (m)</th>
+  </tr>
+  ${table1Rows}
+  <tfoot>
+    <tr>
+      <td colspan="3" class="right">&#931;</td>
+      <td class="right mono">${result.legs.reduce((s: number, l: any) => s + l.departure, 0).toFixed(4)}</td>
+      <td class="right mono">${result.legs.reduce((s: number, l: any) => s + l.latitude,  0).toFixed(4)}</td>
+    </tr>
+  </tfoot>
+</table>
+
+<h2>Table 2 — ${mLabel} Corrections</h2>
+<table>
+  <tr>
+    <th>Line</th>
+    <th class="right">HD (m)</th>
+    <th class="right">Corr-Dep</th>
+    <th class="right">Corr-Lat</th>
+    <th class="right">Adj-Dep</th>
+    <th class="right">Adj-Lat</th>
+  </tr>
+  ${table2Rows}
+</table>
+
+<h2>Table 3 — Adjusted Coordinates</h2>
+<table>
+  <tr>
+    <th>Point</th>
+    <th class="right">Easting (m)</th>
+    <th class="right">Northing (m)</th>
+  </tr>
+  ${table3Rows}
+</table>
+
+<div class="summary-box">
+  <h2 style="border:none;margin:0 0 8px">Linear Misclosure &amp; Accuracy — RDM 1.1 (2025) Table 5.1</h2>
+  <div class="summary-row"><span class="summary-label">Method</span><span class="summary-value">${mLabel}</span></div>
+  <div class="summary-row"><span class="summary-label">Total Distance (Perimeter)</span><span class="summary-value">${result.totalDistance.toFixed(4)} m</span></div>
+  <div class="summary-row"><span class="summary-label">&#931; Departures</span><span class="summary-value">${result.legs.reduce((s: number, l: any) => s + l.departure, 0).toFixed(4)} m</span></div>
+  <div class="summary-row"><span class="summary-label">&#931; Latitudes</span><span class="summary-value">${result.legs.reduce((s: number, l: any) => s + l.latitude,  0).toFixed(4)} m</span></div>
+  <div class="summary-row"><span class="summary-label">Linear Misclosure</span><span class="summary-value">${result.linearError.toFixed(6)} m</span></div>
+  <div class="summary-row"><span class="summary-label">Precision Ratio</span><span class="summary-value">1 : ${Math.round(1 / result.precisionRatio)}</span></div>
+  <div class="summary-row"><span class="summary-label">Allowable (RDM 1.1 Table 5.1)</span><span class="summary-value">1 : 10 000</span></div>
+  ${acc ? `<div class="summary-row"><span class="summary-label">Survey Order</span><span class="summary-value">${acc.order}</span></div>` : ''}
+</div>
+
+${azmSection}`
+
+    const doc = buildPrintDocument(bodyHtml, {
+      title:     `Traverse Computation — ${mLabel}`,
+      reference: 'RDM 1.1 (2025) Table 5.1 &nbsp;|&nbsp; Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299',
+      ...printMeta,
+    })
+    openPrint(doc)
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-3 md:px-4 py-4 md:py-8">
-      <h1 className="text-3xl font-bold mb-2">Traverse Adjustment</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Closed traverse adjustment using Bowditch or Transit rules</p>
+    <div className="w-full max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-8">
 
+      {/* Page header */}
+      <h1 className="text-3xl font-bold mb-1">Traverse Adjustment</h1>
+      <p className="text-sm text-[var(--text-muted)] mb-1">
+        Closed traverse adjustment — Bowditch (Compass) Rule or Transit Rule
+      </p>
+      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
+        RDM 1.1 (2025) Table 5.1 &nbsp;|&nbsp; Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299
+      </p>
+
+      {/* Hint bar */}
       <div className="mb-4 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-muted)] flex flex-wrap gap-x-6 gap-y-1">
-        <span><span className="text-[var(--text-secondary)] font-medium">Bearings</span> — Enter Whole Circle Bearing in Degrees Minutes Seconds as read from your instrument.</span>
-        <span><span className="text-[var(--text-secondary)] font-medium">Distances</span> — horizontal distances in metres.</span>
-        <span><span className="text-[var(--text-secondary)] font-medium">First row</span> — must have Northing &amp; Easting coordinates (the starting known point).</span>
+        <span><span className="text-[var(--text-secondary)] font-medium">Bearings</span> — WCB in Degrees°Minutes′Seconds″ as read from instrument</span>
+        <span><span className="text-[var(--text-secondary)] font-medium">Distances</span> — horizontal distances in metres</span>
+        <span><span className="text-[var(--text-secondary)] font-medium">First row</span> — must have known Northing &amp; Easting</span>
       </div>
 
+      {/* Method buttons */}
       <div className="flex gap-4 mb-6">
-        <button onClick={() => { setMethod('bowditch'); setResult(null); setSteps(null); setSolutionTitle(undefined); }} className={`btn ${method === 'bowditch' ? 'btn-primary' : 'btn-secondary'}`}>
+        <button onClick={() => { setMethod('bowditch'); setResult(null); setSteps(null); setSolutionTitle(undefined) }}
+          className={`btn ${method === 'bowditch' ? 'btn-primary' : 'btn-secondary'}`}>
           Bowditch Rule
         </button>
-        <button onClick={() => { setMethod('transit'); setResult(null); setSteps(null); setSolutionTitle(undefined); }} className={`btn ${method === 'transit' ? 'btn-primary' : 'btn-secondary'}`}>
+        <button onClick={() => { setMethod('transit'); setResult(null); setSteps(null); setSolutionTitle(undefined) }}
+          className={`btn ${method === 'transit' ? 'btn-primary' : 'btn-secondary'}`}>
           Transit Rule
         </button>
       </div>
 
       <div className="grid gap-6 mb-6">
+        {/* Leg table */}
         <div className="card">
           <div className="card-header">
-            <span className="label">Traverse Computation Table — Bowditch Adjustment</span>
+            <span className="label">Traverse Computation Table — {method === 'bowditch' ? 'Bowditch' : 'Transit'} Adjustment</span>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-[550px] table">
@@ -148,19 +317,31 @@ export default function TraverseCalculator() {
                 {legs.map((l, i) => (
                   <tr key={l.id}>
                     <td className="text-left font-semibold">{l.name}</td>
-                    <td><input className="input" value={l.dist} placeholder="e.g. 250.00" onChange={e => updateLeg(l.id, 'dist', e.target.value)} /></td>
+                    <td>
+                      <input className="input" value={l.dist} placeholder="e.g. 250.00"
+                        onChange={e => updateLeg(l.id, 'dist', e.target.value)} />
+                    </td>
                     <td>
                       <div className="flex items-center gap-0.5 md:gap-1">
-                        <input className="input w-10 md:w-12 text-center text-xs md:text-sm" value={l.bearingD} placeholder="DDD" maxLength={3} onChange={e => updateLeg(l.id, 'bearingD', e.target.value)} />
+                        <input className="input w-10 md:w-12 text-center text-xs md:text-sm" value={l.bearingD} placeholder="DDD" maxLength={3}
+                          onChange={e => updateLeg(l.id, 'bearingD', e.target.value)} />
                         <span className="text-[var(--text-muted)] text-xs">°</span>
-                        <input className="input w-8 md:w-10 text-center text-xs md:text-sm" value={l.bearingM} placeholder="MM" maxLength={2} onChange={e => updateLeg(l.id, 'bearingM', e.target.value)} />
+                        <input className="input w-8 md:w-10 text-center text-xs md:text-sm" value={l.bearingM} placeholder="MM" maxLength={2}
+                          onChange={e => updateLeg(l.id, 'bearingM', e.target.value)} />
                         <span className="text-[var(--text-muted)] text-xs">&apos;</span>
-                        <input className="input w-10 md:w-12 text-center text-xs md:text-sm" value={l.bearingS} placeholder="SS" maxLength={5} onChange={e => updateLeg(l.id, 'bearingS', e.target.value)} />
+                        <input className="input w-10 md:w-12 text-center text-xs md:text-sm" value={l.bearingS} placeholder="SS" maxLength={5}
+                          onChange={e => updateLeg(l.id, 'bearingS', e.target.value)} />
                         <span className="text-[var(--text-muted)] text-xs">&quot;</span>
                       </div>
                     </td>
-                    <td><input className="input" value={l.n} placeholder={i === 0 ? 'required' : 'auto'} onChange={e => updateLeg(l.id, 'n', e.target.value)} /></td>
-                    <td><input className="input" value={l.e} placeholder={i === 0 ? 'required' : 'auto'} onChange={e => updateLeg(l.id, 'e', e.target.value)} /></td>
+                    <td>
+                      <input className="input" value={l.n} placeholder={i === 0 ? 'required' : 'auto'}
+                        onChange={e => updateLeg(l.id, 'n', e.target.value)} />
+                    </td>
+                    <td>
+                      <input className="input" value={l.e} placeholder={i === 0 ? 'required' : 'auto'}
+                        onChange={e => updateLeg(l.id, 'e', e.target.value)} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -171,16 +352,52 @@ export default function TraverseCalculator() {
           </div>
         </div>
 
-        <button onClick={calculate} disabled={calculating} className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
+        {/* ── Angular Misclosure Check (RDM 1.1 Table 5.1) ─────────────── */}
+        <div className="card">
+          <div className="card-header">
+            <span className="label">Angular Misclosure Check</span>
+            <span className="text-xs text-[var(--text-muted)] ml-2">RDM 1.1 Table 5.1 — ≤ 3.0″ per station | max 15 courses</span>
+          </div>
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {([
+              ['Initial Reference Bearing (WCB)', initBearing,  setInitBearing ] as const,
+              ['Computed Closing Bearing (WCB)',  closeBearing, setCloseBearing] as const,
+            ]).map(([label, val, setVal]) => (
+              <div key={label}>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">{label}</label>
+                <div className="flex items-center gap-1">
+                  <input className="input w-12 text-center text-xs" placeholder="DDD" value={val.d}
+                    onChange={e => setVal(p => ({ ...p, d: e.target.value }))} />
+                  <span className="text-[var(--text-muted)] text-xs">°</span>
+                  <input className="input w-10 text-center text-xs" placeholder="MM" value={val.m}
+                    onChange={e => setVal(p => ({ ...p, m: e.target.value }))} />
+                  <span className="text-[var(--text-muted)] text-xs">&apos;</span>
+                  <input className="input w-14 text-center text-xs" placeholder="SS.ss" value={val.s}
+                    onChange={e => setVal(p => ({ ...p, s: e.target.value }))} />
+                  <span className="text-[var(--text-muted)] text-xs">&quot;</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="px-4 pb-4 text-xs text-[var(--text-muted)]">
+            Enter the initial reference bearing and the bearing computed back to the reference line.
+            Leave blank if no closing azimuth check was performed (noted in print output).
+          </p>
+        </div>
+
+        {/* Calculate button */}
+        <button onClick={calculate} disabled={calculating}
+          className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
           {calculating ? (
-            <>
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-              Calculating…
-            </>
+            <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg> Calculating…</>
           ) : 'Calculate Adjustment'}
         </button>
       </div>
 
+      {/* Error */}
       {calcError && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 mb-6 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
           <p className="font-semibold">Error</p>
@@ -188,54 +405,49 @@ export default function TraverseCalculator() {
         </div>
       )}
 
+      {/* ── Results ────────────────────────────────────────────────────── */}
       {result && (
         <div className="grid md:grid-cols-2 gap-6">
+
+          {/* Linear Misclosure */}
           <div className="card">
             <div className="card-header flex justify-between items-center">
-              <span className="label">Error Analysis</span>
-              <div className="flex items-center gap-2">
-                <span className={`badge ${result.isClosed ? 'badge-success' : 'badge-warning'}`}>
-                  {result.isClosed ? 'Closed' : 'Not Closed'}
-                </span>
-                <button
-                  onClick={copyResults}
-                  className="text-xs text-[var(--accent)] hover:text-[var(--accent-dim)] transition-colors"
-                >
-                  {copied ? '✓ Copied' : 'Copy'}
-                </button>
-              </div>
+              <span className="label">Linear Misclosure Analysis</span>
+              <span className={`badge ${result.isClosed ? 'badge-success' : 'badge-warning'}`}>
+                {result.isClosed ? 'Closed' : 'Not Closed'}
+              </span>
             </div>
             <div className="card-body space-y-3">
               <ResultRow label="Method" value={method === 'bowditch' ? 'Bowditch Rule' : 'Transit Rule'} />
               <ResultRow label="Total Distance" value={`${result.totalDistance.toFixed(4)} m`} />
-              <ResultRow label="ΣDepartures" value={`${result.legs.reduce((s: number, l: any) => s + l.departure, 0).toFixed(4)} m`} />
-              <ResultRow label="ΣLatitudes" value={`${result.legs.reduce((s: number, l: any) => s + l.latitude, 0).toFixed(4)} m`} />
+              <ResultRow label="Σ Departures" value={`${result.legs.reduce((s: number, l: any) => s + l.departure, 0).toFixed(4)} m`} />
+              <ResultRow label="Σ Latitudes"  value={`${result.legs.reduce((s: number, l: any) => s + l.latitude,  0).toFixed(4)} m`} />
               <ResultRow label="Linear Misclosure" value={`${result.linearError.toFixed(6)} m`} />
-              <ResultRow label="Precision Ratio" value={`1 : ${Math.round(1/result.precisionRatio)}`} highlight />
+              <ResultRow label="Precision Ratio"   value={`1 : ${Math.round(1 / result.precisionRatio)}`} highlight />
             </div>
           </div>
 
+          {/* RDM 1.1 Accuracy Order */}
           {(() => {
             const acc = computeTraverseAccuracy(result.linearError, result.totalDistance)
             if (!acc) return null
-            const badgeClass = acc.order === 'FIRST ORDER CLASS I' ? 'bg-emerald-700 text-white'
+            const badgeClass = acc.order === 'FIRST ORDER CLASS I'  ? 'bg-emerald-700 text-white'
               : acc.order === 'FIRST ORDER CLASS II' ? 'bg-emerald-600 text-white'
               : acc.order === 'SECOND ORDER CLASS I' ? 'bg-amber-500 text-black'
-              : acc.order === 'SECOND ORDER CLASS II' ? 'bg-orange-600 text-white'
+              : acc.order === 'SECOND ORDER CLASS II'? 'bg-orange-600 text-white'
               : 'bg-red-600 text-white'
             return (
               <div className="card">
                 <div className="card-header">
-                  <span className="label">Traverse Accuracy — RDM 1.1</span>
+                  <span className="label">Traverse Accuracy — RDM 1.1 Table 5.1</span>
                 </div>
                 <div className="card-body space-y-3">
-                  <ResultRow label="Total Perimeter" value={`${result.totalDistance.toFixed(4)} m`} />
+                  <ResultRow label="Total Perimeter"   value={`${result.totalDistance.toFixed(4)} m`} />
                   <ResultRow label="Linear Misclosure" value={`${result.linearError.toFixed(6)} m`} />
-                  <ResultRow label="Precision Ratio" value={`1 : ${Math.round(1 / result.precisionRatio)}`} />
-                  <ResultRow label="Allowable (RDM 1.1)" value={`m = ${acc.m_mm}√K mm`} />
-                  <ResultRow label="Computed m" value={`${acc.allowed.toFixed(4)} mm/√km`} />
+                  <ResultRow label="Precision Ratio"   value={`1 : ${Math.round(1 / result.precisionRatio)}`} />
+                  <ResultRow label="Allowable (RDM 1.1 Table 5.1)" value="1 : 10 000" />
                   <div className="mt-3 p-4 rounded-lg text-center">
-                    <p className="text-xs text-[var(--text-muted)] mb-2">TRAVERSE ACCURACY</p>
+                    <p className="text-xs text-[var(--text-muted)] mb-2">TRAVERSE ACCURACY ORDER</p>
                     <span className={`inline-block px-4 py-2 rounded-lg font-bold text-sm ${badgeClass}`}>
                       {acc.order}
                     </span>
@@ -246,11 +458,50 @@ export default function TraverseCalculator() {
             )
           })()}
 
+          {/* ── Angular Misclosure Result ───────────────────────────────── */}
+          {azmResult ? (
+            <div className="card">
+              <div className="card-header flex justify-between items-center">
+                <span className="label">Angular Misclosure — RDM 1.1 Table 5.1</span>
+                <span className={`badge ${azmResult.passes ? 'badge-success' : 'badge-error'}`}>
+                  {azmResult.passes ? 'PASSES' : 'FAILS'}
+                </span>
+              </div>
+              <div className="card-body space-y-3">
+                <ResultRow label="Stations"                value={String(azmResult.numStations)} />
+                <ResultRow label="Total Misclosure"        value={`${azmResult.totalMisclosureSec.toFixed(1)}″`} />
+                <ResultRow label="Misclosure per Station"  value={`${azmResult.misclosurePerStationSec.toFixed(2)}″`} highlight />
+                <ResultRow label="Allowable (RDM 1.1)"    value="≤ 3.0″ per station" />
+                {azmResult.coursesWarning && (
+                  <div className="rounded p-3 bg-amber-900/20 border border-amber-700 text-xs text-amber-300">
+                    ⚠️ {azmResult.numCourses} courses — RDM 1.1 requires an azimuth check every 15 courses maximum.
+                  </div>
+                )}
+                <div className={`mt-1 p-3 rounded-lg text-center ${azmResult.passes
+                  ? 'bg-emerald-900/20 border border-emerald-700'
+                  : 'bg-red-900/20 border border-red-700'}`}>
+                  <p className="text-xs text-[var(--text-muted)] mb-1">RDM 1.1 TABLE 5.1 — AZIMUTH CHECK</p>
+                  <p className={`font-bold text-sm ${azmResult.passes ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {azmResult.misclosurePerStationSec.toFixed(2)}″/station —{' '}
+                    {azmResult.passes ? 'ACCEPTABLE ≤ 3.0″' : 'EXCEEDS 3.0″ LIMIT'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : result ? (
+            <div className="card border-dashed opacity-60">
+              <div className="card-body text-center py-6">
+                <p className="text-xs text-[var(--text-muted)]">Enter initial and closing bearings above to compute angular misclosure</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1 font-mono">RDM 1.1 Table 5.1 — ≤ 3.0″ per station required</p>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Table 1 — Traverse Computation */}
           <div className="card">
             <div className="card-header">
               <span className="label">Table 1 — Traverse Computation</span>
             </div>
-            <p className="text-xs text-[var(--text-muted)] px-4 pt-2">Source: Ghilani &amp; Wolf, Elementary Surveying 16th Ed., Chapter 10, Table 10.1</p>
             <div className="overflow-x-auto">
               <table className="min-w-[550px] table">
                 <thead>
@@ -258,8 +509,8 @@ export default function TraverseCalculator() {
                     <th>Line</th>
                     <th>WCB</th>
                     <th className="text-right">HD</th>
-                    <th className="text-right">DEP</th>
-                    <th className="text-right">LAT</th>
+                    <th className="text-right">Departure</th>
+                    <th className="text-right">Latitude</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -277,28 +528,29 @@ export default function TraverseCalculator() {
                   <tr className="font-semibold bg-[var(--bg-tertiary)]">
                     <td colSpan={3} className="text-right">Σ</td>
                     <td className="text-right font-mono">{result.legs.reduce((s: number, l: any) => s + l.departure, 0).toFixed(4)}</td>
-                    <td className="text-right font-mono">{result.legs.reduce((s: number, l: any) => s + l.latitude, 0).toFixed(4)}</td>
+                    <td className="text-right font-mono">{result.legs.reduce((s: number, l: any) => s + l.latitude,  0).toFixed(4)}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
 
+          {/* Table 2 — Corrections */}
           <div className="card">
             <div className="card-header">
-              <span className="label">Table 2 — Bowditch Corrections</span>
+              <span className="label">Table 2 — {method === 'bowditch' ? 'Bowditch' : 'Transit'} Corrections</span>
             </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-[650px] table">
-                  <thead>
-                    <tr>
-                      <th>Line</th>
-                      <th className="text-right">HD</th>
-                      <th className="text-right">C-Dep</th>
-                      <th className="text-right">C-Lat</th>
-                      <th className="text-right">A-Dep</th>
-                      <th className="text-right">A-Lat</th>
-                    </tr>
+            <div className="overflow-x-auto">
+              <table className="min-w-[650px] table">
+                <thead>
+                  <tr>
+                    <th>Line</th>
+                    <th className="text-right">HD</th>
+                    <th className="text-right">C-Dep</th>
+                    <th className="text-right">C-Lat</th>
+                    <th className="text-right">A-Dep</th>
+                    <th className="text-right">A-Lat</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {result.legs.map((l: any, i: number) => (
@@ -306,7 +558,7 @@ export default function TraverseCalculator() {
                       <td className="font-semibold">{l.from} → {l.to}</td>
                       <td className="text-right font-mono">{l.distance.toFixed(4)}</td>
                       <td className="text-right font-mono">{(l.correctedDeparture - l.departure).toFixed(4)}</td>
-                      <td className="text-right font-mono">{(l.correctedLatitude - l.latitude).toFixed(4)}</td>
+                      <td className="text-right font-mono">{(l.correctedLatitude  - l.latitude ).toFixed(4)}</td>
                       <td className="text-right font-mono font-semibold">{l.correctedDeparture.toFixed(4)}</td>
                       <td className="text-right font-mono font-semibold">{l.correctedLatitude.toFixed(4)}</td>
                     </tr>
@@ -316,6 +568,7 @@ export default function TraverseCalculator() {
             </div>
           </div>
 
+          {/* Table 3 — Adjusted Coordinates */}
           <div className="card">
             <div className="card-header">
               <span className="label">Table 3 — Adjusted Coordinates</span>
@@ -325,8 +578,8 @@ export default function TraverseCalculator() {
                 <thead>
                   <tr>
                     <th>Point</th>
-                    <th className="text-right">EASTING (m)</th>
-                    <th className="text-right">NORTHING (m)</th>
+                    <th className="text-right">Easting (m)</th>
+                    <th className="text-right">Northing (m)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -342,15 +595,35 @@ export default function TraverseCalculator() {
             </div>
           </div>
 
-          {steps ? (
+          {/* Print section */}
+          <div className="md:col-span-2">
+            <div className="card">
+              <div className="card-header">
+                <span className="label">Print Computation Sheet</span>
+              </div>
+              <div className="p-4 space-y-4">
+                <PrintMetaPanel meta={printMeta} onChange={setPrintMeta} />
+                <div className="text-xs text-[var(--text-muted)] space-y-0.5 mb-2">
+                  <p>Sheet includes: standard document header · Tables 1–3 · Linear misclosure · Angular misclosure (RDM 1.1 Table 5.1) · Surveyor's Certificate</p>
+                </div>
+                <button onClick={handlePrint}
+                  className="btn btn-primary w-full md:w-auto">
+                  Print Traverse Computation Sheet
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Solution steps */}
+          {steps && (
             <div className="md:col-span-2">
               <SolutionStepsRenderer title={solutionTitle} steps={steps} />
             </div>
-          ) : null}
+          )}
         </div>
       )}
     </div>
-  );
+  )
 }
 
 function ResultRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
@@ -359,5 +632,5 @@ function ResultRow({ label, value, highlight }: { label: string; value: string; 
       <span className="text-sm text-[var(--text-secondary)]">{label}</span>
       <span className={`font-mono ${highlight ? 'result-accent font-bold' : ''}`}>{value}</span>
     </div>
-  );
+  )
 }

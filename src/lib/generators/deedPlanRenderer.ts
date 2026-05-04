@@ -92,7 +92,7 @@ export function renderBoundaryPlan(doc: jsPDF, geom: DeedPlanGeometry, panel: Pa
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 80, 100);
+  doc.setTextColor(0, 0, 0);
   doc.text('SURVEY PLAN', panel.x + panel.width / 2, panel.y + 5, { align: 'center' });
 
   const spanE = geom.maxE - geom.minE || 1;
@@ -116,7 +116,7 @@ export function renderBoundaryPlan(doc: jsPDF, geom: DeedPlanGeometry, panel: Pa
 
   const pts = geom.stations.map((s: any) => worldToMm(s.easting, s.northing));
 
-  doc.setDrawColor(30, 80, 100);
+  doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
 
   for (let i = 0; i < pts.length; i++) {

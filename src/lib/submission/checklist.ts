@@ -11,6 +11,7 @@ export const BOUNDARY_ATTACHMENT_SLOTS: AttachmentSlot[] = [
     accepts: ['application/pdf', 'image/jpeg', 'image/png'],
     max_size_mb: 10,
     help_text: 'Approval from local authority for subdivision / change of user',
+    category: 'approval',
   },
   {
     id: 'lcb_consent',
@@ -19,6 +20,7 @@ export const BOUNDARY_ATTACHMENT_SLOTS: AttachmentSlot[] = [
     accepts: ['application/pdf'],
     max_size_mb: 10,
     help_text: 'Required for subdivisions under the Land Control Act Cap 302',
+    category: 'consent',
   },
   {
     id: 'mutation_form',
@@ -27,6 +29,7 @@ export const BOUNDARY_ATTACHMENT_SLOTS: AttachmentSlot[] = [
     accepts: ['application/pdf', 'image/jpeg', 'image/png'],
     max_size_mb: 20,
     help_text: 'Form LRA 67 or equivalent, signed by landowner and registered surveyor',
+    category: 'approval',
   },
   {
     id: 'rtk_raw',
@@ -40,6 +43,7 @@ export const BOUNDARY_ATTACHMENT_SLOTS: AttachmentSlot[] = [
     ],
     max_size_mb: 50,
     help_text: 'Raw GNSS field data from RTK session (CSV, TXT, RINEX, etc.)',
+    category: 'field_data',
   },
   {
     id: 'field_book_export',
@@ -53,6 +57,7 @@ export const BOUNDARY_ATTACHMENT_SLOTS: AttachmentSlot[] = [
     ],
     max_size_mb: 20,
     help_text: 'Exported from total station / GNSS instrument (.FBK, CSV, LandXML)',
+    category: 'field_data',
   },
 ]
 

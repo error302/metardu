@@ -8,6 +8,7 @@ import {
   QueryClientConfig,
   QueryFunction,
   QueryKey,
+  QueryFunctionContext,
 } from '@tanstack/react-query'
 import { cache } from 'react'
 
@@ -23,9 +24,8 @@ export const queryClientConfig: QueryClientConfig = {
       refetchOnWindowFocus: false,
       refetchOnMount: true,
       refetchOnReconnect: true,
-      // Performance
-      suspense: false,
-      keepPreviousData: true,
+    // Performance
+    placeholderData: (previousData: any) => previousData,
     },
     mutations: {
       // Global mutation defaults
@@ -62,8 +62,8 @@ export async function prefetchProjects(queryClient: QueryClient, userId: string)
 export async function prefetchSurveyPoints(queryClient: QueryClient, projectId: string) {
   await queryClient.prefetchQuery({
     queryKey: ['survey-points', projectId],
-    queryFn: () => fetchSurveyPoints(projectId),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    queryFn: fetchSurveyPoints,
+    staleTime: 1000 * 60 * 5,
   })
 }
 
@@ -82,7 +82,8 @@ const fetchProjects: QueryFunction<any, ['projects', string]> = async ({ queryKe
   return res.json()
 }
 
-const fetchSurveyPoints: QueryFunction<any, ['survey-points', string]> = async (projectId: string) => {
+const fetchSurveyPoints: QueryFunction<any, ['survey-points', string]> = async ({ queryKey }) => {
+  const [, projectId] = queryKey
   const res = await fetch(`/api/projects/${projectId}/points`)
   if (!res.ok) throw new Error('Failed to fetch survey points')
   return res.json()
@@ -162,21 +163,22 @@ export function createOptimisticMutation<T, R>(
 }
 
 // Performance tracking wrapper
-export function withPerformanceTracking<T extends QueryFunction>(
+export function withPerformanceTracking<T extends QueryFunction<any, any>>(
   fn: T,
   name: string
 ): T {
-  return (async (...args: any[]) => {
+  const wrapped = async (context: QueryFunctionContext) => {
     const start = performance.now()
     try {
-      const result = await fn(...args)
+      const result = await fn(context)
       console.log(`[Query] ${name} took ${(performance.now() - start).toFixed(2)}ms`)
       return result
     } catch (error) {
       console.error(`[Query] ${name} failed after ${(performance.now() - start).toFixed(2)}ms`)
       throw error
     }
-  }) as T
+  }
+  return wrapped as T
 }
 
 // Dev tools configuration
