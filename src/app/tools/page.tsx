@@ -13,6 +13,7 @@ export default function ToolsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ToolLink href="/tools/setting-out" title="Setting Out" description="Stakeout from known coords | RDM 1.1" />
             <ToolLink href="/tools/missing-line" title="Missing Line" description="Distance & bearing between two points" />
+            <ToolLink href="/tools/control-marks-register" title="Control Marks Register" description="RDM 1.1 s5.6.3 mark register" />
           </div>
         </section>
 
@@ -58,6 +59,16 @@ export default function ToolsPage() {
             <ToolLink href="/tools/earthworks" title="Earthworks" description="Cut/fill volumes | Prismoidal formula | RDM 1.1" />
             <ToolLink href="/tools/curves" title="Horizontal Curves" description="Horizontal/vertical curve elements | RDM 1.1" />
             <ToolLink href="/tools/tacheometry" title="Tacheometry" description="Stadia/EDM distance & elevation | RDM 1.1 Section 5.6" />
+            <ToolLink href="/tools/detail-tolerances" title="Detail Tolerances" description="RDM 1.1 Table 5.2 XY/Z tolerances" />
+          </div>
+        </section>
+
+        {/* REPORTS & SUBMISSIONS */}
+        <section>
+          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Reports & Submissions</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <ToolLink href="/tools/mobilisation-report" title="Mobilisation Report" description="RDM 1.1 Table 5.3 field mobilisation" />
+            <ToolLink href="/tools/survey-report-builder" title="Survey Report Builder" description="RDM 1.1 Table 5.4 report with SRVY2025-1 ref" />
           </div>
         </section>
 

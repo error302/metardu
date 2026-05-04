@@ -25,9 +25,11 @@ export interface SurveyReportInput {
   firmAddress: string
   firmIskNumber: string
   surveyorName: string
+  surveyorRegistrationNumber?: string
   surveyorIskNumber: string
   reportDate: string
   reportNumber: string
+  submissionNumber?: string
   revisionNumber: string
   revisionDate?: string
 

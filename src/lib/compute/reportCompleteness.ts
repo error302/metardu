@@ -106,9 +106,11 @@ function calculateTitlePageCompleteness(input: SurveyReportInput): number {
     input.firmName,
     input.firmIskNumber,
     input.surveyorName,
+    input.surveyorRegistrationNumber,
     input.surveyorIskNumber,
     input.reportDate,
-    input.reportNumber
+    input.reportNumber,
+    input.submissionNumber
   ]
   const present = requiredFields.filter((f: any) => f && f.trim().length > 0).length
   return Math.round((present / requiredFields.length) * 100)
@@ -169,9 +171,11 @@ function getTitlePageMissingFields(input: SurveyReportInput): string[] {
   if (!input.firmName || !input.firmName.trim()) missing.push('firmName')
   if (!input.firmIskNumber || !input.firmIskNumber.trim()) missing.push('firmIskNumber')
   if (!input.surveyorName || !input.surveyorName.trim()) missing.push('surveyorName')
+  if (!input.surveyorRegistrationNumber || !input.surveyorRegistrationNumber.trim()) missing.push('surveyorRegistrationNumber')
   if (!input.surveyorIskNumber || !input.surveyorIskNumber.trim()) missing.push('surveyorIskNumber')
   if (!input.reportDate) missing.push('reportDate')
   if (!input.reportNumber || !input.reportNumber.trim()) missing.push('reportNumber')
+  if (!input.submissionNumber || !input.submissionNumber.trim()) missing.push('submissionNumber')
   return missing
 }
 

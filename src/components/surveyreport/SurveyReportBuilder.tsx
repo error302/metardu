@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
+import { buildSubmissionNumber, normaliseRegistrationNo, validateSubmissionNumber } from '@/lib/submission/format'
+import { PHASE13_DEMO_PROJECTS } from '@/lib/standards/rdm11'
 import type { 
   SurveyReportInput, 
   SectionContent, 
@@ -163,6 +165,62 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
     setIsDirty(true)
   }
 
+  const loadDemoSurveyReport = () => {
+    const demo = PHASE13_DEMO_PROJECTS.topographicRoad
+    const today = new Date().toISOString().slice(0, 10)
+
+    setReportInput(prev => ({
+      ...prev,
+      reportTitle: `${demo.projectName} - Topographic Survey Report`,
+      reportNumber: 'MET-RPT-2026-002',
+      submissionNumber: demo.submissionNo,
+      revisionNumber: 'R00',
+      clientName: demo.clientName,
+      clientAddress: 'P.O. Box 1996-90100, Machakos, Kenya',
+      firmName: 'METARDU Survey Consultants Ltd',
+      firmAddress: 'Westlands, Nairobi, Kenya',
+      firmIskNumber: demo.iskNo,
+      surveyorName: demo.surveyorName,
+      surveyorRegistrationNumber: demo.regNo,
+      surveyorIskNumber: demo.iskNo,
+      reportDate: today,
+      projectLocation: demo.location,
+      county: demo.county,
+      projectPurpose: 'Topographic survey for junction improvement design, drainage review, land acquisition checks, and construction setting-out control.',
+      siteDescription: 'Urban road corridor with paved carriageway, gravel shoulders, open drains, utility crossings, boundary walls, shops, and intermittent vegetation.',
+      surveyPeriodStart: today,
+      surveyPeriodEnd: today,
+      scopeItems: DEFAULT_SCOPE_ITEMS,
+      equipment: [
+        { type: 'Robotic Total Station', make: 'Leica TS16 I 1"', serialNumber: 'TS16-384219', calibrationDate: '2026-03-18', calibrationCert: 'CAL/TS/2026/041' },
+        { type: 'Digital Level', make: 'Leica LS15', serialNumber: 'LS15-115087', calibrationDate: '2026-03-20', calibrationCert: 'CAL/DL/2026/044' },
+        { type: 'GNSS Rover', make: 'Leica GS18 T', serialNumber: 'GS18-771204', calibrationDate: '2026-03-16', calibrationCert: 'CAL/GNSS/2026/038' },
+      ],
+      personnel: [
+        { name: demo.surveyorName, role: 'Registered Surveyor / Team Lead', qualification: 'Licensed Surveyor, ISK Member' },
+        { name: 'Brian M. Kariuki', role: 'Instrument Operator', qualification: 'Diploma in Land Survey' },
+        { name: 'Mercy N. Wambui', role: 'Chainperson / Recorder', qualification: 'Survey Technician' },
+      ],
+      datum: 'ARC1960',
+      projection: 'UTM Zone 37S',
+      surveyMethod: 'COMBINED',
+      instrumentUsed: demo.instrument,
+      pointDensity: 'Spot levels at 10 m to 20 m intervals, with denser capture at drainage and paved edges',
+      areaHectares: 4.8,
+      traverseAccuracy: '1:18,600',
+      levellingMisclosure: '+4.0 mm over 1.20 km (allowable 10.95 mm)',
+      conclusions: [
+        'The survey control, levelling, and topographic pickup meet RDM 1.1 accuracy requirements for detailed road design.',
+        'Paved edge, drainage, structure, and utility observations were captured to RDM 1.1 Table 5.2 tolerances.',
+      ],
+      recommendations: [
+        'Maintain the listed control marks for construction setting-out and independent design verification.',
+        'Carry out a control re-check before construction works begin if marks are disturbed by traffic management or utility relocation.',
+      ],
+    }))
+    setIsDirty(true)
+  }
+
   const exportReport = async (format: 'pdf' | 'docx') => {
     if (!reportId) {
       await saveReport()
@@ -248,6 +306,14 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
       case 'TITLE_PAGE':
         return (
           <div className="space-y-4">
+            <div className="flex justify-end">
+              <button
+                onClick={loadDemoSurveyReport}
+                className="px-3 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs font-medium"
+              >
+                Load Realistic Road Survey Demo
+              </button>
+            </div>
             <div>
               <label className="block text-sm font-medium mb-1">Report Title</label>
               <input
@@ -277,6 +343,37 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
                   className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Submission Number (SRVY2025-1)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={reportInput.submissionNumber || ''}
+                  onChange={e => updateInput('submissionNumber', e.target.value.toUpperCase())}
+                  className={`flex-1 px-3 py-2 bg-[var(--bg-tertiary)] border rounded-lg text-sm font-mono ${
+                    reportInput.submissionNumber && !validateSubmissionNumber(reportInput.submissionNumber)
+                      ? 'border-red-500'
+                      : 'border-[var(--border-color)]'
+                  }`}
+                  placeholder="RS149_2026_001_R00"
+                />
+                <button
+                  onClick={() => {
+                    const reg = normaliseRegistrationNo(reportInput.surveyorRegistrationNumber || 'RS149')
+                    updateInput('submissionNumber', buildSubmissionNumber({
+                      registrationNo: reg,
+                      year: new Date().getFullYear(),
+                      sequence: 1,
+                      revision: 0,
+                    }))
+                  }}
+                  className="px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs"
+                >
+                  Generate
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Format: registration_year_sequence_revision, e.g. RS149_2026_002_R00.</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -346,6 +443,16 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
                   className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Surveyor Registration Number</label>
+              <input
+                type="text"
+                value={reportInput.surveyorRegistrationNumber || ''}
+                onChange={e => updateInput('surveyorRegistrationNumber', normaliseRegistrationNo(e.target.value))}
+                className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm font-mono"
+                placeholder="RS149"
+              />
             </div>
           </div>
         )

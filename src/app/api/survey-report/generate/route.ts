@@ -3,6 +3,7 @@ import { createClient } from '@/lib/api-client/client'
 import { generateAllSections } from '@/lib/compute/surveyReportSections'
 import { computeReportCompleteness } from '@/lib/compute/reportCompleteness'
 import { riseAndFall } from '@/lib/engine/leveling'
+import { buildSubmissionNumber, normaliseRegistrationNo, validateSubmissionNumber } from '@/lib/submission/format'
 import type { SurveyReportInput, SectionContent, ControlPoint, LevellingRun } from '@/types/surveyReport'
 
 export async function POST(request: Request) {
@@ -90,6 +91,13 @@ export async function POST(request: Request) {
       // No traverse data yet
     }
 
+    const registrationNo = normaliseRegistrationNo(
+      input.surveyorRegistrationNumber || project.surveyor_registration_number || ''
+    )
+    const fallbackSubmissionNo = registrationNo
+      ? buildSubmissionNumber({ registrationNo, year: new Date().getFullYear(), sequence: 1, revision: 0 })
+      : ''
+
     const defaultInput: SurveyReportInput = {
       projectId,
       reportTitle: input.reportTitle || `${project.name} — Survey Report`,
@@ -101,8 +109,12 @@ export async function POST(request: Request) {
       firmAddress: input.firmAddress || '',
       firmIskNumber: input.firmIskNumber || '',
       surveyorName: input.surveyorName || project.surveyor_name || '',
+      surveyorRegistrationNumber: registrationNo,
       surveyorIskNumber: input.surveyorIskNumber || '',
       reportDate: input.reportDate || new Date().toISOString().split('T')[0],
+      submissionNumber: validateSubmissionNumber(input.submissionNumber)
+        ? input.submissionNumber
+        : (project.submission_number || fallbackSubmissionNo),
       projectLocation: input.projectLocation || project.location || '',
       county: input.county || '',
       projectPurpose: input.projectPurpose || '',

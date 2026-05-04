@@ -5,6 +5,7 @@ import type {
   LevellingRun,
   ReportSection
 } from '@/types/surveyReport'
+import { RDM_DETAIL_TOLERANCES } from '@/lib/standards/rdm11'
 
 const SECTION_TITLES: Record<ReportSection, { number: number; title: string }> = {
   TITLE_PAGE: { number: 1, title: 'Title Page' },
@@ -71,7 +72,14 @@ export function generateTitlePage(input: SurveyReportInput): SectionContent {
       <div style="margin-bottom: 30px;">
         <h2 style="font-size: 14pt; margin-bottom: 10px;">Surveyor</h2>
         <p>${input.surveyorName}</p>
+        ${input.surveyorRegistrationNumber ? `<p>Registration No: ${input.surveyorRegistrationNumber}</p>` : ''}
         <p>ISK No: ${input.surveyorIskNumber}</p>
+      </div>
+
+      <div style="margin-bottom: 30px;">
+        <h2 style="font-size: 14pt; margin-bottom: 10px;">Submission Reference</h2>
+        <p style="font-family: 'Courier New', monospace; font-weight: bold;">${input.submissionNumber || '[SRVY2025-1 submission number required]'}</p>
+        <p style="font-size: 9pt; color: #555;">Format: [SurveyorRegistrationNo]_[YYYY]_[###]_[R##]</p>
       </div>
       
       <div style="margin-bottom: 30px;">
@@ -97,6 +105,27 @@ export function generateTitlePage(input: SurveyReportInput): SectionContent {
         <p style="font-style: italic;">
           This report has been prepared in accordance with Kenya Roads Design Manual Part 1 (RDM 1.1) Table 5.4 requirements.
         </p>
+      </div>
+
+      <div style="margin-top: 25px; padding: 15px; border: 1px solid #000;">
+        <h2 style="font-size: 12pt; margin-bottom: 8px;">Registered Surveyor's Declaration</h2>
+        <p style="font-size: 10pt; line-height: 1.5;">
+          I certify that this survey report, the accompanying computations, and the submitted spatial data
+          were prepared under my supervision in accordance with the Survey Act (Cap. 299), the Survey
+          Regulations 1994, RDM 1.1 (2025), and SRVY2025-1 submission requirements.
+        </p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 18px;">
+          <tr>
+            <td style="border-bottom: 1px solid #000; padding: 14px 5px 3px;">${input.surveyorName || ''}</td>
+            <td style="border-bottom: 1px solid #000; padding: 14px 5px 3px;">${input.surveyorRegistrationNumber || ''}</td>
+            <td style="border-bottom: 1px solid #000; padding: 14px 5px 3px;"></td>
+          </tr>
+          <tr>
+            <td style="font-size: 8pt; padding: 3px 5px;">Name</td>
+            <td style="font-size: 8pt; padding: 3px 5px;">Registration No.</td>
+            <td style="font-size: 8pt; padding: 3px 5px;">Signature and Date</td>
+          </tr>
+        </table>
       </div>
     </div>
   `
@@ -377,6 +406,24 @@ export function generateResultsAndAccuracy(
     <h3>9.2 Levelling Accuracy</h3>
     <p>Levelling allowable misclosure: 10√K mm per RDM 1.1 Table 5.1</p>
     ${input.levellingMisclosure ? `<p>Achieved: ${input.levellingMisclosure}</p>` : ''}
+
+    <h3>9.3 Detailed Survey Tolerances - RDM 1.1 Table 5.2</h3>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+      <tr style="background: #eee;">
+        <th style="border: 1px solid #000; padding: 5px;">Feature Class</th>
+        <th style="border: 1px solid #000; padding: 5px;">XY Tolerance</th>
+        <th style="border: 1px solid #000; padding: 5px;">Z Tolerance</th>
+        <th style="border: 1px solid #000; padding: 5px;">Field Application</th>
+      </tr>
+      ${RDM_DETAIL_TOLERANCES.map(t => `
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px;">${t.feature}</td>
+          <td style="border: 1px solid #000; padding: 5px;">${t.xy}</td>
+          <td style="border: 1px solid #000; padding: 5px;">${t.z}</td>
+          <td style="border: 1px solid #000; padding: 5px;">${t.fieldUse}</td>
+        </tr>
+      `).join('')}
+    </table>
   `
   
   return createSection('RESULTS_AND_ACCURACY', content, !!traversePrecision || !!input.traverseAccuracy)
@@ -588,6 +635,7 @@ export function generateConclusions(input: SurveyReportInput): SectionContent {
         Kenya Survey Act Cap 299, Survey Regulations 1994, and Kenya Roads Design
         Manual Part 1 (RDM 1.1). The survey data is fit for the intended purpose.
       </p>
+      ${input.submissionNumber ? `<p style="margin-top: 8px; font-family: 'Courier New', monospace;">Submission Ref: ${input.submissionNumber}</p>` : ''}
     </div>
   `
   
