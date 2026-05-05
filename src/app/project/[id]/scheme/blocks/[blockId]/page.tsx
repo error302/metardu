@@ -8,6 +8,7 @@ import {
   AlertCircle, Loader2, ChevronRight, Hash, MapPin
 } from 'lucide-react'
 import { PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS, type ParcelStatus } from '@/types/scheme'
+import TraverseComputePanel from '@/components/scheme/TraverseComputePanel'
 
 interface ParcelRow {
   id: number
@@ -56,6 +57,7 @@ export default function BlockDetailPage() {
   })
   const [updating, setUpdating] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [selectedParcelId, setSelectedParcelId] = useState<number | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -241,6 +243,11 @@ export default function BlockDetailPage() {
             Add Parcel
           </button>
         </div>
+        {selectedParcelId && (
+          <div className="mt-4">
+            <TraverseComputePanel parcelId={selectedParcelId} />
+          </div>
+        )}
 
         {/* Error Banner */}
         {error && (
@@ -431,6 +438,13 @@ export default function BlockDetailPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-1">
+                              <button
+                                onClick={() => setSelectedParcelId(parcel.id)}
+                                className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--accent)]"
+                                title="Compute Traverse"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
                               <button
                                 onClick={() => startEdit(parcel)}
                                 className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
