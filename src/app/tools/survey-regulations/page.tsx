@@ -13,12 +13,13 @@ import {
 
 export default function SurveyRegulationsPage() {
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] p-8">
-      <div className="max-w-5xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div>
         <div className="mb-8">
-          <h1 className="text-2xl font-bold">Kenya Survey Standards Reference</h1>
-          <p className="text-[var(--text-muted)] mt-1">
-            Kenya Survey Regulations 1994 (Legal Notice 168), RDM 1.1, Cadastral Survey Standards
+          <h1 className="text-3xl font-bold mb-1">Kenya Survey Standards Reference</h1>
+          <p className="text-sm text-[var(--text-muted)] mb-1">Permitted errors, datums, UTM zones, traverse and levelling accuracy standards, and survey marks</p>
+          <p className="text-xs text-[var(--text-muted)] font-mono">
+            Survey Regulations 1994 (L.N. 168) &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; RDM 1.1 (2025)
           </p>
         </div>
 

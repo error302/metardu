@@ -65,6 +65,7 @@ export function renderDeedPlanSVG(
   })
 
   const areaHa = input.area / 10000
+  const precisionRatio = closureCheck.precisionRatio.replace('∞', '&#8734;')
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}" width="${VIEWBOX_WIDTH}" height="${VIEWBOX_HEIGHT}">
@@ -128,7 +129,7 @@ export function renderDeedPlanSVG(
   <text x="${PANEL_X + 10}" y="120" class="body-text">Reg. Section: ${input.registrationSection}</text>
   <text x="${PANEL_X + 10}" y="132" class="body-text">Locality: ${input.locality}</text>
   <text x="${PANEL_X + 10}" y="144" class="body-text">County: ${input.county}</text>
-  <text x="${PANEL_X + 10}" y="156" class="body-text">Area: ${input.area.toFixed(4)} m²</text>
+  <text x="${PANEL_X + 10}" y="156" class="body-text">Area: ${input.area.toFixed(4)} m&#178;</text>
   <text x="${PANEL_X + 10}" y="168" class="body-text">Area: ${areaHa.toFixed(6)} ha</text>
   <text x="${PANEL_X + 10}" y="180" class="body-text">Datum: ${input.datum} (Zone ${utmZone}${hemisphere})</text>
   <line x1="${PANEL_X + 10}" y1="188" x2="${VIEWBOX_WIDTH - 10}" y2="188" stroke="black" stroke-width="0.5"/>
@@ -176,7 +177,7 @@ export function renderDeedPlanSVG(
   
   <!-- Closure Check Badge -->
   <rect x="${PANEL_X + 10}" y="440" width="60" height="18" fill="${closureCheck.passes ? '#22C55E' : '#EF4444'}" stroke="black" stroke-width="0.3" rx="2"/>
-  <text x="${PANEL_X + 40}" y="453" font-size="5" fill="white" text-anchor="middle">${closureCheck.precisionRatio}</text>
+  <text x="${PANEL_X + 40}" y="453" font-size="5" fill="white" text-anchor="middle">${precisionRatio}</text>
 </svg>`
 }
 

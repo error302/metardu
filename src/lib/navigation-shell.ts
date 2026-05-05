@@ -16,6 +16,7 @@ export const PUBLIC_SHELL_LINKS: PrimaryNavItem[] = [
   { href: '/tools', label: 'Tools' },
   { href: '/guide', label: 'Guide' },
   { href: '/online', label: 'Online' },
+  { href: '/map', label: 'Map', icon: 'map' },
   { href: '/community', label: 'Community' },
   { href: '/docs', label: 'Docs' },
 ]

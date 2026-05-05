@@ -7,6 +7,8 @@ import { parseTraverseCSV } from '@/lib/parsers/totalStation'
 import { bearingToString } from '@/lib/engine/angles'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 import { TraverseStationInput } from '@/types/field'
+import { printTraverseSheet, type TraverseSheetInput } from '@/lib/print/traverseSheet'
+import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
 
 interface TraverseFieldBookProps {
   projectId: string
@@ -40,6 +42,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
   const [result, setResult] = useState<TraverseComputationResult | null>(null)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'input' | 'compute' | 'print'>('input')
+  const [printMeta, setPrintMeta] = useState<PrintMeta>(defaultPrintMeta)
   const fileRef = useRef<HTMLInputElement>(null)
   
   const searchParams = useSearchParams()
@@ -154,89 +157,11 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
 
   const handlePrint = () => {
     if (!result) return
-    const r = result
-    const html = `
-<html><head><title>Traverse Computation Sheet</title>
-<style>
-  body { font-family: 'Courier New', monospace; font-size: 11px; margin: 20px; color: #000; }
-  h1 { font-size: 16px; border-bottom: 2px solid #000; padding-bottom: 4px; }
-  h2 { font-size: 13px; margin-top: 16px; border-bottom: 1px solid #ccc; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 10px; }
-  th { background: #333; color: #fff; padding: 4px 6px; text-align: left; }
-  td { padding: 4px 6px; border: 1px solid #ccc; }
-  tr:nth-child(even) { background: #f5f5f5; }
-  .header-bar { background: #333; color: #fff; padding: 8px 12px; margin-bottom: 16px; }
-  .summary { background: #f0f0f0; border: 1px solid #333; padding: 12px; margin-top: 12px; }
-  .pass { color: green; font-weight: bold; } .fail { color: red; font-weight: bold; }
-  .right { text-align: right; } .center { text-align: center; }
-  @media print { body { margin: 10px; } }
-</style></head><body>
-<div class="header-bar"><strong>METARDU</strong> — Traverse Computation Sheet | Survey Act Cap 299 | RDM 1.1 (2025)</div>
-
-<h1>Table 1 — Field Book Reduction</h1>
-<table>
-<tr><th>Station</th><th>BS</th><th>FS</th><th>HCL (DMS)</th><th>HCR (DMS)</th><th>Mean Angle</th><th>SD (m)</th><th>VA (DMS)</th><th>HD (m)</th><th>ΔH (m)</th></tr>
-${r.rawObservations.map((raw, i) => {
-  const red = r.observations[i]
-  return `<tr>
-<td>${raw.station}</td><td>${raw.bs || '—'}</td><td>${raw.fs || '—'}</td>
-<td class="center">${raw.hclDeg || '0'}° ${raw.hclMin || '0'}′ ${raw.hclSec || '0'}″</td>
-<td class="center">${raw.hcrDeg || '0'}° ${raw.hcrMin || '0'}′ ${raw.hcrSec || '0'}″</td>
-<td class="center">${red?.meanAngleDMS || '—'}</td>
-<td class="right">${raw.slopeDist}</td>
-<td class="center">${raw.vaDeg || '0'}° ${raw.vaMin || '0'}′ ${raw.vaSec || '0'}″</td>
-<td class="right">${red?.horizontalDist.toFixed(3) || '—'}</td>
-<td class="right">${red?.deltaH.toFixed(3) || '—'}</td>
-</tr>`}).join('\n')}
-</table>
-
-<h1>Table 2 — Traverse Computation</h1>
-<table>
-<tr><th>Line</th><th>WCB</th><th>SD (m)</th><th>HD (m)</th><th>Departure</th><th>Latitude</th><th>Dep Corr.</th><th>Lat Corr.</th><th>Adj Dep</th><th>Adj Lat</th></tr>
-${r.legs.map((l: any) => `<tr>
-<td>${l.from} → ${l.to}</td>
-<td class="center">${l.wcbDMS}</td>
-<td class="right">${l.sd.toFixed(3)}</td>
-<td class="right">${l.hd.toFixed(3)}</td>
-<td class="right">${l.departure >= 0 ? '+' : ''}${l.departure.toFixed(4)}</td>
-<td class="right">${l.latitude >= 0 ? '+' : ''}${l.latitude.toFixed(4)}</td>
-<td class="right">${l.depCorrection >= 0 ? '+' : ''}${l.depCorrection.toFixed(4)}</td>
-<td class="right">${l.latCorrection >= 0 ? '+' : ''}${l.latCorrection.toFixed(4)}</td>
-<td class="right">${l.adjDep >= 0 ? '+' : ''}${l.adjDep.toFixed(4)}</td>
-<td class="right">${l.adjLat >= 0 ? '+' : ''}${l.adjLat.toFixed(4)}</td>
-</tr>`).join('\n')}
-<tr style="background:#ddd;font-weight:bold">
-<td>Σ</td><td></td><td class="right">${r.totalPerimeter.toFixed(3)}</td><td></td>
-<td class="right">${r.sumDepartures >= 0 ? '+' : ''}${r.sumDepartures.toFixed(4)}</td>
-<td class="right">${r.sumLatitudes >= 0 ? '+' : ''}${r.sumLatitudes.toFixed(4)}</td>
-<td></td><td></td><td></td><td></td>
-</tr>
-</table>
-
-<h1>Table 3 — Adjusted Coordinate List</h1>
-<table>
-<tr><th>Point</th><th>Easting (m)</th><th>Northing (m)</th><th>RL (m)</th></tr>
-${r.coordinates.map((c: any) => `<tr>
-<td>${c.station}</td><td class="right">${c.easting.toFixed(4)}</td><td class="right">${c.northing.toFixed(4)}</td><td class="right">${c.rl?.toFixed(3) ?? '—'}</td>
-</tr>`).join('\n')}
-</table>
-
-<div class="summary">
-<h2>Summary</h2>
-<p><strong>Total Perimeter:</strong> ${r.totalPerimeter.toFixed(3)} m</p>
-<p><strong>Sum of Departures:</strong> ${r.sumDepartures >= 0 ? '+' : ''}${r.sumDepartures.toFixed(4)} m</p>
-<p><strong>Sum of Latitudes:</strong> ${r.sumLatitudes >= 0 ? '+' : ''}${r.sumLatitudes.toFixed(4)} m</p>
-<p><strong>Linear Misclosure:</strong> ${r.linearError.toFixed(4)} m</p>
-<p><strong>Precision Ratio:</strong> 1 : ${r.precisionRatio > 0 ? Math.round(r.precisionRatio).toLocaleString() : '—'}</p>
-<p><strong>Accuracy Order (RDM 1.1):</strong> <span class="${r.C_mm <= r.allowable ? 'pass' : 'fail'}">${r.accuracyOrder}</span></p>
-<p><strong>Formula:</strong> ${r.formula}</p>
-</div>
-
-<div style="margin-top:20px;font-size:9px;color:#666;text-align:center">
-Computed using METARDU | Survey Act Cap 299 | RDM 1.1 (2025) | Generated ${new Date().toLocaleDateString('en-GB')}
-</div>
-</body></html>`
-    openPrint(html, 'Traverse Computation Sheet')
+    const inp: TraverseSheetInput = {
+      result,
+      meta: { ...printMeta, title: 'Traverse Computation Sheet' }
+    }
+    printTraverseSheet(inp)
   }
 
   const handlePrintDeed = () => {
@@ -554,25 +479,45 @@ Computed using METARDU | Survey Act Cap 299 | RDM 1.1 (2025) | Generated ${new D
               className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm">
               ← Back to Input
             </button>
-            <div className="flex gap-2 no-print print-hide">
-              <PrintButton
-                print={print}
-                isPrinting={isPrinting}
-                paperSize={paperSize}
-                setPaperSize={setPaperSize}
-                orientation={orientation}
-                setOrientation={setOrientation}
-                printTitle="Traverse Field Book"
-              />
-              <button onClick={handlePrint}
-                className="px-5 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] font-semibold rounded text-sm border border-[var(--border-color)]">
-                Print Raw Comp Sheet
-              </button>
-              <button onClick={handlePrintDeed}
-                className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm shadow-lg">
-                Print Surveyor's Report
-              </button>
+            <button onClick={() => setActiveTab('print')}
+              className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm">
+              Print Options →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'print' && (
+        <div className="space-y-4">
+          {!result && (
+            <div className="p-4 bg-amber-900/20 border border-amber-700 rounded text-amber-300 text-sm">
+              Compute the traverse first (Field Book tab) before printing.
             </div>
+          )}
+
+          <PrintMetaPanel meta={printMeta} onChange={setPrintMeta} />
+
+          <div className="p-4 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border-color)] text-sm space-y-1.5">
+            <p className="font-semibold text-[var(--text-primary)]">Print Options:</p>
+            <ul className="text-[var(--text-muted)] text-xs space-y-0.5 list-disc list-inside">
+              <li><strong>Traverse Computation Sheet:</strong> Standard formal computation sheet with raw observations, Bowditch adjustment, and final coordinates. Includes Surveyor's Certificate block.</li>
+              <li><strong>Final Surveyor's Report:</strong> Simple format for subdivision approvals containing only the final coordinate list and area computation.</li>
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={handlePrint}
+              disabled={!result}
+              className="w-full py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded text-sm shadow-sm">
+              Print Traverse Computation Sheet
+            </button>
+            <button
+              onClick={handlePrintDeed}
+              disabled={!result}
+              className="w-full py-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--text-primary)] font-semibold rounded text-sm border border-[var(--border-color)]">
+              Print Final Surveyor's Report
+            </button>
           </div>
         </div>
       )}

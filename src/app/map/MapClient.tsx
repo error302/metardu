@@ -7,7 +7,7 @@ import {
   TrashIcon, BoltIcon, CompassIcon, RulerIcon,
   LayersIcon, EditIcon, UndoIcon, RedoIcon,
   TargetIcon, DownloadIcon, ChevronLeftIcon, ChevronRightIcon,
-  XIcon, SearchIcon, LocationDotIcon,
+  SearchIcon, LocationDotIcon,
   MoonIcon, TerrainIcon, GridIcon, OpacityIcon,
 } from '@/components/map/PremiumIcons'
 
@@ -126,7 +126,6 @@ export default function MapClient() {
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
   const [measureMode, setMeasureMode] = useState<MeasureMode>('none')
   const [editMode, setEditMode] = useState(false)
-  const [popup, setPopup] = useState<PopupData | null>(null)
   const [mouseCoord, setMouseCoord] = useState<{ lon: number; lat: number; e: number; n: number } | null>(null)
   const [gpsTracking, setGpsTracking] = useState(false)
   const [gpsPos, setGpsPos] = useState<{ lon: number; lat: number; accuracy: number } | null>(null)
@@ -408,12 +407,86 @@ export default function MapClient() {
         }
 
         // ── Popup overlay ──
+        // OpenLayers moves overlay elements into its own overlay container. Keep
+        // this node outside React's rendered tree so React never reconciles a
+        // DOM node after OpenLayers has reparented it.
+        const popupElement = document.createElement('div')
+        popupElement.className = 'hidden'
+        popupRef.current = popupElement
+
         const popupOverlay = new Overlay({
-          element: popupRef.current!,
+          element: popupElement,
           autoPan: { animation: { duration: 250 } },
           positioning: 'bottom-center',
           offset: [0, -10],
         })
+
+        const hidePopup = () => {
+          popupOverlay.setPosition(undefined)
+          popupElement.className = 'hidden'
+          popupElement.replaceChildren()
+          setSelectedFeature(null)
+          selectInteractionRef.current?.getFeatures()?.clear()
+        }
+
+        const renderPopup = (data: PopupData) => {
+          popupElement.replaceChildren()
+          popupElement.className = ''
+
+          const card = document.createElement('div')
+          card.className = 'bg-[#14141e]/95 border border-[#E8841A]/30 rounded-xl shadow-2xl backdrop-blur-xl p-4 min-w-[220px] max-w-[320px]'
+
+          const header = document.createElement('div')
+          header.className = 'flex items-start justify-between mb-2'
+
+          const labelWrap = document.createElement('div')
+          labelWrap.className = 'flex items-center gap-2'
+          const dot = document.createElement('div')
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-[#E8841A]'
+          const label = document.createElement('span')
+          label.className = 'text-[10px] text-gray-500 uppercase tracking-[0.15em] font-semibold'
+          label.textContent = data.geometryType || 'Feature'
+          labelWrap.append(dot, label)
+
+          const closeButton = document.createElement('button')
+          closeButton.type = 'button'
+          closeButton.className = 'text-gray-600 hover:text-white transition-colors p-0.5'
+          closeButton.textContent = 'x'
+          closeButton.addEventListener('click', hidePopup)
+          header.append(labelWrap, closeButton)
+          card.append(header)
+
+          if (data.projectName) {
+            const project = document.createElement('div')
+            project.className = 'mb-1'
+            project.innerHTML = '<span class="text-[10px] text-gray-600 uppercase tracking-wider">Project</span>'
+            const value = document.createElement('p')
+            value.className = 'text-sm font-semibold text-white'
+            value.textContent = data.projectName
+            project.append(value)
+            card.append(project)
+          }
+
+          if (data.stationName) {
+            const station = document.createElement('div')
+            station.className = 'mb-1'
+            station.innerHTML = '<span class="text-[10px] text-gray-600 uppercase tracking-wider">Station</span>'
+            const value = document.createElement('p')
+            value.className = 'text-sm text-[#E8841A]'
+            value.textContent = data.stationName
+            station.append(value)
+            card.append(station)
+          }
+
+          if (data.easting) {
+            const coords = document.createElement('div')
+            coords.className = 'text-[11px] text-gray-400 font-mono mt-2'
+            coords.textContent = `E: ${data.easting} | N: ${data.northing}`
+            card.append(coords)
+          }
+
+          popupElement.append(card)
+        }
 
         // ── Create the map ──
         map = new Map({
@@ -478,7 +551,6 @@ export default function MapClient() {
             if (clusterFeatures && clusterFeatures.length > 1) {
               const extent = feature.getGeometry()?.getExtent()
               if (extent) map.getView().fit(extent, { padding: [100, 100, 100, 100], duration: 500, maxZoom: 15 })
-              setPopup(null)
               return
             }
 
@@ -488,15 +560,17 @@ export default function MapClient() {
             setSelectedFeature(feature)
             setFeatureName(stationName || projectName || geomType)
 
-            setPopup({
+            const popupData: PopupData = {
               coordinate: coord,
               projectName: projectName || undefined,
               stationName: stationName || undefined,
               geometryType: geomType,
-            })
+            }
+            renderPopup(popupData)
             if (coord) popupOverlay.setPosition(coord)
           } else {
-            setPopup(null)
+            popupElement.className = 'hidden'
+            popupElement.replaceChildren()
             popupOverlay.setPosition(undefined)
             setSelectedFeature(null)
           }
@@ -719,7 +793,6 @@ export default function MapClient() {
     const features = selectInteractionRef.current.getFeatures().getArray()
     features.forEach((f: any) => drawSourceRef.current.removeFeature(f))
     selectInteractionRef.current.getFeatures().clear()
-    setPopup(null)
     setSelectedFeature(null)
     pushHistory()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -951,7 +1024,6 @@ export default function MapClient() {
       setFeatureCount(0)
     }
     if (measureSourceRef.current) measureSourceRef.current.clear()
-    setPopup(null)
     setSelectedFeature(null)
     if (popupRef.current && mapInstance.current) {
       mapInstance.current.getOverlays().forEach((o: any) => o.setPosition(undefined))
@@ -1074,18 +1146,6 @@ export default function MapClient() {
   }, [])
 
   // ══════════════════════════════════════════════════════════════════
-  //  CLOSE POPUP
-  // ══════════════════════════════════════════════════════════════════
-  const closePopup = useCallback(() => {
-    setPopup(null)
-    setSelectedFeature(null)
-    if (mapInstance.current) {
-      mapInstance.current.getOverlays().forEach((o: any) => o.setPosition(undefined))
-      selectInteractionRef.current?.getFeatures()?.clear()
-    }
-  }, [])
-
-  // ══════════════════════════════════════════════════════════════════
   //  SECTION HELPER
   // ══════════════════════════════════════════════════════════════════
   const sectionHeader = (label: string) => (
@@ -1192,40 +1252,6 @@ export default function MapClient() {
             )}
           </>
         )}
-
-        {/* Popup overlay element */}
-        <div ref={popupRef} className="hidden">
-          {popup && (
-            <div className="bg-[#14141e]/95 border border-[#E8841A]/30 rounded-xl shadow-2xl backdrop-blur-xl p-4 min-w-[220px] max-w-[320px]">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#E8841A]" />
-                  <span className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-semibold">{popup.geometryType}</span>
-                </div>
-                <button onClick={closePopup} className="text-gray-600 hover:text-white transition-colors p-0.5">
-                  <XIcon className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              {popup.projectName && (
-                <div className="mb-1">
-                  <span className="text-[10px] text-gray-600 uppercase tracking-wider">Project</span>
-                  <p className="text-sm font-semibold text-white">{popup.projectName}</p>
-                </div>
-              )}
-              {popup.stationName && (
-                <div className="mb-1">
-                  <span className="text-[10px] text-gray-600 uppercase tracking-wider">Station</span>
-                  <p className="text-sm text-[#E8841A]">{popup.stationName}</p>
-                </div>
-              )}
-              {popup.easting && (
-                <div className="text-[11px] text-gray-400 font-mono mt-2">
-                  E: {popup.easting} | N: {popup.northing}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
         {/* Loading overlay */}
         {!mapReady && !initError && (

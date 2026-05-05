@@ -27,7 +27,7 @@ export default function SettingOutTable({ result }: Props) {
         <table className="w-full text-xs font-mono border-collapse">
           <thead>
             <tr className="bg-[var(--bg-tertiary)]">
-              {['Point', 'Design E', 'Design N', 'Design RL', 'Hz Angle', 'HD (m)', 'VA', 'SD (m)', 'TH (m)'].map((h: any) => (
+              {['Point', 'Design E', 'Design N', 'Design RL', 'Hz Angle', 'HD (m)', 'VD (m)', 'VA', 'SD (m)', 'TH (m)'].map((h: any) => (
                 <th key={h} className="px-3 py-2 text-left border border-[var(--border-color)] text-[var(--text-muted)] font-medium">{h}</th>
               ))}
             </tr>
@@ -39,8 +39,9 @@ export default function SettingOutTable({ result }: Props) {
                 <td className="px-3 py-2 text-[var(--text-primary)] text-right">{row.designE.toFixed(3)}</td>
                 <td className="px-3 py-2 text-[var(--text-primary)] text-right">{row.designN.toFixed(3)}</td>
                 <td className="px-3 py-2 text-[var(--text-primary)] text-right">{row.designRL.toFixed(3)}</td>
-                <td className="px-3 py-2 text-[var(--text-primary)] text-right">{row.HzAngle}"</td>
+                <td className="px-3 py-2 text-[var(--text-primary)] text-right">{row.HzAngle}</td>
                 <td className="px-3 py-2 text-[var(--text-primary)] text-right">{row.HD.toFixed(3)}</td>
+                <td className="px-3 py-2 text-[var(--text-primary)] text-right">{row.heightDiff.toFixed(3)}</td>
                 <td className="px-3 py-2 text-[var(--text-primary)] text-right">{row.VA}</td>
                 <td className="px-3 py-2 text-[var(--text-primary)] text-right">{row.SD.toFixed(3)}</td>
                 <td className="px-3 py-2 text-[var(--text-secondary)] text-right">{row.TH.toFixed(3)}</td>

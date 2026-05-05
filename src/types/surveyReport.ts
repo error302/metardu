@@ -13,6 +13,7 @@ export type ReportSection =
   | 'TRAVERSE_COMPUTATIONS'
   | 'LEVELLING_COMPUTATIONS'
   | 'CONCLUSIONS_AND_RECOMMENDATIONS'
+  | 'DECLARATION'
 
 export interface SurveyReportInput {
   projectId: string
@@ -66,6 +67,9 @@ export interface SurveyReportInput {
 
   conclusions: string[]
   recommendations: string[]
+
+  /** Surveyor's Declaration Statement — Survey Regulations 1994, Reg. 3(2) */
+  declarationStatement?: string
 }
 
 export interface EquipmentItem {

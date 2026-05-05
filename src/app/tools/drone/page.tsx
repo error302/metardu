@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { printDroneReport, type DroneReportInput } from '@/lib/print/droneReportPrint';
+import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel';
 
 interface GCPPoint {
   id: number;
@@ -47,6 +49,8 @@ function calculateRMSE(errors: number[]): number {
 
 export default function DroneSurveyPage() {
   const [activeTab, setActiveTab] = useState<'planning' | 'settingout' | 'accuracy' | 'report'>('planning');
+  const [printMeta, setPrintMeta] = useState<PrintMeta>(defaultPrintMeta);
+  const [flightParams, setFlightParams] = useState({ height: '', gsd: '', overlapFront: '', overlapSide: '' });
 
   const [surveyArea, setSurveyArea] = useState({
     minE: '484500',
@@ -184,6 +188,17 @@ export default function DroneSurveyPage() {
       verticalPass,
       pass: horizontalPass && verticalPass,
     });
+  };
+
+  const handlePrint = () => {
+    const inp: DroneReportInput = {
+      gcps,
+      accuracyResults,
+      selectedClass,
+      flightParams,
+      meta: { ...printMeta, title: 'Drone Survey Report' }
+    };
+    printDroneReport(inp);
   };
 
   return (
@@ -596,24 +611,28 @@ export default function DroneSurveyPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <label className="block text-[var(--text-secondary)] mb-1">Flying Height (m)</label>
-                    <input className="input" type="number" placeholder="120" />
+                    <input className="input" type="number" placeholder="120" value={flightParams.height} onChange={e => setFlightParams({...flightParams, height: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-[var(--text-secondary)] mb-1">GSD (cm/px)</label>
-                    <input className="input" type="number" placeholder="3.0" />
+                    <input className="input" type="number" placeholder="3.0" value={flightParams.gsd} onChange={e => setFlightParams({...flightParams, gsd: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-[var(--text-secondary)] mb-1">Overlap Front (%)</label>
-                    <input className="input" type="number" placeholder="80" />
+                    <input className="input" type="number" placeholder="80" value={flightParams.overlapFront} onChange={e => setFlightParams({...flightParams, overlapFront: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-[var(--text-secondary)] mb-1">Overlap Side (%)</label>
-                    <input className="input" type="number" placeholder="70" />
+                    <input className="input" type="number" placeholder="70" value={flightParams.overlapSide} onChange={e => setFlightParams({...flightParams, overlapSide: e.target.value})} />
                   </div>
                 </div>
               </div>
 
-              <button className="btn btn-primary w-full">Generate PDF Report</button>
+              <div className="p-4 bg-[var(--bg-tertiary)] rounded border border-[var(--border-color)]">
+                <PrintMetaPanel meta={printMeta} onChange={setPrintMeta} />
+              </div>
+
+              <button onClick={handlePrint} className="btn btn-primary w-full py-3 text-base shadow-lg">Generate PDF Report</button>
             </div>
           </div>
         </div>

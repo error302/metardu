@@ -1,0 +1,25 @@
+﻿{
+    "formType":  "cla_form_1",
+    "data":  {
+                 "declarationName":  "Samuel K. Muriithi",
+                 "communityName":  "Kaputiei North Community Land Group",
+                 "parcelNumber":  "Kajiado/Kaputiei North/18462",
+                 "clanName":  "Not applicable",
+                 "declarationIdNumber":  "SIMULATED-ID-002",
+                 "idNumber":  "SIMULATED-ID-001",
+                 "landAreaUnit":  "Hectares",
+                 "dateOfApplication":  "04/05/2026",
+                 "phoneNumber":  "+254700000000",
+                 "numberOfMembers":  "128",
+                 "subCounty":  "Isinya",
+                 "ethnicCommunity":  "Multi-community residents association",
+                 "applicantName":  "Kaputiei Holdings Ltd Representative",
+                 "county":  "Kajiado",
+                 "email":  "qa@example.invalid",
+                 "landArea":  "93.81",
+                 "landUse":  "Agricultural / settlement",
+                 "applicationNumber":  "CLA-KJD-2026-014",
+                 "ward":  "Kitengela",
+                 "declarationDate":  "04/05/2026"
+             }
+}

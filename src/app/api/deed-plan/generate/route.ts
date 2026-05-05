@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const area = computeArea(input.boundaryPoints)
     const closureCheck = computeClosureCheck(input.boundaryPoints)
 
-    const svg = renderDeedPlanSVG(input, bearingSchedule, closureCheck)
+    const svg = renderDeedPlanSVG({ ...input, area }, bearingSchedule, closureCheck)
 
     const output: DeedPlanOutput = {
       svg,

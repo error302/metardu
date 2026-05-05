@@ -5,6 +5,8 @@ import { computeCrossSection, computeEarthwork, parseEarthworkCSV, type CrossSec
 import CrossSectionDrawing from './CrossSectionDrawing'
 import EarthworkQuantitiesTable from './EarthworkQuantitiesTable'
 import MassHaulDiagram from './MassHaulDiagram'
+import { printEarthworksBoQ, type EarthworksBoQInput } from '@/lib/print/earthworksBoQ'
+import { PrintMetaPanel, type PrintMeta } from '@/components/shared/PrintMetaPanel'
 
 const DEFAULT_TEMPLATE: RoadTemplate = {
   carriagewayWidth: 7.0,
@@ -43,6 +45,11 @@ export default function EarthworksCalculator() {
   const [activeSection, setActiveSection] = useState(0)
   const [csvError, setCsvError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const [printMeta, setPrintMeta] = useState<PrintMeta>({
+    projectName: '', clientName: '', surveyorName: '', regNo: '', iskNo: '',
+    date: new Date().toISOString().split('T')[0], instrument: '', weather: '', observer: '', submissionNo: '',
+  })
+  const [roadName, setRoadName] = useState('')
 
   function chainageToNum(row: SectionRow): number {
     return (parseFloat(row.chainageKm) || 0) * 1000 + (parseFloat(row.chainageM) || 0)
@@ -70,6 +77,20 @@ export default function EarthworksCalculator() {
     const ew = computeEarthwork(computed, parseFloat(shrinkage) || 0.85)
     setComputedSections(computed)
     setEarthworkResult(ew)
+  }
+
+  function handlePrintBoQ() {
+    if (!earthworkResult || computedSections.length === 0) return
+    const inp: EarthworksBoQInput = {
+      sections: computedSections,
+      result: earthworkResult,
+      template,
+      roadName,
+      startChainage: '',
+      endChainage: '',
+      meta: { ...printMeta, title: 'Earthworks Bill of Quantities' },
+    }
+    printEarthworksBoQ(inp)
   }
 
   function addRow() {
@@ -177,6 +198,11 @@ export default function EarthworksCalculator() {
             <button onClick={compute} className="px-4 py-1.5 text-xs bg-[var(--accent)] text-white rounded font-medium hover:opacity-90">
               Compute All
             </button>
+            {earthworkResult && (
+              <button onClick={handlePrintBoQ} className="px-4 py-1.5 text-xs bg-amber-600 text-white rounded font-medium hover:bg-amber-700">
+                🖨 Print BoQ
+              </button>
+            )}
           </div>
         </div>
         {csvError && <p className="text-xs text-red-400 mb-2">{csvError}</p>}
@@ -247,6 +273,23 @@ export default function EarthworksCalculator() {
                 <p className="text-base font-mono text-[var(--text-primary)]">{value}</p>
               </div>
             ))}
+          </div>
+
+          {/* Print Header + Print BoQ */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <label className="block text-xs text-[var(--text-muted)] mb-1">Road Name / Description</label>
+                <input value={roadName} onChange={e => setRoadName(e.target.value)}
+                  className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm"
+                  placeholder="e.g. Kitengela Access Road — A104" />
+              </div>
+              <button onClick={handlePrintBoQ}
+                className="px-5 py-2 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 text-sm whitespace-nowrap mt-5">
+                🖨 Print Earthworks BoQ
+              </button>
+            </div>
+            <PrintMetaPanel meta={printMeta} onChange={setPrintMeta} />
           </div>
 
           {/* Section drawings + quantities */}

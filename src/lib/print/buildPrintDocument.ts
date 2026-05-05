@@ -32,6 +32,15 @@ export interface PrintMeta {
   submissionNo?: string
 }
 
+function esc(value: string | number | undefined | null): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export function buildPrintDocument(bodyHtml: string, meta: PrintMeta): string {
   const now = new Date().toLocaleDateString('en-KE', {
     day: '2-digit', month: 'short', year: 'numeric',
@@ -42,7 +51,7 @@ export function buildPrintDocument(bodyHtml: string, meta: PrintMeta): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${meta.title} — METARDU</title>
+<title>${esc(meta.title)} — METARDU</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -222,36 +231,36 @@ export function buildPrintDocument(bodyHtml: string, meta: PrintMeta): string {
 <div class="doc-header">
   <div class="doc-header-top">
     <span class="brand">METARDU</span>
-    <span class="doc-title">${meta.title.toUpperCase()}</span>
-    <span class="sheet-info">Sheet ${meta.sheetNo || '1'} of ${meta.totalSheets || '1'}</span>
+    <span class="doc-title">${esc(meta.title.toUpperCase())}</span>
+    <span class="sheet-info">Sheet ${esc(meta.sheetNo || '1')} of ${esc(meta.totalSheets || '1')}</span>
   </div>
   <div class="doc-header-fields">
     <div class="doc-header-field">
       <span class="field-label">Project</span>
-      <span class="field-value">${meta.projectName || '&mdash;'}</span>
+      <span class="field-value">${meta.projectName ? esc(meta.projectName) : '&mdash;'}</span>
     </div>
     <div class="doc-header-field">
       <span class="field-label">Client</span>
-      <span class="field-value">${meta.clientName || '&mdash;'}</span>
+      <span class="field-value">${meta.clientName ? esc(meta.clientName) : '&mdash;'}</span>
     </div>
     <div class="doc-header-field">
       <span class="field-label">Survey Date</span>
-      <span class="field-value">${meta.date || now}</span>
+      <span class="field-value">${esc(meta.date || now)}</span>
     </div>
     <div class="doc-header-field">
       <span class="field-label">Surveyor</span>
-      <span class="field-value">${meta.surveyorName || '&mdash;'}</span>
+      <span class="field-value">${meta.surveyorName ? esc(meta.surveyorName) : '&mdash;'}</span>
     </div>
     <div class="doc-header-field">
       <span class="field-label">Reg No / ISK No</span>
-      <span class="field-value">${meta.regNo || '&mdash;'} / ${meta.iskNo || '&mdash;'}</span>
+      <span class="field-value">${meta.regNo ? esc(meta.regNo) : '&mdash;'} / ${meta.iskNo ? esc(meta.iskNo) : '&mdash;'}</span>
     </div>
     <div class="doc-header-field">
       <span class="field-label">Instrument</span>
-      <span class="field-value">${meta.instrument || '&mdash;'}</span>
+      <span class="field-value">${meta.instrument ? esc(meta.instrument) : '&mdash;'}</span>
     </div>
   </div>
-  ${meta.submissionNo ? `<div class="doc-header-ref"><strong>Submission Ref:</strong> ${meta.submissionNo} &nbsp;|&nbsp; SRVY2025-1</div>` : ''}
+  ${meta.submissionNo ? `<div class="doc-header-ref"><strong>Submission Ref:</strong> ${esc(meta.submissionNo)} &nbsp;|&nbsp; SRVY2025-1</div>` : ''}
   <div class="doc-header-ref">${meta.reference || 'Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; RDM 1.1 (2025)'}</div>
 </div>
 

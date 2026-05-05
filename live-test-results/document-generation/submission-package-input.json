@@ -1,0 +1,97 @@
+{
+  "submissionRef": "RS087_2026_014_R00",
+  "projectId": "qa-kaputiei-4-acre",
+  "surveyor": {
+    "registrationNumber": "RS087",
+    "iskNumber": "ISK-1402",
+    "verifiedIsk": true,
+    "fullName": "Samuel K. Muriithi",
+    "firmName": "METARDU Survey Consultants Ltd",
+    "isKMemberActive": true
+  },
+  "subtype": "cadastral_subdivision",
+  "parcel": {
+    "lrNumber": "Kajiado/Kaputiei North/18462",
+    "parcelNumber": "Parcel A",
+    "county": "Kajiado",
+    "division": "Isinya",
+    "district": "Kajiado",
+    "locality": "Kitengela",
+    "areaM2": 16137.427300006151,
+    "perimeterM": 591.7592046988916,
+    "clientName": "Kaputiei Holdings Ltd"
+  },
+  "traverse": {
+    "points": [
+      {
+        "pointName": "AB1",
+        "easting": 4332.6,
+        "northing": 114190.94,
+        "adjustedEasting": 4332.6,
+        "adjustedNorthing": 114190.94,
+        "observedBearing": 275.9263257830025,
+        "observedDistance": 73.9954701316239
+      },
+      {
+        "pointName": "AB2",
+        "easting": 4259,
+        "northing": 114198.58,
+        "adjustedEasting": 4259,
+        "adjustedNorthing": 114198.58,
+        "observedBearing": 5.930907541416179,
+        "observedDistance": 203.1373491015406
+      },
+      {
+        "pointName": "AB3",
+        "easting": 4279.99,
+        "northing": 114400.63,
+        "adjustedEasting": 4279.99,
+        "adjustedNorthing": 114400.63,
+        "observedBearing": 72.63100166774089,
+        "observedDistance": 79.89295963975538
+      },
+      {
+        "pointName": "AB4",
+        "easting": 4356.24,
+        "northing": 114424.48,
+        "adjustedEasting": 4356.24,
+        "adjustedNorthing": 114424.48,
+        "observedBearing": 185.780056075442,
+        "observedDistance": 234.73342582597175
+      }
+    ],
+    "angularMisclosure": 6.2,
+    "linearMisclosure": 0.018,
+    "precisionRatio": "1:32875",
+    "closingErrorE": 0.011,
+    "closingErrorN": -0.014,
+    "adjustmentMethod": "bowditch",
+    "areaM2": 16137.427300006151,
+    "perimeterM": 591.7592046988916
+  },
+  "supportingDocs": [
+    {
+      "type": "ppa2",
+      "label": "Physical Planning Approval",
+      "required": true,
+      "fileUrl": null,
+      "uploadedAt": null
+    },
+    {
+      "type": "lcb_consent",
+      "label": "Land Control Board Consent",
+      "required": true,
+      "fileUrl": null,
+      "uploadedAt": null
+    },
+    {
+      "type": "mutation_form",
+      "label": "Mutation Form",
+      "required": true,
+      "fileUrl": null,
+      "uploadedAt": null
+    }
+  ],
+  "generatedAt": "2026-05-04T00:00:00.000Z",
+  "revision": 0
+}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { computeLevelBook } from '@/lib/computations/traverseEngine'
-import { buildPrintDocument, openPrint } from '@/lib/print/buildPrintDocument'
+import { printLevelBookSheet, type LevelBookPrintInput } from '@/lib/print/levelBookPrint'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
 
 interface LevelBookProps {
@@ -65,112 +65,13 @@ export default function LevelBook({ projectId }: LevelBookProps) {
     }
   }
 
-  // ── PRINT ──────────────────────────────────────────────────────────────────
-  // HPC = Height of Plane of Collimation (British/East African standard)
-  // Column formerly labelled "HI" in American convention
   const handlePrint = () => {
     if (!result) return
-    const r      = result
-    const isRF   = method === 'rise_and_fall'
-    const mLabel = isRF ? 'Rise & Fall' : 'Height of Collimation'
-
-    // Table 1 — Field Book
-    const tableRows = r.rows.map((row: any) => `
-<tr>
-  <td>${row.station}</td>
-  <td class="right mono">${row.bs       !== undefined ? row.bs.toFixed(3)       : ''}</td>
-  <td class="right mono">${row.is       !== undefined ? row.is.toFixed(3)       : ''}</td>
-  <td class="right mono">${row.fs       !== undefined ? row.fs.toFixed(3)       : ''}</td>
-  <td class="right mono">${row.hi       !== undefined ? row.hi.toFixed(3)       : ''}</td>
-  ${isRF ? `<td class="right mono">${row.rise !== undefined ? row.rise.toFixed(3) : ''}</td>` : ''}
-  ${isRF ? `<td class="right mono">${row.fall !== undefined ? row.fall.toFixed(3) : ''}</td>` : ''}
-  <td class="right mono bold">${row.rl  !== undefined ? row.rl.toFixed(3)       : ''}</td>
-  <td class="right mono">${row.distance !== undefined ? row.distance.toFixed(2)  : ''}</td>
-  <td>${row.remarks || ''}</td>
-</tr>`).join('\n')
-
-    const bodyHtml = `
-<h2>Table 1 — Level Book Observations (${mLabel} Method)</h2>
-<table>
-  <tr>
-    <th>Station</th>
-    <th class="right">BS (m)</th>
-    <th class="right">IS (m)</th>
-    <th class="right">FS (m)</th>
-    <th class="right">HPC (m)</th>
-    ${isRF ? '<th class="right">Rise (m)</th>' : ''}
-    ${isRF ? '<th class="right">Fall (m)</th>' : ''}
-    <th class="right">RL (m)</th>
-    <th class="right">Dist (m)</th>
-    <th>Remarks</th>
-  </tr>
-  ${tableRows}
-</table>
-
-<div class="summary-box">
-  <h2 style="border:none;margin:0 0 8px">Table 2 — Arithmetic Checks &amp; Closure</h2>
-
-  <div class="summary-row">
-    <span class="summary-label">Method</span>
-    <span class="summary-value">${mLabel}</span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-label">ΣBS</span>
-    <span class="summary-value">${r.sumBS.toFixed(3)} m</span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-label">ΣFS</span>
-    <span class="summary-value">${r.sumFS.toFixed(3)} m</span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-label">ΣBS − ΣFS</span>
-    <span class="summary-value">${(r.sumBS - r.sumFS).toFixed(3)} m</span>
-  </div>
-  ${isRF ? `
-  <div class="summary-row">
-    <span class="summary-label">ΣRise</span>
-    <span class="summary-value">${r.sumRise.toFixed(3)} m</span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-label">ΣFall</span>
-    <span class="summary-value">${r.sumFall.toFixed(3)} m</span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-label">ΣRise − ΣFall</span>
-    <span class="summary-value">${(r.sumRise - r.sumFall).toFixed(3)} m</span>
-  </div>` : ''}
-  <div class="summary-row">
-    <span class="summary-label">Arithmetic Check (ΣBS − ΣFS = Last RL − First RL)</span>
-    <span class="summary-value ${r.arithmeticPass ? 'pass' : 'fail'}">
-      ${r.arithmeticPass ? 'PASS' : 'FAIL'} &nbsp; (${r.arithmeticCheck.toFixed(6)} m)
-    </span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-label">Misclosure</span>
-    <span class="summary-value">${r.misclosure > 0 ? r.misclosure.toFixed(6) + ' m' : '—'}</span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-label">Allowable Misclosure (C = 10√K mm, K = ${distanceKm} km)</span>
-    <span class="summary-value">${r.allowableMisclosure.toFixed(3)} mm</span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-label">Closure Check — RDM 1.1 (2025) Table 5.1</span>
-    <span class="summary-value ${r.isAcceptable ? 'pass' : 'fail'}">
-      ${r.isAcceptable ? 'ACCEPTABLE' : 'EXCEEDS TOLERANCE'}
-    </span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-label">Formula</span>
-    <span class="summary-value">${r.formula}</span>
-  </div>
-</div>`
-
-    const doc = buildPrintDocument(bodyHtml, {
-      title:     `Level Book — ${mLabel}`,
-      reference: 'RDM 1.1 (2025) Table 5.1 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; Survey Regulations 1994',
-      ...printMeta,
-    })
-    openPrint(doc)
+    const inp: LevelBookPrintInput = {
+      result,
+      meta: { ...printMeta, title: `Level Book — ${method === 'rise_and_fall' ? 'Rise & Fall' : 'Height of Collimation'}` }
+    }
+    printLevelBookSheet(inp)
   }
 
   // ── RENDER ─────────────────────────────────────────────────────────────────

@@ -23,7 +23,6 @@ export default function SettingOutCalculator() {
   const [bs, setBs] = useState({ e: '', n: '' })
   const [points, setPoints] = useState<PointRow[]>([])
   const [result, setResult] = useState<SettingOutResult | null>(null)
-  const [showStakeOut, setShowStakeOut] = useState(false)
   const [checkResults, setCheckResults] = useState<{ pointId: string; obsHz: string; obsHD: string; obsRL: string }>({ pointId: '', obsHz: '', obsHD: '', obsRL: '' })
   const [checkResult, setCheckResult] = useState<ReturnType<typeof checkCoordinate> | null>(null)
   const [activeTab, setActiveTab] = useState<'table' | 'chainage' | 'check'>('table')
@@ -244,9 +243,9 @@ export default function SettingOutCalculator() {
       {/* Stake Out Sheet Modal */}
       {showStakeOutSheet && result && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowStakeOutSheet(false)}>
-          <div className="bg-white text-black max-w-2xl w-full rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b flex justify-between items-center">
-              <h2 className="font-bold">Stake Out Sheet</h2>
+          <div className="bg-[var(--bg-primary)] max-w-2xl w-full rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto border border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
+              <h2 className="font-bold text-[var(--text-primary)]">Setting Out Schedule</h2>
               <button onClick={() => setShowStakeOutSheet(false)} className="text-gray-500 hover:text-black">✕ Close</button>
             </div>
             <div className="p-4">

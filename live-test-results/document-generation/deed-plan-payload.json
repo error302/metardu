@@ -1,0 +1,62 @@
+﻿{
+    "abuttalNorth":  "Remainder parcel B",
+    "abuttalWest":  "Remainder parcel B",
+    "scale":  1000,
+    "titleDeedNumber":  "FR No. 583/83",
+    "surveyNumber":  "RS087_2026_014_R00",
+    "area":  1.619,
+    "drawingNumber":  "FR-583-83-SUBDIV-A",
+    "checkedBy":  "METARDU QA",
+    "boundaryPoints":  [
+                           {
+                               "id":  "AB1",
+                               "description":  "I.P.C NEW from sample final coordinate list",
+                               "easting":  4332.6,
+                               "markType":  "CONCRETE_BEACON",
+                               "northing":  114190.94,
+                               "markStatus":  "SET"
+                           },
+                           {
+                               "id":  "AB2",
+                               "description":  "I.P.C NEW from sample final coordinate list",
+                               "easting":  4259,
+                               "markType":  "CONCRETE_BEACON",
+                               "northing":  114198.58,
+                               "markStatus":  "SET"
+                           },
+                           {
+                               "id":  "AB3",
+                               "description":  "I.P.C NEW from sample final coordinate list",
+                               "easting":  4279.99,
+                               "markType":  "CONCRETE_BEACON",
+                               "northing":  114400.63,
+                               "markStatus":  "SET"
+                           },
+                           {
+                               "id":  "AB4",
+                               "description":  "I.P.C.U NEW from sample final coordinate list",
+                               "easting":  4356.24,
+                               "markType":  "CONCRETE_BEACON",
+                               "northing":  114424.48,
+                               "markStatus":  "SET"
+                           }
+                       ],
+    "iskNumber":  "ISK-1402",
+    "clientName":  "Kaputiei Holdings Ltd",
+    "hemisphere":  "S",
+    "abuttalSouth":  "Access road reserve",
+    "surveyorName":  "Samuel K. Muriithi",
+    "surveyDate":  "2026-05-04",
+    "firmAddress":  "Nairobi, Kenya",
+    "abuttalEast":  "Neighbouring agricultural holding",
+    "datum":  "ARC1960",
+    "locality":  "Kitengela, Kaputiei North",
+    "firmName":  "METARDU Survey Consultants Ltd",
+    "projectionType":  "UTM",
+    "county":  "Kajiado",
+    "utmZone":  37,
+    "parcelNumber":  "A / L.R. Kajiado-Kaputiei North-18462",
+    "signatureDate":  "2026-05-04",
+    "registrationSection":  "Kaputiei North",
+    "drawnBy":  "SKM"
+}

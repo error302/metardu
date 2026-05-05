@@ -1,0 +1,112 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 594" width="840" height="594">
+  <style>
+    .title { font-size: 10pt; font-weight: bold; font-family: Arial, sans-serif; }
+    .section-header { font-size: 7pt; font-weight: bold; font-family: Arial, sans-serif; }
+    .table-text { font-size: 5pt; font-family: Arial, sans-serif; }
+    .body-text { font-size: 6pt; font-family: Arial, sans-serif; }
+  </style>
+  
+  <!-- LEFT PANEL: Survey Plan Drawing Area -->
+  <rect x="0" y="0" width="580" height="594" fill="white" stroke="black" stroke-width="0.5"/>
+  
+  <!-- Grid -->
+  <g stroke="#E5E5E5" stroke-width="0.2">
+    <line x1="204.3934914789736" y1="20" x2="204.3934914789736" y2="570" /><line x1="221.51479318317922" y1="20" x2="221.51479318317922" y2="570" /><line x1="238.63609488738481" y1="20" x2="238.63609488738481" y2="570" /><line x1="255.75739659158882" y1="20" x2="255.75739659158882" y2="570" /><line x1="272.8786982957944" y1="20" x2="272.8786982957944" y2="570" /><line x1="290" y1="20" x2="290" y2="570" /><line x1="307.1213017042056" y1="20" x2="307.1213017042056" y2="570" /><line x1="324.2426034084112" y1="20" x2="324.2426034084112" y2="570" /><line x1="341.3639051126152" y1="20" x2="341.3639051126152" y2="570" /><line x1="358.4852068168208" y1="20" x2="358.4852068168208" y2="570" /><line x1="375.6065085210264" y1="20" x2="375.6065085210264" y2="570" /><line x1="20" y1="502.5999999999872" x2="560" y2="502.5999999999872" /><line x1="20" y1="461.48" x2="560" y2="461.48" /><line x1="20" y1="420.35999999998717" x2="560" y2="420.35999999998717" /><line x1="20" y1="379.2399999999744" x2="560" y2="379.2399999999744" /><line x1="20" y1="338.11999999998716" x2="560" y2="338.11999999998716" /><line x1="20" y1="297" x2="560" y2="297" /><line x1="20" y1="255.8799999999872" x2="560" y2="255.8799999999872" /><line x1="20" y1="214.75999999997438" x2="560" y2="214.75999999997438" /><line x1="20" y1="173.6399999999872" x2="560" y2="173.6399999999872" /><line x1="20" y1="132.52" x2="560" y2="132.52" /><line x1="20" y1="91.39999999998719" x2="560" y2="91.39999999998719" />
+  </g>
+  
+  <!-- Boundary Polygon -->
+  <polygon points="333.98294082384376,502.5999999999872 204.3934914789736,489.1480517256023 241.351134709256,133.39332020207968 375.6065085210264,91.39999999998719" fill="#FEFCE8" stroke="black" stroke-width="0.5"/>
+  
+  <!-- Boundary Dimensions -->
+  <text x="269.1882161514087" y="490.8740258627947" font-size="3" text-anchor="middle">275Â°55'34.773"</text><text x="269.1882161514087" y="500.8740258627947" font-size="3" text-anchor="middle">74.00m</text><text x="222.87231309411482" y="306.27068596384095" font-size="3" text-anchor="middle">005Â°55'51.267"</text><text x="222.87231309411482" y="316.27068596384095" font-size="3" text-anchor="middle">203.14m</text><text x="308.4788216151412" y="107.39666010103343" font-size="3" text-anchor="middle">072Â°37'51.606"</text><text x="308.4788216151412" y="117.39666010103343" font-size="3" text-anchor="middle">79.89m</text><text x="354.7947246724351" y="291.99999999998715" font-size="3" text-anchor="middle">185Â°46'48.202"</text><text x="354.7947246724351" y="301.99999999998715" font-size="3" text-anchor="middle">234.73m</text>
+  
+  <!-- Beacon Symbols -->
+  <g transform="translate(333.98294082384376, 502.5999999999872)"><g><rect x="-2.8" y="-2.8" width="5.6" height="5.6" fill="black" /><circle cx="0" cy="0" r="0.84" fill="white" /><title>Concrete Beacon â SET</title><desc>Kenya Survey Regulations 1994, Reg 17(d)</desc></g></g><g transform="translate(204.3934914789736, 489.1480517256023)"><g><rect x="-2.8" y="-2.8" width="5.6" height="5.6" fill="black" /><circle cx="0" cy="0" r="0.84" fill="white" /><title>Concrete Beacon â SET</title><desc>Kenya Survey Regulations 1994, Reg 17(d)</desc></g></g><g transform="translate(241.351134709256, 133.39332020207968)"><g><rect x="-2.8" y="-2.8" width="5.6" height="5.6" fill="black" /><circle cx="0" cy="0" r="0.84" fill="white" /><title>Concrete Beacon â SET</title><desc>Kenya Survey Regulations 1994, Reg 17(d)</desc></g></g><g transform="translate(375.6065085210264, 91.39999999998719)"><g><rect x="-2.8" y="-2.8" width="5.6" height="5.6" fill="black" /><circle cx="0" cy="0" r="0.84" fill="white" /><title>Concrete Beacon â SET</title><desc>Kenya Survey Regulations 1994, Reg 17(d)</desc></g></g>
+  
+  <!-- Point Labels -->
+  <text x="337.98294082384376" y="498.5999999999872" font-size="3">AB1</text><text x="208.3934914789736" y="485.1480517256023" font-size="3">AB2</text><text x="245.351134709256" y="129.39332020207968" font-size="3">AB3</text><text x="379.6065085210264" y="87.39999999998719" font-size="3">AB4</text>
+  
+  <!-- North Arrow -->
+  <g transform="translate(540, 40)">
+    <line x1="0" y1="15" x2="0" y2="-15" stroke="black" stroke-width="0.5"/>
+    <polygon points="0,-15 -3,0 3,0" fill="black"/>
+    <text x="0" y="22" font-size="4" text-anchor="middle">N</text>
+  </g>
+  
+  <!-- Scale Bar -->
+  <g transform="translate(240, 569)">
+    <line x1="0" y1="0" x2="100" y2="0" stroke="black" stroke-width="0.5"/>
+    <line x1="0" y1="-3" x2="0" y2="3" stroke="black" stroke-width="0.5"/>
+    <line x1="50" y1="-2" x2="50" y2="2" stroke="black" stroke-width="0.5"/>
+    <line x1="100" y1="-3" x2="100" y2="3" stroke="black" stroke-width="0.5"/>
+    <text x="50" y="8" font-size="4" text-anchor="middle">1 : 1000</text>
+  </g>
+  
+  <!-- RIGHT PANEL: Information -->
+  <rect x="580" y="0" width="260" height="594" fill="#FAFAFA" stroke="black" stroke-width="0.5"/>
+  
+  <!-- SECTION A: Title Block -->
+  <text x="590" y="20" class="title">DEED PLAN</text>
+  <text x="590" y="35" class="body-text">Survey No: RS087_2026_014_R00</text>
+  <text x="590" y="47" class="body-text">Drawing No: FR-583-83-SUBDIV-A</text>
+  <text x="590" y="59" class="body-text">Scale: 1 : 1000</text>
+  <text x="590" y="71" class="body-text">Date: 2026-05-04</text>
+  <line x1="590" y1="80" x2="830" y2="80" stroke="black" stroke-width="0.5"/>
+  
+  <!-- SECTION B: Parcel Information -->
+  <text x="590" y="95" class="section-header">PARCEL INFORMATION</text>
+  <text x="590" y="108" class="body-text">Parcel: A / L.R. Kajiado-Kaputiei North-18462</text>
+  <text x="590" y="120" class="body-text">Reg. Section: Kaputiei North</text>
+  <text x="590" y="132" class="body-text">Locality: Kitengela, Kaputiei North</text>
+  <text x="590" y="144" class="body-text">County: Kajiado</text>
+  <text x="590" y="156" class="body-text">Area: 16137.4273 m&#178;</text>
+  <text x="590" y="168" class="body-text">Area: 1.613743 ha</text>
+  <text x="590" y="180" class="body-text">Datum: ARC1960 (Zone 37S)</text>
+  <line x1="590" y1="188" x2="830" y2="188" stroke="black" stroke-width="0.5"/>
+  
+  <!-- SECTION C: Abuttals -->
+  <text x="590" y="203" class="section-header">ABUTTALS</text>
+  <text x="590" y="216" class="body-text">North: Remainder parcel B</text>
+  <text x="590" y="228" class="body-text">South: Access road reserve</text>
+  <text x="590" y="240" class="body-text">East: Neighbouring agricultural holding</text>
+  <text x="590" y="252" class="body-text">West: Remainder parcel B</text>
+  <line x1="590" y1="260" x2="830" y2="260" stroke="black" stroke-width="0.5"/>
+  
+  <!-- SECTION D: Bearing Schedule -->
+  <text x="590" y="275" class="section-header">BEARING SCHEDULE</text>
+  <line x1="590" y1="278" x2="830" y2="278" stroke="black" stroke-width="0.3"/>
+  <text x="595" y="288" class="table-text" font-weight="bold">LEG</text>
+  <text x="620" y="288" class="table-text" font-weight="bold">FROM</text>
+  <text x="655" y="288" class="table-text" font-weight="bold">TO</text>
+  <text x="690" y="288" class="table-text" font-weight="bold">BEARING</text>
+  <text x="755" y="288" class="table-text" font-weight="bold">DIST (m)</text>
+  <text x="595" y="298" class="table-text">1</text><text x="620" y="298" class="table-text">AB1</text><text x="655" y="298" class="table-text">AB2</text><text x="690" y="298" class="table-text">275Â°55'34.773"</text><text x="755" y="298" class="table-text">74.00</text><text x="595" y="306" class="table-text">2</text><text x="620" y="306" class="table-text">AB2</text><text x="655" y="306" class="table-text">AB3</text><text x="690" y="306" class="table-text">005Â°55'51.267"</text><text x="755" y="306" class="table-text">203.14</text><text x="595" y="314" class="table-text">3</text><text x="620" y="314" class="table-text">AB3</text><text x="655" y="314" class="table-text">AB4</text><text x="690" y="314" class="table-text">072Â°37'51.606"</text><text x="755" y="314" class="table-text">79.89</text><text x="595" y="322" class="table-text">4</text><text x="620" y="322" class="table-text">AB4</text><text x="655" y="322" class="table-text">AB1</text><text x="690" y="322" class="table-text">185Â°46'48.202"</text><text x="755" y="322" class="table-text">234.73</text>
+  <line x1="590" y1="350" x2="830" y2="350" stroke="black" stroke-width="0.5"/>
+  
+  <!-- SECTION E: Coordinate Schedule -->
+  <text x="590" y="365" class="section-header">COORDINATE SCHEDULE</text>
+  <line x1="590" y1="368" x2="830" y2="368" stroke="black" stroke-width="0.3"/>
+  <text x="595" y="378" class="table-text" font-weight="bold">POINT</text>
+  <text x="625" y="378" class="table-text" font-weight="bold">MARK</text>
+  <text x="670" y="378" class="table-text" font-weight="bold">STATUS</text>
+  <text x="715" y="378" class="table-text" font-weight="bold">EASTING</text>
+  <text x="775" y="378" class="table-text" font-weight="bold">NORTHING</text>
+  <text x="595" y="388" class="table-text">AB1</text><text x="625" y="388" class="table-text">CONCRETE_BEACON</text><text x="670" y="388" class="table-text">SET</text><text x="715" y="388" class="table-text">4332.6000</text><text x="775" y="388" class="table-text">114190.9400</text><text x="595" y="396" class="table-text">AB2</text><text x="625" y="396" class="table-text">CONCRETE_BEACON</text><text x="670" y="396" class="table-text">SET</text><text x="715" y="396" class="table-text">4259.0000</text><text x="775" y="396" class="table-text">114198.5800</text><text x="595" y="404" class="table-text">AB3</text><text x="625" y="404" class="table-text">CONCRETE_BEACON</text><text x="670" y="404" class="table-text">SET</text><text x="715" y="404" class="table-text">4279.9900</text><text x="775" y="404" class="table-text">114400.6300</text><text x="595" y="412" class="table-text">AB4</text><text x="625" y="412" class="table-text">CONCRETE_BEACON</text><text x="670" y="412" class="table-text">SET</text><text x="715" y="412" class="table-text">4356.2400</text><text x="775" y="412" class="table-text">114424.4800</text>
+  <line x1="590" y1="440" x2="830" y2="440" stroke="black" stroke-width="0.5"/>
+  
+  <!-- SECTION F: Surveyor's Certificate -->
+  <text x="590" y="455" class="section-header">SURVEYOR'S CERTIFICATE</text>
+  <text x="590" y="470" class="body-text">I hereby certify that this survey was carried out under</text>
+  <text x="590" y="482" class="body-text">my supervision and that the plan is correct to the best</text>
+  <text x="590" y="494" class="body-text">of my knowledge and belief.</text>
+  <text x="590" y="518" class="body-text">Name: Samuel K. Muriithi</text>
+  <text x="590" y="530" class="body-text">ISK No: ISK-1402</text>
+  <text x="590" y="542" class="body-text">Firm: METARDU Survey Consultants Ltd</text>
+  <text x="590" y="554" class="body-text">Date: 2026-05-04</text>
+  <line x1="590" y1="580" x2="830" y2="580" stroke="black" stroke-width="0.5"/>
+  
+  <!-- Closure Check Badge -->
+  <rect x="590" y="440" width="60" height="18" fill="#22C55E" stroke="black" stroke-width="0.3" rx="2"/>
+  <text x="620" y="453" font-size="5" fill="white" text-anchor="middle">1 : &#8734;</text>
+</svg>
