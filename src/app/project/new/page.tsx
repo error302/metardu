@@ -8,6 +8,7 @@ import { getUTMZoneFromLatLng } from '@/lib/engine/utmZones'
 import { useCountry, ALL_COUNTRIES } from '@/lib/country'
 import type { SurveyingCountry } from '@/lib/country'
 import { SURVEY_TYPE_LABELS, SurveyType } from '@/types/project'
+import type { ProjectType } from '@/types/scheme'
 
 export default function NewProjectPage() {
   const { country: defaultCountry, setCountry: setContextCountry } = useCountry()
@@ -25,6 +26,16 @@ export default function NewProjectPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [detecting, setDetecting] = useState(false)
+
+  // Phase 25: Project scale selector
+  const [projectType, setProjectType] = useState<ProjectType>('small')
+  const [schemeNumber, setSchemeNumber] = useState('')
+  const [schemeCounty, setSchemeCounty] = useState('')
+  const [schemeSubCounty, setSchemeSubCounty] = useState('')
+  const [schemeWard, setSchemeWard] = useState('')
+  const [plannedParcels, setPlannedParcels] = useState('')
+  const [adjudicationSection, setAdjudicationSection] = useState('')
+
   const router = useRouter()
   const dbClient = createClient()
 
@@ -157,7 +168,8 @@ export default function NewProjectPage() {
       return
     }
 
-    const { error } = await dbClient.from('projects').insert({
+    // Insert project with project_type
+    const projectPayload: Record<string, any> = {
       name,
       location,
       utm_zone: parseInt(utmZone),
@@ -168,14 +180,44 @@ export default function NewProjectPage() {
       surveyor_name: surveyorName || session.user.email,
       country: selectedCountry,
       datum: datumLabels[selectedCountry],
-    })
+      project_type: projectType,
+    }
 
-    if (error) {
-      setError(error.message)
+    const { data: project, error: insertError } = await dbClient.from('projects').insert(projectPayload).single()
+
+    if (insertError) {
+      setError(insertError.message)
       setLoading(false)
+      return
+    }
+
+    // If scheme, also insert scheme_details and redirect to scheme workspace
+    if (projectType === 'scheme') {
+      const schemePayload = {
+        project_id: project.id,
+        scheme_number: schemeNumber || null,
+        county: schemeCounty || null,
+        sub_county: schemeSubCounty || null,
+        ward: schemeWard || null,
+        planned_parcels: plannedParcels ? parseInt(plannedParcels) : 0,
+        adjudication_section: adjudicationSection || null,
+      }
+
+      const { error: schemeError } = await dbClient.from('scheme_details').insert(schemePayload)
+
+      if (schemeError) {
+        setError(`Project created but scheme details failed: ${schemeError.message}`)
+        setLoading(false)
+        // Still navigate — project was created
+      }
+    }
+
+    setContextCountry(selectedCountry)
+
+    if (projectType === 'scheme') {
+      router.push(`/project/${project.id}/scheme`)
     } else {
-      setContextCountry(selectedCountry)
-      router.push('/dashboard')
+      router.push(`/project/${project.id}`)
     }
   }
 
@@ -194,6 +236,17 @@ export default function NewProjectPage() {
     39: 'East Africa / Arabia',
     40: 'East Africa / South Asia',
   }
+
+  const kenyaCounties = [
+    'Mombasa', 'Kilifi', 'Kwale', 'Lamu', 'Tana River', 'Taita Taveta',
+    'Garissa', 'Wajir', 'Mandera', 'Marsabit', 'Isiolo', 'Meru',
+    'Tharaka Nithi', 'Embu', 'Kitui', 'Machakos', 'Makueni', 'Nyandarua',
+    'Nyeri', 'Kirinyaga', 'Muranga', 'Kiambu', 'Turkana', 'West Pokot',
+    'Samburu', 'Trans Nzoia', 'Uasin Gishu', 'Elgeyo Marakwet', 'Nandi',
+    'Baringo', 'Laikipia', 'Nakuru', 'Narok', 'Kajiado', 'Kericho',
+    'Bomet', 'Kakamega', 'Vihiga', 'Bungoma', 'Busia', 'Siaya',
+    'Kisumu', 'Homa Bay', 'Migori', 'Kisii', 'Nyamira', 'Nairobi',
+  ]
 
   const inputClass = 'w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] focus:outline-none transition-colors text-sm'
   const selectClass = inputClass
@@ -237,6 +290,55 @@ export default function NewProjectPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Phase 25: Project Scale Toggle */}
+          <div>
+            <label className={labelClass}>
+              Project Scale <span className="text-[var(--accent)]">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-0 rounded-lg border border-[var(--border-color)] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setProjectType('small')}
+                className={`py-3.5 px-4 text-sm font-medium transition-all flex flex-col items-center gap-1 ${
+                  projectType === 'small'
+                    ? 'bg-[var(--accent)] text-black'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                <span>Small Project</span>
+                <span className="text-[10px] opacity-70">Individual parcel / site</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setProjectType('scheme')
+                  // Auto-set cadastral for schemes
+                  setSurveyType('cadastral')
+                }}
+                className={`py-3.5 px-4 text-sm font-medium transition-all flex flex-col items-center gap-1 ${
+                  projectType === 'scheme'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                </svg>
+                <span>Scheme / Large Project</span>
+                <span className="text-[10px] opacity-70">Subdivision, adjudication</span>
+              </button>
+            </div>
+            {projectType === 'scheme' && (
+              <p className="mt-2 text-xs text-orange-400">
+                Scheme mode enables blocks, parcel management, batch deed plans, and Registry Index Maps.
+              </p>
+            )}
+          </div>
+
           {/* Project Name */}
           <div>
             <label className={labelClass}>
@@ -248,7 +350,7 @@ export default function NewProjectPage() {
               onChange={(e) => setName(e.target.value)}
               className={inputClass}
               required
-              placeholder="e.g., Karen Estate Boundary Survey"
+              placeholder={projectType === 'scheme' ? 'e.g., Mwavumbo Ward Cadastral Subdivision' : 'e.g., Karen Estate Boundary Survey'}
               autoFocus
             />
           </div>
@@ -260,9 +362,92 @@ export default function NewProjectPage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               className={`${inputClass} h-20 resize-none`}
-              placeholder="e.g., Mombasa, along Diani Beach Road"
+              placeholder={projectType === 'scheme' ? 'e.g., Mariakani, Kilifi County' : 'e.g., Mombasa, along Diani Beach Road'}
             />
           </div>
+
+          {/* Phase 25: Scheme-specific fields */}
+          {projectType === 'scheme' && (
+            <div className="p-5 bg-orange-500/5 border border-orange-500/20 rounded-xl space-y-4">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.15c0 .415.336.75.75.75z" />
+                </svg>
+                Scheme Details
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Scheme Number</label>
+                  <input
+                    type="text"
+                    value={schemeNumber}
+                    onChange={(e) => setSchemeNumber(e.target.value)}
+                    className={inputClass}
+                    placeholder="e.g., CRS/MWK/001/2026"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Adjudication Section</label>
+                  <input
+                    type="text"
+                    value={adjudicationSection}
+                    onChange={(e) => setAdjudicationSection(e.target.value)}
+                    className={inputClass}
+                    placeholder="e.g., Mwavumbo Section"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">County <span className="text-orange-400">*</span></label>
+                  <select
+                    value={schemeCounty}
+                    onChange={(e) => setSchemeCounty(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">Select county</option>
+                    {kenyaCounties.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Sub-County</label>
+                  <input
+                    type="text"
+                    value={schemeSubCounty}
+                    onChange={(e) => setSchemeSubCounty(e.target.value)}
+                    className={inputClass}
+                    placeholder="e.g., Mariakani"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Ward</label>
+                  <input
+                    type="text"
+                    value={schemeWard}
+                    onChange={(e) => setSchemeWard(e.target.value)}
+                    className={inputClass}
+                    placeholder="e.g., Mwavumbo"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Planned Parcels</label>
+                <input
+                  type="number"
+                  value={plannedParcels}
+                  onChange={(e) => setPlannedParcels(e.target.value)}
+                  className={inputClass}
+                  min={1}
+                  placeholder="e.g., 250"
+                />
+              </div>
+            </div>
+          )}
 
           {/* UTM Zone + Hemisphere */}
           <div>
@@ -378,7 +563,7 @@ export default function NewProjectPage() {
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
                 className={inputClass}
-                placeholder="e.g., Kenya National Highways"
+                placeholder="e.g., Kilifi County Government"
               />
             </div>
 
@@ -416,7 +601,7 @@ export default function NewProjectPage() {
                   Creating...
                 </span>
               ) : (
-                'Create Project'
+                projectType === 'scheme' ? 'Create Scheme Project' : 'Create Project'
               )}
             </button>
           </div>

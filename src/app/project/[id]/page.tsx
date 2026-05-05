@@ -30,12 +30,17 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Pro
   const dbClient = await createClient()
   const { data: project, error } = await dbClient
     .from('projects')
-    .select('id, name, survey_type')
+    .select('id, name, survey_type, project_type')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()
 
   if (error || !project) redirect('/dashboard')
+
+  // Phase 25: Redirect scheme projects to scheme workspace
+  if (project.project_type === 'scheme') {
+    redirect(`/project/${params.id}/scheme`)
+  }
 
   const surveyType = normalizeSurveyType(project.survey_type)
   const workflow = getWorkflow(surveyType)

@@ -9,13 +9,14 @@ const createProjectSchema = z.object({
   surveyType: z.string().min(1, 'Survey type is required'),
   location: z.string().min(1, 'Location is required'),
   utmZone: z.number().int().min(1).max(60).optional(),
-  hemisphere: z.string().optional()
+  hemisphere: z.string().optional(),
+  project_type: z.enum(['small', 'scheme']).optional().default('small'),
 })
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -29,14 +30,15 @@ export async function POST(request: NextRequest) {
     // Create project in database using existing table structure
     const projectQuery = `
       INSERT INTO projects (
-        user_id, 
-        name, 
-        survey_type, 
-        location, 
+        user_id,
+        name,
+        survey_type,
+        location,
         utm_zone,
         hemisphere,
+        project_type,
         created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
       RETURNING id, created_at
     `
 
@@ -46,11 +48,12 @@ export async function POST(request: NextRequest) {
       validatedData.surveyType,
       validatedData.location,
       validatedData.utmZone || 36, // Default to UTM Zone 36 (Kenya)
-      validatedData.hemisphere || 'N'
+      validatedData.hemisphere || 'N',
+      validatedData.project_type,
     ]
 
     const result = await db.query(projectQuery, values)
-    
+
     if (result.rows.length === 0) {
       return NextResponse.json(
         { error: 'Failed to create project' },
@@ -68,12 +71,13 @@ export async function POST(request: NextRequest) {
       utmZone: validatedData.utmZone || 36,
       hemisphere: validatedData.hemisphere || 'N',
       status: 'active',
+      project_type: validatedData.project_type,
       createdAt: project.created_at
     })
 
   } catch (error) {
     console.error('Project creation error:', error)
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation failed', details: error.errors },
@@ -91,7 +95,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -99,11 +103,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's projects
+    // Get user's projects — include project_type
     const projectsQuery = `
-      SELECT id, name, survey_type, location, utm_zone, hemisphere, created_at
-      FROM projects 
-      WHERE user_id = $1 
+      SELECT id, name, survey_type, location, utm_zone, hemisphere, project_type, created_at
+      FROM projects
+      WHERE user_id = $1
       ORDER BY created_at DESC
     `
 
