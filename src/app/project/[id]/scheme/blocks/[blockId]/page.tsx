@@ -459,6 +459,25 @@ export default function BlockDetailPage() {
                               >
                                 <Download className="w-3.5 h-3.5" />
                               </a>
+                              {(parcel.status === 'computed' || parcel.status === 'plan_generated' || parcel.status === 'submitted' || parcel.status === 'approved') && (
+                                <div className="relative group">
+                                  <button className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-blue-400">
+                                    <FileText className="w-3.5 h-3.5" />
+                                  </button>
+                                  <div className="absolute right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[140px]">
+                                    <a
+                                      href={`/api/scheme/forms?parcel_id=${parcel.id}&type=ppa2`}
+                                      target="_blank"
+                                      className="block px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors"
+                                    >PPA2 Form</a>
+                                    <a
+                                      href={`/api/scheme/forms?parcel_id=${parcel.id}&type=mutation`}
+                                      target="_blank"
+                                      className="block px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors"
+                                    >Mutation Form</a>
+                                  </div>
+                                </div>
+                              )}
                               <button
                                 onClick={() => startEdit(parcel)}
                                 className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
