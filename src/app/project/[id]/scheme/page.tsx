@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Plus, LayoutGrid, MapPin, FileText,
-  AlertCircle, CheckCircle2, Clock, BarChart3
+  AlertCircle, CheckCircle2, Clock, BarChart3, Download, FolderArchive
 } from 'lucide-react'
 import type { SchemeDetails, Block, ParcelStatus } from '@/types/scheme'
 import { SCHEME_STATUS_LABELS, PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS } from '@/types/scheme'
@@ -166,6 +166,27 @@ export default function SchemeWorkspacePage() {
               <Plus className="w-4 h-4" />
               Manage Blocks
             </Link>
+            {totalParcels > 0 && (
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/api/scheme/batch?project_id=${projectId}`}
+                  className="px-3 py-2 text-sm border border-[var(--border-color)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors flex items-center gap-2"
+                  title="Download all deed plans as ZIP"
+                >
+                  <FolderArchive className="w-4 h-4" />
+                  Batch Deed Plans
+                </a>
+                <a
+                  href={`/api/scheme/rim?project_id=${projectId}`}
+                  target="_blank"
+                  className="px-3 py-2 text-sm border border-orange-500/30 text-orange-400 rounded-lg hover:bg-orange-500/5 transition-colors flex items-center gap-2"
+                  title="Download Registry Index Map"
+                >
+                  <Download className="w-4 h-4" />
+                  RIM
+                </a>
+              </div>
+            )}
           </div>
         </div>
 
