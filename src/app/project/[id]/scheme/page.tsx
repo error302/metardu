@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Plus, LayoutGrid, MapPin, FileText,
-  AlertCircle, CheckCircle2, Clock, BarChart3, Download, FolderArchive
+  AlertCircle, CheckCircle2, Clock, BarChart3, Download, FolderArchive, Package
 } from 'lucide-react'
 import type { SchemeDetails, Block, ParcelStatus } from '@/types/scheme'
 import { SCHEME_STATUS_LABELS, PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS } from '@/types/scheme'
@@ -184,6 +184,14 @@ export default function SchemeWorkspacePage() {
                 >
                   <Download className="w-4 h-4" />
                   RIM
+                </a>
+                <a
+                  href={`/api/scheme/submission?project_id=${projectId}`}
+                  className="px-3 py-2 text-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors flex items-center gap-2"
+                  title="Download complete submission package (ZIP with all deed plans, forms, RIM, summary)"
+                >
+                  <Package className="w-4 h-4" />
+                  Full Submission
                 </a>
               </div>
             )}
