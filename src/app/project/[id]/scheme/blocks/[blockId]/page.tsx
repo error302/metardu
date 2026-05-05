@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Plus, Trash2, Edit3, Check, X, FileText,
-  AlertCircle, Loader2, ChevronRight, Hash, MapPin
+  AlertCircle, Loader2, ChevronRight, Hash, MapPin, Download
 } from 'lucide-react'
 import { PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS, type ParcelStatus } from '@/types/scheme'
 import TraverseComputePanel from '@/components/scheme/TraverseComputePanel'
@@ -445,6 +445,20 @@ export default function BlockDetailPage() {
                               >
                                 <FileText className="w-3.5 h-3.5" />
                               </button>
+                              <a
+                                href={`/api/scheme/deed-plan?parcel_id=${parcel.id}`}
+                                target="_blank"
+                                className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-emerald-400"
+                                title="Download Deed Plan (PDF)"
+                                onClick={(e) => {
+                                  if (parcel.status === 'pending') {
+                                    e.preventDefault()
+                                    alert('Compute traverse first before generating deed plan.')
+                                  }
+                                }}
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </a>
                               <button
                                 onClick={() => startEdit(parcel)}
                                 className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
