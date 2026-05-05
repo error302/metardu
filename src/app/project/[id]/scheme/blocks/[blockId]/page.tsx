@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS, type ParcelStatus } from '@/types/scheme'
 import TraverseComputePanel from '@/components/scheme/TraverseComputePanel'
+import CsvImportPanel from '@/components/scheme/CsvImportPanel'
 
 interface ParcelRow {
   id: number
@@ -347,6 +348,16 @@ export default function BlockDetailPage() {
               <Plus className="w-4 h-4" />
               Add First Parcel
             </button>
+          </div>
+
+          {/* CSV Import Panel */}
+          <div className="mt-4">
+            <CsvImportPanel
+              projectId={projectId}
+              blockId={blockId}
+              blockName={block?.block_number || ''}
+              onImportComplete={fetchData}
+            />
           </div>
         ) : (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden">
