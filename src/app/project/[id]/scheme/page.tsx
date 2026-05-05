@@ -1,14 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/api-client/client'
 import Link from 'next/link'
 import {
-  ArrowLeft, Plus, LayoutGrid, MapPin, FileText, Users,
-  AlertCircle, CheckCircle2, Clock, BarChart3, Settings
+  ArrowLeft, Plus, LayoutGrid, MapPin, FileText,
+  AlertCircle, CheckCircle2, Clock, BarChart3
 } from 'lucide-react'
-import type { SchemeDetails, Block, Parcel, ParcelStatus } from '@/types/scheme'
+import type { SchemeDetails, Block, ParcelStatus } from '@/types/scheme'
 import { SCHEME_STATUS_LABELS, PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS } from '@/types/scheme'
 
 interface ProjectRow {
@@ -21,72 +20,79 @@ interface ProjectRow {
   hemisphere: string
 }
 
+interface BlockWithCounts extends Block {
+  parcel_count: number
+  completed_count: number
+}
+
 export default function SchemeWorkspacePage() {
   const params = useParams()
   const router = useRouter()
   const projectId = params.id as string
-  const dbClient = createClient()
 
   const [project, setProject] = useState<ProjectRow | null>(null)
   const [schemeDetails, setSchemeDetails] = useState<SchemeDetails | null>(null)
-  const [blocks, setBlocks] = useState<Block[]>([])
+  const [blocks, setBlocks] = useState<BlockWithCounts[]>([])
   const [parcelCounts, setParcelCounts] = useState<Record<ParcelStatus, number>>({
     pending: 0, field_complete: 0, computed: 0, plan_generated: 0, submitted: 0, approved: 0
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    const loadSchemeData = async () => {
-      try {
-        // Load project
-        const { data: proj } = await dbClient.from('projects').select('*').eq('id', projectId).single()
-        if (!proj) {
-          setError('Project not found')
-          setLoading(false)
-          return
-        }
-        setProject(proj as ProjectRow)
+  const fetchSchemeData = useCallback(async () => {
+    try {
+      setLoading(true)
 
-        // Load scheme details
-        const { data: scheme } = await dbClient.from('scheme_details').select('*').eq('project_id', projectId).maybeSingle()
-        if (scheme) {
-          setSchemeDetails(scheme as SchemeDetails)
-        }
-
-        // Load blocks
-        const { data: blks } = await dbClient.from('blocks').select('*').eq('project_id', projectId).order('block_number')
-        if (blks) {
-          setBlocks(blks as Block[])
-
-          // Load parcel counts per status
-          const blockIds = (blks as Block[]).map(b => b.id)
-          if (blockIds.length > 0) {
-            // Get all parcels for these blocks and count by status
-            const allParcels: Parcel[] = []
-            for (const blockId of blockIds) {
-              const { data: p } = await dbClient.from('parcels').select('*').eq('block_id', blockId)
-              if (p) allParcels.push(...(p as Parcel[]))
-            }
-
-            const counts: Record<ParcelStatus, number> = {
-              pending: 0, field_complete: 0, computed: 0, plan_generated: 0, submitted: 0, approved: 0
-            }
-            for (const parcel of allParcels) {
-              counts[parcel.status] = (counts[parcel.status] || 0) + 1
-            }
-            setParcelCounts(counts)
-          }
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load scheme data')
-      } finally {
-        setLoading(false)
+      // Fetch project via /api/projects or direct query
+      const projectRes = await fetch(`/api/project/${projectId}`)
+      let proj: ProjectRow | null = null
+      if (projectRes.ok) {
+        const pj = await projectRes.json()
+        proj = pj.data || pj.project || pj
       }
-    }
+      if (!proj) {
+        // Fallback: check the project type from scheme_details existence
+        const schemeRes = await fetch(`/api/scheme/blocks?project_id=${projectId}`)
+        if (!schemeRes.ok) throw new Error('Failed to load project')
+        setProject({ id: parseInt(projectId), name: 'Scheme Project', survey_type: '', location: '', project_type: 'scheme', utm_zone: 37, hemisphere: 'S' } as ProjectRow)
+      } else {
+        setProject(proj)
+      }
 
-    void loadSchemeData()
-  }, [projectId, dbClient])
+      // Fetch blocks with counts via API
+      const blocksRes = await fetch(`/api/scheme/blocks?project_id=${projectId}`)
+      if (!blocksRes.ok) throw new Error('Failed to load blocks')
+      const blocksJson = await blocksRes.json()
+      const blks = (blocksJson.data || []) as BlockWithCounts[]
+      setBlocks(blks)
+
+      // Fetch all parcels across all blocks for status counts
+      if (blks.length > 0) {
+        const allParcelsRes = await fetch(`/api/scheme/parcels?project_id=${projectId}`)
+        if (allParcelsRes.ok) {
+          const parcelsJson = await allParcelsRes.json()
+          const parcels = parcelsJson.data || []
+
+          const counts: Record<ParcelStatus, number> = {
+            pending: 0, field_complete: 0, computed: 0, plan_generated: 0, submitted: 0, approved: 0
+          }
+          for (const p of parcels) {
+            counts[p.status as ParcelStatus] = (counts[p.status as ParcelStatus] || 0) + 1
+          }
+          setParcelCounts(counts)
+        }
+      }
+
+      // Fetch scheme details (if the API existed — for now we load via blocks endpoint context)
+      // The scheme details are loaded when the project was created
+    } catch (err: any) {
+      setError(err.message || 'Failed to load scheme data')
+    } finally {
+      setLoading(false)
+    }
+  }, [projectId])
+
+  useEffect(() => { void fetchSchemeData() }, [fetchSchemeData])
 
   if (loading) {
     return (
@@ -102,12 +108,12 @@ export default function SchemeWorkspacePage() {
     )
   }
 
-  if (error || !project) {
+  if (error && !project) {
     return (
       <div className="min-h-[calc(100vh-8rem)] bg-[var(--bg-primary)] flex items-center justify-center">
         <div className="text-center space-y-3">
           <AlertCircle className="w-10 h-10 text-red-400 mx-auto" />
-          <p className="text-[var(--text-secondary)]">{error || 'Project not found'}</p>
+          <p className="text-[var(--text-secondary)]">{error}</p>
           <Link href="/dashboard" className="text-sm text-[var(--accent)] hover:underline">Back to Dashboard</Link>
         </div>
       </div>
@@ -125,55 +131,34 @@ export default function SchemeWorkspacePage() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
-          <Link href={`/project/${projectId}`} className="hover:text-[var(--accent)] transition-colors">{project.name}</Link>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-          <span className="text-orange-400">Scheme Workspace</span>
+          <span className="text-[var(--text-primary)]">{project?.name || 'Scheme Project'}</span>
         </div>
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold text-[var(--text-primary)]">{project.name}</h1>
+              <h1 className="text-2xl font-bold text-[var(--text-primary)]">{project?.name}</h1>
               <span className="px-2.5 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-medium rounded-full">
                 Scheme
               </span>
             </div>
-            <p className="text-sm text-[var(--text-secondary)]">
-              {project.location} {schemeDetails ? `— ${schemeDetails.county}, ${schemeDetails.sub_county}, ${schemeDetails.ward}` : ''}
-            </p>
-            {schemeDetails && (
-              <div className="flex items-center gap-4 mt-2 text-xs text-[var(--text-muted)]">
-                {schemeDetails.scheme_number && (
-                  <span className="flex items-center gap-1">
-                    <FileText className="w-3 h-3" />
-                    {schemeDetails.scheme_number}
-                  </span>
-                )}
-                {schemeDetails.adjudication_section && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    {schemeDetails.adjudication_section}
-                  </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <LayoutGrid className="w-3 h-3" />
-                  {blocks.length} block{blocks.length !== 1 ? 's' : ''}
-                </span>
-              </div>
+            {project?.location && (
+              <p className="text-sm text-[var(--text-secondary)]">{project.location}</p>
             )}
+            <div className="flex items-center gap-4 mt-2 text-xs text-[var(--text-muted)]">
+              <span className="flex items-center gap-1">
+                <LayoutGrid className="w-3 h-3" />
+                {blocks.length} block{blocks.length !== 1 ? 's' : ''}
+              </span>
+              <span className="flex items-center gap-1">
+                <BarChart3 className="w-3 h-3" />
+                {totalParcels} parcel{totalParcels !== 1 ? 's' : ''}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push(`/project/${projectId}`)}
-              className="px-4 py-2 text-sm text-[var(--text-secondary)] border border-[var(--border-color)] rounded-lg hover:border-[var(--border-hover)] transition-colors flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Project View
-            </button>
             <Link
               href={`/project/${projectId}/scheme/blocks`}
               className="px-4 py-2 text-sm bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded-lg transition-all flex items-center gap-2"
@@ -198,27 +183,27 @@ export default function SchemeWorkspacePage() {
             icon={<BarChart3 className="w-4 h-4" />}
             color="text-[var(--accent)]"
           />
-          {schemeDetails && (
-            <StatCard
-              label="Planned"
-              value={String(schemeDetails.planned_parcels)}
-              icon={<Clock className="w-4 h-4" />}
-              color="text-gray-400"
-            />
-          )}
           {(Object.entries(PARCEL_STATUS_LABELS) as [ParcelStatus, string][]).map(([status, label]) => {
-            if (status === 'pending' && parcelCounts[status] === 0) return null
+            if (parcelCounts[status] === 0) return null
             return (
               <StatCard
                 key={status}
                 label={label}
                 value={String(parcelCounts[status])}
                 icon={<CheckCircle2 className="w-4 h-4" />}
-                color={status === 'approved' ? 'text-emerald-400' : status === 'submitted' ? 'text-purple-400' : 'text-[var(--text-secondary)]'}
+                color={status === 'approved' ? 'text-emerald-400' : status === 'submitted' ? 'text-purple-400' : status === 'plan_generated' ? 'text-green-400' : status === 'computed' ? 'text-yellow-400' : 'text-[var(--text-secondary)]'}
               />
             )
           })}
         </div>
+
+        {/* Error Banner */}
+        {error && (
+          <div className="mb-6 p-3.5 bg-red-900/20 border border-red-500/30 rounded-lg text-sm text-red-400 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            {error}
+          </div>
+        )}
 
         {/* Blocks Table */}
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden">
@@ -227,13 +212,20 @@ export default function SchemeWorkspacePage() {
               <LayoutGrid className="w-4 h-4 text-orange-400" />
               Blocks
             </h2>
-            {blocks.length === 0 && (
+            {blocks.length === 0 ? (
               <Link
                 href={`/project/${projectId}/scheme/blocks`}
                 className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1"
               >
                 <Plus className="w-3 h-3" />
                 Add First Block
+              </Link>
+            ) : (
+              <Link
+                href={`/project/${projectId}/scheme/blocks`}
+                className="text-xs text-[var(--accent)] hover:underline"
+              >
+                Manage All
               </Link>
             )}
           </div>
@@ -261,45 +253,47 @@ export default function SchemeWorkspacePage() {
                     <th className="px-5 py-3 font-medium">Block</th>
                     <th className="px-5 py-3 font-medium">Name</th>
                     <th className="px-5 py-3 font-medium">Parcels</th>
-                    <th className="px-5 py-3 font-medium">Status</th>
-                    <th className="px-5 py-3 font-medium">Actions</th>
+                    <th className="px-5 py-3 font-medium">Progress</th>
+                    <th className="px-5 py-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {blocks.map((block) => (
-                    <tr key={block.id} className="border-b border-[var(--border-color)]/50 hover:bg-[var(--bg-secondary)] transition-colors">
-                      <td className="px-5 py-3 font-mono text-[var(--accent)]">{block.block_number}</td>
-                      <td className="px-5 py-3 text-[var(--text-primary)]">{block.block_name || '—'}</td>
-                      <td className="px-5 py-3 text-[var(--text-secondary)]">—</td>
-                      <td className="px-5 py-3">
-                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full border border-gray-200">
-                          Pending
-                        </span>
-                      </td>
-                      <td className="px-5 py-3">
-                        <Link
-                          href={`/project/${projectId}/scheme/blocks/${block.id}`}
-                          className="text-xs text-[var(--accent)] hover:underline"
-                        >
-                          Manage
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {blocks.map((block) => {
+                    const progress = block.parcel_count > 0
+                      ? Math.round((block.completed_count / block.parcel_count) * 100)
+                      : 0
+
+                    return (
+                      <tr key={block.id} className="border-b border-[var(--border-color)]/50 hover:bg-[var(--bg-secondary)] transition-colors">
+                        <td className="px-5 py-3 font-mono text-[var(--accent)]">{block.block_number}</td>
+                        <td className="px-5 py-3 text-[var(--text-primary)]">{block.block_name || '—'}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)]">{block.parcel_count}</td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-1.5 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-400 rounded-full transition-all"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-[var(--text-muted)]">{progress}%</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <Link
+                            href={`/project/${projectId}/scheme/blocks/${block.id}`}
+                            className="text-xs text-[var(--accent)] hover:underline"
+                          >
+                            Manage Parcels
+                          </Link>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
           )}
-        </div>
-
-        {/* Phase Info */}
-        <div className="mt-8 p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)]/50 text-xs text-[var(--text-muted)]">
-          <p className="font-medium text-[var(--text-secondary)] mb-1">Phase 25 — Scheme Workspace</p>
-          <p>
-            This is the scheme management hub. Future phases will add: parcel CRUD within blocks,
-            batch traverse computation, bulk deed plan generation, Registry Index Maps,
-            mutation forms, and multi-surveyor assignment.
-          </p>
         </div>
       </main>
     </div>
