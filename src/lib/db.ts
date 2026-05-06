@@ -9,7 +9,7 @@ function getPoolConfig() {
       connectionString: env.DATABASE_URL,
       max: 20,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      connectionTimeoutMillis: 5000,
     }
   }
 
@@ -22,21 +22,22 @@ function getPoolConfig() {
       password: env.DB_PASSWORD,
       max: 20,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      connectionTimeoutMillis: 5000,
     }
   }
 
   throw new Error('Database connection is not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER.')
 }
 
-function getPool() {
+/** Get the singleton Pool instance (lazy-initialized) */
+export function getPool(): Pool {
   if (!pool) {
     pool = new Pool(getPoolConfig())
   }
-
   return pool
 }
 
+/** Convenient query helper — acquires and releases a client per call */
 export const db = {
   query: async (text: string, params?: unknown[]): Promise<QueryResult> => {
     const client = await getPool().connect()

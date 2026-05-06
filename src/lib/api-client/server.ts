@@ -6,43 +6,10 @@
  * All auth goes through NextAuth. Storage goes through GCS.
  */
 
-import { Pool } from 'pg'
 import { QueryBuilder } from '@/lib/db/queryBuilder'
-import { env } from '@/lib/env'
+import { getPool } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-
-let pool: Pool | null = null
-
-function getPool(): Pool {
-  if (!pool) {
-    const connectionString = env.DATABASE_URL
-    if (!connectionString) {
-      if (env.DB_HOST && env.DB_NAME && env.DB_USER) {
-        pool = new Pool({
-          host: env.DB_HOST,
-          port: env.DB_PORT ?? 5432,
-          database: env.DB_NAME,
-          user: env.DB_USER,
-          password: env.DB_PASSWORD,
-          max: 20,
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 5000,
-        })
-      } else {
-        throw new Error('Database not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER in env.')
-      }
-    } else {
-      pool = new Pool({
-        connectionString,
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
-      })
-    }
-  }
-  return pool
-}
 
 export interface DbClient {
   from(table: string): QueryBuilder
@@ -66,8 +33,6 @@ export interface DbClient {
 }
 
 export async function createClient(): Promise<DbClient> {
-  const p = getPool()
-
   const getCompatSession = async () => {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) return null
@@ -83,7 +48,7 @@ export async function createClient(): Promise<DbClient> {
 
   return {
     from(table: string): QueryBuilder {
-      return new QueryBuilder(p, table)
+      return new QueryBuilder(getPool(), table)
     },
     auth: {
       async getUser() {

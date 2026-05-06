@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 export async function GET() {
   try {
-    const { Pool } = require('pg')
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: 1,
-      connectionTimeoutMillis: 3000,
-    })
-    const dbOk = (await pool.query('SELECT 1 as ok')).rows[0].ok === 1
-    await pool.end()
+    const dbOk = (await db.query('SELECT 1 as ok')).rows[0].ok === 1
 
     return NextResponse.json({
       status: 'ok',

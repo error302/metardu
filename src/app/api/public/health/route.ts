@@ -1,24 +1,5 @@
 import { NextResponse } from 'next/server'
-import { Pool } from 'pg'
-import { env } from '@/lib/env'
-
-let pool: Pool | null = null
-function getPool(): Pool {
-  if (!pool) {
-    if (env.DATABASE_URL) {
-      pool = new Pool({ connectionString: env.DATABASE_URL, max: 2, connectionTimeoutMillis: 3000 })
-    } else if (env.DB_HOST && env.DB_NAME && env.DB_USER) {
-      pool = new Pool({
-        host: env.DB_HOST, port: env.DB_PORT ?? 5432,
-        database: env.DB_NAME, user: env.DB_USER, password: env.DB_PASSWORD,
-        max: 2, connectionTimeoutMillis: 3000,
-      })
-    } else {
-      throw new Error('Database not configured')
-    }
-  }
-  return pool
-}
+import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,8 +9,7 @@ export async function GET() {
 
   // Database check
   try {
-    const p = getPool()
-    await p.query('SELECT 1')
+    await db.query('SELECT 1')
     checks.database = 'ok'
   } catch {
     checks.database = 'error'

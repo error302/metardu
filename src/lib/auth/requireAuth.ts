@@ -10,8 +10,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextResponse } from 'next/server'
-import { Pool } from 'pg'
-import { env } from '@/lib/env'
+import { db } from '@/lib/db'
 
 export async function requireAuth() {
   try {
@@ -42,29 +41,11 @@ export async function requireAuth() {
  * requireRole — Auth guard that also checks user role from surveyor_profiles.
  * Call after requireAuth() succeeds.
  */
-let rolePool: Pool | null = null
-function getRolePool(): Pool {
-  if (!rolePool) {
-    if (env.DATABASE_URL) {
-      rolePool = new Pool({ connectionString: env.DATABASE_URL, max: 3, connectionTimeoutMillis: 3000 })
-    } else if (env.DB_HOST) {
-      rolePool = new Pool({
-        host: env.DB_HOST, port: env.DB_PORT ?? 5432,
-        database: env.DB_NAME!, user: env.DB_USER!, password: env.DB_PASSWORD,
-        max: 3, connectionTimeoutMillis: 3000,
-      })
-    } else {
-      throw new Error('Database not configured for role check')
-    }
-  }
-  return rolePool
-}
 
 export type UserRole = 'surveyor' | 'admin' | 'enterprise' | 'university' | 'government_auditor'
 
 export async function requireRole(allowedRoles: UserRole[], userId: string) {
-  const pool = getRolePool()
-  const { rows } = await pool.query(
+  const { rows } = await db.query(
     'SELECT role, is_suspended FROM surveyor_profiles WHERE id = $1',
     [userId]
   )

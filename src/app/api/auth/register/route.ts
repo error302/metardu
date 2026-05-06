@@ -7,21 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { Pool } from 'pg'
-import { env } from '@/lib/env'
+import { db } from '@/lib/db'
 import { z } from 'zod'
-
-let pool: Pool | null = null
-function getPool(): Pool {
-  if (!pool) {
-    if (env.DATABASE_URL) {
-      pool = new Pool({ connectionString: env.DATABASE_URL, max: 5, connectionTimeoutMillis: 5000 })
-    } else {
-      throw new Error('Database not configured')
-    }
-  }
-  return pool
-}
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -44,10 +31,8 @@ export async function POST(request: NextRequest) {
     const { email, password, fullName } = parsed.data
     const normalizedEmail = email.toLowerCase().trim()
 
-    const p = getPool()
-
     // Check if user already exists
-    const { rows: existing } = await p.query(
+    const { rows: existing } = await db.query(
       'SELECT id FROM users WHERE email = $1',
       [normalizedEmail]
     )
@@ -63,7 +48,7 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 10)
 
     // Insert user
-    const { rows } = await p.query(
+    const { rows } = await db.query(
       `INSERT INTO users (email, password_hash, full_name) 
        VALUES ($1, $2, $3) 
        RETURNING id, email, full_name`,

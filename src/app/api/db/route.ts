@@ -15,35 +15,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { Pool } from 'pg'
+import { getPool } from '@/lib/db'
 import { QueryBuilder } from '@/lib/db/queryBuilder'
 import { env } from '@/lib/env'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
-
-let pool: Pool | null = null
-
-function getPool(): Pool {
-  if (!pool) {
-    const connectionString = env.DATABASE_URL
-    if (connectionString) {
-      pool = new Pool({ connectionString, max: 20, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 })
-    } else if (env.DB_HOST && env.DB_NAME && env.DB_USER) {
-      pool = new Pool({
-        host: env.DB_HOST,
-        port: env.DB_PORT ?? 5432,
-        database: env.DB_NAME,
-        user: env.DB_USER,
-        password: env.DB_PASSWORD,
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
-      })
-    } else {
-      throw new Error('Database not configured')
-    }
-  }
-  return pool
-}
 
 // Tables that can be queried without authentication
 const PUBLIC_TABLES = new Set([
@@ -63,7 +38,10 @@ const USER_SCOPED_TABLES = new Set([
   'signatures', 'equipment', 'equipment_calibrations', 'job_applications',
   'job_reviews', 'payment_history', 'render_jobs', 'project_submissions',
   'submission_documents', 'import_sessions', 'online_service_logs',
-  'surveyor_profiles', 'plan_usage', 'field_projects'
+  'surveyor_profiles', 'plan_usage', 'field_projects',
+  'scheme_details', 'blocks', 'parcels', 'parcel_traverses',
+  'traverse_observations', 'traverse_coordinates', 'block_assignments',
+  'scheme_activity_log',
 ])
 
 // Tables that are read-only for all authenticated users (no user scoping needed)
@@ -179,8 +157,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const p = getPool()
-    let qb = new QueryBuilder(p, table)
+    let qb = new QueryBuilder(getPool(), table)
 
     // Apply operation
     if (operation === 'select') {

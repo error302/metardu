@@ -2,22 +2,7 @@ import NextAuth, { AuthOptions } from 'next-auth'
 import type { Session } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
-import { Pool } from 'pg'
-import { env } from '@/lib/env'
-
-let pool: Pool | null = null
-function getPool(): Pool {
-  if (!pool) {
-    if (env.DATABASE_URL) {
-      pool = new Pool({ connectionString: env.DATABASE_URL, max: 5, connectionTimeoutMillis: 5000 })
-    } else if (env.DB_HOST && env.DB_NAME && env.DB_USER) {
-      pool = new Pool({ host: env.DB_HOST, port: env.DB_PORT ?? 5432, database: env.DB_NAME, user: env.DB_USER, password: env.DB_PASSWORD, max: 5 })
-    } else {
-      throw new Error('Database not configured for auth')
-    }
-  }
-  return pool
-}
+import { db } from '@/lib/db'
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -31,8 +16,7 @@ export const authOptions: AuthOptions = {
         if (!credentials?.email || !credentials?.password) return null
 
         try {
-          const p = getPool()
-          const { rows } = await p.query(
+          const { rows } = await db.query(
             'SELECT id, email, password_hash, full_name, isk_number, verified_isk FROM users WHERE email = $1 LIMIT 1',
             [credentials.email.toLowerCase().trim()]
           )
