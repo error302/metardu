@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Plus, LayoutGrid, MapPin, FileText,
-  AlertCircle, CheckCircle2, Clock, BarChart3, Download, FolderArchive, Package
+  AlertCircle, CheckCircle2, Clock, BarChart3, Download, FolderArchive, Package, Map
 } from 'lucide-react'
 import type { SchemeDetails, Block, ParcelStatus } from '@/types/scheme'
 import { SCHEME_STATUS_LABELS, PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS } from '@/types/scheme'
@@ -226,6 +226,13 @@ export default function SchemeWorkspacePage() {
             >
               <Plus className="w-4 h-4" />
               Manage Blocks
+            </Link>
+            <Link
+              href={`/project/${projectId}/scheme/map`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Map className="w-4 h-4" />
+              View Scheme Map
             </Link>
             {totalParcels > 0 && (
               <div className="flex items-center gap-2">
