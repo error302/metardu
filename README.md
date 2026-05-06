@@ -135,6 +135,28 @@ During stabilization, Docker stays in the repo but is not the active production 
 - **Web**: 181 routes, builds successfully
 - **Mobile**: Capacitor Android (requires Java for APK build)
 
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test file
+npx jest src/lib/auth/__tests__/rbac.test.ts
+
+# Run tests with coverage
+npx jest --coverage
+
+# Run tests in watch mode
+npx jest --watch
+```
+
+### Test Structure
+
+- **Unit tests**: `src/lib/__tests__/` — Library function tests (RBAC, error handling, DB, validation)
+- **API tests**: `src/app/api/scheme/__tests__/` — API route tests with mocked auth and DB
+- **Engine tests**: `src/lib/engine/__tests__/` — Survey computation engine tests (33 files, existing)
+
 ## License
 
 MIT
