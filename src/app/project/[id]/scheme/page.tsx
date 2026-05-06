@@ -94,6 +94,67 @@ export default function SchemeWorkspacePage() {
 
   useEffect(() => { void fetchSchemeData() }, [fetchSchemeData])
 
+  // Fetch traverse accuracy summary
+  useEffect(() => {
+    if (!project?.id) return
+
+    fetch(`/api/scheme/traverse/summary?project_id=${project.id}`)
+      .then(res => res.json())
+      .then(result => {
+        if (!result.data) return
+        const { data, summary } = result
+
+        // Update stat cards
+        const totalEl = document.getElementById('summary-total')
+        const passedEl = document.getElementById('summary-passed')
+        const warningEl = document.getElementById('summary-warning')
+        const failedEl = document.getElementById('summary-failed')
+        if (totalEl) totalEl.textContent = String(summary.total)
+        if (passedEl) passedEl.textContent = String(summary.passed)
+        if (warningEl) warningEl.textContent = String(data.filter((r: any) => r.accuracy_class === 'warning').length + data.filter((r: any) => r.accuracy_class === 'pending').length)
+        if (failedEl) failedEl.textContent = String(summary.failed)
+
+        // Render table
+        const tableEl = document.getElementById('traverse-table')
+        if (tableEl && data.length > 0) {
+          tableEl.innerHTML = `
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-gray-400 border-b border-gray-700">
+                  <th class="pb-2">Block</th>
+                  <th class="pb-2">Parcel</th>
+                  <th class="pb-2">Order</th>
+                  <th class="pb-2">Precision</th>
+                  <th class="pb-2">Area (ha)</th>
+                  <th class="pb-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.map((r: any) => {
+                  const colorMap: Record<string, string> = { pass: 'text-green-400', warning: 'text-yellow-400', fail: 'text-red-400', pending: 'text-gray-500' }
+                  const color = colorMap[r.accuracy_class] || 'text-gray-500'
+                  return `<tr class="border-b border-gray-800">
+                    <td class="py-2 text-white">${r.block_number}</td>
+                    <td class="py-2 text-white">${r.parcel_number}</td>
+                    <td class="py-2 ${color} font-medium">${r.accuracy_order || 'Not computed'}</td>
+                    <td class="py-2 text-gray-300">${r.precision_ratio ? '1:' + Number(r.precision_ratio).toLocaleString() : '-'}</td>
+                    <td class="py-2 text-gray-300">${r.computed_area_ha ? Number(r.computed_area_ha).toFixed(4) : '-'}</td>
+                    <td class="py-2"><span class="px-2 py-1 rounded text-xs ${r.status === 'computed' ? 'bg-green-900 text-green-300' : r.status === 'draft' ? 'bg-gray-700 text-gray-300' : 'bg-blue-900 text-blue-300'}">${r.status || 'draft'}</span></td>
+                  </tr>`
+                }).join('')}
+              </tbody>
+            </table>
+          `
+        } else if (tableEl) {
+          tableEl.innerHTML = '<p class="text-gray-500 text-sm">No traverses computed yet</p>'
+        }
+      })
+      .catch(() => {
+        const tableEl = document.getElementById('traverse-table')
+        if (tableEl) tableEl.innerHTML = '<p class="text-red-400 text-sm">Failed to load traverse summary</p>'
+      })
+  }, [project?.id])
+
   if (loading) {
     return (
       <div className="min-h-[calc(100vh-8rem)] bg-[var(--bg-primary)] flex items-center justify-center">
@@ -231,6 +292,34 @@ export default function SchemeWorkspacePage() {
           <div className="mb-6 p-3.5 bg-red-900/20 border border-red-500/30 rounded-lg text-sm text-red-400 flex items-center gap-2">
             <AlertCircle className="w-5 h-5 shrink-0" />
             {error}
+          </div>
+        )}
+
+        {/* Traverse Accuracy Summary */}
+        {blocks.length > 0 && (
+          <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Traverse Accuracy Summary</h3>
+            <div id="traverse-summary" className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gray-800 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-blue-400" id="summary-total">--</div>
+                <div className="text-sm text-gray-400">Total Parcels</div>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-400" id="summary-passed">--</div>
+                <div className="text-sm text-gray-400">Passed</div>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-400" id="summary-warning">--</div>
+                <div className="text-sm text-gray-400">Review Needed</div>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-red-400" id="summary-failed">--</div>
+                <div className="text-sm text-gray-400">Failed</div>
+              </div>
+            </div>
+            <div id="traverse-table" className="mt-4 overflow-x-auto">
+              <p className="text-gray-500 text-sm">Loading traverse summary...</p>
+            </div>
           </div>
         )}
 

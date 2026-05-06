@@ -36,6 +36,16 @@ const saveTraverseSchema = z.object({
   })).min(1, 'At least one observation is required'),
 })
 
+/** Check that a coordinate number has at most 3 decimal places */
+function validateCoordPrecision(value: number | undefined, fieldName: string): string | null {
+  if (value === undefined || value === null) return null
+  const decimals = String(value).split('.')[1]?.length || 0
+  if (decimals > 3) {
+    return `${fieldName} must have at most 3 decimal places`
+  }
+  return null
+}
+
 // POST /api/scheme/traverse — Save observations and compute
 export async function POST(request: NextRequest) {
   try {
@@ -44,8 +54,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const userId = (session.user as any).id
     const body = await request.json()
     const { parcel_id, observations, ...config } = saveTraverseSchema.parse(body)
+
+    // Coordinate precision check (max 3 decimal places for easting/northing)
+    const precisionErrors: string[] = []
+    for (const [field, value] of [
+      ['opening_easting', config.opening_easting],
+      ['opening_northing', config.opening_northing],
+      ['closing_easting', config.closing_easting],
+      ['closing_northing', config.closing_northing],
+    ] as [string, number | undefined][]) {
+      const err = validateCoordPrecision(value, field)
+      if (err) precisionErrors.push(err)
+    }
+    if (precisionErrors.length > 0) {
+      return NextResponse.json({ error: 'Coordinate precision validation failed', details: precisionErrors }, { status: 400 })
+    }
 
     // Verify parcel belongs to user's project
     const parcelCheck = await db.query(
@@ -66,13 +92,53 @@ export async function POST(request: NextRequest) {
       (config.backsight_bearing_min || 0) / 60 +
       (config.backsight_bearing_sec || 0) / 3600
 
-    // Upsert parcel_traverse
+    // Check for existing traverse (for versioning)
+    const { rows: existingRows } = await db.query(
+      'SELECT * FROM parcel_traverses WHERE parcel_id = $1',
+      [parcel_id]
+    )
+    const existingTraverse = existingRows.length > 0 ? existingRows[0] : null
+
+    // Archive existing traverse before overwriting
+    if (existingTraverse && existingTraverse.version) {
+      const { rows: existingObs } = await db.query(
+        'SELECT * FROM traverse_observations WHERE traverse_id = $1 ORDER BY observation_order',
+        [existingTraverse.id]
+      )
+      const { rows: existingCoords } = await db.query(
+        'SELECT * FROM traverse_coordinates WHERE traverse_id = $1',
+        [existingTraverse.id]
+      )
+
+      if (existingObs.length > 0) {
+        await db.query(
+          `INSERT INTO traverse_history
+           (parcel_traverse_id, version, opening_station, closing_station,
+            opening_easting, opening_northing, closing_easting, closing_northing,
+            is_closed, perimeter, linear_error, precision_ratio, accuracy_order,
+            computed_area_ha, observations, coordinates, computed_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17)`,
+          [existingTraverse.id, existingTraverse.version,
+            existingTraverse.opening_station, existingTraverse.closing_station,
+            existingTraverse.opening_easting, existingTraverse.opening_northing,
+            existingTraverse.closing_easting, existingTraverse.closing_northing,
+            existingTraverse.is_closed, existingTraverse.total_perimeter,
+            existingTraverse.linear_error, existingTraverse.precision_ratio,
+            existingTraverse.accuracy_order, existingTraverse.computed_area_ha,
+            JSON.stringify(existingObs), JSON.stringify(existingCoords),
+            userId]
+        )
+      }
+    }
+
+    // Upsert parcel_traverse with version increment
     const upsertResult = await db.query(
       `INSERT INTO parcel_traverses (
         parcel_id, project_id, opening_station, closing_station,
         opening_easting, opening_northing, opening_rl,
-        closing_easting, closing_northing, backsight_bearing, is_closed, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'computed')
+        closing_easting, closing_northing, backsight_bearing, is_closed, status, version
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'computed',
+        COALESCE((SELECT version FROM parcel_traverses WHERE parcel_id = $1), 0) + 1)
       ON CONFLICT (parcel_id) DO UPDATE SET
         opening_station = EXCLUDED.opening_station,
         closing_station = EXCLUDED.closing_station,
@@ -84,6 +150,7 @@ export async function POST(request: NextRequest) {
         backsight_bearing = EXCLUDED.backsight_bearing,
         is_closed = EXCLUDED.is_closed,
         status = 'computed',
+        version = COALESCE(parcel_traverses.version, 0) + 1,
         updated_at = NOW()
       RETURNING *`,
       [
