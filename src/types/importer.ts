@@ -4,6 +4,7 @@ export type SupportedFormat =
   | 'gsi'
   | 'jobxml'
   | 'trimble-rw5'
+  | 'south'
   | 'geojson'
   | 'kml'
   | 'xyz'

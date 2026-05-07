@@ -12,6 +12,36 @@ const PLAN_WIDTH = Math.round(A3_W * 0.63);
 const SCHEDULE_X = PLAN_WIDTH + MARGIN;
 const SCHEDULE_W = A3_W - PLAN_WIDTH - MARGIN * 1.5;
 
+function getBeaconDescription(monument: string): { type: string; material: string; dimensions: string } {
+  const key = (monument ?? '').toUpperCase().replace(/[^A-Z0-9_]/g, '');
+  const lookup: Record<string, { type: string; material: string; dimensions: string }> = {
+    // Short codes
+    'CP':              { type: 'Concrete Pillar',      material: 'Concrete + Steel Rod',       dimensions: '300×300mm, 600mm deep' },
+    'CONCRETEBEACON':  { type: 'Concrete Pillar',      material: 'Concrete + Steel Rod',       dimensions: '300×300mm, 600mm deep' },
+    'PSC':             { type: 'Precast Concrete',     material: 'Reinforced Concrete',        dimensions: '150×150mm, 450mm deep' },
+    'PSCFLUSH':        { type: 'Precast Concrete',     material: 'Reinforced Concrete',        dimensions: '150×150mm, flush' },
+    'SSC':             { type: 'Steel Stake',          material: 'Mild Steel',                  dimensions: '12mm sq × 450mm' },
+    'TSC':             { type: 'Timber Stake',         material: 'Treated Timber',              dimensions: '50×50mm × 600mm' },
+    'IP':              { type: 'Iron Pin',             material: 'Galvanized Iron',             dimensions: '16mm dia × 300mm' },
+    'IRONPIN':         { type: 'Iron Pin',             material: 'Galvanized Iron',             dimensions: '16mm dia × 300mm' },
+    'MN':              { type: 'Masonry Nail',         material: 'Steel',                       dimensions: '50mm nail' },
+    'MASONRYNAIL':     { type: 'Masonry Nail',         material: 'Steel',                       dimensions: '50mm nail' },
+    'BM':              { type: 'Bench Mark',           material: 'Concrete + Bronze Plate',     dimensions: '200×200mm' },
+    'TBM':             { type: 'Temp. Bench Mark',     material: 'Concrete + Brass Plug',       dimensions: '150×150mm' },
+    'FB':              { type: 'Flag Beacon',          material: 'Painted PVC Pipe',            dimensions: '100mm dia × 1200mm' },
+    'INDICATORY':      { type: 'Indicatory Beacon',    material: 'Concrete + Steel Rod',        dimensions: '300×300mm, 600mm deep' },
+    'RIVET':           { type: 'Brass Rivet',          material: 'Brass',                       dimensions: '12mm dia' },
+    'ROADNAIL':        { type: 'Road Nail',            material: 'Steel',                       dimensions: '75mm nail' },
+    'SPIKE':           { type: 'Railway Spike',        material: 'Mild Steel',                  dimensions: '300mm × 16mm' },
+    'WOODENPEG':       { type: 'Wooden Peg',           material: 'Treated Timber',              dimensions: '50×50mm × 450mm' },
+    'FLUSHBRACKET':    { type: 'Flush Bracket',        material: 'Brass / Gunmetal',            dimensions: '100×75mm' },
+    'NATURALFEATURE':  { type: 'Natural Feature',      material: '—',                           dimensions: '—' },
+    'FENCEPOST':       { type: 'Fence Post',           material: 'Timber / Concrete',           dimensions: '100mm dia' },
+    'WALLCORNER':      { type: 'Wall Corner',          material: 'Masonry',                     dimensions: '—' },
+  };
+  return lookup[key] ?? lookup['CP'];
+}
+
 export async function generateDeedPlan(
   projectId: string
 ): Promise<Buffer> {
@@ -169,6 +199,39 @@ export async function generateDeedPlan(
     headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 248, 250] },
     columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 24 }, 2: { cellWidth: 24 }, 3: { cellWidth: SCHEDULE_W - 62 } },
+    margin: { left: SCHEDULE_X, right: MARGIN },
+    tableWidth: SCHEDULE_W,
+    theme: 'grid',
+  });
+
+  ry = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('BEACON DESCRIPTION', SCHEDULE_X, ry);
+  ry += 4;
+
+  const beaconBody = geom.stations.map((s: any) => {
+    const desc = getBeaconDescription(s.monument);
+    return [s.station, desc.type, desc.material, desc.dimensions, 'Found', 'Good'];
+  });
+
+  autoTable(doc, {
+    startY: ry,
+    head: [['Mark', 'Type', 'Material', 'Dimensions', 'Found/Set', 'Condition']] as unknown as (string | number)[][],
+    body: beaconBody as unknown as (string | number)[][],
+    styles: { fontSize: 5.5, cellPadding: 1 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255, fontSize: 5.5 },
+    alternateRowStyles: { fillColor: [245, 248, 250] },
+    columnStyles: {
+      0: { cellWidth: 14 },
+      1: { cellWidth: 26 },
+      2: { cellWidth: 28 },
+      3: { cellWidth: SCHEDULE_W - 98 },
+      4: { cellWidth: 14 },
+      5: { cellWidth: 16 },
+    },
     margin: { left: SCHEDULE_X, right: MARGIN },
     tableWidth: SCHEDULE_W,
     theme: 'grid',

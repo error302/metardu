@@ -6,9 +6,11 @@ import { computeTraverse, type RawObservation, type TraverseComputationResult } 
 import { parseTraverseCSV } from '@/lib/parsers/totalStation'
 import { bearingToString } from '@/lib/engine/angles'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
+import { slopeFromEDM, seaLevelCorrection, gridCorrection } from '@/lib/engine/edm-corrections'
 import { TraverseStationInput } from '@/types/field'
 import { printTraverseSheet, type TraverseSheetInput } from '@/lib/print/traverseSheet'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
+import { CoordinateCanvas, type CanvasPoint, type CanvasLine, type CanvasLeg } from '@/components/drawing/CoordinateCanvas'
 
 interface TraverseFieldBookProps {
   projectId: string
@@ -22,6 +24,29 @@ function openPrint(html: string, title: string) {
   win.document.close()
   win.document.title = title
   setTimeout(() => { win.focus(); win.print() }, 400)
+}
+
+function computeMeanAngleDMS(obs: RawObservation): string {
+  const hasHCL = obs.hclDeg !== '' || obs.hclMin !== '' || obs.hclSec !== ''
+  const hasHCR = obs.hcrDeg !== '' || obs.hcrMin !== '' || obs.hcrSec !== ''
+  if (!hasHCL || !hasHCR) return '—'
+
+  const hclDecimal = (parseInt(obs.hclDeg) || 0) + (parseInt(obs.hclMin) || 0) / 60 + (parseFloat(obs.hclSec) || 0) / 3600
+  const hcrDecimal = (parseInt(obs.hcrDeg) || 0) + (parseInt(obs.hcrMin) || 0) / 60 + (parseFloat(obs.hcrSec) || 0) / 3600
+
+  // If HCR > HCL, add 180° to HCL; if HCR < HCL, add 180° to HCR. Then divide by 2.
+  const adjustedA = hcrDecimal > hclDecimal ? hclDecimal + 180 : hclDecimal
+  const adjustedB = hcrDecimal > hclDecimal ? hcrDecimal : hcrDecimal + 180
+
+  const mean = (adjustedA + adjustedB) / 2
+  const normMean = ((mean % 360) + 360) % 360
+
+  const deg = Math.floor(normMean)
+  const minFloat = (normMean - deg) * 60
+  const min = Math.floor(minFloat)
+  const sec = (minFloat - min) * 60
+
+  return `${deg}°${String(min).padStart(2, '0')}'${sec.toFixed(1)}"`
 }
 
 export default function TraverseFieldBook({ projectId, onImport }: TraverseFieldBookProps) {
@@ -43,6 +68,8 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'input' | 'compute' | 'print'>('input')
   const [printMeta, setPrintMeta] = useState<PrintMeta>(defaultPrintMeta)
+  const [edmOpen, setEdmOpen] = useState(false)
+  const [showPlot, setShowPlot] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   
   const searchParams = useSearchParams()
@@ -355,6 +382,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                   <th className="px-1.5 py-2 text-left text-[var(--text-secondary)]">FS</th>
                   <th className="px-1.5 py-2 text-center text-[var(--text-secondary)]" colSpan={3}>HCL (DMS)</th>
                   <th className="px-1.5 py-2 text-center text-[var(--text-secondary)]" colSpan={3}>HCR (DMS)</th>
+                  <th className="px-1.5 py-2 text-center text-[var(--text-secondary)]">Mean</th>
                   <th className="px-1.5 py-2 text-right text-[var(--text-secondary)]">Slope Dist (m)</th>
                   <th className="px-1.5 py-2 text-center text-[var(--text-secondary)]" colSpan={3}>VA (DMS)</th>
                   <th className="px-1.5 py-2 text-right text-[var(--text-secondary)]">IH (m)</th>
@@ -363,7 +391,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                 </tr>
                 <tr className="border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]/30">
                   <th></th><th></th><th></th><th></th>
-                  {[1,2,3,4,5,6,7,8,9].map((i: any) => <th key={i} className="px-1 py-1 text-[10px] text-[var(--text-muted)]">{['','Deg','Min','Sec','','Deg','Min','Sec','','Deg','Min','Sec','',''][i-1]}</th>)}
+                  {[1,2,3,4,5,6,7,8,9,10].map((i: any) => <th key={i} className="px-1 py-1 text-[10px] text-[var(--text-muted)]">{['','Deg','Min','Sec','','Deg','Min','Sec','','','','Deg','Min','Sec','','',''][i-1]}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -385,6 +413,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                       <td key={f} className="px-0.5 py-1"><input value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
                         type="number" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     ))}
+                    <td className="px-1 py-1 text-center font-mono text-[10px] text-[var(--accent)] whitespace-nowrap">{computeMeanAngleDMS(obs)}</td>
                     <td className="px-1 py-1"><input value={obs.slopeDist} onChange={e => updateObs(i, 'slopeDist', e.target.value)}
                       type="number" step="0.001" className="w-16 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     {(['vaDeg','vaMin','vaSec']).map((f: any) => (
@@ -472,6 +501,201 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* EDM Corrections Panel */}
+          <div className="border border-[var(--border-color)] rounded overflow-hidden">
+            <button onClick={() => setEdmOpen(!edmOpen)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-tertiary)]/50 text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
+              <span>📐 EDM Corrections <span className="text-[var(--text-muted)] font-normal">(UTM 37S · SF 0.9996)</span></span>
+              <span className="text-[var(--text-muted)]">{edmOpen ? '▲' : '▼'}</span>
+            </button>
+            {edmOpen && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]/30">
+                      <th className="px-2 py-2 text-left text-[var(--text-secondary)]">Line</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">SD (m)</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">HD (m)</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">C&R Corr (mm)</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">Grid Dist (m)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.legs.map((leg, i) => {
+                      const obs = result.observations[i]
+                      if (!obs) return null
+                      const slopeOut = slopeFromEDM({
+                        slopeDistanceMetres: leg.sd,
+                        verticalAngle: obs.verticalAngle,
+                      })
+                      const fromCoord = result.coordinates[i]
+                      const toCoord = result.coordinates[i + 1]
+                      const meanElev = ((fromCoord?.rl ?? 0) + (toCoord?.rl ?? 0)) / 2
+                      const seaOut = seaLevelCorrection({
+                        horizontalDistance: slopeOut.horizontalDistance,
+                        meanElevationMetres: meanElev,
+                      })
+                      const gridOut = gridCorrection({
+                        seaLevelDistance: seaOut.seaLevelDistance,
+                        scaleFactor: 0.9996,
+                      })
+                      return (
+                        <tr key={i} className="border-b border-[var(--border-color)]/30">
+                          <td className="px-2 py-1.5 font-mono text-[var(--text-primary)]">{leg.from} → {leg.to}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{leg.sd.toFixed(3)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{slopeOut.horizontalDistance.toFixed(3)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{(seaOut.curvatureRefractionCorr * 1000).toFixed(1)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--accent)]">{gridOut.gridDistance.toFixed(3)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Plot Traverse Section */}
+          <div className="border border-[var(--border-color)] rounded overflow-hidden">
+            <button onClick={() => setShowPlot(!showPlot)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-tertiary)]/50 text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
+              <span>🗺️ Plot Traverse</span>
+              <span className="text-[var(--text-muted)]">{showPlot ? '▲ Hide' : '▼ Show'}</span>
+            </button>
+            {showPlot && result && (() => {
+              const canvasPoints: CanvasPoint[] = result.coordinates.map((c, i) => ({
+                id: `pt-${i}`,
+                name: c.station,
+                easting: c.easting,
+                northing: c.northing,
+                type: 'beacon' as const,
+              }))
+              const canvasLines: CanvasLine[] = result.legs.map(l => ({
+                from: l.from,
+                to: l.to,
+              }))
+              const canvasLegs: CanvasLeg[] = result.legs.map(l => {
+                const fromCoord = result.coordinates.find(c => c.station === l.from)
+                const toCoord = result.coordinates.find(c => c.station === l.to)
+                return {
+                  from: l.from,
+                  to: l.to,
+                  bearing: l.wcb,
+                  distance: l.hd,
+                  midX: fromCoord && toCoord ? (fromCoord.easting + toCoord.easting) / 2 : 0,
+                  midY: fromCoord && toCoord ? (fromCoord.northing + toCoord.northing) / 2 : 0,
+                }
+              })
+              const handleExportDXF = async () => {
+                try {
+                  const resp = await fetch('/api/compute/export/dxf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      projectName: `Traverse_${openingName || 'traverse'}`,
+                      points: result.coordinates.map(c => ({
+                        name: c.station,
+                        easting: c.easting,
+                        northing: c.northing,
+                        elevation: c.rl ?? undefined,
+                        is_control: false,
+                      })),
+                      traverseLegs: result.legs.map(l => ({
+                        from: l.from,
+                        to: l.to,
+                        distance: l.hd,
+                        bearing: l.wcb,
+                      })),
+                    }),
+                  })
+                  const data = await resp.json()
+                  if (!resp.ok) throw new Error(data.error || 'DXF export failed')
+                  const blob = new Blob([data.dxf], { type: 'application/dxf' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = data.filename || 'traverse.dxf'
+                  a.click()
+                  URL.revokeObjectURL(url)
+                } catch (err: any) {
+                  alert('DXF export failed: ' + err.message)
+                }
+              }
+              const handleExportGeoJSON = () => {
+                const coords = result.coordinates.map(c => [c.easting, c.northing])
+                if (coords.length > 2) {
+                  coords.push(coords[0]) // close the polygon
+                }
+                const geojson = {
+                  type: 'FeatureCollection',
+                  features: [{
+                    type: 'Feature',
+                    properties: { name: `Traverse_${openingName || 'traverse'}`, precision: `1:${Math.round(result.precisionRatio).toLocaleString()}` },
+                    geometry: {
+                      type: coords.length >= 4 ? 'Polygon' : 'LineString',
+                      coordinates: coords.length >= 4 ? [coords] : coords,
+                    },
+                  }],
+                }
+                const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/geo+json' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `traverse_${openingName || 'traverse'}.geojson`
+                a.click()
+                URL.revokeObjectURL(url)
+              }
+              const handleCopyCoordinates = async () => {
+                const header = 'Station\tEasting\tNorthing'
+                const rows = result.coordinates.map(c => `${c.station}\t${c.easting.toFixed(4)}\t${c.northing.toFixed(4)}`)
+                const text = [header, ...rows].join('\n')
+                try {
+                  await navigator.clipboard.writeText(text)
+                  alert('Coordinates copied to clipboard')
+                } catch {
+                  // Fallback for environments where clipboard API is unavailable
+                  const ta = document.createElement('textarea')
+                  ta.value = text
+                  document.body.appendChild(ta)
+                  ta.select()
+                  document.execCommand('copy')
+                  document.body.removeChild(ta)
+                  alert('Coordinates copied to clipboard')
+                }
+              }
+              return (
+                <div className="space-y-3">
+                  <div className="overflow-x-auto bg-[#111] rounded-b-lg p-4">
+                    <CoordinateCanvas
+                      points={canvasPoints}
+                      lines={canvasLines}
+                      legs={canvasLegs}
+                      width={800}
+                      height={600}
+                      showGrid={true}
+                      showNorthArrow={true}
+                      showScaleBar={true}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 px-4 pb-3">
+                    <button onClick={handleExportDXF}
+                      className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white rounded text-xs font-medium">
+                      Export DXF
+                    </button>
+                    <button onClick={handleExportGeoJSON}
+                      className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs font-medium">
+                      Export GeoJSON
+                    </button>
+                    <button onClick={handleCopyCoordinates}
+                      className="px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-xs font-medium border border-[var(--border-color)]">
+                      Copy Coordinates
+                    </button>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
 
           <div className="flex justify-between">

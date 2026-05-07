@@ -136,6 +136,7 @@ export default function ImportPage() {
     jobxml: 'Trimble JobXML',
     topcon: 'Topcon GTS',
     sokkia: 'Sokkia SDR',
+    south: 'South NTS/Galaxy',
     csv: 'CSV',
     unknown: 'Unknown'
   }

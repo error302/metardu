@@ -2,6 +2,7 @@ import './parsers/csv';
 import './parsers/gsi';
 import './parsers/jobxml';
 import './parsers/trimbleRw5';
+import './parsers/south';
 import './parsers/dxf';
 import './parsers/traverse-csv';
 import './parsers/las';

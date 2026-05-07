@@ -163,7 +163,7 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"} https://cdn.jsdelivr.net https://unpkg.com`,
+              `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"} 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
@@ -220,7 +220,7 @@ const hasSentry =
 
 module.exports = hasSentry
   ? withSentryConfig(
-      withBundleAnalyzer(nextConfig),
+      withBundleAnalyzer(withPWA(nextConfig)),
       {
         silent: true,
         org: process.env.SENTRY_ORG,
@@ -232,4 +232,4 @@ module.exports = hasSentry
         disableLogger: true,
       }
     )
-  : withBundleAnalyzer(nextConfig)
+  : withBundleAnalyzer(withPWA(nextConfig))
