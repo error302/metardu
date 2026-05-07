@@ -9,13 +9,8 @@ import { HorizontalCurvePanel } from '@/components/engineering/HorizontalCurvePa
 import SuperelevationPanel from '@/components/engineering/SuperelevationPanel'
 import { VolumesPanel } from '@/components/engineering/VolumesPanel'
 import { NetworkAdjustmentPanel } from '@/components/compute/NetworkAdjustmentPanel'
-// import { CurvesPanel } from '@/components/compute/CurvesPanel'
-// TODO: Missing engineering compute panels
-// import { ChainagePanel } from '@/components/compute/ChainagePanel'
-// import { TacheometryPanel } from '@/components/compute/TacheometryPanel'
-// import { CrossSectionsPanel } from '@/components/compute/CrossSectionsPanel'
-// import { SettingOutPanel } from '@/components/compute/SettingOutPanel'
 import type { SurveyorProfileSubmission } from '@/lib/api-client/community'
+import { MANNING_N } from '@/lib/engineering/drainageDesign'
 import LongSectionRenderer from '@/components/engineering/LongSectionRenderer'
 import CrossSectionRenderer from '@/components/engineering/CrossSectionRenderer'
 import CrossSectionSeries from '@/components/engineering/CrossSectionSeries'
@@ -242,9 +237,20 @@ function Step1Setup({
     }
   }, [roadClass, standard, speedRange, designSpeed])
 
+  const [error, setError] = useState<string | null>(null)
+
   const handleSave = () => {
+    if (!roadName.trim()) {
+      setError('Road name is required')
+      return
+    }
+    if (designSpeed <= 0) {
+      setError('Design speed must be greater than 0')
+      return
+    }
+    setError(null)
     onSave({
-      roadName,
+      roadName: roadName.trim(),
       startChainage,
       designSpeed,
       roadClass: roadClass as any,
@@ -260,6 +266,10 @@ function Step1Setup({
         <h3 className="text-lg font-semibold text-white mb-1">Project Setup</h3>
         <p className="text-zinc-400 text-sm">Define road parameters per {standard} standard.</p>
       </div>
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-700 rounded-lg px-4 py-3 text-red-400 text-sm">{error}</div>
+      )}
 
       <div className="border border-zinc-700 rounded-lg p-4">
         <label className="block text-sm text-zinc-400 mb-2">Engineering Mode</label>
@@ -1011,7 +1021,8 @@ function DrainageStep2Pipes({
       const gradient = fall / length
       const diameter = mh2.pipeDiameterOut / 1000
       
-      const velocity = gradient > 0 ? (1 / 0.013) * Math.pow(diameter, 2/3) * Math.pow(gradient, 0.5) : 0
+      const manningN = MANNING_N[mh2.pipeMaterial as keyof typeof MANNING_N] || 0.013
+      const velocity = gradient > 0 ? (1 / manningN) * Math.pow(diameter, 2/3) * Math.pow(gradient, 0.5) : 0
       const fullBore = (Math.PI * Math.pow(diameter, 2) / 4) * velocity
       
       pipes.push({
@@ -1640,57 +1651,78 @@ export default function EngineeringWorkspacePage() {
     fetchProject()
   }, [fetchProject])
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
   const handleModeChange = async (newMode: EngineeringMode) => {
     if (!project) return
     setSaving(true)
 
-    const current = project.engineering_data || { mode: 'road' as EngineeringMode, standard: 'KRDM2017' as EngineeringStandard }
-    const updated: EngineeringData = {
-      ...current,
-      mode: newMode,
-      standard: current.standard || 'KRDM2017'
+    try {
+      const current = project.engineering_data || { mode: 'road' as EngineeringMode, standard: 'KRDM2017' as EngineeringStandard }
+      const updated: EngineeringData = {
+        ...current,
+        mode: newMode,
+        standard: current.standard || 'KRDM2017'
+      }
+
+      await dbClient
+        .from('projects')
+        .update({ engineering_data: updated })
+        .eq('id', project.id)
+
+      setProject({ ...project, engineering_data: updated })
+      setActiveStep('setup')
+      showToast('Mode switched successfully')
+    } catch (err) {
+      showToast('Failed to save. Check your connection and try again.', 'error')
+      console.error('Save failed:', err)
+    } finally {
+      setSaving(false)
     }
-
-    await dbClient
-      .from('projects')
-      .update({ engineering_data: updated })
-      .eq('id', project.id)
-
-    setProject({ ...project, engineering_data: updated })
-    setActiveStep('setup')
-    setSaving(false)
   }
 
   const handleSave = async (data: Partial<EngineeringData>) => {
     if (!project) return
     setSaving(true)
 
-    const current = project.engineering_data || { mode: 'road' as EngineeringMode, standard: 'KRDM2017' as EngineeringStandard }
-    
-    let updated: EngineeringData
-    if (data.mode) {
-      updated = {
-        ...current,
-        mode: data.mode,
-        standard: data.standard || current.standard || 'KRDM2017'
+    try {
+      const current = project.engineering_data || { mode: 'road' as EngineeringMode, standard: 'KRDM2017' as EngineeringStandard }
+      
+      let updated: EngineeringData
+      if (data.mode) {
+        updated = {
+          ...current,
+          mode: data.mode,
+          standard: data.standard || current.standard || 'KRDM2017'
+        }
+      } else {
+        updated = {
+          ...current,
+          mode: current.mode || 'road',
+          standard: current.standard || 'KRDM2017',
+          road: { ...current.road, ...data.road } as RoadDesignData,
+          drainage: { ...current.drainage, ...data.drainage } as DrainageData
+        }
       }
-    } else {
-      updated = {
-        ...current,
-        mode: current.mode || 'road',
-        standard: current.standard || 'KRDM2017',
-        road: { ...current.road, ...data.road } as RoadDesignData,
-        drainage: { ...current.drainage, ...data.drainage } as DrainageData
-      }
+
+      await dbClient
+        .from('projects')
+        .update({ engineering_data: updated })
+        .eq('id', project.id)
+
+      setProject({ ...project, engineering_data: updated })
+      showToast('Saved successfully')
+    } catch (err) {
+      showToast('Failed to save. Check your connection and try again.', 'error')
+      console.error('Save failed:', err)
+    } finally {
+      setSaving(false)
     }
-
-    await dbClient
-      .from('projects')
-      .update({ engineering_data: updated })
-      .eq('id', project.id)
-
-    setProject({ ...project, engineering_data: updated })
-    setSaving(false)
   }
 
   if (loading) {
@@ -1763,11 +1795,6 @@ export default function EngineeringWorkspacePage() {
 
           <div className="bg-zinc-900 rounded-xl p-6">
             {activeTab === 'curves' && <HorizontalCurvePanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
-{/* Missing panels TODO Phase 17 */}
-            {/* {activeTab === 'chainage' && <ChainagePanel projectId={params.id} projectData={project} />} */}
-            {/* {activeTab === 'tacheometry' && <TacheometryPanel projectId={params.id} projectData={project} />} */}
-            {/* {activeTab === 'cross_sections' && <CrossSectionsPanel projectId={params.id} projectData={project} />} */}
-            {/* {activeTab === 'setting_out' && <SettingOutPanel projectId={params.id} projectData={project} />} */}
             {activeTab === 'superelevation' && <SuperelevationPanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
             {activeTab === 'volumes' && <VolumesPanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
             {activeTab === 'network' && <NetworkAdjustmentPanel projectId={params.id} projectData={project} />}
@@ -1800,6 +1827,23 @@ export default function EngineeringWorkspacePage() {
           </button>
         </div>
       </div>
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
+          toast.type === 'success' ? 'bg-green-900/90 text-green-300 border border-green-700' : 'bg-red-900/90 text-red-300 border border-red-700'
+        }`}>
+          {toast.type === 'success' ? '✓ ' : '✕ '}{toast.message}
+        </div>
+      )}
+
+      {/* Saving indicator */}
+      {saving && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-zinc-800 border border-zinc-600 text-zinc-300 px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-lg">
+          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          Saving...
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row">
         <nav className="w-full lg:w-64 shrink-0 border-b lg:border-b-0 lg:border-r border-zinc-800">
