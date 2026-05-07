@@ -16,8 +16,12 @@ import { NetworkAdjustmentPanel } from '@/components/compute/NetworkAdjustmentPa
 // import { CrossSectionsPanel } from '@/components/compute/CrossSectionsPanel'
 // import { SettingOutPanel } from '@/components/compute/SettingOutPanel'
 import type { SurveyorProfileSubmission } from '@/lib/api-client/community'
+import LongSectionRenderer from '@/components/engineering/LongSectionRenderer'
+import CrossSectionRenderer from '@/components/engineering/CrossSectionRenderer'
+import CrossSectionSeries from '@/components/engineering/CrossSectionSeries'
+import RoadReservePanel from '@/components/engineering/RoadReservePanel'
 
-type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs'
+type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs' | 'long_section' | 'cross_section_view' | 'road_reserve'
 
 interface EngineeringStep {
   id: EngineeringStepId
@@ -109,6 +113,30 @@ function getEngineeringSteps(data: EngineeringData | null): EngineeringStep[] {
       description: 'PDF reports, long section, peg book',
       status: 'locked',
       gated: true
+    })
+
+    const verticalDone = rd?.vips?.length && rd.vips.length >= 1
+    steps.push({
+      id: 'long_section',
+      label: 'Long Section',
+      description: 'Chainage vs elevation profile',
+      status: verticalDone ? 'in_progress' : 'locked',
+      gated: true
+    })
+
+    steps.push({
+      id: 'cross_section_view',
+      label: 'Cross Sections',
+      description: 'Formation template sections',
+      status: stationsDone ? 'in_progress' : 'locked',
+      gated: true
+    })
+
+    steps.push({
+      id: 'road_reserve',
+      label: 'Road Reserve',
+      description: 'Reserve width & land acquisition',
+      status: 'in_progress'
     })
   } else if (mode === 'drainage') {
     const drainageSetupDone = dd?.manholes?.length ? true : false
@@ -1361,6 +1389,117 @@ function renderStepContent(
           </div>
         </div>
       )
+    case 'long_section': {
+      const stations = roadData?.stations || []
+      const vips = roadData?.vips || []
+      if (stations.length === 0) {
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-1">Long Section</h3>
+              <p className="text-zinc-400 text-sm">Chainage vs elevation profile.</p>
+            </div>
+            <div className="text-center py-12 text-zinc-500">
+              <p>Add station levels in Step 5 (Stations & Levels) first.</p>
+            </div>
+          </div>
+        )
+      }
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">Long Section</h3>
+            <p className="text-zinc-400 text-sm">Chainage vs elevation profile with vertical curves, cut/fill areas.</p>
+          </div>
+          <LongSectionRenderer
+            stations={stations.map(s => ({
+              chainage: s.chainage,
+              groundLevel: s.groundLevel,
+              designLevel: s.designLevel,
+            }))}
+            verticalIPs={vips.map(v => ({
+              chainage: v.chainage,
+              reducedLevel: v.reducedLevel,
+              kValue: v.kValue,
+            }))}
+            projectInfo={{
+              roadName: roadData?.roadName || 'Unnamed Road',
+              roadClass: roadData?.roadClass || 'C',
+              designSpeed: roadData?.designSpeed || 60,
+              startChainage: roadData?.startChainage || 0,
+              datum: roadData?.datum || 'Arc 1960',
+            }}
+          />
+        </div>
+      )
+    }
+    case 'cross_section_view': {
+      const stations = roadData?.stations || []
+      const template = roadData?.crossSectionTemplate
+      if (stations.length === 0 || !template) {
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-1">Cross Sections</h3>
+              <p className="text-zinc-400 text-sm">Formation template sections at each chainage.</p>
+            </div>
+            <div className="text-center py-12 text-zinc-500">
+              <p>Add station levels and a cross section template first.</p>
+            </div>
+          </div>
+        )
+      }
+      const sections = stations.map(s => ({
+        chainage: s.chainage,
+        groundPoints: [
+          { offset: -(template.carriagewayWidth / 2 + template.shoulderWidth + 10), level: s.groundLevel + 0.3 },
+          { offset: -(template.carriagewayWidth / 2 + template.shoulderWidth), level: s.groundLevel + 0.1 },
+          { offset: -(template.carriagewayWidth / 2), level: s.groundLevel },
+          { offset: 0, level: s.groundLevel - 0.1 },
+          { offset: template.carriagewayWidth / 2, level: s.groundLevel },
+          { offset: template.carriagewayWidth / 2 + template.shoulderWidth, level: s.groundLevel + 0.1 },
+          { offset: template.carriagewayWidth / 2 + template.shoulderWidth + 10, level: s.groundLevel + 0.3 },
+        ],
+        formationLevel: s.designLevel ?? s.groundLevel,
+        cutArea: s.designLevel ? Math.max(0, s.groundLevel - s.designLevel) * (template.carriagewayWidth + template.shoulderWidth * 2) : 0,
+        fillArea: s.designLevel ? Math.max(0, s.designLevel - s.groundLevel) * (template.carriagewayWidth + template.shoulderWidth * 2) : 0,
+      }))
+      const defaultTemplate = {
+        carriagewayWidth: template.carriagewayWidth,
+        shoulderWidth: template.shoulderWidth,
+        cutSlope: template.cutSlope,
+        fillSlope: template.fillSlope,
+        camber: template.camber,
+        subgradeDepth: template.subgradeDepth,
+      }
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">Cross Sections</h3>
+            <p className="text-zinc-400 text-sm">Formation template sections at each chainage station.</p>
+          </div>
+          <CrossSectionSeries sections={sections} template={defaultTemplate} interval={20} />
+        </div>
+      )
+    }
+    case 'road_reserve': {
+      const stations = roadData?.stations || []
+      const template = roadData?.crossSectionTemplate
+      const roadLength = stations.length >= 2 ? stations[stations.length - 1].chainage - stations[0].chainage : 0
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">Road Reserve</h3>
+            <p className="text-zinc-400 text-sm">Reserve width compliance, land acquisition estimate, and property impact.</p>
+          </div>
+          <RoadReservePanel
+            roadClass={roadData?.roadClass || 'C'}
+            roadLength={roadLength || undefined}
+            existingRoadWidth={template?.carriagewayWidth ? template.carriagewayWidth + template.shoulderWidth * 2 : undefined}
+          />
+        </div>
+      )
+    }
     default:
       return <div>Unknown step</div>
   }
@@ -1526,6 +1665,7 @@ export default function EngineeringWorkspacePage() {
               { id: 'superelevation', label: 'Superelevation' },
               { id: 'volumes', label: 'Volumes' },
               { id: 'network', label: 'Network Adjustment' },
+              { id: 'road_reserve', label: 'Road Reserve' },
               { id: 'workflow', label: '← Back to Workflow' },
             ].map(tab => (
               <button
@@ -1552,6 +1692,11 @@ export default function EngineeringWorkspacePage() {
             {activeTab === 'superelevation' && <SuperelevationPanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
             {activeTab === 'volumes' && <VolumesPanel projectId={params.id} projectData={{ lr_number: project.lr_number, county: project.county, district: project.district, locality: project.locality }} surveyorProfile={surveyorProfile} />}
             {activeTab === 'network' && <NetworkAdjustmentPanel projectId={params.id} projectData={project} />}
+            {activeTab === 'road_reserve' && <RoadReservePanel
+              roadClass={project.engineering_data?.road?.roadClass || 'C'}
+              roadLength={undefined}
+              existingRoadWidth={project.engineering_data?.road?.crossSectionTemplate?.carriagewayWidth ? project.engineering_data.road.crossSectionTemplate.carriagewayWidth + (project.engineering_data.road.crossSectionTemplate.shoulderWidth ?? 1) * 2 : undefined}
+            />}
           </div>
         </div>
       </div>
