@@ -1,38 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { transformCoordinates, getSupportedSystems, CoordinateSystem } from '@/lib/online/coordinates'
+import { apiHandler } from '@/lib/apiHandler'
+import { transformCoordinates, getSupportedSystems } from '@/lib/online/coordinates'
+import { z } from 'zod'
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { 
-      latitude, 
-      longitude, 
-      easting, 
-      northing, 
-      zone, 
-      hemisphere,
-      fromSystem, 
-      toSystem 
-    } = body
+const transformRequestSchema = z.object({
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  easting: z.number().optional(),
+  northing: z.number().optional(),
+  zone: z.number().optional(),
+  hemisphere: z.enum(['N', 'S']).optional(),
+  fromSystem: z.enum(['WGS84', 'UTM', 'ARC1960', 'HARTEBEESTHOEK94', 'ADINDAN', 'CAPE', 'ED50', 'PSAD56']),
+  toSystem: z.enum(['WGS84', 'UTM', 'ARC1960', 'HARTEBEESTHOEK94', 'ADINDAN', 'CAPE', 'ED50', 'PSAD56']),
+})
 
-    if (!fromSystem || !toSystem) {
-      return NextResponse.json(
-        { error: 'Missing required parameters: fromSystem, toSystem' },
-        { status: 400 }
-      )
-    }
-
-    const validSystems: CoordinateSystem[] = [
-      'WGS84', 'UTM', 'ARC1960', 'HARTEBEESTHOEK94', 
-      'ADINDAN', 'CAPE', 'ED50', 'PSAD56'
-    ]
-
-    if (!validSystems.includes(fromSystem) || !validSystems.includes(toSystem)) {
-      return NextResponse.json(
-        { error: 'Invalid coordinate system' },
-        { status: 400 }
-      )
-    }
+export const POST = apiHandler(
+  { auth: true, schema: transformRequestSchema, rateLimit: { max: 120, windowMs: 60000 } },
+  async (req, ctx) => {
+    const { latitude, longitude, easting, northing, zone, hemisphere, fromSystem, toSystem } = ctx.body as any
 
     const result = await transformCoordinates(
       { latitude, longitude, easting, northing, zone, hemisphere },
@@ -41,14 +26,9 @@ export async function POST(request: NextRequest) {
     )
 
     return NextResponse.json(result)
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Transformation failed' },
-      { status: 500 }
-    )
   }
-}
+)
 
-export async function GET() {
+export const GET = apiHandler({ auth: true }, async () => {
   return NextResponse.json({ systems: getSupportedSystems() })
-}
+})

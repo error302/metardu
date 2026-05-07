@@ -1,76 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
-import { transformCoordinates, getSupportedSystems, CoordinateSystem } from '@/lib/online/coordinates'
+import { apiHandler } from '@/lib/apiHandler'
+import { z } from 'zod'
 
-interface CoordinatePoint {
-  latitude?: number
-  longitude?: number
-  easting?: number
-  northing?: number
-  zone?: number
-  hemisphere?: 'N' | 'S'
-  id?: string
-  name?: string
-  elevation?: number
-}
+const transformBatchSchema = z.object({
+  points: z.array(z.object({
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+    easting: z.number().optional(),
+    northing: z.number().optional(),
+    zone: z.number().optional(),
+    hemisphere: z.enum(['N', 'S']).optional(),
+    id: z.string().optional(),
+    name: z.string().optional(),
+    elevation: z.number().optional(),
+  })).min(1).max(1000),
+  fromSystem: z.enum(['WGS84', 'UTM', 'ARC1960', 'HARTEBEESTHOEK94', 'ADINDAN', 'CAPE', 'ED50', 'PSAD56']),
+  toSystem: z.enum(['WGS84', 'UTM', 'ARC1960', 'HARTEBEESTHOEK94', 'ADINDAN', 'CAPE', 'ED50', 'PSAD56']),
+})
 
-interface BatchTransformRequest {
-  points: CoordinatePoint[]
-  fromSystem: CoordinateSystem
-  toSystem: CoordinateSystem
-}
+export const POST = apiHandler(
+  { auth: true, schema: transformBatchSchema, rateLimit: { max: 10, windowMs: 60000 } },
+  async (req, ctx) => {
+    const { points, fromSystem, toSystem } = ctx.body as any
 
-interface TransformResult {
-  id?: string
-  name?: string
-  latitude?: number
-  longitude?: number
-  easting?: number
-  northing?: number
-  zone?: number
-  hemisphere?: string
-  elevation?: number
-  success: boolean
-  error?: string
-  fromSystem?: string
-  toSystem?: string
-}
+    const { transformCoordinates } = await import('@/lib/online/coordinates')
 
-export async function POST(request: NextRequest) {
-  const { allowed } = await rateLimit(getClientIdentifier(request), 120, 60000)
-  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
-
-  try {
-    const body: BatchTransformRequest = await request.json()
-    const { points, fromSystem, toSystem } = body
-
-    if (!points || !Array.isArray(points) || points.length === 0) {
-      return NextResponse.json(
-        { error: 'Missing or invalid points array' },
-        { status: 400 }
-      )
-    }
-
-    if (!fromSystem || !toSystem) {
-      return NextResponse.json(
-        { error: 'Missing required parameters: fromSystem, toSystem' },
-        { status: 400 }
-      )
-    }
-
-    const validSystems: CoordinateSystem[] = [
-      'WGS84', 'UTM', 'ARC1960', 'HARTEBEESTHOEK94',
-      'ADINDAN', 'CAPE', 'ED50', 'PSAD56'
-    ]
-
-    if (!validSystems.includes(fromSystem) || !validSystems.includes(toSystem)) {
-      return NextResponse.json(
-        { error: 'Invalid coordinate system' },
-        { status: 400 }
-      )
-    }
-
-    const results: TransformResult[] = []
+    const results: any[] = []
     let successCount = 0
     let errorCount = 0
 
@@ -83,7 +38,7 @@ export async function POST(request: NextRequest) {
             easting: point.easting,
             northing: point.northing,
             zone: point.zone,
-            hemisphere: point.hemisphere
+            hemisphere: point.hemisphere,
           },
           fromSystem,
           toSystem
@@ -103,7 +58,7 @@ export async function POST(request: NextRequest) {
           zone: result.result.zone,
           hemisphere: result.result.hemisphere,
           elevation: point.elevation,
-          success: true
+          success: true,
         })
         successCount++
       } catch (error) {
@@ -111,7 +66,7 @@ export async function POST(request: NextRequest) {
           id: point.id,
           name: point.name,
           success: false,
-          error: error instanceof Error ? error.message : 'Transform failed'
+          error: error instanceof Error ? error.message : 'Transform failed',
         })
         errorCount++
       }
@@ -123,29 +78,17 @@ export async function POST(request: NextRequest) {
       totalPoints: points.length,
       successCount,
       errorCount,
-      results
+      results,
     })
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Batch transformation failed' },
-      { status: 500 }
-    )
   }
-}
+)
 
-export async function GET() {
+export const GET = apiHandler({ auth: true }, async () => {
+  const { getSupportedSystems } = await import('@/lib/online/coordinates')
   return NextResponse.json({
     endpoint: '/coordinates/batch',
     description: 'Batch coordinate transformation',
     systems: getSupportedSystems(),
     maxPoints: 1000,
-    example: {
-      points: [
-        { id: '1', name: 'BM001', latitude: -25.747867, longitude: 28.229271 },
-        { id: '2', name: 'BM002', latitude: -25.748000, longitude: 28.230000 }
-      ],
-      fromSystem: 'WGS84',
-      toSystem: 'UTM'
-    }
   })
-}
+})

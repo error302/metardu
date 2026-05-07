@@ -1,56 +1,46 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { riseAndFall, heightOfCollimation, type LevelingInput } from '@/lib/engine/leveling';
-import { apiSuccess, apiError } from '@/lib/api/response';
+import { NextRequest, NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
+import { z } from 'zod'
 
 const levelingSchema = z.object({
   surveyType: z.enum(['engineering', 'mining', 'deformation']),
   method: z.enum(['rise_and_fall', 'height_of_collimation']),
   openingRL: z.number(),
   closingRL: z.number().optional(),
-  readings: z.array(
-    z.object({
-      station: z.string(),
-      bs: z.number().optional(),
-      is: z.number().optional(),
-      fs: z.number().optional(),
-    })
-  ),
-});
+  readings: z.array(z.object({
+    station: z.string(),
+    bs: z.number().optional(),
+    is: z.number().optional(),
+    fs: z.number().optional(),
+  })),
+})
 
-export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
-  const parsed = levelingSchema.safeParse(body);
+export const POST = apiHandler(
+  { auth: true, schema: levelingSchema, rateLimit: { max: 50, windowMs: 60000 } },
+  async (req, ctx) => {
+    const { method, openingRL, closingRL, readings } = ctx.body as any
 
-  if (!parsed.success) {
-    return NextResponse.json(
-      apiError('Invalid leveling request.', { issues: parsed.error.issues }),
-      { status: 400 }
-    );
-  }
+    const { riseAndFall, heightOfCollimation } = await import('@/lib/engine/leveling')
 
-  const { method, openingRL, closingRL, readings } = parsed.data;
+    const totalStations = readings.filter((r: any) => r.bs !== undefined).length
+    const distanceKm = totalStations / 1000
 
-  const totalStations = readings.filter((r) => r.bs !== undefined).length;
-  const distanceKm = totalStations / 1000;
+    const input = {
+      readings,
+      openingRL,
+      closingRL,
+      method,
+      distanceKm: Math.max(distanceKm, 0.001),
+    }
 
-  const input = {
-    readings,
-    openingRL,
-    closingRL,
-    method,
-    distanceKm: Math.max(distanceKm, 0.001),
-  };
+    const result = method === 'height_of_collimation'
+      ? heightOfCollimation(input as any)
+      : riseAndFall(input as any)
 
-  const result = method === 'height_of_collimation'
-    ? heightOfCollimation(input as LevelingInput)
-    : riseAndFall(input as LevelingInput);
+    const misclosureMm = Math.abs(result.misclosure) * 1000
+    const allowableMm = result.allowableMisclosure * 1000
 
-  const misclosureMm = Math.abs(result.misclosure) * 1000;
-  const allowableMm = result.allowableMisclosure * 1000;
-
-  return NextResponse.json(
-    apiSuccess({
+    return NextResponse.json({
       task: 'leveling',
       method: result.method,
       readings: result.readings,
@@ -64,16 +54,14 @@ export async function POST(request: NextRequest) {
         ? `Closure within tolerance (${misclosureMm.toFixed(1)}mm / ${allowableMm.toFixed(1)}mm)`
         : `Closure exceeds tolerance (${misclosureMm.toFixed(1)}mm / ${allowableMm.toFixed(1)}mm)`,
     })
-  );
-}
+  }
+)
 
-export async function GET() {
-  return NextResponse.json(
-    apiSuccess({
-      endpoint: '/api/compute/leveling',
-      description: 'Run leveling computations with 10√K mm closure check (RDM 1.1)',
-      methods: ['rise_and_fall', 'height_of_collimation'],
-      surveyTypes: ['engineering', 'mining', 'deformation'],
-    })
-  );
-}
+export const GET = apiHandler({ auth: true }, async () => {
+  return NextResponse.json({
+    endpoint: '/api/compute/leveling',
+    description: 'Run leveling computations with 10√K mm closure check (RDM 1.1)',
+    methods: ['rise_and_fall', 'height_of_collimation'],
+    surveyTypes: ['engineering', 'mining', 'deformation'],
+  })
+})

@@ -1,41 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { apiHandler } from '@/lib/apiHandler'
 
-// GET /api/scheme/batch?project_id=X — Generate ZIP with all deed plans for computed parcels
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
+export const GET = apiHandler(
+  { auth: true, audit: 'batch_generated' },
+  async (req, ctx) => {
+    const { searchParams } = new URL(req.url)
     const projectId = searchParams.get('project_id')
 
     if (!projectId) {
       return NextResponse.json({ error: 'project_id is required' }, { status: 400 })
     }
 
-    // Verify project belongs to user
     const projectCheck = await db.query(
       'SELECT id, name, project_type FROM projects WHERE id = $1 AND user_id = $2',
-      [projectId, session.user.id]
+      [projectId, ctx.userId]
     )
     if (projectCheck.rows.length === 0) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Get all parcels with computed traverses
     const parcelsResult = await db.query(
       `SELECT p.id, p.parcel_number, p.lr_number_proposed, p.area_ha, p.status,
-              b.block_number, b.block_name
-       FROM parcels p
-       JOIN blocks b ON b.id = p.block_id
-       WHERE p.project_id = $1
-       AND p.status IN ('computed', 'plan_generated', 'submitted', 'approved')
-       ORDER BY b.block_number, p.parcel_number`,
+      b.block_number, b.block_name
+      FROM parcels p
+      JOIN blocks b ON b.id = p.block_id
+      WHERE p.project_id = $1
+      AND p.status IN ('computed', 'plan_generated', 'submitted', 'approved')
+      ORDER BY b.block_number, p.parcel_number`,
       [projectId]
     )
 
@@ -43,7 +35,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No computed parcels found. Run traverse computation on parcels first.' }, { status: 400 })
     }
 
-    // Generate deed plans for each parcel
     const { jsPDF } = await import('jspdf')
     const { renderBoundaryPlan } = await import('@/lib/generators/deedPlanRenderer')
 
@@ -51,10 +42,9 @@ export async function GET(request: NextRequest) {
 
     for (const parcel of parcelsResult.rows) {
       try {
-        // Get traverse data
         const traverseCheck = await db.query(
           `SELECT pt.id, pt.accuracy_order, pt.total_perimeter, pt.computed_area_ha
-           FROM parcel_traverses pt WHERE pt.parcel_id = $1`,
+          FROM parcel_traverses pt WHERE pt.parcel_id = $1`,
           [parcel.id]
         )
         if (traverseCheck.rows.length === 0) continue
@@ -69,11 +59,8 @@ export async function GET(request: NextRequest) {
         if (coordsResult.rows.length < 3) continue
 
         const stations = coordsResult.rows.map((c: any) => ({
-          station: c.station,
-          easting: parseFloat(c.easting),
-          northing: parseFloat(c.northing),
-          beaconNo: c.station,
-          monument: 'psc found',
+          station: c.station, easting: parseFloat(c.easting), northing: parseFloat(c.northing),
+          beaconNo: c.station, monument: 'psc found',
         }))
 
         const bearingSchedule: Array<{ bearing: string; distance: string }> = []
@@ -94,8 +81,7 @@ export async function GET(request: NextRequest) {
         }
 
         const geom = {
-          stations,
-          bearingSchedule,
+          stations, bearingSchedule,
           minE: Math.min(...stations.map((s: any) => s.easting)),
           maxE: Math.max(...stations.map((s: any) => s.easting)),
           minN: Math.min(...stations.map((s: any) => s.northing)),
@@ -146,15 +132,10 @@ export async function GET(request: NextRequest) {
         }
 
         const pdfBuf = Buffer.from(doc.output('arraybuffer'))
-
         const safeLR = (parcel.lr_number_proposed || parcel.parcel_number).replace(/[\/\\]/g, '-')
-        pdfBuffers.push({
-          filename: `Block${parcel.block_number}_${safeLR}_DeedPlan.pdf`,
-          buffer: pdfBuf,
-        })
+        pdfBuffers.push({ filename: `Block${parcel.block_number}_${safeLR}_DeedPlan.pdf`, buffer: pdfBuf })
       } catch (err) {
         console.error(`Failed to generate deed plan for parcel ${parcel.id}:`, err)
-        // Skip failed parcels
       }
     }
 
@@ -162,17 +143,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No deed plans could be generated' }, { status: 500 })
     }
 
-    // Create ZIP using Node.js built-in (or JSZip)
     let zipBuffer: Buffer
     try {
       const JSZip = (await import('jszip')).default
       const zip = new JSZip()
-      for (const pdf of pdfBuffers) {
-        zip.file(pdf.filename, pdf.buffer)
-      }
+      for (const pdf of pdfBuffers) { zip.file(pdf.filename, pdf.buffer) }
       zipBuffer = Buffer.from(await zip.generateAsync({ type: 'arraybuffer' }))
     } catch {
-      // Fallback: return first PDF if JSZip not available
       return new NextResponse(pdfBuffers[0].buffer, {
         status: 200,
         headers: {
@@ -189,8 +166,5 @@ export async function GET(request: NextRequest) {
         'Content-Disposition': `attachment; filename="DeedPlans_Project${projectId}_${pdfBuffers.length}parcels.zip"`,
       },
     })
-  } catch (error) {
-    console.error('Batch generation error:', error)
-    return NextResponse.json({ error: 'Failed to generate batch deed plans', details: String(error) }, { status: 500 })
   }
-}
+)

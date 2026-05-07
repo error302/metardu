@@ -1,52 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { z } from 'zod'
+import { apiHandler } from '@/lib/apiHandler'
+import { CreateParcelSchema } from '@/lib/validation/apiSchemas'
 
-const createParcelSchema = z.object({
-  project_id: z.number().int().positive(),
-  block_id: z.number().int().positive(),
-  parcel_number: z.string().min(1, 'Parcel number is required'),
-  lr_number_proposed: z.string().optional(),
-  lr_number_confirmed: z.string().optional(),
-  area_ha: z.number().nonnegative().optional(),
-  status: z.enum(['pending', 'field_complete', 'computed', 'plan_generated', 'submitted', 'approved']).optional().default('pending'),
-  assigned_surveyor: z.number().int().optional(),
-  notes: z.string().optional(),
-})
-
-// POST /api/scheme/parcels — Create a new parcel
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export const POST = apiHandler(
+  { auth: true, schema: CreateParcelSchema, audit: 'parcel_created' },
+  async (req, ctx) => {
+    const { block_id, parcel_number, lr_number_proposed, area_ha, notes } = ctx.body as {
+      block_id: string; parcel_number: string; lr_number_proposed?: string;
+      area_ha?: number; notes?: string
     }
 
-    const body = await request.json()
-    const validated = createParcelSchema.parse(body)
-    const { project_id, block_id, parcel_number } = validated
-
-    // Verify project belongs to user
-    const projectCheck = await db.query(
-      'SELECT id, project_type FROM projects WHERE id = $1 AND user_id = $2',
-      [project_id, session.user.id]
-    )
-    if (projectCheck.rows.length === 0) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-
-    // Verify block belongs to this project
     const blockCheck = await db.query(
-      'SELECT id FROM blocks WHERE id = $1 AND project_id = $2',
-      [block_id, project_id]
+      `SELECT b.id, b.project_id FROM blocks b
+      JOIN projects p ON p.id = b.project_id
+      WHERE b.id = $1 AND p.user_id = $2`,
+      [block_id, ctx.userId]
     )
     if (blockCheck.rows.length === 0) {
       return NextResponse.json({ error: 'Block not found in this project' }, { status: 404 })
     }
 
-    // Check for duplicate parcel number within this block
+    const projectId = blockCheck.rows[0].project_id
+
     const dupCheck = await db.query(
       'SELECT id FROM parcels WHERE block_id = $1 AND parcel_number = $2',
       [block_id, parcel_number]
@@ -58,42 +34,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Insert parcel
     const result = await db.query(
-      `INSERT INTO parcels (project_id, block_id, parcel_number, lr_number_proposed, lr_number_confirmed, area_ha, status, assigned_surveyor, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [
-        project_id,
-        block_id,
-        parcel_number,
-        validated.lr_number_proposed || null,
-        validated.lr_number_confirmed || null,
-        validated.area_ha || null,
-        validated.status,
-        validated.assigned_surveyor || null,
-        validated.notes || null,
-      ]
+      `INSERT INTO parcels (project_id, block_id, parcel_number, lr_number_proposed, area_ha, status, notes)
+      VALUES ($1, $2, $3, $4, $5, 'pending', $6) RETURNING *`,
+      [projectId, block_id, parcel_number, lr_number_proposed || null, area_ha || null, notes || null]
     )
 
     return NextResponse.json({ data: result.rows[0] }, { status: 201 })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation failed', details: error.errors }, { status: 400 })
-    }
-    console.error('Parcel creation error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+)
 
-// GET /api/scheme/parcels?block_id=X — List parcels for a block
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
+export const GET = apiHandler(
+  { auth: true },
+  async (req, ctx) => {
+    const { searchParams } = new URL(req.url)
     const blockId = searchParams.get('block_id')
     const projectId = searchParams.get('project_id')
 
@@ -105,12 +59,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (blockId) {
-      // Verify block belongs to user's project
       const check = await db.query(
         `SELECT b.id FROM blocks b
-         JOIN projects p ON p.id = b.project_id
-         WHERE b.id = $1 AND p.user_id = $2`,
-        [blockId, session.user.id]
+        JOIN projects p ON p.id = b.project_id
+        WHERE b.id = $1 AND p.user_id = $2`,
+        [blockId, ctx.userId]
       )
       if (check.rows.length === 0) {
         return NextResponse.json({ error: 'Block not found' }, { status: 404 })
@@ -118,21 +71,20 @@ export async function GET(request: NextRequest) {
 
       const result = await db.query(
         `SELECT p.*, b.block_number, b.block_name
-         FROM parcels p
-         JOIN blocks b ON b.id = p.block_id
-         WHERE p.block_id = $1
-         ORDER BY p.parcel_number ASC`,
+        FROM parcels p
+        JOIN blocks b ON b.id = p.block_id
+        WHERE p.block_id = $1
+        ORDER BY p.parcel_number ASC`,
         [blockId]
       )
 
       return NextResponse.json({ data: result.rows })
     }
 
-    // If only project_id, get all parcels across all blocks
     if (projectId) {
       const check = await db.query(
         'SELECT id FROM projects WHERE id = $1 AND user_id = $2',
-        [projectId, session.user.id]
+        [projectId, ctx.userId]
       )
       if (check.rows.length === 0) {
         return NextResponse.json({ error: 'Project not found' }, { status: 404 })
@@ -140,10 +92,10 @@ export async function GET(request: NextRequest) {
 
       const result = await db.query(
         `SELECT p.*, b.block_number, b.block_name
-         FROM parcels p
-         JOIN blocks b ON b.id = p.block_id
-         WHERE p.project_id = $1
-         ORDER BY b.block_number ASC, p.parcel_number ASC`,
+        FROM parcels p
+        JOIN blocks b ON b.id = p.block_id
+        WHERE p.project_id = $1
+        ORDER BY b.block_number ASC, p.parcel_number ASC`,
         [projectId]
       )
 
@@ -151,8 +103,5 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ data: [] })
-  } catch (error) {
-    console.error('Parcels fetch error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+)

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Plus, Trash2, Edit3, Check, X, FileText,
-  AlertCircle, Loader2, ChevronRight, Hash, MapPin, Download
+  AlertCircle, Loader2, Download
 } from 'lucide-react'
 import { PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS, type ParcelStatus } from '@/types/scheme'
 import TraverseComputePanel from '@/components/scheme/TraverseComputePanel'
@@ -45,6 +45,7 @@ export default function BlockDetailPage() {
   const [error, setError] = useState('')
   const [showCreateParcel, setShowCreateParcel] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [selectedParcelId, setSelectedParcelId] = useState<number | null>(null)
 
   // Create form
   const [newParcel, setNewParcel] = useState({
@@ -54,11 +55,11 @@ export default function BlockDetailPage() {
 
   // Edit form
   const [editForm, setEditForm] = useState({
-    parcel_number: '', lr_number_proposed: '', lr_number_confirmed: '', area_ha: '', status: 'pending' as ParcelStatus, notes: ''
+    parcel_number: '', lr_number_proposed: '', lr_number_confirmed: '',
+    area_ha: '', status: 'pending' as ParcelStatus, notes: ''
   })
   const [updating, setUpdating] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
-  const [selectedParcelId, setSelectedParcelId] = useState<number | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -91,7 +92,6 @@ export default function BlockDetailPage() {
     if (!newParcel.parcel_number.trim()) return
     setCreating(true)
     setError('')
-
     try {
       const res = await fetch('/api/scheme/parcels', {
         method: 'POST',
@@ -107,7 +107,6 @@ export default function BlockDetailPage() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to create parcel')
-
       setNewParcel({ parcel_number: '', lr_number_proposed: '', area_ha: '', notes: '' })
       setShowCreateParcel(false)
       void fetchData()
@@ -123,7 +122,6 @@ export default function BlockDetailPage() {
     if (editingId === null) return
     setUpdating(true)
     setError('')
-
     try {
       const res = await fetch(`/api/scheme/parcels/${editingId}`, {
         method: 'PATCH',
@@ -138,7 +136,6 @@ export default function BlockDetailPage() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to update parcel')
-
       setEditingId(null)
       void fetchData()
     } catch (err: any) {
@@ -151,7 +148,6 @@ export default function BlockDetailPage() {
   const handleDeleteParcel = async (parcelId: number, parcelNumber: string) => {
     if (!confirm(`Delete Parcel "${parcelNumber}"? This cannot be undone.`)) return
     setDeleting(parcelId)
-
     try {
       const res = await fetch(`/api/scheme/parcels/${parcelId}`, { method: 'DELETE' })
       const json = await res.json()
@@ -176,7 +172,6 @@ export default function BlockDetailPage() {
     })
   }
 
-  // Auto-suggest next parcel number
   const nextParcelSuggestion = parcels.length > 0
     ? String(parseInt(parcels[parcels.length - 1].parcel_number) + 1 || parcels.length + 1)
     : '1'
@@ -186,11 +181,11 @@ export default function BlockDetailPage() {
 
   const inputClass = 'w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] focus:outline-none transition-colors'
   const labelClass = 'block text-xs font-medium text-[var(--text-secondary)] mb-1'
-  const selectClass = inputClass
 
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-[var(--bg-primary)]">
       <main className="max-w-5xl mx-auto px-4 py-8">
+
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] mb-6">
           <Link href="/dashboard" className="hover:text-[var(--accent)] transition-colors">Dashboard</Link>
@@ -244,8 +239,10 @@ export default function BlockDetailPage() {
             Add Parcel
           </button>
         </div>
+
+        {/* Traverse compute panel — shown when a parcel is selected */}
         {selectedParcelId && (
-          <div className="mt-4">
+          <div className="mb-6">
             <TraverseComputePanel parcelId={selectedParcelId} />
           </div>
         )}
@@ -272,7 +269,7 @@ export default function BlockDetailPage() {
                 <input
                   type="text"
                   value={newParcel.parcel_number}
-                  onChange={(e) => setNewParcel(prev => ({ ...prev, parcel_number: e.target.value }))}
+                  onChange={e => setNewParcel(prev => ({ ...prev, parcel_number: e.target.value }))}
                   className={inputClass}
                   placeholder={nextParcelSuggestion}
                   autoFocus
@@ -284,7 +281,7 @@ export default function BlockDetailPage() {
                 <input
                   type="text"
                   value={newParcel.lr_number_proposed}
-                  onChange={(e) => setNewParcel(prev => ({ ...prev, lr_number_proposed: e.target.value }))}
+                  onChange={e => setNewParcel(prev => ({ ...prev, lr_number_proposed: e.target.value }))}
                   className={inputClass}
                   placeholder="e.g., MN/III/1234"
                 />
@@ -295,7 +292,7 @@ export default function BlockDetailPage() {
                   type="number"
                   step="0.0001"
                   value={newParcel.area_ha}
-                  onChange={(e) => setNewParcel(prev => ({ ...prev, area_ha: e.target.value }))}
+                  onChange={e => setNewParcel(prev => ({ ...prev, area_ha: e.target.value }))}
                   className={inputClass}
                   placeholder="e.g., 0.0625"
                 />
@@ -305,9 +302,9 @@ export default function BlockDetailPage() {
                 <input
                   type="text"
                   value={newParcel.notes}
-                  onChange={(e) => setNewParcel(prev => ({ ...prev, notes: e.target.value }))}
+                  onChange={e => setNewParcel(prev => ({ ...prev, notes: e.target.value }))}
                   className={inputClass}
-                  placeholder="Optional notes"
+                  placeholder="Optional"
                 />
               </div>
             </form>
@@ -331,17 +328,25 @@ export default function BlockDetailPage() {
           </div>
         )}
 
-        {/* Parcels Table */}
+        {/* Parcels Table or Empty State */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin text-[var(--text-muted)]" />
           </div>
         ) : parcels.length === 0 && !showCreateParcel ? (
+<<<<<<< Updated upstream
           <>
             <div className="text-center py-16">
               <FileText className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-4 opacity-20" />
               <p className="text-[var(--text-secondary)] mb-1">No parcels yet</p>
               <p className="text-xs text-[var(--text-muted)] mb-4">Add parcels to this block to start tracking survey progress.</p>
+=======
+          <div className="space-y-4">
+            <div className="text-center py-12">
+              <FileText className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-4 opacity-20" />
+              <p className="text-[var(--text-secondary)] mb-1">No parcels yet</p>
+              <p className="text-xs text-[var(--text-muted)] mb-4">Add parcels individually or import from CSV.</p>
+>>>>>>> Stashed changes
               <button
                 onClick={() => setShowCreateParcel(true)}
                 className="px-4 py-2 bg-[var(--accent)] text-black text-sm font-semibold rounded-lg hover:bg-[var(--accent-dim)] transition-all inline-flex items-center gap-2"
@@ -350,6 +355,7 @@ export default function BlockDetailPage() {
                 Add First Parcel
               </button>
             </div>
+<<<<<<< Updated upstream
 
             {/* CSV Import Panel */}
             <div className="mt-4">
@@ -361,178 +367,159 @@ export default function BlockDetailPage() {
               />
             </div>
           </>
+=======
+            {/* CSV Import — shown even on empty state */}
+            <CsvImportPanel
+              projectId={projectId}
+              blockId={blockId}
+              blockName={block?.block_number || ''}
+              onImportComplete={fetchData}
+            />
+          </div>
+>>>>>>> Stashed changes
         ) : (
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-[var(--text-muted)] border-b border-[var(--border-color)]">
-                    <th className="px-4 py-3 font-medium">Parcel #</th>
-                    <th className="px-4 py-3 font-medium">Proposed LR</th>
-                    <th className="px-4 py-3 font-medium">Confirmed LR</th>
-                    <th className="px-4 py-3 font-medium">Area (ha)</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {parcels.map((parcel) => (
-                    <tr key={parcel.id} className="border-b border-[var(--border-color)]/50 hover:bg-[var(--bg-secondary)] transition-colors">
-                      {editingId === parcel.id ? (
-                        /* Edit Mode Row */
-                        <>
-                          <td className="px-4 py-2">
-                            <input
-                              type="text"
-                              value={editForm.parcel_number}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, parcel_number: e.target.value }))}
-                              className={inputClass}
-                              required
-                            />
-                          </td>
-                          <td className="px-4 py-2">
-                            <input
-                              type="text"
-                              value={editForm.lr_number_proposed}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, lr_number_proposed: e.target.value }))}
-                              className={inputClass}
-                            />
-                          </td>
-                          <td className="px-4 py-2">
-                            <input
-                              type="text"
-                              value={editForm.lr_number_confirmed}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, lr_number_confirmed: e.target.value }))}
-                              className={inputClass}
-                            />
-                          </td>
-                          <td className="px-4 py-2">
-                            <input
-                              type="number"
-                              step="0.0001"
-                              value={editForm.area_ha}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, area_ha: e.target.value }))}
-                              className={inputClass}
-                            />
-                          </td>
-                          <td className="px-4 py-2">
-                            <select
-                              value={editForm.status}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value as ParcelStatus }))}
-                              className={selectClass}
-                            >
-                              {(Object.entries(PARCEL_STATUS_LABELS) as [ParcelStatus, string][]).map(
-                                ([val, label]) => <option key={val} value={val}>{label}</option>
-                              )}
-                            </select>
-                          </td>
-                          <td className="px-4 py-2">
-                            <div className="flex justify-end gap-1">
-                              <button onClick={handleUpdateParcel} disabled={updating} className="p-1.5 bg-[var(--accent)] text-black rounded-lg hover:bg-[var(--accent-dim)] transition-colors">
-                                {updating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                              </button>
-                              <button onClick={() => setEditingId(null)} className="p-1.5 border border-[var(--border-color)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors">
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        /* Display Mode Row */
-                        <>
-                          <td className="px-4 py-3 font-mono text-[var(--accent)] font-medium">{parcel.parcel_number}</td>
-                          <td className="px-4 py-3 text-[var(--text-primary)] font-mono text-xs">{parcel.lr_number_proposed || '—'}</td>
-                          <td className="px-4 py-3 text-[var(--text-primary)] font-mono text-xs">{parcel.lr_number_confirmed || '—'}</td>
-                          <td className="px-4 py-3 text-[var(--text-secondary)]">{parcel.area_ha ? parcel.area_ha.toFixed(4) : '—'}</td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${PARCEL_STATUS_COLORS[parcel.status]}`}>
-                              {PARCEL_STATUS_LABELS[parcel.status]}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex justify-end gap-1">
-                              <button
-                                onClick={() => setSelectedParcelId(parcel.id)}
-                                className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--accent)]"
-                                title="Compute Traverse"
-                              >
-                                <FileText className="w-3.5 h-3.5" />
-                              </button>
-                              <a
-                                href={`/api/scheme/deed-plan?parcel_id=${parcel.id}`}
-                                target="_blank"
-                                className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-emerald-400"
-                                title="Download Deed Plan (PDF)"
-                                onClick={(e) => {
-                                  if (parcel.status === 'pending') {
-                                    e.preventDefault()
-                                    alert('Compute traverse first before generating deed plan.')
-                                  }
-                                }}
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                              </a>
-                              {(parcel.status === 'computed' || parcel.status === 'plan_generated' || parcel.status === 'submitted' || parcel.status === 'approved') && (
-                                <div className="relative group">
-                                  <button className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-blue-400">
-                                    <FileText className="w-3.5 h-3.5" />
-                                  </button>
-                                  <div className="absolute right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[140px]">
-                                    <a
-                                      href={`/api/scheme/forms?parcel_id=${parcel.id}&type=ppa2`}
-                                      target="_blank"
-                                      className="block px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors"
-                                    >PPA2 Form</a>
-                                    <a
-                                      href={`/api/scheme/forms?parcel_id=${parcel.id}&type=mutation`}
-                                      target="_blank"
-                                      className="block px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors"
-                                    >Mutation Form</a>
-                                  </div>
-                                </div>
-                              )}
-                              <button
-                                onClick={() => startEdit(parcel)}
-                                className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                                title="Edit"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteParcel(parcel.id, parcel.parcel_number)}
-                                disabled={deleting === parcel.id}
-                                className="p-1.5 hover:bg-red-900/20 rounded-lg transition-colors text-[var(--text-muted)] hover:text-red-400"
-                                title="Delete"
-                              >
-                                {deleting === parcel.id
-                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  : <Trash2 className="w-3.5 h-3.5" />
-                                }
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      )}
+          <div className="space-y-4">
+            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-[var(--text-muted)] border-b border-[var(--border-color)]">
+                      <th className="px-4 py-3 font-medium">Parcel #</th>
+                      <th className="px-4 py-3 font-medium">Proposed LR</th>
+                      <th className="px-4 py-3 font-medium">Confirmed LR</th>
+                      <th className="px-4 py-3 font-medium">Area (ha)</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-                {parcels.length > 0 && (
-                  <tfoot>
-                    <tr className="border-t-2 border-[var(--border-color)]">
-                      <td colSpan={3} className="px-4 py-3 text-xs font-semibold text-[var(--text-secondary)]">
-                        {parcels.length} parcel{parcels.length !== 1 ? 's' : ''}
-                      </td>
-                      <td className="px-4 py-3 text-xs font-semibold text-[var(--text-primary)]">
-                        {totalArea.toFixed(4)}
-                      </td>
-                      <td colSpan={2} className="px-4 py-3 text-xs font-medium text-emerald-400">
-                        {completedCount} completed
-                      </td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
+                  </thead>
+                  <tbody>
+                    {parcels.map((parcel) => (
+                      <tr key={parcel.id} className="border-b border-[var(--border-color)]/50 hover:bg-[var(--bg-secondary)] transition-colors">
+                        {editingId === parcel.id ? (
+                          <>
+                            <td className="px-4 py-2">
+                              <input type="text" value={editForm.parcel_number}
+                                onChange={e => setEditForm(p => ({ ...p, parcel_number: e.target.value }))}
+                                className={inputClass} required />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input type="text" value={editForm.lr_number_proposed}
+                                onChange={e => setEditForm(p => ({ ...p, lr_number_proposed: e.target.value }))}
+                                className={inputClass} />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input type="text" value={editForm.lr_number_confirmed}
+                                onChange={e => setEditForm(p => ({ ...p, lr_number_confirmed: e.target.value }))}
+                                className={inputClass} />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input type="number" step="0.0001" value={editForm.area_ha}
+                                onChange={e => setEditForm(p => ({ ...p, area_ha: e.target.value }))}
+                                className={inputClass} />
+                            </td>
+                            <td className="px-4 py-2">
+                              <select value={editForm.status}
+                                onChange={e => setEditForm(p => ({ ...p, status: e.target.value as ParcelStatus }))}
+                                className={inputClass}>
+                                {(Object.entries(PARCEL_STATUS_LABELS) as [ParcelStatus, string][]).map(
+                                  ([val, label]) => <option key={val} value={val}>{label}</option>
+                                )}
+                              </select>
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex justify-end gap-1">
+                                <button onClick={handleUpdateParcel} disabled={updating}
+                                  className="p-1.5 bg-[var(--accent)] text-black rounded-lg hover:bg-[var(--accent-dim)] transition-colors">
+                                  {updating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                </button>
+                                <button onClick={() => setEditingId(null)}
+                                  className="p-1.5 border border-[var(--border-color)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors">
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-4 py-3 font-mono text-[var(--accent)] font-medium">{parcel.parcel_number}</td>
+                            <td className="px-4 py-3 text-[var(--text-primary)] font-mono text-xs">{parcel.lr_number_proposed || '—'}</td>
+                            <td className="px-4 py-3 text-[var(--text-primary)] font-mono text-xs">{parcel.lr_number_confirmed || '—'}</td>
+                            <td className="px-4 py-3 text-[var(--text-secondary)]">{parcel.area_ha ? Number(parcel.area_ha).toFixed(4) : '—'}</td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${PARCEL_STATUS_COLORS[parcel.status]}`}>
+                                {PARCEL_STATUS_LABELS[parcel.status]}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex justify-end gap-1">
+                                <button
+                                  onClick={() => setSelectedParcelId(selectedParcelId === parcel.id ? null : parcel.id)}
+                                  className={`p-1.5 rounded-lg transition-colors text-[var(--text-muted)] ${selectedParcelId === parcel.id ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)]'}`}
+                                  title="Compute Traverse"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                </button>
+                                <a
+                                  href={`/api/scheme/deed-plan?parcel_id=${parcel.id}`}
+                                  target="_blank"
+                                  className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-emerald-400"
+                                  title="Download Deed Plan"
+                                  onClick={e => {
+                                    if (parcel.status === 'pending') {
+                                      e.preventDefault()
+                                      alert('Compute traverse first before generating a deed plan.')
+                                    }
+                                  }}
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </a>
+                                <button onClick={() => startEdit(parcel)}
+                                  className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                                  title="Edit">
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteParcel(parcel.id, parcel.parcel_number)}
+                                  disabled={deleting === parcel.id}
+                                  className="p-1.5 hover:bg-red-900/20 rounded-lg transition-colors text-[var(--text-muted)] hover:text-red-400"
+                                  title="Delete">
+                                  {deleting === parcel.id
+                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    : <Trash2 className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                  {parcels.length > 0 && (
+                    <tfoot>
+                      <tr className="border-t-2 border-[var(--border-color)]">
+                        <td colSpan={3} className="px-4 py-3 text-xs font-semibold text-[var(--text-secondary)]">
+                          {parcels.length} parcel{parcels.length !== 1 ? 's' : ''}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-semibold text-[var(--text-primary)]">
+                          {totalArea.toFixed(4)}
+                        </td>
+                        <td colSpan={2} className="px-4 py-3 text-xs font-medium text-emerald-400">
+                          {completedCount} completed
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
             </div>
+
+            {/* CSV Import always available when there are existing parcels too */}
+            <CsvImportPanel
+              projectId={projectId}
+              blockId={blockId}
+              blockName={block?.block_number || ''}
+              onImportComplete={fetchData}
+            />
           </div>
         )}
       </main>

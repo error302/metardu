@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { apiHandler } from '@/lib/apiHandler'
 
-// POST /api/scheme/import — Bulk import parcels from CSV into a block
-// Expected CSV columns (case-insensitive header matching):
-//   parcel_number, lr_number_proposed, area_ha, notes
-//   Optional: assigned_surveyor
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const formData = await request.formData()
+export const POST = apiHandler(
+  { auth: true, rawBody: true, audit: 'csv_import' },
+  async (req, ctx) => {
+    const formData = await req.formData()
     const projectId = formData.get('project_id')
     const blockId = formData.get('block_id')
     const csvFile = formData.get('file') as File | null
@@ -27,18 +18,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No CSV file provided' }, { status: 400 })
     }
 
-    // Verify block belongs to user's project
     const check = await db.query(
       `SELECT b.id, b.project_id FROM blocks b
-       JOIN projects p ON p.id = b.project_id
-       WHERE b.id = $1 AND p.user_id = $2`,
-      [blockId, session.user.id]
+      JOIN projects p ON p.id = b.project_id
+      WHERE b.id = $1 AND p.user_id = $2`,
+      [blockId, ctx.userId]
     )
     if (check.rows.length === 0) {
       return NextResponse.json({ error: 'Block not found' }, { status: 404 })
     }
 
-    // Parse CSV
     const csvText = await csvFile.text()
     const lines = csvText.trim().split(/\r?\n/)
     if (lines.length < 2) {
@@ -47,7 +36,6 @@ export async function POST(request: NextRequest) {
 
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''))
 
-    // Find column indices
     const findCol = (names: string[]): number => {
       for (const name of names) {
         const idx = headers.indexOf(name)
@@ -68,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const results = { created: 0, skipped: 0, errors: [] as string[] }
-    const maxParcels = 500 // Safety limit
+    const maxParcels = 500
 
     for (let i = 1; i < lines.length && results.created < maxParcels; i++) {
       const line = lines[i].trim()
@@ -88,20 +76,15 @@ export async function POST(request: NextRequest) {
       const areaHa = areaCol >= 0 ? (parseFloat(values[areaCol]) || null) : null
       const notes = notesCol >= 0 ? (values[notesCol]?.trim() || null) : null
 
-      // Check for duplicate
       const dupCheck = await db.query(
         'SELECT id FROM parcels WHERE block_id = $1 AND parcel_number = $2',
         [blockId, parcelNumber]
       )
 
       if (dupCheck.rows.length > 0) {
-        // Update existing parcel instead
         await db.query(
           `UPDATE parcels SET
-            lr_number_proposed = $3,
-            area_ha = $4,
-            notes = $5,
-            updated_at = NOW()
+            lr_number_proposed = $3, area_ha = $4, notes = $5, updated_at = NOW()
           WHERE block_id = $1 AND parcel_number = $2`,
           [blockId, parcelNumber, lrNumber, areaHa, notes]
         )
@@ -109,7 +92,7 @@ export async function POST(request: NextRequest) {
       } else {
         await db.query(
           `INSERT INTO parcels (project_id, block_id, parcel_number, lr_number_proposed, area_ha, status, notes)
-           VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
+          VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
           [parseInt(projectId as string), parseInt(blockId as string), parcelNumber, lrNumber, areaHa, notes]
         )
         results.created++
@@ -121,11 +104,8 @@ export async function POST(request: NextRequest) {
         total_rows: lines.length - 1,
         created: results.created,
         skipped: results.skipped,
-        errors: results.errors.slice(0, 20), // Limit error display
+        errors: results.errors.slice(0, 20),
       },
     })
-  } catch (error) {
-    console.error('CSV import error:', error)
-    return NextResponse.json({ error: 'Import failed', details: String(error) }, { status: 500 })
   }
-}
+)

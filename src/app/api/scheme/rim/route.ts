@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { apiHandler } from '@/lib/apiHandler'
 
-// GET /api/scheme/rim?project_id=X — Generate Registry Index Map (overview of all parcels)
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
+export const GET = apiHandler(
+  { auth: true, audit: 'rim_generated' },
+  async (req, ctx) => {
+    const { searchParams } = new URL(req.url)
     const projectId = searchParams.get('project_id')
 
     if (!projectId) {
@@ -20,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     const projectCheck = await db.query(
       'SELECT id, name, location, project_type FROM projects WHERE id = $1 AND user_id = $2',
-      [projectId, session.user.id]
+      [projectId, ctx.userId]
     )
     if (projectCheck.rows.length === 0) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
@@ -28,17 +22,15 @@ export async function GET(request: NextRequest) {
 
     const project = projectCheck.rows[0]
 
-    // Get scheme details
     let scheme: any = {}
     try {
       const sd = await db.query('SELECT * FROM scheme_details WHERE project_id = $1', [projectId])
       if (sd.rows.length > 0) scheme = sd.rows[0]
     } catch {}
 
-    // Get all blocks with parcels and their coordinates
     const blocksResult = await db.query(
       `SELECT b.id, b.block_number, b.block_name
-       FROM blocks b WHERE b.project_id = $1 ORDER BY b.block_number`,
+      FROM blocks b WHERE b.project_id = $1 ORDER BY b.block_number`,
       [projectId]
     )
 
@@ -46,35 +38,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No blocks found' }, { status: 400 })
     }
 
-    // Get all parcels with coordinates
     const parcelsResult = await db.query(
       `SELECT p.id, p.parcel_number, p.lr_number_proposed, p.area_ha, p.block_id,
-              p.status, b.block_number
-       FROM parcels p
-       JOIN blocks b ON b.id = p.block_id
-       WHERE p.project_id = $1
-       ORDER BY b.block_number, p.parcel_number`,
+      p.status, b.block_number
+      FROM parcels p
+      JOIN blocks b ON b.id = p.block_id
+      WHERE p.project_id = $1
+      ORDER BY b.block_number, p.parcel_number`,
       [projectId]
     )
 
-    // For each parcel, get traverse coordinates
     const parcelGeoms: Array<{
-      parcel_id: number
-      parcel_number: string
-      lr_number: string | null
-      block_number: string
-      area_ha: number | null
-      status: string
+      parcel_id: number; parcel_number: string; lr_number: string | null;
+      block_number: string; area_ha: number | null; status: string;
       coordinates: Array<{ station: string; easting: number; northing: number }>
     }> = []
 
     for (const parcel of parcelsResult.rows) {
       const coordCheck = await db.query(
         `SELECT tc.station, tc.easting, tc.northing
-         FROM traverse_coordinates tc
-         JOIN parcel_traverses pt ON pt.id = tc.traverse_id
-         WHERE pt.parcel_id = $1
-         ORDER BY tc.station`,
+        FROM traverse_coordinates tc
+        JOIN parcel_traverses pt ON pt.id = tc.traverse_id
+        WHERE pt.parcel_id = $1
+        ORDER BY tc.station`,
         [parcel.id]
       )
       if (coordCheck.rows.length >= 3) {
@@ -86,9 +72,7 @@ export async function GET(request: NextRequest) {
           area_ha: parcel.area_ha ? parseFloat(parcel.area_ha) : null,
           status: parcel.status,
           coordinates: coordCheck.rows.map((c: any) => ({
-            station: c.station,
-            easting: parseFloat(c.easting),
-            northing: parseFloat(c.northing),
+            station: c.station, easting: parseFloat(c.easting), northing: parseFloat(c.northing),
           })),
         })
       }
@@ -98,21 +82,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No parcels with computed coordinates found' }, { status: 400 })
     }
 
-    // Generate RIM PDF
     const { jsPDF } = await import('jspdf')
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
     const pageW = doc.internal.pageSize.getWidth()
     const pageH = doc.internal.pageSize.getHeight()
 
-    // Header
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
     doc.text('REGISTRY INDEX MAP', pageW / 2, 12, { align: 'center' })
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Scheme: ${scheme.scheme_number || project.name}  |  ${scheme.county || ''} ${scheme.sub_county || ''} ${scheme.ward || ''}`, pageW / 2, 18, { align: 'center' })
+    doc.text(`Scheme: ${scheme.scheme_number || project.name} | ${scheme.county || ''} ${scheme.sub_county || ''} ${scheme.ward || ''}`, pageW / 2, 18, { align: 'center' })
 
-    // Draw area
     const margin = 15
     const drawX = margin
     const drawY = 24
@@ -123,7 +104,6 @@ export async function GET(request: NextRequest) {
     doc.setLineWidth(0.3)
     doc.rect(drawX, drawY, drawW, drawH)
 
-    // Find bounds
     const allCoords = parcelGeoms.flatMap(p => p.coordinates)
     const minE = Math.min(...allCoords.map(c => c.easting))
     const maxE = Math.max(...allCoords.map(c => c.easting))
@@ -149,7 +129,6 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    // Draw each parcel polygon
     const statusColors: Record<string, [number, number, number]> = {
       pending: [180, 180, 180],
       field_complete: [100, 149, 237],
@@ -163,22 +142,15 @@ export async function GET(request: NextRequest) {
       const color = statusColors[parcel.status] || [180, 180, 180]
       const pts = parcel.coordinates.map(c => worldToMm(c.easting, c.northing))
 
-      // Fill
       doc.setFillColor(color[0], color[1], color[2], 0.2)
       doc.setDrawColor(color[0], color[1], color[2])
-      doc.setLineWidth(0.5)
-
-      // Draw filled polygon
+      doc.setLineWidth(0.8)
       for (let i = 0; i < pts.length; i++) {
         const [x1, y1] = pts[i]
         const [x2, y2] = pts[(i + 1) % pts.length]
-
-        // Use jsPDF lines for fill approximation
-        doc.setLineWidth(0.8)
         doc.line(x1, y1, x2, y2)
       }
 
-      // Parcel label at centroid
       const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length
       const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length
 
@@ -193,7 +165,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Legend (bottom-right)
     const legendX = pageW - margin - 80
     const legendY = pageH - 42
     doc.setDrawColor(0)
@@ -221,12 +192,11 @@ export async function GET(request: NextRequest) {
       doc.text(legendItems[i].label, x + 6, y)
     }
 
-    // Info bar
     doc.setFontSize(7)
     doc.setFont('helvetica', 'bold')
-    doc.text(`Total Parcels: ${parcelGeoms.length}  |  Blocks: ${blocksResult.rows.length}  |  Scale: 1:${scaleRatio}`, margin, pageH - 12)
+    doc.text(`Total Parcels: ${parcelGeoms.length} | Blocks: ${blocksResult.rows.length} | Scale: 1:${scaleRatio}`, margin, pageH - 12)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Datum: ARC 1960  |  Projection: UTM Zone 37S  |  Date: ${new Date().toLocaleDateString('en-GB')}`, margin, pageH - 7)
+    doc.text(`Datum: ARC 1960 | Projection: UTM Zone 37S | Date: ${new Date().toLocaleDateString('en-GB')}`, margin, pageH - 7)
 
     const pdfBase64 = doc.output('datauristring').split(',')[1]
 
@@ -240,8 +210,5 @@ export async function GET(request: NextRequest) {
         },
       }
     )
-  } catch (error) {
-    console.error('RIM generation error:', error)
-    return NextResponse.json({ error: 'Failed to generate RIM', details: String(error) }, { status: 500 })
   }
-}
+)

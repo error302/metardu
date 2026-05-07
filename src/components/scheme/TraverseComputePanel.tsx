@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'next/navigation'
 import {
   Plus, Trash2, Save, Loader2, CheckCircle2, AlertCircle,
   X, ChevronDown, ChevronUp
@@ -82,7 +81,6 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPanel, setShowPanel] = useState(true)
-  const [loadingSaved, setLoadingSaved] = useState(false)
 
   // Load saved traverse data
   useEffect(() => {
@@ -107,7 +105,7 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
 
           if (savedObs && savedObs.length > 0) {
             setObservations(savedObs.map((o: any) => ({
-              station: o.station, bs: o.bs, fs: o.fs,
+              station: o.station, bs: o.bs || '', fs: o.fs || '',
               hcl_deg: o.hcl_deg || 0, hcl_min: o.hcl_min || 0, hcl_sec: o.hcl_sec || 0,
               hcr_deg: o.hcr_deg || 0, hcr_min: o.hcr_min || 0, hcr_sec: o.hcr_sec || 0,
               slope_dist: o.slope_dist ? String(o.slope_dist) : '',
@@ -116,12 +114,8 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
               remarks: o.remarks || '',
             })))
           }
-
-          if (traverse.computed_area_ha) {
-            setResult(null) // Will re-compute
-          }
         }
-      } catch {}
+      } catch { /* silent — no saved data yet */ }
     }
     void loadSaved()
   }, [parcelId])
@@ -134,11 +128,7 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
 
   const addRow = () => {
     const last = observations[observations.length - 1]
-    setObservations(prev => [...prev, {
-      ...emptyObs(),
-      bs: last?.fs || '',
-      station: '',
-    }])
+    setObservations(prev => [...prev, { ...emptyObs(), bs: last?.fs || '' }])
   }
 
   const removeRow = (index: number) => {
@@ -148,23 +138,17 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
 
   const handleCompute = async () => {
     if (!config.opening_easting || !config.opening_northing) {
-      setError('Opening coordinates are required')
-      return
+      setError('Opening coordinates are required'); return
     }
     if (config.is_closed && (!config.closing_easting || !config.closing_northing)) {
-      setError('Closing coordinates are required for closed traverses')
-      return
+      setError('Closing coordinates are required for closed traverses'); return
     }
-
     const validObs = observations.filter(o => o.station && o.slope_dist)
     if (validObs.length < 1) {
-      setError('At least one observation with station and distance is required')
-      return
+      setError('At least one observation with station and distance is required'); return
     }
 
-    setLoading(true)
-    setError('')
-    setResult(null)
+    setLoading(true); setError(''); setResult(null)
 
     try {
       const payload: any = {
@@ -195,7 +179,6 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
 
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Computation failed')
-
       setResult(json.data)
     } catch (err: any) {
       setError(err.message)
@@ -210,7 +193,6 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
 
   return (
     <div className="border border-[var(--border-color)] rounded-xl overflow-hidden bg-[var(--bg-card)]">
-      {/* Header */}
       <button
         onClick={() => setShowPanel(!showPanel)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--bg-secondary)] transition-colors"
@@ -219,9 +201,8 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
         {showPanel ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
       </button>
 
-      {!showPanel ? null : (
+      {showPanel && (
         <div className="px-4 pb-4 space-y-4">
-          {/* Error */}
           {error && (
             <div className="p-2.5 bg-red-900/20 border border-red-500/30 rounded-lg text-xs text-red-400 flex items-center gap-2">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -230,37 +211,35 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
             </div>
           )}
 
-          {/* Config */}
+          {/* Opening config */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
               <label className={labelClass}>Opening Station</label>
               <input type="text" value={config.opening_station} onChange={e => setConfig(p => ({ ...p, opening_station: e.target.value }))} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>Opening E</label>
-              <input type="number" step="0.0001" value={config.opening_easting} onChange={e => setConfig(p => ({ ...p, opening_easting: e.target.value }))} className={inputClass} placeholder="e.g., 400000" />
+              <label className={labelClass}>Opening E (m)</label>
+              <input type="number" step="0.0001" value={config.opening_easting} onChange={e => setConfig(p => ({ ...p, opening_easting: e.target.value }))} className={inputClass} placeholder="e.g., 250000" />
             </div>
             <div>
-              <label className={labelClass}>Opening N</label>
+              <label className={labelClass}>Opening N (m)</label>
               <input type="number" step="0.0001" value={config.opening_northing} onChange={e => setConfig(p => ({ ...p, opening_northing: e.target.value }))} className={inputClass} placeholder="e.g., 9800000" />
             </div>
             <div>
-              <label className={labelClass}>Opening RL</label>
+              <label className={labelClass}>Opening RL (m)</label>
               <input type="number" step="0.001" value={config.opening_rl} onChange={e => setConfig(p => ({ ...p, opening_rl: e.target.value }))} className={inputClass} placeholder="Optional" />
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer">
-              <input
-                type="checkbox"
-                checked={config.is_closed}
-                onChange={e => setConfig(p => ({ ...p, is_closed: e.target.checked }))}
-                className="rounded border-[var(--border-color)]"
-              />
-              Closed Traverse
-            </label>
-          </div>
+          <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.is_closed}
+              onChange={e => setConfig(p => ({ ...p, is_closed: e.target.checked }))}
+              className="rounded border-[var(--border-color)]"
+            />
+            Closed Traverse
+          </label>
 
           {config.is_closed && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-[var(--bg-tertiary)] rounded-lg">
@@ -309,51 +288,36 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
                 {observations.map((obs, i) => (
                   <tr key={i} className="border-b border-[var(--border-color)]/30">
                     <td className="px-1 py-1 text-[var(--text-muted)]">{i + 1}</td>
-                    <td className="px-1 py-1">
-                      <input type="text" value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)} className={inputClass} placeholder="T2" />
-                    </td>
-                    <td className="px-1 py-1">
-                      <input type="text" value={obs.bs} onChange={e => updateObs(i, 'bs', e.target.value)} className={inputClass} />
-                    </td>
-                    <td className="px-1 py-1">
-                      <input type="text" value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)} className={inputClass} />
-                    </td>
+                    <td className="px-1 py-1"><input type="text" value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)} className={inputClass} placeholder="T2" /></td>
+                    <td className="px-1 py-1"><input type="text" value={obs.bs} onChange={e => updateObs(i, 'bs', e.target.value)} className={inputClass} /></td>
+                    <td className="px-1 py-1"><input type="text" value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)} className={inputClass} /></td>
                     <td className="px-1 py-1">
                       <div className="grid grid-cols-3 gap-0.5">
-                        <input type="number" value={obs.hcl_deg} onChange={e => updateObs(i, 'hcl_deg', parseInt(e.target.value) || 0)} className={numClass} />
-                        <input type="number" value={obs.hcl_min} onChange={e => updateObs(i, 'hcl_min', parseInt(e.target.value) || 0)} className={numClass} />
-                        <input type="number" step="0.1" value={obs.hcl_sec} onChange={e => updateObs(i, 'hcl_sec', parseFloat(e.target.value) || 0)} className={numClass} />
+                        <input type="number" value={obs.hcl_deg} onChange={e => updateObs(i, 'hcl_deg', parseInt(e.target.value)||0)} className={numClass} />
+                        <input type="number" value={obs.hcl_min} onChange={e => updateObs(i, 'hcl_min', parseInt(e.target.value)||0)} className={numClass} />
+                        <input type="number" step="0.1" value={obs.hcl_sec} onChange={e => updateObs(i, 'hcl_sec', parseFloat(e.target.value)||0)} className={numClass} />
                       </div>
                     </td>
                     <td className="px-1 py-1">
                       <div className="grid grid-cols-3 gap-0.5">
-                        <input type="number" value={obs.hcr_deg} onChange={e => updateObs(i, 'hcr_deg', parseInt(e.target.value) || 0)} className={numClass} />
-                        <input type="number" value={obs.hcr_min} onChange={e => updateObs(i, 'hcr_min', parseInt(e.target.value) || 0)} className={numClass} />
-                        <input type="number" step="0.1" value={obs.hcr_sec} onChange={e => updateObs(i, 'hcr_sec', parseFloat(e.target.value) || 0)} className={numClass} />
+                        <input type="number" value={obs.hcr_deg} onChange={e => updateObs(i, 'hcr_deg', parseInt(e.target.value)||0)} className={numClass} />
+                        <input type="number" value={obs.hcr_min} onChange={e => updateObs(i, 'hcr_min', parseInt(e.target.value)||0)} className={numClass} />
+                        <input type="number" step="0.1" value={obs.hcr_sec} onChange={e => updateObs(i, 'hcr_sec', parseFloat(e.target.value)||0)} className={numClass} />
                       </div>
                     </td>
-                    <td className="px-1 py-1">
-                      <input type="number" step="0.001" value={obs.slope_dist} onChange={e => updateObs(i, 'slope_dist', e.target.value)} className={inputClass} placeholder="m" />
-                    </td>
+                    <td className="px-1 py-1"><input type="number" step="0.001" value={obs.slope_dist} onChange={e => updateObs(i, 'slope_dist', e.target.value)} className={inputClass} placeholder="m" /></td>
                     <td className="px-1 py-1">
                       <div className="grid grid-cols-3 gap-0.5">
-                        <input type="number" value={obs.va_deg} onChange={e => updateObs(i, 'va_deg', parseInt(e.target.value) || 0)} className={numClass} />
-                        <input type="number" value={obs.va_min} onChange={e => updateObs(i, 'va_min', parseInt(e.target.value) || 0)} className={numClass} />
-                        <input type="number" step="0.1" value={obs.va_sec} onChange={e => updateObs(i, 'va_sec', parseFloat(e.target.value) || 0)} className={numClass} />
+                        <input type="number" value={obs.va_deg} onChange={e => updateObs(i, 'va_deg', parseInt(e.target.value)||0)} className={numClass} />
+                        <input type="number" value={obs.va_min} onChange={e => updateObs(i, 'va_min', parseInt(e.target.value)||0)} className={numClass} />
+                        <input type="number" step="0.1" value={obs.va_sec} onChange={e => updateObs(i, 'va_sec', parseFloat(e.target.value)||0)} className={numClass} />
                       </div>
                     </td>
+                    <td className="px-1 py-1"><input type="number" step="0.001" value={obs.ih} onChange={e => updateObs(i, 'ih', e.target.value)} className={numClass} /></td>
+                    <td className="px-1 py-1"><input type="number" step="0.001" value={obs.th} onChange={e => updateObs(i, 'th', e.target.value)} className={numClass} /></td>
                     <td className="px-1 py-1">
-                      <input type="number" step="0.001" value={obs.ih} onChange={e => updateObs(i, 'ih', e.target.value)} className={numClass} />
-                    </td>
-                    <td className="px-1 py-1">
-                      <input type="number" step="0.001" value={obs.th} onChange={e => updateObs(i, 'th', e.target.value)} className={numClass} />
-                    </td>
-                    <td className="px-1 py-1">
-                      <button
-                        onClick={() => removeRow(i)}
-                        disabled={observations.length <= 2}
-                        className="p-1 hover:bg-red-900/20 rounded text-[var(--text-muted)] hover:text-red-400 disabled:opacity-30 transition-colors"
-                      >
+                      <button onClick={() => removeRow(i)} disabled={observations.length <= 2}
+                        className="p-1 hover:bg-red-900/20 rounded text-[var(--text-muted)] hover:text-red-400 disabled:opacity-30 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </td>
@@ -363,25 +327,19 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
             </table>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center justify-between">
             <button onClick={addRow} className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1">
               <Plus className="w-3 h-3" /> Add Observation
             </button>
-            <button
-              onClick={handleCompute}
-              disabled={loading}
-              className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black text-sm font-semibold rounded-lg transition-all disabled:opacity-40 flex items-center gap-2"
-            >
+            <button onClick={handleCompute} disabled={loading}
+              className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black text-sm font-semibold rounded-lg transition-all disabled:opacity-40 flex items-center gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Compute & Save
             </button>
           </div>
 
-          {/* Results */}
           {result && (
             <div className="space-y-4 pt-2">
-              {/* Accuracy & Area */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 bg-[var(--bg-tertiary)] rounded-lg">
                   <div className="text-[10px] text-[var(--text-muted)]">Accuracy</div>
@@ -392,7 +350,8 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
                   <div className="text-sm font-bold text-[var(--text-primary)]">1:{result.accuracy.precision_ratio.toFixed(0)}</div>
                 </div>
                 <div className="p-3 bg-[var(--bg-tertiary)] rounded-lg">
-                  <div className="text-[10px] text-[var(--text-muted)]">Linear Error</div>
+                  {/* Linear Misclosure — British/East African standard term */}
+                  <div className="text-[10px] text-[var(--text-muted)]">Linear Misclosure</div>
                   <div className="text-sm font-bold text-[var(--text-primary)]">{result.accuracy.linear_error.toFixed(4)} m</div>
                 </div>
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
@@ -401,16 +360,15 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
                 </div>
               </div>
 
-              {/* Coordinates Table */}
               <div className="overflow-x-auto">
-                <h4 className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Computed Coordinates</h4>
+                <h4 className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Computed Coordinates (Arc 1960 / UTM Zone 37S)</h4>
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-left text-[10px] text-[var(--text-muted)] border-b border-[var(--border-color)]">
                       <th className="px-3 py-1.5">Station</th>
-                      <th className="px-3 py-1.5">Easting</th>
-                      <th className="px-3 py-1.5">Northing</th>
-                      <th className="px-3 py-1.5">RL</th>
+                      <th className="px-3 py-1.5">Easting (m)</th>
+                      <th className="px-3 py-1.5">Northing (m)</th>
+                      <th className="px-3 py-1.5">RL (m)</th>
                     </tr>
                   </thead>
                   <tbody>

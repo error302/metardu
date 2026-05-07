@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { apiHandler } from '@/lib/apiHandler'
 
-// GET /api/scheme/forms?parcel_id=X&type=ppa2|mutation — Generate statutory form for a parcel
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
+export const GET = apiHandler(
+  { auth: true, audit: 'form_generated' },
+  async (req, ctx) => {
+    const { searchParams } = new URL(req.url)
     const parcelId = searchParams.get('parcel_id')
     const formType = searchParams.get('type') || 'ppa2'
 
@@ -23,16 +17,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'type must be ppa2 or mutation' }, { status: 400 })
     }
 
-    // Verify parcel belongs to user's project
     const parcelCheck = await db.query(
       `SELECT p.id, p.parcel_number, p.lr_number_proposed, p.area_ha, p.project_id, p.block_id,
-              b.block_number, b.block_name,
-              pr.name as project_name, pr.location, pr.surveyor_name, pr.county
-       FROM parcels p
-       JOIN blocks b ON b.id = p.block_id
-       JOIN projects pr ON pr.id = p.project_id
-       WHERE p.id = $1 AND pr.user_id = $2`,
-      [parcelId, session.user.id]
+      b.block_number, b.block_name,
+      pr.name as project_name, pr.location, pr.surveyor_name, pr.county
+      FROM parcels p
+      JOIN blocks b ON b.id = p.block_id
+      JOIN projects pr ON pr.id = p.project_id
+      WHERE p.id = $1 AND pr.user_id = $2`,
+      [parcelId, ctx.userId]
     )
 
     if (parcelCheck.rows.length === 0) {
@@ -41,7 +34,6 @@ export async function GET(request: NextRequest) {
 
     const parcel = parcelCheck.rows[0]
 
-    // Get scheme details
     let scheme: any = {}
     try {
       const sd = await db.query('SELECT * FROM scheme_details WHERE project_id = $1', [parcel.project_id])
@@ -53,18 +45,13 @@ export async function GET(request: NextRequest) {
     }
 
     return await generateMutationForm(parcel, scheme)
-  } catch (error) {
-    console.error('Form generation error:', error)
-    return NextResponse.json({ error: 'Failed to generate form', details: String(error) }, { status: 500 })
   }
-}
+)
 
 async function generatePPA2(parcel: any, scheme: any) {
   const { generatePPA2Form } = await import('@/lib/submission/generators/ppa2Form')
 
-  const area = parcel.area_ha
-    ? parseFloat(parcel.area_ha)
-    : 0
+  const area = parcel.area_ha ? parseFloat(parcel.area_ha) : 0
 
   const pdfBuffer = generatePPA2Form({
     lrNumber: parcel.lr_number_proposed || `Proposed - ${parcel.parcel_number}`,
@@ -102,7 +89,6 @@ async function generateMutationForm(parcel: any, scheme: any) {
 
   const area = parcel.area_ha ? parseFloat(parcel.area_ha) : 0
 
-  // Header
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
   doc.text('REPUBLIC OF KENYA', W / 2, 20, { align: 'center' })

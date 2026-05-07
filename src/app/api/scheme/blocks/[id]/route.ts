@@ -1,42 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { z } from 'zod'
+import { apiHandler } from '@/lib/apiHandler'
+import { UpdateBlockSchema } from '@/lib/validation/apiSchemas'
 
-const updateBlockSchema = z.object({
-  block_number: z.string().min(1).optional(),
-  block_name: z.string().optional(),
-  description: z.string().optional(),
-})
-
-// PATCH /api/scheme/blocks/[id] — Update a block
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export const PATCH = apiHandler(
+  { auth: true, schema: UpdateBlockSchema, audit: 'block_updated' },
+  async (req, ctx) => {
+    const blockId = ctx.params.id
+    const { block_number, block_name, description } = ctx.body as {
+      block_number?: string; block_name?: string; description?: string
     }
 
-    const blockId = params.id
-    const body = await request.json()
-    const { block_number, block_name, description } = updateBlockSchema.parse(body)
-
-    // Verify block belongs to user's project
     const check = await db.query(
       `SELECT b.id, b.project_id FROM blocks b
-       JOIN projects p ON p.id = b.project_id
-       WHERE b.id = $1 AND p.user_id = $2`,
-      [blockId, session.user.id]
+      JOIN projects p ON p.id = b.project_id
+      WHERE b.id = $1 AND p.user_id = $2`,
+      [blockId, ctx.userId]
     )
     if (check.rows.length === 0) {
       return NextResponse.json({ error: 'Block not found' }, { status: 404 })
     }
 
-    // If updating block_number, check for duplicates
     if (block_number) {
       const dupCheck = await db.query(
         `SELECT id FROM blocks WHERE project_id = $1 AND block_number = $2 AND id != $3`,
@@ -68,6 +52,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
     }
 
+    updates.push(`updated_at = NOW()`)
     values.push(blockId)
     const result = await db.query(
       `UPDATE blocks SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
@@ -75,47 +60,28 @@ export async function PATCH(
     )
 
     return NextResponse.json({ data: result.rows[0] })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation failed', details: error.errors }, { status: 400 })
-    }
-    console.error('Block update error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+)
 
-// DELETE /api/scheme/blocks/[id] — Delete a block and its parcels
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+export const DELETE = apiHandler(
+  { auth: true, audit: 'block_deleted' },
+  async (req, ctx) => {
+    const blockId = ctx.params.id
 
-    const blockId = params.id
-
-    // Verify block belongs to user's project
     const check = await db.query(
       `SELECT b.id, b.project_id, b.block_number FROM blocks b
-       JOIN projects p ON p.id = b.project_id
-       WHERE b.id = $1 AND p.user_id = $2`,
-      [blockId, session.user.id]
+      JOIN projects p ON p.id = b.project_id
+      WHERE b.id = $1 AND p.user_id = $2`,
+      [blockId, ctx.userId]
     )
     if (check.rows.length === 0) {
       return NextResponse.json({ error: 'Block not found' }, { status: 404 })
     }
 
-    // Delete block (parcels cascade-delete due to FK ON DELETE CASCADE)
     await db.query('DELETE FROM blocks WHERE id = $1', [blockId])
 
     return NextResponse.json({
       message: `Block "${check.rows[0].block_number}" deleted successfully`
     })
-  } catch (error) {
-    console.error('Block delete error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+)

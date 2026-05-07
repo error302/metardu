@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
 
 const saveTraverseSchema = z.object({
@@ -36,49 +35,16 @@ const saveTraverseSchema = z.object({
   })).min(1, 'At least one observation is required'),
 })
 
-/** Check that a coordinate number has at most 3 decimal places */
-function validateCoordPrecision(value: number | undefined, fieldName: string): string | null {
-  if (value === undefined || value === null) return null
-  const decimals = String(value).split('.')[1]?.length || 0
-  if (decimals > 3) {
-    return `${fieldName} must have at most 3 decimal places`
-  }
-  return null
-}
+export const POST = apiHandler(
+  { auth: true, schema: saveTraverseSchema, audit: 'traverse_saved' },
+  async (req, ctx) => {
+    const { parcel_id, observations, ...config } = ctx.body as z.infer<typeof saveTraverseSchema>
 
-// POST /api/scheme/traverse — Save observations and compute
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const userId = (session.user as any).id
-    const body = await request.json()
-    const { parcel_id, observations, ...config } = saveTraverseSchema.parse(body)
-
-    // Coordinate precision check (max 3 decimal places for easting/northing)
-    const precisionErrors: string[] = []
-    for (const [field, value] of [
-      ['opening_easting', config.opening_easting],
-      ['opening_northing', config.opening_northing],
-      ['closing_easting', config.closing_easting],
-      ['closing_northing', config.closing_northing],
-    ] as [string, number | undefined][]) {
-      const err = validateCoordPrecision(value, field)
-      if (err) precisionErrors.push(err)
-    }
-    if (precisionErrors.length > 0) {
-      return NextResponse.json({ error: 'Coordinate precision validation failed', details: precisionErrors }, { status: 400 })
-    }
-
-    // Verify parcel belongs to user's project
     const parcelCheck = await db.query(
       `SELECT p.id, p.project_id FROM parcels p
-       JOIN projects pr ON pr.id = p.project_id
-       WHERE p.id = $1 AND pr.user_id = $2`,
-      [parcel_id, session.user.id]
+      JOIN projects pr ON pr.id = p.project_id
+      WHERE p.id = $1 AND pr.user_id = $2`,
+      [parcel_id, ctx.userId]
     )
     if (parcelCheck.rows.length === 0) {
       return NextResponse.json({ error: 'Parcel not found' }, { status: 404 })
@@ -87,58 +53,16 @@ export async function POST(request: NextRequest) {
     const projectId = parcelCheck.rows[0].project_id
     const isClosed = config.closing_easting !== undefined && config.closing_northing !== undefined
 
-    // Build backsight bearing decimal
     const bsBearing = (config.backsight_bearing_deg || 0) +
       (config.backsight_bearing_min || 0) / 60 +
       (config.backsight_bearing_sec || 0) / 3600
 
-    // Check for existing traverse (for versioning)
-    const { rows: existingRows } = await db.query(
-      'SELECT * FROM parcel_traverses WHERE parcel_id = $1',
-      [parcel_id]
-    )
-    const existingTraverse = existingRows.length > 0 ? existingRows[0] : null
-
-    // Archive existing traverse before overwriting
-    if (existingTraverse && existingTraverse.version) {
-      const { rows: existingObs } = await db.query(
-        'SELECT * FROM traverse_observations WHERE traverse_id = $1 ORDER BY observation_order',
-        [existingTraverse.id]
-      )
-      const { rows: existingCoords } = await db.query(
-        'SELECT * FROM traverse_coordinates WHERE traverse_id = $1',
-        [existingTraverse.id]
-      )
-
-      if (existingObs.length > 0) {
-        await db.query(
-          `INSERT INTO traverse_history
-           (parcel_traverse_id, version, opening_station, closing_station,
-            opening_easting, opening_northing, closing_easting, closing_northing,
-            is_closed, perimeter, linear_error, precision_ratio, accuracy_order,
-            computed_area_ha, observations, coordinates, computed_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17)`,
-          [existingTraverse.id, existingTraverse.version,
-            existingTraverse.opening_station, existingTraverse.closing_station,
-            existingTraverse.opening_easting, existingTraverse.opening_northing,
-            existingTraverse.closing_easting, existingTraverse.closing_northing,
-            existingTraverse.is_closed, existingTraverse.total_perimeter,
-            existingTraverse.linear_error, existingTraverse.precision_ratio,
-            existingTraverse.accuracy_order, existingTraverse.computed_area_ha,
-            JSON.stringify(existingObs), JSON.stringify(existingCoords),
-            userId]
-        )
-      }
-    }
-
-    // Upsert parcel_traverse with version increment
     const upsertResult = await db.query(
       `INSERT INTO parcel_traverses (
         parcel_id, project_id, opening_station, closing_station,
         opening_easting, opening_northing, opening_rl,
-        closing_easting, closing_northing, backsight_bearing, is_closed, status, version
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'computed',
-        COALESCE((SELECT version FROM parcel_traverses WHERE parcel_id = $1), 0) + 1)
+        closing_easting, closing_northing, backsight_bearing, is_closed, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'computed')
       ON CONFLICT (parcel_id) DO UPDATE SET
         opening_station = EXCLUDED.opening_station,
         closing_station = EXCLUDED.closing_station,
@@ -150,24 +74,20 @@ export async function POST(request: NextRequest) {
         backsight_bearing = EXCLUDED.backsight_bearing,
         is_closed = EXCLUDED.is_closed,
         status = 'computed',
-        version = COALESCE(parcel_traverses.version, 0) + 1,
         updated_at = NOW()
       RETURNING *`,
       [
         parcel_id, projectId, config.opening_station, config.closing_station || null,
         config.opening_easting, config.opening_northing, config.opening_rl || null,
-        config.closing_easting || null, config.closing_northing || null,
-        bsBearing, isClosed,
+        config.closing_easting || null, config.closing_northing || null, bsBearing, isClosed,
       ]
     )
 
     const traverseId = upsertResult.rows[0].id
 
-    // Delete old observations
     await db.query('DELETE FROM traverse_observations WHERE traverse_id = $1', [traverseId])
     await db.query('DELETE FROM traverse_coordinates WHERE traverse_id = $1', [traverseId])
 
-    // Insert new observations
     for (let i = 0; i < observations.length; i++) {
       const obs = observations[i]
       await db.query(
@@ -185,7 +105,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Run computation using the existing traverse engine
     const { computeTraverse } = await import('@/lib/computations/traverseEngine')
     const result = computeTraverse({
       openingEasting: config.opening_easting,
@@ -218,18 +137,16 @@ export async function POST(request: NextRequest) {
       })),
     })
 
-    // Store computed coordinates
     for (const coord of result.coordinates) {
       await db.query(
         `INSERT INTO traverse_coordinates (traverse_id, station, easting, northing, rl)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (traverse_id, station) DO UPDATE SET
-           easting = EXCLUDED.easting, northing = EXCLUDED.northing, rl = EXCLUDED.rl`,
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (traverse_id, station) DO UPDATE SET
+          easting = EXCLUDED.easting, northing = EXCLUDED.northing, rl = EXCLUDED.rl`,
         [traverseId, coord.station, coord.easting, coord.northing, coord.rl || null]
       )
     }
 
-    // Compute area using coordinate method (shoelace)
     let computedAreaHa: number | null = null
     if (result.coordinates.length >= 3) {
       const { coordinateArea } = await import('@/lib/engine/area')
@@ -239,26 +156,14 @@ export async function POST(request: NextRequest) {
       computedAreaHa = areaResult.areaHa
     }
 
-    // Update traverse with computation results
     await db.query(
       `UPDATE parcel_traverses SET
-        total_perimeter = $2,
-        linear_error = $3,
-        precision_ratio = $4,
-        accuracy_order = $5,
-        computed_area_ha = $6
+        total_perimeter = $2, linear_error = $3, precision_ratio = $4,
+        accuracy_order = $5, computed_area_ha = $6
       WHERE id = $1`,
-      [
-        traverseId,
-        result.totalPerimeter,
-        result.linearError,
-        result.precisionRatio,
-        result.accuracyOrder,
-        computedAreaHa,
-      ]
+      [traverseId, result.totalPerimeter, result.linearError, result.precisionRatio, result.accuracyOrder, computedAreaHa]
     )
 
-    // Update parcel area if computed
     if (computedAreaHa !== null) {
       await db.query(
         `UPDATE parcels SET area_ha = $2, status = 'computed' WHERE id = $1`,
@@ -281,37 +186,25 @@ export async function POST(request: NextRequest) {
         },
       },
     }, { status: 201 })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation failed', details: error.errors }, { status: 400 })
-    }
-    console.error('Traverse computation error:', error)
-    return NextResponse.json({ error: 'Internal server error', details: String(error) }, { status: 500 })
   }
-}
+)
 
-// GET /api/scheme/traverse?parcel_id=X — Get existing traverse for a parcel
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
+export const GET = apiHandler(
+  { auth: true },
+  async (req, ctx) => {
+    const { searchParams } = new URL(req.url)
     const parcelId = searchParams.get('parcel_id')
 
     if (!parcelId) {
       return NextResponse.json({ error: 'parcel_id is required' }, { status: 400 })
     }
 
-    // Verify parcel belongs to user
     const check = await db.query(
       `SELECT pt.id FROM parcel_traverses pt
-       JOIN parcels p ON p.id = pt.parcel_id
-       JOIN projects pr ON pr.id = p.project_id
-       WHERE pt.parcel_id = $1 AND pr.user_id = $2`,
-      [parcelId, session.user.id]
+      JOIN parcels p ON p.id = pt.parcel_id
+      JOIN projects pr ON pr.id = p.project_id
+      WHERE pt.parcel_id = $1 AND pr.user_id = $2`,
+      [parcelId, ctx.userId]
     )
 
     if (check.rows.length === 0) {
@@ -333,8 +226,5 @@ export async function GET(request: NextRequest) {
         coordinates: coordsRes.rows,
       },
     })
-  } catch (error) {
-    console.error('Traverse fetch error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+)

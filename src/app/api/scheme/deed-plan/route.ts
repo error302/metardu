@@ -1,33 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { apiHandler } from '@/lib/apiHandler'
 
-// GET /api/scheme/deed-plan?parcel_id=X — Generate deed plan PDF for a parcel
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
+export const GET = apiHandler(
+  { auth: true, audit: 'deed_plan_generated' },
+  async (req, ctx) => {
+    const { searchParams } = new URL(req.url)
     const parcelId = searchParams.get('parcel_id')
 
     if (!parcelId) {
       return NextResponse.json({ error: 'parcel_id is required' }, { status: 400 })
     }
 
-    // Verify parcel belongs to user's project
     const parcelCheck = await db.query(
       `SELECT p.id, p.parcel_number, p.lr_number_proposed, p.area_ha, p.project_id, p.block_id,
-              b.block_number, b.block_name,
-              pr.name as project_name, pr.location, pr.surveyor_name
-       FROM parcels p
-       JOIN blocks b ON b.id = p.block_id
-       JOIN projects pr ON pr.id = p.project_id
-       WHERE p.id = $1 AND pr.user_id = $2`,
-      [parcelId, session.user.id]
+      b.block_number, b.block_name,
+      pr.name as project_name, pr.location, pr.surveyor_name
+      FROM parcels p
+      JOIN blocks b ON b.id = p.block_id
+      JOIN projects pr ON pr.id = p.project_id
+      WHERE p.id = $1 AND pr.user_id = $2`,
+      [parcelId, ctx.userId]
     )
 
     if (parcelCheck.rows.length === 0) {
@@ -36,12 +29,11 @@ export async function GET(request: NextRequest) {
 
     const parcel = parcelCheck.rows[0]
 
-    // Get traverse coordinates for this parcel
     const traverseCheck = await db.query(
       `SELECT pt.id as traverse_id, pt.opening_station, pt.accuracy_order,
-              pt.total_perimeter, pt.computed_area_ha
-       FROM parcel_traverses pt
-       WHERE pt.parcel_id = $1`,
+      pt.total_perimeter, pt.computed_area_ha
+      FROM parcel_traverses pt
+      WHERE pt.parcel_id = $1`,
       [parcelId]
     )
 
@@ -52,7 +44,6 @@ export async function GET(request: NextRequest) {
     const traverse = traverseCheck.rows[0]
     const traverseId = traverse.traverse_id
 
-    // Get coordinates
     const coordsResult = await db.query(
       `SELECT station, easting, northing, rl FROM traverse_coordinates WHERE traverse_id = $1 ORDER BY station`,
       [traverseId]
@@ -62,17 +53,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not enough points for a deed plan (minimum 3 required)' }, { status: 400 })
     }
 
-    // Get scheme details if available
     let schemeDetails: any = {}
     try {
-      const sd = await db.query(
-        'SELECT * FROM scheme_details WHERE project_id = $1',
-        [parcel.project_id]
-      )
+      const sd = await db.query('SELECT * FROM scheme_details WHERE project_id = $1', [parcel.project_id])
       if (sd.rows.length > 0) schemeDetails = sd.rows[0]
     } catch {}
 
-    // Generate the deed plan PDF
     const { jsPDF } = await import('jspdf')
     const { renderBoundaryPlan } = await import('@/lib/generators/deedPlanRenderer')
 
@@ -80,7 +66,6 @@ export async function GET(request: NextRequest) {
     const pageW = doc.internal.pageSize.getWidth()
     const pageH = doc.internal.pageSize.getHeight()
 
-    // Build geometry from coordinates
     const stations = coordsResult.rows.map((c: any) => ({
       station: c.station,
       easting: parseFloat(c.easting),
@@ -89,7 +74,6 @@ export async function GET(request: NextRequest) {
       monument: 'psc found',
     }))
 
-    // Build bearing schedule
     const bearingSchedule: Array<{ bearing: string; distance: string }> = []
     for (let i = 0; i < stations.length; i++) {
       const from = stations[i]
@@ -108,27 +92,21 @@ export async function GET(request: NextRequest) {
     }
 
     const geom = {
-      stations,
-      bearingSchedule,
+      stations, bearingSchedule,
       minE: Math.min(...stations.map((s: any) => s.easting)),
       maxE: Math.max(...stations.map((s: any) => s.easting)),
       minN: Math.min(...stations.map((s: any) => s.northing)),
       maxN: Math.max(...stations.map((s: any) => s.northing)),
     }
 
-    // Header
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
     doc.text('REPUBLIC OF KENYA', pageW / 2, 10, { align: 'center' })
     doc.setFontSize(9)
     doc.text('FORM NO. 4 \u2014 DEED PLAN', pageW / 2, 15, { align: 'center' })
 
-    // Render boundary plan
-    renderBoundaryPlan(doc, geom as any, {
-      x: 10, y: 20, width: pageW - 20, height: pageH - 75,
-    })
+    renderBoundaryPlan(doc, geom as any, { x: 10, y: 20, width: pageW - 20, height: pageH - 75 })
 
-    // Info table (bottom)
     const tableY = pageH - 52
     doc.setDrawColor(0)
     doc.setLineWidth(0.4)
@@ -183,8 +161,5 @@ export async function GET(request: NextRequest) {
         },
       }
     )
-  } catch (error) {
-    console.error('Deed plan generation error:', error)
-    return NextResponse.json({ error: 'Failed to generate deed plan', details: String(error) }, { status: 500 })
   }
-}
+)
