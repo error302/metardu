@@ -1,0 +1,251 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { db } from '@/lib/db'
+
+// POST: Save intersection points (horizontal alignment) for an alignment
+// Replaces all existing IPs for the alignment with the new set
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { alignment_id, ips } = body as {
+      alignment_id: string
+      ips: {
+        name: string
+        easting: number
+        northing: number
+        radius: number
+      }[]
+    }
+
+    if (!alignment_id || !ips || !Array.isArray(ips)) {
+      return NextResponse.json({ error: 'Missing required fields: alignment_id, ips' }, { status: 400 })
+    }
+
+    const client = await db.getClient()
+
+    try {
+      await client.query('BEGIN')
+
+      // Delete existing IPs for this alignment
+      await client.query('DELETE FROM alignment_ips WHERE alignment_id = $1', [alignment_id])
+
+      // Insert new IPs
+      const insertedRows = []
+      for (let i = 0; i < ips.length; i++) {
+        const ip = ips[i]
+        const { rows } = await client.query(
+          `INSERT INTO alignment_ips (alignment_id, name, easting, northing, radius, sort_order)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING *`,
+          [alignment_id, ip.name, ip.easting, ip.northing, ip.radius, i]
+        )
+        insertedRows.push(rows[0])
+      }
+
+      // Compute derived values for each IP (deflection angle, tangent length, arc length, chainages)
+      const computedRows = await computeIPValues(client, insertedRows, alignment_id)
+
+      await client.query('COMMIT')
+
+      return NextResponse.json({ data: computedRows })
+    } catch (txErr) {
+      await client.query('ROLLBACK')
+      throw txErr
+    } finally {
+      client.release()
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[POST /api/engineering/ips] Error:', message)
+    return NextResponse.json({ error: 'Failed to save intersection points' }, { status: 500 })
+  }
+}
+
+// PUT: Update a single IP's computed results
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const {
+      id,
+      deflection_angle,
+      tangent_length,
+      arc_length,
+      chainage_tc,
+      chainage_mc,
+      chainage_ct,
+      has_transition,
+      transition_length_in,
+      transition_length_out,
+      spiral_parameters,
+    } = body as {
+      id: string
+      deflection_angle?: number
+      tangent_length?: number
+      arc_length?: number
+      chainage_tc?: number
+      chainage_mc?: number
+      chainage_ct?: number
+      has_transition?: boolean
+      transition_length_in?: number
+      transition_length_out?: number
+      spiral_parameters?: Record<string, unknown>
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'Missing required field: id' }, { status: 400 })
+    }
+
+    const { rows } = await db.query(
+      `UPDATE alignment_ips SET
+        deflection_angle = COALESCE($2, deflection_angle),
+        tangent_length = COALESCE($3, tangent_length),
+        arc_length = COALESCE($4, arc_length),
+        chainage_tc = COALESCE($5, chainage_tc),
+        chainage_mc = COALESCE($6, chainage_mc),
+        chainage_ct = COALESCE($7, chainage_ct),
+        has_transition = COALESCE($8, has_transition),
+        transition_length_in = COALESCE($9, transition_length_in),
+        transition_length_out = COALESCE($10, transition_length_out),
+        spiral_parameters = COALESCE($11, spiral_parameters),
+        updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        id,
+        deflection_angle,
+        tangent_length,
+        arc_length,
+        chainage_tc,
+        chainage_mc,
+        chainage_ct,
+        has_transition,
+        transition_length_in,
+        transition_length_out,
+        spiral_parameters ? JSON.stringify(spiral_parameters) : null,
+      ]
+    )
+
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Intersection point not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ data: rows[0] })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[PUT /api/engineering/ips] Error:', message)
+    return NextResponse.json({ error: 'Failed to update intersection point' }, { status: 500 })
+  }
+}
+
+/**
+ * Compute derived horizontal alignment values for all IPs.
+ * Uses the first IP as the starting point with a zero-length tangent.
+ */
+async function computeIPValues(
+  client: import('pg').PoolClient,
+  ips: Record<string, unknown>[],
+  alignmentId: string
+) {
+  if (ips.length === 0) return []
+
+  // Fetch the alignment's start chainage
+  const { rows: alignRows } = await client.query(
+    'SELECT start_chainage FROM road_alignments WHERE id = $1',
+    [alignmentId]
+  )
+  const startChainage = alignRows.length > 0 ? alignRows[0].start_chainage : 0
+
+  // Compute bearings and chainages sequentially
+  let currentChainage = startChainage
+  let prevBearing: number | null = null
+
+  const computed = []
+  for (let i = 0; i < ips.length; i++) {
+    const ip = ips[i]
+    const ipEasting = Number(ip.easting)
+    const ipNorthing = Number(ip.northing)
+    const ipRadius = Number(ip.radius)
+    const ipName = String(ip.name)
+
+    // Compute bearing from previous IP to this IP
+    let bearing: number | null = null
+    if (i > 0) {
+      const prevEasting = Number(ips[i - 1].easting)
+      const prevNorthing = Number(ips[i - 1].northing)
+      const dE = ipEasting - prevEasting
+      const dN = ipNorthing - prevNorthing
+      bearing = (Math.atan2(dE, dN) * 180) / Math.PI
+      if (bearing < 0) bearing += 360
+    }
+
+    let deflectionAngle: number | null = null
+    let tangentLength: number | null = null
+    let arcLength: number | null = null
+    let chainageTC: number | null = null
+    let chainageMC: number | null = null
+    let chainageCT: number | null = null
+
+    // If we have a previous bearing and a radius, compute curve parameters
+    if (prevBearing !== null && bearing !== null && ipRadius > 0) {
+      // Deflection angle: difference between consecutive bearings
+      deflectionAngle = bearing - prevBearing
+      if (deflectionAngle > 180) deflectionAngle -= 360
+      if (deflectionAngle < -180) deflectionAngle += 360
+
+      const absDeflection = Math.abs(deflectionAngle)
+      const deflectionRad = (absDeflection * Math.PI) / 180
+
+      // Tangent length: T = R * tan(Δ/2)
+      tangentLength = ipRadius * Math.tan(deflectionRad / 2)
+
+      // Arc length: L = R * Δ (radians)
+      arcLength = ipRadius * deflectionRad
+
+      // Chainages
+      chainageTC = currentChainage
+      chainageMC = chainageTC + arcLength / 2
+      chainageCT = chainageTC + arcLength
+    }
+
+    // Update the IP in the database with computed values
+    const { rows: updatedRows } = await client.query(
+      `UPDATE alignment_ips SET
+        deflection_angle = $2,
+        tangent_length = $3,
+        arc_length = $4,
+        chainage_tc = $5,
+        chainage_mc = $6,
+        chainage_ct = $7,
+        updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [ip.id, deflectionAngle, tangentLength, arcLength, chainageTC, chainageMC, chainageCT]
+    )
+
+    computed.push(updatedRows[0])
+
+    // Advance chainage to next IP
+    // Distance from previous IP to this IP
+    if (i > 0) {
+      const prevEasting = Number(ips[i - 1].easting)
+      const prevNorthing = Number(ips[i - 1].northing)
+      const dist = Math.sqrt((ipEasting - prevEasting) ** 2 + (ipNorthing - prevNorthing) ** 2)
+      currentChainage += dist
+    }
+
+    prevBearing = bearing
+  }
+
+  return computed
+}
