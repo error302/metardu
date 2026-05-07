@@ -62,6 +62,7 @@ export default function ToolsPage() {
             <ToolLink href="/tools/setting-out" title="Setting Out" description="Stakeout from known coords | RDM 1.1" />
             <ToolLink href="/tools/missing-line" title="Missing Line" description="Distance & bearing between two points" />
             <ToolLink href="/tools/control-marks-register" title="Control Marks Register" description="RDM 1.1 s5.6.3 mark register" />
+            <ToolLink href="/tools/pile-grid" title="Pile / Column Grid" description="Foundation grid coordinates &amp; staking | Basak §8.5" badge="NEW" />
           </div>
         </section>
 
@@ -117,6 +118,17 @@ export default function ToolsPage() {
             <ToolLink href="/tools/mining" title="⛏ Mining Survey" description="Volume computation & DXF export" />
             <ToolLink href="/tools/hydrographic" title="🌊 Hydrographic" description="Water survey & depth reduction" />
             <ToolLink href="/tools/drone" title="🚁 Drone/UAV" description="UAV survey & GCP processing" />
+            <ToolLink href="/tools/topo-drawing" title="Topo Drawing Composer" description="Feature codes &amp; DXF topographic drawings" badge="NEW" />
+            <ToolLink href="/tools/slope-analysis" title="Slope &amp; Area Analysis" description="DTM slope classification, cut/fill, area" badge="NEW" />
+          </div>
+        </section>
+
+        {/* ENGINEERING */}
+        <section>
+          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Engineering</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <ToolLink href="/tools/machine-control" title="Machine Control Export" description="Trimble, Leica, Topcon export formats" badge="NEW" />
+            <ToolLink href="/tools/progress-monitor" title="Progress Monitor" description="Construction progress tracking &amp; reports" badge="NEW" />
           </div>
         </section>
 
