@@ -7,6 +7,7 @@ import {
   aciToHex,
   searchFeatureCodes,
   KENYA_TOPO_CODES,
+  type SurveyPointWithCode,
 } from '@/lib/topo/featureCodes';
 
 // ─── getFeatureCode ─────────────────────────────────────────────────────────

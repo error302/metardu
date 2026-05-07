@@ -27,3 +27,4 @@ export { type DEMVolumeResult } from './miningVolume';
 export * from './miningVolume';
 export * from './tidalReduction';
 export * from './crossSectionVolume';
+export * from './leastSquares';

@@ -193,3 +193,34 @@ Stage Summary:
 - Types: Desynchronized from DB schema (missing fields on IntersectionPoint, VerticalIP, EarthworksRow)
 - Data Persistence: Engineering page stores data only in React state - no save/load API call wired
 - Estimate: ~15-20 hours to fix all issues and make genuinely production-ready
+
+---
+Task ID: fix-all-audit-issues
+Agent: Main Agent + 8 parallel subagents
+Task: Fix all issues identified in comprehensive engineering audit
+
+Work Log:
+- Fixed DB schema: FK projects(uuid)→projects(id), added UNIQUE(project_id), added missing created_at/updated_at columns + triggers on 4 tables
+- Fixed 3 wrong table names in alignment GET route (vertical_ips→alignment_vertical_ips, alignment_stations→cross_section_stations)
+- Added auth to 3 unauthenticated routes (curve, volume, profile-dxf)
+- Fixed weak auth on 4 routes (!session→!session?.user)
+- Added input validation to earthworks and profile-dxf routes
+- Fixed math bug: hard-coded V=80 in vertical curve (now uses designSpeedKph input)
+- Fixed math bug: degenerate prismoidal formula (now uses Simpson's 1/3 rule)
+- Fixed math bug: right camber sign in earthworksEngine (formationRL + camberRise → - camberRise)
+- Fixed math bug: isCrest inversion in roadDesignEngine (A > 0 → A < 0)
+- Fixed math bug: superelevation missing friction factor and circular L1 in volume.ts
+- Synced TypeScript types with DB schema (added 11 missing fields across 4 interfaces)
+- Wired data persistence: loadEngineeringData on mount, saveToBackend on each step
+- Added Save All button in engineering page header
+- Added mass haul diagram SVG visualization to VolumesPanel
+- Added CSV import capability to stations step
+- Fixed asBuilt dead code (designEasting/Northing now populated from interpolated design coords)
+- Updated stale snapshot test (date change only)
+- All 745 tests passing
+
+Stage Summary:
+- 20 files changed, 782 insertions, 139 deletions
+- Commit: 42b584d, pushed to main
+- All critical (P0), medium (P1), and low (P2) issues resolved
+- Remaining known: chainage computation uses Euclidean distance (documented as approximation, needs two-pass for final design)
