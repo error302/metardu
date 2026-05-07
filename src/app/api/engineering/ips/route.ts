@@ -236,7 +236,10 @@ async function computeIPValues(
     computed.push(updatedRows[0])
 
     // Advance chainage to next IP
-    // Distance from previous IP to this IP
+    // NOTE: Uses Euclidean IP-to-IP distance as chainage increment.
+    // For final design, chainage should account for tangent lengths and arc lengths:
+    // actual_distance = straight_length - 2*T + L (where T=tangent, L=arc at this IP)
+    // This requires a two-pass computation (first compute all curves, then chainages).
     if (i > 0) {
       const prevEasting = Number(ips[i - 1].easting)
       const prevNorthing = Number(ips[i - 1].northing)

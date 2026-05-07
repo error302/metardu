@@ -189,7 +189,7 @@ export function computeCrossSection(
   // Right formation edge: formation + camber/100 * (carriageway/2)
   const camberRise = (template.camber / 100) * (template.carriagewayWidth / 2)
   const leftFormationEdgeRL = formationRL - camberRise
-  const rightFormationEdgeRL = formationRL + camberRise
+  const rightFormationEdgeRL = formationRL - camberRise
 
   const centreHeight = centrelineRL - formationRL
   const mode = centreHeight > 0.005 ? 'cut' : centreHeight < -0.005 ? 'fill' : 'transition'

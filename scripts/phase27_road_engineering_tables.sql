@@ -8,7 +8,7 @@
 -- 1. Road alignments — one per project road design
 CREATE TABLE IF NOT EXISTS road_alignments (
   id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id              UUID NOT NULL REFERENCES projects(uuid) ON DELETE CASCADE,
+  project_id              UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   road_name               TEXT NOT NULL,
   start_chainage          NUMERIC(10,3) NOT NULL DEFAULT 0,
   datum                   TEXT NOT NULL DEFAULT 'WGS-84',
@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS road_alignments (
   status                  TEXT NOT NULL DEFAULT 'draft'
                           CHECK (status IN ('draft','final','as_built')),
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (project_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_road_alignments_project_id ON road_alignments(project_id);
@@ -54,7 +55,9 @@ CREATE TABLE IF NOT EXISTS alignment_ips (
   transition_length_in  NUMERIC(10,3),
   transition_length_out NUMERIC(10,3),
   spiral_parameters     JSONB,
-  computed              BOOLEAN NOT NULL DEFAULT FALSE
+  computed              BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_alignment_ips_alignment_id ON alignment_ips(alignment_id);
@@ -74,7 +77,8 @@ CREATE TABLE IF NOT EXISTS alignment_vertical_ips (
   gradient_out  NUMERIC(10,6),
   curve_length  NUMERIC(10,3),
   sort_order    INTEGER NOT NULL,
-  computed      BOOLEAN NOT NULL DEFAULT FALSE
+  computed      BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_alignment_vertical_ips_alignment_id ON alignment_vertical_ips(alignment_id);
@@ -91,7 +95,8 @@ CREATE TABLE IF NOT EXISTS cross_section_stations (
   design_level  NUMERIC(10,4),
   cut_area      NUMERIC(10,3),
   fill_area     NUMERIC(10,3),
-  sort_order    INTEGER NOT NULL
+  sort_order    INTEGER NOT NULL,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_cross_section_stations_alignment_id ON cross_section_stations(alignment_id);
@@ -114,7 +119,8 @@ CREATE TABLE IF NOT EXISTS earthworks_results (
   cumulative_fill NUMERIC(14,3),
   net_volume      NUMERIC(14,3),
   mass_ordinate   NUMERIC(14,3),
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_earthworks_results_alignment_id ON earthworks_results(alignment_id);
@@ -151,4 +157,24 @@ COMMENT ON COLUMN road_reserve_parcels.status IS 'identified | surveyed | acquir
 DROP TRIGGER IF EXISTS trg_road_alignments_updated_at ON road_alignments;
 CREATE TRIGGER trg_road_alignments_updated_at
   BEFORE UPDATE ON road_alignments
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_alignment_ips_updated_at ON alignment_ips;
+CREATE TRIGGER trg_alignment_ips_updated_at
+  BEFORE UPDATE ON alignment_ips
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_alignment_vertical_ips_updated_at ON alignment_vertical_ips;
+CREATE TRIGGER trg_alignment_vertical_ips_updated_at
+  BEFORE UPDATE ON alignment_vertical_ips
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_cross_section_stations_updated_at ON cross_section_stations;
+CREATE TRIGGER trg_cross_section_stations_updated_at
+  BEFORE UPDATE ON cross_section_stations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_earthworks_results_updated_at ON earthworks_results;
+CREATE TRIGGER trg_earthworks_results_updated_at
+  BEFORE UPDATE ON earthworks_results
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

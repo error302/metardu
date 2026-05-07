@@ -11,6 +11,202 @@ const VolumeInputSchema = z.object({
   method: z.enum(['prismoidal', 'end-area']).default('prismoidal'),
 });
 
+interface MassHaulPoint {
+  station: number;
+  volume: number;
+  cumulative: number;
+  zone: 'cut' | 'fill' | 'balance';
+}
+
+function MassHaulDiagramSVG({ diagram, balancePoint }: { diagram: MassHaulPoint[]; balancePoint: number | null }) {
+  const padding = { top: 30, right: 40, bottom: 50, left: 70 };
+  const chartW = Math.max(diagram.length * 60, 600);
+  const chartH = 320;
+  const totalW = chartW + padding.left + padding.right;
+  const totalH = chartH + padding.top + padding.bottom;
+
+  const stations = diagram.map(d => d.station);
+  const cumulatives = diagram.map(d => d.cumulative);
+  const minStation = Math.min(...stations);
+  const maxStation = Math.max(...stations);
+  const minCum = Math.min(...cumulatives, 0);
+  const maxCum = Math.max(...cumulatives, 0);
+  const rangeX = maxStation - minStation || 1;
+  const rangeY = maxCum - minCum || 1;
+
+  const scaleX = (v: number) => padding.left + ((v - minStation) / rangeX) * chartW;
+  const scaleY = (v: number) => padding.top + chartH - ((v - minCum) / rangeY) * chartH;
+  const zeroY = scaleY(0);
+
+  // Build polyline points
+  const linePoints = diagram.map(d => `${scaleX(d.station)},${scaleY(d.cumulative)}`).join(' ');
+
+  // Build filled polygons: surplus (green above zero) and deficit (red below zero)
+  const surplusParts: string[] = [];
+  const deficitParts: string[] = [];
+
+  for (let i = 0; i < diagram.length - 1; i++) {
+    const d0 = diagram[i];
+    const d1 = diagram[i + 1];
+    const x0 = scaleX(d0.station);
+    const x1 = scaleX(d1.station);
+    const y0 = scaleY(d0.cumulative);
+    const y1 = scaleY(d1.cumulative);
+
+    if (d0.cumulative >= 0 && d1.cumulative >= 0) {
+      // Both above zero
+      surplusParts.push(`M${x0},${zeroY} L${x0},${y0} L${x1},${y1} L${x1},${zeroY} Z`);
+    } else if (d0.cumulative <= 0 && d1.cumulative <= 0) {
+      // Both below zero
+      deficitParts.push(`M${x0},${zeroY} L${x0},${y0} L${x1},${y1} L${x1},${zeroY} Z`);
+    } else {
+      // Crosses zero — interpolate crossing point
+      const t = Math.abs(d0.cumulative) / (Math.abs(d0.cumulative) + Math.abs(d1.cumulative));
+      const crossX = x0 + t * (x1 - x0);
+
+      if (d0.cumulative > 0) {
+        surplusParts.push(`M${x0},${zeroY} L${x0},${y0} L${crossX},${zeroY} Z`);
+        deficitParts.push(`M${crossX},${zeroY} L${crossX},${zeroY} L${x1},${y1} L${x1},${zeroY} Z`);
+      } else {
+        deficitParts.push(`M${x0},${zeroY} L${x0},${y0} L${crossX},${zeroY} Z`);
+        surplusParts.push(`M${crossX},${zeroY} L${crossX},${zeroY} L${x1},${y1} L${x1},${zeroY} Z`);
+      }
+    }
+  }
+
+  // Grid lines
+  const gridLines = [];
+  const numXGrid = Math.min(diagram.length, 10);
+  for (let i = 0; i <= numXGrid; i++) {
+    const val = minStation + (rangeX * i) / numXGrid;
+    gridLines.push({ x: scaleX(val), label: val.toFixed(0), axis: 'x' });
+  }
+  const numYGrid = 6;
+  for (let i = 0; i <= numYGrid; i++) {
+    const val = minCum + (rangeY * i) / numYGrid;
+    gridLines.push({ y: scaleY(val), label: val.toFixed(0), axis: 'y' });
+  }
+
+  return (
+    <div className="border border-[var(--border-color)] rounded-lg overflow-hidden">
+      <div className="bg-[var(--bg-secondary)] px-4 py-2 border-b border-[var(--border-color)]">
+        <h4 className="font-semibold text-sm flex items-center gap-2">
+          Mass Haul Diagram
+          <span className="flex items-center gap-1 ml-3 text-xs font-normal text-[var(--text-muted)]">
+            <span className="inline-block w-3 h-2 bg-green-500/40 rounded-sm border border-green-500/60" />
+            Surplus (Cut)
+          </span>
+          <span className="flex items-center gap-1 text-xs font-normal text-[var(--text-muted)]">
+            <span className="inline-block w-3 h-2 bg-red-500/40 rounded-sm border border-red-500/60" />
+            Deficit (Fill)
+          </span>
+        </h4>
+      </div>
+      <div className="bg-white p-2" style={{ maxHeight: 400 }}>
+        <svg
+          viewBox={`0 0 ${totalW} ${totalH}`}
+          className="w-full h-auto"
+          style={{ maxHeight: 380 }}
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <defs>
+            <pattern id="mhd-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e5e7eb" strokeWidth="0.5" />
+            </pattern>
+          </defs>
+
+          {/* Background grid */}
+          <rect x={padding.left} y={padding.top} width={chartW} height={chartH} fill="url(#mhd-grid)" />
+
+          {/* Zero line */}
+          <line
+            x1={padding.left} y1={zeroY} x2={padding.left + chartW} y2={zeroY}
+            stroke="#374151" strokeWidth="1.5" strokeDasharray="6 3"
+          />
+
+          {/* Surplus fill (green) */}
+          {surplusParts.map((d, i) => (
+            <path key={`surplus-${i}`} d={d} fill="rgba(34,197,94,0.2)" stroke="rgba(34,197,94,0.4)" strokeWidth="0.5" />
+          ))}
+
+          {/* Deficit fill (red) */}
+          {deficitParts.map((d, i) => (
+            <path key={`deficit-${i}`} d={d} fill="rgba(239,68,68,0.2)" stroke="rgba(239,68,68,0.4)" strokeWidth="0.5" />
+          ))}
+
+          {/* Cumulative volume line */}
+          <polyline points={linePoints} fill="none" stroke="#1f2937" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+
+          {/* Data points */}
+          {diagram.map((d, i) => (
+            <circle
+              key={i}
+              cx={scaleX(d.station)} cy={scaleY(d.cumulative)}
+              r="3"
+              fill={d.cumulative >= 0 ? '#16a34a' : '#dc2626'}
+              stroke="white" strokeWidth="1.5"
+            />
+          ))}
+
+          {/* Balance point marker */}
+          {balancePoint !== null && (
+            <line
+              x1={scaleX(balancePoint)} y1={padding.top}
+              x2={scaleX(balancePoint)} y2={padding.top + chartH}
+              stroke="#d97706" strokeWidth="2" strokeDasharray="8 4"
+            />
+          )}
+          {balancePoint !== null && (
+            <text
+              x={scaleX(balancePoint)} y={padding.top - 8}
+              textAnchor="middle"
+              className="text-[10px]"
+              fill="#d97706" fontWeight="600"
+            >
+              Balance @{balancePoint.toFixed(0)}m
+            </text>
+          )}
+
+          {/* X axis labels */}
+          {gridLines.filter(g => g.axis === 'x').map((g, i) => (
+            <text key={`xl-${i}`} x={g.x} y={totalH - 8} textAnchor="middle" className="text-[10px]" fill="#6b7280">
+              {g.label}m
+            </text>
+          ))}
+
+          {/* Y axis labels */}
+          {gridLines.filter(g => g.axis === 'y').map((g, i) => (
+            <g key={`yl-${i}`}>
+              <line
+                x1={padding.left} y1={g.y} x2={padding.left + chartW} y2={g.y}
+                stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="2 4"
+              />
+              <text x={padding.left - 8} y={g.y + 3} textAnchor="end" className="text-[10px]" fill="#6b7280">
+                {g.label}
+              </text>
+            </g>
+          ))}
+
+          {/* Axis titles */}
+          <text x={totalW / 2} y={totalH - 0} textAnchor="middle" className="text-[11px]" fill="#374151" fontWeight="500">
+            Chainage (m)
+          </text>
+          <text
+            x={12} y={padding.top + chartH / 2}
+            textAnchor="middle"
+            className="text-[11px]"
+            fill="#374151"
+            fontWeight="500"
+            transform={`rotate(-90, 12, ${padding.top + chartH / 2})`}
+          >
+            Cumulative Volume (m³)
+          </text>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 interface VolumesPanelProps {
   projectId?: string;
   projectData?: {
@@ -253,6 +449,10 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
             </div>
           )}
         </>
+      )}
+
+      {massHaul && massHaul.diagram.length > 0 && (
+        <MassHaulDiagramSVG diagram={massHaul.diagram} balancePoint={massHaul.balancePoint} />
       )}
 
       <div className="text-xs text-[var(--text-muted)]">

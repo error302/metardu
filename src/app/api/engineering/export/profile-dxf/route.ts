@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import Drawing from 'dxf-writer'
 import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
     const { points, title, projectId } = await req.json()
+
+    if (!Array.isArray(points) || points.length < 2) {
+      return NextResponse.json({ error: 'Invalid input: points must be an array with at least 2 elements' }, { status: 400 })
+    }
 
     const drawing = new Drawing()
     initialiseDXFLayers(drawing)

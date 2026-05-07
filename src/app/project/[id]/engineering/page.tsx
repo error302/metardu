@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/api-client/client'
 import type { EngineeringData, EngineeringMode, EngineeringStandard, RoadDesignData, DrainageData, StationData, IntersectionPoint, VerticalIP, CrossSectionTemplate, StepStatus, Manhole, PipeRun } from '@/types/engineering'
@@ -750,6 +750,8 @@ function Step5Stations({
   onSave: (stations: StationData[]) => void 
 }) {
   const [stations, setStations] = useState<StationData[]>(data?.stations || [])
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const csvInputRef = useRef<HTMLInputElement>(null)
 
   const addStation = () => {
     const lastCh = stations.length > 0 ? stations[stations.length - 1].chainage : 0
@@ -770,12 +772,80 @@ function Step5Stations({
     onSave(stations)
   }
 
+  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      try {
+        const text = evt.target?.result as string
+        const lines = text.trim().split(/\r?\n/).filter(l => l.trim())
+        if (lines.length < 2) {
+          setToast({ message: 'CSV must have a header row and at least one data row', type: 'error' })
+          return
+        }
+
+        // Parse header — normalize to lowercase, strip spaces
+        const headerRaw = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[\s_-]/g, ''))
+        const chIdx = headerRaw.findIndex(h => h === 'chainage' || h === 'station' || h === 'chainage(m)')
+        const glIdx = headerRaw.findIndex(h => h === 'groundlevel' || h === 'ground_level' || h === 'groundlevel(m)' || h === 'elevation' || h === 'level')
+
+        if (chIdx === -1 || glIdx === -1) {
+          setToast({ message: 'CSV must contain "chainage" and "ground_level" (or "groundLevel") columns', type: 'error' })
+          return
+        }
+
+        const parsed: StationData[] = []
+        let skipped = 0
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',').map(c => c.trim())
+          const chainage = parseFloat(cols[chIdx])
+          const groundLevel = parseFloat(cols[glIdx])
+
+          if (isNaN(chainage) || isNaN(groundLevel)) {
+            skipped++
+            continue
+          }
+          parsed.push({ chainage, groundLevel })
+        }
+
+        if (parsed.length === 0) {
+          setToast({ message: 'No valid rows found — ensure chainage and ground_level are numeric', type: 'error' })
+          return
+        }
+
+        // Sort by chainage ascending
+        parsed.sort((a, b) => a.chainage - b.chainage)
+        setStations(parsed)
+        setToast({ message: `Imported ${parsed.length} station${parsed.length > 1 ? 's' : ''}${skipped > 0 ? ` (${skipped} skipped)` : ''}`, type: 'success' })
+        setTimeout(() => setToast(null), 4000)
+      } catch {
+        setToast({ message: 'Failed to parse CSV file', type: 'error' })
+        setTimeout(() => setToast(null), 4000)
+      }
+    }
+    reader.readAsText(file)
+
+    // Reset the input so re-importing the same file works
+    e.target.value = ''
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-white mb-1">Stations & Levels</h3>
         <p className="text-zinc-400 text-sm">Enter ground levels at chainage intervals (default 20m).</p>
       </div>
+
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg transition-all ${
+          toast.type === 'success' ? 'bg-green-900/90 text-green-300 border border-green-700' : 'bg-red-900/90 text-red-300 border border-red-700'
+        }`}>
+          {toast.type === 'success' ? '✓ ' : '✕ '}{toast.message}
+        </div>
+      )}
 
       {stations.length === 0 ? (
         <div className="text-center py-8 text-zinc-500">
@@ -823,12 +893,30 @@ function Step5Stations({
         </div>
       )}
 
-      <button
-        onClick={addStation}
-        className="px-4 py-2 border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800"
-      >
-        + Add Station
-      </button>
+      <div className="flex gap-3 items-center">
+        <button
+          onClick={addStation}
+          className="px-4 py-2 border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800"
+        >
+          + Add Station
+        </button>
+        <input
+          ref={csvInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          onChange={handleCSVImport}
+          className="hidden"
+        />
+        <button
+          onClick={() => csvInputRef.current?.click()}
+          className="px-4 py-2 border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800 flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          Import CSV
+        </button>
+      </div>
 
       {stations.length >= 2 && (
         <button
@@ -1604,12 +1692,115 @@ export default function EngineeringWorkspacePage() {
   const [project, setProject] = useState<EngineeringProject | null>(null)
   const [surveyorProfile, setSurveyorProfile] = useState<SurveyorProfileSubmission | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingEngineering, setLoadingEngineering] = useState(false)
   const [activeStep, setActiveStep] = useState<EngineeringStepId>('setup')
   const [saving, setSaving] = useState(false)
   const [quickMode, setQuickMode] = useState(false)
+  const [alignmentId, setAlignmentId] = useState<string | null>(null)
 
   // Sub-tab for quick compute panels
   const activeTab = searchParams.get('tab') || 'workflow'
+
+  // --- Load engineering data from the relational DB backend ---
+  const loadEngineeringData = useCallback(async (projectId: string) => {
+    setLoadingEngineering(true)
+    try {
+      const res = await fetch(`/api/engineering/alignment?project_id=${projectId}`)
+      if (!res.ok) {
+        console.error('[loadEngineeringData] API error:', res.status)
+        return
+      }
+      const json = await res.json()
+      const dbData = json.data
+
+      if (!dbData) {
+        // No alignment row yet — nothing to hydrate
+        setLoadingEngineering(false)
+        return
+      }
+
+      // Store the alignment ID for subsequent saves (IPs, VIPs, stations)
+      setAlignmentId(dbData.id)
+
+      // Map DB column names → TypeScript shape
+      const crossSectionTemplate: CrossSectionTemplate | undefined = dbData.cross_section_template
+        ? {
+            carriagewayWidth: Number(dbData.cross_section_template.carriageway_width ?? dbData.cross_section_template.carriagewayWidth ?? 6.0),
+            shoulderWidth: Number(dbData.cross_section_template.shoulder_width ?? dbData.cross_section_template.shoulderWidth ?? 1.0),
+            cutSlope: String(dbData.cross_section_template.cut_slope ?? dbData.cross_section_template.cutSlope ?? '1:1'),
+            fillSlope: String(dbData.cross_section_template.fill_slope ?? dbData.cross_section_template.fillSlope ?? '1:1.5'),
+            camber: Number(dbData.cross_section_template.camber ?? 3),
+            subgradeDepth: Number(dbData.cross_section_template.subgrade_depth ?? dbData.cross_section_template.subgradeDepth ?? 0.5),
+          }
+        : undefined
+
+      const ips: IntersectionPoint[] = (dbData.ips || []).map((row: any) => ({
+        id: String(row.id),
+        name: String(row.name),
+        easting: Number(row.easting),
+        northing: Number(row.northing),
+        radius: Number(row.radius),
+        deflectionAngle: row.deflection_angle != null ? Number(row.deflection_angle) : undefined,
+        tangentLength: row.tangent_length != null ? Number(row.tangent_length) : undefined,
+        arcLength: row.arc_length != null ? Number(row.arc_length) : undefined,
+        chainageTC: row.chainage_tc != null ? Number(row.chainage_tc) : undefined,
+        chainageMC: row.chainage_mc != null ? Number(row.chainage_mc) : undefined,
+        chainageCT: row.chainage_ct != null ? Number(row.chainage_ct) : undefined,
+        sortOrder: row.sort_order != null ? Number(row.sort_order) : undefined,
+      }))
+
+      const vips: VerticalIP[] = (dbData.vips || []).map((row: any) => ({
+        id: String(row.id),
+        chainage: Number(row.chainage),
+        reducedLevel: Number(row.reduced_level),
+        kValue: row.k_value != null ? Number(row.k_value) : undefined,
+      }))
+
+      const stations: StationData[] = (dbData.stations || []).map((row: any) => ({
+        chainage: Number(row.chainage),
+        groundLevel: Number(row.ground_level),
+      }))
+
+      // Build a RoadDesignData object from the DB row
+      const roadFromDb: RoadDesignData = {
+        roadName: String(dbData.road_name || ''),
+        startChainage: Number(dbData.start_chainage ?? 0),
+        datum: String(dbData.datum || 'Arc 1960'),
+        coordinateSystem: String(dbData.coordinate_system || 'UTM Zone 37S'),
+        designSpeed: Number(dbData.design_speed ?? 60),
+        roadClass: String(dbData.road_class || 'C') as any,
+        standard: (dbData.standard || 'KRDM2017') as EngineeringStandard,
+        ips,
+        vips,
+        crossSectionTemplate: crossSectionTemplate || {
+          carriagewayWidth: 6.0,
+          shoulderWidth: 1.0,
+          cutSlope: '1:1',
+          fillSlope: '1:1.5',
+          camber: 3,
+          subgradeDepth: 0.5,
+        },
+        stations,
+      }
+
+      // Merge into the existing engineering_data, preserving mode/drainage
+      setProject(prev => {
+        if (!prev) return prev
+        const current: EngineeringData = prev.engineering_data || { mode: 'road', standard: 'KRDM2017' }
+        return {
+          ...prev,
+          engineering_data: {
+            ...current,
+            road: roadFromDb,
+          },
+        }
+      })
+    } catch (err) {
+      console.error('[loadEngineeringData] Error:', err)
+    } finally {
+      setLoadingEngineering(false)
+    }
+  }, [])
 
   const fetchProject = useCallback(async () => {
     setLoading(true)
@@ -1651,6 +1842,15 @@ export default function EngineeringWorkspacePage() {
     fetchProject()
   }, [fetchProject])
 
+  // Load engineering data from the relational backend after project is fetched
+  const projectId = project?.id
+  useEffect(() => {
+    if (projectId && !loading) {
+      loadEngineeringData(projectId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, loading, loadEngineeringData])
+
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -1686,6 +1886,104 @@ export default function EngineeringWorkspacePage() {
     }
   }
 
+  // --- Save the entire current engineering state to the relational backend ---
+  const saveToBackend = useCallback(async (engData: EngineeringData): Promise<boolean> => {
+    if (!project) return false
+    const road = engData.road
+    if (!road) return false
+
+    try {
+      // Step 1: Upsert alignment header → get alignment_id
+      const templateForDb = road.crossSectionTemplate
+        ? {
+            carriagewayWidth: road.crossSectionTemplate.carriagewayWidth,
+            shoulderWidth: road.crossSectionTemplate.shoulderWidth,
+            cutSlope: road.crossSectionTemplate.cutSlope,
+            fillSlope: road.crossSectionTemplate.fillSlope,
+            camber: road.crossSectionTemplate.camber,
+            subgradeDepth: road.crossSectionTemplate.subgradeDepth,
+          }
+        : {}
+
+      const alignRes = await fetch('/api/engineering/alignment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: project.id,
+          road_name: road.roadName || 'Unnamed Road',
+          start_chainage: road.startChainage ?? 0,
+          datum: road.datum || 'Arc 1960',
+          coordinate_system: road.coordinateSystem || 'UTM Zone 37S',
+          design_speed: road.designSpeed ?? 60,
+          road_class: road.roadClass || 'C',
+          standard: road.standard || 'KRDM2017',
+          cross_section_template: templateForDb,
+        }),
+      })
+      if (!alignRes.ok) throw new Error('Failed to save alignment header')
+      const alignJson = await alignRes.json()
+      const aId = alignJson.data?.id
+      if (!aId) throw new Error('No alignment ID returned')
+      setAlignmentId(aId)
+
+      // Step 2: Save IPs (if any)
+      if (road.ips && road.ips.length > 0) {
+        const ipsRes = await fetch('/api/engineering/ips', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alignment_id: aId,
+            ips: road.ips.map(ip => ({
+              name: ip.name,
+              easting: ip.easting,
+              northing: ip.northing,
+              radius: ip.radius,
+            })),
+          }),
+        })
+        if (!ipsRes.ok) throw new Error('Failed to save intersection points')
+      }
+
+      // Step 3: Save VIPs (if any)
+      if (road.vips && road.vips.length > 0) {
+        const vipsRes = await fetch('/api/engineering/vips', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alignment_id: aId,
+            vips: road.vips.map(v => ({
+              chainage: v.chainage,
+              reduced_level: v.reducedLevel,
+              k_value: v.kValue ?? null,
+            })),
+          }),
+        })
+        if (!vipsRes.ok) throw new Error('Failed to save vertical intersection points')
+      }
+
+      // Step 4: Save stations (if any)
+      if (road.stations && road.stations.length > 0) {
+        const stationsRes = await fetch('/api/engineering/stations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alignment_id: aId,
+            stations: road.stations.map(s => ({
+              chainage: s.chainage,
+              ground_level: s.groundLevel,
+            })),
+          }),
+        })
+        if (!stationsRes.ok) throw new Error('Failed to save stations')
+      }
+
+      return true
+    } catch (err) {
+      console.error('[saveToBackend] Error:', err)
+      return false
+    }
+  }, [project])
+
   const handleSave = async (data: Partial<EngineeringData>) => {
     if (!project) return
     setSaving(true)
@@ -1710,16 +2008,57 @@ export default function EngineeringWorkspacePage() {
         }
       }
 
+      // Save to Supabase (engineering_data JSONB column)
       await dbClient
         .from('projects')
         .update({ engineering_data: updated })
         .eq('id', project.id)
 
       setProject({ ...project, engineering_data: updated })
-      showToast('Saved successfully')
+
+      // Also persist to relational backend for road mode
+      if (updated.road) {
+        const backendOk = await saveToBackend(updated)
+        if (backendOk) {
+          showToast('Saved successfully')
+        } else {
+          showToast('Saved locally, but backend sync failed.', 'error')
+        }
+      } else {
+        showToast('Saved successfully')
+      }
     } catch (err) {
       showToast('Failed to save. Check your connection and try again.', 'error')
       console.error('Save failed:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Save All handler — persists the full current state to the backend
+  const handleSaveAll = async () => {
+    if (!project || !project.engineering_data) return
+    setSaving(true)
+    try {
+      // First ensure local state is up to date
+      await dbClient
+        .from('projects')
+        .update({ engineering_data: project.engineering_data })
+        .eq('id', project.id)
+
+      if (project.engineering_data.road) {
+        const backendOk = await saveToBackend(project.engineering_data)
+        if (backendOk) {
+          showToast('All engineering data saved to backend')
+        } else {
+          showToast('Backend sync failed. Local data is preserved.', 'error')
+        }
+      } else {
+        showToast('All data saved')
+      }
+    } catch (err) {
+      showToast('Failed to save. Check your connection and try again.', 'error')
+      console.error('Save All failed:', err)
     } finally {
       setSaving(false)
     }
@@ -1820,6 +2159,13 @@ export default function EngineeringWorkspacePage() {
           </div>
           <span className="text-xs px-2 py-1 bg-amber-500/20 text-amber-400 rounded">{mode === 'road' ? 'Road Design' : 'Drainage Survey'}</span>
           <button
+            onClick={handleSaveAll}
+            disabled={saving || loadingEngineering}
+            className="text-xs px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+          >
+            {saving ? 'Saving...' : 'Save All ↓'}
+          </button>
+          <button
             onClick={() => router.push(`/project/${params.id}/engineering?tab=curves`)}
             className="text-xs px-3 py-1 bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30"
           >
@@ -1838,10 +2184,10 @@ export default function EngineeringWorkspacePage() {
       )}
 
       {/* Saving indicator */}
-      {saving && (
+      {(saving || loadingEngineering) && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-zinc-800 border border-zinc-600 text-zinc-300 px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-lg">
           <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          Saving...
+          {loadingEngineering ? 'Loading engineering data...' : 'Saving...'}
         </div>
       )}
 

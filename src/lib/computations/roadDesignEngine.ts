@@ -234,7 +234,7 @@ export interface VerticalCurveResult {
   xPeak: number       // distance from BVC to peak/sag
   chainagePeak: number
   rlPeak: number
-  isCrest: boolean    // positive A = crest, negative A = sag
+  isCrest: boolean    // negative A (g2<g1) = crest, positive A (g2>g1) = sag
   arithmeticCheck: { passed: boolean; diff: number }
   rows: VerticalCurveRow[]
   steps: Array<{ description: string; formula: string; value: string }>
@@ -273,7 +273,7 @@ export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
   const xPeak = -g1 * L / A  // distance from BVC
   const chainagePeak = bvcChainage + xPeak
   const rlPeak = bvcRL + (g1 / 100) * xPeak + rate * xPeak * xPeak
-  const isCrest = A > 0
+  const isCrest = A < 0
 
   // Arithmetic check: RL at EVC via formula must equal EVC_RL via grades
   const rlAtEVC = bvcRL + (g1 / 100) * L + rate * L * L

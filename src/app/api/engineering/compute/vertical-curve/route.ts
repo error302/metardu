@@ -6,7 +6,7 @@ import { computeVerticalCurve } from '@/lib/engine/engineering'
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

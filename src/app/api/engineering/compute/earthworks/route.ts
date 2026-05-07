@@ -6,8 +6,8 @@ import { crossSectionCutFill, prismoidalVolume } from '@/lib/engine/engineering'
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     const body = await request.json()
@@ -15,6 +15,10 @@ export async function POST(request: NextRequest) {
 
     if (!crossSections || !designElevations) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    if (crossSections.length !== designElevations.length) {
+      return NextResponse.json({ error: 'crossSections and designElevations must have the same length' }, { status: 400 })
     }
 
     const sections = crossSections.map((cs: { chainage: number; levels: Array<{ offset: number; elevation: number }> }, i: number) => {

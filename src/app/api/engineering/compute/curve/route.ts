@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { z } from 'zod'
 import { horizontalCurve, HorizontalCurveSchema } from '@/lib/engineering/compute'
 
@@ -10,6 +12,11 @@ const CurveComputeSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
     const body = await req.json()
     const input = CurveComputeSchema.parse(body)
     

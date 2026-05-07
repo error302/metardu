@@ -45,6 +45,12 @@ export interface IntersectionPoint {
   chainageTC?: number
   chainageMC?: number
   chainageCT?: number
+  sortOrder?: number
+  hasTransition?: boolean
+  transitionLengthIn?: number
+  transitionLengthOut?: number
+  spiralParameters?: Record<string, unknown>
+  computed?: boolean
 }
 
 export interface VerticalIP {
@@ -54,7 +60,9 @@ export interface VerticalIP {
   kValue?: number
   gradientIn?: number
   gradientOut?: number
-  curveLengthMin?: number
+  curveLength?: number
+  sortOrder?: number
+  computed?: boolean
 }
 
 export interface CrossSectionTemplate {
@@ -72,6 +80,7 @@ export interface StationData {
   designLevel?: number
   cutArea?: number
   fillArea?: number
+  sortOrder?: number
 }
 
 export interface HorizontalAlignmentResult {
@@ -105,6 +114,9 @@ export interface EarthworksRow {
   fillVolume: number
   cumulativeCut: number
   cumulativeFill: number
+  method?: string
+  netVolume?: number
+  massOrdinate?: number
 }
 
 export interface DrainageData {

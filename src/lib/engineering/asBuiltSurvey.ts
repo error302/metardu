@@ -196,14 +196,16 @@ export function compareDesignVsAsBuilt(
     let horizontalDeviation: number | undefined
     let horizontalPass: boolean | undefined
 
-    if (ab.surveyedEasting && ab.surveyedNorthing && designCoords.length > 0) {
-      const designCoord = interpolateCoord(designCoords, ab.chainage)
-      if (designCoord) {
-        const dE = ab.surveyedEasting - designCoord.easting
-        const dN = ab.surveyedNorthing - designCoord.northing
-        horizontalDeviation = Math.sqrt(dE * dE + dN * dN) * 1000 // m to mm
-        horizontalPass = horizontalDeviation <= tolerance.horizontal
-      }
+    // Interpolate design coordinates at this chainage
+    const designCoord = designCoords.length > 0
+      ? interpolateCoord(designCoords, ab.chainage)
+      : null
+
+    if (ab.surveyedEasting && ab.surveyedNorthing && designCoord) {
+      const dE = ab.surveyedEasting - designCoord.easting
+      const dN = ab.surveyedNorthing - designCoord.northing
+      horizontalDeviation = Math.sqrt(dE * dE + dN * dN) * 1000 // m to mm
+      horizontalPass = horizontalDeviation <= tolerance.horizontal
     }
 
     comparisons.push({
@@ -213,8 +215,8 @@ export function compareDesignVsAsBuilt(
       deviation: Math.round(levelDeviation * 10) / 10,
       tolerance: tolerance.level,
       pass: levelPass,
-      designEasting: designCoords.length > 0 ? undefined : undefined,
-      designNorthing: undefined,
+      designEasting: designCoord?.easting,
+      designNorthing: designCoord?.northing,
       asBuiltEasting: ab.surveyedEasting,
       asBuiltNorthing: ab.surveyedNorthing,
       horizontalDeviation: horizontalDeviation !== undefined ? Math.round(horizontalDeviation * 10) / 10 : undefined,

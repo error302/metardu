@@ -83,6 +83,7 @@ export const VerticalCurveSchema = z.object({
   g2: z.number().min(-15).max(15),
   chainage_VIP: z.number().min(0),
   elevation_VIP: z.number(),
+  designSpeedKph: z.number().positive().min(20).max(120).optional().default(80),
   K: z.number().positive().optional(),
 });
 
@@ -263,21 +264,21 @@ export interface VerticalCurvePoint {
 
 export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
   const parsed = VerticalCurveSchema.parse(input);
-  const { L: curveLength, g1, g2, chainage_VIP, elevation_VIP } = parsed;
+  const { L: curveLength, g1, g2, chainage_VIP, elevation_VIP, designSpeedKph } = parsed;
 
   const A = g2 - g1;
   const K = curveLength / Math.abs(A);
   const isCrest = A < 0;
 
   // RDM 1.1 minimum K values for stopping sight distance
-  const minK = isCrest ? 0.6 * Math.pow(V_DESIGN_KPH_FROM_KPH(80), 2) / Math.abs(A) : 3;
+  const minK = isCrest ? 0.6 * Math.pow(designSpeedKph, 2) / Math.abs(A) : 3;
 
   const chainage_VPC = chainage_VIP - curveLength / 2;
   const chainage_VPT = chainage_VIP + curveLength / 2;
   const elevation_VPC = elevation_VIP - (g1 / 100) * (curveLength / 2);
 
   // Stopping sight distance (SSD) per RDM 1.1
-  const SSD = 0.278 * V_DESIGN_KPH_FROM_KPH(80) * 2.5 + Math.pow(V_DESIGN_KPH_FROM_KPH(80), 2) / (254 * (Math.abs(A) / 100));
+  const SSD = 0.278 * designSpeedKph * 2.5 + Math.pow(designSpeedKph, 2) / (254 * (Math.abs(A) / 100));
 
   const elevationTable: VerticalCurvePoint[] = [];
   const step = 20;
@@ -310,11 +311,6 @@ export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
     sightDistance: parseFloat(SSD.toFixed(1)),
     elevationTable
   };
-}
-
-// Helper: approximate V from typical design speed
-function V_DESIGN_KPH_FROM_KPH(V: number): number {
-  return V;
 }
 
 /**
@@ -417,6 +413,28 @@ export function crossSectionVolume(input: CrossSectionVolumeInput): CrossSection
   const parsed = CrossSectionVolumeSchema.parse(input);
   const { areas, stationInterval, method } = parsed;
 
+  // Precompute per-station incremental volumes
+  const stationVolumes: number[] = new Array(areas.length).fill(0);
+
+  if (method === 'prismoidal' && areas.length >= 3) {
+    // Simpson's 1/3 rule for groups of 3 stations (2 intervals each)
+    // V = (2d/3) × (A[i] + 4·A[i+1] + A[i+2])
+    let i = 0;
+    while (i + 2 < areas.length) {
+      stationVolumes[i + 2] = (2 * stationInterval / 3) * (areas[i] + 4 * areas[i + 1] + areas[i + 2]);
+      i += 2;
+    }
+    // Remaining pair: fall back to end-area
+    if (i + 1 < areas.length) {
+      stationVolumes[i + 1] = (stationInterval / 2) * (areas[i] + areas[i + 1]);
+    }
+  } else {
+    // End-area method (or prismoidal with < 3 stations)
+    for (let i = 1; i < areas.length; i++) {
+      stationVolumes[i] = (stationInterval / 2) * (areas[i - 1] + areas[i]);
+    }
+  }
+
   const volumeTable: VolumeRow[] = [];
   let cumulativeCut = 0;
   let cumulativeFill = 0;
@@ -427,24 +445,9 @@ export function crossSectionVolume(input: CrossSectionVolumeInput): CrossSection
     const cutArea = currentArea > 0 ? currentArea : 0;
     const fillArea = currentArea < 0 ? Math.abs(currentArea) : 0;
 
-    let cutVolume = 0;
-    let fillVolume = 0;
-
-    if (i > 0) {
-      const prevArea = areas[i - 1];
-      const prevCut = prevArea > 0 ? prevArea : 0;
-      const prevFill = prevArea < 0 ? Math.abs(prevArea) : 0;
-
-      if (method === 'prismoidal') {
-        // Prismoidal: V = (d/6) × (A₁ + 4Am + A₂)
-        cutVolume = (stationInterval / 6) * (prevCut + 4 * ((prevCut + cutArea) / 2) + cutArea);
-        fillVolume = (stationInterval / 6) * (prevFill + 4 * ((prevFill + fillArea) / 2) + fillArea);
-      } else {
-        // End-area: V = (d/2) × (A₁ + A₂)
-        cutVolume = (stationInterval / 2) * (prevCut + cutArea);
-        fillVolume = (stationInterval / 2) * (prevFill + fillArea);
-      }
-    }
+    const vol = stationVolumes[i];
+    const cutVolume = vol > 0 ? vol : 0;
+    const fillVolume = vol < 0 ? Math.abs(vol) : 0;
 
     cumulativeCut += cutVolume;
     cumulativeFill += fillVolume;

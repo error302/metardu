@@ -95,16 +95,16 @@ export function crossSectionVolume(input: {
 export function calculateSuperelevation(input: SuperelevationInput): SuperelevationCalcResult {
   const { R, V, eMax } = input
 
-  const eRequired = (V * V) / (225 * R)
+  const eRequired = (V * V) / (225 * R) - 0.01
   const eRequiredPercent = eRequired * 100
 
   const minTransitionLength = Math.max(0.6 * (V * V) / R, 30)
   const tangentialRunout = (eMax * V * 1000) / (47 * 3.6)
   const totalTransition = minTransitionLength + tangentialRunout
 
-  const A = Math.sqrt(R * eMax)
-  const L1 = A * A / R
-  const L2 = L1
+  const L1 = minTransitionLength
+  const L2 = minTransitionLength
+  const A = Math.sqrt(minTransitionLength * R)
   const BVC = 0
   const EVC = L1 + L2
 

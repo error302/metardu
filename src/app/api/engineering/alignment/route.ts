@@ -118,13 +118,13 @@ export async function GET(request: NextRequest) {
 
     // Fetch VIPs for this alignment
     const { rows: vips } = await db.query(
-      'SELECT * FROM vertical_ips WHERE alignment_id = $1 ORDER BY chainage ASC',
+      'SELECT * FROM alignment_vertical_ips WHERE alignment_id = $1 ORDER BY chainage ASC',
       [alignment.id]
     )
 
     // Fetch stations for this alignment
     const { rows: stations } = await db.query(
-      'SELECT * FROM alignment_stations WHERE alignment_id = $1 ORDER BY chainage ASC',
+      'SELECT * FROM cross_section_stations WHERE alignment_id = $1 ORDER BY chainage ASC',
       [alignment.id]
     )
 
