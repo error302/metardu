@@ -3,7 +3,6 @@ import {
   computeCutFillDatum,
   computeAreaBetweenPoints,
   slopeAnalysisToCSV,
-  type DTMPoint,
 } from '@/lib/engineering/slopeAnalysis';
 
 // ─── Test data ─────────────────────────────────────────────────────────────

@@ -5,7 +5,6 @@ import {
   progressToCSV,
   generateInspectionReport,
   generateDemoCheckpoints,
-  type InspectionCheckpoint,
 } from '@/lib/engineering/progressMonitor';
 
 // ─── Test data ─────────────────────────────────────────────────────────────

@@ -6,7 +6,6 @@ import {
   exportAlignmentXML,
   exportMachineControl,
   MACHINE_FORMATS,
-  type MachineControlPoint,
 } from '@/lib/export/machineControlExport';
 
 // ─── Test data ─────────────────────────────────────────────────────────────

@@ -5,7 +5,6 @@ import {
   pileGridToCSV,
   parsePileGridCSV,
   generatePileGridDXF,
-  type PileGridDefinition,
 } from '@/lib/engineering/pileGrid';
 
 // ─── Test fixtures ──────────────────────────────────────────────────────────
@@ -73,9 +72,11 @@ describe('generatePileGrid()', () => {
     const result90 = generatePileGrid(rotatedDef);
 
     // At rotation=0: pile at row=0,col=1 has offsetE=6, offsetN=0
-    const pile0_01 = result0.piles.find(p => p.row === 0 && p.column === 1)!;
+    const pile0_01 = result0.piles.find(p => p.row === 0 && p.column === 1);
+    expect(pile0_01).not.toBeNull();
     // At rotation=90°: that offset should become offsetE=0, offsetN=6
-    const pile90_01 = result90.piles.find(p => p.row === 0 && p.column === 1)!;
+    const pile90_01 = result90.piles.find(p => p.row === 0 && p.column === 1);
+    expect(pile90_01).not.toBeNull();
 
     expect(pile0_01.gridOffsetE).toBeCloseTo(6, 2);
     expect(pile0_01.gridOffsetN).toBeCloseTo(0, 2);
@@ -116,7 +117,8 @@ describe('computeSettingOut()', () => {
     const result = generatePileGrid(basicDef);
     // Station at (1000, 2000), pile A1 is also at (1000, 2000) → distance 0
     const so = computeSettingOut(result.piles, 1000, 2000, 1245, 1.5);
-    const a1 = so.find(s => s.pile.label === 'A1')!;
+    const a1 = so.find(s => s.pile.label === 'A1');
+    expect(a1).not.toBeNull();
     expect(a1.horizontalDistance).toBeCloseTo(0, 4);
     expect(a1.targetHeight).toBeCloseTo(1250 - 1245 - 1.5, 4); // 3.5
   });
@@ -138,7 +140,8 @@ describe('computeSettingOut()', () => {
     const result = generatePileGrid(basicDef);
     // Station at (1000, 2000), pile B2 at row=1,col=1 → E=1006, N=2005
     const so = computeSettingOut(result.piles, 1000, 2005, 1245, 1.5);
-    const b2 = so.find(s => s.pile.column === 1 && s.pile.row === 1)!;
+    const b2 = so.find(s => s.pile.column === 1 && s.pile.row === 1);
+    expect(b2).not.toBeNull();
     expect(b2.bearingDeg).toBeCloseTo(90, 1);
   });
 });
