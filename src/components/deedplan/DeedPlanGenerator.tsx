@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { FileText, Download, Save, CheckCircle, AlertCircle, Plus, Trash2, Printer } from 'lucide-react'
-import type { DeedPlanInput, DeedPlanOutput, BoundaryPoint, BeaconType } from '@/types/deedPlan'
+import { DeedPlanInput, DeedPlanOutput, BoundaryPoint, BeaconType } from '@/types/deedPlan'
 import { generateDeedPlan } from '@/lib/compute/deedPlanApi'
 import { saveDeedPlan } from '@/lib/api-client/deedPlans'
 import { printDeedPlan } from '@/lib/print/deedPlanPrint'
@@ -139,6 +139,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
           northing: 0,
           markType: 'CONCRETE_BEACON',
           markStatus: 'SET',
+          description: '',
         },
       ],
     })
@@ -280,6 +281,16 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
             <h2 className="text-xl font-semibold mb-4">Surveyor's Certificate</h2>
             <div className="space-y-4">
               <div>
+                <label className="block text-sm font-medium mb-1">Client Name</label>
+                <input
+                  type="text"
+                  value={input.clientName || ''}
+                  onChange={(e) => setInput({ ...input, clientName: e.target.value })}
+                  className="input w-full text-sm"
+                  placeholder="Name of the client/owner"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-1">Surveyor Name</label>
                 <input
                   type="text"
@@ -295,6 +306,16 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                   value={input.iskNumber}
                   onChange={(e) => setInput({ ...input, iskNumber: e.target.value })}
                   className="input w-full text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Title Deed Number</label>
+                <input
+                  type="text"
+                  value={input.titleDeedNumber || ''}
+                  onChange={(e) => setInput({ ...input, titleDeedNumber: e.target.value })}
+                  className="input w-full text-sm"
+                  placeholder="e.g. FR No. 583/83"
                 />
               </div>
               <div>
@@ -390,6 +411,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                     <th className="text-left py-2">Northing</th>
                     <th className="text-left py-2">Mark Type</th>
                     <th className="text-left py-2">Status</th>
+                    <th className="text-left py-2">Description</th>
                     <th className="w-12 py-2"></th>
                   </tr>
                 </thead>
@@ -461,6 +483,19 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="text"
+                          value={point.description || ''}
+                          onChange={(e) => {
+                            const newPoints = [...input.boundaryPoints]
+                            newPoints[i] = { ...point, description: e.target.value }
+                            setInput({ ...input, boundaryPoints: newPoints })
+                          }}
+                          className="w-48 px-2 py-1 border rounded"
+                          placeholder="Beacon description"
+                        />
                       </td>
                       <td className="py-2 text-right">
                         <button
@@ -598,6 +633,33 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Beacon Description Schedule */}
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-4">Beacon Description Schedule</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2">Beacon ID</th>
+                    <th className="text-left py-2">Mark Type</th>
+                    <th className="text-left py-2">Status</th>
+                    <th className="text-left py-2">Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {input.boundaryPoints.map((point) => (
+                    <tr key={point.id} className="border-b">
+                      <td className="py-2 font-semibold">{point.id}</td>
+                      <td className="py-2">{point.markType}</td>
+                      <td className="py-2">{point.markStatus || '—'}</td>
+                      <td className="py-2">{point.description || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

@@ -9,6 +9,9 @@ export function AppUpdateBanner() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
 
+    // Register SW update detection on mount so the banner actually fires
+    registerServiceWorkerUpdateDetector()
+
     const handler = (event: Event) => {
       setWaitingWorker((event as ServiceWorkerEvent).detail)
       setShowBanner(true)

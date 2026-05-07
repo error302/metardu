@@ -27,7 +27,17 @@ type FieldbookType = 'leveling' | 'traverse' | 'control' | 'hydrographic' | 'min
 type SaveStatus = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; when: string } | { kind: 'error'; message: string }
 
 type LevelRow = { id: string; station: string; bs: string; is: string; fs: string; remarks: string }
-type TravRow = { id: string; station: string; bearing: string; distance: string; remarks: string }
+type TravRow = {
+  id: string
+  station: string
+  bearing: string
+  hclDeg: string; hclMin: string; hclSec: string
+  hcrDeg: string; hcrMin: string; hcrSec: string
+  slopeDist: string
+  vaDeg: string; vaMin: string; vaSec: string
+  ih: string; th: string
+  remarks: string
+}
 type ControlRow = {
   id: string
   pointId: string
@@ -121,7 +131,7 @@ export default function DigitalFieldBookPage() {
   const [closeE, setCloseE] = useState('')
   const [closeN, setCloseN] = useState('')
   const [travRows, setTravRows] = useState<TravRow[]>([
-    { id: crypto.randomUUID(), station: '', bearing: '', distance: '', remarks: '' },
+    { id: crypto.randomUUID(), station: '', bearing: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5', remarks: '' },
   ])
 
   const initialControlSetupId = useRef<string>(crypto.randomUUID()).current
@@ -327,7 +337,7 @@ export default function DigitalFieldBookPage() {
 
     for (const r of travRows) {
       if (!r.station.trim()) errors.push('All traverse rows must have a station name.')
-      const d = r.distance.trim() ? asNumber(r.distance) : null
+      const d = r.slopeDist.trim() ? asNumber(r.slopeDist) : null
       if (d === null || d <= 0) errors.push(`Invalid distance at ${r.station || '(blank)'}`)
       else distances.push(d)
       const b = r.bearing.trim() ? asBearing(r.bearing) : null
@@ -587,7 +597,7 @@ export default function DigitalFieldBookPage() {
      if (type === 'leveling') {
        rows = levelRows.map((r) => ({ Station: r.station, BS: r.bs, IS: r.is, FS: r.fs, Remarks: r.remarks }))
      } else if (type === 'traverse') {
-       rows = travRows.map((r) => ({ Station: r.station, Bearing: r.bearing, Distance: r.distance, Remarks: r.remarks }))
+       rows = travRows.map((r) => ({ Station: r.station, Bearing: r.bearing, SlopeDist: r.slopeDist, Remarks: r.remarks }))
      } else if (type === 'control') {
        rows = controlSetups.flatMap((setup) =>
          setup.rows.map((r) => ({

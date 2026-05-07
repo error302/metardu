@@ -11,6 +11,7 @@ import { TraverseStationInput } from '@/types/field'
 import { printTraverseSheet, type TraverseSheetInput } from '@/lib/print/traverseSheet'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
 import { CoordinateCanvas, type CanvasPoint, type CanvasLine, type CanvasLeg } from '@/components/drawing/CoordinateCanvas'
+import DrawingExportToolbar from '@/components/drawing/DrawingExportToolbar'
 
 interface TraverseFieldBookProps {
   projectId: string
@@ -588,83 +589,6 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                   midY: fromCoord && toCoord ? (fromCoord.northing + toCoord.northing) / 2 : 0,
                 }
               })
-              const handleExportDXF = async () => {
-                try {
-                  const resp = await fetch('/api/compute/export/dxf', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      projectName: `Traverse_${openingName || 'traverse'}`,
-                      points: result.coordinates.map(c => ({
-                        name: c.station,
-                        easting: c.easting,
-                        northing: c.northing,
-                        elevation: c.rl ?? undefined,
-                        is_control: false,
-                      })),
-                      traverseLegs: result.legs.map(l => ({
-                        from: l.from,
-                        to: l.to,
-                        distance: l.hd,
-                        bearing: l.wcb,
-                      })),
-                    }),
-                  })
-                  const data = await resp.json()
-                  if (!resp.ok) throw new Error(data.error || 'DXF export failed')
-                  const blob = new Blob([data.dxf], { type: 'application/dxf' })
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a')
-                  a.href = url
-                  a.download = data.filename || 'traverse.dxf'
-                  a.click()
-                  URL.revokeObjectURL(url)
-                } catch (err: any) {
-                  alert('DXF export failed: ' + err.message)
-                }
-              }
-              const handleExportGeoJSON = () => {
-                const coords = result.coordinates.map(c => [c.easting, c.northing])
-                if (coords.length > 2) {
-                  coords.push(coords[0]) // close the polygon
-                }
-                const geojson = {
-                  type: 'FeatureCollection',
-                  features: [{
-                    type: 'Feature',
-                    properties: { name: `Traverse_${openingName || 'traverse'}`, precision: `1:${Math.round(result.precisionRatio).toLocaleString()}` },
-                    geometry: {
-                      type: coords.length >= 4 ? 'Polygon' : 'LineString',
-                      coordinates: coords.length >= 4 ? [coords] : coords,
-                    },
-                  }],
-                }
-                const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/geo+json' })
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `traverse_${openingName || 'traverse'}.geojson`
-                a.click()
-                URL.revokeObjectURL(url)
-              }
-              const handleCopyCoordinates = async () => {
-                const header = 'Station\tEasting\tNorthing'
-                const rows = result.coordinates.map(c => `${c.station}\t${c.easting.toFixed(4)}\t${c.northing.toFixed(4)}`)
-                const text = [header, ...rows].join('\n')
-                try {
-                  await navigator.clipboard.writeText(text)
-                  alert('Coordinates copied to clipboard')
-                } catch {
-                  // Fallback for environments where clipboard API is unavailable
-                  const ta = document.createElement('textarea')
-                  ta.value = text
-                  document.body.appendChild(ta)
-                  ta.select()
-                  document.execCommand('copy')
-                  document.body.removeChild(ta)
-                  alert('Coordinates copied to clipboard')
-                }
-              }
               return (
                 <div className="space-y-3">
                   <div className="overflow-x-auto bg-[#111] rounded-b-lg p-4">
@@ -679,20 +603,22 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                       showScaleBar={true}
                     />
                   </div>
-                  <div className="flex items-center gap-2 px-4 pb-3">
-                    <button onClick={handleExportDXF}
-                      className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white rounded text-xs font-medium">
-                      Export DXF
-                    </button>
-                    <button onClick={handleExportGeoJSON}
-                      className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs font-medium">
-                      Export GeoJSON
-                    </button>
-                    <button onClick={handleCopyCoordinates}
-                      className="px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-xs font-medium border border-[var(--border-color)]">
-                      Copy Coordinates
-                    </button>
-                  </div>
+                  <DrawingExportToolbar
+                    projectName={`Traverse_${openingName || 'traverse'}`}
+                    points={result.coordinates.map(c => ({
+                      name: c.station,
+                      easting: c.easting,
+                      northing: c.northing,
+                      elevation: c.rl ?? undefined,
+                    }))}
+                    legs={result.legs.map(l => ({
+                      from: l.from,
+                      to: l.to,
+                      bearing: l.wcb,
+                      distance: l.hd,
+                    }))}
+                    className="px-4 pb-3"
+                  />
                 </div>
               )
             })()}

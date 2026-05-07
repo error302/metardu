@@ -1,10 +1,58 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
+import { slopeFromEDM, seaLevelCorrection, gridCorrection } from '@/lib/engine/edm-corrections'
 
 type Translator = (key: string, values?: Record<string, string | number>) => string
 
-export type TravRow = { id: string; station: string; bearing: string; distance: string; remarks: string }
+export type TravRow = {
+  id: string
+  station: string
+  bearing: string
+  hclDeg: string; hclMin: string; hclSec: string
+  hcrDeg: string; hcrMin: string; hcrSec: string
+  slopeDist: string
+  vaDeg: string; vaMin: string; vaSec: string
+  ih: string; th: string
+  remarks: string
+}
+
+function computeMeanAngleDMS(obs: TravRow): string {
+  const hasHCL = obs.hclDeg !== '' || obs.hclMin !== '' || obs.hclSec !== ''
+  const hasHCR = obs.hcrDeg !== '' || obs.hcrMin !== '' || obs.hcrSec !== ''
+  if (!hasHCL || !hasHCR) return '—'
+
+  const hclDecimal = (parseInt(obs.hclDeg) || 0) + (parseInt(obs.hclMin) || 0) / 60 + (parseFloat(obs.hclSec) || 0) / 3600
+  const hcrDecimal = (parseInt(obs.hcrDeg) || 0) + (parseInt(obs.hcrMin) || 0) / 60 + (parseFloat(obs.hcrSec) || 0) / 3600
+
+  const adjustedA = hcrDecimal > hclDecimal ? hclDecimal + 180 : hcrDecimal
+  const adjustedB = hcrDecimal > hclDecimal ? hcrDecimal : hcrDecimal + 180
+
+  const mean = (adjustedA + adjustedB) / 2
+  const normMean = ((mean % 360) + 360) % 360
+
+  const deg = Math.floor(normMean)
+  const minFloat = (normMean - deg) * 60
+  const min = Math.floor(minFloat)
+  const sec = (minFloat - min) * 60
+
+  return `${deg}°${String(min).padStart(2, '0')}'${sec.toFixed(1)}"`
+}
+
+function makeEmptyRow(index: number): TravRow {
+  return {
+    id: crypto.randomUUID(),
+    station: `P${index + 2}`,
+    bearing: '',
+    hclDeg: '', hclMin: '', hclSec: '',
+    hcrDeg: '', hcrMin: '', hcrSec: '',
+    slopeDist: '',
+    vaDeg: '', vaMin: '', vaSec: '',
+    ih: '1.5', th: '1.5',
+    remarks: '',
+  }
+}
 
 export function TraverseBook({
   t,
@@ -44,6 +92,68 @@ export function TraverseBook({
     | { ok: true; mode: 'open'; raw: any }
     | { ok: true; mode: 'closed' | 'link'; adjusted: any }
 }) {
+  const [edmOpen, setEdmOpen] = useState(false)
+
+  // Auto-compute bearing from FL/FR mean whenever travRows change
+  useEffect(() => {
+    let changed = false
+    const updated = travRows.map((row) => {
+      const hasHCL = row.hclDeg !== '' || row.hclMin !== '' || row.hclSec !== ''
+      const hasHCR = row.hcrDeg !== '' || row.hcrMin !== '' || row.hcrSec !== ''
+      if (!hasHCL || !hasHCR) return row
+      const meanStr = computeMeanAngleDMS(row)
+      if (meanStr === row.bearing) return row
+      changed = true
+      return { ...row, bearing: meanStr }
+    })
+    if (changed) setTravRows(updated)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [travRows.map((r) => `${r.hclDeg}-${r.hclMin}-${r.hclSec}-${r.hcrDeg}-${r.hcrMin}-${r.hcrSec}`).join('|')])
+
+  // Helper to build EDM correction rows from computed results
+  const edmRows = (() => {
+    if (!computed.ok) return []
+    const legs = computed.mode === 'open' ? computed.raw.legs : computed.adjusted.legs
+    if (!legs || legs.length === 0) return []
+    return travRows.map((row, i) => {
+      const leg = legs[i]
+      if (!leg) return null
+      const sd = parseFloat(row.slopeDist) || 0
+      const vaD = parseInt(row.vaDeg) || 0
+      const vaM = parseInt(row.vaMin) || 0
+      const vaS = parseFloat(row.vaSec) || 0
+      const vaDecimal = vaD + vaM / 60 + vaS / 3600
+
+      if (sd <= 0) return null
+
+      const slopeOut = slopeFromEDM({
+        slopeDistanceMetres: sd,
+        verticalAngle: vaDecimal,
+      })
+
+      const meanElev = 0 // simplified — no elevation data in fieldbook traverse
+      const seaOut = seaLevelCorrection({
+        horizontalDistance: slopeOut.horizontalDistance,
+        meanElevationMetres: meanElev,
+      })
+      const gridOut = gridCorrection({
+        seaLevelDistance: seaOut.seaLevelDistance,
+        scaleFactor: 0.9996,
+      })
+
+      const fromStation = i === 0 ? startStation : travRows[i - 1]?.station || '?'
+      const toStation = row.station || '?'
+
+      return {
+        line: `${fromStation} → ${toStation}`,
+        sd,
+        hd: slopeOut.horizontalDistance,
+        crCorr: seaOut.curvatureRefractionCorr * 1000,
+        gridDist: gridOut.gridDistance,
+      }
+    }).filter(Boolean)
+  })()
+
   return (
     <div className="card">
       <div className="card-header flex flex-wrap gap-4 items-center justify-between">
@@ -94,18 +204,34 @@ export function TraverseBook({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="table min-w-[1000px]">
+          <table className="table min-w-[1400px]">
             <thead className="sticky top-0 z-10">
               <tr>
-                <th className="text-left">{t('common.station')}</th>
-                <th className="text-left">{t('traverse.bearing')}</th>
-                <th className="text-left">{t('traverse.distance')}</th>
-                <th className="text-right">{t('traverse.latitude')}</th>
-                <th className="text-right">{t('traverse.departure')}</th>
-                <th className="text-right">{t('common.easting')}</th>
-                <th className="text-right">{t('common.northing')}</th>
-                <th className="text-left">{t('common.remarks')}</th>
-                <th />
+                <th className="text-left" rowSpan={2}>{t('common.station')}</th>
+                <th className="text-center" colSpan={3}>HCL (Face Left)</th>
+                <th className="text-center" colSpan={3}>HCR (Face Right)</th>
+                <th className="text-center" rowSpan={2}>Mean Bearing</th>
+                <th className="text-right" rowSpan={2}>SD (m)</th>
+                <th className="text-center" colSpan={3}>VA (DMS)</th>
+                <th className="text-right" rowSpan={2}>IH (m)</th>
+                <th className="text-right" rowSpan={2}>TH (m)</th>
+                <th className="text-right" rowSpan={2}>{t('traverse.latitude')}</th>
+                <th className="text-right" rowSpan={2}>{t('traverse.departure')}</th>
+                <th className="text-right" rowSpan={2}>{t('common.easting')}</th>
+                <th className="text-right" rowSpan={2}>{t('common.northing')}</th>
+                <th className="text-left" rowSpan={2}>{t('common.remarks')}</th>
+                <th rowSpan={2} />
+              </tr>
+              <tr>
+                <th className="text-center text-[10px] text-[var(--text-muted)]">Deg</th>
+                <th className="text-center text-[10px] text-[var(--text-muted)]">Min</th>
+                <th className="text-center text-[10px] text-[var(--text-muted)]">Sec</th>
+                <th className="text-center text-[10px] text-[var(--text-muted)]">Deg</th>
+                <th className="text-center text-[10px] text-[var(--text-muted)]">Min</th>
+                <th className="text-center text-[10px] text-[var(--text-muted)]">Sec</th>
+                <th className="text-center text-[10px] text-[var(--text-muted)]">Deg</th>
+                <th className="text-center text-[10px] text-[var(--text-muted)]">Min</th>
+                <th className="text-center text-[10px] text-[var(--text-muted)]">Sec</th>
               </tr>
             </thead>
             <tbody>
@@ -116,16 +242,40 @@ export function TraverseBook({
                 const ee = out ? (computed.ok && computed.mode === 'open' ? (out as any).easting : (out as any).adjEasting) : null
                 const nn = out ? (computed.ok && computed.mode === 'open' ? (out as any).northing : (out as any).adjNorthing) : null
 
+                const meanStr = computeMeanAngleDMS(r)
+
+                const upd = (fields: Partial<TravRow>) =>
+                  setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, ...fields } : x)))
+
                 return (
                   <tr key={r.id}>
-                    <td className="text-left"><input className="input input-sm" value={r.station} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, station: e.target.value } : x)))} /></td>
-                    <td className="text-left"><input className="input input-sm font-mono" value={r.bearing} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, bearing: e.target.value } : x)))} placeholder={`082° 12' 00"`} /></td>
-                    <td className="text-left"><input inputMode="decimal" className="input input-sm font-mono" value={r.distance} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, distance: e.target.value } : x)))} placeholder="100.000" /></td>
-                    <td className="font-mono text-right">{lat !== null ? Number(lat).toFixed(4) : '—'}</td>
-                    <td className="font-mono text-right">{dep !== null ? Number(dep).toFixed(4) : '—'}</td>
-                    <td className="font-mono text-right">{ee !== null ? Number(ee).toFixed(4) : '—'}</td>
-                    <td className="font-mono text-right">{nn !== null ? Number(nn).toFixed(4) : '—'}</td>
-                    <td className="text-left"><input className="input input-sm" value={r.remarks} onChange={(e) => setTravRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input className="input input-sm" value={r.station} onChange={(e) => upd({ station: e.target.value })} /></td>
+                    {/* HCL */}
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hclDeg} onChange={(e) => upd({ hclDeg: e.target.value })} placeholder="Deg" /></td>
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hclMin} onChange={(e) => upd({ hclMin: e.target.value })} placeholder="Min" /></td>
+                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.hclSec} onChange={(e) => upd({ hclSec: e.target.value })} placeholder="Sec" /></td>
+                    {/* HCR */}
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hcrDeg} onChange={(e) => upd({ hcrDeg: e.target.value })} placeholder="Deg" /></td>
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hcrMin} onChange={(e) => upd({ hcrMin: e.target.value })} placeholder="Min" /></td>
+                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.hcrSec} onChange={(e) => upd({ hcrSec: e.target.value })} placeholder="Sec" /></td>
+                    {/* Mean Bearing */}
+                    <td className="text-center font-mono text-xs text-amber-400 whitespace-nowrap">{meanStr}</td>
+                    {/* Slope Distance */}
+                    <td className="text-right"><input inputMode="decimal" className="input input-sm font-mono w-20 text-right" value={r.slopeDist} onChange={(e) => upd({ slopeDist: e.target.value })} placeholder="100.000" /></td>
+                    {/* VA */}
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.vaDeg} onChange={(e) => upd({ vaDeg: e.target.value })} placeholder="Deg" /></td>
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.vaMin} onChange={(e) => upd({ vaMin: e.target.value })} placeholder="Min" /></td>
+                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.vaSec} onChange={(e) => upd({ vaSec: e.target.value })} placeholder="Sec" /></td>
+                    {/* IH / TH */}
+                    <td className="text-right"><input inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.ih} onChange={(e) => upd({ ih: e.target.value })} /></td>
+                    <td className="text-right"><input inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.th} onChange={(e) => upd({ th: e.target.value })} /></td>
+                    {/* Computed columns */}
+                    <td className="font-mono text-right text-xs">{lat !== null ? Number(lat).toFixed(4) : '—'}</td>
+                    <td className="font-mono text-right text-xs">{dep !== null ? Number(dep).toFixed(4) : '—'}</td>
+                    <td className="font-mono text-right text-xs">{ee !== null ? Number(ee).toFixed(4) : '—'}</td>
+                    <td className="font-mono text-right text-xs">{nn !== null ? Number(nn).toFixed(4) : '—'}</td>
+                    {/* Remarks */}
+                    <td className="text-left"><input className="input input-sm" value={r.remarks} onChange={(e) => upd({ remarks: e.target.value })} /></td>
                     <td><button className="btn btn-secondary text-xs" onClick={() => setTravRows((p) => p.filter((x) => x.id !== r.id))}>{t('common.remove')}</button></td>
                   </tr>
                 )
@@ -134,9 +284,48 @@ export function TraverseBook({
           </table>
         </div>
 
-        <button onClick={() => setTravRows((p) => [...p, { id: crypto.randomUUID(), station: `P${p.length + 2}`, bearing: '', distance: '', remarks: '' }])} className="btn btn-secondary">
+        <button onClick={() => setTravRows((p) => [...p, makeEmptyRow(p.length)])} className="btn btn-secondary">
           {t('common.addRow')}
         </button>
+
+        {/* EDM Corrections Panel */}
+        {computed.ok && edmRows.length > 0 && (
+          <div className="border border-[var(--border-color)] rounded overflow-hidden">
+            <button
+              onClick={() => setEdmOpen(!edmOpen)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-primary)]/40 text-sm font-medium hover:bg-[var(--border-color)]/30 transition-colors"
+            >
+              <span>📐 EDM Corrections <span className="text-[var(--text-muted)] font-normal">(UTM 37S · SF 0.9996)</span></span>
+              <span className="text-[var(--text-muted)]">{edmOpen ? '▲' : '▼'}</span>
+            </button>
+            {edmOpen && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]/30">
+                      <th className="px-2 py-2 text-left">Line</th>
+                      <th className="px-2 py-2 text-right">SD (m)</th>
+                      <th className="px-2 py-2 text-right">HD (m)</th>
+                      <th className="px-2 py-2 text-right">C&amp;R Corr (mm)</th>
+                      <th className="px-2 py-2 text-right">Grid Dist (m)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {edmRows.map((row, i) => row && (
+                      <tr key={i} className="border-b border-[var(--border-color)]/30">
+                        <td className="px-2 py-1.5 font-mono">{row.line}</td>
+                        <td className="px-2 py-1.5 text-right font-mono">{row.sd.toFixed(3)}</td>
+                        <td className="px-2 py-1.5 text-right font-mono">{row.hd.toFixed(3)}</td>
+                        <td className="px-2 py-1.5 text-right font-mono">{row.crCorr.toFixed(1)}</td>
+                        <td className="px-2 py-1.5 text-right font-mono text-amber-400">{row.gridDist.toFixed(3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {computed.ok && computed.mode !== 'open' && (
           <div className="grid md:grid-cols-4 gap-3">
