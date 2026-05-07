@@ -20,8 +20,12 @@ import LongSectionRenderer from '@/components/engineering/LongSectionRenderer'
 import CrossSectionRenderer from '@/components/engineering/CrossSectionRenderer'
 import CrossSectionSeries from '@/components/engineering/CrossSectionSeries'
 import RoadReservePanel from '@/components/engineering/RoadReservePanel'
+import AsBuiltSurveyPanel from '@/components/engineering/AsBuiltSurveyPanel'
+import PavementDesignPanel from '@/components/engineering/PavementDesignPanel'
+import DrainageDesignPanel from '@/components/engineering/DrainageDesignPanel'
+import RoadCompletionCertificatePanel from '@/components/engineering/RoadCompletionCertificatePanel'
 
-type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs' | 'long_section' | 'cross_section_view' | 'road_reserve'
+type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs' | 'long_section' | 'cross_section_view' | 'road_reserve' | 'pavement_design' | 'drainage_design' | 'as_built' | 'road_completion'
 
 interface EngineeringStep {
   id: EngineeringStepId
@@ -115,7 +119,6 @@ function getEngineeringSteps(data: EngineeringData | null): EngineeringStep[] {
       gated: true
     })
 
-    const verticalDone = rd?.vips?.length && rd.vips.length >= 1
     steps.push({
       id: 'long_section',
       label: 'Long Section',
@@ -136,6 +139,37 @@ function getEngineeringSteps(data: EngineeringData | null): EngineeringStep[] {
       id: 'road_reserve',
       label: 'Road Reserve',
       description: 'Reserve width & land acquisition',
+      status: 'in_progress'
+    })
+
+    steps.push({
+      id: 'pavement_design',
+      label: 'Pavement Design',
+      description: 'CBR-based layer design per KeNHA manual',
+      status: stationsDone ? 'in_progress' : 'locked',
+      gated: true
+    })
+
+    steps.push({
+      id: 'drainage_design',
+      label: 'Drainage Design',
+      description: 'Manning\'s equation, pipe & channel sizing',
+      status: stationsDone ? 'in_progress' : 'locked',
+      gated: true
+    })
+
+    steps.push({
+      id: 'as_built',
+      label: 'As-Built Survey',
+      description: 'Design vs constructed deviation analysis',
+      status: stationsDone ? 'in_progress' : 'locked',
+      gated: true
+    })
+
+    steps.push({
+      id: 'road_completion',
+      label: 'Completion Certificate',
+      description: 'Kenya Roads Act Cap 407 certification',
       status: 'in_progress'
     })
   } else if (mode === 'drainage') {
@@ -1479,6 +1513,51 @@ function renderStepContent(
             <p className="text-zinc-400 text-sm">Formation template sections at each chainage station.</p>
           </div>
           <CrossSectionSeries sections={sections} template={defaultTemplate} interval={20} />
+        </div>
+      )
+    }
+    case 'pavement_design': {
+      const stations = roadData?.stations || []
+      const template = roadData?.crossSectionTemplate
+      const roadLength = stations.length >= 2 ? stations[stations.length - 1].chainage - stations[0].chainage : 0
+      return (
+        <div>
+          <h3 className="text-xl font-bold text-white mb-4">Pavement Layer Design</h3>
+          <p className="text-zinc-400 text-sm mb-4">CBR-based pavement design per KeNHA Pavement Design Manual. Input traffic &amp; subgrade data to determine layer thicknesses.</p>
+          <PavementDesignPanel
+            roadClass={roadData?.roadClass}
+            carriagewayWidth={template?.carriagewayWidth}
+            roadLength={roadLength || 1000}
+          />
+        </div>
+      )
+    }
+    case 'drainage_design': {
+      const stations = roadData?.stations || []
+      const roadLength = stations.length >= 2 ? stations[stations.length - 1].chainage - stations[0].chainage : 0
+      return (
+        <div>
+          <h3 className="text-xl font-bold text-white mb-4">Drainage Design Tools</h3>
+          <p className="text-zinc-400 text-sm mb-4">Manning&apos;s equation pipe capacity, Rational Method catchment analysis, trapezoidal channel design per RDM 1.3.</p>
+          <DrainageDesignPanel roadLength={roadLength || 1000} />
+        </div>
+      )
+    }
+    case 'as_built': {
+      return (
+        <div>
+          <h3 className="text-xl font-bold text-white mb-4">As-Built Survey</h3>
+          <p className="text-zinc-400 text-sm mb-4">Compare design levels against as-built survey data. Paste CSV (chainage, design_level, as_built_level) to compute deviations and KeNHA compliance.</p>
+          <AsBuiltSurveyPanel roadClass={roadData?.roadClass} />
+        </div>
+      )
+    }
+    case 'road_completion': {
+      return (
+        <div>
+          <h3 className="text-xl font-bold text-white mb-4">Road Completion Certificate</h3>
+          <p className="text-zinc-400 text-sm mb-4">Generate a road completion certificate per Kenya Roads Act, Cap 407. Fill in project details, certification checklist, and surveyor declaration.</p>
+          <RoadCompletionCertificatePanel roadClass={roadData?.roadClass} />
         </div>
       )
     }
