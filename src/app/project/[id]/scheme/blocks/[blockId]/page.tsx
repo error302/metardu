@@ -337,28 +337,30 @@ export default function BlockDetailPage() {
             <Loader2 className="w-6 h-6 animate-spin text-[var(--text-muted)]" />
           </div>
         ) : parcels.length === 0 && !showCreateParcel ? (
-          <div className="text-center py-16">
-            <FileText className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-4 opacity-20" />
-            <p className="text-[var(--text-secondary)] mb-1">No parcels yet</p>
-            <p className="text-xs text-[var(--text-muted)] mb-4">Add parcels to this block to start tracking survey progress.</p>
-            <button
-              onClick={() => setShowCreateParcel(true)}
-              className="px-4 py-2 bg-[var(--accent)] text-black text-sm font-semibold rounded-lg hover:bg-[var(--accent-dim)] transition-all inline-flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Add First Parcel
-            </button>
-          </div>
+          <>
+            <div className="text-center py-16">
+              <FileText className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-4 opacity-20" />
+              <p className="text-[var(--text-secondary)] mb-1">No parcels yet</p>
+              <p className="text-xs text-[var(--text-muted)] mb-4">Add parcels to this block to start tracking survey progress.</p>
+              <button
+                onClick={() => setShowCreateParcel(true)}
+                className="px-4 py-2 bg-[var(--accent)] text-black text-sm font-semibold rounded-lg hover:bg-[var(--accent-dim)] transition-all inline-flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add First Parcel
+              </button>
+            </div>
 
-          {/* CSV Import Panel */}
-          <div className="mt-4">
-            <CsvImportPanel
-              projectId={projectId}
-              blockId={blockId}
-              blockName={block?.block_number || ''}
-              onImportComplete={fetchData}
-            />
-          </div>
+            {/* CSV Import Panel */}
+            <div className="mt-4">
+              <CsvImportPanel
+                projectId={projectId}
+                blockId={blockId}
+                blockName={block?.block_number || ''}
+                onImportComplete={fetchData}
+              />
+            </div>
+          </>
         ) : (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden">
             <div className="overflow-x-auto">

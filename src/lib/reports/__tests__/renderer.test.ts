@@ -11,6 +11,7 @@ describe('SurveyPlanRenderer', () => {
       datum: 'ARC1960',
       area_sqm: 5000,
       area_ha: 0.5,
+      drawing_no: 'MD-659744',
     },
     parcel: {
       boundaryPoints: [

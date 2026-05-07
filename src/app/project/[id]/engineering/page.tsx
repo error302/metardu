@@ -19,8 +19,12 @@ import AsBuiltSurveyPanel from '@/components/engineering/AsBuiltSurveyPanel'
 import PavementDesignPanel from '@/components/engineering/PavementDesignPanel'
 import DrainageDesignPanel from '@/components/engineering/DrainageDesignPanel'
 import RoadCompletionCertificatePanel from '@/components/engineering/RoadCompletionCertificatePanel'
+import PileGridPanel from '@/components/engineering/PileGridPanel'
+import SlopeAnalysisPanel from '@/components/engineering/SlopeAnalysisPanel'
+import ProgressMonitorPanel from '@/components/engineering/ProgressMonitorPanel'
+import MachineControlExportPanel from '@/components/engineering/MachineControlExportPanel'
 
-type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs' | 'long_section' | 'cross_section_view' | 'road_reserve' | 'pavement_design' | 'drainage_design' | 'as_built' | 'road_completion'
+type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs' | 'long_section' | 'cross_section_view' | 'road_reserve' | 'pavement_design' | 'drainage_design' | 'as_built' | 'road_completion' | 'pile_grid' | 'slope_analysis' | 'progress_monitor' | 'topo_drawing' | 'machine_control'
 
 interface EngineeringStep {
   id: EngineeringStepId
@@ -165,6 +169,42 @@ function getEngineeringSteps(data: EngineeringData | null): EngineeringStep[] {
       id: 'road_completion',
       label: 'Completion Certificate',
       description: 'Kenya Roads Act Cap 407 certification',
+      status: 'in_progress'
+    })
+
+    steps.push({
+      id: 'pile_grid',
+      label: 'Pile / Column Grid',
+      description: 'Foundation grid generation and setting out',
+      status: 'in_progress'
+    })
+
+    steps.push({
+      id: 'slope_analysis',
+      label: 'Slope & Area Analysis',
+      description: 'DTM slope classification, cut/fill, area computation',
+      status: stationsDone ? 'in_progress' : 'locked',
+      gated: true
+    })
+
+    steps.push({
+      id: 'progress_monitor',
+      label: 'Progress Monitor',
+      description: 'Construction progress tracking and inspection',
+      status: 'in_progress'
+    })
+
+    steps.push({
+      id: 'topo_drawing',
+      label: 'Topo Drawing',
+      description: 'Feature-coded survey point DXF export',
+      status: 'in_progress'
+    })
+
+    steps.push({
+      id: 'machine_control',
+      label: 'Machine Control Export',
+      description: 'Trimble, Leica, Topcon data export',
       status: 'in_progress'
     })
   } else if (mode === 'drainage') {
@@ -1675,6 +1715,54 @@ function renderStepContent(
             roadLength={roadLength || undefined}
             existingRoadWidth={template?.carriagewayWidth ? template.carriagewayWidth + template.shoulderWidth * 2 : undefined}
           />
+        </div>
+      )
+    }
+    case 'pile_grid': {
+      return (
+        <div>
+          <h3 className="text-xl font-bold text-white mb-4">Pile / Column Grid Setting Out</h3>
+          <p className="text-zinc-400 text-sm mb-4">Generate pile or column grid coordinates, compute bearings and distances from an instrument station, and export DXF setout drawings.</p>
+          <PileGridPanel />
+        </div>
+      )
+    }
+    case 'slope_analysis': {
+      return (
+        <div>
+          <h3 className="text-xl font-bold text-white mb-4">Slope &amp; Area Analysis</h3>
+          <p className="text-zinc-400 text-sm mb-4">DTM slope classification, cut/fill volume computation, and area calculation per KENHA standards.</p>
+          <SlopeAnalysisPanel />
+        </div>
+      )
+    }
+    case 'progress_monitor': {
+      return (
+        <div>
+          <h3 className="text-xl font-bold text-white mb-4">Construction Progress Monitor</h3>
+          <p className="text-zinc-400 text-sm mb-4">Track construction progress against programme milestones with S-curve analysis, inspection workflow, and photo attachments.</p>
+          <ProgressMonitorPanel projectId={params.id || ''} />
+        </div>
+      )
+    }
+    case 'topo_drawing': {
+      return (
+        <div>
+          <h3 className="text-xl font-bold text-white mb-4">Topographic Drawing Composer</h3>
+          <p className="text-zinc-400 text-sm mb-4">Assign feature codes to survey points and produce professional DXF drawings with proper layers, spot heights, and sheet layout.</p>
+          <div className="text-amber-400/80 text-sm bg-amber-900/20 border border-amber-800 rounded-lg p-3">
+            For the full topographic drawing experience with feature code browser and SVG preview, use the dedicated tool at{' '}
+            <a href="/tools/topo-drawing" className="underline text-amber-400 hover:text-amber-300">Tools → Topographic Drawing</a>.
+          </div>
+        </div>
+      )
+    }
+    case 'machine_control': {
+      return (
+        <div>
+          <h3 className="text-xl font-bold text-white mb-4">Machine Control Export</h3>
+          <p className="text-zinc-400 text-sm mb-4">Export design points in formats compatible with Trimble, Leica, and Topcon machine control systems.</p>
+          <MachineControlExportPanel />
         </div>
       )
     }
