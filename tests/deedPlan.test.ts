@@ -13,16 +13,16 @@ function createPoint(id: string, easting: number, northing: number): BoundaryPoi
 
 describe('DeedPlan Computation Engine', () => {
   describe('degreesToDMS', () => {
-    it('converts 0 degrees to 000°00\'00.000"', () => {
-      expect(degreesToDMS(0)).toBe('000°00\'00.000"')
+    it('converts 0 degrees to 000°00\'00"', () => {
+      expect(degreesToDMS(0)).toBe('000°00\'00"')
     })
 
-    it('converts 90 degrees to 090°00\'00.000"', () => {
-      expect(degreesToDMS(90)).toBe('090°00\'00.000"')
+    it('converts 90 degrees to 090°00\'00"', () => {
+      expect(degreesToDMS(90)).toBe('090°00\'00"')
     })
 
-    it('converts 82.2 degrees to 082°12\'00.000"', () => {
-      expect(degreesToDMS(82.2)).toBe('082°12\'00.000"')
+    it('converts 82.2 degrees to 082°12\'00"', () => {
+      expect(degreesToDMS(82.2)).toBe('082°12\'00"')
     })
 
     it('converts 359.999999 degrees correctly', () => {

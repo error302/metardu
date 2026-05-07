@@ -508,16 +508,20 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
     <!-- Project details -->
     <div class="info-grid">
       <div class="info-cell-full">
-        <span class="info-label">Parcel / LR Number</span>
+        <span class="info-label">Part of L.R. No.</span>
         <span class="info-value">${blank(input.parcelNumber)}</span>
+      </div>
+      <div class="info-cell">
+        <span class="info-label">Deposited Plan No.</span>
+        <span class="info-value">${blank(input.drawingNumber)}</span>
       </div>
       <div class="info-cell">
         <span class="info-label">Survey Number (DoLS)</span>
         <span class="info-value">${blank(input.surveyNumber)}</span>
       </div>
       <div class="info-cell">
-        <span class="info-label">Drawing Number</span>
-        <span class="info-value">${blank(input.drawingNumber)}</span>
+        <span class="info-label">Registry Map Sheet</span>
+        <span class="info-value">${blank(input.registryMapSheet || input.registrationSection)}</span>
       </div>
       <div class="info-cell">
         <span class="info-label">Registration Section</span>
@@ -532,7 +536,7 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
         <span class="info-value">${blank(input.locality)}</span>
       </div>
       <div class="info-cell">
-        <span class="info-label">Client / Owner</span>
+        <span class="info-label">Client / Registered Owner</span>
         <span class="info-value">${blank(input.clientName)}</span>
       </div>
       <div class="info-cell">
@@ -540,12 +544,16 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
         <span class="info-value">${blank(input.titleDeedNumber)}</span>
       </div>
       <div class="info-cell">
+        <span class="info-label">FIR No.</span>
+        <span class="info-value">${blank(input.firNumber)}</span>
+      </div>
+      <div class="info-cell">
         <span class="info-label">Survey Date</span>
         <span class="info-value">${blank(survDate)}</span>
       </div>
       <div class="info-cell">
-        <span class="info-label">UTM Zone / Datum</span>
-        <span class="info-value">Zone ${input.utmZone}${blank(input.hemisphere)} / ${blank(input.datum)}</span>
+        <span class="info-label">Datum / Projection</span>
+        <span class="info-value">${blank(input.datum)} / UTM Zone ${input.utmZone}${blank(input.hemisphere)}</span>
       </div>
       <div class="info-cell">
         <span class="info-label">Drawn By</span>
@@ -560,12 +568,12 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
     <!-- Area -->
     <div class="area-box">
       <div class="area-cell">
-        <div class="area-num">${areaSqm.toFixed(2)}</div>
-        <div class="area-unit">m²</div>
+        <div class="area-num">A = co = ${areaHa(areaSqm)} Ha</div>
+        <div class="area-unit">Computed Area</div>
       </div>
       <div class="area-cell">
-        <div class="area-num">${areaHa(areaSqm)}</div>
-        <div class="area-unit">Hectares</div>
+        <div class="area-num">${areaSqm.toFixed(2)}</div>
+        <div class="area-unit">m²</div>
       </div>
       <div class="area-cell">
         <div class="area-num">${areaAcres(areaSqm)}</div>

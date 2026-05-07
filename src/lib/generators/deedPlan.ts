@@ -113,17 +113,18 @@ export async function generateDeedPlan(
   ry += 4;
 
   const infoRows = [
-    ['LR No.', project.lr_number ?? '—'],
-    ['Folio No.', project.folio_number ?? '—'],
-    ['Register No.', project.register_number ?? '—'],
+    ['Part of L.R. No.', project.lr_number ?? '—'],
+    ['Deposited Plan No.', project.folio_number ?? '—'],
     ['FIR No.', project.fir_number ?? '—'],
+    ['Register No.', project.register_number ?? '—'],
     ['Reg. Block', project.registration_block ?? '—'],
     ['Reg. District', project.registration_district ?? '—'],
+    ['Registry Map Sheet', project.registration_block ?? '—'],
     ['Locality', project.locality ?? '—'],
     ['Computations No.', project.computations_no ?? '—'],
     ['Field Book No.', project.field_book_no ?? '—'],
     ['File Reference', project.file_reference ?? '—'],
-    ['Client', project.client_name ?? '—'],
+    ['Registered Owner', project.client_name ?? '—'],
   ].filter(([, v]) => v !== '—') as [string, string][];
 
   autoTable(doc, {
@@ -149,9 +150,7 @@ export async function generateDeedPlan(
   autoTable(doc, {
     startY: ry,
     body: [
-      ['Area (m²)', geom.areaM2.toFixed(2)],
-      ['Area (Ha)', geom.areaHa.toFixed(4)],
-      ['Area (Acres)', geom.areaAcres.toFixed(4)],
+      ['A = co = ' + geom.areaHa.toFixed(4) + ' Ha', geom.areaM2.toFixed(2) + ' m² (' + geom.areaAcres.toFixed(4) + ' Acres)'],
     ],
     styles: { fontSize: 7, cellPadding: 1.5 },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 32 }, 1: { cellWidth: SCHEDULE_W - 34 } },
@@ -214,7 +213,9 @@ export async function generateDeedPlan(
 
   const beaconBody = geom.stations.map((s: any) => {
     const desc = getBeaconDescription(s.monument);
-    return [s.station, desc.type, desc.material, desc.dimensions, 'Found', 'Good'];
+    const status = s.status || s.markStatus || 'FOUND';
+    const condition = status === 'SET' ? 'Set' : status === 'FOUND' ? 'Found' : status === 'REFERENCED' ? 'Referenced' : status === 'DESTROYED' ? 'Destroyed' : status === 'NOT_FOUND' ? 'Not Found' : 'Found';
+    return [s.station, desc.type, desc.material, desc.dimensions, condition, condition === 'Found' || condition === 'Set' ? 'Good' : '—'];
   });
 
   autoTable(doc, {

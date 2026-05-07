@@ -37,7 +37,7 @@ export function degreesToDMS(decimalDegrees: number): string {
   const m = Math.floor(decimalMinutes)
   const seconds = (decimalMinutes - m) * 60
 
-  return `${String(d).padStart(3, '0')}°${String(m).padStart(2, '0')}'${seconds.toFixed(3).padStart(6, '0')}"`
+  return `${String(d).padStart(3, '0')}°${String(m).padStart(2, '0')}'${seconds.toFixed(0).padStart(2, '0')}"`
 }
 
 export function computeArea(points: BoundaryPoint[]): number {

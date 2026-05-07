@@ -1,5 +1,5 @@
 import Drawing from 'dxf-writer'
-import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers'
+import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES, addStandardTitleBlock } from '@/lib/drawing/dxfLayers'
 
 export interface MinePlanOptions {
   sections?: Array<{
@@ -27,6 +27,7 @@ export function generateMinePlanDXF(options: MinePlanOptions): string {
     ...titleBlockData,
     drawingTitle: TITLE_BLOCK_TEMPLATES.mining_section.drawingTitle
   }
+  addStandardTitleBlock(drawing, tb)
 
   drawing.setActiveLayer(DXF_LAYERS.TOPO.name)
 

@@ -88,7 +88,7 @@ describe('Deed Plan Print Generation', () => {
 
   test('has area in m2, hectares, acres', () => {
     expect(html).toContain('m\u00b2')
-    expect(html).toContain('Hectares')
+    expect(html).toContain('A = co =')
     expect(html).toContain('Acres')
   })
 

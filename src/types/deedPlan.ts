@@ -24,6 +24,8 @@ export interface DeedPlanInput {
   signatureDate: string
   clientName?: string
   titleDeedNumber?: string
+  firNumber?: string
+  registryMapSheet?: string
   drawnBy?: string
   checkedBy?: string
 }

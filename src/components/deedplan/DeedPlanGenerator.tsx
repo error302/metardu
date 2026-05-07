@@ -68,7 +68,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
     utmZone: 37,
     hemisphere: 'S',
     scale: 1000,
-    datum: 'WGS84',
+    datum: 'ARC1960',
     projectionType: 'UTM',
     boundaryPoints: initialPoints.length > 0 ? initialPoints : [],
     abuttalNorth: '',

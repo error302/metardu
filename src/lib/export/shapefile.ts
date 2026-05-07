@@ -362,7 +362,26 @@ function generatePRJ(projection: { zone: number; hemisphere: 'N' | 'S'; datum: s
   const hemi = projection.hemisphere === 'N' ? 'Northern' : 'Southern'
   const falseNorthing = projection.hemisphere === 'S' ? 10000000 : 0
   const centralMeridian = -183 + projection.zone * 6
+  const datumUpper = (projection.datum || 'WGS84').toUpperCase()
 
+  // Arc 1960 / Clarke 1880 (RGS) — standard for Kenya cadastral work (EPSG:21037)
+  if (datumUpper === 'ARC1960' || datumUpper === 'ARC 1960') {
+    return 'PROJCS["Arc 1960 / UTM Zone ' + projection.zone + projection.hemisphere + '",' +
+      'GEOGCS["Arc 1960",' +
+      'DATUM["Arc_1960",' +
+      'SPHEROID["Clarke 1880 (RGS)",6378249.145,293.466307656]],' +
+      'PRIMEM["Greenwich",0],' +
+      'UNIT["degree",0.0174532925199433]],' +
+      'PROJECTION["Transverse_Mercator"],' +
+      'PARAMETER["latitude_of_origin",0],' +
+      'PARAMETER["central_meridian",' + centralMeridian + '],' +
+      'PARAMETER["scale_factor",0.9996],' +
+      'PARAMETER["false_easting",500000],' +
+      'PARAMETER["false_northing",' + falseNorthing + '],' +
+      'UNIT["metre",1]]'
+  }
+
+  // Default: WGS 84
   return 'PROJCS["WGS 84 / UTM zone ' + projection.zone + projection.hemisphere + '",' +
     'GEOGCS["WGS 84",' +
     'DATUM["WGS_1984",' +

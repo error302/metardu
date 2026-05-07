@@ -24,13 +24,13 @@ export function generateFormNo4PDF(pkg: SubmissionPackage): Buffer {
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
-    format: 'a4'
+    format: 'a3'
   })
 
-  const pageWidth = 297
-  const pageHeight = 210
-  const margin = 15
-  const titleBlockHeight = 60
+  const pageWidth = 420
+  const pageHeight = 297
+  const margin = 10
+  const titleBlockHeight = 65
   const planAreaWidth = pageWidth - margin * 2
   const planAreaHeight = pageHeight - margin * 2 - titleBlockHeight
 

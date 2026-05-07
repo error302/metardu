@@ -7,6 +7,7 @@ export interface TraverseStation {
   distance: number;
   beaconNo?: string;
   monument?: string;
+  markStatus?: string;
 }
 
 export interface AdjustedStation {
@@ -15,6 +16,7 @@ export interface AdjustedStation {
   northing: number;
   beaconNo?: string;
   monument?: string;
+  markStatus?: string;
 }
 
 export interface BearingLeg {
@@ -53,8 +55,8 @@ function decimalToDMS(deg: number): string {
   const d = Math.floor(deg);
   const mRaw = (deg - d) * 60;
   const m = Math.floor(mRaw);
-  const s = ((mRaw - m) * 60).toFixed(1);
-  return `${String(d).padStart(3, '0')}°${String(m).padStart(2, '0')}'${s.padStart(4, '0')}"`;
+  const s = ((mRaw - m) * 60).toFixed(0);
+  return `${String(d).padStart(3, '0')}°${String(m).padStart(2, '0')}'${s.padStart(2, '0')}"`;
 }
 
 export async function computeDeedPlanGeometry(
@@ -83,6 +85,7 @@ export async function computeDeedPlanGeometry(
       distance: parseFloat(String(e.raw_data?.distance ?? e.raw_data?.hd ?? '0')) || 0,
       beaconNo: String(e.raw_data?.beacon_no ?? ''),
       monument: String(e.raw_data?.monument_type ?? ''),
+      markStatus: String(e.raw_data?.mark_status ?? e.raw_data?.monument_status ?? 'FOUND'),
     }))
     .filter((l: any) => l.distance > 0);
 
@@ -138,6 +141,7 @@ export async function computeDeedPlanGeometry(
       northing: parseFloat(adjN.toFixed(3)),
       beaconNo: leg.beaconNo,
       monument: leg.monument,
+      markStatus: leg.markStatus,
     });
   }
 

@@ -26,6 +26,10 @@ interface DrawingExportToolbarProps {
   points: ExportPoint[]
   legs?: ExportLeg[]
   className?: string
+  /** UTM zone (default 37 for Kenya) */
+  utmZone?: number
+  /** UTM hemisphere (default 'S' for Kenya) */
+  hemisphere?: 'N' | 'S'
 }
 
 /* ------------------------------------------------------------------ */
@@ -83,25 +87,88 @@ async function exportDXF(
   triggerDownload(blob, data.filename || safeFileName(projectName, 'dxf'))
 }
 
+/**
+ * UTM to geographic (WGS84) conversion for client-side GeoJSON export.
+ * Uses the Karney series expansion — equivalent to Metardu's server-side
+ * utmToGeographic() but inline so the toolbar stays a pure client component.
+ */
+function utmToLatLon(
+  easting: number,
+  northing: number,
+  zone: number,
+  hemisphere: 'N' | 'S'
+): { lat: number; lon: number } {
+  const a = 6378137.0
+  const f = 1 / 298.257223563
+  const k0 = 0.9996
+  const e = Math.sqrt(2 * f - f * f)
+  const e2 = e * e
+  const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2))
+  const falseE = 500000.0
+  const falseN = hemisphere === 'S' ? 10000000.0 : 0.0
+  const x = easting - falseE
+  const y = northing - falseN
+  const M = y / k0
+  const mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256))
+  const e1_2 = e1 * e1
+  const e1_3 = e1_2 * e1
+  const e1_4 = e1_3 * e1
+  const phi1 = mu + (3 * e1 / 2 - 27 * e1_3 / 32) * Math.sin(2 * mu)
+    + (21 * e1_2 / 16 - 55 * e1_4 / 32) * Math.sin(4 * mu)
+    + (151 * e1_3 / 96) * Math.sin(6 * mu)
+    + (1097 * e1_4 / 512) * Math.sin(8 * mu)
+  const N1 = a / Math.sqrt(1 - e2 * Math.sin(phi1) * Math.sin(phi1))
+  const T1 = Math.tan(phi1) * Math.tan(phi1)
+  const C1 = e2 * Math.cos(phi1) * Math.cos(phi1) / (1 - e2)
+  const R1 = a * (1 - e2) / Math.pow(1 - e2 * Math.sin(phi1) * Math.sin(phi1), 1.5)
+  const D = x / (N1 * k0)
+  let lat = phi1 - (N1 * Math.tan(phi1) / R1)
+    * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * e2)
+      * D * D * D * D / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1
+        - 252 * e2 - 3 * C1 * C1) * D * D * D * D * D * D / 720)
+  const lon0 = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180
+  let lon = lon0 + (D - (1 + 2 * T1 + C1) * D * D * D / 6
+    + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * e2 + 24 * T1 * T1)
+    * D * D * D * D * D / 120) / Math.cos(phi1)
+  return { lat: lat * 180 / Math.PI, lon: lon * 180 / Math.PI }
+}
+
 function exportGeoJSON(
   projectName: string,
   points: ExportPoint[],
+  utmZone = 37,
+  hemisphere: 'N' | 'S' = 'S',
 ): void {
-  const coords = points.map(p => [p.easting, p.northing] as [number, number])
-  const isClosed = coords.length > 2
+  // Convert UTM coordinates to WGS84 (RFC 7946 requires WGS84)
+  const wgs84Coords = points.map(p => {
+    const ll = utmToLatLon(p.easting, p.northing, utmZone, hemisphere)
+    return [ll.lon, ll.lat] as [number, number]
+  })
+  const isClosed = wgs84Coords.length > 2
   if (isClosed) {
-    coords.push(coords[0]) // close the polygon
+    wgs84Coords.push(wgs84Coords[0]) // close the polygon
   }
 
   const geojson = {
-    type: 'FeatureCollection',
+    type: 'FeatureCollection' as const,
+    name: `${projectName}_WGS84`,
+    crs: {
+      type: 'name',
+      properties: {
+        name: `urn:ogc:def:crs:EPSG::4326`,
+      },
+    },
     features: [
       {
-        type: 'Feature',
-        properties: { name: projectName },
+        type: 'Feature' as const,
+        properties: {
+          name: projectName,
+          source_crs: `EPSG:${32600 + utmZone}${hemisphere === 'S' ? 0 : 0}`,
+          source_zone: `${utmZone}${hemisphere}`,
+        },
         geometry: {
-          type: isClosed ? 'Polygon' : 'LineString',
-          coordinates: isClosed ? [coords] : coords,
+          type: isClosed ? ('Polygon' as const) : ('LineString' as const),
+          coordinates: isClosed ? [wgs84Coords] : wgs84Coords,
         },
       },
     ],
@@ -110,7 +177,7 @@ function exportGeoJSON(
   const blob = new Blob([JSON.stringify(geojson, null, 2)], {
     type: 'application/geo+json',
   })
-  triggerDownload(blob, safeFileName(projectName, 'geojson'))
+  triggerDownload(blob, safeFileName(`${projectName}_WGS84`, 'geojson'))
 }
 
 async function exportPDF(
@@ -178,6 +245,8 @@ export default function DrawingExportToolbar({
   points,
   legs,
   className = '',
+  utmZone = 37,
+  hemisphere = 'S',
 }: DrawingExportToolbarProps) {
   const [loading, setLoading] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -196,7 +265,7 @@ export default function DrawingExportToolbar({
   function handleGeoJSON() {
     setLoading('geojson')
     try {
-      exportGeoJSON(projectName, points)
+      exportGeoJSON(projectName, points, utmZone, hemisphere)
     } catch (err: any) {
       console.error('GeoJSON export failed:', err)
     } finally {
