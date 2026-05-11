@@ -734,6 +734,528 @@ export function leastSquaresAdjustment(
   }
 }
 
+/**
+ * Unified 2D/3D Least Squares Network Adjustment
+ *
+ * Supports 6 observation types: distance, bearing, angle, slope_distance,
+ * zenith_angle, height_difference. Angle observations are modeled as
+ * the difference of two direction observations (Ghilani/Wolf Ch.14).
+ *
+ * 3D mode adds RL as a third unknown per point and handles slope distances,
+ * zenith angles, and height differences.
+ */
+export function adjustNetwork(input: LSAdjustmentInput): LSAdjustmentResult {
+  const is3D = input.dimension === '3D'
+  const dim = is3D ? 3 : 2
+  const maxIter = input.maxIterations ?? 20
+  const convMm = input.convergenceMm ?? 0.001
+  const stdResLimit = input.standardizedResidualLimit ?? 3.0
+  const globalAlpha = input.globalTestAlpha ?? 0.05
+
+  if (input.fixedPoints.length < 1) {
+    return failResult('At least 1 fixed control point required')
+  }
+
+  const unknownIdx = new Map<string, number>()
+  input.adjustablePoints.forEach((p, i) => unknownIdx.set(p.name, i))
+
+  const fixedCoords = new Map<string, { e: number; n: number; h: number }>()
+  for (const fp of input.fixedPoints) {
+    fixedCoords.set(fp.name, { e: fp.easting, n: fp.northing, h: fp.rl ?? 0 })
+  }
+
+  // Working coordinate array: per unknown point, [E, N, (RL)]
+  const nPts = input.adjustablePoints.length
+  const nUnknowns = nPts * dim
+  const x = new Array(nUnknowns).fill(0)
+  for (let i = 0; i < nPts; i++) {
+    x[dim * i] = input.adjustablePoints[i].easting
+    x[dim * i + 1] = input.adjustablePoints[i].northing
+    if (is3D) x[dim * i + 2] = input.adjustablePoints[i].rl ?? 0
+  }
+
+  function getCoord(name: string): { e: number; n: number; h: number } | null {
+    const f = fixedCoords.get(name)
+    if (f) return f
+    const idx = unknownIdx.get(name)
+    if (idx === undefined) return null
+    return { e: x[dim * idx], n: x[dim * idx + 1], h: is3D ? x[dim * idx + 2] : 0 }
+  }
+
+  // Classify observations into active set
+  const active = input.observations.filter((o: any) => {
+    if (o.type === 'angle') return o.occupied && o.backsight && o.foresight && typeof o.angle === 'number'
+    if (o.type === 'slope_distance') return o.from && o.to && typeof o.slopeDistance === 'number'
+    if (o.type === 'zenith_angle') return o.from && o.to && typeof o.zenithAngle === 'number'
+    if (o.type === 'height_difference') return o.from && o.to && typeof o.heightDifference === 'number'
+    return (typeof o.distance === 'number') || (typeof o.bearing === 'number')
+  })
+
+  const m = active.length
+  if (m < 1) {
+    return failResult('No valid observations')
+  }
+
+  // Under-determined systems (m < nUnknowns) are handled via Tikhonov regularization.
+  // This produces the minimum-norm solution (free network / inner constraint adjustment).
+  // It keeps adjusted values close to their initial approximations for unconstrained params.
+
+  let lastDxMax = Infinity
+  let finalA: number[][] = zeros(m, nUnknowns)
+  let finalW: number[] = new Array(m).fill(0)
+  let finalP: number[] = new Array(m).fill(0)
+  let finalLabels: string[] = new Array(m).fill('')
+  let finalObsList: any[] = []
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const A = zeros(m, nUnknowns)
+    const w = new Array(m).fill(0)
+    const P = new Array(m).fill(0)
+    let hasNaN = false
+
+    for (let i = 0; i < m; i++) {
+      const obs = active[i]
+      const result = buildObservationRow(obs, getCoord, unknownIdx, dim, is3D)
+      if (!result) { hasNaN = true; break }
+
+      A[i] = result.row
+      w[i] = result.residual
+      P[i] = result.weight
+    }
+
+    if (hasNaN) break
+
+    // Normal equations: N = A^T P A, u = A^T P w
+    const At = transpose(A)
+    const PA = zeros(m, nUnknowns)
+    const Pw = new Array(m).fill(0)
+    for (let i = 0; i < m; i++) {
+      Pw[i] = P[i] * w[i]
+      for (let j = 0; j < nUnknowns; j++) PA[i][j] = P[i] * A[i][j]
+    }
+    const Nmat = matMul(At, PA)
+    const u = matVecMul(At, Pw)
+
+    // Tikhonov regularization for near-singular or under-determined systems.
+    // Adds a tiny diagonal term so the matrix is always positive-definite.
+    // This implements free-network (inner constraint) adjustment per Ghilani Ch.15.
+    const regAlpha = 1e-10
+    for (let i = 0; i < nUnknowns; i++) {
+      Nmat[i][i] += regAlpha
+    }
+
+    let dx: number[]
+    try {
+      dx = gaussianSolve(Nmat.map((r: any) => [...r]), u)
+    } catch {
+      return failResult('Normal matrix singular or ill-conditioned')
+    }
+
+    let dxMax = 0
+    for (let i = 0; i < dx.length; i++) {
+      x[i] += dx[i]
+      if (isFinite(dx[i])) dxMax = Math.max(dxMax, Math.abs(dx[i]))
+    }
+    lastDxMax = dxMax
+    if (dxMax * 1000 <= convMm) break
+    if (!isFinite(dxMax)) break
+
+    // Save final iteration data
+    finalA = A
+    finalW = w
+    finalP = P
+    finalObsList = active
+    for (let i = 0; i < m; i++) {
+      const obs = active[i]
+      finalLabels[i] = obsLabel(obs)
+    }
+  }
+
+  if (!isFinite(lastDxMax)) {
+    return failResult('Adjustment diverged')
+  }
+
+  // Rebuild at final estimates for residuals and covariance
+  const A = zeros(m, nUnknowns)
+  const w = new Array(m).fill(0)
+  const P = new Array(m).fill(0)
+
+  for (let i = 0; i < m; i++) {
+    const obs = active[i]
+    const result = buildObservationRow(obs, getCoord, unknownIdx, dim, is3D)
+    if (!result) continue
+    A[i] = result.row
+    w[i] = result.residual
+    P[i] = result.weight
+    finalLabels[i] = obsLabel(obs)
+  }
+
+  // Compute residuals v = -w (misclosure at final estimate)
+  const v = w.map(wi => -wi)
+  const dof = m - nUnknowns
+  const vPv = v.reduce((s, vi, i) => s + P[i] * vi * vi, 0)
+  const refVar = dof > 0 ? vPv / dof : 0
+
+  // Covariance
+  let Ninv: number[][] = zeros(nUnknowns, nUnknowns)
+  try {
+    const At = transpose(A)
+    const PA = zeros(m, nUnknowns)
+    for (let i = 0; i < m; i++) {
+      for (let j = 0; j < nUnknowns; j++) PA[i][j] = P[i] * A[i][j]
+    }
+    Ninv = invertMatrix(matMul(At, PA))
+  } catch {
+    // Ninv stays as zeros
+  }
+
+  // Build adjusted points with sigmas
+  const adjustedPoints = input.adjustablePoints.map((p, i) => {
+    const varE = refVar * (Ninv[dim * i]?.[dim * i] ?? 0)
+    const varN = refVar * (Ninv[dim * i + 1]?.[dim * i + 1] ?? 0)
+    const pt: any = {
+      name: p.name,
+      easting: x[dim * i],
+      northing: x[dim * i + 1],
+      sigmaEasting: varE > 0 ? Math.sqrt(varE) : 0,
+      sigmaNorthing: varN > 0 ? Math.sqrt(varN) : 0,
+    }
+    if (is3D) {
+      const varH = refVar * (Ninv[dim * i + 2]?.[dim * i + 2] ?? 0)
+      pt.rl = x[dim * i + 2]
+      pt.sigmaRL = varH > 0 ? Math.sqrt(varH) : 0
+    }
+    return pt
+  })
+
+  // Standardized residuals
+  const residuals = v.map((vi, i) => {
+    const aRow = A[i]
+    const Qa = matVecMul(Ninv, aRow)
+    const aTQa = dot(aRow, Qa)
+    const qll = P[i] > 0 ? 1 / P[i] : 1
+    const qvv = Math.max(0, qll - aTQa)
+    const denom = Math.sqrt((refVar || 1) * (qvv || qll || 1))
+    return {
+      observation: finalLabels[i],
+      residual: vi,
+      standardizedResidual: denom > 0 ? vi / denom : 0,
+    }
+  })
+
+  const passed = residuals.every(r => Math.abs(r.standardizedResidual) <= stdResLimit)
+
+  const globalTest =
+    dof > 0 && globalAlpha > 0 && globalAlpha < 1
+      ? (() => {
+          const lower = chiSquareQuantileApprox(globalAlpha / 2, dof)
+          const upper = chiSquareQuantileApprox(1 - globalAlpha / 2, dof)
+          const gp = Number.isFinite(lower) && Number.isFinite(upper) ? vPv >= lower && vPv <= upper : true
+          return { alpha: globalAlpha, lower, upper, passed: gp }
+        })()
+      : undefined
+
+  return {
+    ok: true,
+    adjustedPoints,
+    residuals,
+    referenceVariance: refVar,
+    chiSquare: vPv,
+    degreesOfFreedom: dof,
+    globalTest,
+    passed,
+  }
+}
+
+// ─── Internal helpers for adjustNetwork ──────────────────────────────────────
+
+function failResult(error: string): LSAdjustmentResult {
+  return {
+    ok: false, adjustedPoints: [], residuals: [],
+    referenceVariance: 0, chiSquare: 0, degreesOfFreedom: 0,
+    passed: false, error,
+  }
+}
+
+interface ObsRowResult {
+  row: number[]
+  residual: number
+  weight: number
+}
+
+function buildObservationRow(
+  obs: any,
+  getCoord: (name: string) => { e: number; n: number; h: number } | null,
+  unknownIdx: Map<string, number>,
+  dim: number,
+  is3D: boolean,
+): ObsRowResult | null {
+  const type = obs.type
+  const row = new Array(unknownIdx.size * dim).fill(0)
+  let residual = 0
+  let weight = 1
+
+  if (type === 'angle') {
+    return buildAngleRow(obs, getCoord, unknownIdx, dim)
+  }
+
+  if (type === 'slope_distance') {
+    const from = getCoord(obs.from)
+    const to = getCoord(obs.to)
+    if (!from || !to) return null
+
+    const dE = to.e - from.e
+    const dN = to.n - from.n
+    const dH = to.h - from.h
+    const SD = Math.sqrt(dE * dE + dN * dN + dH * dH)
+    if (SD === 0) return null
+
+    const fromU = unknownIdx.get(obs.from)
+    const toU = unknownIdx.get(obs.to)
+
+    if (fromU !== undefined) {
+      row[dim * fromU] = -dE / SD
+      row[dim * fromU + 1] = -dN / SD
+      if (is3D) row[dim * fromU + 2] = -dH / SD
+    }
+    if (toU !== undefined) {
+      row[dim * toU] = dE / SD
+      row[dim * toU + 1] = dN / SD
+      if (is3D) row[dim * toU + 2] = dH / SD
+    }
+
+    residual = obs.slopeDistance - SD
+    if (typeof obs.slopeDistanceSigma === 'number' && obs.slopeDistanceSigma > 0) {
+      weight = 1 / (obs.slopeDistanceSigma * obs.slopeDistanceSigma)
+    }
+    return { row, residual, weight }
+  }
+
+  if (type === 'zenith_angle') {
+    const from = getCoord(obs.from)
+    const to = getCoord(obs.to)
+    if (!from || !to) return null
+
+    const dE = to.e - from.e
+    const dN = to.n - from.n
+    const dH = to.h - from.h
+    const horiz = Math.sqrt(dE * dE + dN * dN)
+    const SD = Math.sqrt(dE * dE + dN * dN + dH * dH)
+    if (SD === 0) return null
+
+    // Zenith angle from vertical: Z = atan2(horiz, dH) (radians)
+    const Z = Math.atan2(horiz, dH)
+    const obsZ = toRadians(obs.zenithAngle)
+    residual = wrapAngleRad(obsZ - Z)
+
+    // Partials of Z w.r.t. dE, dN, dH
+    // Z = atan2(horiz, dH)
+    // ∂Z/∂dH = -horiz / SD²
+    // ∂Z/∂horiz = dH / SD²
+    // ∂Z/∂dE = (dH / SD²) * (dE / horiz)
+    // ∂Z/∂dN = (dH / SD²) * (dN / horiz)
+
+    const fromU = unknownIdx.get(obs.from)
+    const toU = unknownIdx.get(obs.to)
+
+    const dZdE = horiz > 1e-12 ? (dH / (SD * SD)) * (dE / horiz) : 0
+    const dZdN = horiz > 1e-12 ? (dH / (SD * SD)) * (dN / horiz) : 0
+    const dZdH = -horiz / (SD * SD)
+
+    if (fromU !== undefined) {
+      row[dim * fromU] = -dZdE
+      row[dim * fromU + 1] = -dZdN
+      if (is3D) row[dim * fromU + 2] = -dZdH
+    }
+    if (toU !== undefined) {
+      row[dim * toU] = dZdE
+      row[dim * toU + 1] = dZdN
+      if (is3D) row[dim * toU + 2] = dZdH
+    }
+
+    if (typeof obs.zenithAngleSigmaArcSec === 'number' && obs.zenithAngleSigmaArcSec > 0) {
+      const sigmaRad = (obs.zenithAngleSigmaArcSec * Math.PI) / (180 * 3600)
+      weight = 1 / (sigmaRad * sigmaRad)
+    }
+    return { row, residual, weight }
+  }
+
+  if (type === 'height_difference') {
+    const from = getCoord(obs.from)
+    const to = getCoord(obs.to)
+    if (!from || !to) return null
+
+    const dH = to.h - from.h
+    residual = obs.heightDifference - dH
+
+    const fromU = unknownIdx.get(obs.from)
+    const toU = unknownIdx.get(obs.to)
+
+    if (fromU !== undefined && is3D) {
+      row[dim * fromU + 2] = -1
+    }
+    if (toU !== undefined && is3D) {
+      row[dim * toU + 2] = 1
+    }
+
+    if (typeof obs.heightDiffSigma === 'number' && obs.heightDiffSigma > 0) {
+      weight = 1 / (obs.heightDiffSigma * obs.heightDiffSigma)
+    }
+    return { row, residual, weight }
+  }
+
+  // Legacy: distance or bearing (no explicit type)
+  if (typeof obs.distance === 'number') {
+    const from = getCoord(obs.from)
+    const to = getCoord(obs.to)
+    if (!from || !to) return null
+
+    const dE = to.e - from.e
+    const dN = to.n - from.n
+    const r = Math.sqrt(dE * dE + dN * dN)
+    if (r === 0) return null
+
+    const fromU = unknownIdx.get(obs.from)
+    const toU = unknownIdx.get(obs.to)
+
+    if (fromU !== undefined) {
+      row[dim * fromU] = -dE / r
+      row[dim * fromU + 1] = -dN / r
+    }
+    if (toU !== undefined) {
+      row[dim * toU] = dE / r
+      row[dim * toU + 1] = dN / r
+    }
+
+    residual = obs.distance - r
+    if (typeof obs.distanceSigma === 'number' && obs.distanceSigma > 0) {
+      weight = 1 / (obs.distanceSigma * obs.distanceSigma)
+    }
+    return { row, residual, weight }
+  }
+
+  if (typeof obs.bearing === 'number') {
+    const from = getCoord(obs.from)
+    const to = getCoord(obs.to)
+    if (!from || !to) return null
+
+    const dE = to.e - from.e
+    const dN = to.n - from.n
+    const r2 = dE * dE + dN * dN
+    if (r2 === 0) return null
+
+    const theta = Math.atan2(dE, dN)
+    const obsRad = toRadians(obs.bearing)
+    residual = wrapAngleRad(obsRad - theta)
+
+    const dtdE = dN / r2
+    const dtdN = -dE / r2
+
+    const fromU = unknownIdx.get(obs.from)
+    const toU = unknownIdx.get(obs.to)
+
+    if (fromU !== undefined) {
+      row[dim * fromU] = -dtdE
+      row[dim * fromU + 1] = -dtdN
+    }
+    if (toU !== undefined) {
+      row[dim * toU] = dtdE
+      row[dim * toU + 1] = dtdN
+    }
+
+    if (typeof obs.bearingSigmaArcSec === 'number' && obs.bearingSigmaArcSec > 0) {
+      const sigmaRad = (obs.bearingSigmaArcSec * Math.PI) / (180 * 3600)
+      weight = 1 / (sigmaRad * sigmaRad)
+    }
+    return { row, residual, weight }
+  }
+
+  return null
+}
+
+function buildAngleRow(
+  obs: any,
+  getCoord: (name: string) => { e: number; n: number; h: number } | null,
+  unknownIdx: Map<string, number>,
+  dim: number,
+): ObsRowResult | null {
+  const occ = getCoord(obs.occupied)
+  const bs = getCoord(obs.backsight)
+  const fs = getCoord(obs.foresight)
+  if (!occ || !bs || !fs) return null
+
+  // Direction vectors
+  const dE_OF = fs.e - occ.e
+  const dN_OF = fs.n - occ.n
+  const r2_OF = dE_OF * dE_OF + dN_OF * dN_OF
+  if (r2_OF === 0) return null
+
+  const dE_OB = bs.e - occ.e
+  const dN_OB = bs.n - occ.n
+  const r2_OB = dE_OB * dE_OB + dN_OB * dN_OB
+  if (r2_OB === 0) return null
+
+  // Computed angle (radians)
+  const theta_OF = Math.atan2(dE_OF, dN_OF)
+  const theta_OB = Math.atan2(dE_OB, dN_OB)
+  const computedAngle = wrapAngleRad(theta_OF - theta_OB)
+  const obsAngle = toRadians(obs.angle)
+  const residual = wrapAngleRad(obsAngle - computedAngle)
+
+  const row = new Array(unknownIdx.size * dim).fill(0)
+
+  // Direction partials: ∂θ_OP/∂E_P = dN / r², ∂θ_OP/∂N_P = -dE / r²
+  // ∂θ_OP/∂E_O = -dN / r², ∂θ_OP/∂N_O = dE / r²
+  const dtdE_OF = dN_OF / r2_OF  // ∂θ_OF/∂E_F = ∂θ_OF/∂E_occ
+  const dtdN_OF = -dE_OF / r2_OF
+  const dtdE_OB = dN_OB / r2_OB
+  const dtdN_OB = -dE_OB / r2_OB
+
+  // angle = θ_OF - θ_OB
+  // ∂angle/∂E_occ = -dtdE_OF + dtdE_OB
+  // ∂angle/∂N_occ = -dtdN_OF + dtdN_OB
+  // ∂angle/∂E_bs = -dtdE_OB (affects only backsight)
+  // ∂angle/∂N_bs = -dtdN_OB
+  // ∂angle/∂E_fs = dtdE_OF (affects only foresight)
+  // ∂angle/∂N_fs = dtdN_OF
+
+  const occU = unknownIdx.get(obs.occupied)
+  const bsU = unknownIdx.get(obs.backsight)
+  const fsU = unknownIdx.get(obs.foresight)
+
+  if (occU !== undefined) {
+    row[dim * occU] = -dtdE_OF + dtdE_OB
+    row[dim * occU + 1] = -dtdN_OF + dtdN_OB
+  }
+  if (bsU !== undefined) {
+    row[dim * bsU] = -dtdE_OB
+    row[dim * bsU + 1] = -dtdN_OB
+  }
+  if (fsU !== undefined) {
+    row[dim * fsU] = dtdE_OF
+    row[dim * fsU + 1] = dtdN_OF
+  }
+
+  let weight = 1
+  if (typeof obs.angleSigmaArcSec === 'number' && obs.angleSigmaArcSec > 0) {
+    const sigmaRad = (obs.angleSigmaArcSec * Math.PI) / (180 * 3600)
+    weight = 1 / (sigmaRad * sigmaRad)
+  }
+
+  return { row, residual, weight }
+}
+
+function obsLabel(obs: any): string {
+  const t = obs.type
+  if (t === 'angle') return `${obs.occupied}: ${obs.backsight}→${obs.foresight} angle`
+  if (t === 'slope_distance') return `${obs.from}→${obs.to} slope_dist`
+  if (t === 'zenith_angle') return `${obs.from}→${obs.to} zenith`
+  if (t === 'height_difference') return `${obs.from}→${obs.to} ΔH`
+  if (typeof obs.distance === 'number') return `${obs.from}→${obs.to} distance`
+  if (typeof obs.bearing === 'number') return `${obs.from}→${obs.to} bearing`
+  return `${obs.from}→${obs.to} ?`
+}
+
 export function calculateRedundancy(unknowns: number, observations: number): number {
   return observations - unknowns * 2
 }

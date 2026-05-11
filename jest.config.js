@@ -13,9 +13,13 @@ module.exports = {
       },
     }],
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(delaunator|robust-predicates)/)',
+  ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '^delaunator$': '<rootDir>/tests/__mocks__/delaunator.ts',
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],

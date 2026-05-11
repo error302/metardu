@@ -25,7 +25,9 @@ describe('adjustNetwork', () => {
     deltaE: 100,
     deltaN: 100,
     deltaH: 10,
-    stdDev: 0.005,
+    stdDevE: 0.005,
+    stdDevN: 0.005,
+    stdDevH: 0.010,
   }
 
   test('adjusts network with one fixed and one free station', () => {
@@ -60,7 +62,9 @@ describe('adjustNetwork', () => {
       deltaE: 100.01,
       deltaN: 99.99,
       deltaH: 10,
-      stdDev: 0.005,
+      stdDevE: 0.005,
+      stdDevN: 0.005,
+      stdDevH: 0.010,
     }
     const result = adjustNetwork([fixedStation, freeStation], [observation, observation2])
 
@@ -86,7 +90,7 @@ describe('adjustNetwork', () => {
   })
 
   test('validates with Zod schemas - rejects invalid observation', () => {
-    const invalidObs = [{ from: '', to: '', deltaE: 0, deltaN: 0, deltaH: 0, stdDev: -1 }]
+    const invalidObs = [{ from: '', to: '', deltaE: 0, deltaN: 0, deltaH: 0, stdDevE: -1, stdDevN: 0.005, stdDevH: 0.010 }]
 
     expect(() => adjustNetwork([fixedStation, freeStation], invalidObs as Observation[])).toThrow('Invalid observations')
   })

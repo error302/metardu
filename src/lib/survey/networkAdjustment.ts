@@ -63,20 +63,22 @@ export interface AdjustmentResult {
 }
 
 export function adjustNetwork(
-  stations: Station[],
-  observations: Observation[]
+  stationsInput: Station[],
+  observationsInput: Observation[]
 ): AdjustmentResult {
-  const stationValidation = StationSchema.array().safeParse(stations)
+  const stationValidation = StationSchema.array().safeParse(stationsInput)
   if (!stationValidation.success) {
     const issues = stationValidation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')
     throw new Error(`Invalid stations: ${issues}`)
   }
+  const stations = stationValidation.data
 
-  const obsValidation = ObservationSchema.array().safeParse(observations)
+  const obsValidation = ObservationSchema.array().safeParse(observationsInput)
   if (!obsValidation.success) {
     const issues = obsValidation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')
     throw new Error(`Invalid observations: ${issues}`)
   }
+  const observations = obsValidation.data
 
   const warnings: string[] = []
 
