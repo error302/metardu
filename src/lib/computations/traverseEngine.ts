@@ -337,17 +337,24 @@ export function computeTraverse(input: {
 
 export function computeBowditchAdjustment(legs: TraverseComputationLeg[], closingE: number, closingN: number): void {
   const totalDist = legs.reduce((s, l) => s + l.hd, 0)
-  let sumDep = legs.reduce((s, l) => s + l.departure, 0)
-  let sumLat = legs.reduce((s, l) => s + l.latitude, 0)
+  if (totalDist === 0) return
 
-  const actualDep = closingE - (legs.reduce((s, l) => s + l.departure, 0))
-  const actualLat = closingN - (legs.reduce((s, l) => s + l.latitude, 0))
-  sumDep += actualDep
-  sumLat += actualLat
+  // Misclosure = closing point − computed endpoint
+  // (closing point is known; sum of departures/latitudes is the computed endpoint offset from opening)
+  const sumDep = legs.reduce((s, l) => s + l.departure, 0)
+  const sumLat = legs.reduce((s, l) => s + l.latitude, 0)
 
+  // Linear misclosure components
+  // Source: Ghilani & Wolf, Chapter 12 — eE = Σdep − (Eclosing − Eopening)
+  // Here closing coords are already offset from opening, so eE = sumDep − closingE
+  // and eN = sumLat − closingN
+  const eE = sumDep - closingE  // departure misclosure
+  const eN = sumLat - closingN  // latitude misclosure
+
+  // Source: Ghilani & Wolf — Bowditch correction: correction_i = −(misclosure/ΣD) × D_i
   for (const leg of legs) {
-    leg.depCorrection = -sumDep * (leg.hd / totalDist)
-    leg.latCorrection = -sumLat * (leg.hd / totalDist)
+    leg.depCorrection = -(eE * (leg.hd / totalDist))
+    leg.latCorrection = -(eN * (leg.hd / totalDist))
     leg.adjDep = leg.departure + leg.depCorrection
     leg.adjLat = leg.latitude + leg.latCorrection
   }

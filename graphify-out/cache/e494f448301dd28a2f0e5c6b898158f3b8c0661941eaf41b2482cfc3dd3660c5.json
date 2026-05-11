@@ -1,0 +1,1 @@
+{"nodes": [{"id": "tests_minetwin_test_ts", "label": "minetwin.test.ts", "file_type": "code", "source_file": "tests\\minetwin.test.ts", "source_location": "L1"}], "edges": [{"source": "tests_minetwin_test_ts", "target": "minetwin", "relation": "imports_from", "confidence": "EXTRACTED", "source_file": "tests\\minetwin.test.ts", "source_location": "L3", "weight": 1.0}]}

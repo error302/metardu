@@ -188,7 +188,17 @@ export const POST = apiHandler(
       })
     }
 
-    return NextResponse.json({ error: 'Unknown compute task' }, { status: 400 })
+    if (task === 'raster_analysis' || task === 'contours') {
+      return NextResponse.json(
+        {
+          error: `Task '${task}' is not yet implemented. It is on the roadmap and will be available in a future release.`,
+          code: 'NOT_IMPLEMENTED',
+        },
+        { status: 501 }
+      )
+    }
+
+    return NextResponse.json({ error: 'Unknown compute task', code: 'NOT_FOUND' }, { status: 400 })
   }
 )
 

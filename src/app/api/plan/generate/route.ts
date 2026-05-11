@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server'
 import { developFullPlan, DevelopPlanOptions } from '@/lib/orchestrator/develop-full-plan'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getAuthUser } from '@/lib/auth/session'
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user) {
+    const user = await getAuthUser()
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

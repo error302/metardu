@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getAuthUser } from '@/lib/auth/session'
 import { z } from 'zod'
 
 export async function POST(req: NextRequest) {
@@ -20,11 +19,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { event, properties, url } = parsed.data
+    const user = await getAuthUser()
 
-    const session = await getServerSession(authOptions)
-    const user = session?.user as any | null
-
-    // Prevent abuse via huge blobs (keep a small, predictable payload).
     const safeProps: Record<string, unknown> = {}
     if (properties) {
       const keys = Object.keys(properties).slice(0, 50)
@@ -36,15 +32,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Notice we map event to action and properties/url to details
-    // since the table schema has action and details for audit_logs
-    // (If analytics_events doesn't exist, we fallback to audit_logs format, but 
-    // actually we didn't create analytics_events in init-test-db, we'll just log it)
     await db.query(
       `INSERT INTO audit_logs (
         action, details, user_id, table_name
       ) VALUES ($1, $2, $3, $4)`,
-      [event, JSON.stringify({ properties: safeProps, url: url || '' }), user?.id || null, 'analytics_events']
+      [event, JSON.stringify({ properties: safeProps, url: url ?? '' }), user?.id ?? null, 'analytics_events']
     )
 
     return NextResponse.json({ success: true })

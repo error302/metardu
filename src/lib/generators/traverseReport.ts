@@ -19,7 +19,7 @@ export async function generateTraverseReport(
   );
   const entries = entriesRes.rows;
 
-  const rows = (entries ?? []).map((e: any) => e.raw_data as Record<string, unknown>);
+  const rows = (entries ?? []).map((e: { row_index: number; raw_data: Record<string, unknown> }) => e.raw_data);
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const today = new Date().toLocaleDateString('en-KE');
@@ -41,7 +41,7 @@ export async function generateTraverseReport(
   autoTable(doc, {
     startY: y,
     head: [['Station', 'Bearing (°)', 'Distance (m)', 'Code', 'Monument No.', 'Remark']],
-    body: rows.map((r: any) => [
+    body: rows.map((r) => [
       String(r.station ?? ''),
       String(r.bearing ?? ''),
       String(r.distance ?? ''),
@@ -67,7 +67,7 @@ export async function generateTraverseReport(
   doc.text('2. CLOSURE SUMMARY', 15, y);
   y += 6;
 
-  const totalDistance = rows.reduce((sum: any, r: any) => sum + (parseFloat(String(r.distance ?? '0')) || 0), 0);
+  const totalDistance = rows.reduce((sum, r) => sum + (parseFloat(String(r.distance ?? '0')) || 0), 0);
 
   autoTable(doc, {
     startY: y,

@@ -47,6 +47,33 @@ export const db = {
       client.release()
     }
   },
+
+  /**
+   * Run multiple queries in a single atomic transaction.
+   * The callback receives a connected client. If the callback throws,
+   * the transaction is rolled back automatically.
+   *
+   * @example
+   * await db.transaction(async (client) => {
+   *   await client.query('INSERT INTO projects ...', [...])
+   *   await client.query('INSERT INTO scheme_details ...', [...])
+   * })
+   */
+  transaction: async <T>(fn: (client: PoolClient) => Promise<T>): Promise<T> => {
+    const client = await getPool().connect()
+    try {
+      await client.query('BEGIN')
+      const result = await fn(client)
+      await client.query('COMMIT')
+      return result
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
+  },
+
   getClient: async (): Promise<PoolClient> => getPool().connect(),
 }
 

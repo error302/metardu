@@ -1,0 +1,1 @@
+{"nodes": [{"id": "tests_cadastra_test_ts", "label": "cadastra.test.ts", "file_type": "code", "source_file": "tests\\cadastra.test.ts", "source_location": "L1"}], "edges": [{"source": "tests_cadastra_test_ts", "target": "cadastravalidator", "relation": "imports_from", "confidence": "EXTRACTED", "source_file": "tests\\cadastra.test.ts", "source_location": "L3", "weight": 1.0}]}

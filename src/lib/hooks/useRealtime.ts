@@ -93,7 +93,7 @@ export function useRealtimeCollaboration(
     isConnected,
     updateCursor,
     updateActiveTool,
-    otherUsers: onlineUsers.filter((u: any) => (u as { id?: string }).id !== user?.id)
+    otherUsers: onlineUsers.filter((u) => (u as { id?: string }).id !== user?.id)
   }
 }
 
@@ -101,7 +101,7 @@ export function useProjectRealtime(
   projectId: string | null,
   user: AppUser | null
 ) {
-  const [points, setPoints] = useState<any[]>([])
+  const [points, setPoints] = useState<Record<string, unknown>[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -152,12 +152,13 @@ export function useProjectRealtime(
     // With the VM-based client, subscribe() is a no-op.
     const subscription = dbClient
       .channel(`project-points:${projectId}`)
-      .on('broadcast', { event: 'update' }, (payload: any) => {
+      .on('broadcast', { event: 'update' }, (payload: Record<string, unknown>) => {
         if (!mounted) return
+        const p = payload as { eventType?: string; new?: Record<string, unknown>; old?: Record<string, unknown> }
         setPoints(current => {
-          if (payload.eventType === 'INSERT') return [...current, payload.new]
-          if (payload.eventType === 'UPDATE') return current.map((p: any) => p.id === payload.new.id ? payload.new : p)
-          if (payload.eventType === 'DELETE') return current.filter((p: any) => p.id !== payload.old.id)
+          if (p.eventType === 'INSERT') return [...current, p.new ?? {}]
+          if (p.eventType === 'UPDATE') return current.map((row) => (row.id === p.new?.id ? (p.new ?? row) : row))
+          if (p.eventType === 'DELETE') return current.filter((row) => row.id !== p.old?.id)
           return current
         })
       })

@@ -20,14 +20,14 @@ export async function generateGcpReport(
   }
 
   const gcpData = entries
-    .map((e: any) => ({
+    .map((e: { row_index: number; station: string; raw_data: Record<string, unknown> }) => ({
       name: e.station || `GCP${e.row_index}`,
-      easting: parseFloat(String(e.raw_data?.easting || e.raw_data?.e || 0)),
-      northing: parseFloat(String(e.raw_data?.northing || e.raw_data?.n || 0)),
-      elevation: parseFloat(String(e.raw_data?.elevation || e.raw_data?.rl || e.raw_data?.z || 0)),
-      accuracy: parseFloat(String(e.raw_data?.accuracy || e.raw_data?.rms || 0)),
+      easting: parseFloat(String(e.raw_data?.easting ?? e.raw_data?.e ?? 0)),
+      northing: parseFloat(String(e.raw_data?.northing ?? e.raw_data?.n ?? 0)),
+      elevation: parseFloat(String(e.raw_data?.elevation ?? e.raw_data?.rl ?? e.raw_data?.z ?? 0)),
+      accuracy: parseFloat(String(e.raw_data?.accuracy ?? e.raw_data?.rms ?? 0)),
     }))
-    .filter((g: any) => g.easting !== 0 && g.northing !== 0);
+    .filter((g) => g.easting !== 0 && g.northing !== 0);
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
@@ -40,13 +40,13 @@ export async function generateGcpReport(
   doc.text(`Project: ${project.name}`, 14, 25);
   doc.text(`Date: ${new Date().toLocaleDateString('en-KE')}`, 196, 25, { align: 'right' });
 
-  const tableData = gcpData.map((g: any) => [
+  const tableData = gcpData.map((g) => [
     g.name,
     g.easting.toFixed(3),
     g.northing.toFixed(3),
     g.elevation.toFixed(3),
     g.accuracy > 0 ? g.accuracy.toFixed(3) : '—',
-  ]);
+  ])
 
   autoTable(doc, {
     startY: 30,
@@ -55,12 +55,12 @@ export async function generateGcpReport(
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 248, 250] },
-  });
+  })
 
-  const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+  const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY
 
-  const avgAccuracy = gcpData.reduce((s: any, g: any) => s + g.accuracy, 0) / gcpData.length;
-  const maxAccuracy = Math.max(...gcpData.map((g: any) => g.accuracy));
+  const avgAccuracy = gcpData.reduce((s, g) => s + g.accuracy, 0) / gcpData.length
+  const maxAccuracy = Math.max(...gcpData.map((g) => g.accuracy))
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');

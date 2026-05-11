@@ -42,7 +42,7 @@ export async function getUserCPDForYear(userId: string, year: number): Promise<C
     [userId, startDate, endDate]
   )
 
-  return result.rows.map((row: any) => ({
+  return result.rows.map((row: Record<string, unknown>) => ({
     id: row.id,
     userId: row.user_id,
     activity: row.activity,

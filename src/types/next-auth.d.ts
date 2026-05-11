@@ -1,6 +1,15 @@
 import 'next-auth'
 
 declare module 'next-auth' {
+  /** Returned by `authorize()` and stored in the JWT */
+  interface User {
+    id: string
+    email: string
+    name?: string | null
+    isk_number?: string
+    verified_isk?: boolean
+  }
+
   interface Session {
     user: {
       id: string
@@ -20,3 +29,4 @@ declare module 'next-auth/jwt' {
     verified_isk?: boolean
   }
 }
+

@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { inverseComputation, polarComputation, intersectionComputation, resectionComputation, areaComputation, joinComputation, type InverseStep } from '@/lib/computations/cogoEngine'
+import { inverseComputation, polarComputation, intersectionComputation, resectionComputation, areaComputation, joinComputation, distanceDistanceIntersection, bearingDistanceIntersection, arcByRadiusAndChord, type InverseStep, type DistDistResult, type BearingDistResult, type ArcResult } from '@/lib/computations/cogoEngine'
 
-type Tab = 'inverse' | 'polar' | 'intersection' | 'resection' | 'area' | 'join'
+type Tab = 'inverse' | 'polar' | 'intersection' | 'distDist' | 'bearingDist' | 'arcBoundary' | 'resection' | 'area' | 'join'
 
 interface Props {
   compact?: boolean
@@ -116,6 +116,27 @@ export default function COGOCalculator({ compact = false }: Props) {
   const [joinText, setJoinText] = useState('')
   const [joinResult, setJoinResult] = useState<ReturnType<typeof joinComputation> | null>(null)
 
+  // ── DISTANCE-DISTANCE ──────────────────────────────────────────────────────
+  const [ddE1, setDdE1] = useState(''); const [ddN1, setDdN1] = useState('')
+  const [ddE2, setDdE2] = useState(''); const [ddN2, setDdN2] = useState('')
+  const [ddD1, setDdD1] = useState(''); const [ddD2, setDdD2] = useState('')
+  const [ddResult, setDdResult] = useState<DistDistResult | null>(null)
+  const [ddSel, setDdSel] = useState(0)
+
+  // ── BEARING-DISTANCE ───────────────────────────────────────────────────────
+  const [bdE1, setBdE1] = useState(''); const [bdN1, setBdN1] = useState('')
+  const [bdE2, setBdE2] = useState(''); const [bdN2, setBdN2] = useState('')
+  const [bdBear, setBdBear] = useState(DMSState())
+  const [bdDist, setBdDist] = useState('')
+  const [bdResult, setBdResult] = useState<BearingDistResult | null>(null)
+  const [bdSel, setBdSel] = useState(0)
+
+  // ── ARC BOUNDARY ──────────────────────────────────────────────────────────
+  const [arcSE, setArcSE] = useState(''); const [arcSN, setArcSN] = useState('')
+  const [arcEE, setArcEE] = useState(''); const [arcEN, setArcEN] = useState('')
+  const [arcR, setArcR] = useState(''); const [arcCW, setArcCW] = useState(true)
+  const [arcResult, setArcResult] = useState<ArcResult | null>(null)
+
   // ── COMPUTE HANDLERS ────────────────────────────────────────────────────────
   const handleInverse = () => {
     setError('')
@@ -199,14 +220,50 @@ export default function COGOCalculator({ compact = false }: Props) {
     } catch (e: any) { setError(e.message) }
   }
 
+  const handleDistDist = () => {
+    setError('')
+    if (!ddE1 || !ddN1 || !ddE2 || !ddN2 || !ddD1 || !ddD2) { setError('Enter all fields'); return }
+    try {
+      setDdResult(distanceDistanceIntersection({
+        e1: parseFloat(ddE1), n1: parseFloat(ddN1),
+        e2: parseFloat(ddE2), n2: parseFloat(ddN2),
+        distance1: parseFloat(ddD1), distance2: parseFloat(ddD2),
+      }))
+    } catch (e: any) { setError(e.message) }
+  }
+
+  const handleBearingDist = () => {
+    setError('')
+    const b = DMSGet(bdBear)
+    if (!bdE1 || !bdN1 || !bdE2 || !bdN2 || !bdDist) { setError('Enter all fields'); return }
+    try {
+      setBdResult(bearingDistanceIntersection({
+        e1: parseFloat(bdE1), n1: parseFloat(bdN1),
+        e2: parseFloat(bdE2), n2: parseFloat(bdN2),
+        bearingDeg: b.deg, bearingMin: b.min, bearingSec: b.sec,
+        distance: parseFloat(bdDist),
+      }))
+    } catch (e: any) { setError(e.message) }
+  }
+
+  const handleArcBoundary = () => {
+    setError('')
+    if (!arcSE || !arcSN || !arcEE || !arcEN || !arcR) { setError('Enter all fields'); return }
+    try {
+      setArcResult(arcByRadiusAndChord({
+        startPoint: { easting: parseFloat(arcSE), northing: parseFloat(arcSN) },
+        endPoint: { easting: parseFloat(arcEE), northing: parseFloat(arcEN) },
+        radius: parseFloat(arcR),
+        isClockwise: arcCW,
+      }))
+    } catch (e: any) { setError(e.message) }
+  }
+
   const clearAll = () => {
     setError('')
-    setInvResult(null)
-    setPolResult(null)
-    setIntResult(null)
-    setResResult(null)
-    setAreaResult(null)
-    setJoinResult(null)
+    setInvResult(null); setPolResult(null); setIntResult(null)
+    setResResult(null); setAreaResult(null); setJoinResult(null)
+    setDdResult(null); setBdResult(null); setArcResult(null)
   }
 
   const handleExportPDF = async () => {
@@ -334,8 +391,11 @@ export default function COGOCalculator({ compact = false }: Props) {
   const TABS: { id: Tab; label: string }[] = [
     { id: 'inverse', label: 'Distance & Bearing' },
     { id: 'polar', label: 'Radiation' },
-    { id: 'intersection', label: 'Forward Intersection' },
-    { id: 'resection', label: 'Backward Intersection' },
+    { id: 'intersection', label: 'Brg-Brg Intersection' },
+    { id: 'distDist', label: 'Dist-Dist Intersection' },
+    { id: 'bearingDist', label: 'Brg-Dist Intersection' },
+    { id: 'arcBoundary', label: 'Arc Boundary' },
+    { id: 'resection', label: 'Resection' },
     { id: 'area', label: 'Area by Coordinates' },
     { id: 'join', label: 'Missing Line' },
   ]
@@ -483,6 +543,69 @@ export default function COGOCalculator({ compact = false }: Props) {
                 className="w-full h-48 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm font-mono"
                 placeholder='Label, Easting, Northing (one point per line)' />
               <button onClick={handleArea} className="btn btn-primary w-full">Compute Area →</button>
+            </div>
+          )}
+
+          {/* DISTANCE-DISTANCE */}
+          {activeTab === 'distDist' && (
+            <div className="card p-4 space-y-3">
+              <h2 className="font-semibold text-sm">Distance-Distance Intersection — Circle-circle</h2>
+              <p className="text-xs text-[var(--text-muted)]">Known Point 1</p>
+              <div className="grid grid-cols-2 gap-3">
+                <CoordField label="E₁ (m)" value={ddE1} onChange={setDdE1} />
+                <CoordField label="N₁ (m)" value={ddN1} onChange={setDdN1} />
+              </div>
+              <CoordField label="Distance from P1 (m)" value={ddD1} onChange={setDdD1} />
+              <p className="text-xs text-[var(--text-muted)]">Known Point 2</p>
+              <div className="grid grid-cols-2 gap-3">
+                <CoordField label="E₂ (m)" value={ddE2} onChange={setDdE2} />
+                <CoordField label="N₂ (m)" value={ddN2} onChange={setDdN2} />
+              </div>
+              <CoordField label="Distance from P2 (m)" value={ddD2} onChange={setDdD2} />
+              <button onClick={handleDistDist} className="btn btn-primary w-full">Compute Intersection →</button>
+            </div>
+          )}
+
+          {/* BEARING-DISTANCE */}
+          {activeTab === 'bearingDist' && (
+            <div className="card p-4 space-y-3">
+              <h2 className="font-semibold text-sm">Bearing-Distance Intersection — Ray meets circle</h2>
+              <p className="text-xs text-[var(--text-muted)]">Bearing from Point 1</p>
+              <div className="grid grid-cols-2 gap-3">
+                <CoordField label="E₁ (m)" value={bdE1} onChange={setBdE1} />
+                <CoordField label="N₁ (m)" value={bdN1} onChange={setBdN1} />
+              </div>
+              <DMSField label="WCB Bearing from P1" deg={bdBear.d} min={bdBear.m} sec={bdBear.s}
+                onChange={(f, v) => setBdBear(p => ({ ...p, [f]: v }))} />
+              <p className="text-xs text-[var(--text-muted)]">Distance from Point 2</p>
+              <div className="grid grid-cols-2 gap-3">
+                <CoordField label="E₂ (m)" value={bdE2} onChange={setBdE2} />
+                <CoordField label="N₂ (m)" value={bdN2} onChange={setBdN2} />
+              </div>
+              <CoordField label="Distance from P2 (m)" value={bdDist} onChange={setBdDist} />
+              <button onClick={handleBearingDist} className="btn btn-primary w-full">Compute Intersection →</button>
+            </div>
+          )}
+
+          {/* ARC BOUNDARY */}
+          {activeTab === 'arcBoundary' && (
+            <div className="card p-4 space-y-3">
+              <h2 className="font-semibold text-sm">Arc Boundary — Radius + Chord endpoints</h2>
+              <p className="text-xs text-[var(--text-muted)]">Start Point</p>
+              <div className="grid grid-cols-2 gap-3">
+                <CoordField label="E start (m)" value={arcSE} onChange={setArcSE} />
+                <CoordField label="N start (m)" value={arcSN} onChange={setArcSN} />
+              </div>
+              <p className="text-xs text-[var(--text-muted)]">End Point</p>
+              <div className="grid grid-cols-2 gap-3">
+                <CoordField label="E end (m)" value={arcEE} onChange={setArcEE} />
+                <CoordField label="N end (m)" value={arcEN} onChange={setArcEN} />
+              </div>
+              <CoordField label="Radius (m)" value={arcR} onChange={setArcR} />
+              <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                <input type="checkbox" checked={arcCW} onChange={e => setArcCW(e.target.checked)} /> Clockwise arc
+              </label>
+              <button onClick={handleArcBoundary} className="btn btn-primary w-full">Compute Arc →</button>
             </div>
           )}
 
@@ -676,7 +799,67 @@ export default function COGOCalculator({ compact = false }: Props) {
             </div>
           )}
 
-          {!invResult && !polResult && !intResult && !resResult && !areaResult && !joinResult && (
+          {/* DIST-DIST RESULTS */}
+          {activeTab === 'distDist' && ddResult && (
+            <div className="card p-4 space-y-4">
+              <h2 className="font-semibold text-sm">Working — Distance-Distance Intersection</h2>
+              {ddResult.error && <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">{ddResult.error}</div>}
+              <StepsDisplay steps={ddResult.steps} />
+              {ddResult.hasSolution && ddResult.solutions.length > 1 && (
+                <div className="flex gap-2">
+                  <button onClick={() => setDdSel(0)} className={`px-3 py-1.5 rounded text-sm ${ddSel === 0 ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}>Solution 1</button>
+                  <button onClick={() => setDdSel(1)} className={`px-3 py-1.5 rounded text-sm ${ddSel === 1 ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}>Solution 2</button>
+                </div>
+              )}
+              {ddResult.hasSolution && (
+                <div className="grid grid-cols-2 gap-2">
+                  <ResultCard label="E (m)" value={ddResult.solutions[ddSel]?.easting.toFixed(4) ?? '-'} accent />
+                  <ResultCard label="N (m)" value={ddResult.solutions[ddSel]?.northing.toFixed(4) ?? '-'} accent />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* BEARING-DIST RESULTS */}
+          {activeTab === 'bearingDist' && bdResult && (
+            <div className="card p-4 space-y-4">
+              <h2 className="font-semibold text-sm">Working — Bearing-Distance Intersection</h2>
+              {bdResult.error && <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">{bdResult.error}</div>}
+              <StepsDisplay steps={bdResult.steps} />
+              {bdResult.hasSolution && bdResult.solutions.length > 1 && (
+                <div className="flex gap-2">
+                  <button onClick={() => setBdSel(0)} className={`px-3 py-1.5 rounded text-sm ${bdSel === 0 ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}>Solution 1</button>
+                  <button onClick={() => setBdSel(1)} className={`px-3 py-1.5 rounded text-sm ${bdSel === 1 ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}>Solution 2</button>
+                </div>
+              )}
+              {bdResult.hasSolution && (
+                <div className="grid grid-cols-2 gap-2">
+                  <ResultCard label="E (m)" value={bdResult.solutions[bdSel]?.easting.toFixed(4) ?? '-'} accent />
+                  <ResultCard label="N (m)" value={bdResult.solutions[bdSel]?.northing.toFixed(4) ?? '-'} accent />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ARC BOUNDARY RESULTS */}
+          {activeTab === 'arcBoundary' && arcResult && (
+            <div className="card p-4 space-y-4">
+              <h2 className="font-semibold text-sm">Working — Arc Boundary</h2>
+              <StepsDisplay steps={arcResult.steps} />
+              <div className="grid grid-cols-2 gap-2">
+                <ResultCard label="Center E (m)" value={arcResult.center.easting.toFixed(4)} />
+                <ResultCard label="Center N (m)" value={arcResult.center.northing.toFixed(4)} />
+                <ResultCard label="Arc Length" value={`${arcResult.arcLength.toFixed(4)} m`} accent />
+                <ResultCard label="Chord Length" value={`${arcResult.chordLength.toFixed(4)} m`} />
+                <ResultCard label="Subtended Angle" value={`${arcResult.subtendedAngle.toFixed(4)}°`} accent />
+                <ResultCard label="Segment Area" value={`${arcResult.segmentArea.toFixed(4)} m²`} />
+                <ResultCard label="Chord Bearing" value={arcResult.chordBearingDMS} />
+                <ResultCard label="Arc Points" value={`${arcResult.points.length} pts`} />
+              </div>
+            </div>
+          )}
+
+          {!invResult && !polResult && !intResult && !resResult && !areaResult && !joinResult && !ddResult && !bdResult && !arcResult && (
             <div className="flex items-center justify-center h-64 border border-dashed border-[var(--border-color)] rounded">
               <p className="text-sm text-[var(--text-muted)]">Enter values and click Compute</p>
             </div>

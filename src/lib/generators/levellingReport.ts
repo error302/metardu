@@ -19,12 +19,12 @@ export async function generateLevellingReport(
   );
   const entries = entriesRes.rows;
 
-  const rows = (entries ?? []).map((e: any) => e.raw_data as Record<string, unknown>);
+  const rows = (entries ?? []).map((e: { row_index: number; raw_data: Record<string, unknown> }) => e.raw_data)
 
-  const bsReadings = rows.filter((r: any) => r.bs).map((r: any) => parseFloat(String(r.bs)) || 0);
-  const fsReadings = rows.filter((r: any) => r.fs).map((r: any) => parseFloat(String(r.fs)) || 0);
-  const sumBS = bsReadings.reduce((a: any, b: any) => a + b, 0);
-  const sumFS = fsReadings.reduce((a: any, b: any) => a + b, 0);
+  const bsReadings = rows.filter((r) => r.bs).map((r) => parseFloat(String(r.bs)) || 0)
+  const fsReadings = rows.filter((r) => r.fs).map((r) => parseFloat(String(r.fs)) || 0)
+  const sumBS = bsReadings.reduce((a, b) => a + b, 0)
+  const sumFS = fsReadings.reduce((a, b) => a + b, 0)
   const misclosureMm = Math.abs(sumBS - sumFS) * 1000;
 
   const totalDistanceM = rows.length * 50;
@@ -51,7 +51,7 @@ export async function generateLevellingReport(
   autoTable(doc, {
     startY: y,
     head: [['Station', 'BS (m)', 'IS (m)', 'FS (m)', 'HPC (m)', 'RL (m)', 'Remark']],
-    body: rows.map((r: any) => [
+    body: rows.map((r) => [
       String(r.station ?? ''),
       String(r.bs ?? ''),
       String(r.is ?? ''),

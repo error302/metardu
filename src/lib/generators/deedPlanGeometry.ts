@@ -79,7 +79,7 @@ export async function computeDeedPlanGeometry(
   const project = projectRes.rows[0];
 
   const legs: TraverseStation[] = entries
-    .map((e: any) => ({
+    .map((e: { row_index: number; station: string; raw_data: Record<string, unknown> }) => ({
       station: String(e.station ?? e.raw_data?.station ?? ''),
       bearing: parseBearing(e.raw_data?.bearing ?? e.raw_data?.bs ?? 0),
       distance: parseFloat(String(e.raw_data?.distance ?? e.raw_data?.hd ?? '0')) || 0,
@@ -87,7 +87,7 @@ export async function computeDeedPlanGeometry(
       monument: String(e.raw_data?.monument_type ?? ''),
       markStatus: String(e.raw_data?.mark_status ?? e.raw_data?.monument_status ?? 'FOUND'),
     }))
-    .filter((l: any) => l.distance > 0);
+    .filter((l) => l.distance > 0);
 
   if (legs.length < 3) {
     throw new Error('Insufficient traverse data. Ensure bearing and distance are entered for each leg.');
@@ -145,7 +145,7 @@ export async function computeDeedPlanGeometry(
     });
   }
 
-  const pts = adjusted.map((s: any) => ({ easting: s.easting, northing: s.northing }));
+  const pts = adjusted.map((s) => ({ easting: s.easting, northing: s.northing }));
   const areaResult = coordinateArea(pts);
   const areaM2 = areaResult.areaSqm;
   const areaHa = areaResult.areaHa;
@@ -166,8 +166,8 @@ export async function computeDeedPlanGeometry(
     };
   });
 
-  const eastings = adjusted.map((s: any) => s.easting);
-  const northings = adjusted.map((s: any) => s.northing);
+  const eastings = adjusted.map((s) => s.easting)
+  const northings = adjusted.map((s) => s.northing)
 
   return {
     stations: adjusted,

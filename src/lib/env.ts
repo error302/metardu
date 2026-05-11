@@ -51,14 +51,31 @@ const envSchema = z.object({
 const parsedEnv = envSchema.safeParse(process.env)
 
 if (!parsedEnv.success) {
-  console.warn('Some environment variables are missing - runtime features may be limited')
+  const issues = parsedEnv.error.issues
+
+  // Required fields — crash immediately so misconfiguration is caught at startup
+  const requiredFields = ['DATABASE_URL', 'AUTH_SECRET']
+  const missingRequired = issues.filter(i =>
+    i.path.some(p => requiredFields.includes(String(p)))
+  )
+
+  if (missingRequired.length > 0) {
+    const missing = missingRequired.map(i => i.path.join('.')).join(', ')
+    throw new Error(
+      `[env] Missing required environment variables: ${missing}\n` +
+      `Set these in .env.local or your deployment environment before starting.`
+    )
+  }
+
+  // Optional fields — warn but continue
+  console.warn('[env] Some optional environment variables are missing — related features will be disabled.')
 }
 
 const defaults = {
   ADMIN_EMAILS: process.env.ADMIN_EMAILS || '',
 } as const
 
-export const env = { ...defaults, ...parsedEnv.data }
+export const env = { ...defaults, ...(parsedEnv.data ?? {}) } as typeof defaults & Partial<z.infer<typeof envSchema>>
 
 export function requireEnv(name: keyof typeof env): string {
   const value = env[name]

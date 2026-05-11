@@ -1,13 +1,3 @@
-/**
- * GPS/GNSS Network Least Squares Adjustment Engine
- * Phase 18 — Sprint 9
- *
- * Performs a 2D weighted least squares adjustment of a control network.
- * All coordinates in Arc 1960 / UTM Zone 37S (SRID 21037), metres.
- *
- * Reference: Ghilani & Wolf — Elementary Surveying, Chapter 15
- */
-
 import { z } from 'zod'
 
 export const StationSchema = z.object({
@@ -27,7 +17,9 @@ export const ObservationSchema = z.object({
   deltaE: z.number().finite(),
   deltaN: z.number().finite(),
   deltaH: z.number().finite(),
-  stdDev: z.number().positive().max(1, 'Standard deviation must be ≤ 1m').default(0.005),
+  stdDevE: z.number().positive().max(1).default(0.005),
+  stdDevN: z.number().positive().max(1).default(0.005),
+  stdDevH: z.number().positive().max(1).default(0.010),
 })
 
 export type Observation = z.infer<typeof ObservationSchema>
@@ -35,7 +27,7 @@ export type Observation = z.infer<typeof ObservationSchema>
 let dbClient: any = null
 
 async function logNetworkAdjustment(stations: Station[], observations: Observation[]) {
-  if (typeof window === 'undefined') return // Client-side only
+  if (typeof window === 'undefined') return
   try {
     const { createClient } = await import('@/lib/api-client/client')
     dbClient = createClient()
@@ -52,9 +44,13 @@ async function logNetworkAdjustment(stations: Station[], observations: Observati
 export interface AdjustedStation extends Station {
   residualE: number
   residualN: number
+  residualH: number
   semiMajor: number
   semiMinor: number
   orientation: number
+  sigmaE: number
+  sigmaN: number
+  sigmaH: number
 }
 
 export interface AdjustmentResult {
@@ -70,7 +66,6 @@ export function adjustNetwork(
   stations: Station[],
   observations: Observation[]
 ): AdjustmentResult {
-  // Zod validation
   const stationValidation = StationSchema.array().safeParse(stations)
   if (!stationValidation.success) {
     const issues = stationValidation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')
@@ -85,7 +80,6 @@ export function adjustNetwork(
 
   const warnings: string[] = []
 
-  // Log computation attempt (non-blocking)
   logNetworkAdjustment(stations, observations).catch(() => {})
 
   const fixed = stations.filter(s => s.isFixed)
@@ -96,22 +90,22 @@ export function adjustNetwork(
     throw new Error('At least one baseline observation is required.')
   }
 
-   const free = stations.filter(s => !s.isFixed)
-   const n = free.length * 2
-   const m = observations.length * 2
-   const dof = m - n
+  const free = stations.filter(s => !s.isFixed)
+  const n = free.length * 3 // 3D: E, N, H
+  const m = observations.length * 3 // 3 equations per baseline
+  const dof = m - n
 
-   if (dof < 0) {
-     throw new Error(
-       `Insufficient observations. Need at least ${n / 2} observations for ${free.length} free stations. Currently have ${observations.length}.`
-     )
-   }
+  if (dof < 0) {
+    throw new Error(
+      `Insufficient observations. Need at least ${Math.ceil(n / 3)} baselines for ${free.length} free stations.`
+    )
+  }
 
   const stationIndex = new Map<string, number>()
   free.forEach((s, i) => stationIndex.set(s.id, i))
 
-  const coords = new Map<string, { e: number; n: number }>()
-  stations.forEach(s => coords.set(s.id, { e: s.easting, n: s.northing }))
+  const coords = new Map<string, { e: number; n: number; h: number }>()
+  stations.forEach(s => coords.set(s.id, { e: s.easting, n: s.northing, h: s.elevation }))
 
   const A: number[][] = []
   const W: number[] = []
@@ -120,32 +114,52 @@ export function adjustNetwork(
   for (const obs of observations) {
     const fromCoord = coords.get(obs.from)!
     const toCoord = coords.get(obs.to)!
-    const w = 1 / (obs.stdDev * obs.stdDev)
 
+    const wE = 1 / (obs.stdDevE * obs.stdDevE)
+    const wN = 1 / (obs.stdDevN * obs.stdDevN)
+    const wH = 1 / (obs.stdDevH * obs.stdDevH)
+
+    // Delta Easting
     const rowE = new Array(n).fill(0)
-    if (stationIndex.has(obs.to)) rowE[stationIndex.get(obs.to)! * 2] = 1
-    if (stationIndex.has(obs.from)) rowE[stationIndex.get(obs.from)! * 2] = -1
+    if (stationIndex.has(obs.to)) rowE[stationIndex.get(obs.to)! * 3] = 1
+    if (stationIndex.has(obs.from)) rowE[stationIndex.get(obs.from)! * 3] = -1
     const obsE = toCoord.e - fromCoord.e
     A.push(rowE)
-    W.push(w)
+    W.push(wE)
     l.push(obs.deltaE - obsE)
 
+    // Delta Northing
     const rowN = new Array(n).fill(0)
-    if (stationIndex.has(obs.to)) rowN[stationIndex.get(obs.to)! * 2 + 1] = 1
-    if (stationIndex.has(obs.from)) rowN[stationIndex.get(obs.from)! * 2 + 1] = -1
+    if (stationIndex.has(obs.to)) rowN[stationIndex.get(obs.to)! * 3 + 1] = 1
+    if (stationIndex.has(obs.from)) rowN[stationIndex.get(obs.from)! * 3 + 1] = -1
     const obsN = toCoord.n - fromCoord.n
     A.push(rowN)
-    W.push(w)
+    W.push(wN)
     l.push(obs.deltaN - obsN)
+
+    // Delta Height
+    const rowH = new Array(n).fill(0)
+    if (stationIndex.has(obs.to)) rowH[stationIndex.get(obs.to)! * 3 + 2] = 1
+    if (stationIndex.has(obs.from)) rowH[stationIndex.get(obs.from)! * 3 + 2] = -1
+    const obsH = toCoord.h - fromCoord.h
+    A.push(rowH)
+    W.push(wH)
+    l.push(obs.deltaH - obsH)
   }
 
   const N = multiplyAtWA(A, W, n)
   const t = multiplyAtWl(A, W, l, n)
-  const x = solveLinearSystem(N, t)
+  
+  let x: number[]
+  try {
+    x = solveLinearSystem(N, t)
+  } catch (err: any) {
+    throw new Error('Failed to solve network equations: ' + err.message)
+  }
 
   free.forEach((s, i) => {
     const c = coords.get(s.id)!
-    coords.set(s.id, { e: c.e + x[i * 2], n: c.n + x[i * 2 + 1] })
+    coords.set(s.id, { e: c.e + x[i * 3], n: c.n + x[i * 3 + 1], h: c.h + x[i * 3 + 2] })
   })
 
   const residuals: number[] = []
@@ -164,8 +178,17 @@ export function adjustNetwork(
 
   const Qxx = invertMatrix(N, n)
 
-  const maxAllowedResidual = 3 * Math.max(...observations.map(o => o.stdDev))
-  const passedTolerance = residuals.every(r => Math.abs(r) < maxAllowedResidual)
+  const maxAllowedResidualE = 3 * Math.max(...observations.map(o => o.stdDevE))
+  const maxAllowedResidualN = 3 * Math.max(...observations.map(o => o.stdDevN))
+  const maxAllowedResidualH = 3 * Math.max(...observations.map(o => o.stdDevH))
+  
+  const passedTolerance = residuals.every((r, i) => {
+    const mod = i % 3
+    if (mod === 0) return Math.abs(r) < maxAllowedResidualE
+    if (mod === 1) return Math.abs(r) < maxAllowedResidualN
+    return Math.abs(r) < maxAllowedResidualH
+  })
+
   if (!passedTolerance) {
     warnings.push('One or more residuals exceed 3σ tolerance. Check for blunders in baseline observations.')
   }
@@ -177,18 +200,29 @@ export function adjustNetwork(
     const adjusted = coords.get(s.id)!
     let residualE = 0
     let residualN = 0
+    let residualH = 0
     let semiMajor = 0
     let semiMinor = 0
     let orientation = 0
+    let sigmaE = 0
+    let sigmaN = 0
+    let sigmaH = 0
 
     if (!s.isFixed) {
       const i = stationIndex.get(s.id)!
-      residualE = x[i * 2]
-      residualN = x[i * 2 + 1]
+      residualE = x[i * 3]
+      residualN = x[i * 3 + 1]
+      residualH = x[i * 3 + 2]
 
-      const qEE = Qxx[i * 2][i * 2]
-      const qNN = Qxx[i * 2 + 1][i * 2 + 1]
-      const qEN = Qxx[i * 2][i * 2 + 1]
+      const qEE = Qxx[i * 3][i * 3]
+      const qNN = Qxx[i * 3 + 1][i * 3 + 1]
+      const qHH = Qxx[i * 3 + 2][i * 3 + 2]
+      const qEN = Qxx[i * 3][i * 3 + 1]
+
+      sigmaE = sigmaZero * Math.sqrt(Math.max(qEE, 0))
+      sigmaN = sigmaZero * Math.sqrt(Math.max(qNN, 0))
+      sigmaH = sigmaZero * Math.sqrt(Math.max(qHH, 0))
+
       const t2 = Math.atan2(2 * qEN, qEE - qNN) / 2
       const A2 = (qEE + qNN) / 2 + Math.sqrt(Math.pow((qEE - qNN) / 2, 2) + qEN * qEN)
       const B2 = (qEE + qNN) / 2 - Math.sqrt(Math.pow((qEE - qNN) / 2, 2) + qEN * qEN)
@@ -201,11 +235,16 @@ export function adjustNetwork(
       ...s,
       easting: adjusted.e,
       northing: adjusted.n,
+      elevation: adjusted.h,
       residualE,
       residualN,
+      residualH,
       semiMajor,
       semiMinor,
       orientation,
+      sigmaE,
+      sigmaN,
+      sigmaH,
     }
   })
 

@@ -167,7 +167,7 @@ export async function generateDeedPlan(
   doc.text('BEARING & DISTANCE SCHEDULE', SCHEDULE_X, ry);
   ry += 4;
 
-  const bearingBody = geom.bearingSchedule.map((l: any) => [l.from, l.to, l.bearing, l.distance]);
+  const bearingBody = geom.bearingSchedule.map((l) => [l.from, l.to, l.bearing, l.distance])
 
   autoTable(doc, {
     startY: ry,
@@ -193,7 +193,7 @@ export async function generateDeedPlan(
   autoTable(doc, {
     startY: ry,
     head: [['Stn', 'Easting (m)', 'Northing (m)', 'Beacon No.']] as unknown as (string | number)[][],
-    body: geom.stations.map((s: any) => [s.station, s.easting.toFixed(3), s.northing.toFixed(3), s.beaconNo ?? '—']) as unknown as (string | number)[][],
+    body: geom.stations.map((s) => [s.station, s.easting.toFixed(3), s.northing.toFixed(3), s.beaconNo ?? '—']) as unknown as (string | number)[][],
     styles: { fontSize: 6.5, cellPadding: 1.2 },
     headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 248, 250] },
@@ -211,7 +211,7 @@ export async function generateDeedPlan(
   doc.text('BEACON DESCRIPTION', SCHEDULE_X, ry);
   ry += 4;
 
-  const beaconBody = geom.stations.map((s: any) => {
+  const beaconBody = geom.stations.map((s) => {
     const desc = getBeaconDescription(s.monument);
     const status = s.status || s.markStatus || 'FOUND';
     const condition = status === 'SET' ? 'Set' : status === 'FOUND' ? 'Found' : status === 'REFERENCED' ? 'Referenced' : status === 'DESTROYED' ? 'Destroyed' : status === 'NOT_FOUND' ? 'Not Found' : 'Found';

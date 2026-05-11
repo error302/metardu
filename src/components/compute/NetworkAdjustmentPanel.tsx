@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { adjustNetwork, Station, Observation, AdjustmentResult } from '@/lib/survey/networkAdjustment'
 import { generateNetworkDXF } from '@/lib/survey/networkAdjustmentDXF'
+import { ErrorEllipseCanvas } from './ErrorEllipseCanvas'
 
 interface Props {
   projectId: string
@@ -24,6 +25,130 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
   const [result, setResult] = useState<AdjustmentResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [importStatus, setImportStatus] = useState('')
+
+  // ─── Import from Traverse ────────────────────────────────────────────────
+  const handleImportFromTraverse = useCallback(async () => {
+    try {
+      setImportStatus('Loading traverse data...')
+      const res = await fetch(`/api/project/${projectId}/traverse`)
+      if (!res.ok) {
+        setImportStatus('')
+        setError('No traverse data found for this project. Run a traverse computation first.')
+        return
+      }
+      const data = await res.json()
+      const coords = data.coordinates || []
+      const legs = data.legs || []
+
+      if (coords.length < 2) {
+        setImportStatus('')
+        setError('Traverse has fewer than 2 stations.')
+        return
+      }
+
+      // Convert traverse stations → LSQ stations
+      const newStations: Station[] = coords.map((c: any, i: number) => ({
+        id: `trv-${c.station}`,
+        name: c.station,
+        easting: c.easting,
+        northing: c.northing,
+        elevation: c.rl ?? 0,
+        isFixed: i === 0 || i === coords.length - 1, // first and last are fixed
+      }))
+
+      // Convert traverse legs → LSQ observations
+      const newObs: Observation[] = legs.map((leg: any) => {
+        const fromStn = newStations.find((s: Station) => s.name === leg.from)
+        const toStn = newStations.find((s: Station) => s.name === leg.to)
+        if (!fromStn || !toStn) return null
+        return {
+          from: fromStn.id,
+          to: toStn.id,
+          deltaE: leg.adjDep ?? leg.departure ?? 0,
+          deltaN: leg.adjLat ?? leg.latitude ?? 0,
+          deltaH: 0,
+          stdDev: 0.005 + (leg.hd ?? 100) * 0.00001, // 5mm + 10ppm
+        }
+      }).filter(Boolean) as Observation[]
+
+      setStations(newStations)
+      setObservations(newObs)
+      setResult(null)
+      setError(null)
+      setImportStatus(`Imported ${newStations.length} stations and ${newObs.length} observations from traverse.`)
+      setTimeout(() => setImportStatus(''), 4000)
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to import traverse data.')
+      setImportStatus('')
+    }
+  }, [projectId])
+
+  // ─── Import from GSI File ─────────────────────────────────────────────────
+  const handleImportGSI = useCallback(async () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.gsi,.GSI'
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      try {
+        setImportStatus('Parsing GSI file...')
+        const content = await file.text()
+        const { parseGSI, pairFaces } = await import('@/lib/import/totalStation/parseGSI')
+        const parsed = parseGSI(content)
+
+        if (!parsed.ok || parsed.records.length === 0) {
+          setError('GSI file parsed but no valid records found.')
+          setImportStatus('')
+          return
+        }
+
+        // Extract coordinate records as stations
+        const coordRecords = parsed.records.filter(r => r.easting !== undefined && r.northing !== undefined)
+        const obsRecords = parsed.records.filter(r => r.horizontalAngle !== undefined || r.slopeDistance !== undefined)
+
+        if (coordRecords.length >= 2) {
+          const newStations: Station[] = coordRecords.map((r, i) => ({
+            id: `gsi-${r.pointId}`,
+            name: r.pointId,
+            easting: r.easting!,
+            northing: r.northing!,
+            elevation: r.elevation ?? 0,
+            isFixed: i === 0,
+          }))
+          setStations(newStations)
+
+          // Create observations from consecutive coordinate pairs
+          const newObs: Observation[] = []
+          for (let i = 0; i < newStations.length - 1; i++) {
+            newObs.push({
+              from: newStations[i].id,
+              to: newStations[i + 1].id,
+              deltaE: newStations[i + 1].easting - newStations[i].easting,
+              deltaN: newStations[i + 1].northing - newStations[i].northing,
+              deltaH: newStations[i + 1].elevation - newStations[i].elevation,
+              stdDev: 0.005,
+            })
+          }
+          setObservations(newObs)
+        }
+
+        setResult(null)
+        setError(null)
+        setImportStatus(
+          `GSI ${parsed.format}: ${parsed.statistics.totalRecords} records, ` +
+          `${parsed.statistics.coordinateRecords} coords, ` +
+          `${parsed.statistics.faceLeftCount} FL / ${parsed.statistics.faceRightCount} FR`
+        )
+        setTimeout(() => setImportStatus(''), 6000)
+      } catch (err: any) {
+        setError(err.message ?? 'Failed to parse GSI file.')
+        setImportStatus('')
+      }
+    }
+    input.click()
+  }, [])
 
   const addStation = () => {
     setStations(prev => [...prev, {
@@ -122,6 +247,28 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
           Least squares adjustment of GPS/GNSS baselines. Arc 1960 / UTM Zone 37S.
           At least one fixed control station required.
         </p>
+      </div>
+
+      {importStatus && (
+        <div className="bg-blue-900/30 border border-blue-700 text-blue-300 px-4 py-3 rounded-lg text-sm">
+          {importStatus}
+        </div>
+      )}
+
+      {/* Import Actions */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={handleImportFromTraverse}
+          className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium"
+        >
+          📐 Import from Traverse
+        </button>
+        <button
+          onClick={handleImportGSI}
+          className="text-sm bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 font-medium"
+        >
+          📁 Import GSI File
+        </button>
       </div>
 
       <section>
@@ -326,6 +473,14 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
               </table>
             </div>
           </div>
+
+          {/* Error Ellipse Diagram */}
+          <ErrorEllipseCanvas
+            stations={result.adjustedStations}
+            observations={observations}
+            width={700}
+            height={450}
+          />
 
           {saving && <p className="text-sm text-zinc-500 italic">Saving results…</p>}
         </section>

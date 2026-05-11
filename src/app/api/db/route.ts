@@ -39,7 +39,7 @@ const USER_SCOPED_TABLES = new Set([
   'job_reviews', 'payment_history', 'render_jobs', 'project_submissions',
   'submission_documents', 'import_sessions', 'online_service_logs',
   'surveyor_profiles', 'plan_usage', 'field_projects',
-  'scheme_details', 'blocks', 'parcels', 'parcel_traverses',
+  'scheme_details', 'blocks', 'parcel_traverses',  // 'parcels' already listed above
   'traverse_observations', 'traverse_coordinates', 'block_assignments',
   'scheme_activity_log',
 ])
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         )
       }
-      userId = (session.user as any).id
+      userId = (session.user as { id: string }).id
       userEmail = session.user.email ?? null
     }
 

@@ -20,14 +20,14 @@ export async function generateDeformationReport(
   }
 
   const epochData = entries
-    .map((e: any) => ({
+    .map((e: { row_index: number; station: string; raw_data: Record<string, unknown> }) => ({
       point: e.station || `P${e.row_index}`,
-      easting: parseFloat(String(e.raw_data?.easting || e.raw_data?.e || 0)),
-      northing: parseFloat(String(e.raw_data?.northing || e.raw_data?.n || 0)),
-      elevation: parseFloat(String(e.raw_data?.elevation || e.raw_data?.rl || e.raw_data?.z || 0)),
-      epoch: String(e.raw_data?.epoch || 'current'),
+      easting: parseFloat(String(e.raw_data?.easting ?? e.raw_data?.e ?? 0)),
+      northing: parseFloat(String(e.raw_data?.northing ?? e.raw_data?.n ?? 0)),
+      elevation: parseFloat(String(e.raw_data?.elevation ?? e.raw_data?.rl ?? e.raw_data?.z ?? 0)),
+      epoch: String(e.raw_data?.epoch ?? 'current'),
     }))
-    .filter((p: any) => p.easting !== 0);
+    .filter((p) => p.easting !== 0)
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
@@ -44,7 +44,7 @@ export async function generateDeformationReport(
   doc.setFont('helvetica', 'bold');
   doc.text('MONITORING POINTS', 14, 35);
 
-  const tableData = epochData.map((p: any) => [
+  const tableData = epochData.map((p) => [
     p.point,
     p.epoch,
     p.easting.toFixed(3),

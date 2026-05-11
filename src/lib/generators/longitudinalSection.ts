@@ -20,14 +20,14 @@ export async function generateLongitudinalSection(
   }
 
   const levellingData = entries
-    .map((e: any) => ({
+    .map((e: { row_index: number; station: string; raw_data: Record<string, unknown> }) => ({
       station: e.station || `P${e.row_index}`,
-      chainage: parseFloat(String(e.raw_data?.chainage || e.raw_data?.distance || e.row_index * 10)),
-      rl: parseFloat(String(e.raw_data?.rl || e.raw_data?.elevation || 0)),
-      remark: e.raw_data?.remark || e.raw_data?.description || '',
+      chainage: parseFloat(String(e.raw_data?.chainage ?? e.raw_data?.distance ?? e.row_index * 10)),
+      rl: parseFloat(String(e.raw_data?.rl ?? e.raw_data?.elevation ?? 0)),
+      remark: String(e.raw_data?.remark ?? e.raw_data?.description ?? ''),
     }))
-    .filter((d: any) => !isNaN(d.rl))
-    .sort((a: any, b: any) => a.chainage - b.chainage);
+    .filter((d) => !isNaN(d.rl))
+    .sort((a, b) => a.chainage - b.chainage)
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -40,7 +40,7 @@ export async function generateLongitudinalSection(
   doc.text(`Project: ${project.name}`, 14, 25);
   doc.text(`Date: ${new Date().toLocaleDateString('en-KE')}`, 250, 25, { align: 'right' });
 
-  const tableData = levellingData.map((d: any) => [
+  const tableData = levellingData.map((d) => [
     d.station,
     d.chainage.toFixed(2),
     d.rl.toFixed(3),
@@ -68,8 +68,8 @@ export async function generateLongitudinalSection(
   doc.setFont('helvetica', 'bold');
   doc.text('Summary', 14, finalY + 10);
 
-  const minRL = Math.min(...levellingData.map((d: any) => d.rl));
-  const maxRL = Math.max(...levellingData.map((d: any) => d.rl));
+  const minRL = Math.min(...levellingData.map((d) => d.rl))
+  const maxRL = Math.max(...levellingData.map((d) => d.rl))
   const totalChainage = levellingData[levellingData.length - 1].chainage - levellingData[0].chainage;
 
   doc.setFont('helvetica', 'normal');

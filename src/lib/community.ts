@@ -10,13 +10,61 @@ export interface CommunityStats {
   totalCPDPointsAwarded: number
 }
 
+type DbRow = Record<string, unknown>
+
+function rowToJob(row: DbRow): SurveyJob {
+  return {
+    id: row.id as string,
+    postedBy: row.posted_by as string,
+    title: row.title as string,
+    description: row.description as string,
+    jobType: row.job_type as string,
+    county: row.county as string,
+    locationDescription: row.location_description as string,
+    parcelNumber: row.parcel_number as string,
+    estimatedArea: row.estimated_area as number,
+    budget: {
+      amount: (row.budget_amount as number) || 0,
+      currency: (row.budget_currency as string) || 'KES',
+      type: (row.budget_type as string) || 'FIXED',
+    },
+    deadline: row.deadline as string,
+    requiredQualifications: (row.required_quals as string[]) || [],
+    status: row.status as string,
+    createdAt: row.created_at as string,
+    awardedTo: row.awarded_to as string,
+    completedAt: row.completed_at as string,
+    commissionPaid: (row.commission_paid as boolean) ?? false,
+    updatedAt: (row.updated_at ?? row.created_at) as string,
+  } as unknown as SurveyJob
+}
+
+function rowToProfile(row: DbRow): SurveyorProfile {
+  return {
+    userId: row.user_id as string,
+    displayName: row.display_name as string,
+    iskNumber: row.isk_number as string,
+    firmName: row.firm_name as string,
+    county: row.county as string,
+    specializations: (row.specializations as string[]) || [],
+    yearsExperience: row.years_experience as number,
+    bio: row.bio as string,
+    profilePublic: row.profile_public !== false,
+    averageRating: (row.average_rating as number) || 0,
+    totalReviews: (row.total_reviews as number) || 0,
+    jobsCompleted: (row.jobs_completed as number) || 0,
+    verifiedIsk: (row.verified_isk as boolean) || false,
+    createdAt: row.created_at as string,
+  } as SurveyorProfile
+}
+
 export async function getOpenJobs(filters?: {
   jobType?: string
   county?: string
   minBudget?: number
   maxBudget?: number
 }): Promise<SurveyJob[]> {
-  let query = `
+  const query = `
     SELECT * FROM survey_jobs 
     WHERE status = 'OPEN' 
     ORDER BY created_at DESC
@@ -24,30 +72,7 @@ export async function getOpenJobs(filters?: {
   const params: unknown[] = []
 
   const result = await db.query(query, params)
-  return result.rows.map((row: any) => ({
-    id: row.id,
-    postedBy: row.posted_by,
-    title: row.title,
-    description: row.description,
-    jobType: row.job_type,
-    county: row.county,
-    locationDescription: row.location_description,
-    parcelNumber: row.parcel_number,
-    estimatedArea: row.estimated_area,
-    budget: {
-      amount: row.budget_amount || 0,
-      currency: row.budget_currency || 'KES',
-      type: row.budget_type || 'FIXED'
-    },
-    deadline: row.deadline,
-    requiredQualifications: row.required_quals || [],
-    status: row.status,
-    createdAt: row.created_at,
-    awardedTo: row.awarded_to,
-    completedAt: row.completed_at,
-    commissionPaid: row.commission_paid ?? false,
-    updatedAt: row.updated_at ?? row.created_at
-  })) as unknown as SurveyJob[]
+  return result.rows.map((row: DbRow) => rowToJob(row))
 }
 
 export async function getJobById(id: string): Promise<SurveyJob | null> {
@@ -56,32 +81,7 @@ export async function getJobById(id: string): Promise<SurveyJob | null> {
     [id]
   )
   if (result.rows.length === 0) return null
-  
-  const row = result.rows[0]
-  return {
-    id: row.id,
-    postedBy: row.posted_by,
-    title: row.title,
-    description: row.description,
-    jobType: row.job_type,
-    county: row.county,
-    locationDescription: row.location_description,
-    parcelNumber: row.parcel_number,
-    estimatedArea: row.estimated_area,
-    budget: {
-      amount: row.budget_amount || 0,
-      currency: row.budget_currency || 'KES',
-      type: row.budget_type || 'FIXED'
-    },
-    deadline: row.deadline,
-    requiredQualifications: row.required_quals || [],
-    status: row.status,
-    createdAt: row.created_at,
-    awardedTo: row.awarded_to,
-    completedAt: row.completed_at,
-    commissionPaid: row.commission_paid ?? false,
-    updatedAt: row.updated_at ?? row.created_at
-  } as SurveyJob
+  return rowToJob(result.rows[0] as DbRow)
 }
 
 export async function createJob(job: Partial<SurveyJob>, userId: string): Promise<string> {
@@ -140,23 +140,7 @@ export async function getSurveyorProfile(userId: string): Promise<SurveyorProfil
     [userId]
   )
   if (result.rows.length === 0) return null
-  const row = result.rows[0]
-  return {
-    userId: row.user_id,
-    displayName: row.display_name,
-    iskNumber: row.isk_number,
-    firmName: row.firm_name,
-    county: row.county,
-    specializations: row.specializations || [],
-    yearsExperience: row.years_experience,
-    bio: row.bio,
-    profilePublic: row.profile_public !== false,
-    averageRating: row.average_rating || 0,
-    totalReviews: row.total_reviews || 0,
-    jobsCompleted: row.jobs_completed || 0,
-    verifiedIsk: row.verified_isk || false,
-    createdAt: row.created_at
-  } as SurveyorProfile
+  return rowToProfile(result.rows[0] as DbRow)
 }
 
 export async function createOrUpdateProfile(userId: string, profile: Partial<SurveyorProfile>): Promise<void> {
@@ -186,7 +170,7 @@ export async function getSurveyors(filters?: {
   county?: string
   specialization?: string
 }): Promise<SurveyorProfile[]> {
-  let query = `
+  const query = `
     SELECT * FROM surveyor_profiles 
     WHERE profile_public = true
     ORDER BY average_rating DESC
@@ -194,23 +178,10 @@ export async function getSurveyors(filters?: {
   const params: unknown[] = []
 
   const result = await db.query(query, params)
-  return result.rows.map((row: any) => ({
-    id: row.id,
-    userId: row.user_id,
-    displayName: row.display_name,
-    iskNumber: row.isk_number,
-    firmName: row.firm_name,
-    county: row.county,
-    specializations: row.specializations || [],
-    yearsExperience: row.years_experience,
-    bio: row.bio,
-    profilePublic: row.profile_public !== false,
-    averageRating: row.average_rating || 0,
-    totalReviews: row.total_reviews || 0,
-    totalJobs: row.total_jobs || 0,
-    jobsCompleted: row.jobs_completed || 0,
-    verifiedIsk: row.verified_isk || false,
-    createdAt: row.created_at
+  return result.rows.map((row: DbRow) => ({
+    ...rowToProfile(row),
+    id: row.id as string,
+    totalJobs: (row.total_jobs as number) || 0,
   })) as SurveyorProfile[]
 }
 
@@ -245,28 +216,35 @@ export async function getOpenPeerReviews(): Promise<PeerReviewRequest[]> {
   const result = await db.query(
     "SELECT * FROM peer_review_requests WHERE status = 'OPEN' ORDER BY created_at DESC"
   )
-  return result.rows.map((row: any) => ({
-    id: row.id,
-    requesterId: row.requester_id,
-    projectId: row.project_id,
-    submittedBy: row.submitted_by || row.requester_id,
-    documentType: row.document_type || 'general',
-    documentId: row.document_id || row.project_id,
-    urgency: row.urgency || 'NORMAL',
-    title: row.title,
-    description: row.description,
-    status: row.status,
-    requestedAt: row.requested_at,
-    createdAt: row.created_at || row.requested_at,
-    completedAt: row.completed_at
+  return result.rows.map((row: DbRow) => ({
+    id: row.id as string,
+    requesterId: row.requester_id as string,
+    projectId: row.project_id as string,
+    submittedBy: (row.submitted_by ?? row.requester_id) as string,
+    documentType: (row.document_type ?? 'general') as string,
+    documentId: (row.document_id ?? row.project_id) as string,
+    urgency: (row.urgency ?? 'NORMAL') as string,
+    title: row.title as string,
+    description: row.description as string,
+    status: row.status as string,
+    requestedAt: row.requested_at as string,
+    createdAt: (row.created_at ?? row.requested_at) as string,
+    completedAt: row.completed_at as string,
   })) as PeerReviewRequest[]
+}
+
+interface ReviewComment {
+  section: string
+  severity: string
+  comment: string
+  regulationCite?: string
 }
 
 export async function submitPeerReview(
   requestId: string,
   reviewerId: string,
   verdict: string,
-  comments: unknown[]
+  comments: ReviewComment[]
 ): Promise<void> {
   const reviewerResult = await db.query(
     `INSERT INTO peer_reviewers (request_id, reviewer_id, verdict, completed_at, cpd_points)
@@ -281,7 +259,7 @@ export async function submitPeerReview(
       await db.query(
         `INSERT INTO review_comments (reviewer_id_fk, section, severity, comment, regulation_cite)
          VALUES ($1, $2, $3, $4, $5)`,
-        [reviewerPkId, (c as any).section, (c as any).severity, (c as any).comment, (c as any).regulationCite]
+        [reviewerPkId, c.section, c.severity, c.comment, c.regulationCite]
       )
     }
   }

@@ -47,8 +47,8 @@ export const authOptions: AuthOptions = {
         token.id = user.id
         token.email = user.email
         token.name = user.name || user.email.split('@')[0]
-        token.isk_number = (user as any).isk_number || ''
-        token.verified_isk = (user as any).verified_isk || false
+        token.isk_number = user.isk_number || ''
+        token.verified_isk = user.verified_isk || false
       }
       return token
     },
@@ -57,8 +57,8 @@ export const authOptions: AuthOptions = {
         session.user.id = token.id
         session.user.email = token.email
         session.user.name = token.name
-        session.user.isk_number = token.isk_number as string
-        session.user.verified_isk = token.verified_isk as boolean
+        session.user.isk_number = token.isk_number
+        session.user.verified_isk = token.verified_isk
       }
       return session
     },

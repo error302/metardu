@@ -17,9 +17,10 @@ import { authOptions } from '@/lib/auth'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 import { auditLog } from '@/lib/logger'
 import type { ZodSchema } from 'zod'
+import type { Session } from 'next-auth'
 
 export interface ApiHandlerContext {
-  session: NonNullable<Awaited<ReturnType<typeof getServerSession>>>
+  session: Session
   userId: string
   body: unknown
   params: Record<string, string>
@@ -58,7 +59,7 @@ export function apiHandler(
         }
       }
 
-      let session: any = null
+      let session: Session | null = null
       if (auth) {
         const s = await getServerSession(authOptions)
         if (!s?.user) {
@@ -70,7 +71,7 @@ export function apiHandler(
         session = s
 
         if (roles && roles.length > 0) {
-          const userRole = (session.user as any)?.role || 'surveyor'
+          const userRole = (session.user as { role?: string }).role ?? 'surveyor'
           if (!roles.includes(userRole)) {
             return NextResponse.json(
               { error: 'Insufficient permissions', code: 'FORBIDDEN' },
@@ -80,7 +81,7 @@ export function apiHandler(
         }
       }
 
-      const userId = session?.user?.id || 'anonymous'
+      const userId = session?.user?.id ?? 'anonymous'
 
       let body: unknown = undefined
       if (req.method !== 'GET' && req.method !== 'HEAD' && !rawBody) {
@@ -112,7 +113,8 @@ export function apiHandler(
       }
 
       const ctx: ApiHandlerContext = {
-        session,
+        // When auth: false, session is null — callers must handle this
+        session: session as Session,
         userId,
         body,
         params,
@@ -125,10 +127,10 @@ export function apiHandler(
       }
 
       return result
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[apiHandler] Unhandled error:', err)
 
-      const pgCode = err?.code
+      const pgCode = (err as { code?: string })?.code
       if (pgCode === '23505') {
         return NextResponse.json(
           { error: 'This record already exists', code: 'DUPLICATE' },

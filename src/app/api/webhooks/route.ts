@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import db from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import type { WebhookEvent } from '@/lib/webhooks/types'
+import { getAuthUser } from '@/lib/auth/session'
 import { WEBHOOK_SECRET_PREFIX } from '@/lib/webhooks/types'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { url, events, name } = body
+    const { url, events, name } = body as { url?: string; events?: unknown[]; name?: string }
 
     if (!url || !events || !Array.isArray(events) || events.length === 0) {
       return NextResponse.json(
@@ -21,14 +19,10 @@ export async function POST(request: NextRequest) {
     try {
       new URL(url)
     } catch {
-      return NextResponse.json(
-        { error: 'Invalid URL format' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 })
     }
 
-    const session = await getServerSession(authOptions)
-    const user = session?.user as any | null
+    const user = await getAuthUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -39,22 +33,21 @@ export async function POST(request: NextRequest) {
       `INSERT INTO webhooks (url, events, secret, name, user_id, active)
        VALUES ($1, $2, $3, $4, $5, true)
        RETURNING *`,
-      [url, JSON.stringify(events), secret, name || 'Webhook', user.id]
+      [url, JSON.stringify(events), secret, name ?? 'Webhook', user.id]
     )
 
     if (rows.length === 0) {
       return NextResponse.json({ error: 'Failed to create webhook' }, { status: 500 })
     }
 
-    const data = rows[0]
-
+    const data = rows[0] as Record<string, unknown>
     return NextResponse.json({
       id: data.id,
       url: data.url,
       events: data.events,
       secret: data.secret,
       active: data.active,
-      createdAt: data.created_at
+      createdAt: data.created_at,
     })
   } catch (error) {
     return NextResponse.json(
@@ -66,8 +59,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    const user = session?.user as any | null
+    const user = await getAuthUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -77,7 +69,7 @@ export async function GET() {
       [user.id]
     )
 
-    return NextResponse.json({ webhooks: rows || [] })
+    return NextResponse.json({ webhooks: rows ?? [] })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch webhooks' },

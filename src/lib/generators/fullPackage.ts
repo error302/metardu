@@ -38,7 +38,7 @@ export async function generateFullPackage(
     `Documents included: ${readyDocs.length}`,
     '',
     'Contents:',
-    ...readyDocs.map((d: any) => `  - ${d.document_id}`),
+    ...readyDocs.map((d: { document_id: string; file_url: string }) => `  - ${d.document_id}`),
     '',
     'Prepared by Metardu — Professional Survey Platform',
   ].join('\n'));

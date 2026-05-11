@@ -27,9 +27,9 @@ export async function getAuthUser(): Promise<AuthUser | null> {
   if (!session?.user?.email) return null
 
   return {
-    id: (session.user as any).id || '',
+    id: session.user.id ?? '',
     email: session.user.email,
-    name: session.user.name || '',
+    name: session.user.name ?? '',
   }
 }
 
@@ -42,7 +42,7 @@ export async function isAdmin(): Promise<boolean> {
 
   const adminEmails = (process.env.ADMIN_EMAILS || '')
     .split(',')
-    .map((e: any) => e.trim().toLowerCase())
-  
+    .map((e) => e.trim().toLowerCase())
+
   return adminEmails.includes(user.email.toLowerCase())
 }

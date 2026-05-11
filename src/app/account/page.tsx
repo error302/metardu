@@ -1,48 +1,52 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/api-client/client'
 
 export default function AccountPage() {
+  const { data: session, status } = useSession()
   const dbClient = createClient()
-  const [user, setUser] = useState<any>(null)
-  const [subscription, setSubscription] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [subscription, setSubscription] = useState<Record<string, unknown> | null>(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
+  const user = session?.user ?? null
+  const loading = status === 'loading'
+
   useEffect(() => {
-    async function loadData() {
-      const { data: { session } } = await dbClient.auth.getSession()
-      const user = session?.user ?? null
-      setUser(user)
-
-      if (user) {
-        const { data: sub } = await dbClient
-          .from('user_subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle()
-        setSubscription(sub)
-      }
-      setLoading(false)
+    if (!user?.id) return
+    async function loadSubscription() {
+      const { data: sub } = await dbClient
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', user!.id)
+        .maybeSingle()
+      setSubscription(sub)
     }
-    loadData()
-  }, [dbClient])
+    loadSubscription()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
-  async function updatePassword(currentPassword: string, newPassword: string) {
+  async function updatePassword(newPassword: string) {
     setSaving(true)
     setMessage('')
-
-    const { error } = await dbClient.auth.updateUser({
-      password: newPassword
-    })
-
-    if (error) {
-      setMessage('Error: ' + error.message)
-    } else {
-      setMessage('Password updated successfully!')
+    try {
+      const res = await fetch('/api/auth/update-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMessage('Error: ' + (json.error || 'Password update failed'))
+      } else {
+        setMessage('Password updated successfully!')
+      }
+    } catch {
+      setMessage('Error: Password update failed')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   if (loading) {
@@ -79,7 +83,7 @@ export default function AccountPage() {
                 e.preventDefault()
                 const form = e.target as HTMLFormElement
                 const newPassword = (form.elements.namedItem('newPassword') as HTMLInputElement).value
-                updatePassword('', newPassword)
+                updatePassword(newPassword)
               }}
               className="space-y-4"
             >

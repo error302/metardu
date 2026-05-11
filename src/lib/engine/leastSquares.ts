@@ -12,23 +12,28 @@
  * - Bearings are internally handled in radians; residuals are wrapped to (-π, π].
  */
 
+export type ObservationType = 'distance' | 'bearing' | 'angle' | 'slope_distance' | 'zenith_angle' | 'height_difference'
+
 export interface Observation {
+  type?: ObservationType
   from: string
   to: string
   distance?: number
   bearing?: number
-  /**
-   * Observation weight = 1/σ² in the SAME units as the residual:
-   * - distance residuals: meters
-   * - bearing residuals: radians
-   *
-   * If omitted, METARDU derives weight from `distanceSigma` / `bearingSigmaArcSec` when provided.
-   */
   weight?: number
-  /** Distance standard deviation (meters). Used only when `distance` is provided and `weight` is omitted. */
   distanceSigma?: number
-  /** Bearing standard deviation (arc-seconds). Used only when `bearing` is provided and `weight` is omitted. */
   bearingSigmaArcSec?: number
+  occupied?: string
+  backsight?: string
+  foresight?: string
+  angle?: number
+  angleSigmaArcSec?: number
+  slopeDistance?: number
+  slopeDistanceSigma?: number
+  zenithAngle?: number
+  zenithAngleSigmaArcSec?: number
+  heightDifference?: number
+  heightDiffSigma?: number
 }
 
 export interface LSAdjustmentResult {
@@ -39,6 +44,8 @@ export interface LSAdjustmentResult {
     northing: number
     sigmaEasting: number
     sigmaNorthing: number
+    rl?: number
+    sigmaRL?: number
   }>
   residuals: Array<{
     observation: string
@@ -56,6 +63,17 @@ export interface LSAdjustmentResult {
   }
   passed: boolean
   error?: string
+}
+
+export interface LSAdjustmentInput {
+  fixedPoints: Array<{ name: string; easting: number; northing: number; rl?: number }>
+  adjustablePoints: Array<{ name: string; easting: number; northing: number; rl?: number }>
+  observations: Observation[]
+  dimension?: '2D' | '3D'
+  maxIterations?: number
+  convergenceMm?: number
+  standardizedResidualLimit?: number
+  globalTestAlpha?: number
 }
 
 type Point = { easting: number; northing: number }

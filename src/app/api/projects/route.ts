@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
+import db from '@/lib/db'
+import { getAuthUser } from '@/lib/auth/session'
 import { z } from 'zod'
 
 const createProjectSchema = z.object({
@@ -15,7 +14,6 @@ const createProjectSchema = z.object({
   surveyor_name: z.string().optional(),
   country: z.string().optional(),
   datum: z.string().optional(),
-  // Scheme-only fields (ignored for small projects)
   scheme_number: z.string().optional(),
   county: z.string().optional(),
   sub_county: z.string().optional(),
@@ -26,32 +24,22 @@ const createProjectSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = await getAuthUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await request.json()
     const validated = createProjectSchema.parse(body)
 
-    // 1. Insert project
     const projectResult = await db.query(
       `INSERT INTO projects (user_id, name, survey_type, location, utm_zone, hemisphere,
         project_type, client_name, surveyor_name, country, datum, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
        RETURNING id, name, survey_type, location, utm_zone, hemisphere, project_type, created_at`,
       [
-        session.user.id,
-        validated.name,
-        validated.survey_type,
-        validated.location,
-        validated.utm_zone,
-        validated.hemisphere,
-        validated.project_type,
-        validated.client_name || null,
-        validated.surveyor_name || null,
-        validated.country || null,
-        validated.datum || null,
+        user.id, validated.name, validated.survey_type, validated.location,
+        validated.utm_zone, validated.hemisphere, validated.project_type,
+        validated.client_name ?? null, validated.surveyor_name ?? null,
+        validated.country ?? null, validated.datum ?? null,
       ]
     )
 
@@ -59,9 +47,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create project' }, { status: 500 })
     }
 
-    const project = projectResult.rows[0]
+    const project = projectResult.rows[0] as Record<string, unknown>
 
-    // 2. If scheme, insert scheme_details
     if (validated.project_type === 'scheme') {
       try {
         await db.query(
@@ -69,17 +56,12 @@ export async function POST(request: NextRequest) {
             planned_parcels, adjudication_section)
            VALUES ($1,$2,$3,$4,$5,$6,$7)`,
           [
-            project.id,
-            validated.scheme_number || null,
-            validated.county || null,
-            validated.sub_county || null,
-            validated.ward || null,
-            validated.planned_parcels || 0,
-            validated.adjudication_section || null,
+            project.id, validated.scheme_number ?? null, validated.county ?? null,
+            validated.sub_county ?? null, validated.ward ?? null,
+            validated.planned_parcels ?? 0, validated.adjudication_section ?? null,
           ]
         )
       } catch (schemeErr) {
-        // Rollback project creation if scheme_details fails
         await db.query('DELETE FROM projects WHERE id = $1', [project.id])
         console.error('scheme_details insert failed:', schemeErr)
         return NextResponse.json({ error: 'Failed to create scheme details' }, { status: 500 })
@@ -87,7 +69,6 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ data: project }, { status: 201 })
-
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: error.errors }, { status: 400 })
@@ -97,20 +78,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = await getAuthUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const result = await db.query(
       `SELECT id, name, survey_type, location, utm_zone, hemisphere, project_type,
               client_name, surveyor_name, country, datum, created_at
-       FROM projects
-       WHERE user_id = $1
-       ORDER BY created_at DESC`,
-      [session.user.id]
+       FROM projects WHERE user_id = $1 ORDER BY created_at DESC`,
+      [user.id]
     )
 
     return NextResponse.json({ data: result.rows })
