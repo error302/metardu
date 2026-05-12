@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 
 interface MetarduLogoProps {
@@ -16,14 +15,13 @@ export default function MetarduLogo({
 }: MetarduLogoProps) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      <Image
+      <img
         src="/metardu-logo.jpg"
         alt="METARDU"
         width={size}
         height={size}
         className="rounded-md"
-        style={{ objectFit: 'cover' }}
-        priority
+        style={{ width: size, height: size, objectFit: 'cover' }}
       />
 
       {showWordmark && (

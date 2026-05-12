@@ -47,9 +47,7 @@ function MobileFieldContent() {
   const projectId = searchParams.get('project') || ''
   
   const [projectName, setProjectName] = useState('Unknown Project')
-  const [isOnline, setIsOnline] = useState(() => {
-    return typeof navigator === 'undefined' ? true : navigator.onLine
-  })
+  const [isOnline, setIsOnline] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [lastSync, setLastSync] = useState<string | null>(null)
@@ -81,6 +79,8 @@ function MobileFieldContent() {
       loadObservations()
       loadStats()
     }
+
+    setIsOnline(navigator.onLine)
 
     // Listen for online/offline
     const handleOnline = () => setIsOnline(true)

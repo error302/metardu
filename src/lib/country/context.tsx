@@ -62,39 +62,26 @@ export function CountryProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return
 
     const saved = localStorage.getItem('metardu_country') as SurveyingCountry | null
-    if (saved && ALL_COUNTRIES.some((c: any) => c.id === saved)) {
+    if (saved && ALL_COUNTRIES.some((c) => c.id === saved)) {
       setCountryState(saved)
       return
     }
 
     try {
       const cookies = Object.fromEntries(
-        document.cookie.split('; ').map((c: any) => c.split('='))
+        document.cookie.split('; ').map((c) => c.split('='))
       )
       if (cookies['metardu_country']) {
         const cookieCountry = decodeURIComponent(cookies['metardu_country']) as SurveyingCountry
-        if (ALL_COUNTRIES.some((c: any) => c.id === cookieCountry)) {
+        if (ALL_COUNTRIES.some((c) => c.id === cookieCountry)) {
           setCountryState(cookieCountry)
         }
       }
     } catch {}
-
-    fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) })
-      .then(r => r.json())
-      .then(data => {
-        if (data?.country_code) {
-          const match = getCountryByISO(data.country_code)
-          if (match) {
-            setCountryState(match.country)
-            localStorage.setItem('metardu_country', match.country)
-          }
-        }
-      })
-      .catch(() => {})
   }, [])
 
   const standard = useMemo(() => getCountryStandard(country), [country])
-  const countryInfo = useMemo(() => ALL_COUNTRIES.find((c: any) => c.id === country), [country])
+  const countryInfo = useMemo(() => ALL_COUNTRIES.find((c) => c.id === country), [country])
 
   const setCountry = useCallback((c: SurveyingCountry) => {
     setCountryState(c)
