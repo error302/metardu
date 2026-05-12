@@ -59,7 +59,7 @@ jest.mock('proj4', () => {
   const fn = jest.fn((_c1: string, _c2: string, coord?: number[]) => {
     if (coord) return [coord[0], coord[1]]
     return undefined
-  })
+  }) as jest.Mock<number[] | undefined, [_c1: string, _c2: string, coord?: number[]]> & { defs: jest.Mock }
   fn.defs = jest.fn()
   return { __esModule: true, default: fn }
 })

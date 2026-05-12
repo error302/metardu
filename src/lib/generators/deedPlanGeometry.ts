@@ -81,7 +81,7 @@ export async function computeDeedPlanGeometry(
   const legs: TraverseStation[] = entries
     .map((e: { row_index: number; station: string; raw_data: Record<string, unknown> }) => ({
       station: String(e.station ?? e.raw_data?.station ?? ''),
-      bearing: parseBearing(e.raw_data?.bearing ?? e.raw_data?.bs ?? 0),
+      bearing: parseBearing(String(e.raw_data?.bearing ?? e.raw_data?.bs ?? 0)),
       distance: parseFloat(String(e.raw_data?.distance ?? e.raw_data?.hd ?? '0')) || 0,
       beaconNo: String(e.raw_data?.beacon_no ?? ''),
       monument: String(e.raw_data?.monument_type ?? ''),
@@ -184,4 +184,3 @@ export async function computeDeedPlanGeometry(
     maxN: Math.max(...northings),
   };
 }
-

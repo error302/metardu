@@ -125,9 +125,10 @@ jest.mock('ol/style/RegularShape', () => {
 describe('createTraverseLayer', () => {
   it('returns a VectorLayer instance', async () => {
     const layer = await createTraverseLayer([])
+    const mockLayer = layer as unknown as { opts: { source: unknown } }
     expect(layer).toBeDefined()
-    expect(layer.opts).toBeDefined()
-    expect(layer.opts.source).toBeDefined()
+    expect(mockLayer.opts).toBeDefined()
+    expect(mockLayer.opts.source).toBeDefined()
   })
 
   it('with empty legs returns a layer with no features', async () => {

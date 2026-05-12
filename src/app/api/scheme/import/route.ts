@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiHandler } from '@/lib/apiHandler'
+
+export const dynamic = 'force-dynamic'
 
 export const POST = apiHandler(
   { auth: true, rawBody: true, audit: 'csv_import' },

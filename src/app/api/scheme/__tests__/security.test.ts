@@ -54,7 +54,7 @@ describe('Security - SQL Injection Resistance', () => {
     })
 
     // This should not crash — special chars should be parameterized
-    mockDb.mockResolvedValue({ rows: [{ id: 'b1', block_number: '1' }] })
+    mockDb.mockResolvedValue({ rows: [{ id: 'b1', block_number: '1' }], command: 'SELECT', rowCount: 1, oid: 0, fields: [] })
 
     const req = new Request('http://localhost/api/scheme/blocks', {
       method: 'POST',

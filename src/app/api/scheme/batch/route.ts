@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiHandler } from '@/lib/apiHandler'
+
+export const dynamic = 'force-dynamic'
 
 export const GET = apiHandler(
   { auth: true, audit: 'batch_generated' },
@@ -150,7 +152,7 @@ export const GET = apiHandler(
       for (const pdf of pdfBuffers) { zip.file(pdf.filename, pdf.buffer) }
       zipBuffer = Buffer.from(await zip.generateAsync({ type: 'arraybuffer' }))
     } catch {
-      return new NextResponse(pdfBuffers[0].buffer, {
+      return new NextResponse(new Blob([new Uint8Array(pdfBuffers[0].buffer)]), {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',
@@ -159,7 +161,7 @@ export const GET = apiHandler(
       })
     }
 
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(new Blob([new Uint8Array(zipBuffer)]), {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',

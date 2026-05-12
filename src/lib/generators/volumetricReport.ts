@@ -5,6 +5,7 @@ import db from '@/lib/db';
 interface CrossSection {
   chainage: number;
   area: number;
+  description?: string;
 }
 
 /** End-Area Method: V = (L/2) * (A1 + A2) */
@@ -127,4 +128,3 @@ export async function generateVolumetricReport(
 
   return Buffer.from(doc.output('arraybuffer'));
 }
-

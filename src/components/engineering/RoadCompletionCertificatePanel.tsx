@@ -12,6 +12,14 @@ interface RoadCompletionCertificatePanelProps {
   surveyorFirm?: string
 }
 
+const CERTIFICATION_FIELD_BY_KEY: Record<(typeof CERTIFICATION_ITEMS)[number]['key'], keyof RoadCompletionData> = {
+  earthworks: 'earthworksCertified',
+  pavement: 'pavementCertified',
+  drainage: 'drainageCertified',
+  signage: 'signageCertified',
+  roadFurniture: 'roadFurnitureCertified',
+}
+
 export default function RoadCompletionCertificatePanel({
   roadClass = 'B', surveyorName = '', surveyorRegistration = '', surveyorFirm = '',
 }: RoadCompletionCertificatePanelProps) {
@@ -331,8 +339,8 @@ export default function RoadCompletionCertificatePanel({
             <div className="space-y-2">
               {CERTIFICATION_ITEMS.map(item => (
                 <label key={item.key} className="flex items-start gap-3 cursor-pointer">
-                  <input type="checkbox" className="mt-0.5 rounded accent-blue-600" checked={data[item.key as keyof RoadCompletionData] as boolean}
-                    onChange={e => update(item.key, e.target.checked)} />
+                  <input type="checkbox" className="mt-0.5 rounded accent-blue-600" checked={data[CERTIFICATION_FIELD_BY_KEY[item.key]] as boolean}
+                    onChange={e => update(CERTIFICATION_FIELD_BY_KEY[item.key], e.target.checked)} />
                   <div>
                     <div className="text-sm font-medium text-white">{item.label}</div>
                     <div className="text-xs text-zinc-400">{item.description}</div>

@@ -524,8 +524,8 @@ function SvgPreview({ points }: { points: SurveyPointRow[] }) {
       })}
       {/* Legend (compact) */}
       <g transform={`translate(${w - margin - 80}, ${margin + 4})`}>
-        {Array.from(codeColorMap.entries()).slice(0, 6).map(([code, color]) => (
-          <g key={code} transform={`translate(0, ${Array.from(codeColorMap.entries()).slice(0, 6).indexOf(code as string) * 11})`}>
+        {Array.from(codeColorMap.entries()).slice(0, 6).map(([code, color], idx) => (
+          <g key={code} transform={`translate(0, ${idx * 11})`}>
             <circle cx={4} cy={4} r={3} fill={color} />
             <text x={10} y={7} fill="#a1a1aa" fontSize={8} fontFamily="monospace">{code}</text>
           </g>

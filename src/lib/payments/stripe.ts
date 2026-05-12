@@ -3,6 +3,8 @@
  * Processes card payments via Stripe API
  */
 
+import { createHmac, timingSafeEqual } from 'crypto'
+
 export interface StripeConfig {
   secretKey: string
   publishableKey: string
@@ -182,27 +184,26 @@ export class StripeService {
   }
 
   verifyWebhookSignature(payload: string, signature: string): boolean {
-    // Stripe-style signature header: "t=timestamp,v1=signature,..."
-    const crypto = require('crypto') as typeof import('crypto')
-    const parts = String(signature || '').split(',')
-    const tPart = parts.find((p: string) => p.startsWith('t='))
-    const v1Parts = parts.filter((p: string) => p.startsWith('v1='))
+    const parts = String(signature ?? '').split(',')
+    const tPart = parts.find((p) => p.startsWith('t='))
+    const v1Parts = parts.filter((p) => p.startsWith('v1='))
     const timestamp = tPart?.slice(2)
-    const signatures = v1Parts.map((p: string) => p.slice(3)).filter(Boolean)
+    const signatures = v1Parts.map((p) => p.slice(3)).filter(Boolean)
 
     if (!timestamp || signatures.length === 0) return false
 
     const secret = process.env.STRIPE_WEBHOOK_SECRET
     if (!secret) return false
 
-    const signedPayload = `${timestamp}.${payload}`
-    const expected = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex')
+    const expected = createHmac('sha256', secret)
+      .update(`${timestamp}.${payload}`)
+      .digest('hex')
 
     try {
       const expectedBuf = Buffer.from(expected, 'utf8')
-      return signatures.some((s: string) => {
+      return signatures.some((s) => {
         const sigBuf = Buffer.from(s, 'utf8')
-        return sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)
+        return sigBuf.length === expectedBuf.length && timingSafeEqual(sigBuf, expectedBuf)
       })
     } catch {
       return false

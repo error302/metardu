@@ -16,7 +16,7 @@ const EMPTY_STATION: Omit<Station, 'id'> = {
 }
 
 const EMPTY_OBS: Omit<Observation, 'from' | 'to'> = {
-  deltaE: 0, deltaN: 0, deltaH: 0, stdDev: 0.005,
+  deltaE: 0, deltaN: 0, deltaH: 0, stdDevE: 0.005, stdDevN: 0.005, stdDevH: 0.010,
 }
 
 export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile }: Props) {
@@ -128,7 +128,7 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
               deltaE: newStations[i + 1].easting - newStations[i].easting,
               deltaN: newStations[i + 1].northing - newStations[i].northing,
               deltaH: newStations[i + 1].elevation - newStations[i].elevation,
-              stdDev: 0.005,
+              stdDevE: 0.005, stdDevN: 0.005, stdDevH: 0.010,
             })
           }
           setObservations(newObs)
@@ -386,8 +386,13 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
                 type="number" step="0.0001"
                 className="bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-white"
                 placeholder="σ (m)"
-                value={obs.stdDev || ''}
-                onChange={e => updateObservation(idx, 'stdDev', parseFloat(e.target.value) || 0.005)}
+                value={obs.stdDevE || ''}
+                onChange={e => {
+                  const v = parseFloat(e.target.value) || 0.005
+                  updateObservation(idx, 'stdDevE', v)
+                  updateObservation(idx, 'stdDevN', v)
+                  updateObservation(idx, 'stdDevH', v * 2)
+                }}
               />
               <button
                 onClick={() => removeObservation(idx)}

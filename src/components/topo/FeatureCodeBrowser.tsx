@@ -400,7 +400,9 @@ function CodeRow({
 
       {/* Join lines indicator */}
       {fc.joinLines && (
-        <Link2 size={11} className="text-blue-400/60 shrink-0" title="Auto-join lines" />
+        <span title="Auto-join lines" className="inline-flex shrink-0">
+          <Link2 size={11} className="text-blue-400/60" aria-label="Auto-join lines" />
+        </span>
       )}
 
       {/* DXF layer tag */}

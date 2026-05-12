@@ -16,6 +16,15 @@ import {
   createBeaconTileLayer,
 } from '../vectorTileFactory'
 
+type MockVectorTileLayer = {
+  opts: any
+  _props: Record<string, any>
+}
+
+function asMockLayer(layer: unknown): MockVectorTileLayer {
+  return layer as MockVectorTileLayer
+}
+
 // ---------------------------------------------------------------------------
 // Mock OpenLayers classes — defined inside factories for hoisting safety
 // ---------------------------------------------------------------------------
@@ -167,7 +176,7 @@ describe('createVectorTileLayer', () => {
       url: '/tiles/{z}/{x}/{y}.pbf',
     })
     expect(layer).toBeDefined()
-    expect(layer.opts).toBeDefined()
+    expect(asMockLayer(layer).opts).toBeDefined()
   })
 
   it('sets layerType to vectorTile', async () => {
@@ -198,7 +207,7 @@ describe('createVectorTileLayer', () => {
       url: '/tiles/{z}/{x}/{y}.pbf',
       style: customStyle,
     })
-    expect(layer._props.style).toBe(customStyle)
+    expect(asMockLayer(layer)._props.style).toBe(customStyle)
   })
 
   it('passes minZoom to the layer and maxZoom to the source', async () => {
@@ -207,9 +216,9 @@ describe('createVectorTileLayer', () => {
       minZoom: 10,
       maxZoom: 18,
     })
-    expect(layer.opts.minZoom).toBe(10)
+    expect(asMockLayer(layer).opts.minZoom).toBe(10)
     // maxZoom is passed to the VectorTileSource, not the layer
-    expect(layer.opts.source.opts.maxZoom).toBe(18)
+    expect(asMockLayer(layer).opts.source.opts.maxZoom).toBe(18)
   })
 
   it('passes opacity to the layer', async () => {
@@ -217,7 +226,7 @@ describe('createVectorTileLayer', () => {
       url: '/tiles/{z}/{x}/{y}.pbf',
       opacity: 0.7,
     })
-    expect(layer.opts.opacity).toBe(0.7)
+    expect(asMockLayer(layer).opts.opacity).toBe(0.7)
   })
 
   it('supports GeoJSON format', async () => {
@@ -241,14 +250,14 @@ describe('createVectorTileLayer', () => {
     const layer = await createVectorTileLayer({
       url: '/tiles/{z}/{x}/{y}.pbf',
     })
-    expect(layer.opts.visible).toBe(true)
+    expect(asMockLayer(layer).opts.visible).toBe(true)
   })
 
   it('defaults to zIndex=10', async () => {
     const layer = await createVectorTileLayer({
       url: '/tiles/{z}/{x}/{y}.pbf',
     })
-    expect(layer.opts.zIndex).toBe(10)
+    expect(asMockLayer(layer).opts.zIndex).toBe(10)
   })
 })
 
@@ -262,7 +271,7 @@ describe('createParcelTileLayer', () => {
       url: '/parcels/{z}/{x}/{y}.pbf',
     })
     expect(layer).toBeDefined()
-    expect(layer.opts).toBeDefined()
+    expect(asMockLayer(layer).opts).toBeDefined()
   })
 
   it('sets layerType to parcelTile', async () => {
@@ -283,14 +292,14 @@ describe('createParcelTileLayer', () => {
     const layer = await createParcelTileLayer({
       url: '/parcels/{z}/{x}/{y}.pbf',
     })
-    expect(typeof layer.opts.style).toBe('function')
+    expect(typeof asMockLayer(layer).opts.style).toBe('function')
   })
 
   it('defaults to minZoom=14', async () => {
     const layer = await createParcelTileLayer({
       url: '/parcels/{z}/{x}/{y}.pbf',
     })
-    expect(layer.opts.minZoom).toBe(14)
+    expect(asMockLayer(layer).opts.minZoom).toBe(14)
   })
 
   it('allows overriding minZoom', async () => {
@@ -298,14 +307,14 @@ describe('createParcelTileLayer', () => {
       url: '/parcels/{z}/{x}/{y}.pbf',
       minZoom: 12,
     })
-    expect(layer.opts.minZoom).toBe(12)
+    expect(asMockLayer(layer).opts.minZoom).toBe(12)
   })
 
   it('defaults to zIndex=10 for parcels', async () => {
     const layer = await createParcelTileLayer({
       url: '/parcels/{z}/{x}/{y}.pbf',
     })
-    expect(layer.opts.zIndex).toBe(10)
+    expect(asMockLayer(layer).opts.zIndex).toBe(10)
   })
 })
 
@@ -319,7 +328,7 @@ describe('createBeaconTileLayer', () => {
       url: '/beacons/{z}/{x}/{y}.pbf',
     })
     expect(layer).toBeDefined()
-    expect(layer.opts).toBeDefined()
+    expect(asMockLayer(layer).opts).toBeDefined()
   })
 
   it('sets layerType to beaconTile', async () => {
@@ -340,20 +349,20 @@ describe('createBeaconTileLayer', () => {
     const layer = await createBeaconTileLayer({
       url: '/beacons/{z}/{x}/{y}.pbf',
     })
-    expect(typeof layer.opts.style).toBe('function')
+    expect(typeof asMockLayer(layer).opts.style).toBe('function')
   })
 
   it('defaults to minZoom=14', async () => {
     const layer = await createBeaconTileLayer({
       url: '/beacons/{z}/{x}/{y}.pbf',
     })
-    expect(layer.opts.minZoom).toBe(14)
+    expect(asMockLayer(layer).opts.minZoom).toBe(14)
   })
 
   it('uses zIndex=11 (above parcels)', async () => {
     const layer = await createBeaconTileLayer({
       url: '/beacons/{z}/{x}/{y}.pbf',
     })
-    expect(layer.opts.zIndex).toBe(11)
+    expect(asMockLayer(layer).opts.zIndex).toBe(11)
   })
 })

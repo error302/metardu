@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getAuthUser } from '@/lib/auth/session'
 import { getOpenPeerReviews, submitPeerReview } from '@/lib/community'
 import { awardCPDPoints } from '@/lib/cpd'
 
@@ -16,22 +15,27 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = await getAuthUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await request.json()
+    const body = await request.json() as {
+      requestId?: string
+      verdict?: string
+      comments?: { section: string; severity: string; comment: string; regulationCite?: string }[]
+    }
     const { requestId, verdict, comments } = body
 
-    await submitPeerReview(requestId, session.user.id, verdict, comments || [])
+    if (!requestId || !verdict) {
+      return NextResponse.json({ error: 'requestId and verdict are required' }, { status: 400 })
+    }
+
+    await submitPeerReview(requestId, user.id, verdict, comments ?? [])
 
     const cpdActivity = verdict === 'APPROVED' ? 'PEER_REVIEW_COMPLETED' : 'PEER_REVIEW_RECEIVED'
     const points = verdict === 'APPROVED' ? 2 : 1
-    await awardCPDPoints(session.user.id, cpdActivity, `Peer review ${verdict.toLowerCase()}`, requestId, points)
+    await awardCPDPoints(user.id, cpdActivity, `Peer review ${verdict.toLowerCase()}`, requestId, points)
 
     return NextResponse.json({ success: true })
-
   } catch (error) {
     console.error('Peer review POST error:', error)
     return NextResponse.json({ error: 'Failed to submit review' }, { status: 500 })

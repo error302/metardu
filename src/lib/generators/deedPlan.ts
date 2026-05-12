@@ -213,7 +213,7 @@ export async function generateDeedPlan(
 
   const beaconBody = geom.stations.map((s) => {
     const desc = getBeaconDescription(s.monument);
-    const status = s.status || s.markStatus || 'FOUND';
+    const status = s.markStatus || 'FOUND';
     const condition = status === 'SET' ? 'Set' : status === 'FOUND' ? 'Found' : status === 'REFERENCED' ? 'Referenced' : status === 'DESTROYED' ? 'Destroyed' : status === 'NOT_FOUND' ? 'Not Found' : 'Found';
     return [s.station, desc.type, desc.material, desc.dimensions, condition, condition === 'Found' || condition === 'Set' ? 'Good' : '—'];
   });
@@ -323,4 +323,3 @@ export async function generateDeedPlan(
 
   return Buffer.from(doc.output('arraybuffer'));
 }
-

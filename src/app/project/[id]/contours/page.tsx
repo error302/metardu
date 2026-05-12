@@ -66,6 +66,7 @@ export default function ContoursPage({ params }: { params: Promise<{ id: string 
         const converted: ContourLine[] = (data.contours as ContourSegment[]).flatMap(c =>
           c.segments.map((seg: any) => ({
             elevation: c.elevation,
+            isIndex: false,
             points: seg.map((pt: any) => ({
               easting: pt[0],
               northing: pt[1],

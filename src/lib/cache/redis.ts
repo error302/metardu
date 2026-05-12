@@ -6,27 +6,41 @@
 import { createClient } from 'redis'
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
+const IS_NEXT_BUILD = process.env.NEXT_PHASE === 'phase-production-build'
 
 class RedisCache {
   private client: ReturnType<typeof createClient> | null = null
   private isConnected = false
+  private connectionAttempted = false
+  private disabled = false
 
   async connect(): Promise<void> {
-    if (this.isConnected) return
+    if (this.isConnected || this.disabled || IS_NEXT_BUILD) return
 
     try {
-      this.client = createClient({ url: REDIS_URL })
-      this.client.on('error', (err) => console.error('Redis Client Error:', err))
+      this.connectionAttempted = true
+      this.client = createClient({
+        url: REDIS_URL,
+        socket: {
+          reconnectStrategy: false,
+        },
+      })
+      this.client.on('error', () => {
+        this.disabled = true
+      })
       await this.client.connect()
       this.isConnected = true
-      console.log('[Redis] Connected successfully')
     } catch (error) {
-      console.error('[Redis] Connection failed:', error)
-      // Fallback: cache will be disabled but app continues working
+      this.disabled = true
+      this.client = null
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[Redis] Cache disabled; Redis is not reachable.')
+      }
     }
   }
 
   async get<T>(key: string): Promise<T | null> {
+    if (!this.connectionAttempted) await this.connect()
     if (!this.isConnected || !this.client) return null
 
     try {
@@ -38,6 +52,7 @@ class RedisCache {
   }
 
   async set<T>(key: string, value: T, ttlSeconds = 300): Promise<void> {
+    if (!this.connectionAttempted) await this.connect()
     if (!this.isConnected || !this.client) return
 
     try {
@@ -48,6 +63,7 @@ class RedisCache {
   }
 
   async del(key: string): Promise<void> {
+    if (!this.connectionAttempted) await this.connect()
     if (!this.isConnected || !this.client) return
 
     try {
@@ -58,6 +74,7 @@ class RedisCache {
   }
 
   async delPattern(pattern: string): Promise<void> {
+    if (!this.connectionAttempted) await this.connect()
     if (!this.isConnected || !this.client) return
 
     try {
@@ -80,6 +97,7 @@ class RedisCache {
   }
 
   async increment(key: string, amount = 1): Promise<number> {
+    if (!this.connectionAttempted) await this.connect()
     if (!this.isConnected || !this.client) return 0
 
     try {
@@ -90,6 +108,7 @@ class RedisCache {
   }
 
   async expire(key: string, seconds: number): Promise<void> {
+    if (!this.connectionAttempted) await this.connect()
     if (!this.isConnected || !this.client) return
 
     try {
@@ -115,13 +134,6 @@ class RedisCache {
 const redisCache = new RedisCache()
 export default redisCache
 export { RedisCache }
-
-// Initialize on import if in production
-if (process.env.NODE_ENV === 'production') {
-  redisCache.connect().catch(() => {
-    console.log('[Redis] Will use fallback (no caching)')
-  })
-}
 
 // Helper for API route caching
 export function withCache<T>(

@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 /**
  * Returns the document checklist for a scheme submission.
@@ -96,7 +98,7 @@ export async function GET(request: NextRequest) {
     const optionalDocs = OPTIONAL_DOCUMENTS.map(doc => ({
       ...doc,
       status: 'available' as const,
-      detail: 'Optional — include if applicable',
+      detail: 'Optional â€” include if applicable',
       required: false,
     }))
 

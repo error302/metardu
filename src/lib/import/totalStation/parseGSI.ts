@@ -328,7 +328,7 @@ export function pairFaces(records: GSIRecord[]): FacePair[] {
 
   const pairs: FacePair[] = []
 
-  for (const [pointId, group] of groups) {
+  for (const [pointId, group] of Array.from(groups)) {
     const fl = group.fl
     const fr = group.fr
 

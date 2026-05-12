@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(
   request: NextRequest
@@ -94,6 +96,6 @@ function classifyAccuracy(order: string | null, ratio: number | null): 'pass' | 
 
   // Cadastral surveys require at least 3rd order (1:5000)
   if (numericOrder <= 2) return 'pass'       // 1st or 2nd order
-  if (numericOrder === 3) return 'warning'    // 3rd order — acceptable but review
+  if (numericOrder === 3) return 'warning'    // 3rd order â€” acceptable but review
   return 'fail'                                // 4th order or worse
 }

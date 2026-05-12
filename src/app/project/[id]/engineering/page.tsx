@@ -23,6 +23,7 @@ import PileGridPanel from '@/components/engineering/PileGridPanel'
 import SlopeAnalysisPanel from '@/components/engineering/SlopeAnalysisPanel'
 import ProgressMonitorPanel from '@/components/engineering/ProgressMonitorPanel'
 import MachineControlExportPanel from '@/components/engineering/MachineControlExportPanel'
+import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 
 type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs' | 'long_section' | 'cross_section_view' | 'road_reserve' | 'pavement_design' | 'drainage_design' | 'as_built' | 'road_completion' | 'pile_grid' | 'slope_analysis' | 'progress_monitor' | 'topo_drawing' | 'machine_control'
 
@@ -1741,7 +1742,7 @@ function renderStepContent(
         <div>
           <h3 className="text-xl font-bold text-white mb-4">Construction Progress Monitor</h3>
           <p className="text-zinc-400 text-sm mb-4">Track construction progress against programme milestones with S-curve analysis, inspection workflow, and photo attachments.</p>
-          <ProgressMonitorPanel projectId={params.id || ''} />
+          <ProgressMonitorPanel projectId={project.id || ''} />
         </div>
       )
     }
@@ -2178,6 +2179,11 @@ export default function EngineeringWorkspacePage() {
     return (
       <div className="min-h-screen bg-black text-white p-6">
         <div className="max-w-6xl mx-auto">
+          <div className="mb-4">
+            <MobileDesktopNotice>
+              Engineering compute panels use dense tables, diagrams, and exports. Mobile is useful for quick field checks; desktop is recommended for final design review.
+            </MobileDesktopNotice>
+          </div>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <button onClick={() => router.push(`/project/${params.id}`)} className="text-zinc-500 hover:text-zinc-300">← Back</button>
@@ -2321,6 +2327,11 @@ export default function EngineeringWorkspacePage() {
         </nav>
 
         <main className="flex-1 min-w-0 p-4 lg:p-8">
+          <div className="mb-4">
+            <MobileDesktopNotice>
+              Engineering workflows are desktop-first because they include alignments, long sections, cross sections, and export review. Use mobile for quick reference only.
+            </MobileDesktopNotice>
+          </div>
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-white">{currentStep?.label}</h2>
           </div>

@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { jsPDF } from 'jspdf'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(
   request: NextRequest
@@ -53,7 +55,7 @@ export async function GET(
     // Title
     doc.setFontSize(16)
     doc.setFont('helvetica', 'bold')
-    doc.text('FORM NO. 4 — SURVEY PLAN', pageWidth / 2, 25, { align: 'center' })
+    doc.text('FORM NO. 4 â€” SURVEY PLAN', pageWidth / 2, 25, { align: 'center' })
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
     doc.text('(Regulation 13(1) of the Survey Act, Cap 299)', pageWidth / 2, 32, { align: 'center' })

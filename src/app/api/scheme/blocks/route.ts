@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiHandler } from '@/lib/apiHandler'
 import { CreateBlockSchema } from '@/lib/validation/apiSchemas'
+
+export const dynamic = 'force-dynamic'
 
 export const POST = apiHandler(
   { auth: true, schema: CreateBlockSchema, audit: 'block_created' },

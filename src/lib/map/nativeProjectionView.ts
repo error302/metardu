@@ -72,6 +72,7 @@ const KENYA_EXTENT_N: [number, number, number, number] = [
 const ARC1960_DEFS: Array<{
   code: string;
   name: string;
+  datum: string;
   zone: number;
   hemisphere: 'N' | 'S';
   proj4def: string;
@@ -112,6 +113,7 @@ const ARC1960_DEFS: Array<{
 const WGS84_DEFS: Array<{
   code: string;
   name: string;
+  datum: string;
   zone: number;
   hemisphere: 'N' | 'S';
   proj4def: string;
@@ -208,7 +210,6 @@ export async function registerExtendedProjections(): Promise<void> {
     const proj = getProjection(def.code);
     if (proj) {
       proj.setExtent(def.extent);
-      proj.setMetersPerUnit(1);
     }
   }
 

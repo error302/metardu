@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const saveTraverseSchema = z.object({
   parcel_id: z.number().int().positive(),

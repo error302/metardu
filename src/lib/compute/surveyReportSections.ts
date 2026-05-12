@@ -21,7 +21,8 @@ const SECTION_TITLES: Record<ReportSection, { number: number; title: string }> =
   BENCHMARK_REGISTER: { number: 11, title: 'Benchmark Register' },
   TRAVERSE_COMPUTATIONS: { number: 12, title: 'Traverse Computations' },
   LEVELLING_COMPUTATIONS: { number: 13, title: 'Levelling Computations' },
-  CONCLUSIONS_AND_RECOMMENDATIONS: { number: 14, title: 'Conclusions and Recommendations' }
+  CONCLUSIONS_AND_RECOMMENDATIONS: { number: 14, title: 'Conclusions and Recommendations' },
+  DECLARATION: { number: 15, title: 'Declaration' }
 }
 
 function createSection(

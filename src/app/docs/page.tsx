@@ -47,6 +47,15 @@ const sections = [
       { href: '/docs/faq#technical', label: 'Technical Issues' },
     ]
   },
+  {
+    title: 'Legal and Mobile Readiness',
+    items: [
+      { href: '/docs/privacy', label: 'Privacy Policy' },
+      { href: '/docs/terms', label: 'Terms of Service' },
+      { href: '/mobile/field', label: 'Mobile Field Collection' },
+      { href: '/offline', label: 'Offline Status' },
+    ]
+  },
 ]
 
 export default function DocsPage() {

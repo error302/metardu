@@ -139,6 +139,14 @@ export default function RootLayout({
                     <Link href="/community" prefetch={false} className="text-[var(--accent)] hover:underline">
                       Join Community
                     </Link>
+                    {' - '}
+                    <Link href="/docs/privacy" prefetch={false} className="text-[var(--accent)] hover:underline">
+                      Privacy
+                    </Link>
+                    {' - '}
+                    <Link href="/docs/terms" prefetch={false} className="text-[var(--accent)] hover:underline">
+                      Terms
+                    </Link>
                   </div>
                 </footer>
                 <FeedbackWidget />

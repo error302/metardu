@@ -7,6 +7,7 @@ import {
   ArrowLeft, Plus, LayoutGrid, MapPin, FileText,
   AlertCircle, CheckCircle2, Clock, BarChart3, Download, FolderArchive, Package, Map, Users
 } from 'lucide-react'
+import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 import type { SchemeDetails, Block, ParcelStatus } from '@/types/scheme'
 import { SCHEME_STATUS_LABELS, PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS } from '@/types/scheme'
 
@@ -186,6 +187,11 @@ export default function SchemeWorkspacePage() {
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-[var(--bg-primary)]">
       <main className="max-w-6xl mx-auto px-4 py-8">
+        <div className="mb-4">
+          <MobileDesktopNotice>
+            Scheme workspaces include block tables, parcel status review, batch deed plan ZIPs, and submission packages. Use mobile for monitoring; use desktop for final generation and review.
+          </MobileDesktopNotice>
+        </div>
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] mb-6">
           <Link href="/dashboard" className="hover:text-[var(--accent)] transition-colors">Dashboard</Link>

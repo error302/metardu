@@ -123,7 +123,7 @@ function unknownFormatFallback(
 }
 
 // Re-export types for convenience
-export {
+export type {
   UnifiedObservation,
   UnifiedRawPoint,
   UnifiedImportResult,

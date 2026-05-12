@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiHandler } from '@/lib/apiHandler'
 import { AssignSurveyorSchema } from '@/lib/validation/apiSchemas'
+
+export const dynamic = 'force-dynamic'
 
 export const POST = apiHandler(
   { auth: true, schema: AssignSurveyorSchema, audit: 'block_assigned' },

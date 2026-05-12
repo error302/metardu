@@ -1,4 +1,5 @@
 import {
+  type InspectionCheckpoint,
   calculateProgressSummary,
   generateProgressChart,
   parseProgressCSV,

@@ -44,7 +44,7 @@ async function ensureLoaded(): Promise<void> {
       import('@turf/turf'),
       import('proj4'),
     ]);
-    _turf = turfMod.default ?? turfMod;
+    _turf = turfMod;
     _proj4 = proj4Mod.default ?? proj4Mod;
     _proj4.defs('EPSG:21037', EPSG_21037_DEF);
   }

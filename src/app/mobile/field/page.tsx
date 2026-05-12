@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { offlineStorage, FieldObservation, PhotoData } from '@/lib/mobile/offlineStorage'
 import { syncService } from '@/lib/mobile/syncService'
@@ -42,12 +42,14 @@ const WifiIcon = ({ connected }: { connected: boolean }) => (
   </svg>
 )
 
-export default function MobileFieldPage() {
+function MobileFieldContent() {
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project') || ''
   
   const [projectName, setProjectName] = useState('Unknown Project')
-  const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [isOnline, setIsOnline] = useState(() => {
+    return typeof navigator === 'undefined' ? true : navigator.onLine
+  })
   const [isSyncing, setIsSyncing] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [lastSync, setLastSync] = useState<string | null>(null)
@@ -498,5 +500,19 @@ export default function MobileFieldPage() {
         </button>
       </footer>
     </div>
+  )
+}
+
+export default function MobileFieldPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-900 p-4 text-sm text-gray-300">
+          Loading field collection...
+        </div>
+      }
+    >
+      <MobileFieldContent />
+    </Suspense>
   )
 }

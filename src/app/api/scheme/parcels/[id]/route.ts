@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiHandler } from '@/lib/apiHandler'
 import { UpdateParcelSchema } from '@/lib/validation/apiSchemas'
+
+export const dynamic = 'force-dynamic'
 
 export const PATCH = apiHandler(
   { auth: true, schema: UpdateParcelSchema, audit: 'parcel_updated' },

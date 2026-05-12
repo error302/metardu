@@ -151,7 +151,7 @@ export function sizePipe(
   manningN: number,
   slope: number,
   fillRatio: number = 0.75
-): { diameter: number; velocity: number; capacity: number } | null {
+): { diameter: number; velocity: number; capacity: number; isSelfCleansing: boolean } | null {
   if (peakFlow <= 0 || slope <= 0) return null
 
   for (const diameter of STANDARD_PIPE_SIZES) {
@@ -167,6 +167,7 @@ export function sizePipe(
         diameter,
         velocity: result.fullBoreVelocity,
         capacity: result.fullBoreCapacity,
+        isSelfCleansing: result.isSelfCleansing,
       }
     }
   }

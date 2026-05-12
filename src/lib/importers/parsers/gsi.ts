@@ -395,7 +395,7 @@ function buildFacePairs(observations: GSIObservation[], angleUnit: 'gon' | 'deg'
     byPointId.set(obs.pointId, existing);
   }
 
-  for (const [pointId, obsList] of byPointId) {
+  for (const [pointId, obsList] of Array.from(byPointId.entries())) {
     const flObs = obsList.filter(o => o.face === 'FL');
     const frObs = obsList.filter(o => o.face === 'FR');
 

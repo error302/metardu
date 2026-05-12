@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiHandler } from '@/lib/apiHandler'
+
+export const dynamic = 'force-dynamic'
 
 export const GET = apiHandler(
   { auth: true, audit: 'deed_plan_generated' },
@@ -53,10 +55,10 @@ export const GET = apiHandler(
       return NextResponse.json({ error: 'Not enough points for a deed plan (minimum 3 required)' }, { status: 400 })
     }
 
-    let schemeDetails: any = {}
+    let schemeDetails: Record<string, unknown> = {}
     try {
       const sd = await db.query('SELECT * FROM scheme_details WHERE project_id = $1', [parcel.project_id])
-      if (sd.rows.length > 0) schemeDetails = sd.rows[0]
+      if (sd.rows.length > 0) schemeDetails = sd.rows[0] as Record<string, unknown>
     } catch {}
 
     const { jsPDF } = await import('jspdf')
@@ -66,11 +68,11 @@ export const GET = apiHandler(
     const pageW = doc.internal.pageSize.getWidth()
     const pageH = doc.internal.pageSize.getHeight()
 
-    const stations = coordsResult.rows.map((c: any) => ({
-      station: c.station,
-      easting: parseFloat(c.easting),
-      northing: parseFloat(c.northing),
-      beaconNo: c.station,
+    const stations = coordsResult.rows.map((c: Record<string, unknown>) => ({
+      station: c.station as string,
+      easting: parseFloat(String(c.easting)),
+      northing: parseFloat(String(c.northing)),
+      beaconNo: c.station as string,
       monument: 'psc found',
     }))
 
@@ -93,10 +95,10 @@ export const GET = apiHandler(
 
     const geom = {
       stations, bearingSchedule,
-      minE: Math.min(...stations.map((s: any) => s.easting)),
-      maxE: Math.max(...stations.map((s: any) => s.easting)),
-      minN: Math.min(...stations.map((s: any) => s.northing)),
-      maxN: Math.max(...stations.map((s: any) => s.northing)),
+      minE: Math.min(...stations.map((s) => s.easting)),
+      maxE: Math.max(...stations.map((s) => s.easting)),
+      minN: Math.min(...stations.map((s) => s.northing)),
+      maxN: Math.max(...stations.map((s) => s.northing)),
     }
 
     doc.setFontSize(10)

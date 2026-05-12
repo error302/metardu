@@ -9,11 +9,23 @@ import { useState, useEffect } from 'react'
 import { performanceMonitor } from '@/lib/performance/monitor'
 import { PERFORMANCE_BUDGETS } from '@/lib/performance/config'
 
+interface PerformanceReport {
+  webVitals?: {
+    FCP?: number
+    LCP?: number
+    FID?: number
+    CLS?: number
+    TTFB?: number
+  }
+  customMetrics?: Record<string, number>
+  errors?: { message: string; timestamp: number }[]
+}
+
 export default function PerformanceDashboard() {
-  const [report, setReport] = useState<any>(null)
+  const [report, setReport] = useState<PerformanceReport | null>(null)
   const [dbStats, setDbStats] = useState<Record<string, { avg: number; count: number }>>({})
   const [isOptimizing, setIsOptimizing] = useState(false)
-  const [optimizationResult, setOptimizationResult] = useState<any>(null)
+  const [optimizationResult, setOptimizationResult] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     loadStats()
@@ -161,7 +173,7 @@ export default function PerformanceDashboard() {
           <div className="bg-gray-800 rounded-xl p-6">
             <h2 className="text-xl font-semibold mb-4 text-red-400">Recent Errors ({report.errors.length})</h2>
             <div className="space-y-2 max-h-64 overflow-auto">
-              {report.errors.map((error: any, idx: number) => (
+              {report.errors.map((error, idx) => (
                 <div key={idx} className="p-3 bg-red-900/30 rounded-lg text-sm">
                   <p className="text-red-300">{error.message}</p>
                   <p className="text-gray-500 text-xs mt-1">

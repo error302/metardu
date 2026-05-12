@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/api-client/client'
 import SurveyReportBuilder from '@/components/surveyreport/SurveyReportBuilder'
+import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 
 interface Project {
   id: string
@@ -64,6 +65,11 @@ function SurveyReportBuilderContent() {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] p-8">
         <div className="max-w-2xl mx-auto">
+          <div className="mb-4">
+            <MobileDesktopNotice>
+              Report assembly has long forms, tables, previews, and export checks. Mobile is fine for selecting a project, but desktop is recommended before generating final documents.
+            </MobileDesktopNotice>
+          </div>
           <h1 className="text-2xl font-bold mb-6">Survey Report Builder</h1>
           <p className="text-[var(--text-muted)] mb-6">
             Select a project to create a new RDM 1.1 Table 5.4 compliant survey report.
@@ -115,7 +121,16 @@ function SurveyReportBuilderContent() {
     )
   }
 
-  return <SurveyReportBuilder projectId={projectId} existingReportId={reportId} />
+  return (
+    <div className="space-y-4">
+      <div className="px-4 pt-4">
+        <MobileDesktopNotice>
+          Report assembly has long forms, tables, previews, and export checks. Use desktop before issuing final documents.
+        </MobileDesktopNotice>
+      </div>
+      <SurveyReportBuilder projectId={projectId} existingReportId={reportId} />
+    </div>
+  )
 }
 
 export default function SurveyReportBuilderPage() {

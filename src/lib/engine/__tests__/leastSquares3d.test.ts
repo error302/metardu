@@ -13,6 +13,8 @@ describe('adjustNetwork — 2D angle observation', () => {
       observations: [
         {
           type: 'angle',
+          from: 'A',
+          to: 'C',
           occupied: 'A',
           backsight: 'B',
           foresight: 'C',
@@ -126,6 +128,8 @@ describe('adjustNetwork — angle observation partials', () => {
       observations: [
         {
           type: 'angle',
+          from: 'A',
+          to: 'C',
           occupied: 'A',
           backsight: 'B',
           foresight: 'C',

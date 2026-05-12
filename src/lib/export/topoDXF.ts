@@ -59,7 +59,7 @@ export function generateTopoDXF(
   }
 
   const registeredLayers = new Set<string>()
-  for (const code of usedCodes) {
+  for (const code of Array.from(usedCodes)) {
     const def = codeMap.get(code)
     if (def && !registeredLayers.has(def.dxfLayer)) {
       drawing.addLayer(def.dxfLayer, def.color, def.lineType)
@@ -101,7 +101,7 @@ export function generateTopoDXF(
   }
 
   // Draw Polylines
-  for (const [stringId, pts] of lineStrings) {
+  for (const [stringId, pts] of Array.from(lineStrings.entries())) {
     const match = stringId.match(/^([A-Z\-]+)(\d*)$/)
     const baseCode = match ? match[1] : stringId
     const def = codeMap.get(baseCode)!

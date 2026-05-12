@@ -43,14 +43,14 @@ export async function getUserCPDForYear(userId: string, year: number): Promise<C
   )
 
   return result.rows.map((row: Record<string, unknown>) => ({
-    id: row.id,
-    userId: row.user_id,
-    activity: row.activity,
-    points: row.points,
-    description: row.description,
-    earnedAt: row.earned_at,
-    referenceId: row.reference_id,
-    verifiable: row.verifiable
+    id: String(row.id ?? ''),
+    userId: String(row.user_id ?? ''),
+    activity: row.activity as CPDActivity,
+    points: Number(row.points ?? 0),
+    description: String(row.description ?? ''),
+    earnedAt: String(row.earned_at ?? ''),
+    referenceId: row.reference_id ? String(row.reference_id) : undefined,
+    verifiable: Boolean(row.verifiable)
   }))
 }
 

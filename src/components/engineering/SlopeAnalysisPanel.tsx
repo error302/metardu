@@ -368,8 +368,8 @@ export default function SlopeAnalysisPanel({ projectId }: SlopeAnalysisPanelProp
     const rangeN = bb.maxN - bb.minN || 1;
 
     // Determine grid dimensions from unique E/N values
-    const eValues = [...new Set(slopeResult.slopePoints.map((p) => p.easting))].sort((a, b) => a - b);
-    const nValues = [...new Set(slopeResult.slopePoints.map((p) => p.northing))].sort((a, b) => b - a);
+    const eValues = Array.from(new Set(slopeResult.slopePoints.map((p) => p.easting))).sort((a, b) => a - b);
+    const nValues = Array.from(new Set(slopeResult.slopePoints.map((p) => p.northing))).sort((a, b) => b - a);
 
     const cols = eValues.length;
     const rows = nValues.length;

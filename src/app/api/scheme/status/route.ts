@@ -1,13 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { isAdmin } from '@/lib/auth/rbac'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Scheme status workflow:
- * planning → in_progress → review → approved
+ * planning â†’ in_progress â†’ review â†’ approved
  *
  * Only admin users can advance status.
  * Any status can go back to 'planning' (reset).
@@ -17,7 +19,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   planning: ['in_progress'],
   in_progress: ['review', 'planning'],
   review: ['approved', 'in_progress'],
-  approved: [], // Terminal — only DBA can reopen
+  approved: [], // Terminal â€” only DBA can reopen
 }
 
 const statusSchema = z.object({
@@ -100,7 +102,7 @@ export async function POST(request: NextRequest) {
     const allowed = VALID_TRANSITIONS[current[0].status] || []
     if (!allowed.includes(new_status) && current[0].status !== new_status) {
       return NextResponse.json({
-        error: `Invalid transition: ${current[0].status} → ${new_status}. Allowed: ${allowed.join(', ') || 'none'}`,
+        error: `Invalid transition: ${current[0].status} â†’ ${new_status}. Allowed: ${allowed.join(', ') || 'none'}`,
         status: 400,
       })
     }

@@ -271,7 +271,7 @@ describe('computeBearingDeg', () => {
   it('always returns value in [0, 360)', () => {
     for (let i = 0; i < 360; i += 30) {
       const rad = (i * Math.PI) / 180
-      const to = [Math.sin(rad) * 100, Math.cos(rad) * 100]
+      const to: [number, number] = [Math.sin(rad) * 100, Math.cos(rad) * 100]
       const result = computeBearingDeg([0, 0], to)
       expect(result).toBeGreaterThanOrEqual(0)
       expect(result).toBeLessThan(360)

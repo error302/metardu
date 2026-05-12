@@ -1,4 +1,5 @@
 import {
+  type PileGridDefinition,
   generatePileGrid,
   computeSettingOut,
   formatBearingDMS,

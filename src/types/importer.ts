@@ -2,6 +2,7 @@ export type SupportedFormat =
   | 'csv'
   | 'dxf'
   | 'gsi'
+  | 'rinex'
   | 'jobxml'
   | 'trimble-rw5'
   | 'south'
@@ -18,6 +19,8 @@ export interface ParsedPoint {
   bearing?: number;
   distance?: number;
   code?: string;
+  feature_code?: string;
+  instrument_height?: number;
   remark?: string;
   raw?: Record<string, unknown>;
   raw_data?: Record<string, unknown>;

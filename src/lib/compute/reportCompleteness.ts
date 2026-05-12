@@ -24,7 +24,8 @@ export function computeReportCompleteness(
     BENCHMARK_REGISTER: 100,
     TRAVERSE_COMPUTATIONS: 100,
     LEVELLING_COMPUTATIONS: 100,
-    CONCLUSIONS_AND_RECOMMENDATIONS: calculateConclusionsCompleteness(input)
+    CONCLUSIONS_AND_RECOMMENDATIONS: calculateConclusionsCompleteness(input),
+    DECLARATION: input.declarationStatement ? 100 : 0,
   }
 
   const sectionTitles: Record<ReportSection, string> = {
@@ -41,7 +42,8 @@ export function computeReportCompleteness(
     BENCHMARK_REGISTER: 'Benchmark Register',
     TRAVERSE_COMPUTATIONS: 'Traverse Computations',
     LEVELLING_COMPUTATIONS: 'Levelling Computations',
-    CONCLUSIONS_AND_RECOMMENDATIONS: 'Conclusions and Recommendations'
+    CONCLUSIONS_AND_RECOMMENDATIONS: 'Conclusions and Recommendations',
+    DECLARATION: 'Declaration',
   }
 
   const sectionNumbers: Record<ReportSection, number> = {
@@ -58,7 +60,8 @@ export function computeReportCompleteness(
     BENCHMARK_REGISTER: 11,
     TRAVERSE_COMPUTATIONS: 12,
     LEVELLING_COMPUTATIONS: 13,
-    CONCLUSIONS_AND_RECOMMENDATIONS: 14
+    CONCLUSIONS_AND_RECOMMENDATIONS: 14,
+    DECLARATION: 15,
   }
 
   const missingFields: Record<ReportSection, string[]> = {
@@ -75,13 +78,15 @@ export function computeReportCompleteness(
     BENCHMARK_REGISTER: [],
     TRAVERSE_COMPUTATIONS: [],
     LEVELLING_COMPUTATIONS: [],
-    CONCLUSIONS_AND_RECOMMENDATIONS: getConclusionsMissingFields(input)
+    CONCLUSIONS_AND_RECOMMENDATIONS: getConclusionsMissingFields(input),
+    DECLARATION: input.declarationStatement ? [] : ['declarationStatement'],
   }
 
-  const totalCompleteness = Object.values(sectionCompleteness).reduce((a, b) => a + b, 0) / 14
+  const sectionKeys = Object.keys(sectionCompleteness) as ReportSection[]
+  const totalCompleteness = Object.values(sectionCompleteness).reduce((a, b) => a + b, 0) / sectionKeys.length
   const sectionsComplete = Object.values(sectionCompleteness).filter(c => c >= 100).length
 
-  const sectionsIncomplete: SectionGap[] = (Object.keys(sectionCompleteness) as ReportSection[])
+  const sectionsIncomplete: SectionGap[] = sectionKeys
     .filter(section => sectionCompleteness[section] < 100)
     .map(section => ({
       section,
@@ -112,7 +117,7 @@ function calculateTitlePageCompleteness(input: SurveyReportInput): number {
     input.reportNumber,
     input.submissionNumber
   ]
-  const present = requiredFields.filter((f: any) => f && f.trim().length > 0).length
+  const present = requiredFields.filter((f: string | undefined) => f && f.trim().length > 0).length
   return Math.round((present / requiredFields.length) * 100)
 }
 
@@ -125,7 +130,7 @@ function calculateIntroductionCompleteness(input: SurveyReportInput): number {
     input.surveyPeriodStart,
     input.surveyPeriodEnd
   ]
-  const present = fields.filter((f: any) => f && f.trim().length > 0).length
+  const present = fields.filter((f: string | undefined) => f && f.trim().length > 0).length
   return Math.round((present / fields.length) * 100)
 }
 

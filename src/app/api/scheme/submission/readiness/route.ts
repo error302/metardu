@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(
   request: NextRequest
@@ -61,7 +63,7 @@ export async function GET(
         accuracy_acceptable: {
           pass: p.accuracy_order && ['1st order', '2nd order', '3rd order'].includes(p.accuracy_order),
           label: 'Accuracy Order',
-          detail: p.accuracy_order ? `${p.accuracy_order} — ${p.accuracy_order === '3rd order' ? 'Minimum for cadastral' : 'Acceptable'}` : 'Not computed',
+          detail: p.accuracy_order ? `${p.accuracy_order} â€” ${p.accuracy_order === '3rd order' ? 'Minimum for cadastral' : 'Acceptable'}` : 'Not computed',
         },
         area_computed: {
           pass: p.computed_area_ha !== null && p.computed_area_ha > 0,
