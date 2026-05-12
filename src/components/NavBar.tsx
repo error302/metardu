@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { Drone, Pickaxe, Ship, type LucideIcon } from 'lucide-react'
 import { useLanguage, languages } from '@/lib/i18n/LanguageContext'
 import MetarduLogo from '@/components/MetarduLogo'
 import SubscriptionBadge from '@/components/SubscriptionBadge'
@@ -54,9 +55,9 @@ const toolGroups = [
   {
     titleKey: 'tools.specialized',
     items: [
-      { href: '/tools/mining', icon: '⛏', labelKey: 'tools.mining' },
-      { href: '/tools/hydrographic', icon: '🌊', labelKey: 'tools.hydrographic' },
-      { href: '/tools/drone', icon: '🚁', labelKey: 'tools.drone' },
+      { href: '/tools/mining', icon: Pickaxe, labelKey: 'tools.mining' },
+      { href: '/tools/hydrographic', icon: Ship, labelKey: 'tools.hydrographic' },
+      { href: '/tools/drone', icon: Drone, labelKey: 'tools.drone' },
       { href: '/tools/gcp-export', labelKey: 'tools.gcpExport' },
       { href: '/tools/civil-export', labelKey: 'tools.civilExport' },
       { href: '/tools/gis-export', labelKey: 'tools.gisExport' },
@@ -171,7 +172,8 @@ function Dropdown({ label, children, isOpen, onToggle, align = 'left', buttonCla
 }
 
 type Translator = (key: string, values?: Record<string, string | number>) => string
-type MenuItem = { href: string; labelKey: string; icon?: string; badgeKey?: 'new' | 'ai' | 'beta' | string }
+type MenuIcon = LucideIcon
+type MenuItem = { href: string; labelKey: string; icon?: string | MenuIcon; badgeKey?: 'new' | 'ai' | 'beta' | string }
 type MenuGroup = { titleKey: string; items: MenuItem[] }
 
 function DropdownGroup({
@@ -205,28 +207,36 @@ function DropdownGroup({
       <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-2">
         {t(titleKey)}
       </div>
-      {items.map((item: any) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          onClick={onSelect}
-          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-        >
-          <span className="inline-flex items-center gap-2">
-            {item.icon ? <span aria-hidden>{item.icon}</span> : null}
-            <span>{t(item.labelKey)}</span>
-            {item.badgeKey && (item.badgeKey === 'new' || item.badgeKey === 'ai' || item.badgeKey === 'beta') ? (
-              <span className={`inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded ${getBadgeStyle(item.badgeKey)}`}>
-                {item.badgeKey.toUpperCase()}
-              </span>
-            ) : item.badgeKey && badgeCounts && badgeCounts[item.badgeKey] > 0 ? (
-              <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold bg-red-600 text-white rounded-full">
-                !
-              </span>
-            ) : null}
-          </span>
-        </Link>
-      ))}
+      {items.map((item) => {
+        const Icon = item.icon && typeof item.icon !== 'string' ? item.icon : null
+
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onSelect}
+            className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
+          >
+            <span className="inline-flex items-center gap-2">
+              {Icon ? (
+                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.9} aria-hidden />
+              ) : typeof item.icon === 'string' ? (
+                <span aria-hidden>{item.icon}</span>
+              ) : null}
+              <span>{t(item.labelKey)}</span>
+              {item.badgeKey && (item.badgeKey === 'new' || item.badgeKey === 'ai' || item.badgeKey === 'beta') ? (
+                <span className={`inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded ${getBadgeStyle(item.badgeKey)}`}>
+                  {item.badgeKey.toUpperCase()}
+                </span>
+              ) : item.badgeKey && badgeCounts && badgeCounts[item.badgeKey] > 0 ? (
+                <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold bg-red-600 text-white rounded-full">
+                  !
+                </span>
+              ) : null}
+            </span>
+          </Link>
+        )
+      })}
     </div>
   )
 }

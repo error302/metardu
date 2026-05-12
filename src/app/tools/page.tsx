@@ -1,4 +1,78 @@
 import Link from 'next/link'
+import type { ComponentType } from 'react'
+import {
+  BookOpenText,
+  ChartArea,
+  ChartColumnIncreasing,
+  ChartNoAxesCombined,
+  ClipboardCheck,
+  Compass,
+  Construction,
+  DraftingCompass,
+  Drone,
+  FileBadge,
+  FileChartColumn,
+  FileCog,
+  FileSpreadsheet,
+  FileStack,
+  GitBranch,
+  Grid3X3,
+  LandPlot,
+  MapPinned,
+  Milestone,
+  Mountain,
+  NotebookPen,
+  Pickaxe,
+  PlaneTakeoff,
+  RadioTower,
+  Ruler,
+  RulerDimensionLine,
+  Satellite,
+  ScanLine,
+  Ship,
+  Spline,
+  SquareDashedMousePointer,
+  TrendingUp,
+  Waypoints,
+} from 'lucide-react'
+
+const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  '/tools/beacon-certificate': FileBadge,
+  '/tools/billable-documents': FileStack,
+  '/tools/gnss-observation-log': Satellite,
+  '/tools/statutory-workbook': FileSpreadsheet,
+  '/tools/survey-report-builder': FileChartColumn,
+  '/tools/mobilisation-report': ClipboardCheck,
+  '/tools/level-book': NotebookPen,
+  '/tools/setting-out': MapPinned,
+  '/tools/missing-line': GitBranch,
+  '/tools/control-marks-register': RadioTower,
+  '/tools/pile-grid': Grid3X3,
+  '/tools/leveling': ChartNoAxesCombined,
+  '/tools/two-peg-test': Ruler,
+  '/tools/height-of-object': RulerDimensionLine,
+  '/tools/distance': RulerDimensionLine,
+  '/tools/bearing': Compass,
+  '/tools/area': LandPlot,
+  '/tools/grade': TrendingUp,
+  '/tools/traverse': Waypoints,
+  '/tools/traverse-field-book': BookOpenText,
+  '/tools/coordinates': DraftingCompass,
+  '/tools/cogo': DraftingCompass,
+  '/tools/gnss': Satellite,
+  '/tools/road-design': Construction,
+  '/tools/earthworks': Mountain,
+  '/tools/curves': Spline,
+  '/tools/chainage': Milestone,
+  '/tools/tacheometry': ScanLine,
+  '/tools/mining': Pickaxe,
+  '/tools/hydrographic': Ship,
+  '/tools/drone': Drone,
+  '/tools/topo-drawing': SquareDashedMousePointer,
+  '/tools/slope-analysis': ChartArea,
+  '/tools/machine-control': PlaneTakeoff,
+  '/tools/progress-monitor': ChartColumnIncreasing,
+}
 
 export default function ToolsPage() {
   return (
@@ -115,9 +189,9 @@ export default function ToolsPage() {
         <section>
           <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Specialized Surveys</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/mining" title="⛏ Mining Survey" description="Volume computation & DXF export" />
-            <ToolLink href="/tools/hydrographic" title="🌊 Hydrographic" description="Water survey & depth reduction" />
-            <ToolLink href="/tools/drone" title="🚁 Drone/UAV" description="UAV survey & GCP processing" />
+            <ToolLink href="/tools/mining" title="Mining Survey" description="Volume computation & DXF export" />
+            <ToolLink href="/tools/hydrographic" title="Hydrographic" description="Water survey & depth reduction" />
+            <ToolLink href="/tools/drone" title="Drone/UAV" description="UAV survey & GCP processing" />
             <ToolLink href="/tools/topo-drawing" title="Topo Drawing Composer" description="Feature codes &amp; DXF topographic drawings" badge="NEW" />
             <ToolLink href="/tools/slope-analysis" title="Slope &amp; Area Analysis" description="DTM slope classification, cut/fill, area" badge="NEW" />
           </div>
@@ -148,6 +222,8 @@ function ToolLink({
   description?: string
   badge?: string
 }) {
+  const Icon = TOOL_ICONS[href] ?? FileCog
+
   return (
     <Link href={href} className="card p-4 hover:border-[var(--accent)] transition-colors block relative">
       {badge && (
@@ -155,6 +231,9 @@ function ToolLink({
           {badge}
         </span>
       )}
+      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] text-[var(--accent)]">
+        <Icon className="h-5 w-5" />
+      </div>
       <p className="font-semibold text-sm pr-8">{title}</p>
       {description && <p className="text-xs text-[var(--text-muted)] mt-1">{description}</p>}
     </Link>
