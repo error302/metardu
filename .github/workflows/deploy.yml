@@ -31,6 +31,11 @@ jobs:
         run: npm run build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
+          # Placeholder values for build-time only.
+          # Runtime uses the real values from the VM's .env.local
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          AUTH_SECRET: build-time-placeholder-not-used-in-production
+          NEXTAUTH_URL: https://34.170.248.156
 
       - name: Prepare deploy archive
         run: |
