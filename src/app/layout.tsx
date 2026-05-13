@@ -100,7 +100,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="METARDU" />
-        <meta name="description" content="Professional surveying platform for land surveyors. Traverse adjustment, leveling, COGO, GPS stakeout, PDF reports." />
+        {/* description meta is set via metadata export above to avoid duplicates */}
         <meta name="format-detection" content="telephone=no" />
         <meta name="msapplication-TileColor" content="#111111" />
         <meta name="msapplication-tap-highlight" content="no" />
