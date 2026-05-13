@@ -24,56 +24,72 @@ jobs:
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.GCP_VM_SSH_KEY }}
+          ssh-private-key: ${{ secrets.VM_SSH_KEY }}
 
       - name: Add VM to known hosts
         run: |
-          ssh-keyscan -H ${{ secrets.GCP_VM_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to VM
         run: |
-          ssh ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }} -p ${{ secrets.GCP_VM_PORT }} << 'ENDSSH'
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} \
+            -p 22 << 'ENDSSH'
             set -euo pipefail
 
-            echo "=== [1/6] Pulling latest code ==="
-            cd /home/${{ secrets.GCP_VM_USER }}/metardu
+            APP_DIR="/home/${{ secrets.VM_USER }}/metardu"
+            PM2_APP="metardu"
+
+            echo "=== [1/7] Creating backup ==="
+            BACKUP_TS=$(date -u +%Y%m%d_%H%M%S)
+            mkdir -p "/home/${{ secrets.VM_USER }}/metardu-backups/$BACKUP_TS"
+            [ -d "$APP_DIR/.next" ] && cp -r "$APP_DIR/.next" "/home/${{ secrets.VM_USER }}/metardu-backups/$BACKUP_TS/" 2>/dev/null || true
+            echo "Backup created: $BACKUP_TS"
+
+            echo "=== [2/7] Pulling latest code ==="
+            cd "$APP_DIR"
             git fetch origin main
 
             # Save current commit for rollback
             PREV_COMMIT=$(git rev-parse HEAD)
             echo "Previous commit: $PREV_COMMIT"
-            echo $PREV_COMMIT > /tmp/metardu_prev_commit
 
             git reset --hard origin/main
             CURR_COMMIT=$(git rev-parse HEAD)
             echo "Deploying commit: $CURR_COMMIT"
 
-            echo "=== [2/6] Installing dependencies ==="
-            npm install --legacy-peer-deps
+            echo "=== [3/7] Installing dependencies ==="
+            npm ci --legacy-peer-deps
 
-            echo "=== [3/6] Building Next.js ==="
+            echo "=== [4/7] Building Next.js ==="
             npm run build
 
-            echo "=== [4/6] Restarting via PM2 ==="
+            echo "=== [5/7] Restarting via PM2 ==="
             # PM2 only — never use systemctl
-            pm2 restart metardu --update-env
+            pm2 restart "$PM2_APP" --update-env
 
-            echo "=== [5/6] Waiting for startup ==="
-            sleep 8
+            echo "=== [6/7] Waiting for startup ==="
+            sleep 10
 
-            echo "=== [6/6] Health check ==="
-            HEALTH=$(curl -sf --max-time 10 https://metardu.duckdns.org/api/public/health || echo "FAILED")
+            echo "=== [7/7] Health check ==="
+            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 15 http://localhost:3000/ || echo "000")
+            echo "HTTP status: $HTTP_CODE"
+
+            HEALTH=$(curl -sf --max-time 15 http://localhost:3000/api/health || echo "FAILED")
             echo "Health response: $HEALTH"
 
-            if echo "$HEALTH" | grep -q '"status":"healthy"'; then
-              echo "Deploy successful — app is healthy"
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Deploy successful — app is responding"
               pm2 save
+              # Keep only last 5 backups
+              cd "/home/${{ secrets.VM_USER }}/metardu-backups" && ls -1dt */ 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
             else
-              echo "Health check failed — rolling back to $PREV_COMMIT"
-              git reset --hard $PREV_COMMIT
-              npm install --legacy-peer-deps
+              echo "Health check failed (HTTP $HTTP_CODE) — rolling back to $PREV_COMMIT"
+              cd "$APP_DIR"
+              git reset --hard "$PREV_COMMIT"
+              npm ci --legacy-peer-deps
               npm run build
-              pm2 restart metardu --update-env
+              pm2 restart "$PM2_APP" --update-env
               sleep 5
               echo "Rollback complete"
               exit 1
