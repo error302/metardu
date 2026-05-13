@@ -35,11 +35,6 @@ jobs:
           AUTH_SECRET: build-time-placeholder-not-used-in-production
           NEXTAUTH_URL: https://34.170.248.156
 
-      - name: Record build ID
-        run: |
-          echo "Build ID: $(cat .next/BUILD_ID)"
-          echo "BUILD_ID=$(cat .next/BUILD_ID)" >> $GITHUB_ENV
-
       - name: Prepare deploy archive
         run: |
           tar -czf /tmp/metardu-deploy.tar.gz \
@@ -81,95 +76,76 @@ jobs:
       - name: Add VM to known hosts
         run: ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Upload build to VM
+      - name: Upload build and deploy script to VM
         run: |
+          # Upload the build archive
           scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
             /tmp/metardu-deploy.tar.gz \
             ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/tmp/metardu-deploy.tar.gz
 
-      - name: Diagnose VM state
-        run: |
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
-            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} -p 22 /bin/bash -s << 'ENDSSH'
-            echo "=== VM State Diagnosis ==="
-            echo "User: $(whoami)"
-            echo "Home: $HOME"
-            echo "CWD: $(pwd)"
-            echo ""
-            echo "=== App directory ==="
-            ls -la /home/mohameddosho20/metardu/ 2>/dev/null || echo "NOT FOUND"
-            echo ""
-            echo "=== .next directory ==="
-            ls -la /home/mohameddosho20/metardu/.next/ 2>/dev/null || echo "NOT FOUND"
-            echo ""
-            echo "=== Current BUILD_ID ==="
-            cat /home/mohameddosho20/metardu/.next/BUILD_ID 2>/dev/null || echo "NOT FOUND"
-            echo ""
-            echo "=== Uploaded archive ==="
-            ls -la /tmp/metardu-deploy.tar.gz 2>/dev/null || echo "NOT FOUND"
-            echo ""
-            echo "=== PM2 status ==="
-            pm2 list 2>/dev/null || echo "PM2 not found"
-            echo ""
-            echo "=== What's on port 3000 ==="
-            ss -tlnp | grep 3000 || echo "Nothing on port 3000"
-            echo ""
-            echo "=== Disk space ==="
-            df -h /home/mohameddosho20/ 2>/dev/null
-          ENDSSH
+          # Create deploy script locally then upload it
+          cat > /tmp/deploy.sh << 'SCRIPT'
+          #!/bin/bash
+          set -eo pipefail
 
-      - name: Deploy on VM
-        run: |
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
-            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} -p 22 /bin/bash -s << 'ENDSSH'
-            set -eo pipefail
+          APP_DIR="/home/mohameddosho20/metardu"
+          PM2_APP="metardu"
+          BACKUP_DIR="/home/mohameddosho20/metardu-backups"
 
-            APP_DIR="/home/mohameddosho20/metardu"
-            PM2_APP="metardu"
-            BACKUP_DIR="/home/mohameddosho20/metardu-backups"
+          echo "=== [0/6] VM State ==="
+          echo "User: $(whoami)"
+          echo "Node: $(node -v 2>/dev/null || echo 'not found')"
+          echo "PM2: $(pm2 -v 2>/dev/null || echo 'not found')"
+          echo ""
+          echo "=== App dir ==="
+          ls "$APP_DIR/.next/BUILD_ID" 2>/dev/null && echo "Old BUILD_ID: $(cat $APP_DIR/.next/BUILD_ID)" || echo "No .next/BUILD_ID"
+          ls /tmp/metardu-deploy.tar.gz 2>/dev/null && echo "Archive: present ($(du -h /tmp/metardu-deploy.tar.gz | cut -f1))" || echo "Archive: MISSING"
+          echo ""
+          echo "=== Port 3000 ==="
+          ss -tlnp 2>/dev/null | grep 3000 || echo "Nothing on port 3000"
+          echo ""
+          echo "=== PM2 processes ==="
+          pm2 list 2>/dev/null || echo "PM2 not running"
 
-            echo "=== [1/5] Creating backup ==="
-            BACKUP_TS=$(date -u +%Y%m%d_%H%M%S)
-            mkdir -p "$BACKUP_DIR/$BACKUP_TS"
-            [ -d "$APP_DIR/.next" ] && cp -r "$APP_DIR/.next" "$BACKUP_DIR/$BACKUP_TS/" 2>/dev/null || true
-            echo "Backup: $BACKUP_TS"
+          echo "=== [1/6] Creating backup ==="
+          BACKUP_TS=$(date -u +%Y%m%d_%H%M%S)
+          mkdir -p "$BACKUP_DIR/$BACKUP_TS"
+          [ -d "$APP_DIR/.next" ] && cp -r "$APP_DIR/.next" "$BACKUP_DIR/$BACKUP_TS/" 2>/dev/null || true
+          echo "Backup: $BACKUP_TS"
 
-            echo "=== [2/5] Stopping PM2 process ==="
-            cd "$APP_DIR"
-            pm2 stop "$PM2_APP" 2>/dev/null || true
-            sleep 3
+          echo "=== [2/6] Stopping PM2 process ==="
+          cd "$APP_DIR" 2>/dev/null || mkdir -p "$APP_DIR" && cd "$APP_DIR"
+          pm2 stop "$PM2_APP" 2>/dev/null || true
+          sleep 3
+          fuser -k 3000/tcp 2>/dev/null || true
+          sleep 1
 
-            # Force-kill anything still on port 3000
-            fuser -k 3000/tcp 2>/dev/null || true
-            sleep 1
+          echo "=== [3/6] Replacing build artifacts ==="
+          rm -rf "$APP_DIR/.next" "$APP_DIR/public" 2>/dev/null || true
+          tar -xzf /tmp/metardu-deploy.tar.gz -C "$APP_DIR"
+          rm -f /tmp/metardu-deploy.tar.gz
+          echo "New BUILD_ID: $(cat $APP_DIR/.next/BUILD_ID 2>/dev/null || echo 'N/A')"
+          ls "$APP_DIR/.next/standalone/server.js" 2>/dev/null && echo "Standalone: OK" || echo "Standalone: MISSING"
 
-            echo "=== [3/5] Replacing build artifacts ==="
-            cd "$APP_DIR"
-            rm -rf .next public 2>/dev/null || true
-            tar -xzf /tmp/metardu-deploy.tar.gz -C "$APP_DIR"
-            rm -f /tmp/metardu-deploy.tar.gz
+          echo "=== [4/6] Starting PM2 process ==="
+          cd "$APP_DIR"
+          pm2 delete "$PM2_APP" 2>/dev/null || true
+          pm2 start ecosystem.config.cjs
+          pm2 save
 
-            echo "New BUILD_ID: $(cat .next/BUILD_ID 2>/dev/null || echo 'N/A')"
-            echo "Standalone server: $(ls -la .next/standalone/server.js 2>/dev/null || echo 'N/A')"
+          echo "PM2 after start:"
+          pm2 list
 
-            echo "=== [4/5] Starting PM2 process ==="
-            cd "$APP_DIR"
-            pm2 delete "$PM2_APP" 2>/dev/null || true
-            pm2 start ecosystem.config.cjs
-            pm2 save
+          echo "=== [5/6] Health check ==="
+          sleep 10
+          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 15 http://localhost:3000/ || echo "000")
+          echo "HTTP status: $HTTP_CODE"
 
-            echo "PM2 status after start:"
-            pm2 list
-
-            echo "=== [5/5] Health check ==="
-            sleep 10
-            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 15 http://localhost:3000/ || echo "000")
-            echo "HTTP status: $HTTP_CODE"
-
-            if [ "$HTTP_CODE" = "200" ]; then
+          echo "=== [6/6] Cleanup ==="
+          if [ "$HTTP_CODE" = "200" ]; then
               echo "Deploy successful"
               cd "$BACKUP_DIR" && ls -1dt */ 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
-            else
+          else
               echo "Health check failed (HTTP $HTTP_CODE) — rolling back"
               pm2 stop "$PM2_APP" 2>/dev/null || true
               rm -rf "$APP_DIR/.next"
@@ -179,8 +155,18 @@ jobs:
               sleep 5
               echo "Rollback complete"
               exit 1
-            fi
-          ENDSSH
+          fi
+          SCRIPT
+
+          chmod +x /tmp/deploy.sh
+          scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            /tmp/deploy.sh \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/tmp/deploy.sh
+
+      - name: Execute deploy on VM
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "bash /tmp/deploy.sh"
 
       - name: Verify live deployment
         if: always()
