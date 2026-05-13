@@ -86,37 +86,38 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
             ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} -p 22 << 'ENDSSH'
-            set -euo pipefail
+            set -eo pipefail
 
             APP_DIR="/home/${{ secrets.VM_USER }}/metardu"
             PM2_APP="metardu"
             BACKUP_DIR="/home/${{ secrets.VM_USER }}/metardu-backups"
 
-            echo "=== [1/6] Creating backup ==="
+            echo "=== [1/5] Creating backup ==="
             BACKUP_TS=$(date -u +%Y%m%d_%H%M%S)
             mkdir -p "$BACKUP_DIR/$BACKUP_TS"
             [ -d "$APP_DIR/.next" ] && cp -r "$APP_DIR/.next" "$BACKUP_DIR/$BACKUP_TS/" 2>/dev/null || true
-            [ -d "$APP_DIR/public" ] && cp -r "$APP_DIR/public" "$BACKUP_DIR/$BACKUP_TS/" 2>/dev/null || true
             echo "Backup: $BACKUP_TS"
 
-            echo "=== [2/6] Cleaning old build ==="
+            echo "=== [2/5] Stopping PM2 process ==="
             cd "$APP_DIR"
-            rm -rf .next/standalone .next/static node_modules/.cache 2>/dev/null || true
+            pm2 stop "$PM2_APP" 2>/dev/null || true
+            sleep 2
 
-            echo "=== [3/6] Extracting build artifacts ==="
+            echo "=== [3/5] Replacing build artifacts ==="
+            cd "$APP_DIR"
+            rm -rf .next/standalone .next/static public 2>/dev/null || true
             tar -xzf /tmp/metardu-deploy.tar.gz -C "$APP_DIR"
             rm -f /tmp/metardu-deploy.tar.gz
+            echo "Extracted build artifacts"
 
-            echo "=== [4/6] Installing production dependencies ==="
+            echo "=== [4/5] Starting PM2 process ==="
             cd "$APP_DIR"
-            npm ci --omit=dev --legacy-peer-deps 2>&1 | tail -3
-
-            echo "=== [5/6] Restarting via PM2 ==="
-            pm2 restart "$PM2_APP" --update-env 2>&1 || pm2 start ecosystem.config.cjs
+            pm2 delete "$PM2_APP" 2>/dev/null || true
+            pm2 start ecosystem.config.cjs
             pm2 save
 
-            echo "=== [6/6] Health check ==="
-            sleep 8
+            echo "=== [5/5] Health check ==="
+            sleep 10
             HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 15 http://localhost:3000/ || echo "000")
             echo "HTTP status: $HTTP_CODE"
 
@@ -125,9 +126,11 @@ jobs:
               cd "$BACKUP_DIR" && ls -1dt */ 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
             else
               echo "Health check failed (HTTP $HTTP_CODE) — rolling back"
+              pm2 stop "$PM2_APP" 2>/dev/null || true
               rm -rf "$APP_DIR/.next"
               cp -r "$BACKUP_DIR/$BACKUP_TS/.next" "$APP_DIR/.next" 2>/dev/null || true
-              pm2 restart "$PM2_APP" --update-env
+              pm2 start ecosystem.config.cjs
+              pm2 save
               sleep 5
               echo "Rollback complete"
               exit 1
