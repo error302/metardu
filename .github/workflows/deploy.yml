@@ -90,7 +90,7 @@ jobs:
       - name: Diagnose VM state
         run: |
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
-            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} -p 22 << 'ENDSSH'
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} -p 22 /bin/bash -s << 'ENDSSH'
             echo "=== VM State Diagnosis ==="
             echo "User: $(whoami)"
             echo "Home: $HOME"
@@ -121,7 +121,7 @@ jobs:
       - name: Deploy on VM
         run: |
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
-            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} -p 22 << 'ENDSSH'
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} -p 22 /bin/bash -s << 'ENDSSH'
             set -eo pipefail
 
             APP_DIR="/home/mohameddosho20/metardu"
