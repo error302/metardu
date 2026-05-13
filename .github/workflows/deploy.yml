@@ -31,21 +31,26 @@ jobs:
         run: npm run build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-          # Placeholder values for build-time only.
-          # Runtime uses the real values from the VM's .env.local
           DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
           AUTH_SECRET: build-time-placeholder-not-used-in-production
           NEXTAUTH_URL: https://34.170.248.156
+
+      - name: Record build ID
+        run: |
+          echo "Build ID: $(cat .next/BUILD_ID)"
+          echo "BUILD_ID=$(cat .next/BUILD_ID)" >> $GITHUB_ENV
 
       - name: Prepare deploy archive
         run: |
           tar -czf /tmp/metardu-deploy.tar.gz \
             .next/standalone/ \
             .next/static/ \
+            .next/BUILD_ID \
             public/ \
             ecosystem.config.cjs \
             package.json \
             scripts/
+          echo "Archive size: $(du -h /tmp/metardu-deploy.tar.gz | cut -f1)"
 
       - name: Upload deploy artifact
         uses: actions/upload-artifact@v4
@@ -82,15 +87,46 @@ jobs:
             /tmp/metardu-deploy.tar.gz \
             ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/tmp/metardu-deploy.tar.gz
 
+      - name: Diagnose VM state
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} -p 22 << 'ENDSSH'
+            echo "=== VM State Diagnosis ==="
+            echo "User: $(whoami)"
+            echo "Home: $HOME"
+            echo "CWD: $(pwd)"
+            echo ""
+            echo "=== App directory ==="
+            ls -la /home/mohameddosho20/metardu/ 2>/dev/null || echo "NOT FOUND"
+            echo ""
+            echo "=== .next directory ==="
+            ls -la /home/mohameddosho20/metardu/.next/ 2>/dev/null || echo "NOT FOUND"
+            echo ""
+            echo "=== Current BUILD_ID ==="
+            cat /home/mohameddosho20/metardu/.next/BUILD_ID 2>/dev/null || echo "NOT FOUND"
+            echo ""
+            echo "=== Uploaded archive ==="
+            ls -la /tmp/metardu-deploy.tar.gz 2>/dev/null || echo "NOT FOUND"
+            echo ""
+            echo "=== PM2 status ==="
+            pm2 list 2>/dev/null || echo "PM2 not found"
+            echo ""
+            echo "=== What's on port 3000 ==="
+            ss -tlnp | grep 3000 || echo "Nothing on port 3000"
+            echo ""
+            echo "=== Disk space ==="
+            df -h /home/mohameddosho20/ 2>/dev/null
+          ENDSSH
+
       - name: Deploy on VM
         run: |
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
             ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} -p 22 << 'ENDSSH'
             set -eo pipefail
 
-            APP_DIR="/home/${{ secrets.VM_USER }}/metardu"
+            APP_DIR="/home/mohameddosho20/metardu"
             PM2_APP="metardu"
-            BACKUP_DIR="/home/${{ secrets.VM_USER }}/metardu-backups"
+            BACKUP_DIR="/home/mohameddosho20/metardu-backups"
 
             echo "=== [1/5] Creating backup ==="
             BACKUP_TS=$(date -u +%Y%m%d_%H%M%S)
@@ -101,20 +137,29 @@ jobs:
             echo "=== [2/5] Stopping PM2 process ==="
             cd "$APP_DIR"
             pm2 stop "$PM2_APP" 2>/dev/null || true
-            sleep 2
+            sleep 3
+
+            # Force-kill anything still on port 3000
+            fuser -k 3000/tcp 2>/dev/null || true
+            sleep 1
 
             echo "=== [3/5] Replacing build artifacts ==="
             cd "$APP_DIR"
             rm -rf .next public 2>/dev/null || true
             tar -xzf /tmp/metardu-deploy.tar.gz -C "$APP_DIR"
             rm -f /tmp/metardu-deploy.tar.gz
-            echo "Extracted build artifacts"
+
+            echo "New BUILD_ID: $(cat .next/BUILD_ID 2>/dev/null || echo 'N/A')"
+            echo "Standalone server: $(ls -la .next/standalone/server.js 2>/dev/null || echo 'N/A')"
 
             echo "=== [4/5] Starting PM2 process ==="
             cd "$APP_DIR"
             pm2 delete "$PM2_APP" 2>/dev/null || true
             pm2 start ecosystem.config.cjs
             pm2 save
+
+            echo "PM2 status after start:"
+            pm2 list
 
             echo "=== [5/5] Health check ==="
             sleep 10
