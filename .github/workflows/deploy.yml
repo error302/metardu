@@ -105,7 +105,7 @@ jobs:
 
             echo "=== [3/5] Replacing build artifacts ==="
             cd "$APP_DIR"
-            rm -rf .next/standalone .next/static public 2>/dev/null || true
+            rm -rf .next public 2>/dev/null || true
             tar -xzf /tmp/metardu-deploy.tar.gz -C "$APP_DIR"
             rm -f /tmp/metardu-deploy.tar.gz
             echo "Extracted build artifacts"
