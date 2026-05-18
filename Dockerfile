@@ -5,13 +5,18 @@ WORKDIR /app
 # Install node-gyp and canvas dependencies for Alpine
 RUN apk add --no-cache python3 make g++ cairo-dev pango-dev libjpeg-turbo-dev giflib-dev
 COPY package.json package-lock.json* ./
+COPY scripts/ ./scripts/
 RUN npm ci --legacy-peer-deps
 
 FROM node:20-alpine AS builder
 WORKDIR /app
+# Runtime canvas libs needed for static page generation
+RUN apk add --no-cache cairo pango libjpeg-turbo giflib
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DISABLE_PWA=true
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 # Build requires some env vars to be present (even if empty)
 ARG DATABASE_URL=""
 ARG AUTH_SECRET="build-placeholder"
