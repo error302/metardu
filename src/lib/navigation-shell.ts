@@ -1,25 +1,37 @@
 export type PrimaryNavItem = {
   href: string
   label: string
-  icon?: 'map'
+  icon?: 'map' | 'tools' | 'reports'
 }
 
-export const APP_SHELL_LINKS: PrimaryNavItem[] = [
+/**
+ * METARDU Navigation Shell — Single Source of Truth
+ *
+ * These 6 items are the primary navigation for ALL users (authenticated and public).
+ * They follow the Kenyan cadastral surveyor workflow:
+ *   Dashboard → Projects → Map → Tools → Reports → Community
+ *
+ * When authenticated, Account appears in the user dropdown (not in the main nav).
+ * When public, the home page landing section handles sign-up flows.
+ */
+export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/projects', label: 'Projects' },
   { href: '/map', label: 'Map', icon: 'map' },
+  { href: '/tools', label: 'Tools', icon: 'tools' },
+  { href: '/reports', label: 'Reports', icon: 'reports' },
   { href: '/community', label: 'Community' },
-  { href: '/account', label: 'Account' },
 ]
 
-export const PUBLIC_SHELL_LINKS: PrimaryNavItem[] = [
-  { href: '/tools', label: 'Tools' },
-  { href: '/guide', label: 'Guide' },
-  { href: '/online', label: 'Online' },
-  { href: '/map', label: 'Map', icon: 'map' },
-  { href: '/community', label: 'Community' },
-  { href: '/docs', label: 'Docs' },
-]
+/**
+ * @deprecated Use PRIMARY_NAV_ITEMS instead. Kept for backward compatibility.
+ */
+export const APP_SHELL_LINKS: PrimaryNavItem[] = PRIMARY_NAV_ITEMS
+
+/**
+ * @deprecated Use PRIMARY_NAV_ITEMS instead. Kept for backward compatibility.
+ */
+export const PUBLIC_SHELL_LINKS: PrimaryNavItem[] = PRIMARY_NAV_ITEMS
 
 export function isExplicitPublicRoute(pathname: string | null | undefined) {
   const path = pathname || '/'

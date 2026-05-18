@@ -3,41 +3,31 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - DATABASE_URL=postgresql://metardu:Metardu2026SecurePwd@host.docker.internal:5432/metardu
+        - AUTH_SECRET=metardu-super-secret-key-32-chars-minimum-2026
+    container_name: metardu_nextjs
     ports:
       - "3000:3000"
-    environment:
-      - DATABASE_URL=postgresql://metardu:Dosho10701$@db:5432/metardu
-      - NEXTAUTH_URL=http://localhost:3000
-      - NEXTAUTH_SECRET=pYn8VpG3fX7rQ9zW5mK2tB4vE6hJ1nM8 # Replace with secure secret
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - metardu-network
-    restart: always
-
-  db:
-    image: postgres:18-alpine
-    environment:
-      - POSTGRES_USER=metardu
-      - POSTGRES_PASSWORD=Dosho10701$
-      - POSTGRES_DB=metardu
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env.local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U metardu"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/public/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - metardu-network
-    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.5"
 
 networks:
   metardu-network:
     driver: bridge
-
-volumes:
-  postgres_data:
