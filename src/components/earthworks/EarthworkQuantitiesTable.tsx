@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { type EarthworkResult, type CrossSectionComputed } from '@/lib/computations/earthworksEngine'
 

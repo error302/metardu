@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 interface ValidationResult {
   status: 'GREEN' | 'YELLOW' | 'RED' | 'ERROR'

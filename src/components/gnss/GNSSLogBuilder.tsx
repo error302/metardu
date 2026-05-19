@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { printGNSSObservationLog, type GNSSLogInput, type GNSSObservationEntry, type GNSSBaselineEntry } from '@/lib/print/gnssObservationLog'

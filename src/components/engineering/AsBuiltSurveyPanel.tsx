@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import React, { useState, useMemo, useRef } from 'react'
 import type { DesignPoint, AsBuiltPoint, ToleranceBand, AsBuiltSurveyResult } from '@/lib/engineering/asBuiltSurvey'

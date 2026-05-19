@@ -1,6 +1,6 @@
+'use client';
 // src/app/minescan/page.tsx
 
-'use client'
 
 import { useState } from 'react'
 import { AlertTriangle, Activity, Camera, Shield, TrendingDown, Clock, MapPin } from 'lucide-react'

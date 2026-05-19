@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import { useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import type { WorkingDiagram, BeaconPoint, BoundaryLine, SubArea, BoundaryType, LegacyUnit } from '@/lib/working-diagram/types'

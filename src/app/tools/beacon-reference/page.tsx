@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import type { BeaconType, BeaconStatus } from '@/types/deedPlan'
 import { BEACON_DEFINITIONS, getBeaconSymbolSVG, BEACON_CATEGORIES } from '@/lib/compute/beaconSymbols'

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import type { SubArea, BeaconPoint } from '@/lib/working-diagram/types'
 
 interface Props {

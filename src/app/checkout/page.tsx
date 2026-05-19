@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useEffect, useMemo, useState } from 'react'
 import type { CurrencyCode, PlanId } from '@/lib/subscription/catalog'

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { createTranslator, defaultLanguage, isLanguage } from './shared'
 import type { Language } from './messages'

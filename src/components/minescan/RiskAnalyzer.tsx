@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { AlertTriangle, CheckCircle, XCircle, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'

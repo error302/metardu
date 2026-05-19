@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { detectTotalStationFormat, TotalStationFormat } from '@/lib/import/totalStation/detectFormat'

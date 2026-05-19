@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import Link from 'next/link'
 import type { PlanId } from '@/lib/subscription/catalog'
 

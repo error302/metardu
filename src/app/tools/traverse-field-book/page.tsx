@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import TraverseFieldBook from '@/components/TraverseFieldBook'
 import { Suspense } from 'react'

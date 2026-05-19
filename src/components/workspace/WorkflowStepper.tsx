@@ -55,8 +55,8 @@ export default function WorkflowStepper({
                     'w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-colors',
                     isActive ? 'bg-blue-600 border-blue-600 text-white' :
                     isDone ? 'bg-green-500 border-green-500 text-white' :
-                    unlocked ? 'bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600' :
-                    'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed',
+                    unlocked ? 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)]' :
+                    'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-muted)] cursor-not-allowed',
                   ].join(' ')}
                 >
                   {isDone ? (
@@ -66,10 +66,10 @@ export default function WorkflowStepper({
                   ) : step.index}
                 </button>
                 <div className="mt-2 text-center px-1">
-                  <p className={`text-xs font-medium leading-tight ${isActive ? 'text-blue-700' : isDone ? 'text-green-700' : unlocked ? 'text-gray-700' : 'text-gray-400'}`}>
+                  <p className={`text-xs font-medium leading-tight ${isActive ? 'text-[var(--accent)]' : isDone ? 'text-green-400' : unlocked ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)]'}`}>
                     {step.label}
                   </p>
-                  <p className="text-xs text-gray-400 leading-tight mt-0.5 hidden lg:block">{step.description}</p>
+                  <p className="text-xs text-[var(--text-muted)] leading-tight mt-0.5 hidden lg:block">{step.description}</p>
                 </div>
               </div>
               {!isLast && <div className={`flex-1 h-0.5 mt-4 mx-1 ${step.index < currentStep ? 'bg-green-400' : 'bg-gray-200'}`} />}
@@ -91,8 +91,8 @@ export default function WorkflowStepper({
                 'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                 isActive ? 'bg-blue-600 border-blue-600 text-white' :
                 isDone ? 'bg-green-500 border-green-500 text-white' :
-                unlocked ? 'bg-white border-gray-300 text-gray-700' :
-                'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed',
+                unlocked ? 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-secondary)]' :
+                'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-muted)] cursor-not-allowed',
               ].join(' ')}
             >
               {step.index}. {step.label}

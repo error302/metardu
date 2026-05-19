@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { X, Crown, Lock } from 'lucide-react'
 import Link from 'next/link'

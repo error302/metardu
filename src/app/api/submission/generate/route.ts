@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
   const project = rows[0] as { id: string; survey_type: string }
 
   await db.query(
-    `INSERT INTO submission_documents (project_id, document_id, status, error_message)
-     VALUES ($1, $2, 'generating', null)
+    `INSERT INTO submission_documents (project_id, document_id, document_type, status, error_message)
+     VALUES ($1, $2, $2, 'generating', null)
      ON CONFLICT (project_id, document_id)
      DO UPDATE SET status = 'generating', error_message = null`,
     [projectId, documentId]
@@ -43,8 +43,8 @@ export async function POST(req: NextRequest) {
     })
 
     await db.query(
-      `INSERT INTO submission_documents (project_id, document_id, status, file_url, error_message, generated_at)
-       VALUES ($1, $2, 'ready', $3, null, $4)
+      `INSERT INTO submission_documents (project_id, document_id, document_type, status, file_url, error_message, generated_at)
+       VALUES ($1, $2, $2, 'ready', $3, null, $4)
        ON CONFLICT (project_id, document_id)
        DO UPDATE SET status = 'ready', file_url = $3, error_message = null, generated_at = $4`,
       [projectId, documentId, result.fileUrl, new Date().toISOString()]
@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : 'Unknown error'
 
     await db.query(
-      `INSERT INTO submission_documents (project_id, document_id, status, error_message)
-       VALUES ($1, $2, 'error', $3)
+      `INSERT INTO submission_documents (project_id, document_id, document_type, status, error_message)
+       VALUES ($1, $2, $2, 'error', $3)
        ON CONFLICT (project_id, document_id)
        DO UPDATE SET status = 'error', error_message = $3`,
       [projectId, documentId, message]

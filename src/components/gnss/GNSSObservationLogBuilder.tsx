@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useCallback } from 'react'
 import { Printer, Plus, Trash2, Satellite, Upload, FileText } from 'lucide-react'

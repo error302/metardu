@@ -65,15 +65,15 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
   const nextStepDef = nextStep !== null ? workflow.steps.find((s) => s.index === nextStep) : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-4 py-4">
+    <div className="min-h-screen bg-[#0a0a0a]">
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-4">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-1">
             <div>
-              <h1 className="text-lg font-bold text-gray-900">{project.name}</h1>
-              <p className="text-xs text-gray-500">{workflow.label}</p>
+              <h1 className="text-lg font-bold text-[var(--text-primary)]">{project.name}</h1>
+              <p className="text-xs text-[var(--text-muted)]">{workflow.label}</p>
             </div>
-            {saving && <span className="text-xs text-gray-400">Saving…</span>}
+            {saving && <span className="text-xs text-[var(--text-muted)]">Saving…</span>}
           </div>
           <div className="mt-4">
             <WorkflowStepper
@@ -89,7 +89,7 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
 
       <div className="max-w-5xl mx-auto px-4 py-6">
         {currentStepDef && (
-          <p className="text-sm text-gray-500 mb-4">{currentStepDef.description}</p>
+          <p className="text-sm text-[var(--text-muted)] mb-4">{currentStepDef.description}</p>
         )}
 
         {currentStep < 5 && (
@@ -106,7 +106,7 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
         <button
           onClick={handleContinue}
           disabled={saving}
-          className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="px-5 py-2 bg-[var(--accent)] text-white text-sm font-medium rounded hover:bg-[var(--accent-dim)] disabled:opacity-50 transition-colors"
         >
           Continue to {nextStepDef.label} →
         </button>
@@ -126,7 +126,7 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
         </button>
         <button
           onClick={() => router.push(`/project/${project.id}/submission`)}
-          className="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition-colors"
+          className="px-5 py-2 bg-emerald-600 text-white text-sm font-medium rounded hover:bg-emerald-700 transition-colors"
         >
           Go to Submission →
         </button>

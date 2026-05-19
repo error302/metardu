@@ -1,3 +1,4 @@
+'use client';
 /**
  * METARDU Subdivision Panel
  *
@@ -8,7 +9,6 @@
  * Matches existing METARDU UI patterns from MeasurementTool and ParcelBuilderModal.
  */
 
-'use client'
 
 import { useState } from 'react'
 import {

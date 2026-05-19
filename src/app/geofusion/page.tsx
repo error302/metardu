@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { Layers, GitMerge, Map, Settings, Plus, ChevronRight } from 'lucide-react'

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { type SettingOutResult } from '@/lib/computations/settingOutEngine'
 

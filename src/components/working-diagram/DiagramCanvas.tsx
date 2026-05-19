@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import React, { useRef } from 'react'
 import type { WorkingDiagram, BoundaryType, SubArea } from '@/lib/working-diagram/types'
 import { computePositions, normalizeToViewport, polygonCentroid } from '@/lib/working-diagram/traverse'

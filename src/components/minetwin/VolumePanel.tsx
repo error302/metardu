@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { Box } from 'lucide-react'
 import type { VolumeCalculation } from '@/types/minetwin'

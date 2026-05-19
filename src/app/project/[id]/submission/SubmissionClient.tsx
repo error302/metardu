@@ -200,26 +200,26 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">{project.name}</h1>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
           Submission Package —{' '}
-          <span className="font-medium text-gray-700">{readyCount} of {totalCount}</span> documents ready
+          <span className="font-medium text-[var(--text-primary)]">{readyCount} of {totalCount}</span> documents ready
         </p>
-        <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className="mt-3 h-2 bg-gray-800 rounded-full overflow-hidden">
           <div 
             className="h-full bg-green-500 transition-all duration-500" 
             style={{ width: `${progressPct}%` }} 
           />
         </div>
         {progressPct === 100 && (
-          <p className="mt-2 text-sm text-green-600 font-medium">
+          <p className="mt-2 text-sm text-green-400 font-medium">
             ✓ All documents ready for submission
           </p>
         )}
       </div>
 
       {documents.length === 0 ? (
-        <p className="text-gray-400 text-sm">
+        <p className="text-[var(--text-muted)] text-sm">
           No documents configured for survey type: {project.survey_type}
         </p>
       ) : (
@@ -235,54 +235,54 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
                 key={doc.id}
                 className={`border rounded-lg p-4 ${
                   isReady 
-                    ? 'border-green-200 bg-green-50' 
+                    ? 'border-green-800/40 bg-green-950/20' 
                     : isError 
-                      ? 'border-red-200 bg-red-50' 
-                      : 'border-gray-200 bg-white'
+                      ? 'border-red-800/40 bg-red-950/20' 
+                      : 'border-[var(--border-color)] bg-[var(--bg-secondary)]'
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-lg">{getStatusIcon(state.status)}</span>
-                      <h3 className="font-semibold text-gray-900">{doc.label}</h3>
+                      <h3 className="font-semibold text-[var(--text-primary)]">{doc.label}</h3>
                       <span className={`text-xs px-2 py-0.5 rounded ${
                         isReady 
-                          ? 'bg-green-100 text-green-700' 
+                          ? 'bg-green-900/40 text-green-400' 
                           : isError 
-                            ? 'bg-red-100 text-red-700' 
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-red-900/40 text-red-400' 
+                            : 'bg-gray-800 text-gray-400'
                       }`}>
                         {getStatusLabel(state.status)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">{doc.description}</p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-sm text-[var(--text-secondary)] mt-1">{doc.description}</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
                       Format: {doc.format.toUpperCase()} | Required: {doc.requiredData.join(', ')}
                     </p>
                     
                     {isGenerating && (
                       <div className="mt-3">
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
                             <div 
                               className="h-full bg-blue-500 transition-all duration-300"
                               style={{ width: `${state.progress}%` }}
                             />
                           </div>
-                          <span className="text-xs text-gray-500">{state.progress}%</span>
+                          <span className="text-xs text-[var(--text-muted)]">{state.progress}%</span>
                         </div>
                       </div>
                     )}
 
                     {isError && state.error && (
-                      <div className="mt-3 p-2 bg-red-100 border border-red-200 rounded text-sm text-red-700">
+                      <div className="mt-3 p-2 bg-red-900/30 border border-red-800/40 rounded text-sm text-red-400">
                         <strong>Error:</strong> {state.error}
                       </div>
                     )}
 
                     {isReady && state.generatedAt && (
-                      <p className="mt-2 text-xs text-gray-500">
+                      <p className="mt-2 text-xs text-[var(--text-muted)]">
                         Generated: {new Date(state.generatedAt).toLocaleString()}
                       </p>
                     )}
@@ -295,7 +295,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
                         disabled={isGenerating}
                         className={`px-4 py-2 text-sm font-medium rounded transition ${
                           isGenerating
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                             : 'bg-blue-600 text-white hover:bg-blue-700'
                         }`}
                       >
@@ -329,9 +329,9 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
       )}
 
       {readyCount > 0 && readyCount < totalCount && (
-        <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <h3 className="font-semibold text-amber-800">Submission Incomplete</h3>
-          <p className="text-sm text-amber-700 mt-1">
+        <div className="mt-8 p-4 bg-amber-950/20 border border-amber-800/40 rounded-lg">
+          <h3 className="font-semibold text-amber-400">Submission Incomplete</h3>
+          <p className="text-sm text-amber-300 mt-1">
             {totalCount - readyCount} document(s) still pending. Generate all remaining documents to complete your submission package.
           </p>
           <button
@@ -351,9 +351,9 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
       )}
 
       {readyCount === totalCount && totalCount > 0 && (
-        <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <h3 className="font-semibold text-green-800">Submission Package Complete</h3>
-          <p className="text-sm text-green-700 mt-1">
+        <div className="mt-8 p-4 bg-green-950/20 border border-green-800/40 rounded-lg">
+          <h3 className="font-semibold text-green-400">Submission Package Complete</h3>
+          <p className="text-sm text-green-300 mt-1">
             All {totalCount} documents are ready. You can now submit your survey package to the relevant authority.
           </p>
           <div className="mt-4 flex gap-3">
@@ -389,9 +389,9 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
         </div>
       )}
 
-      <div className="mt-8 p-4 border border-orange-200 bg-orange-50 rounded-lg">
-        <h3 className="font-semibold text-orange-800">Generate Compliant Submission Package</h3>
-        <p className="text-sm text-orange-700 mt-1">
+      <div className="mt-8 p-4 border border-orange-800/40 bg-orange-950/20 rounded-lg">
+        <h3 className="font-semibold text-orange-400">Generate Compliant Submission Package</h3>
+        <p className="text-sm text-orange-300 mt-1">
           Generate a complete submission package with Form No. 4 DXF, computation workbook, and supporting documents.
         </p>
         <button
@@ -447,17 +447,17 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
         </button>
 
         {packageResult && !packageResult.passed && (
-          <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded">
-            <h4 className="font-medium text-red-800">QA Gate Failed</h4>
-            <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
+          <div className="mt-4 p-3 bg-red-900/30 border border-red-800/40 rounded">
+            <h4 className="font-medium text-red-400">QA Gate Failed</h4>
+            <ul className="mt-2 text-sm text-red-300 list-disc list-inside">
               {packageResult.blockers.map((msg, i) => (
                 <li key={i}>{msg}</li>
               ))}
             </ul>
             {packageResult.warnings.length > 0 && (
               <div className="mt-2">
-                <p className="text-sm text-amber-700">Warnings:</p>
-                <ul className="text-sm text-amber-600 list-disc list-inside">
+                <p className="text-sm text-amber-300">Warnings:</p>
+                <ul className="text-sm text-amber-400 list-disc list-inside">
                   {packageResult.warnings.map((msg, i) => (
                     <li key={i}>{msg}</li>
                   ))}
@@ -468,11 +468,11 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
         )}
 
         {packageResult?.passed && (
-          <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded">
-            <p className="text-green-800 font-medium">
+          <div className="mt-4 p-3 bg-green-900/30 border border-green-800/40 rounded">
+            <p className="text-green-400 font-medium">
               Package generated: {packageResult.ref}
             </p>
-            <p className="text-sm text-green-600 mt-1">
+            <p className="text-sm text-green-300 mt-1">
               Your submission ZIP has downloaded. Submit to the Director of Surveys office.
             </p>
           </div>

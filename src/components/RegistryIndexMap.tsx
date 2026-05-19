@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useRef, useEffect } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'

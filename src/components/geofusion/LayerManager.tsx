@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useEffect, useState } from 'react'
 import { Layers, Eye, EyeOff, Trash2, Edit2, Upload, ChevronUp, ChevronDown } from 'lucide-react'

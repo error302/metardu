@@ -1,9 +1,9 @@
+'use client';
 /**
  * Shapefile Export Component
  * Downloads complete GIS package with .shp, .shx, .dbf, .prj files
  */
 
-'use client'
 
 import { useState } from 'react'
 import { generateShapefileZip } from '@/lib/export/shapefile'

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { inverseComputation, polarComputation, intersectionComputation, resectionComputation, areaComputation, joinComputation, distanceDistanceIntersection, bearingDistanceIntersection, arcByRadiusAndChord, type InverseStep, type DistDistResult, type BearingDistResult, type ArcResult } from '@/lib/computations/cogoEngine'

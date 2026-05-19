@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useRef } from 'react'
 import { computeSettingOut, checkCoordinate, parseSettingOutCSV, type InstrumentStation, type Backsight, type DesignPoint, type ReObservation, type SettingOutResult } from '@/lib/computations/settingOutEngine'

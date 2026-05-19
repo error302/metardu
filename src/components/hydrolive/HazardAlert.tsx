@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { AlertTriangle } from 'lucide-react'
 import type { Hazard } from '@/types/bathymetry'

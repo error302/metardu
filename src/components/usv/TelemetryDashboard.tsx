@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { USVTelemetry } from '@/types/usv'

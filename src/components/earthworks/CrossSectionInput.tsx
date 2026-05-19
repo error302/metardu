@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useRef } from 'react'
 import { computeCrossSection, computeEarthwork, parseEarthworkCSV, type CrossSectionInput, type CrossSectionComputed, type RoadTemplate, type EarthworkResult, type GroundShot } from '@/lib/computations/earthworksEngine'

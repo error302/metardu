@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { Scale, Calculator, FileCheck, Gavel, Route, BookOpen, ArrowRight } from 'lucide-react'

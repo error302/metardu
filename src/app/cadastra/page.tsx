@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import BoundaryUploader from '@/components/cadastra/BoundaryUploader'

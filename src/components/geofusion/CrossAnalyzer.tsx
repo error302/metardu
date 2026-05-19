@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { GitCompare, Map, Ruler, Activity, Play, AlertCircle, CheckCircle } from 'lucide-react'

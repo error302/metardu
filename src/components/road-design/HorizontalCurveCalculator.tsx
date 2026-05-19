@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { horizontalCurveElements, type HorizontalCurveInput, type HorizontalCurveResult } from '@/lib/computations/roadDesignEngine'

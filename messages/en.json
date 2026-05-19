@@ -53,7 +53,22 @@
     "enabled": "Enabled",
     "disabled": "Disabled",
     "on": "On",
-    "off": "Off"
+    "off": "Off",
+    "noResults": "No results found",
+    "save": "Save",
+    "saving": "Saving...",
+    "select": "Select",
+    "new": "New",
+    "close": "Close",
+    "offline": "Offline",
+    "online": "Online",
+    "exportPdf": "Export PDF",
+    "exportCsv": "Export CSV",
+    "exportJson": "Export JSON",
+    "startEasting": "Start Easting",
+    "startNorthing": "Start Northing",
+    "startStation": "Start Station",
+    "pointId": "Point ID"
   },
   "field": {
     "hydroNotes": "Hydrographic Notes",
@@ -146,7 +161,19 @@
     "control": "Control Survey",
     "gnss": "GNSS",
     "leveling": "Leveling",
-    "traverse": "Traverse"
+    "traverse": "Traverse",
+    "search": "Search",
+    "docs": "Docs",
+    "pricing": "Pricing",
+    "login": "Log In",
+    "register": "Get Started",
+    "signOut": "Sign Out",
+    "more": "More",
+    "getStarted": "Get Started",
+    "documents": "Documents",
+    "community": "Community",
+    "resources": "Resources",
+    "open": "Open Project"
   },
   "ui": {
     "save": "Save",
@@ -597,7 +624,12 @@
     "surveySummary": "Survey Summary",
     "teamPerformance": "Team Performance",
     "weeklyReport": "Weekly Report",
-    "monthlyReport": "Monthly Report"
+    "monthlyReport": "Monthly Report",
+    "newProject": "New Project",
+    "processFieldNotesTitle": "Process Field Notes",
+    "processFieldNotesSubtitle": "Upload and process your field notes with AI assistance",
+    "startProcessing": "Start Processing",
+    "upgradeToCreateMore": "Upgrade to create more projects"
   },
   "cadastral": {
     "title": "Cadastral",

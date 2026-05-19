@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ModernPricingPage, PricingCardProps } from '@/components/ui/animated-glassy-pricing'

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import type { Solution } from '@/lib/solution/schema'
 

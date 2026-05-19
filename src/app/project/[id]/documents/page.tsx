@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/api-client/client'
@@ -676,12 +676,6 @@ export default function DocumentsPage({ params }: PageProps) {
           <p className="text-[var(--text-secondary)]">
             <strong className="text-[var(--text-primary)]">{docs.filter((d: any) =>d.required).length} required documents</strong> for a {(project.survey_type||'boundary').toLowerCase()} survey — pre-filled with your project data.
             Fill in the extra fields for each document, then click <strong>Generate &amp; Print</strong>. Each opens in a new tab ready to print as PDF.
-          </p>
-        </div>
-        <div className="bg-[var(--accent)]/5 border border-[var(--accent)]/20 rounded-xl p-4 mb-6 text-sm">
-          <p className="text-[var(--text-secondary)]">
-            <strong className="text-[var(--text-primary)]">{docs.filter((d: any) =>d.required).length} required documents</strong> for a {(project.survey_type||'boundary').toLowerCase()} survey — pre-filled with your project data.
-            Fill in the extra fields for each document, then click <strong>Generate & Print</strong>. Each opens in a new tab ready to print as PDF.
           </p>
         </div>
 

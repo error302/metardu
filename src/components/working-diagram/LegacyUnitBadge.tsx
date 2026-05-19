@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import type { LegacyUnit } from '@/lib/working-diagram/types'
 import { metersToLegacy, formatLegacy } from '@/lib/working-diagram/units'
 

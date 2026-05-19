@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/lib/api-client/client'

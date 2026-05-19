@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { Route, ChevronRight, Plus, X, MapPin } from 'lucide-react'

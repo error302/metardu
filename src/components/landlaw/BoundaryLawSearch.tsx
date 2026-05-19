@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { Search, BookOpen, AlertTriangle, Scale, FileText, Gavel } from 'lucide-react'

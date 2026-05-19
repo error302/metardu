@@ -1,3 +1,4 @@
+'use client';
 /**
  * METARDU Layer Control Panel
  *
@@ -12,7 +13,6 @@
  * Style: Tailwind CSS, #1B3A5C primary, Calibri font.
  */
 
-'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { FileText, Download, Save, CheckCircle, AlertCircle, Plus, Trash2, Printer } from 'lucide-react'

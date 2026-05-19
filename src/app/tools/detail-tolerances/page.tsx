@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { PageHeader } from '@/components/shared/PageHeader'
 import { buildPrintDocument, openPrint } from '@/lib/print/buildPrintDocument'

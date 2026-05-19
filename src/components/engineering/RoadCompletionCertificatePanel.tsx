@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import React, { useState, useEffect, useRef } from 'react'
 import { generateCertificate, CERTIFICATION_ITEMS, generateDefectSchedule } from '@/lib/generators/roadCompletionCertificate'

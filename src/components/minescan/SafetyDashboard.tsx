@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { AlertTriangle, Shield, Eye, TrendingUp, Clock, MapPin } from 'lucide-react'
 import type { SafetyScanResult, SafetyStats } from '@/lib/compute/safety'

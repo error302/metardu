@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import type { BoundaryType } from '@/lib/working-diagram/types'
 
 interface Props {

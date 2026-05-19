@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import { getUTMZoneFromLatLng } from '@/lib/engine/utmZones'
 
 interface UTMZonePickerProps {

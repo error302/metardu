@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { Search, Building2, AlertTriangle, Info, Check, Download } from 'lucide-react'

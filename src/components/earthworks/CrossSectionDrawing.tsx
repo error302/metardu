@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { type CrossSectionComputed, type RoadTemplate } from '@/lib/computations/earthworksEngine'
 

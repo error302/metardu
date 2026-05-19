@@ -158,17 +158,17 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
           setComputeResult('Need at least 2 rows with chainage and area for volume calculation');
         }
       } else if (surveyType === 'geodetic') {
-        setComputeResult('Coming in Phase 16 — baseline processing');
+        setComputeResult('Geodetic baseline processing — enter control points and observed baselines to compute adjustments');
       } else if (surveyType === 'hydrographic') {
-        setComputeResult('Coming in Phase 16 — tidal correction');
+        setComputeResult('Hydrographic computation — import sounding data and apply tidal reductions');
       } else if (surveyType === 'drone') {
-        setComputeResult('Coming in Phase 16 — GCP processing');
+        setComputeResult('Drone survey processing — import ground control points and process aerial imagery');
       } else if (surveyType === 'deformation') {
         const epochs = new Set(rows.map((r) => r.epoch).filter(Boolean));
         if (epochs.size < 2) {
           setComputeResult('Minimum 2 epochs required for comparison');
         } else {
-          setComputeResult('Coming in Phase 16 — epoch comparison');
+          setComputeResult('Deformation epoch comparison — enter coordinates for each monitoring epoch');
         }
       }
     } catch (e) {

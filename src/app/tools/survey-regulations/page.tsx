@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import {
   TRAVERSE_ACCURACY_STANDARDS,

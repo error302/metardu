@@ -1,9 +1,9 @@
+'use client';
 /**
  * Performance Dashboard Component
  * Admin panel for monitoring and optimizing application performance
  */
 
-'use client'
 
 import { useState, useEffect } from 'react'
 import { performanceMonitor } from '@/lib/performance/monitor'

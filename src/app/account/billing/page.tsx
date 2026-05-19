@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/api-client/client'

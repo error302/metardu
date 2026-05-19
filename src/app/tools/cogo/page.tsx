@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import COGOCalculator from '@/components/cogo/COGOCalculator'
 

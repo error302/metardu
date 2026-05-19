@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { interpretCSV, CSVInterpretResult } from '@/lib/parsers/csvSurveyInterpreter'
@@ -106,6 +106,7 @@ export default function ProcessPage() {
   }
 
   const detectSurveyTypeFromDataset = (dataset: any): string => {
+    if (dataset?.surveyType && dataset.surveyType !== 'unknown') return dataset.surveyType
     if (!dataset?.observations) return 'unknown'
     const obs = dataset.observations
     const types = new Set(obs.map((o: any) => o.type))

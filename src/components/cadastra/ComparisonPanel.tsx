@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { AlertTriangle, CheckCircle, MapPin } from 'lucide-react'
 import type { ValidationResult } from '@/types/cadastra'

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import type { DiagramTitleBlock as TitleBlockType } from '@/lib/working-diagram/types'
 
 interface Props {

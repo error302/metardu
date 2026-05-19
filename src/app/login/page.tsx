@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -129,23 +129,39 @@ const handleLogin = async (e: React.FormEvent) => {
 
   return (
     <div className="min-h-screen flex">
-      <div className="hidden md:flex md:w-1/2 bg-gray-900 text-white flex-col justify-center p-12">
-        <a href="/" className="text-4xl font-bold mb-4 text-[var(--accent)]">METARDU</a>
-        <p className="text-xl text-gray-300 mb-8">From field data to finished documents.</p>
-        <ul className="space-y-4 text-gray-400">
-          <li className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-500" />
-            Kenya Survey Regulations compliant
-          </li>
-          <li className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-500" />
-            Works offline in the field
-          </li>
-          <li className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-500" />
-            Trusted by surveyors across East Africa
-          </li>
-        </ul>
+      <div className="hidden md:flex md:w-1/2 relative overflow-hidden">
+        <img
+          src="/images/signin-hero.jpg"
+          alt="Kenyan land surveying"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/20" />
+        <div className="relative z-10 flex flex-col justify-end p-12">
+          <a href="/" className="text-4xl font-bold mb-4 text-[var(--accent)] tracking-tight">METARDU</a>
+          <p className="text-2xl text-white font-semibold mb-3 leading-tight">
+            From field data to<br />
+            <span className="text-[var(--accent)]">finished documents.</span>
+          </p>
+          <p className="text-base text-white/70 mb-8 leading-relaxed">
+            Kenya&apos;s professional cadastral survey platform. Create projects, automate computations,
+            generate RIM reports, and collaborate with fellow surveyors.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {[
+              { icon: CheckCircle2, text: 'Kenya Survey Regulations Compliant' },
+              { icon: CheckCircle2, text: 'Works Offline in the Field' },
+              { icon: CheckCircle2, text: 'Trusted by Surveyors Across East Africa' },
+            ].map((item) => (
+              <div
+                key={item.text}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10"
+              >
+                <item.icon className="w-4 h-4 text-[var(--accent)] shrink-0" />
+                <span className="text-sm text-white/90">{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="w-full md:w-1/2 flex items-center justify-center p-8 bg-[var(--bg-primary)]">

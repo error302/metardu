@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/api-client/client'

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import SettingOutCalculator from '@/components/setting-out/SettingOutCalculator'
 

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import type { VolumeDelta as VolumeDeltaType } from '@/types/bathymetry'

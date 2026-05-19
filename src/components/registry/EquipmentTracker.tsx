@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useEffect } from 'react'
 import { Plus, AlertTriangle, Check, X, Upload, Calendar } from 'lucide-react'

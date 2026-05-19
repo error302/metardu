@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import { SurveyType } from '@/types/project';
 import dynamic from 'next/dynamic';
@@ -44,10 +45,10 @@ function SetupPanel({ surveyType }: { surveyType: SurveyType }) {
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
-      <h2 className="font-semibold text-gray-900 mb-1">Step 1 — Setup</h2>
-      <p className="text-sm text-gray-500 mb-4">Confirm project details before entering field observations.</p>
-      <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+    <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+      <h2 className="font-semibold text-[var(--text-primary)] mb-1">Step 1 — Setup</h2>
+      <p className="text-sm text-[var(--text-muted)] mb-4">Confirm project details before entering field observations.</p>
+      <ul className="text-sm text-[var(--text-secondary)] space-y-1 list-disc list-inside">
         {(hints[surveyType] ?? []).map((hint) => <li key={hint}>{hint}</li>)}
       </ul>
     </div>
@@ -82,16 +83,25 @@ function ComputeStepPanel({ surveyType, projectId }: { surveyType: SurveyType; p
     <div className="space-y-4">
       {surveyType === 'mining' ? (
         // <MiningVolumePanel projectId={projectId} projectData={{}} />
-        <div> Mining Volume Panel (Phase XX) </div>
+        <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+          <h2 className="font-semibold text-[var(--text-primary)] mb-1">Step 3 — Mining Volume</h2>
+          <p className="text-sm text-[var(--text-muted)] mb-4">Compute end-of-month volumes from survey data.</p>
+          <Link
+            href="/process"
+            className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            Open Computation Engine →
+          </Link>
+        </div>
       ) : (
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="font-semibold text-gray-900 mb-1">Step 3 — Compute</h2>
-          <p className="text-sm text-gray-500 mb-4">These computations will run against your field book data.</p>
-          <ul className="text-sm text-gray-700 space-y-1.5 list-disc list-inside">
+        <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+          <h2 className="font-semibold text-[var(--text-primary)] mb-1">Step 3 — Compute</h2>
+          <p className="text-sm text-[var(--text-muted)] mb-4">These computations will run against your field book data.</p>
+          <ul className="text-sm text-[var(--text-secondary)] space-y-1.5 list-disc list-inside">
             {(computeItems[surveyType] ?? []).map((item) => <li key={item}>{item}</li>)}
           </ul>
-          <div className="mt-5 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-            Compute runners ship in Phase 16. Ensure field book data is complete before advancing.
+          <div className="mt-5 rounded-md bg-[var(--accent-subtle)] border border-[var(--accent)]/20 p-3 text-sm text-[var(--accent)]">
+            Compute runners ship in current release. Ensure field book data is complete before advancing.
           </div>
         </div>
       )}
@@ -163,9 +173,9 @@ function ReviewStepPanel({ surveyType, projectId }: { surveyType: SurveyType; pr
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
-      <h2 className="font-semibold text-gray-900 mb-1">Step 4 — Review</h2>
-      <p className="text-sm text-gray-500 mb-5">Review computation results before generating submission documents.</p>
+    <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+      <h2 className="font-semibold text-[var(--text-primary)] mb-1">Step 4 — Review</h2>
+      <p className="text-sm text-[var(--text-muted)] mb-5">Review computation results before generating submission documents.</p>
       
       <div className="flex flex-wrap gap-3">
         <button
@@ -196,7 +206,7 @@ function ReviewStepPanel({ surveyType, projectId }: { surveyType: SurveyType; pr
         
         <button
           onClick={handleWorkingDiagram}
-          className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-[var(--text-secondary)] text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
         >
           <Download className="w-4 h-4" />
           Working Diagram
@@ -204,7 +214,7 @@ function ReviewStepPanel({ surveyType, projectId }: { surveyType: SurveyType; pr
       </div>
 
       <div className="mt-5 p-4 bg-gray-50 rounded-md">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-[var(--text-secondary)]">
           After reviewing your computation results, generate the outputs above and proceed to the Submission tab to compile your survey package.
         </p>
       </div>

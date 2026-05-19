@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import React, { useState, useMemo, useRef, useCallback } from 'react'
 import type {

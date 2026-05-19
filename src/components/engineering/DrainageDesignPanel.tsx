@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import React, { useState, useCallback } from 'react'
 import { manningPipeCapacity, rationalMethodCatchment, manningChannelCapacity, sizePipe, MANNING_N, RUNOFF_COEFFICIENTS, STANDARD_PIPE_SIZES } from '@/lib/engineering/drainageDesign'

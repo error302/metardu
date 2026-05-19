@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { getImageryLayers, getImageryMetadata } from '@/lib/online/satellite'

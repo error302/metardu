@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { sightDistanceCheck, checkRadiusCompliance, getFrictionFactor, getMinRadius, type SightDistanceInput } from '@/lib/computations/roadDesignEngine'

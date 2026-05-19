@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { Activity } from 'lucide-react'
 import type { ConvergencePoint } from '@/types/minetwin'

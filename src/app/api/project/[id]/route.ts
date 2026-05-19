@@ -20,7 +20,7 @@ export async function GET(
     const { rows } = await db.query(
       `SELECT p.*, 
         sd.scheme_number, sd.county, sd.sub_county, sd.ward, 
-        sd.planned_parcels, sd.adjudication_section, sd.status as scheme_status
+        sd.planned_parcels, sd.adjudication_section
        FROM projects p
        LEFT JOIN scheme_details sd ON sd.project_id = p.id
        WHERE p.id = $1 AND p.user_id = $2`,

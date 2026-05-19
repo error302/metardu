@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { KRDM2017, KeRRA } from '@/lib/standards/engineering'

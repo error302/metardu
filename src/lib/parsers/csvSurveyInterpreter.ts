@@ -37,15 +37,22 @@ export function interpretCSV(csvText: string): CSVInterpretResult {
       warnings.push('Could not auto-detect survey type. Check column headers.')
     }
     
-    // Build observations
-    const observations = rows.map((row, i) => ({
-      id: `obs_${i}`,
-      station: row['Station'] || row['station'] || row['Point'] || row['point'] || `P${i}`,
-      target: row['Target'] || row['target'],
-      type: mapRowToType(row, headers),
-      value1: parseFloat(Object.values(row).find((v: any) => !isNaN(parseFloat(v))) || '0'),
-      raw: Object.values(row).join(',')
-    }))
+    // Build observations. For multi-measurement rows, value1/value2 must map to
+    // the workflow engine's expectations rather than the first numeric cell.
+    const observations = rows.map((row, i) => {
+      const values = valuesForSurveyType(row, headers, surveyType)
+
+      return {
+        id: `obs_${i}`,
+        station: pick(row, ['Station', 'station', 'Point', 'point', 'From', 'from']) || `P${i + 1}`,
+        target: pick(row, ['Target', 'target', 'To', 'to']),
+        type: mapRowToType(row, headers, surveyType),
+        value1: values.value1,
+        value2: values.value2,
+        value3: values.value3,
+        raw: Object.values(row).join(',')
+      }
+    })
     
     // Extract metadata
     const metadata: SurveyDataset['metadata'] = {}
@@ -68,8 +75,74 @@ export function interpretCSV(csvText: string): CSVInterpretResult {
   }
 }
 
-function mapRowToType(row: Record<string, string>, headers: string[]): ObservationType {
+function pick(row: Record<string, string>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== '') return row[key]
+  }
+  return undefined
+}
+
+function readNumber(row: Record<string, string>, keys: string[], fallback = 0): number {
+  const raw = pick(row, keys)
+  if (raw === undefined) return fallback
+  const n = parseFloat(raw)
+  return Number.isFinite(n) ? n : fallback
+}
+
+function readOptionalNumber(row: Record<string, string>, keys: string[]): number | undefined {
+  const raw = pick(row, keys)
+  if (raw === undefined) return undefined
+  const n = parseFloat(raw)
+  return Number.isFinite(n) ? n : undefined
+}
+
+function valuesForSurveyType(
+  row: Record<string, string>,
+  headers: string[],
+  surveyType: SurveyDataset['surveyType']
+) {
+  if (surveyType === 'traverse') {
+    return {
+      value1: readNumber(row, ['Bearing', 'bearing', 'WCB', 'wcb', 'Azimuth', 'azimuth']),
+      value2: readNumber(row, ['Distance', 'distance', 'Length', 'length']),
+    }
+  }
+
+  if (surveyType === 'radiation') {
+    return {
+      value1: readNumber(row, ['Bearing', 'bearing', 'Angle', 'angle', 'WCB', 'wcb', 'Azimuth', 'azimuth']),
+      value2: readNumber(row, ['Distance', 'distance', 'Length', 'length']),
+      value3: readOptionalNumber(row, ['VerticalAngle', 'verticalAngle', 'VA', 'va']),
+    }
+  }
+
+  if (surveyType === 'leveling') {
+    return {
+      value1: readNumber(row, ['BS', 'bs', 'IS', 'is', 'FS', 'fs']),
+    }
+  }
+
+  if (surveyType === 'boundary') {
+    return {
+      value1: readNumber(row, ['Easting', 'easting', 'X', 'x']),
+      value2: readNumber(row, ['Northing', 'northing', 'Y', 'y']),
+      value3: readOptionalNumber(row, ['Elevation', 'elevation', 'RL', 'rl']),
+    }
+  }
+
+  const firstNumeric = Object.values(row).find((v: any) => !isNaN(parseFloat(v)))
+  return { value1: parseFloat(firstNumeric || '0') }
+}
+
+function mapRowToType(
+  row: Record<string, string>,
+  headers: string[],
+  surveyType: SurveyDataset['surveyType']
+): ObservationType {
   const h = headers.map((h: any) => h.toLowerCase())
+  if (surveyType === 'traverse') return 'BEARING'
+  if (surveyType === 'radiation') return h.includes('bearing') || h.includes('wcb') || h.includes('azimuth') ? 'BEARING' : 'ANGLE'
+  if (surveyType === 'boundary') return 'COORDINATE'
   if (h.includes('bs') && row['BS']) return 'BS'
   if (h.includes('fs') && row['FS']) return 'FS'
   if (h.includes('is') && row['IS']) return 'IS'

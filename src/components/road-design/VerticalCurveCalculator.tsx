@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { verticalCurve, type VerticalCurveInput, type VerticalCurveResult } from '@/lib/computations/roadDesignEngine'

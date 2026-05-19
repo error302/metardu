@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react'
 import { superelevationDesign, getFrictionFactor, type SuperelevationInput } from '@/lib/computations/roadDesignEngine'
