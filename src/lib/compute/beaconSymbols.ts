@@ -296,11 +296,12 @@ export function getBeaconSymbol(type: BeaconType, status: BeaconStatus = 'FOUND'
   const fullName = def?.fullName || 'Unknown'
   const regulation = def?.regulation || ''
 
-  return `${baseSymbol}${statusModifier}${referenceLabel}<title>${fullName} — ${status}</title><desc>${regulation}</desc>`
+  return `${baseSymbol}${statusModifier}${referenceLabel}<title>${fullName} — ${status}</title>`
 }
 
 export function getBeaconSymbolSVG(type: BeaconType, status: BeaconStatus = 'FOUND', size: number = 8): string {
-  return `<g>${getBeaconSymbol(type, status, size)}</g>`
+  const extent = size * 0.75
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-extent} ${-extent} ${extent * 2} ${extent * 2}">${getBeaconSymbol(type, status, size)}</svg>`
 }
 
 export const BEACON_CATEGORIES = {
