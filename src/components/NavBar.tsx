@@ -218,7 +218,6 @@ export default function NavBar() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [userPlan, setUserPlan] = useState<PlanId>('free')
-  const [calibrationOverdueCount, setCalibrationOverdueCount] = useState(0)
   const navRef = useRef<HTMLDivElement>(null)
 
   const { language, setLanguage, t, hydrated } = useLanguage()

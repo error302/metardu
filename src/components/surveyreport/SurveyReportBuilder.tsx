@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 import { buildSubmissionNumber, normaliseRegistrationNo, validateSubmissionNumber } from '@/lib/submission/format'
-import { PHASE13_DEMO_PROJECTS } from '@/lib/standards/rdm11'
+// import { PHASE13_DEMO_PROJECTS } from '@/lib/standards/rdm11'
 import type { 
   SurveyReportInput, 
   SectionContent, 
@@ -166,61 +166,8 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
     setIsDirty(true)
   }
 
-  const loadDemoSurveyReport = () => {
-    const demo = PHASE13_DEMO_PROJECTS.topographicRoad
-    const today = new Date().toISOString().slice(0, 10)
-
-    setReportInput(prev => ({
-      ...prev,
-      reportTitle: `${demo.projectName} - Topographic Survey Report`,
-      reportNumber: 'MET-RPT-2026-002',
-      submissionNumber: demo.submissionNo,
-      revisionNumber: 'R00',
-      clientName: demo.clientName,
-      clientAddress: 'P.O. Box 1996-90100, Machakos, Kenya',
-      firmName: 'METARDU Survey Consultants Ltd',
-      firmAddress: 'Westlands, Nairobi, Kenya',
-      firmIskNumber: demo.iskNo,
-      surveyorName: demo.surveyorName,
-      surveyorRegistrationNumber: demo.regNo,
-      surveyorIskNumber: demo.iskNo,
-      reportDate: today,
-      projectLocation: demo.location,
-      county: demo.county,
-      projectPurpose: 'Topographic survey for junction improvement design, drainage review, land acquisition checks, and construction setting-out control.',
-      siteDescription: 'Urban road corridor with paved carriageway, gravel shoulders, open drains, utility crossings, boundary walls, shops, and intermittent vegetation.',
-      surveyPeriodStart: today,
-      surveyPeriodEnd: today,
-      scopeItems: DEFAULT_SCOPE_ITEMS,
-      equipment: [
-        { type: 'Robotic Total Station', make: 'Leica TS16 I 1"', serialNumber: 'TS16-384219', calibrationDate: '2026-03-18', calibrationCert: 'CAL/TS/2026/041' },
-        { type: 'Digital Level', make: 'Leica LS15', serialNumber: 'LS15-115087', calibrationDate: '2026-03-20', calibrationCert: 'CAL/DL/2026/044' },
-        { type: 'GNSS Rover', make: 'Leica GS18 T', serialNumber: 'GS18-771204', calibrationDate: '2026-03-16', calibrationCert: 'CAL/GNSS/2026/038' },
-      ],
-      personnel: [
-        { name: demo.surveyorName, role: 'Registered Surveyor / Team Lead', qualification: 'Licensed Surveyor, ISK Member' },
-        { name: 'Brian M. Kariuki', role: 'Instrument Operator', qualification: 'Diploma in Land Survey' },
-        { name: 'Mercy N. Wambui', role: 'Chainperson / Recorder', qualification: 'Survey Technician' },
-      ],
-      datum: 'ARC1960',
-      projection: 'UTM Zone 37S',
-      surveyMethod: 'COMBINED',
-      instrumentUsed: demo.instrument,
-      pointDensity: 'Spot levels at 10 m to 20 m intervals, with denser capture at drainage and paved edges',
-      areaHectares: 4.8,
-      traverseAccuracy: '1:18,600',
-      levellingMisclosure: '+4.0 mm over 1.20 km (allowable 10.95 mm)',
-      conclusions: [
-        'The survey control, levelling, and topographic pickup meet RDM 1.1 accuracy requirements for detailed road design.',
-        'Paved edge, drainage, structure, and utility observations were captured to RDM 1.1 Table 5.2 tolerances.',
-      ],
-      recommendations: [
-        'Maintain the listed control marks for construction setting-out and independent design verification.',
-        'Carry out a control re-check before construction works begin if marks are disturbed by traffic management or utility relocation.',
-      ],
-    }))
-    setIsDirty(true)
-  }
+  // loadDemoSurveyReport removed — PHASE13_DEMO_PROJECTS was removed
+  const loadDemoSurveyReport = () => {}
 
   const DEFAULT_DECLARATION = `I, the undersigned, being a Registered Surveyor under the Survey Act (Cap. 299), do hereby declare that:
 

@@ -49,38 +49,4 @@ export const CONTROL_MARK_REGISTER_COLUMNS = [
   'Witness / Recovery Notes',
 ]
 
-export const PHASE13_DEMO_PROJECTS = {
-  topographicRoad: {
-    projectName: 'Kangundo Road Junction Improvement Topographic Survey',
-    clientName: 'County Government of Machakos',
-    surveyorName: 'Eng. Amina W. Njoroge',
-    regNo: 'RS149',
-    iskNo: 'ISK-2217',
-    submissionNo: 'RS149_2026_002_R00',
-    instrument: 'Leica TS16 I 1" / Leica LS15 Digital Level',
-    county: 'Machakos',
-    location: 'Kangundo Road, Joska - Malaa section',
-  },
-  cadastral: {
-    projectName: 'Subdivision Survey for L.R. No. Kajiado/Kaputiei North/18462',
-    clientName: 'Kaputiei Holdings Ltd',
-    surveyorName: 'Samuel K. Muriithi',
-    regNo: 'RS087',
-    iskNo: 'ISK-1402',
-    submissionNo: 'RS087_2026_014_R00',
-    instrument: 'Trimble R12i GNSS / S7 Total Station',
-    county: 'Kajiado',
-    location: 'Kitengela, Kajiado County',
-  },
-  engineeringControl: {
-    projectName: 'Athi River Industrial Park Control Extension',
-    clientName: 'Kenya Urban Roads Authority',
-    surveyorName: 'Faith A. Otieno',
-    regNo: 'RS233',
-    iskNo: 'ISK-3189',
-    submissionNo: 'RS233_2026_006_R01',
-    instrument: 'Trimble SX12 Scanning Total Station',
-    county: 'Machakos',
-    location: 'Athi River Industrial Park',
-  },
-}
+// PHASE13_DEMO_PROJECTS removed — demo seed data no longer needed

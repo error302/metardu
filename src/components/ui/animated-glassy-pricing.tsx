@@ -26,21 +26,11 @@ const ShaderCanvas = () => {
   const [backgroundColor, setBackgroundColor] = useState([1.0, 1.0, 1.0]);
 
   useEffect(() => {
-    const root = document.documentElement;
-    const updateColor = () => {
-      const isDark = root.classList.contains('dark');
-      setBackgroundColor(isDark ? [0, 0, 0] : [1.0, 1.0, 1.0]);
-    };
-    updateColor();
-    const observer = new MutationObserver((mutationsList) => {
-      for (const mutation of mutationsList) {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          updateColor();
-        }
-      }
-    });
-    observer.observe(root, { attributes: true });
-    return () => observer.disconnect();
+    // Check CSS custom property for dark mode (metardu uses --bg-primary: #0a0a0a)
+    const style = getComputedStyle(document.documentElement);
+    const bg = style.getPropertyValue('--bg-primary').trim();
+    const isDark = !bg || bg === '#0a0a0a' || bg === '#0a0a0f' || bg === '#000';
+    setBackgroundColor(isDark ? [0.039, 0.039, 0.059] : [1.0, 1.0, 1.0]);
   }, []);
 
   useEffect(() => {
@@ -57,7 +47,7 @@ const ShaderCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const gl = canvas.getContext('webgl');
-    if (!gl) { console.error("WebGL not supported"); return; }
+    if (!gl) return; // Graceful fallback if WebGL not supported
     glRef.current = gl;
 
     const vertexShaderSource = `attribute vec2 aPosition; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); }`;
@@ -132,14 +122,23 @@ const ShaderCanvas = () => {
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       animationFrameId = requestAnimationFrame(render);
     };
+    // Respect prefers-reduced-motion
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const handleResize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     };
     handleResize();
+    if (!prefersReducedMotion) {
+      animationFrameId = requestAnimationFrame(render);
+    } else {
+      // Render one static frame
+      gl.uniform1f(iTimeLoc, 0);
+      gl.uniform2f(iResLoc, canvas.width, canvas.height);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
     window.addEventListener('resize', handleResize);
-    animationFrameId = requestAnimationFrame(render);
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);

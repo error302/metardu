@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
 import { buildPrintDocument, openPrint } from '@/lib/print/buildPrintDocument'
-import { CONTROL_MARK_REGISTER_COLUMNS, PHASE13_DEMO_PROJECTS } from '@/lib/standards/rdm11'
+import { CONTROL_MARK_REGISTER_COLUMNS } from '@/lib/standards/rdm11'
 
 interface MarkRow {
   id: string
@@ -57,26 +57,8 @@ export default function ControlMarksRegisterPage() {
     setRows(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row))
   }
 
-  const loadDemo = () => {
-    const demo = PHASE13_DEMO_PROJECTS.engineeringControl
-    setMeta({
-      ...defaultPrintMeta,
-      projectName: demo.projectName,
-      clientName: demo.clientName,
-      surveyorName: demo.surveyorName,
-      regNo: demo.regNo,
-      iskNo: demo.iskNo,
-      instrument: demo.instrument,
-      submissionNo: demo.submissionNo,
-      observer: 'Joseph M. Ndegwa',
-      weather: 'Dry, clear, stable visibility',
-    })
-    setRows([
-      { id: 'CP01', type: 'Concrete Pillar', order: 'PRIMARY', easting: '275421.384', northing: '9854621.226', elevation: '1538.426', description: '20 mm brass pin in concrete pillar near gate house', condition: 'FOUND GOOD', photoRef: 'CP01-IMG-001', witnessNotes: '1.20 m east of fence corner, 8.40 m south of gate centreline' },
-      { id: 'CP02', type: 'Nail and washer', order: 'SECONDARY', easting: '275812.067', northing: '9854388.914', elevation: '1536.882', description: 'Survey nail in concrete kerb at warehouse access', condition: 'SET', photoRef: 'CP02-IMG-002', witnessNotes: '0.35 m behind kerb face, 14.10 m from power pole AP-17' },
-      { id: 'BM03', type: 'Benchmark', order: 'SECONDARY', easting: '275604.743', northing: '9854112.650', elevation: '1534.218', description: 'Chiselled square on culvert headwall', condition: 'FOUND GOOD', photoRef: 'BM03-IMG-003', witnessNotes: 'North headwall of 900 mm culvert, left side of access road' },
-    ])
-  }
+  // loadDemo removed — PHASE13_DEMO_PROJECTS was removed
+  const loadDemo = () => {}
 
   const handlePrint = () => {
     const bodyRows = rows.map(row => `

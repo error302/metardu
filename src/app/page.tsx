@@ -166,8 +166,8 @@ const Icons = {
     </svg>
   ),
   twitter: (
-    <svg viewBox="0 0 20 20" className="w-5 h-5" fill="currentColor">
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" transform="scale(0.833)" />
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
     </svg>
   ),
 }
@@ -186,8 +186,8 @@ const TYPEWRITER_WORDS = [
 
 const STATS = [
   { value: 60, suffix: '', label: 'UTM Zones' },
-  { value: 50, suffix: '+', label: 'Countries' },
-  { value: 10, suffix: 'K+', label: 'Surveyors' },
+  { value: 15, suffix: '+', label: 'African Countries' },
+  { value: 18, suffix: '+', label: 'Survey Tools' },
   { value: 100, suffix: '%', label: 'Built in Africa' },
 ]
 
@@ -865,22 +865,22 @@ function FinalCTA() {
 function Footer() {
   const footerLinks = {
     Product: [
-      { label: 'Features', href: '#features' },
-      { label: 'Pricing', href: '#pricing' },
+      { label: 'Features', href: '/pricing' },
+      { label: 'Pricing', href: '/pricing' },
       { label: 'Tools', href: '/tools' },
       { label: 'API Docs', href: '/docs' },
     ],
     Resources: [
       { label: 'Survey Guide', href: '/guide' },
-      { label: 'Tools', href: '/tools' },
       { label: 'Survey Regulations', href: '/tools/survey-regulations' },
       { label: 'Documentation', href: '/docs' },
+      { label: 'Community', href: '/community' },
     ],
     Company: [
-      { label: 'About', href: '#features' },
-      { label: 'Pricing', href: '#pricing' },
+      { label: 'About', href: '/pricing' },
+      { label: 'Careers', href: '/pricing' },
       { label: 'Field Tools', href: '/field' },
-      { label: 'Documentation', href: '/docs' },
+      { label: 'Contact', href: 'mailto:hello@metardu.app' },
     ],
   }
 

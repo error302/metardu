@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
 import { buildPrintDocument, openPrint } from '@/lib/print/buildPrintDocument'
-import { MOBILISATION_SECTIONS, PHASE13_DEMO_PROJECTS } from '@/lib/standards/rdm11'
+import { MOBILISATION_SECTIONS } from '@/lib/standards/rdm11'
 
 type SectionKey = 'introduction' | 'healthSafety' | 'personnel' | 'equipment' | 'calibration' | 'fieldForms' | 'miscellaneous'
 
@@ -40,30 +40,8 @@ export default function MobilisationReportPage() {
   const [meta, setMeta] = useState<PrintMeta>(defaultPrintMeta)
   const [report, setReport] = useState<Record<SectionKey, string>>(EMPTY_REPORT)
 
-  const loadDemo = () => {
-    const demo = PHASE13_DEMO_PROJECTS.topographicRoad
-    setMeta({
-      ...defaultPrintMeta,
-      projectName: demo.projectName,
-      clientName: demo.clientName,
-      surveyorName: demo.surveyorName,
-      regNo: demo.regNo,
-      iskNo: demo.iskNo,
-      instrument: demo.instrument,
-      submissionNo: demo.submissionNo,
-      weather: 'Clear, light wind, good visibility',
-      observer: 'Brian M. Kariuki',
-    })
-    setReport({
-      introduction: 'Mobilisation for a detailed topographic and control survey along the Kangundo Road junction improvement corridor. The survey supports road design, drainage review, utility coordination, and construction control.',
-      healthSafety: 'Daily toolbox talk, traffic spotter on active carriageway, reflective PPE, cone taper at instrument setups, first-aid kit in survey vehicle, and no solo work near open drains or live traffic.',
-      personnel: 'Registered Surveyor: Eng. Amina W. Njoroge (RS149). Instrument Operator: Brian M. Kariuki. Recorder/Chainperson: Mercy N. Wambui. Driver/Safety Assistant: Peter O. Otieno.',
-      equipment: 'Leica TS16 I 1" robotic total station, Leica LS15 digital level, Leica GS18 T GNSS rover, two prisms, 5 m staff, tripods, tribrachs, radios, field tablets, and control-mark recovery kit.',
-      calibration: 'Total station calibration certificate CAL/TS/2026/041 dated 18 Mar 2026. Digital level certificate CAL/DL/2026/044 dated 20 Mar 2026. GNSS receiver check CAL/GNSS/2026/038 dated 16 Mar 2026.',
-      fieldForms: 'Traverse field book, level book, control marks register, detail pickup coding sheet, site hazard checklist, and daily equipment check form.',
-      miscellaneous: 'Client to provide access letters for frontage plots. Utility covers to be lifted only with client approval. Control marks to be witnessed with photos before demobilisation.',
-    })
-  }
+  // loadDemo removed — PHASE13_DEMO_PROJECTS was removed
+  const loadDemo = () => {}
 
   const handlePrint = () => {
     const body = `

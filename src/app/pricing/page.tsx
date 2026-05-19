@@ -45,14 +45,24 @@ export default function PricingPage() {
 
   useEffect(() => {
     async function detectCurrency() {
+      // Check cache first (24h TTL)
+      try {
+        const cached = localStorage.getItem('metardu:currency')
+        if (cached) {
+          const { code, ts } = JSON.parse(cached)
+          if (Date.now() - ts < 86400000) { setCurrency(code); return }
+        }
+      } catch { /* ignore */ }
       try {
         const res = await fetch('https://ipapi.co/json/')
         const data = await res.json()
         if (data.country_code && currencyMap[data.country_code]) {
-          setCurrency(currencyMap[data.country_code])
+          const code = currencyMap[data.country_code]
+          setCurrency(code)
+          try { localStorage.setItem('metardu:currency', JSON.stringify({ code, ts: Date.now() })) } catch { /* ignore */ }
         }
       } catch {
-        // Use default
+        // Use default KES
       }
     }
     detectCurrency()
@@ -70,19 +80,7 @@ export default function PricingPage() {
         ? 'For professional surveyors and small firms'
         : 'Collaborate with your survey crew',
     price: formatPrice(getPlanPrice(plan.id, currency), currency),
-    features: plan.id === 'pro' ? [
-      ...plan.features,
-      'AI-Powered Features:',
-      '  • FieldGuard AI - Smart data cleaning',
-      '  • CadastraAI - Land title validation',
-      '  • MineTwin 3D - Underground mapping',
-      '  • HydroLive - Real-time tide correction',
-      '  • SurveyGPT - AI field assistant',
-      '  • AutoContour - Instant contours',
-      '  • LegalCheck - Compliance analysis',
-      '  • CostAI - Instant BOQ estimation',
-      'Develop Full Plan (AI-generated)',
-    ] : plan.features,
+    features: plan.features,
     buttonText: plan.id === 'free'
       ? 'Get Started Free'
       : plan.id === 'team'

@@ -337,6 +337,12 @@ html {
 /* ========================================================================
    7. UTILITY LAYER
    ======================================================================== */
+
+/* --- Safe area inset for mobile bottom nav --------------------------- */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 @layer utilities {
   .animate-shimmer {
     background-size: 200% 100%;

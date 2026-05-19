@@ -1,6 +1,5 @@
 'use client';
 
-const ADMIN_EMAILS_STR = ''
 function isClientAdmin(email: string | null | undefined): boolean {
   if (!email) return false
   const admins = ['mohameddosho20@gmail.com']

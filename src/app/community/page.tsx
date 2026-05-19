@@ -162,8 +162,8 @@ export default function CommunityPage() {
         </div>
 
         {/* Info */}
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800">
+        <div className="mt-8 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+          <p className="text-sm text-blue-300">
             <strong>ISK CPD Requirement:</strong> Institution of Surveyors of Kenya requires 20 CPD points 
             per year for license renewal. METARDU automatically awards points for completed jobs, 
             peer reviews, and document signatures.

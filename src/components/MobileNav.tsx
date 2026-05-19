@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   FolderKanban, LayoutDashboard, MapPinned, UserRound, UsersRound, Wrench, FileText,
-  CalendarDays, Radar, Briefcase, Store, ChevronRight, X, AlertTriangle, Clock
+  CalendarDays, Radar, Briefcase, BriefcaseBusiness, Store, ChevronRight, X, AlertTriangle, Clock
 } from 'lucide-react'
 import { createClient } from '@/lib/api-client/client'
 import { PRIMARY_NAV_ITEMS, isNavItemActive } from '@/lib/navigation-shell'
@@ -73,7 +73,7 @@ export default function MobileNav() {
     <>
       <nav className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] md:hidden z-50 safe-area-inset-bottom">
         <div className="flex justify-around items-stretch py-1">
-          {mobileNavItems.slice(0, 5).map((item) => {
+          {mobileNavItems.slice(0, 4).map((item) => {
             const isActive = isNavItemActive(pathname, item.href)
             const iconName = item.icon || item.href.replace('/', '')
             const Icon = iconMap[iconName] || LayoutDashboard

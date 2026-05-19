@@ -52,7 +52,6 @@ function LoginForm() {
 
 const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault()
-  console.log('[DEBUG] Login form submitted')
   setEmailTouched(true)
   setPasswordTouched(true)
 
@@ -61,13 +60,11 @@ const handleLogin = async (e: React.FormEvent) => {
   setEmailError(emailErr)
   setPasswordError(passErr)
   if (emailErr || passErr) {
-    console.log('[DEBUG] Validation error:', { emailErr, passErr })
     return
   }
 
   setError('')
   setLoading(true)
-  console.log('[DEBUG] Calling signIn with credentials...')
 
   try {
     const result = await signIn('credentials', {
@@ -75,17 +72,13 @@ const handleLogin = async (e: React.FormEvent) => {
       password,
       redirect: false,
     })
-    console.log('[DEBUG] signIn result:', result)
 
     setLoading(false)
 
     if (result?.error) {
-      console.log('[DEBUG] signIn error:', result.error)
       setError('Incorrect email or password. Please try again.')
       return
     }
-
-    console.log('[DEBUG] Login successful, redirecting...')
     if (rememberMe) {
       localStorage.setItem('metardu_remember', 'true')
     } else {
@@ -95,7 +88,7 @@ const handleLogin = async (e: React.FormEvent) => {
     localStorage.removeItem('auth:redirect')
     window.location.href = getRedirectTo()
   } catch (err) {
-    console.error('[DEBUG] signIn threw error:', err)
+    console.error('Login error:', err)
     setLoading(false)
     setError('An error occurred. Please try again.')
   }
@@ -119,10 +112,10 @@ const handleLogin = async (e: React.FormEvent) => {
       if (res.ok) {
         setView('sent')
       } else {
-        setError('Password reset is not yet available. Please contact support at mohameddosho20@gmail.com')
+        setError('Unable to send reset link. Please try again.')
       }
     } catch {
-      setError('Password reset is not yet available. Please contact support at mohameddosho20@gmail.com')
+      setError('A network error occurred. Please check your connection and try again.')
     }
     setLoading(false)
   }
