@@ -1,3 +1,25 @@
+const fs = require('fs');
+const path = require('path');
+
+// Manually parse .env.local if present to supply variables to the standalone Next.js server
+const envPath = path.resolve(__dirname, '.env.local');
+if (fs.existsSync(envPath)) {
+  const envConfig = fs.readFileSync(envPath, 'utf8');
+  envConfig.split(/\r?\n/).forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+    const match = trimmed.match(/^([\w.-]+)\s*=\s*(.*)?$/);
+    if (match) {
+      const key = match[1];
+      let value = (match[2] || '').trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.substring(1, value.length - 1);
+      }
+      process.env[key] = value;
+    }
+  });
+}
+
 module.exports = {
   apps: [
     {
@@ -10,6 +32,7 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3000,
         NODE_OPTIONS: '--max-old-space-size=768',
+        ...process.env,
       },
       max_memory_restart: '900M',
       watch: false,
