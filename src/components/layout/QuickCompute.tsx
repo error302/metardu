@@ -39,10 +39,13 @@ const TOOLS = [
     ]
   },
   {
-    category: 'Earthworks',
+    category: 'Earthworks & Volumes',
     items: [
       { label: 'Cross Sections', href: '/tools/cross-sections' },
+      { label: 'Earthworks', href: '/tools/earthworks' },
       { label: 'Setting Out', href: '/tools/setting-out' },
+      { label: 'Borrow Pit Volume', href: '/tools/borrow-pit-volume' },
+      { label: 'Stockpile Volume', href: '/tools/stockpile-volume' },
     ]
   },
   {
@@ -51,14 +54,18 @@ const TOOLS = [
       { label: 'Superelevation', href: '/tools/superelevation' },
       { label: 'Sight Distance', href: '/tools/sight-distance' },
       { label: 'Pipe Gradient', href: '/tools/pipe-gradient' },
-      { label: 'Borrow Pit Volume', href: '/tools/borrow-pit-volume' },
-      { label: 'Stockpile Volume', href: '/tools/stockpile-volume' },
+      { label: 'Road Design', href: '/tools/road-design' },
+      { label: 'Mining Survey', href: '/tools/mining' },
+      { label: 'Hydrographic', href: '/tools/hydrographic' },
+      { label: 'Drone/UAV', href: '/tools/drone' },
     ]
   },
   {
     category: 'Utilities',
     items: [
       { label: 'Datum Converter', href: '/online' },
+      { label: 'Missing Line', href: '/tools/missing-line' },
+      { label: 'Height of Object', href: '/tools/height-of-object' },
     ]
   }
 ]

@@ -1,7 +1,8 @@
 'use client';
 
 import type { BeaconType, BeaconStatus } from '@/types/deedPlan'
-import { BEACON_DEFINITIONS, getBeaconSymbolSVG, BEACON_CATEGORIES } from '@/lib/compute/beaconSymbols'
+import { BEACON_DEFINITIONS, getBeaconSymbolSVG, BEACON_CATEGORIES, BEACON_IMAGES } from '@/lib/compute/beaconSymbols'
+import Image from 'next/image'
 
 const STATUSES: BeaconStatus[] = ['FOUND', 'SET', 'DESTROYED', 'NOT_FOUND']
 
@@ -67,6 +68,19 @@ export default function BeaconReferencePage() {
                     <p className="text-xs text-[var(--text-muted)] mb-3">
                       {def.description}
                     </p>
+
+                    {/* Photo reference image */}
+                    {BEACON_IMAGES[type as BeaconType] && (
+                      <div className="mb-3 rounded-lg overflow-hidden border border-[var(--border-color)] bg-black/20">
+                        <Image
+                          src={BEACON_IMAGES[type as BeaconType]!}
+                          alt={`${def.fullName} — field photograph`}
+                          width={400}
+                          height={300}
+                          className="w-full h-auto object-cover"
+                        />
+                      </div>
+                    )}
 
                     <div className="text-[10px] text-[var(--text-muted)] mb-3 font-mono">
                       {def.regulation}

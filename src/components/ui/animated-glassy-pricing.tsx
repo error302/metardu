@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { RippleButton } from "@/components/ui/multi-type-ripple-buttons";
+import Link from 'next/link';
 import { FeatureCard } from "@/components/ui/grid-feature-cards";
 import { 
   Calculator, TrendingUp, FileText, MapPin, Users, Shield, 
@@ -151,6 +151,7 @@ const ShaderCanvas = () => {
 
 
 export interface PricingCardProps {
+  planId: string;
   planName: string;
   description: string;
   price: string;
@@ -161,8 +162,11 @@ export interface PricingCardProps {
 }
 
 export const PricingCard = ({
-  planName, description, price, features, buttonText, isPopular = false, buttonVariant = 'primary'
+  planId, planName, description, price, features, buttonText, isPopular = false, buttonVariant = 'primary'
 }: PricingCardProps) => {
+  const buttonHref = planId === 'free'
+    ? '/register'
+    : `/checkout?plan=${planId}`;
   const cardClasses = `
     backdrop-blur-[14px] bg-gradient-to-br rounded-2xl shadow-xl flex-1 max-w-xs px-7 py-8 flex flex-col transition-all duration-300
     from-black/5 to-black/0 border border-black/10
@@ -200,7 +204,7 @@ export const PricingCard = ({
           </li>
         ))}
       </ul>
-      <RippleButton className={buttonClasses.trim()}>{buttonText}</RippleButton>
+      <Link href={buttonHref} className={buttonClasses.trim()}>{buttonText}</Link>
     </div>
   );
 };

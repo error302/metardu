@@ -36,6 +36,13 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(route)
   )
 
+  // ─── Public pages (accessible without auth) ───
+  // /subscription/success must be public so returning PayPal/Stripe users can access it
+  const publicPages = ['/subscription/success']
+  const isPublicPage = publicPages.some(path =>
+    request.nextUrl.pathname.startsWith(path)
+  )
+
   // ─── API routes: let them handle auth themselves ───
   // Exception: public API endpoints (no auth needed)
   const publicApiPaths = ['/api/public/health', '/api/webhooks/']
@@ -43,8 +50,8 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(path)
   )
 
-  // Redirect unauthenticated users from protected pages
-  if (isProtected && !isAuthenticated) {
+  // Redirect unauthenticated users from protected pages (skip public pages)
+  if (isProtected && !isAuthenticated && !isPublicPage) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', request.nextUrl.pathname)
     return NextResponse.redirect(loginUrl)

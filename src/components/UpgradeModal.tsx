@@ -2,7 +2,9 @@
 
 import { X, Crown, Lock } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { PLAN_CATALOG, getPlanPrice } from '@/lib/subscription/catalog'
 
 export interface UpgradeModalProps {
   feature?: string
@@ -29,6 +31,10 @@ export function useUpgradeCheck() {
 }
 
 export default function UpgradeModal({ feature = 'Unlock Pro Features', description, onClose, isOpen = true, currentPlan }: UpgradeModalProps) {
+  const router = useRouter()
+  const proPlan = PLAN_CATALOG.find(p => p.id === 'pro')
+  const proPrice = proPlan ? getPlanPrice('pro', 'KES') : 500
+
   if (isOpen === false) return null
 
   return (
@@ -64,17 +70,17 @@ export default function UpgradeModal({ feature = 'Unlock Pro Features', descript
 
           <div className="mb-6">
             <span className="text-3xl font-bold text-[var(--accent)]">
-              KES 4,999
+              KSh {proPrice.toLocaleString()}
             </span>
             <span className="text-sm text-[var(--text-muted)]">/month</span>
           </div>
 
-          <Link
-            href="/pricing"
+          <button
+            onClick={() => { onClose(); router.push('/checkout?plan=pro') }}
             className="w-full px-4 py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded-lg transition-colors text-center"
           >
             Upgrade to Pro
-          </Link>
+          </button>
         </div>
       </div>
     </div>

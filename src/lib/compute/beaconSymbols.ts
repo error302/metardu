@@ -183,6 +183,15 @@ export const BEACON_DEFINITIONS: Record<BeaconType, BeaconDefinition> = {
   }
 }
 
+export const BEACON_IMAGES: Partial<Record<BeaconType, string>> = {
+  PSC: '/images/beacons/psc.jpg',
+  SSC: '/images/beacons/ssc.jpg',
+  TSC: '/images/beacons/tsc.jpg',
+  CONCRETE_BEACON: '/images/beacons/concrete-beacon.jpg',
+  MASONRY_NAIL: '/images/beacons/masonry-nail.jpg',
+  FLUSH_BRACKET: '/images/beacons/flush-bracket.jpg',
+}
+
 export function getBeaconLabel(type: BeaconType): string {
   return BEACON_DEFINITIONS[type]?.shortCode || '??'
 }

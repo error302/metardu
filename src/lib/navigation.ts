@@ -95,7 +95,7 @@ export const NAV_ITEMS: NavItem[] = [
   // COMMUNITY
   { label: 'Community', href: '/community', icon: Users, group: 'COMMUNITY', badge: 'NEW', description: 'Surveyor network hub' },
   { label: 'Jobs', href: '/jobs', icon: BriefcaseBusiness, group: 'COMMUNITY', badge: 'NEW', description: 'Survey job marketplace' },
-  { label: 'Marketplace', href: '/marketplace', icon: Store, group: 'COMMUNITY', description: 'Templates and services store' },
+  { label: 'Marketplace', href: '/marketplace', icon: Store, group: 'COMMUNITY', badge: 'NEW', description: 'Buy, sell and rent survey equipment' },
   { label: 'Peer Review', href: '/peer-review', icon: ClipboardCheck, group: 'COMMUNITY', badge: 'NEW', description: 'Professional plan review' },
   { label: 'Beacons Map', href: '/beacons', icon: MapPinned, group: 'COMMUNITY', description: 'Community beacon map' },
   { label: 'AI Plan Checker', href: '/ai-plan-checker', icon: ScanSearch, group: 'COMMUNITY', badge: 'AI', description: 'AI-powered plan review' },
@@ -111,7 +111,7 @@ export const NAV_ITEMS: NavItem[] = [
   // SETTINGS
   { label: 'Profile', href: '/profile', icon: UserRound, group: 'SETTINGS', description: 'User profile settings' },
   { label: 'Account', href: '/account', icon: Settings2, group: 'SETTINGS', description: 'Account management' },
-  { label: 'Equipment', href: '/equipment', icon: Radar, group: 'SETTINGS', description: 'Instrument calibration tracker' },
+  { label: 'Equipment Tracker', href: '/equipment', icon: Radar, group: 'SETTINGS', description: 'Instrument calibration tracker and reminders' },
   { label: 'Billing', href: '/checkout', icon: CreditCard, group: 'SETTINGS', description: 'Subscription and payment history' },
   { label: 'Pricing', href: '/pricing', icon: BadgeDollarSign, group: 'SETTINGS', description: 'Subscription plans' },
   { label: 'Documentation', href: '/docs', icon: BookOpen, group: 'SETTINGS', description: 'Knowledge base and guides' },

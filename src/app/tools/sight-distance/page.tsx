@@ -6,6 +6,7 @@ import { KRDM2017, KeRRA } from '@/lib/standards/engineering'
 export default function SightDistancePage() {
   const [designSpeed, setDesignSpeed] = useState(60)
   const [standard, setStandard] = useState<'KRDM2017' | 'KeRRA'>('KRDM2017')
+  const [curveRadius, setCurveRadius] = useState(150)
 
   const std = standard === 'KRDM2017' ? KRDM2017 : KeRRA
   const ssd = std.minSSD[designSpeed] || designSpeed * 0.7 * 3
@@ -59,12 +60,23 @@ export default function SightDistancePage() {
           </div>
 
           <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
-            <div className="text-sm text-zinc-400 mb-2">Design Check</div>
+            <div className="text-sm text-zinc-400 mb-2">Curve Radius Check</div>
+            <div className="mb-3">
+              <label className="block text-xs text-zinc-500 mb-1">Curve Radius (m)</label>
+              <input
+                type="number"
+                value={curveRadius}
+                onChange={e => setCurveRadius(Number(e.target.value))}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm"
+                min={30}
+                max={5000}
+              />
+            </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-zinc-500">SSD vs curve radius:</span>
                 <span className="text-white">
-                  {designSpeed >= 60 && radius >= 150 ? '✓ Adequate' : '⚠ Check radius'}
+                  {curveRadius >= ssd ? '✓ Adequate' : `⚠ Radius needs ≥ ${ssd.toFixed(0)}m`}
                 </span>
               </div>
             </div>
@@ -96,5 +108,3 @@ export default function SightDistancePage() {
     </div>
   )
 }
-
-const radius = 150

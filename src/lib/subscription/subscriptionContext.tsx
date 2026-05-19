@@ -11,6 +11,7 @@ function isClientAdmin(email: string | null | undefined): boolean {
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import type { PlanId } from '@/lib/subscription/catalog'
+import { canAccess as featureCanAccess, TIERS, type FeatureKey } from '@/lib/subscription/featureGates'
 
 interface SubscriptionContextType {
   plan: PlanId
@@ -148,8 +149,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const canAddPoints = true
 
   function hasFeature(feature: string) {
-    if (plan === 'pro' || plan === 'team' || plan === 'firm' || plan === 'enterprise') return true
-    return features.includes(feature)
+    // Use the proper feature gates instead of granting all features to paid plans
+    if (features.includes(feature)) return true
+    // Check against the feature gates system for known feature keys
+    if (feature in TIERS[plan].features) return true
+    return featureCanAccess(plan, feature as FeatureKey)
   }
 
   return (

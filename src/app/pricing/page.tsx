@@ -1,11 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { ModernPricingPage, PricingCardProps } from '@/components/ui/animated-glassy-pricing'
+import { PLAN_CATALOG, getPlanPrice, SUPPORTED_CURRENCIES, type CurrencyCode } from '@/lib/subscription/catalog'
 
-type Currency = 'KES' | 'UGX' | 'TZS' | 'NGN' | 'USD' | 'GHS' | 'ZAR' | 'INR' | 'IDR' | 'BRL' | 'AUD' | 'GBP' | 'EUR'
-
-const currencyMap: Record<string, Currency> = {
+const currencyMap: Record<string, CurrencyCode> = {
   'KE': 'KES', 'UG': 'UGX', 'TZ': 'TZS', 'NG': 'NGN',
   'GH': 'GHS', 'ZA': 'ZAR', 'IN': 'INR', 'ID': 'IDR',
   'BR': 'BRL', 'AU': 'AUD', 'GB': 'GBP', 'FR': 'EUR',
@@ -13,12 +11,12 @@ const currencyMap: Record<string, Currency> = {
   'SD': 'KES', 'MA': 'EUR', 'EG': 'USD'
 }
 
-const formatPrice = (price: number, currency: Currency) => {
-  const symbols: Record<Currency, string> = {
+const formatPrice = (price: number, currency: CurrencyCode) => {
+  const symbols: Record<string, string> = {
     KES: 'KSh ', UGX: 'USh ', TZS: 'TSh ', NGN: '₦ ', USD: '$ ',
     GHS: '₵ ', ZAR: 'R ', INR: '₹ ', IDR: 'Rp ', BRL: 'R$ ', AUD: 'A$ ', GBP: '£ ', EUR: '€ '
   }
-  return `${symbols[currency]}${price.toLocaleString()}`
+  return `${symbols[currency] || ''}${price.toLocaleString()}`
 }
 
 const faqs = [
@@ -41,7 +39,7 @@ const faqs = [
 ]
 
 export default function PricingPage() {
-  const [currency, setCurrency] = useState<Currency>('KES')
+  const [currency, setCurrency] = useState<CurrencyCode>('KES')
 
   useEffect(() => { document.title = 'Pricing — METARDU' }, [])
 
@@ -60,70 +58,39 @@ export default function PricingPage() {
     detectCurrency()
   }, [])
 
-  const plans: PricingCardProps[] = [
-    {
-      planName: 'Free',
-      description: 'Perfect for students and hobbyist surveyors',
-      price: formatPrice(0, currency),
-      features: [
-        'All 18 quick calculation tools',
-        '1 survey project',
-        'Up to 50 survey points',
-        'Basic PDF report',
-        'CSV import',
-        'Offline calculations',
-      ],
-      buttonText: 'Get Started Free',
-      buttonVariant: 'secondary',
-      isPopular: false,
-    },
-    {
-      planName: 'Pro',
-      description: 'For professional surveyors and small firms',
-      price: formatPrice(currency === 'KES' ? 500 : currency === 'USD' ? 4 : currency === 'EUR' ? 4 : 15, currency),
-      features: [
-        'Everything in Free',
-        'Unlimited projects',
-        'Unlimited survey points',
-        'Full professional PDF reports',
-        'DXF & LandXML export',
-        'GPS Stakeout mode',
-        'Process field notes',
-        'Priority support',
-        'AI-Powered Features:',
-        '  • FieldGuard AI - Smart data cleaning',
-        '  • CadastraAI - Land title validation',
-        '  • MineTwin 3D - Underground mapping',
-        '  • HydroLive - Real-time tide correction',
-        '  • SurveyGPT - AI field assistant',
-        '  • AutoContour - Instant contours',
-        '  • LegalCheck - Compliance analysis',
-        '  • CostAI - Instant BOQ estimation',
-        'Develop Full Plan (AI-generated)',
-      ],
-      buttonText: 'Start Free Trial',
-      buttonVariant: 'primary',
-      isPopular: true,
-    },
-    {
-      planName: 'Team',
-      description: 'Collaborate with your survey crew',
-      price: formatPrice(currency === 'KES' ? 2000 : currency === 'USD' ? 15 : currency === 'EUR' ? 14 : 60, currency),
-      features: [
-        'Everything in Pro',
-        '5 team members',
-        'Real-time collaboration',
-        'Role-based access',
-        'Version history',
-        'Audit trail',
-        'Branded reports',
-        'Dedicated support',
-      ],
-      buttonText: 'Contact Us',
-      buttonVariant: 'primary',
-      isPopular: false,
-    },
-  ]
+  // Show Free, Pro, and Team plans on pricing page (single source of truth from PLAN_CATALOG)
+  const visiblePlans = PLAN_CATALOG.filter(p => ['free', 'pro', 'team'].includes(p.id))
+
+  const plans: PricingCardProps[] = visiblePlans.map(plan => ({
+    planId: plan.id,
+    planName: plan.name,
+    description: plan.id === 'free'
+      ? 'Perfect for students and hobbyist surveyors'
+      : plan.id === 'pro'
+        ? 'For professional surveyors and small firms'
+        : 'Collaborate with your survey crew',
+    price: formatPrice(getPlanPrice(plan.id, currency), currency),
+    features: plan.id === 'pro' ? [
+      ...plan.features,
+      'AI-Powered Features:',
+      '  • FieldGuard AI - Smart data cleaning',
+      '  • CadastraAI - Land title validation',
+      '  • MineTwin 3D - Underground mapping',
+      '  • HydroLive - Real-time tide correction',
+      '  • SurveyGPT - AI field assistant',
+      '  • AutoContour - Instant contours',
+      '  • LegalCheck - Compliance analysis',
+      '  • CostAI - Instant BOQ estimation',
+      'Develop Full Plan (AI-generated)',
+    ] : plan.features,
+    buttonText: plan.id === 'free'
+      ? 'Get Started Free'
+      : plan.id === 'team'
+        ? 'Start Free Trial'
+        : 'Start Free Trial',
+    buttonVariant: plan.id === 'free' ? 'secondary' as const : 'primary' as const,
+    isPopular: plan.id === 'pro',
+  }))
 
   return (
     <ModernPricingPage

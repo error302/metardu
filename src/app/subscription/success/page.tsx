@@ -49,7 +49,23 @@ export default function SubscriptionSuccessPage({
         const data = await res.json().catch(() => ({}))
         if (!res.ok) {
           if (res.status === 401) {
-            throw new Error('Please log in to verify and activate your subscription.')
+            // Redirect to login preserving all payment params so user can retry after auth
+            const params = new URLSearchParams()
+            params.set('provider', provider)
+            params.set('paymentId', paymentId)
+            params.set('planId', planId)
+            if (stripeSessionId) params.set('session_id', stripeSessionId)
+            if (paypalOrderId) params.set('token', paypalOrderId)
+            const callbackUrl = `/subscription/success?${params.toString()}`
+            setStatus('failed')
+            setMessage(`Please log in to verify your payment. Redirecting to login...`)
+            // Auto-redirect to login with callback
+            setTimeout(() => {
+              const loginUrl = new URL('/login', window.location.origin)
+              loginUrl.searchParams.set('callbackUrl', callbackUrl)
+              window.location.href = loginUrl.toString()
+            }, 2000)
+            return
           }
           throw new Error(data?.error || 'Verification failed')
         }
