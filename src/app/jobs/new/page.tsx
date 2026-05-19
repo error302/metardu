@@ -30,7 +30,7 @@ export default function NewJobPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-12">
+      <main className="max-w-2xl mx-auto px-4 py-12 pb-24 md:pb-12">
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-3">New Field Mission</h1>
           <p className="text-[var(--text-secondary)]">METARDU will recommend equipment and generate preparation checklists</p>

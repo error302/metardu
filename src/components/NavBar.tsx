@@ -524,6 +524,21 @@ export default function NavBar() {
               {shellVariant === 'app' && (
                 <>
                   <div className="border-t border-[var(--border-color)] my-2"></div>
+                  <div className="px-4 py-1">
+                    <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Field Operations</span>
+                  </div>
+                  <Link href="/schedule" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                    Job Schedule
+                  </Link>
+                  <Link href="/equipment" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                    Equipment Tracker
+                  </Link>
+                  <Link href="/jobs" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                    Field Missions
+                  </Link>
+                  <Link href="/marketplace" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                    Equipment Marketplace
+                  </Link>
                   <Link href="/field" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     {t('field.fieldMode')}
                   </Link>

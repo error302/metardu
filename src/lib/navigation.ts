@@ -1,6 +1,6 @@
 import {
   AlertTriangle, BadgeDollarSign, BarChart2, BookMarked,
-  BookOpen, BriefcaseBusiness, Building2, ChartNoAxesCombined,
+  BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChartNoAxesCombined,
   ChartSpline, ClipboardCheck, CodeXml, Compass, Construction,
   CreditCard, Database, DraftingCompass, FileBadge, FileChartColumn,
   FileSearch, FileSpreadsheet, FolderKanban,
@@ -50,6 +50,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Levelling', href: '/tools/leveling', icon: ChartNoAxesCombined, group: 'CORE_TOOLS', description: 'Rise & fall, height of collimation' },
   { label: 'Road Design', href: '/tools/road-design', icon: Construction, group: 'CORE_TOOLS', description: 'Horizontal & vertical curves, earthworks' },
   { label: 'Setting Out', href: '/tools/setting-out', icon: MapPinned, group: 'CORE_TOOLS', description: 'Bearing and distance stakeout sheets' },
+  { label: 'Job Schedule', href: '/schedule', icon: CalendarDays, group: 'CORE_TOOLS', description: 'Plan and track survey job schedules with reminders' },
   { label: 'Field Book', href: '/fieldbook', icon: NotebookPen, group: 'CORE_TOOLS', description: 'Digital field book with offline sync' },
   { label: 'Coordinates', href: '/tools/coordinates', icon: Orbit, group: 'CORE_TOOLS', description: 'Coordinate transformations and conversions' },
   { label: 'Distance', href: '/tools/distance', icon: RulerDimensionLine, group: 'CORE_TOOLS', description: 'Distance calculations' },

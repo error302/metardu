@@ -334,7 +334,7 @@ export default function EquipmentPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-8 pb-24 md:pb-8">
 
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
@@ -349,7 +349,7 @@ export default function EquipmentPage() {
 
         {/* Summary cards */}
         {items.length > 0 && (
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
             {([
               { key: 'overdue', label: 'Overdue', color: 'text-red-400', border: 'border-red-700/30 bg-red-900/10' },
               { key: 'due_soon', label: 'Due within 30 days', color: 'text-amber-400', border: 'border-amber-700/30 bg-amber-900/10' },
