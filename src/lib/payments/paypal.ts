@@ -244,6 +244,6 @@ export function getPayPalService(): PayPalService | null {
   return new PayPalService({
     clientId,
     clientSecret,
-    mode: process.env.NODE_ENV === 'production' ? 'live' : 'sandbox'
+    mode: ((process.env.PAYPAL_MODE as 'sandbox' | 'live') || (process.env.NODE_ENV === 'production' ? 'live' : 'sandbox'))
   })
 }

@@ -2,6 +2,14 @@ import { createClient } from '@/lib/api-client/client'
 import { TIERS, canAccess, getLimit, type FeatureKey } from './featureGates'
 import type { PlanId } from './catalog'
 
+// Admin emails get free enterprise access - no payment required
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
+
+function isAdminEmail(email: string | undefined): boolean {
+  if (!email) return false
+  return ADMIN_EMAILS.includes(email.toLowerCase())
+}
+
 export interface SubscriptionInfo {
   plan: PlanId
   status: 'active' | 'cancelled' | 'expired' | 'trial'
@@ -27,7 +35,25 @@ export interface AccessCheck {
   upgradeTo?: PlanId
 }
 
-export async function getSubscription(userId: string): Promise<SubscriptionInfo | null> {
+export async function getSubscription(userId: string, email?: string): Promise<SubscriptionInfo | null> {
+  // Admin emails bypass all subscription checks - free enterprise access
+  if (isAdminEmail(email)) {
+    const now = new Date().toISOString()
+    const farFuture = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+    return {
+      plan: 'enterprise',
+      status: 'active',
+      trialEndsAt: null,
+      periodStart: now,
+      periodEnd: farFuture,
+      paymentMethod: 'admin',
+      currency: 'KES',
+      isUnlimitedProjects: true,
+      isUnlimitedPoints: true,
+      maxTeamMembers: -1,
+    }
+  }
+
   const dbClient = createClient()
   const { data: sub } = await dbClient
     .from('user_subscriptions')
@@ -71,9 +97,15 @@ export async function getUsage(userId: string): Promise<UsageInfo> {
 
 export async function checkFeatureAccess(
   userId: string,
-  feature: FeatureKey
+  feature: FeatureKey,
+  email?: string
 ): Promise<AccessCheck> {
-  const sub = await getSubscription(userId)
+  // Admin always has access
+  if (isAdminEmail(email)) {
+    return { allowed: true }
+  }
+
+  const sub = await getSubscription(userId, email)
   if (!sub) {
     return { allowed: true, upgradeTo: undefined }
   }
@@ -91,8 +123,10 @@ export async function checkFeatureAccess(
   return { allowed: true }
 }
 
-export async function checkProjectLimit(userId: string): Promise<AccessCheck> {
-  const [sub, usage] = await Promise.all([getSubscription(userId), getUsage(userId)])
+export async function checkProjectLimit(userId: string, email?: string): Promise<AccessCheck> {
+  if (isAdminEmail(email)) return { allowed: true }
+
+  const [sub, usage] = await Promise.all([getSubscription(userId, email), getUsage(userId)])
   if (!sub) return { allowed: true }
 
   const limit = getLimit(sub.plan, 'projects')
@@ -108,8 +142,10 @@ export async function checkProjectLimit(userId: string): Promise<AccessCheck> {
   return { allowed: true }
 }
 
-export async function checkMemberLimit(userId: string): Promise<AccessCheck> {
-  const [sub, usage] = await Promise.all([getSubscription(userId), getUsage(userId)])
+export async function checkMemberLimit(userId: string, email?: string): Promise<AccessCheck> {
+  if (isAdminEmail(email)) return { allowed: true }
+
+  const [sub, usage] = await Promise.all([getSubscription(userId, email), getUsage(userId)])
   if (!sub) return { allowed: true }
 
   const limit = getLimit(sub.plan, 'members')

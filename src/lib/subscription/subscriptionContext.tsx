@@ -1,5 +1,13 @@
 'use client';
 
+const ADMIN_EMAILS_STR = ''
+function isClientAdmin(email: string | null | undefined): boolean {
+  if (!email) return false
+  const admins = ['mohameddosho20@gmail.com']
+  return admins.includes(email.toLowerCase())
+}
+
+
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import type { PlanId } from '@/lib/subscription/catalog'
@@ -30,6 +38,7 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [authResolved, setAuthResolved] = useState(false)
   const [plan, setPlan] = useState<PlanId>('free')
   const [isTrialing, setIsTrialing] = useState(false)
@@ -44,6 +53,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     setTrialDaysLeft(0)
     setFeatures([])
     setProjectCount(0)
+    setUserEmail(null)
   }, [])
 
   const loadSubscription = useCallback(async () => {
@@ -83,7 +93,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
     setProjectCount(count || 0)
     setLoading(false)
-  }, [resetState, userId])
+  }, [resetState, userId, userEmail])
 
   useEffect(() => {
     let active = true
@@ -102,7 +112,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         const session = await response.json()
         if (!active) return
 
-        setUserId((session?.user as { id?: string } | undefined)?.id ?? null)
+        setUserId((session?.user as { id?: string; email?: string } | undefined)?.id ?? null)
+        setUserEmail((session?.user as { id?: string; email?: string } | undefined)?.email ?? null)
       } catch {
         if (!active) return
         setUserId(null)
