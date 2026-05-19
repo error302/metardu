@@ -31,10 +31,10 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
-        NODE_OPTIONS: '--max-old-space-size=768',
+        NODE_OPTIONS: '--max-old-space-size=1536',
         ...process.env,
       },
-      max_memory_restart: '900M',
+      max_memory_restart: '2G',
       watch: false,
       autorestart: true,
       restart_delay: 3000,

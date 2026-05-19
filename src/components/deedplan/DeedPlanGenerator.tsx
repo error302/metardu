@@ -118,6 +118,56 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
     URL.revokeObjectURL(url)
   }
 
+  const handleDownloadPNG = async () => {
+    if (!output) return
+    try {
+      // A1 at 300 DPI: 9933 x 7016 pixels
+      const SCALE = 3
+      const imgW = 841 * SCALE
+      const imgH = 594 * SCALE
+
+      const svgBlob = new Blob([output.svg], { type: 'image/svg+xml;charset=utf-8' })
+      const url = URL.createObjectURL(svgBlob)
+
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = imgW
+        canvas.height = imgH
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          URL.revokeObjectURL(url)
+          alert('Canvas not supported in this browser')
+          return
+        }
+        ctx.fillStyle = 'white'
+        ctx.fillRect(0, 0, imgW, imgH)
+        ctx.drawImage(img, 0, 0, imgW, imgH)
+        URL.revokeObjectURL(url)
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            alert('Failed to create PNG image')
+            return
+          }
+          const pngUrl = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = pngUrl
+          a.download = `${input.parcelNumber || 'deed-plan'}_A1_300dpi.png`
+          a.click()
+          URL.revokeObjectURL(pngUrl)
+        }, 'image/png', 1.0)
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        alert('Failed to render SVG. Try downloading as SVG instead.')
+      }
+      img.src = url
+    } catch (err) {
+      alert('PNG download failed. Try downloading as SVG instead.')
+    }
+  }
+
   const handlePrintA3 = () => {
     if (input.boundaryPoints.length < 3) {
       setError('At least 3 boundary points are required to print a deed plan.')
@@ -591,6 +641,13 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
             >
               <Printer className="h-5 w-5" />
               Print A3 Deed Plan
+            </button>
+            <button
+              onClick={handleDownloadPNG}
+              className="flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-black rounded-lg hover:bg-[var(--accent-dim)] font-bold"
+            >
+              <Download className="h-5 w-5" />
+              Download PNG (A1 300dpi)
             </button>
             <button
               onClick={handleDownloadSVG}

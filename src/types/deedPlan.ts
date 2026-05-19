@@ -36,7 +36,7 @@ export interface BoundaryPoint {
   northing: number
   elevation?: number
   markType: BeaconType
-  markStatus: 'FOUND' | 'SET' | 'REFERENCED'
+  markStatus: BeaconStatus
   description?: string
 }
 

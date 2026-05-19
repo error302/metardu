@@ -442,10 +442,12 @@ function buildRightPanel(
   y += 9
   s += hr(le, y, re); y += 2
   for (const p of pts) {
+    const eVal = typeof (p as any).easting === 'number' ? (p as any).easting : 0
+    const nVal = typeof (p as any).northing === 'number' ? (p as any).northing : 0
     s += `<text x="${le+5}" y="${y}" class="tt">${p.id}</text>\n`
     s += `<text x="${le+30}" y="${y}" class="tt">${p.markType}</text>\n`
-    s += `<text x="${le+100}" y="${y}" class="tt">${(p as any).easting.toFixed(4)}</text>\n`
-    s += `<text x="${le+170}" y="${y}" class="tt">${(p as any).northing.toFixed(4)}</text>\n`
+    s += `<text x="${le+100}" y="${y}" class="tt">${eVal.toFixed(4)}</text>\n`
+    s += `<text x="${le+170}" y="${y}" class="tt">${nVal.toFixed(4)}</text>\n`
     y += 8
   }
   s += hr(le, y, re); y += 7
