@@ -4,133 +4,52 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Drone, Pickaxe, Ship, type LucideIcon } from 'lucide-react'
+
 import { useLanguage, languages } from '@/lib/i18n/LanguageContext'
 import MetarduLogo from '@/components/MetarduLogo'
 import SubscriptionBadge from '@/components/SubscriptionBadge'
 import type { PlanId } from '@/lib/subscription/catalog'
 import { APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isNavItemActive } from '@/lib/navigation-shell'
 
-const toolGroups = [
-  {
-    titleKey: 'tools.calculations',
-    items: [
-      { href: '/tools/distance', labelKey: 'tools.distance' },
-      { href: '/tools/bearing', labelKey: 'tools.bearingCalc' },
-      { href: '/tools/area', labelKey: 'tools.area' },
-      { href: '/tools/grade', labelKey: 'tools.grade' },
-    ]
-  },
-  {
-    titleKey: 'tools.traverseAdjust',
-    items: [
-      { href: '/tools/traverse', labelKey: 'traverse.title' },
-      { href: '/tools/coordinates', labelKey: 'tools.coordinates' },
-      { href: '/tools/cogo', labelKey: 'tools.cogo' },
-      { href: '/tools/gnss', labelKey: 'tools.gnss' },
-    ]
-  },
-  {
-    titleKey: 'tools.levelling',
-    items: [
-      { href: '/tools/leveling', labelKey: 'leveling.title' },
-      { href: '/tools/two-peg-test', labelKey: 'tools.twoPegTest' },
-    ]
-  },
-  {
-    titleKey: 'tools.curvesRoads',
-    items: [
-      { href: '/tools/curves', labelKey: 'tools.curves' },
-      { href: '/tools/chainage', labelKey: 'tools.chainage' },
-      { href: '/tools/tacheometry', labelKey: 'tools.tacheometry' },
-    ]
-  },
-  {
-    titleKey: 'tools.earthworks',
-    items: [
-      { href: '/tools/cross-sections', labelKey: 'tools.crossSections' },
-      { href: '/tools/setting-out', labelKey: 'tools.settingOut' },
-    ]
-  },
-  {
-    titleKey: 'tools.specialized',
-    items: [
-      { href: '/tools/mining', icon: Pickaxe, labelKey: 'tools.mining' },
-      { href: '/tools/hydrographic', icon: Ship, labelKey: 'tools.hydrographic' },
-      { href: '/tools/drone', icon: Drone, labelKey: 'tools.drone' },
-      { href: '/tools/gcp-export', labelKey: 'tools.gcpExport' },
-      { href: '/tools/civil-export', labelKey: 'tools.civilExport' },
-      { href: '/tools/gis-export', labelKey: 'tools.gisExport' },
-    ]
-  },
-  {
-    titleKey: 'tools.engineering',
-    items: [
-      { href: '/tools/superelevation', labelKey: 'tools.superelevation', label: 'Superelevation' },
-      { href: '/tools/sight-distance', labelKey: 'tools.sightDistance', label: 'Sight Distance' },
-      { href: '/tools/pipe-gradient', labelKey: 'tools.pipeGradient', label: 'Pipe Gradient' },
-      { href: '/tools/borrow-pit-volume', labelKey: 'tools.borrowPitVolume', label: 'Borrow Pit Volume' },
-      { href: '/tools/stockpile-volume', labelKey: 'tools.stockpileVolume', label: 'Stockpile Volume' },
-    ]
-  },
-]
-
-const fieldGroups = [
-  {
-    titleKey: 'nav.field',
-    items: [
-      { href: '/field', labelKey: 'field.fieldMode' },
-      { href: '/fieldbook', labelKey: 'field.fieldBook' },
-      { href: '/ai-plan-checker', labelKey: 'field.fieldPlanner' },
-      { href: '/process', labelKey: 'field.processNotes' },
-      { href: '/guide', labelKey: 'guides.title' },
-    ]
-  },
-]
-
-const documentGroups = [
-  {
-    titleKey: 'nav.documents',
-    items: [
-      { href: '/deed-plan', labelKey: 'documents.deedPlan', badgeKey: 'new' },
-      { href: '/tools/survey-report-builder', labelKey: 'documents.surveyReport', badgeKey: 'new' },
-      { href: '/tools/beacon-reference', labelKey: 'documents.beaconReference' },
-      { href: '/tools/survey-regulations', labelKey: 'documents.surveyRegulations' },
-      { href: '/tools/us-survey-reference', labelKey: 'documents.usSurveyReference' },
-    ]
-  },
-]
-
-const moreGroups = [
-  {
-    titleKey: 'nav.import',
-    items: [
-      { href: '/import', labelKey: 'import.totalStation' },
-      { href: '/process', labelKey: 'import.csvUpload' },
-      { href: '/instruments', labelKey: 'import.instruments' },
-    ]
-  },
-  {
-    titleKey: 'nav.community',
-    items: [
-      { href: '/schedule', labelKey: 'community.jobSchedule', badgeKey: 'new' },
-      { href: '/jobs', labelKey: 'community.projectTenders' },
-      { href: '/marketplace', labelKey: 'community.equipmentExchange' },
-      { href: '/peer-review', labelKey: 'community.peerReview' },
-      { href: '/beacons', labelKey: 'community.controlPointsMap' },
-    ]
-  },
-  {
-    titleKey: 'nav.resources',
-    items: [
-      { href: '/online', labelKey: 'resources.datumConverter' },
-      { href: '/kencors', labelKey: 'resources.kencorsRtk' },
-      { href: '/equipment', labelKey: 'resources.calibrationManager', badgeKey: 'calibration' },
-      { href: '/cpd', labelKey: 'resources.cpdTracker' },
-      { href: '/parcel', labelKey: 'resources.landRegistrySearch' },
-      { href: '/docs', labelKey: 'resources.knowledgeBase' },
-    ]
-  },
+/* ── Search index: all navigable pages for Ctrl+K ────────────────── */
+const searchablePages = [
+  // Tools - Calculations
+  { category: 'Tools', group: 'Calculations', href: '/tools/distance', labelKey: 'tools.distance' },
+  { category: 'Tools', group: 'Calculations', href: '/tools/bearing', labelKey: 'tools.bearingCalc' },
+  { category: 'Tools', group: 'Calculations', href: '/tools/area', labelKey: 'tools.area' },
+  { category: 'Tools', group: 'Calculations', href: '/tools/grade', labelKey: 'tools.grade' },
+  // Tools - Traverse
+  { category: 'Tools', group: 'Traverse', href: '/tools/traverse', labelKey: 'traverse.title' },
+  { category: 'Tools', group: 'Traverse', href: '/tools/coordinates', labelKey: 'tools.coordinates' },
+  { category: 'Tools', group: 'Traverse', href: '/tools/cogo', labelKey: 'tools.cogo' },
+  { category: 'Tools', group: 'Traverse', href: '/tools/gnss', labelKey: 'tools.gnss' },
+  // Tools - Levelling
+  { category: 'Tools', group: 'Levelling', href: '/tools/leveling', labelKey: 'leveling.title' },
+  { category: 'Tools', group: 'Levelling', href: '/tools/two-peg-test', labelKey: 'tools.twoPegTest' },
+  // Tools - Curves & Roads
+  { category: 'Tools', group: 'Curves & Roads', href: '/tools/curves', labelKey: 'tools.curves' },
+  { category: 'Tools', group: 'Curves & Roads', href: '/tools/chainage', labelKey: 'tools.chainage' },
+  { category: 'Tools', group: 'Curves & Roads', href: '/tools/tacheometry', labelKey: 'tools.tacheometry' },
+  // Tools - Earthworks
+  { category: 'Tools', group: 'Earthworks', href: '/tools/cross-sections', labelKey: 'tools.crossSections' },
+  { category: 'Tools', group: 'Earthworks', href: '/tools/setting-out', labelKey: 'tools.settingOut' },
+  // Tools - Specialized
+  { category: 'Tools', group: 'Specialized', href: '/tools/mining', labelKey: 'tools.mining' },
+  { category: 'Tools', group: 'Specialized', href: '/tools/hydrographic', labelKey: 'tools.hydrographic' },
+  { category: 'Tools', group: 'Specialized', href: '/tools/drone', labelKey: 'tools.drone' },
+  // Field
+  { category: 'Field', group: 'Field', href: '/field', labelKey: 'field.fieldMode' },
+  { category: 'Field', group: 'Field', href: '/fieldbook', labelKey: 'field.fieldBook' },
+  { category: 'Field', group: 'Field', href: '/guide', labelKey: 'guides.title' },
+  // Documents
+  { category: 'Documents', group: 'Documents', href: '/deed-plan', labelKey: 'documents.deedPlan' },
+  { category: 'Documents', group: 'Documents', href: '/tools/survey-report-builder', labelKey: 'documents.surveyReport' },
+  { category: 'Documents', group: 'Documents', href: '/tools/beacon-certificate', labelKey: 'documents.beaconReference' },
+  // Resources
+  { category: 'Resources', group: 'Resources', href: '/online', labelKey: 'resources.datumConverter' },
+  { category: 'Resources', group: 'Resources', href: '/kencors', labelKey: 'resources.kencorsRtk' },
+  { category: 'Resources', group: 'Resources', href: '/docs', labelKey: 'resources.knowledgeBase' },
+  { category: 'Resources', group: 'Resources', href: '/pricing', labelKey: 'nav.pricing' },
 ]
 
 interface DropdownProps {
@@ -172,84 +91,6 @@ function Dropdown({ label, children, isOpen, onToggle, align = 'left', buttonCla
 }
 
 type Translator = (key: string, values?: Record<string, string | number>) => string
-type MenuIcon = LucideIcon
-type MenuItem = { href: string; labelKey: string; icon?: string | MenuIcon; badgeKey?: 'new' | 'ai' | 'beta' | string }
-type MenuGroup = { titleKey: string; items: MenuItem[] }
-
-function DropdownGroup({
-  titleKey,
-  items,
-  t,
-  onSelect,
-  badgeCounts,
-}: {
-  titleKey: string
-  items: MenuItem[]
-  t: Translator
-  onSelect?: () => void
-  badgeCounts?: Record<string, number>
-}) {
-  const getBadgeStyle = (badgeKey?: string) => {
-    switch (badgeKey) {
-      case 'new':
-        return 'bg-green-600 text-white'
-      case 'ai':
-        return 'bg-indigo-600 text-white'
-      case 'beta':
-        return 'bg-amber-600 text-white'
-      default:
-        return 'bg-red-600 text-white'
-    }
-  }
-
-  return (
-    <div className="px-4 py-2">
-      <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-2">
-        {t(titleKey)}
-      </div>
-      {items.map((item) => {
-        const Icon = item.icon && typeof item.icon !== 'string' ? item.icon : null
-
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onSelect}
-            className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-          >
-            <span className="inline-flex items-center gap-2">
-              {Icon ? (
-                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.9} aria-hidden />
-              ) : typeof item.icon === 'string' ? (
-                <span aria-hidden>{item.icon}</span>
-              ) : null}
-              <span>{t(item.labelKey)}</span>
-              {item.badgeKey && (item.badgeKey === 'new' || item.badgeKey === 'ai' || item.badgeKey === 'beta') ? (
-                <span className={`inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded ${getBadgeStyle(item.badgeKey)}`}>
-                  {item.badgeKey.toUpperCase()}
-                </span>
-              ) : item.badgeKey && badgeCounts && badgeCounts[item.badgeKey] > 0 ? (
-                <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold bg-red-600 text-white rounded-full">
-                  !
-                </span>
-              ) : null}
-            </span>
-          </Link>
-        )
-      })}
-    </div>
-  )
-}
-
-function MegaMenu({ groups, t, onSelect }: { groups: MenuGroup[]; t: Translator; onSelect?: () => void }) {
-  return (
-    <div className="flex gap-6 px-4 py-3">
-      {groups.map((group, idx) => (
-        <DropdownGroup key={idx} titleKey={group.titleKey} items={group.items} t={t} onSelect={onSelect} />
-      ))}
-    </div>
-  )
-}
 
 function GlobalSearch({ t, isAuthenticated }: { t: Translator; isAuthenticated: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -260,38 +101,22 @@ function GlobalSearch({ t, isAuthenticated }: { t: Translator; isAuthenticated: 
   const hint = isMac ? '⌘K' : 'Ctrl K'
 
   const searchIndex = useMemo(() => {
-    const flatten = (category: string, groups: MenuGroup[]) => {
-      const out: Array<{ category: string; group: string; href: string; label: string }> = []
-      for (const g of groups) {
-        const groupLabel = t(g.titleKey)
-        for (const item of g.items) {
-          out.push({ category, group: groupLabel, href: item.href, label: t(item.labelKey) })
-        }
-      }
-      return out
-    }
-
-    const docsItems = [
-      { href: '/docs', label: t('nav.docs'), group: t('nav.docs') },
-      { href: '/pricing', label: t('nav.pricing'), group: t('nav.docs') },
-    ]
-
-    const baseItems = [
-      ...flatten(t('nav.tools'), toolGroups),
-      ...flatten(t('nav.field'), fieldGroups),
-      ...flatten(t('nav.more'), moreGroups),
-      ...docsItems.map((x) => ({ category: x.group, group: x.group, href: x.href, label: x.label })),
-    ]
+    const baseItems = searchablePages.map((p) => ({
+      category: p.category,
+      group: p.group,
+      href: p.href,
+      label: t(p.labelKey),
+    }))
 
     return isAuthenticated
       ? [
           ...baseItems,
-          { category: t('nav.projects'), group: t('nav.projects'), href: '/dashboard', label: t('nav.dashboard') },
+          { category: 'Navigation', group: 'Navigation', href: '/dashboard', label: t('nav.dashboard') },
         ]
       : [
           ...baseItems,
-          { category: t('nav.login'), group: t('nav.login'), href: '/login', label: t('nav.login') },
-          { category: t('nav.register'), group: t('nav.register'), href: '/register', label: t('nav.register') },
+          { category: 'Auth', group: 'Auth', href: '/login', label: t('nav.login') },
+          { category: 'Auth', group: 'Auth', href: '/register', label: t('nav.register') },
         ]
   }, [isAuthenticated, t])
 
@@ -600,7 +425,7 @@ export default function NavBar() {
                   <div className="absolute top-full right-0 pt-2 z-50">
                     <div className="bg-[var(--bg-secondary)] border border-[#E8841A20] rounded-lg shadow-xl min-w-[220px] py-2">
                       <div className="px-4 pb-2 flex items-center justify-between">
-                        <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold">{t('nav.dashboard')}</div>
+                        <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold">Account</div>
                         <SubscriptionBadge plan={userPlan} compact />
                       </div>
                       <div className="px-4 py-2">
@@ -626,116 +451,11 @@ export default function NavBar() {
                           Billing
                         </Link>
                         <Link
-                          href="/pricing"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          {t('nav.pricing')}
-                        </Link>
-                        <Link
-                          href="/docs"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          Documentation
-                        </Link>
-                        <Link
-                          href="/cpd"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          CPD Tracker
-                        </Link>
-                        <Link
-                          href="/instruments"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          Calibration Manager
-                        </Link>
-                        <Link
-                          href="/kencors"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          KenCORS RTK
-                        </Link>
-                        <Link
-                          href="/equipment"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          Equipment Tracker
-                        </Link>
-                        <Link
-                          href="/guide"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          Field Guides
-                        </Link>
-                        <Link
-                          href="/tools/beacon-reference"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          Beacon Reference
-                        </Link>
-                        <Link
-                          href="/tools/survey-regulations"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          Kenya Survey Regulations
-                        </Link>
-                        <Link
-                          href="/tools/us-survey-reference"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          US Survey Standards
-                        </Link>
-                        <Link
-                          href="/enterprise"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          Enterprise Products
-                        </Link>
-                        <Link
-                          href="/white-label"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          White Label
-                        </Link>
-                        <Link
-                          href="/digital-signature"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          Digital Signature
-                        </Link>
-                        <Link
                           href="/notifications"
                           onClick={() => setOpenDropdown(null)}
                           className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
                         >
                           Notifications
-                        </Link>
-                        <Link
-                          href="/audit-logs"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          Audit Logs
-                        </Link>
-                        <Link
-                          href="/api-docs"
-                          onClick={() => setOpenDropdown(null)}
-                          className="block px-2 py-1.5 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] hover:bg-white/5 rounded"
-                        >
-                          API
                         </Link>
                       </div>
                       <div className="border-t border-white/5 my-2" />

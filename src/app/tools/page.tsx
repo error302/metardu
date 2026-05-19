@@ -121,11 +121,6 @@ export default function ToolsPage() {
               title="Mobilisation Report"
               description="RDM 1.1 Table 5.3 field mobilisation sheet"
             />
-            <ToolLink
-              href="/tools/level-book"
-              title="Level Book"
-              description="HPC / Rise & Fall field book with print output"
-            />
           </div>
         </section>
 

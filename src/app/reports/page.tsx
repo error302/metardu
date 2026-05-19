@@ -12,9 +12,9 @@ const reportTypes = [
   { name: 'RIM Report', icon: FileCheck, href: '/deed-plan', description: 'Record of Interests in Land - mandatory for all land transactions', color: 'text-blue-500 bg-blue-500/10' },
   { name: 'Survey Report', icon: FileText, href: '/tools/survey-report-builder', description: 'Comprehensive survey report with computations and observations', color: 'text-emerald-500 bg-emerald-500/10' },
   { name: 'Deed Plan', icon: MapIcon, href: '/deed-plan', description: 'Legal document showing property boundaries and beacons', color: 'text-orange-500 bg-orange-500/10' },
-  { name: 'Beacon Certificate', icon: Award, href: '/tools/beacon-reference', description: 'Official beacon coordinates and descriptions', color: 'text-purple-500 bg-purple-500/10' },
+  { name: 'Beacon Certificate', icon: Award, href: '/tools/beacon-certificate', description: 'Official beacon coordinates and descriptions', color: 'text-purple-500 bg-purple-500/10' },
   { name: 'Field Book', icon: BookOpen, href: '/fieldbook', description: 'Raw field observations and measurements', color: 'text-amber-500 bg-amber-500/10' },
-  { name: 'Statutory Workbook', icon: FileSpreadsheet, href: '/tools/survey-regulations', description: 'Regulatory compliance workbook for submissions', color: 'text-cyan-500 bg-cyan-500/10' },
+  { name: 'Statutory Workbook', icon: FileSpreadsheet, href: '/tools/statutory-workbook', description: 'Regulatory compliance workbook for submissions', color: 'text-cyan-500 bg-cyan-500/10' },
 ]
 
 export default function ReportsPage() {
