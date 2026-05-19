@@ -356,7 +356,7 @@ function generateTopoDXF(
     // Group legend entries by first code per layer
     for (const lr of layerResults) {
       const y = lgY - rowH * (row + 1)
-      if (y < minY + inset * 3) break // Don't overflow border
+      if (y < minY + inset * 5) break // Leave room below legend
       // Color swatch (small line)
       drawing.drawLine(lgX, y, lgX + (maxX - minX) * 0.015, y)
       // Layer name
@@ -524,7 +524,7 @@ function SvgPreview({ points }: { points: SurveyPointRow[] }) {
       })}
       {/* Legend (compact) */}
       <g transform={`translate(${w - margin - 80}, ${margin + 4})`}>
-        {Array.from(codeColorMap.entries()).slice(0, 6).map(([code, color], idx) => (
+        {Array.from(codeColorMap.entries()).map(([code, color], idx) => (
           <g key={code} transform={`translate(0, ${idx * 11})`}>
             <circle cx={4} cy={4} r={3} fill={color} />
             <text x={10} y={7} fill="#a1a1aa" fontSize={8} fontFamily="monospace">{code}</text>
@@ -639,14 +639,20 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
     const groups = getAllGroups()
     const result: Array<{ category: string; categoryName: string; layers: LayerMappingResult[] }> = []
 
+    // Build a direct layer-name to category map (O(n) instead of O(n*m*find))
+    const layerCatMap = new Map<string, string>()
+    for (const p of points) {
+      const def = getFeatureCode(p.code)
+      if (def && !layerCatMap.has(def.dxfLayer)) {
+        layerCatMap.set(def.dxfLayer, def.category)
+      }
+    }
+
     for (const group of groups) {
       const matching = layerResults.filter(lr => {
-        const def = getFeatureCode(points.find(p => {
-          const def2 = getFeatureCode(p.code)
-          return def2?.dxfLayer === lr.layer
-        })?.code ?? '')
-        if (!def) return lr.layer.toLowerCase().includes(group.category)
-        return def.category === group.category
+        const cat = layerCatMap.get(lr.layer)
+        if (!cat) return lr.layer.toLowerCase().includes(group.category)
+        return cat === group.category
       })
       if (matching.length === 0) continue
       result.push({
@@ -751,7 +757,7 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
                 <Trash2 size={14} />
                 Clear
               </Button>
-              <Button size="sm" onClick={handleExportDXF} className="text-xs bg-blue-600 hover:bg-blue-700 text-white">
+              <Button variant="outline" size="sm" onClick={handleExportDXF} className="text-xs border-blue-600/50 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300">
                 <Download size={14} />
                 Export DXF
               </Button>
@@ -931,7 +937,7 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
         </div>
 
         {/* ── Right column: settings & stats ─────────────────────────── */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:pr-1">
 
           {/* Drawing Settings */}
           <div className="border border-zinc-700 rounded-lg bg-zinc-900 overflow-hidden">
@@ -1091,10 +1097,13 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
                 <div className="flex items-center gap-2 mb-2">
                   <Layers size={14} className="text-zinc-400" />
                   <span className="text-sm font-medium text-zinc-200">Layer Preview</span>
+                  <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-zinc-800 text-zinc-400 ml-auto">
+                    {layerResults.length} layers
+                  </Badge>
                 </div>
-                <ScrollArea className="max-h-[200px]">
+                <ScrollArea className="max-h-[300px]">
                   <div className="space-y-1 pr-2">
-                    {layerResults.slice(0, 15).map(lr => (
+                    {layerResults.map(lr => (
                       <div key={lr.layer} className="flex items-center gap-2 text-xs">
                         <span
                           className="w-2 h-2 rounded-sm shrink-0"
@@ -1107,11 +1116,7 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
                         <span className="text-zinc-600">{lr.points.length}</span>
                       </div>
                     ))}
-                    {layerResults.length > 15 && (
-                      <div className="text-[10px] text-zinc-600 text-center pt-1">
-                        +{layerResults.length - 15} more layers
-                      </div>
-                    )}
+                    
                   </div>
                 </ScrollArea>
               </div>

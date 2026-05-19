@@ -1,5 +1,5 @@
 import type { DeedPlanInput, BoundaryLeg, BoundaryPoint, ClosureCheck } from '@/types/deedPlan'
-import { getBeaconSymbolSVG } from './beaconSymbols'
+import { getBeaconSymbol } from './beaconSymbols'
 
 export function renderDeedPlanSVG(
   input: DeedPlanInput,
@@ -41,7 +41,7 @@ export function renderDeedPlanSVG(
   boundaryPoints.forEach((p, i) => {
     const sx = toSvgX(p.easting)
     const sy = toSvgY(p.northing)
-    beaconElements += `<g transform="translate(${sx}, ${sy})">${getBeaconSymbolSVG(p.markType, p.markStatus)}</g>`
+    beaconElements += `<g transform="translate(${sx}, ${sy})">${getBeaconSymbol(p.markType, p.markStatus)}</g>`
   })
 
   let boundaryLabels = ''
