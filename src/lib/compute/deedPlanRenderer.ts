@@ -1,6 +1,36 @@
 import type { DeedPlanInput, BoundaryLeg, BoundaryPoint, ClosureCheck } from '@/types/deedPlan'
 import { getBeaconSymbol } from './beaconSymbols'
 
+/**
+ * Enhanced Kenyan Deed Plan SVG Renderer
+ * Compliant with Survey of Kenya standards and Kenya Survey Regulations 1994
+ * Paper size: A1 (841 x 594mm)
+ */
+
+// ============================================================
+// LAYOUT CONSTANTS (A1 Landscape: 841 x 594mm)
+// ============================================================
+const VB_W = 841
+const VB_H = 594
+
+// Double-line border
+const OB_X = 0; const OB_Y = 0; const OB_SW = 2
+const IB_X = 6; const IB_Y = 6; const IB_SW = 0.5
+
+// Drawing area (left side)
+const DA_LEFT = IB_X + 4
+const DA_TOP = IB_Y + 4
+const DA_WIDTH = 568
+const DA_HEIGHT = VB_H - (IB_Y * 2) - 8
+const TITLE_H = 34
+
+// Right info panel
+const RP_X = DA_LEFT + DA_WIDTH + 10
+const RP_W = VB_W - RP_X - IB_X - 4
+
+// ============================================================
+// MAIN RENDER FUNCTION
+// ============================================================
 export function renderDeedPlanSVG(
   input: DeedPlanInput,
   bearingSchedule: BoundaryLeg[],
@@ -8,11 +38,7 @@ export function renderDeedPlanSVG(
 ): string {
   const { boundaryPoints, scale, utmZone, hemisphere } = input
 
-  const VIEWBOX_WIDTH = 840
-  const VIEWBOX_HEIGHT = 594
-  const DRAWING_WIDTH = 580
-  const PANEL_X = 580
-
+  // ---- Coordinate projection ----
   const coords = boundaryPoints.map((p: any) => ({ x: p.easting, y: p.northing }))
   const minX = Math.min(...coords.map((c: any) => c.x))
   const maxX = Math.max(...coords.map((c: any) => c.x))
@@ -21,217 +47,471 @@ export function renderDeedPlanSVG(
 
   const rangeX = maxX - minX || 1
   const rangeY = maxY - minY || 1
-  const padding = 40
+  const pad = 55
 
-  const scaleX = (DRAWING_WIDTH - padding * 2) / rangeX
-  const scaleY = (VIEWBOX_HEIGHT - padding * 2) / rangeY
-  const plotScale = Math.min(scaleX, scaleY) * 0.8
+  const effTop = DA_TOP + TITLE_H + 8
+  const effH = DA_HEIGHT - TITLE_H - 30
 
-  const centerX = (minX + maxX) / 2
-  const centerY = (minY + maxY) / 2
+  const sX = (DA_WIDTH - pad * 2) / rangeX
+  const sY = (effH - pad * 2) / rangeY
+  const plotScale = Math.min(sX, sY) * 0.78
 
-  const toSvgX = (easting: number) => DRAWING_WIDTH / 2 + (easting - centerX) * plotScale
-  const toSvgY = (northing: number) => VIEWBOX_HEIGHT / 2 - (northing - centerY) * plotScale
+  const cX = (minX + maxX) / 2
+  const cY = (minY + maxY) / 2
 
-  let polygonPoints = boundaryPoints.map((p: any) => 
-    `${toSvgX(p.easting)},${toSvgY(p.northing)}`
+  const toX = (e: number) => DA_LEFT + DA_WIDTH / 2 + (e - cX) * plotScale
+  const toY = (n: number) => effTop + effH / 2 - (n - cY) * plotScale
+
+  // Polygon string
+  const poly = boundaryPoints.map((p: any) =>
+    `${toX(p.easting).toFixed(2)},${toY(p.northing).toFixed(2)}`
   ).join(' ')
 
-  let beaconElements = ''
-  boundaryPoints.forEach((p, i) => {
-    const sx = toSvgX(p.easting)
-    const sy = toSvgY(p.northing)
-    beaconElements += `<g transform="translate(${sx}, ${sy})">${getBeaconSymbol(p.markType, p.markStatus)}</g>`
-  })
-
-  let boundaryLabels = ''
-  for (let i = 0; i < bearingSchedule.length; i++) {
-    const leg = bearingSchedule[i]
-    const fromPt = boundaryPoints.find((p: any) => p.id === leg.fromPoint)
-    const toPt = boundaryPoints.find((p: any) => p.id === leg.toPoint)
-    if (!fromPt || !toPt) continue
-
-    const mx = (toSvgX(fromPt.easting) + toSvgX(toPt.easting)) / 2
-    const my = (toSvgY(fromPt.northing) + toSvgY(toPt.northing)) / 2
-    boundaryLabels += `<text x="${mx}" y="${my - 5}" font-size="3" text-anchor="middle">${leg.bearing}</text>`
-    boundaryLabels += `<text x="${mx}" y="${my + 5}" font-size="3" text-anchor="middle">${leg.distance.toFixed(2)}m</text>`
-  }
-
-  let pointLabels = ''
-  boundaryPoints.forEach((p: any) => {
-    const sx = toSvgX(p.easting) + 4
-    const sy = toSvgY(p.northing) - 4
-    pointLabels += `<text x="${sx}" y="${sy}" font-size="3">${p.id}</text>`
-  })
+  // Build sub-elements
+  const grid = buildGrid(toX, toY, minX, maxX, minY, maxY)
+  const beacons = buildBeacons(boundaryPoints, toX, toY)
+  const bLabels = buildBoundaryLabels(bearingSchedule, boundaryPoints, toX, toY)
+  const abuttals = buildAbuttals(input, boundaryPoints, toX, toY)
+  const ptLabels = buildPointLabels(boundaryPoints, toX, toY)
+  const northArrow = buildNorthArrow(DA_LEFT + DA_WIDTH - 52, effTop + 38)
+  const scaleBar = buildScaleBar(DA_LEFT + DA_WIDTH / 2 - 85, effTop + effH - 18, scale)
+  const locDiagram = buildLocationDiagram(DA_LEFT + DA_WIDTH - 108, effTop + effH - 95)
+  const titleBlock = buildTitleBlock(input)
+  const rightPanel = buildRightPanel(input, bearingSchedule, closureCheck, boundaryPoints)
 
   const areaHa = input.area / 10000
-  const precisionRatio = closureCheck.precisionRatio.replace('∞', '&#8734;')
+  const areaAc = input.area / 4046.8564224
+  const prec = closureCheck.precisionRatio.replace('\u221e', '&#8734;')
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}" width="${VIEWBOX_WIDTH}" height="${VIEWBOX_HEIGHT}">
-  <style>
-    .title { font-size: 10pt; font-weight: bold; font-family: Arial, sans-serif; }
-    .section-header { font-size: 7pt; font-weight: bold; font-family: Arial, sans-serif; }
-    .table-text { font-size: 5pt; font-family: Arial, sans-serif; }
-    .body-text { font-size: 6pt; font-family: Arial, sans-serif; }
-  </style>
-  
-  <!-- LEFT PANEL: Survey Plan Drawing Area -->
-  <rect x="0" y="0" width="${DRAWING_WIDTH}" height="${VIEWBOX_HEIGHT}" fill="white" stroke="black" stroke-width="0.5"/>
-  
-  <!-- Grid -->
-  <g stroke="#E5E5E5" stroke-width="0.2">
-    ${generateGrid(toSvgX, toSvgY, minX, maxX, minY, maxY, boundaryPoints)}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VB_W} ${VB_H}" width="${VB_W}" height="${VB_H}" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <style>
+      .tm { font-size:14pt; font-weight:bold; font-family:Arial,sans-serif; letter-spacing:3px; }
+      .sh { font-size:7pt; font-weight:bold; font-family:Arial,sans-serif; text-decoration:underline; }
+      .th { font-size:5.5pt; font-weight:bold; font-family:'Courier New',monospace; }
+      .tt { font-size:5.5pt; font-family:'Courier New',monospace; }
+      .bt { font-size:6pt; font-family:Arial,sans-serif; }
+      .st { font-size:4.5pt; font-family:Arial,sans-serif; }
+      .lt { font-size:5pt; font-family:Arial,sans-serif; }
+      .bi { font-size:5pt; font-weight:bold; font-family:Arial,sans-serif; }
+      .at { font-size:4.5pt; font-style:italic; font-family:Arial,sans-serif; fill:#444; }
+      .gl { font-size:3.5pt; font-family:'Courier New',monospace; fill:#999; }
+    </style>
+    <pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="#ddd" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+
+  <!-- ===================== 1. DOUBLE-LINE BORDER ===================== -->
+  <rect x="0" y="0" width="${VB_W}" height="${VB_H}" fill="white"/>
+  <rect x="${OB_X}" y="${OB_Y}" width="${VB_W}" height="${VB_H}" fill="none" stroke="black" stroke-width="${OB_SW}"/>
+  <rect x="${IB_X}" y="${IB_Y}" width="${VB_W - IB_X*2}" height="${VB_H - IB_Y*2}" fill="none" stroke="black" stroke-width="${IB_SW}"/>
+
+  <!-- Paper size -->
+  <text x="${VB_W - IB_X - 5}" y="${IB_Y + 8}" class="st" text-anchor="end">PAPER SIZE: A1 (${VB_W} x ${VB_H}mm)</text>
+
+  <!-- ===================== 2. TITLE BLOCK ===================== -->
+  ${titleBlock}
+
+  <!-- ===================== 5. COORDINATE GRID ===================== -->
+  ${grid.lines}
+  ${grid.labels}
+
+  <!-- ===================== 6. BOUNDARY POLYGON ===================== -->
+  <polygon points="${poly}" fill="#FEFCE8" stroke="black" stroke-width="1" stroke-linejoin="round"/>
+
+  <!-- ===================== 11. ABUTTAL LABELS ===================== -->
+  ${abuttals}
+
+  <!-- ===================== 7&8. BEARING & DISTANCE LABELS ===================== -->
+  ${bLabels}
+
+  <!-- ===================== 9. BEACON SYMBOLS ===================== -->
+  ${beacons}
+
+  <!-- ===================== 10. POINT ID LABELS ===================== -->
+  ${ptLabels}
+
+  <!-- ===================== 3. NORTH ARROW ===================== -->
+  ${northArrow}
+
+  <!-- ===================== 4. SCALE BAR ===================== -->
+  ${scaleBar}
+
+  <!-- ===================== 14. SCALE STATEMENT ===================== -->
+  <text x="${DA_LEFT + DA_WIDTH/2}" y="${effTop + effH - 6}" class="bt" text-anchor="middle" font-weight="bold">DRAWN TO SCALE 1:${scale}</text>
+  <text x="${DA_LEFT + DA_WIDTH/2}" y="${effTop + effH - 12}" class="st" text-anchor="middle">REPRESENTATIVE FRACTION 1:${scale}</text>
+
+  <!-- ===================== 13. LOCATION DIAGRAM ===================== -->
+  ${locDiagram}
+
+  <!-- ===================== AREA STATEMENT ===================== -->
+  <g transform="translate(${DA_LEFT + 15}, ${effTop + effH - 28})">
+    <rect x="-5" y="-9" width="220" height="16" fill="white" fill-opacity="0.92" stroke="#ccc" stroke-width="0.3" rx="2"/>
+    <text x="0" y="3" class="bt" font-weight="bold">AREA: ${areaHa.toFixed(3)} Ha | ${areaAc.toFixed(2)} Acres | ${input.area.toFixed(2)} m&#178;</text>
   </g>
-  
-  <!-- Boundary Polygon -->
-  <polygon points="${polygonPoints}" fill="#FEFCE8" stroke="black" stroke-width="0.5"/>
-  
-  <!-- Boundary Dimensions -->
-  ${boundaryLabels}
-  
-  <!-- Beacon Symbols -->
-  ${beaconElements}
-  
-  <!-- Point Labels -->
-  ${pointLabels}
-  
-  <!-- North Arrow -->
-  <g transform="translate(${DRAWING_WIDTH - 40}, 40)">
-    <line x1="0" y1="15" x2="0" y2="-15" stroke="black" stroke-width="0.5"/>
-    <polygon points="0,-15 -3,0 3,0" fill="black"/>
-    <text x="0" y="22" font-size="4" text-anchor="middle">N</text>
-  </g>
-  
-  <!-- Scale Bar -->
-  <g transform="translate(${DRAWING_WIDTH / 2 - 50}, ${VIEWBOX_HEIGHT - 25})">
-    <line x1="0" y1="0" x2="100" y2="0" stroke="black" stroke-width="0.5"/>
-    <line x1="0" y1="-3" x2="0" y2="3" stroke="black" stroke-width="0.5"/>
-    <line x1="50" y1="-2" x2="50" y2="2" stroke="black" stroke-width="0.5"/>
-    <line x1="100" y1="-3" x2="100" y2="3" stroke="black" stroke-width="0.5"/>
-    <text x="50" y="8" font-size="4" text-anchor="middle">1 : ${input.scale}</text>
-  </g>
-  
-  <!-- RIGHT PANEL: Information -->
-  <rect x="${PANEL_X}" y="0" width="${VIEWBOX_WIDTH - PANEL_X}" height="${VIEWBOX_HEIGHT}" fill="#FAFAFA" stroke="black" stroke-width="0.5"/>
-  
-  <!-- SECTION A: Title Block -->
-  <text x="${PANEL_X + 10}" y="20" class="title">DEED PLAN</text>
-  <text x="${PANEL_X + 10}" y="35" class="body-text">Survey No: ${input.surveyNumber}</text>
-  <text x="${PANEL_X + 10}" y="47" class="body-text">Drawing No: ${input.drawingNumber}</text>
-  <text x="${PANEL_X + 10}" y="59" class="body-text">Scale: 1 : ${input.scale}</text>
-  <text x="${PANEL_X + 10}" y="71" class="body-text">Date: ${input.surveyDate}</text>
-  <line x1="${PANEL_X + 10}" y1="80" x2="${VIEWBOX_WIDTH - 10}" y2="80" stroke="black" stroke-width="0.5"/>
-  
-  <!-- SECTION B: Parcel Information -->
-  <text x="${PANEL_X + 10}" y="95" class="section-header">PARCEL INFORMATION</text>
-  <text x="${PANEL_X + 10}" y="108" class="body-text">Parcel: ${input.parcelNumber}</text>
-  <text x="${PANEL_X + 10}" y="120" class="body-text">Reg. Section: ${input.registrationSection}</text>
-  <text x="${PANEL_X + 10}" y="132" class="body-text">Locality: ${input.locality}</text>
-  <text x="${PANEL_X + 10}" y="144" class="body-text">County: ${input.county}</text>
-  <text x="${PANEL_X + 10}" y="156" class="body-text">Area: ${input.area.toFixed(4)} m&#178;</text>
-  <text x="${PANEL_X + 10}" y="168" class="body-text">Area: ${areaHa.toFixed(6)} ha</text>
-  <text x="${PANEL_X + 10}" y="180" class="body-text">Datum: ${input.datum} (Zone ${utmZone}${hemisphere})</text>
-  <line x1="${PANEL_X + 10}" y1="188" x2="${VIEWBOX_WIDTH - 10}" y2="188" stroke="black" stroke-width="0.5"/>
-  
-  <!-- SECTION C: Abuttals -->
-  <text x="${PANEL_X + 10}" y="203" class="section-header">ABUTTALS</text>
-  <text x="${PANEL_X + 10}" y="216" class="body-text">North: ${input.abuttalNorth}</text>
-  <text x="${PANEL_X + 10}" y="228" class="body-text">South: ${input.abuttalSouth}</text>
-  <text x="${PANEL_X + 10}" y="240" class="body-text">East: ${input.abuttalEast}</text>
-  <text x="${PANEL_X + 10}" y="252" class="body-text">West: ${input.abuttalWest}</text>
-  <line x1="${PANEL_X + 10}" y1="260" x2="${VIEWBOX_WIDTH - 10}" y2="260" stroke="black" stroke-width="0.5"/>
-  
-  <!-- SECTION D: Bearing Schedule -->
-  <text x="${PANEL_X + 10}" y="275" class="section-header">BEARING SCHEDULE</text>
-  <line x1="${PANEL_X + 10}" y1="278" x2="${VIEWBOX_WIDTH - 10}" y2="278" stroke="black" stroke-width="0.3"/>
-  <text x="${PANEL_X + 15}" y="288" class="table-text" font-weight="bold">LEG</text>
-  <text x="${PANEL_X + 40}" y="288" class="table-text" font-weight="bold">FROM</text>
-  <text x="${PANEL_X + 75}" y="288" class="table-text" font-weight="bold">TO</text>
-  <text x="${PANEL_X + 110}" y="288" class="table-text" font-weight="bold">BEARING</text>
-  <text x="${PANEL_X + 175}" y="288" class="table-text" font-weight="bold">DIST (m)</text>
-  ${generateBearingSchedule(bearingSchedule, PANEL_X)}
-  <line x1="${PANEL_X + 10}" y1="350" x2="${VIEWBOX_WIDTH - 10}" y2="350" stroke="black" stroke-width="0.5"/>
-  
-  <!-- SECTION E: Coordinate Schedule -->
-  <text x="${PANEL_X + 10}" y="365" class="section-header">COORDINATE SCHEDULE</text>
-  <line x1="${PANEL_X + 10}" y1="368" x2="${VIEWBOX_WIDTH - 10}" y2="368" stroke="black" stroke-width="0.3"/>
-  <text x="${PANEL_X + 15}" y="378" class="table-text" font-weight="bold">POINT</text>
-  <text x="${PANEL_X + 45}" y="378" class="table-text" font-weight="bold">MARK</text>
-  <text x="${PANEL_X + 90}" y="378" class="table-text" font-weight="bold">STATUS</text>
-  <text x="${PANEL_X + 135}" y="378" class="table-text" font-weight="bold">EASTING</text>
-  <text x="${PANEL_X + 195}" y="378" class="table-text" font-weight="bold">NORTHING</text>
-  ${generateCoordinateSchedule(boundaryPoints, PANEL_X)}
-  <line x1="${PANEL_X + 10}" y1="440" x2="${VIEWBOX_WIDTH - 10}" y2="440" stroke="black" stroke-width="0.5"/>
-  
-  <!-- SECTION F: Surveyor's Certificate -->
-  <text x="${PANEL_X + 10}" y="455" class="section-header">SURVEYOR'S CERTIFICATE</text>
-  <text x="${PANEL_X + 10}" y="470" class="body-text">I hereby certify that this survey was carried out under</text>
-  <text x="${PANEL_X + 10}" y="482" class="body-text">my supervision and that the plan is correct to the best</text>
-  <text x="${PANEL_X + 10}" y="494" class="body-text">of my knowledge and belief.</text>
-  <text x="${PANEL_X + 10}" y="518" class="body-text">Name: ${input.surveyorName}</text>
-  <text x="${PANEL_X + 10}" y="530" class="body-text">ISK No: ${input.iskNumber}</text>
-  <text x="${PANEL_X + 10}" y="542" class="body-text">Firm: ${input.firmName}</text>
-  <text x="${PANEL_X + 10}" y="554" class="body-text">Date: ${input.signatureDate}</text>
-  <line x1="${PANEL_X + 10}" y1="580" x2="${VIEWBOX_WIDTH - 10}" y2="580" stroke="black" stroke-width="0.5"/>
-  
-  <!-- Closure Check Badge -->
-  <rect x="${PANEL_X + 10}" y="440" width="60" height="18" fill="${closureCheck.passes ? '#22C55E' : '#EF4444'}" stroke="black" stroke-width="0.3" rx="2"/>
-  <text x="${PANEL_X + 40}" y="453" font-size="5" fill="white" text-anchor="middle">${precisionRatio}</text>
+
+  <!-- ===================== 12. RIGHT PANEL ===================== -->
+  <rect x="${RP_X - 2}" y="${IB_Y + 2}" width="${RP_W + 2}" height="${VB_H - IB_Y*2 - 4}" fill="white" stroke="black" stroke-width="0.5"/>
+  ${rightPanel}
 </svg>`
 }
 
-function generateGrid(
-  toSvgX: (e: number) => number,
-  toSvgY: (n: number) => number,
-  minX: number,
-  maxX: number,
-  minY: number,
-  maxY: number,
-  points: BoundaryPoint[]
+// ============================================================
+// TITLE BLOCK
+// ============================================================
+function buildTitleBlock(input: DeedPlanInput): string {
+  const x = DA_LEFT, y = DA_TOP, w = DA_WIDTH
+  return `
+  <rect x="${x}" y="${y}" width="${w}" height="${TITLE_H}" fill="#F5F5F5" stroke="black" stroke-width="0.5"/>
+  <rect x="${x}" y="${y}" width="${w}" height="${TITLE_H}" fill="url(#hatch)" stroke="none"/>
+  <rect x="${x+2}" y="${y+2}" width="${w-4}" height="${TITLE_H-4}" fill="none" stroke="black" stroke-width="0.3"/>
+  <text x="${x + w/2}" y="${y + 21}" class="tm" text-anchor="middle">DEED PLAN</text>
+  <line x1="${x + w/2 - 85}" y1="${y + 24}" x2="${x + w/2 + 85}" y2="${y + 24}" stroke="black" stroke-width="0.6"/>
+  <text x="${x+10}" y="${y+12}" class="st">Survey No: <tspan font-weight="bold">${input.surveyNumber}</tspan></text>
+  <text x="${x+10}" y="${y+22}" class="st">Drawing No: <tspan font-weight="bold">${input.drawingNumber}</tspan></text>
+  <text x="${x+10}" y="${y+31}" class="st">Parcel No: <tspan font-weight="bold">${input.parcelNumber}</tspan></text>
+  <text x="${x+w-10}" y="${y+12}" class="st" text-anchor="end">County: <tspan font-weight="bold">${input.county}</tspan></text>
+  <text x="${x+w-10}" y="${y+22}" class="st" text-anchor="end">Locality: <tspan font-weight="bold">${input.locality}</tspan></text>
+  <text x="${x+w-10}" y="${y+31}" class="st" text-anchor="end">Date: <tspan font-weight="bold">${input.surveyDate}</tspan></text>`
+}
+
+// ============================================================
+// NORTH ARROW (half-black/half-white survey style)
+// ============================================================
+function buildNorthArrow(cx: number, cy: number): string {
+  const sz = 20, hw = 4.5
+  return `
+  <g transform="translate(${cx},${cy})">
+    <circle cx="0" cy="0" r="${sz+4}" fill="white" stroke="black" stroke-width="0.5"/>
+    <circle cx="0" cy="0" r="${sz+2}" fill="none" stroke="black" stroke-width="0.25"/>
+    <polygon points="0,-${sz} ${hw},0 -${hw},0" fill="black" stroke="black" stroke-width="0.4"/>
+    <polygon points="0,${sz} ${hw},0 -${hw},0" fill="white" stroke="black" stroke-width="0.4"/>
+    <line x1="0" y1="-${sz}" x2="0" y2="${sz}" stroke="black" stroke-width="0.25"/>
+    <text x="0" y="${-sz-8}" font-size="8pt" font-weight="bold" text-anchor="middle" font-family="Arial">N</text>
+    <line x1="${sz}" y1="0" x2="${sz+3}" y2="0" stroke="black" stroke-width="0.4"/>
+    <line x1="-${sz}" y1="0" x2="-${sz-3}" y2="0" stroke="black" stroke-width="0.4"/>
+  </g>`
+}
+
+// ============================================================
+// SCALE BAR (alternating black/white with RF notation)
+// ============================================================
+function buildScaleBar(cx: number, cy: number, nominalScale: number): string {
+  let divs: {label:string, m:number}[]
+  if (nominalScale <= 500) divs = [{label:'0',m:0},{label:'10m',m:10},{label:'20m',m:20},{label:'30m',m:30},{label:'40m',m:40},{label:'50m',m:50}]
+  else if (nominalScale <= 1000) divs = [{label:'0',m:0},{label:'20m',m:20},{label:'40m',m:40},{label:'60m',m:60},{label:'80m',m:80},{label:'100m',m:100}]
+  else if (nominalScale <= 2500) divs = [{label:'0',m:0},{label:'50m',m:50},{label:'100m',m:100},{label:'150m',m:150},{label:'200m',m:200},{label:'250m',m:250}]
+  else divs = [{label:'0',m:0},{label:'100m',m:100},{label:'200m',m:200},{label:'300m',m:300},{label:'400m',m:400},{label:'500m',m:500}]
+
+  const totalM = divs[divs.length-1].m
+  const totalPx = Math.min(170, totalM * 0.2)
+  const f = totalPx / totalM
+
+  let t = ''
+  divs.forEach((d, i) => {
+    const x = d.m * f
+    const big = i===0 || i===divs.length-1 || i===Math.floor(divs.length/2)
+    t += `<line x1="${cx+x}" y1="${cy-4}" x2="${cx+x}" y2="${cy+4}" stroke="black" stroke-width="${big?0.7:0.4}"/>`
+    t += `<text x="${cx+x}" y="${cy+10}" font-size="3.5pt" text-anchor="middle" font-family="Arial">${d.label}</text>`
+    if (i > 0) {
+      const px = divs[i-1].m * f
+      const fill = i%2===0 ? 'black' : 'white'
+      const sw = i%2===0 ? 'none' : '0.3'
+      t += `<rect x="${px}" y="${cy-3}" width="${x-px}" height="6" fill="${fill}" stroke="black" stroke-width="${sw}"/>`
+    }
+  })
+  return `
+  <g>
+    <rect x="${cx}" y="${cy-3}" width="${totalPx}" height="6" fill="none" stroke="black" stroke-width="0.5"/>
+    ${t}
+    <text x="${cx+totalPx/2}" y="${cy-8}" font-size="4pt" text-anchor="middle" font-weight="bold" font-family="Arial">RF 1:${nominalScale}</text>
+  </g>`
+}
+
+// ============================================================
+// COORDINATE GRID (dashed lines with easting/northing labels)
+// ============================================================
+function buildGrid(
+  toX: (e:number)=>number, toY: (n:number)=>number,
+  minX:number, maxX:number, minY:number, maxY:number
+): {lines:string, labels:string} {
+  let lines='', labels=''
+  const stepX = niceStep((maxX-minX)/8)
+  const stepY = niceStep((maxY-minY)/8)
+  const effTop = DA_TOP + TITLE_H + 8
+  const effBot = DA_TOP + DA_HEIGHT - 24
+  const effR = DA_LEFT + DA_WIDTH
+  const effL = DA_LEFT
+
+  for (let e = Math.ceil(minX/stepX)*stepX; e <= maxX; e += stepX) {
+    const x = toX(e)
+    if (x < effL || x > effR) continue
+    lines += `<line x1="${x.toFixed(1)}" y1="${effTop}" x2="${x.toFixed(1)}" y2="${effBot}" stroke="#E5E7EB" stroke-width="0.2" stroke-dasharray="3,3"/>`
+    labels += `<text x="${(x+2).toFixed(1)}" y="${(effBot+8).toFixed(1)}" class="gl">${e.toFixed(0)}</text>`
+  }
+  for (let n = Math.ceil(minY/stepY)*stepY; n <= maxY; n += stepY) {
+    const y = toY(n)
+    if (y < effTop || y > effBot) continue
+    lines += `<line x1="${effL}" y1="${y.toFixed(1)}" x2="${effR}" y2="${y.toFixed(1)}" stroke="#E5E7EB" stroke-width="0.2" stroke-dasharray="3,3"/>`
+    labels += `<text x="${(effL-3).toFixed(1)}" y="${(y+3).toFixed(1)}" class="gl" text-anchor="end">${n.toFixed(0)}</text>`
+  }
+  return {lines, labels}
+}
+
+// ============================================================
+// BEACON SYMBOLS
+// ============================================================
+function buildBeacons(pts: BoundaryPoint[], toX:(e:number)=>number, toY:(n:number)=>number): string {
+  return pts.map(p => {
+    const sx = toX(p.easting).toFixed(2)
+    const sy = toY(p.northing).toFixed(2)
+    return `<g transform="translate(${sx},${sy})">${getBeaconSymbol(p.markType, p.markStatus)}</g>`
+  }).join('\n')
+}
+
+// ============================================================
+// BEARING & DISTANCE LABELS (rotated along each leg)
+// ============================================================
+function buildBoundaryLabels(
+  legs: BoundaryLeg[], pts: BoundaryPoint[],
+  toX:(e:number)=>number, toY:(n:number)=>number
 ): string {
-  let grid = ''
-  const rangeX = maxX - minX
-  const rangeY = maxY - minY
-  const stepX = rangeX / 10
-  const stepY = rangeY / 10
-
-  for (let i = 0; i <= 10; i++) {
-    const x = minX + i * stepX
-    grid += `<line x1="${toSvgX(x)}" y1="20" x2="${toSvgX(x)}" y2="570" />`
-  }
-  for (let i = 0; i <= 10; i++) {
-    const y = minY + i * stepY
-    grid += `<line x1="20" y1="${toSvgY(y)}" x2="560" y2="${toSvgY(y)}" />`
-  }
-  return grid
+  return legs.map(leg => {
+    const fp = pts.find((p:any)=>p.id===leg.fromPoint)
+    const tp = pts.find((p:any)=>p.id===leg.toPoint)
+    if (!fp || !tp) return ''
+    const fx=toX(fp.easting), fy=toY(fp.northing), tx=toX(tp.easting), ty=toY(tp.northing)
+    const mx=(fx+tx)/2, my=(fy+ty)/2
+    const ang = Math.atan2(ty-fy, tx-fx) * 180/Math.PI
+    const norm = ((ang%360)+360)%360
+    const tAng = (norm>90 && norm<270) ? norm-180 : norm
+    const perpX = -Math.sin(ang*Math.PI/180), perpY = Math.cos(ang*Math.PI/180)
+    const off = 7
+    const lx = (mx + perpX*off).toFixed(2), ly = (my + perpY*off).toFixed(2)
+    return `<g transform="translate(${lx},${ly}) rotate(${tAng.toFixed(2)})">
+      <text x="0" y="-3" font-size="4pt" text-anchor="middle" font-family="Arial" font-weight="bold">${leg.bearing}</text>
+      <text x="0" y="4" font-size="3.5pt" text-anchor="middle" font-family="Arial">${leg.distance.toFixed(2)}m</text>
+    </g>`
+  }).join('\n')
 }
 
-function generateBearingSchedule(legs: BoundaryLeg[], panelX: number): string {
-  let rows = ''
-  let yPos = 298
-  legs.forEach((leg, i) => {
-    const legNum = i + 1
-    rows += `<text x="${panelX + 15}" y="${yPos}" class="table-text">${legNum}</text>`
-    rows += `<text x="${panelX + 40}" y="${yPos}" class="table-text">${leg.fromPoint}</text>`
-    rows += `<text x="${panelX + 75}" y="${yPos}" class="table-text">${leg.toPoint}</text>`
-    rows += `<text x="${panelX + 110}" y="${yPos}" class="table-text">${leg.bearing}</text>`
-    rows += `<text x="${panelX + 175}" y="${yPos}" class="table-text">${leg.distance.toFixed(2)}</text>`
-    yPos += 8
-  })
-  return rows
+// ============================================================
+// ABUTTAL LABELS (positioned outside polygon edges)
+// ============================================================
+function buildAbuttals(
+  input: DeedPlanInput, pts: BoundaryPoint[],
+  toX:(e:number)=>number, toY:(n:number)=>number
+): string {
+  const byN = [...pts].sort((a,b)=>b.northing-a.northing)
+  const byE = [...pts].sort((a,b)=>b.easting-a.easting)
+  const third = Math.max(2, Math.ceil(pts.length/3))
+  let s = ''
+
+  // North abuttal
+  const nPts = byN.slice(0, third)
+  const nCx = nPts.reduce((a,p)=>a+toX(p.easting),0)/nPts.length
+  const nCy = Math.min(...nPts.map(p=>toY(p.northing)))
+  s += `<text x="${nCx.toFixed(1)}" y="${(nCy-12).toFixed(1)}" class="at" text-anchor="middle">N: ${input.abuttalNorth}</text>\n`
+
+  // South abuttal
+  const sPts = byN.slice(-third)
+  const sCx = sPts.reduce((a,p)=>a+toX(p.easting),0)/sPts.length
+  const sCy = Math.max(...sPts.map(p=>toY(p.northing)))
+  s += `<text x="${sCx.toFixed(1)}" y="${(sCy+15).toFixed(1)}" class="at" text-anchor="middle">S: ${input.abuttalSouth}</text>\n`
+
+  // East abuttal
+  const ePts = byE.slice(0, third)
+  const eCx = Math.max(...ePts.map(p=>toX(p.easting)))
+  const eCy = ePts.reduce((a,p)=>a+toY(p.northing),0)/ePts.length
+  s += `<g transform="translate(${(eCx+14).toFixed(1)},${eCy.toFixed(1)}) rotate(-90)"><text class="at" text-anchor="middle">E: ${input.abuttalEast}</text></g>\n`
+
+  // West abuttal
+  const wPts = byE.slice(-third)
+  const wCx = Math.min(...wPts.map(p=>toX(p.easting)))
+  const wCy = wPts.reduce((a,p)=>a+toY(p.northing),0)/wPts.length
+  s += `<g transform="translate(${(wCx-14).toFixed(1)},${wCy.toFixed(1)}) rotate(-90)"><text class="at" text-anchor="middle">W: ${input.abuttalWest}</text></g>\n`
+
+  return s
 }
 
-function generateCoordinateSchedule(points: BoundaryPoint[], panelX: number): string {
-  let rows = ''
-  let yPos = 388
-  points.forEach((p: any) => {
-    rows += `<text x="${panelX + 15}" y="${yPos}" class="table-text">${p.id}</text>`
-    rows += `<text x="${panelX + 45}" y="${yPos}" class="table-text">${p.markType}</text>`
-    rows += `<text x="${panelX + 90}" y="${yPos}" class="table-text">${p.markStatus}</text>`
-    rows += `<text x="${panelX + 135}" y="${yPos}" class="table-text">${p.easting.toFixed(4)}</text>`
-    rows += `<text x="${panelX + 195}" y="${yPos}" class="table-text">${p.northing.toFixed(4)}</text>`
-    yPos += 8
+// ============================================================
+// POINT ID LABELS
+// ============================================================
+function buildPointLabels(pts: BoundaryPoint[], toX:(e:number)=>number, toY:(n:number)=>number): string {
+  return pts.map((p:any) => {
+    const sx = (toX(p.easting)+5).toFixed(2)
+    const sy = (toY(p.northing)-5).toFixed(2)
+    return `<text x="${sx}" y="${sy}" class="bi">${p.id}</text>`
+  }).join('\n')
+}
+
+// ============================================================
+// LOCATION DIAGRAM (small Kenya map inset)
+// ============================================================
+function buildLocationDiagram(x: number, y: number): string {
+  const w=95, h=82
+  return `
+  <g transform="translate(${x},${y})">
+    <rect x="0" y="0" width="${w}" height="${h}" fill="white" stroke="black" stroke-width="0.5" rx="2"/>
+    <text x="${w/2}" y="9" font-size="4pt" font-weight="bold" text-anchor="middle" font-family="Arial">LOCATION DIAGRAM</text>
+    <line x1="3" y1="12" x2="${w-3}" y2="12" stroke="black" stroke-width="0.3"/>
+    <g transform="translate(${w/2},${h/2+5})">
+      <polygon points="-25,-28 -10,-30 5,-28 15,-24 22,-18 25,-8 22,2 18,10 12,18 5,24 -5,26 -15,24 -22,16 -28,6 -30,-4 -28,-14 -24,-22"
+        fill="#E8F5E9" stroke="#333" stroke-width="0.6"/>
+      <circle cx="18" cy="-2" r="1.3" fill="#888"/>
+      <text x="18" y="-5" font-size="2.3pt" text-anchor="middle" fill="#666">MOMBASA</text>
+      <circle cx="-5" cy="-16" r="1.3" fill="#888"/>
+      <text x="-5" y="-19" font-size="2.3pt" text-anchor="middle" fill="#666">NAIROBI</text>
+      <circle cx="-25" cy="-18" r="1" fill="#888"/>
+      <text x="-25" y="-21" font-size="2pt" text-anchor="middle" fill="#666">KISUMU</text>
+      <polygon points="10,-12 11,-9 14,-9 12,-7 13,-4 10,-6 7,-4 8,-7 6,-9 9,-9" fill="#EF4444" stroke="#991B1B" stroke-width="0.3"/>
+    </g>
+    <text x="${w/2}" y="${h-3}" font-size="2.5pt" text-anchor="middle" fill="#888" font-family="Arial">NOT TO SCALE</text>
+  </g>`
+}
+
+// ============================================================
+// RIGHT INFO PANEL
+// ============================================================
+function buildRightPanel(
+  input: DeedPlanInput,
+  legs: BoundaryLeg[],
+  cc: ClosureCheck,
+  pts: BoundaryPoint[]
+): string {
+  const px = RP_X
+  const le = px + 8
+  const re = px + RP_W - 8
+  let y = IB_Y + 12
+  let s = ''
+
+  // --- PARCEL INFORMATION ---
+  s += secHdr(le, y, 'PARCEL INFORMATION'); y += 12
+  s += row(le, y, 'Parcel No:', input.parcelNumber); y += 10
+  s += row(le, y, 'Reg. Section:', input.registrationSection); y += 10
+  s += row(le, y, 'Locality:', input.locality); y += 10
+  s += row(le, y, 'County:', input.county); y += 10
+  if (input.titleDeedNumber) { s += row(le, y, 'Title Deed:', input.titleDeedNumber); y += 10 }
+  if (input.firNumber) { s += row(le, y, 'FIR No:', input.firNumber); y += 10 }
+  if (input.registryMapSheet) { s += row(le, y, 'Map Sheet:', input.registryMapSheet); y += 10 }
+  s += hr(le, y, re); y += 7
+
+  // --- ABUTTALS ---
+  s += secHdr(le, y, 'ABUTTALS'); y += 11
+  s += row(le, y, 'North:', input.abuttalNorth); y += 9
+  s += row(le, y, 'South:', input.abuttalSouth); y += 9
+  s += row(le, y, 'East:', input.abuttalEast); y += 9
+  s += row(le, y, 'West:', input.abuttalWest); y += 10
+  s += hr(le, y, re); y += 6
+
+  // --- AREA ---
+  s += secHdr(le, y, 'AREA'); y += 11
+  const areaHa = input.area / 10000
+  const areaAc = input.area / 4046.8564224
+  s += `<text x="${le}" y="${y}" class="bt" font-weight="bold">${areaHa.toFixed(3)} Hectares</text>\n`; y += 9
+  s += `<text x="${le}" y="${y}" class="bt">${areaAc.toFixed(2)} Acres</text>\n`; y += 9
+  s += `<text x="${le}" y="${y}" class="st">(${input.area.toFixed(2)} m&#178;)</text>\n`; y += 9
+  s += hr(le, y, re); y += 6
+
+  // --- DATUM & PROJECTION ---
+  s += secHdr(le, y, 'DATUM & PROJECTION'); y += 11
+  s += row(le, y, 'Datum:', input.datum); y += 9
+  s += row(le, y, 'Projection:', input.projectionType); y += 9
+  s += row(le, y, 'Zone:', `UTM ${input.utmZone}${input.hemisphere}`); y += 9
+  s += row(le, y, 'Scale:', `1 : ${input.scale}`); y += 9
+  s += hr(le, y, re); y += 6
+
+  // --- CLOSURE CHECK ---
+  const ccCol = cc.passes ? '#22C55E' : '#EF4444'
+  const prec = cc.precisionRatio.replace('\u221e', '&#8734;')
+  s += secHdr(le, y, 'CLOSURE CHECK'); y += 11
+  s += `<rect x="${le}" y="${y-8}" width="${RP_W-16}" height="27" fill="${ccCol}" fill-opacity="0.08" stroke="${ccCol}" stroke-width="0.3" rx="2"/>\n`
+  s += row(le, y, 'Precision:', prec); y += 9
+  s += `<text x="${le}" y="${y}" class="st">dE: ${cc.closingErrorE.toFixed(4)}m  dN: ${cc.closingErrorN.toFixed(4)}m</text>\n`; y += 9
+  s += `<text x="${le}" y="${y}" class="st" font-weight="bold" fill="${ccCol}">${cc.passes ? '\u2713 CLOSURE ACCEPTABLE' : '\u2717 CLOSURE FAILED'}</text>\n`; y += 11
+  s += hr(le, y, re); y += 6
+
+  // --- COORDINATE SCHEDULE TABLE ---
+  s += secHdr(le, y, 'COORDINATE SCHEDULE'); y += 10
+  s += `<text x="${le+5}" y="${y}" class="th">PT</text>\n`
+  s += `<text x="${le+30}" y="${y}" class="th">MARK</text>\n`
+  s += `<text x="${le+100}" y="${y}" class="th">EASTING</text>\n`
+  s += `<text x="${le+170}" y="${y}" class="th">NORTHING</text>\n`
+  y += 9
+  s += hr(le, y, re); y += 2
+  for (const p of pts) {
+    s += `<text x="${le+5}" y="${y}" class="tt">${p.id}</text>\n`
+    s += `<text x="${le+30}" y="${y}" class="tt">${p.markType}</text>\n`
+    s += `<text x="${le+100}" y="${y}" class="tt">${(p as any).easting.toFixed(4)}</text>\n`
+    s += `<text x="${le+170}" y="${y}" class="tt">${(p as any).northing.toFixed(4)}</text>\n`
+    y += 8
+  }
+  s += hr(le, y, re); y += 7
+
+  // --- BEARING SCHEDULE TABLE ---
+  s += secHdr(le, y, 'BEARING SCHEDULE'); y += 10
+  s += `<text x="${le+5}" y="${y}" class="th">LEG</text>\n`
+  s += `<text x="${le+30}" y="${y}" class="th">FROM</text>\n`
+  s += `<text x="${le+60}" y="${y}" class="th">TO</text>\n`
+  s += `<text x="${le+95}" y="${y}" class="th">BEARING</text>\n`
+  s += `<text x="${le+185}" y="${y}" class="th">DIST(m)</text>\n`
+  y += 9
+  s += hr(le, y, re); y += 2
+  legs.forEach((l, i) => {
+    s += `<text x="${le+5}" y="${y}" class="tt">${i+1}</text>\n`
+    s += `<text x="${le+30}" y="${y}" class="tt">${l.fromPoint}</text>\n`
+    s += `<text x="${le+60}" y="${y}" class="tt">${l.toPoint}</text>\n`
+    s += `<text x="${le+95}" y="${y}" class="tt">${l.bearing}</text>\n`
+    s += `<text x="${le+185}" y="${y}" class="tt">${l.distance.toFixed(2)}</text>\n`
+    y += 8
   })
-  return rows
+  s += hr(le, y, re); y += 7
+
+  // --- SURVEYOR DETAILS ---
+  s += secHdr(le, y, 'LICENSED SURVEYOR'); y += 11
+  s += row(le, y, 'Name:', input.surveyorName); y += 9
+  s += row(le, y, 'ISK No:', input.iskNumber); y += 9
+  s += row(le, y, 'Firm:', input.firmName); y += 9
+  if (input.firmAddress) { s += row(le, y, 'Address:', input.firmAddress); y += 9 }
+  if (input.drawnBy) { s += row(le, y, 'Drawn By:', input.drawnBy); y += 9 }
+  if (input.checkedBy) { s += row(le, y, 'Checked By:', input.checkedBy); y += 9 }
+  s += hr(le, y, re); y += 7
+
+  // --- SURVEYOR'S CERTIFICATE & SIGNATURE ---
+  s += secHdr(le, y, "SURVEYOR'S CERTIFICATE"); y += 10
+  s += `<text x="${le}" y="${y}" class="st">I hereby certify that this survey was carried out</text>\n`; y += 7
+  s += `<text x="${le}" y="${y}" class="st">under my direct supervision and that this plan</text>\n`; y += 7
+  s += `<text x="${le}" y="${y}" class="st">is correct to the best of my knowledge and belief.</text>\n`; y += 14
+  s += `<line x1="${le}" y1="${y}" x2="${re-30}" y2="${y}" stroke="black" stroke-width="0.5"/>\n`; y += 7
+  s += `<text x="${le}" y="${y}" class="st">Signature</text>\n`; y += 6
+  s += `<text x="${le}" y="${y}" class="st">Date: ${input.signatureDate}</text>\n`
+
+  return s
+}
+
+// ============================================================
+// PANEL HELPER FUNCTIONS
+// ============================================================
+function secHdr(x: number, y: number, t: string): string {
+  return `<text x="${x}" y="${y}" class="sh">${t}</text>\n`
+}
+
+function row(x: number, y: number, label: string, val: string): string {
+  return `<text x="${x}" y="${y}" class="bt">${label} <tspan font-weight="bold">${val}</tspan></text>\n`
+}
+
+function hr(x: number, y: number, re: number): string {
+  return `<line x1="${x}" y1="${y}" x2="${re}" y2="${y}" stroke="black" stroke-width="0.3"/>\n`
+}
+
+// ============================================================
+// UTILITY: Calculate nice grid step
+// ============================================================
+function niceStep(rough: number): number {
+  const pow = Math.pow(10, Math.floor(Math.log10(rough)))
+  const frac = rough / pow
+  const nice = frac <= 1.5 ? 1 : frac <= 3 ? 2 : frac <= 7 ? 5 : 10
+  return nice * pow
 }
