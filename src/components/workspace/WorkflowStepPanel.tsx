@@ -8,6 +8,7 @@ import { FileText, Map, Download, Loader2, Sparkles } from 'lucide-react';
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile';
 import { HydroPanel } from '@/components/compute/HydroPanel';
 import { useState } from 'react';
+import CadastralComputeIntegration from './CadastralComputeIntegration';
 
 const DynamicFieldBook = dynamic(() => import('./DynamicFieldBook'), { ssr: false });
 const GenerateReportModal = dynamic(() => import('./GenerateReportModal'), { ssr: false });
@@ -65,7 +66,6 @@ function FieldBookStepPanel({ projectId, surveyType }: { projectId: string; surv
 
 function ComputeStepPanel({ surveyType, projectId }: { surveyType: SurveyType; projectId: string }) {
   const computeItems: Record<SurveyType, string[]> = {
-    cadastral: ['Bowditch traverse adjustment', 'Linear misclosure + precision', 'Shoelace area'],
     engineering: ['Rise & fall reduction', '10√K mm closure (RDM 1.1)', 'Cross-section volumes'],
     topographic: ['Coordinate reduction', 'DTM generation', 'Contour extraction'],
     geodetic: ['Network adjustment', 'Baseline processing', 'Accuracy classification'],
@@ -73,6 +73,7 @@ function ComputeStepPanel({ surveyType, projectId }: { surveyType: SurveyType; p
     hydrographic: ['Tidal correction', 'Depth reduction', 'Bathymetric surface', 'Report of Survey'],
     drone: ['GCP residuals', 'Point cloud volumes', 'Orthophoto check'],
     deformation: ['Epoch comparison', 'Displacement vectors', 'Statistical test'],
+    cadastral: []
   };
 
   if (surveyType === 'hydrographic') {
@@ -92,6 +93,22 @@ function ComputeStepPanel({ surveyType, projectId }: { surveyType: SurveyType; p
           >
             Open Computation Engine →
           </Link>
+        </div>
+      ) : surveyType === 'cadastral' ? (
+        <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-[var(--text-primary)] mb-1">Step 3 — Traverse Compute</h2>
+              <p className="text-sm text-[var(--text-muted)]">Automatic adjustment of field book observations.</p>
+            </div>
+            <Link
+              href="/tools/traverse"
+              className="px-3 py-1.5 border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)] text-xs font-medium rounded transition-colors"
+            >
+              Open Advanced Engine
+            </Link>
+          </div>
+          <CadastralComputeIntegration projectId={projectId} />
         </div>
       ) : (
         <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-5">

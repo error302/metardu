@@ -188,8 +188,8 @@ export const PricingCard = ({
         <h2 className="text-[48px] font-extralight tracking-[-0.03em] text-foreground font-display">{planName}</h2>
         <p className="text-[16px] text-foreground/70 mt-1 font-sans">{description}</p>
       </div>
-      <div className="my-6 flex items-baseline gap-2">
-        <span className="text-[48px] font-extralight text-foreground font-display">${price}</span>
+      <div className="my-6 flex items-baseline gap-2 flex-wrap">
+        <span className="text-[36px] font-extralight text-foreground font-display tracking-tight">{price}</span>
         <span className="text-[14px] text-foreground/70 font-sans">/mo</span>
       </div>
       <div className="card-divider w-full mb-5 h-px" style={{background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.22) 50%, transparent)"}}></div>

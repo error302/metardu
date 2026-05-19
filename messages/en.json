@@ -102,7 +102,17 @@
     "target": "Target",
     "heightOfInstrument": "Height of Instrument",
     "heightOfTarget": "Height of Target",
-    "reflectorHeight": "Reflector Height"
+    "reflectorHeight": "Reflector Height",
+    "fieldBook": "Digital Field Book",
+    "fieldBookSubtitle": "Enter your raw survey observations or sync from offline devices",
+    "fieldBookName": "Field Book Name",
+    "fieldBookNamePlaceholder": "e.g. Traverse Loop A",
+    "syncOffline": "Sync Offline",
+    "fieldBookAI": "AI Field Assistant"
+  },
+  "projects": {
+    "project": "Project",
+    "selectProject": "Select a Project..."
   },
   "leveling": {
     "riseFall": "Rise/Fall",
