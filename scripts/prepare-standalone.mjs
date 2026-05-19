@@ -28,3 +28,10 @@ if (existsSync(publicSource) && !existsSync(publicTarget)) {
   cpSync(publicSource, publicTarget, { recursive: true })
   console.log('[prepare-standalone] copied public into standalone output')
 }
+// Copy .env.local into standalone so PM2 picks it up
+const envLocalSource = path.join(rootDir, '.env.local')
+const envLocalTarget = path.join(standaloneDir, '.env.local')
+if (existsSync(envLocalSource)) {
+  cpSync(envLocalSource, envLocalTarget)
+  console.log('[prepare-standalone] copied .env.local into standalone output')
+}
