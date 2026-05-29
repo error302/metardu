@@ -1,7 +1,8 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { ReactNode } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
+import OnboardingModal from '@/components/ui/OnboardingModal'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import FeedbackWidget from '@/components/FeedbackWidget'
@@ -42,6 +43,26 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const fullScreen = isFullScreenRoute(pathname)
   const admin = isAdminRoute(pathname)
   const hidden = isHiddenShellRoute(pathname)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    if (!localStorage.getItem('metardu_onboarding_seen')) {
+      setShowOnboarding(true)
+    }
+  }, [])
+
+  const dismissOnboarding = () => {
+    localStorage.setItem('metardu_onboarding_seen', 'true')
+    setShowOnboarding(false)
+  }
+
+  const onboardingModal = (
+    <OnboardingModal
+      open={showOnboarding}
+      onClose={dismissOnboarding}
+      onComplete={dismissOnboarding}
+    />
+  )
 
   // Full-screen routes (field map): no chrome at all
   if (fullScreen) {
@@ -58,6 +79,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </main>
               <KeyboardShortcuts />
               <NotificationToast />
+              {onboardingModal}
             </SubscriptionProvider>
           </CountryProvider>
         </LanguageProvider>
@@ -80,6 +102,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </main>
               <KeyboardShortcuts />
               <NotificationToast />
+              {onboardingModal}
             </SubscriptionProvider>
           </CountryProvider>
         </LanguageProvider>
@@ -106,6 +129,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <QuickCompute />
             <MobileNav />
             <NotificationToast />
+            {onboardingModal}
           </SubscriptionProvider>
         </CountryProvider>
       </LanguageProvider>
