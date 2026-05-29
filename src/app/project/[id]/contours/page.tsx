@@ -2,6 +2,7 @@
 import { useState, useEffect, use } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { generateContours, SpotHeight, ContourLine } from '@/lib/engine/contours'
+import MobileDesktopNotice from '@/components/layout/MobileDesktopNotice'
 
 type EngineMode = 'python' | 'typescript' | null
 
@@ -138,6 +139,9 @@ export default function ContoursPage({ params }: { params: Promise<{ id: string 
           )}
         </div>
         <p className="text-[var(--text-secondary)] mb-8">Generate contours from spot heights using Delaunay triangulation</p>
+        <MobileDesktopNotice>
+          Contour generation and review involve wide tables, maps, and export options. Use desktop for full workflow; mobile is suitable for viewing and small adjustments.
+        </MobileDesktopNotice>
 
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-6 mb-8">
           <div className="flex items-center gap-4 mb-6 flex-wrap">

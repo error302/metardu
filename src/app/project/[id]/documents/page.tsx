@@ -519,16 +519,21 @@ export default function DocumentsPage({ params }: PageProps) {
       <div className="max-w-4xl mx-auto px-4 py-8">
 
 {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Link href={`/project/${params.id}`} className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)]">← Back to project</Link>
-          </div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Documents & Plans</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            {project.name} · {project.survey_type || 'Survey'} · {project.location || ''}
-          </p>
-        </div>
+       <div className="flex items-start justify-between mb-6">
+         <div>
+           <div className="flex items-center gap-2 mb-1">
+             <Link href={`/project/${params.id}`} className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)]">← Back to project</Link>
+           </div>
+           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Documents & Plans</h1>
+           <p className="text-sm text-[var(--text-muted)] mt-1">
+             {project.name} · {project.survey_type || 'Survey'} · {project.location || ''}
+           </p>
+         </div>
+       </div>
+
+       <MobileDesktopNotice>
+         Document generation and review involve long forms, tables, previews, and export checks. Use desktop for the best experience; mobile is suitable for viewing and minor edits.
+       </MobileDesktopNotice>
         
         {/* Submission Actions */}
         <div className="flex flex-col items-end gap-2">
