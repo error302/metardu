@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useSession, signOut } from 'next-auth/react'
 import { createClient } from '@/lib/api-client/client'
-import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -211,8 +211,6 @@ function GlobalSearch({ t, isAuthenticated }: { t: Translator; isAuthenticated: 
 }
 
 export default function NavBar() {
-  const [user, setUser] = useState<{ email: string; id?: string } | null>(null)
-  const [loading, setLoading] = useState(true)
   const [installPrompt, setInstallPrompt] = useState<any>(null)
   const [showInstall, setShowInstall] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -221,8 +219,10 @@ export default function NavBar() {
   const [userPlan, setUserPlan] = useState<PlanId>('free')
   const navRef = useRef<HTMLDivElement>(null)
 
-  const { data: authSession } = useSession()
-  const userRole = (authSession?.user as { role?: string })?.role ?? ''
+  const { data: session, status: authStatus } = useSession()
+  const user = session?.user as { email?: string; name?: string; id?: string; role?: string } | undefined
+  const isAuthenticated = !!session
+  const userRole = user?.role ?? ''
   const isAdminUser = ['super_admin', 'admin', 'org_admin'].includes(userRole)
 
   const { language, setLanguage, t, hydrated } = useLanguage()
@@ -230,53 +230,36 @@ export default function NavBar() {
 
   useEffect(() => { setMounted(true) }, [])
 
+  // Fetch user subscription plan when session changes
   useEffect(() => {
-    const dbClient = createClient()
-    
-    const initUserSession = async () => {
-      const { data: { session } } = await dbClient.auth.getSession()
-      const user = session?.user ?? null
-      setUser(user as { email: string; id?: string } | null)
-      if (user) {
-        const { data: sub } = await dbClient
-          .from('user_subscriptions')
-          .select('plan_id')
-          .eq('user_id', user.id)
-          .maybeSingle()
-        setUserPlan((sub?.plan_id as PlanId) || 'free')
+    const fetchPlan = async () => {
+      if (user?.id) {
+        try {
+          const dbClient = createClient()
+          const { data: sub } = await dbClient
+            .from('user_subscriptions')
+            .select('plan_id')
+            .eq('user_id', user.id)
+            .maybeSingle()
+          setUserPlan((sub?.plan_id as PlanId) || 'free')
+        } catch {
+          setUserPlan('free')
+        }
       } else {
         setUserPlan('free')
       }
-      setLoading(false)
     }
-    
-    initUserSession()
+    fetchPlan()
+  }, [session?.user?.id])
 
-    const { data: { subscription } } = dbClient.auth.onAuthStateChange(async (_event, session) => {
-      const u = session?.user as { email: string; id?: string } | null
-      setUser(u)
-      if (u?.id) {
-        const { data: sub } = await dbClient
-          .from('user_subscriptions')
-          .select('plan_id')
-          .eq('user_id', u.id)
-          .maybeSingle()
-        setUserPlan((sub?.plan_id as PlanId) || 'free')
-      } else {
-        setUserPlan('free')
-      }
-      setLoading(false)
-    })
-
+  useEffect(() => {
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault()
       setInstallPrompt(e)
       setShowInstall(true)
     }
     window.addEventListener('beforeinstallprompt', handleBeforeInstall)
-
     return () => {
-      subscription.unsubscribe()
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
     }
   }, [])
@@ -290,12 +273,9 @@ export default function NavBar() {
   }
 
   const handleSignOut = async () => {
-    // Sign out via NextAuth
     try {
-      const { signOut } = await import('next-auth/react')
       await signOut({ redirect: false })
     } catch {
-      // Fallback: call signout API directly
       await fetch('/api/auth/signout', { method: 'POST' })
     }
     window.location.href = '/'
@@ -330,7 +310,7 @@ export default function NavBar() {
   }, [pathname])
 
   const currentLang = languages.find((l: any) => l.code === language) || languages[0]
-  const shellVariant = !loading && !user && isExplicitPublicRoute(pathname) ? 'public' : 'app'
+  const shellVariant = authStatus !== 'loading' && !isAuthenticated && isExplicitPublicRoute(pathname) ? 'public' : 'app'
   const desktopLinks = shellVariant === 'app' ? APP_SHELL_LINKS : PUBLIC_SHELL_LINKS
   const mobileLinks = shellVariant === 'app' ? APP_SHELL_LINKS : PUBLIC_SHELL_LINKS
 
@@ -376,7 +356,7 @@ export default function NavBar() {
           {/* Right Side */}
           <div className="flex items-center gap-3">
             {/* Global Search */}
-            <GlobalSearch t={t} isAuthenticated={Boolean(user)} />
+            <GlobalSearch t={t} isAuthenticated={isAuthenticated} />
 
             {/* Language Selector */}
             <Dropdown
@@ -403,9 +383,9 @@ export default function NavBar() {
               ))}
             </Dropdown>
 
-            {loading ? (
+            {authStatus === 'loading' ? (
               <div className="w-20 h-8 bg-[var(--bg-tertiary)] animate-pulse rounded"></div>
-            ) : user ? (
+            ) : isAuthenticated ? (
               <div className="hidden md:block relative">
                 <button
                   onClick={() => handleDropdownToggle('user')}
@@ -500,7 +480,7 @@ export default function NavBar() {
                   </div>
                 )}
               </div>
-              ) : (
+              ) : authStatus === 'unauthenticated' && (
               <div className="hidden md:flex items-center gap-2">
                 <Link href="/login" className="px-4 py-2 text-sm border border-[var(--accent)] text-[var(--accent)] rounded hover:bg-[var(--accent)]/10 transition-colors">
                   Log In
@@ -574,7 +554,7 @@ export default function NavBar() {
                 </>
               )}
               
-              {user && (
+              {isAuthenticated && (
                 <>
                   <div className="border-t border-[var(--border-color)] my-2"></div>
                   <Link href="/account" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
@@ -596,7 +576,7 @@ export default function NavBar() {
                 </>
               )}
               
-              {!user && (
+              {!isAuthenticated && (
                 <>
                   <div className="border-t border-[var(--border-color)] my-2"></div>
                   <Link href="/login" className="block px-4 py-2 text-[var(--accent)]">

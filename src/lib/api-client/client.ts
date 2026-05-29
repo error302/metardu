@@ -1,8 +1,11 @@
 /**
  * Client-side database client
  * Routes data queries through /api/db proxy → VM PostgreSQL.
- * Auth is handled by NextAuth (useSession / getSession).
- * Storage goes through /api/storage endpoint (GCS-backed).
+ * @deprecated Auth methods on this client are migration artifacts from Supabase.
+ * Use `useSession()` from 'next-auth/react' for client components,
+ * or `getServerSession(authOptions)` for server components instead.
+ * DB methods (.from()) are actively used and safe.
+ * Storage methods should use /api/storage endpoint instead.
  */
 
 interface QueryResult<T = any> {

@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import {
   FolderKanban, LayoutDashboard, MapPinned, UserRound, UsersRound, Wrench, FileText,
   CalendarDays, Radar, Store, ChevronRight, X, AlertTriangle, Clock,
   BookOpen, Compass
 } from 'lucide-react'
-import { createClient } from '@/lib/api-client/client'
 import { PRIMARY_NAV_ITEMS, isNavItemActive } from '@/lib/navigation-shell'
 
 const iconMap: Record<string, any> = {
@@ -32,38 +32,12 @@ const MORE_PAGES = [
 
 export default function MobileNav() {
   const pathname = usePathname()
-  const [user, setUser] = useState<{ id?: string } | null>(null)
   const [mounted, setMounted] = useState(false)
-  const [loading, setLoading] = useState(true)
   const [showMore, setShowMore] = useState(false)
+  const { data: session, status: authStatus } = useSession()
+  const isAuthenticated = !!session
 
-  useEffect(() => {
-    setMounted(true)
-
-    const dbClient = createClient()
-
-    const loadSession = async () => {
-      const { data: { session } } = await dbClient.auth.getSession()
-      setUser(session?.user ?? null)
-      setLoading(false)
-    }
-
-    loadSession()
-
-    const { data: { subscription } } = dbClient.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  // Close "More" drawer on navigation
-  useEffect(() => {
-    setShowMore(false)
-  }, [pathname])
-
-  if (!mounted || loading || !user) return null
+  useEffect(() => { setMounted(true) }, [])
 
   // Show the unified 5-item navigation + "More" button
   const mobileNavItems = PRIMARY_NAV_ITEMS
