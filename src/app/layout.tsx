@@ -2,25 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
 
 import './globals.css'
-import NavBar from '@/components/NavBar'
-import MobileNav from '@/components/MobileNav'
 import AuthProvider from '@/components/AuthProvider'
-import Footer from '@/components/Footer'
-import { LanguageProvider } from '@/lib/i18n/LanguageContext'
-import { CountryProvider } from '@/lib/country'
-import { SubscriptionProvider } from '@/lib/subscription/subscriptionContext'
-import FeedbackWidget from '@/components/FeedbackWidget'
-import KeyboardShortcuts from '@/components/KeyboardShortcuts'
-import { QuickCompute } from '@/components/layout/QuickCompute'
 import { ProjectionInit } from '@/components/layout/ProjectionInit'
-import { OfflineIndicator } from '@/components/app/OfflineIndicator'
-import { AppUpdateBanner } from '@/components/app/AppUpdateBanner'
-import dynamic from 'next/dynamic'
-
-const NotificationToast = dynamic(
-  () => import('@/components/ui/NotificationToast').then(m => ({ default: m.NotificationToast })),
-  { ssr: false }
-)
+import AppShell from '@/components/layout/AppShell'
 import { getPublicAppUrl } from '@/lib/site'
 import { QueryProvider } from '@/lib/cache/QueryProvider'
 
@@ -140,25 +124,9 @@ export default function RootLayout({
         </a>
         <AuthProvider>
           <QueryProvider>
-          <AppUpdateBanner />
-          <OfflineIndicator />
-          <ProjectionInit />
-          <LanguageProvider>
-            <CountryProvider>
-              <SubscriptionProvider>
-                <NavBar />
-                <main id="main-content" className="min-h-screen pb-16 md:pb-0 mobile-nav-spacer overflow-x-hidden">
-                  {children}
-                </main>
-                <Footer />
-                <FeedbackWidget />
-                <KeyboardShortcuts />
-                <QuickCompute />
-                <MobileNav />
-                <NotificationToast />
-              </SubscriptionProvider>
-            </CountryProvider>
-          </LanguageProvider>
+            <AppShell>
+              {children}
+            </AppShell>
           </QueryProvider>
         </AuthProvider>
       </body>

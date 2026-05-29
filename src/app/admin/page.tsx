@@ -536,15 +536,15 @@ export default function AdminDashboardPage() {
             </Link>
 
             <Link
-              href="/api/system/optimize"
+              href="/admin"
               className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border-color)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/5 transition-all group"
             >
               <Settings2 className="w-5 h-5 text-[var(--accent)]" />
               <div>
                 <p className="text-sm font-medium text-[var(--text-primary)] group-hover:text-[var(--accent)]">
-                  System
+                  System Health
                 </p>
-                <p className="text-xs text-[var(--text-muted)]">Optimize & maintain</p>
+                <p className="text-xs text-[var(--text-muted)]">View diagnostics</p>
               </div>
             </Link>
           </div>

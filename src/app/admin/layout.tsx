@@ -35,10 +35,10 @@ const sidebarItems = [
     icon: CreditCard,
   },
   {
-    label: 'System',
-    href: '/api/system/optimize',
+    label: 'System Health',
+    href: '/admin',
     icon: Settings2,
-    external: true,
+    hash: '#system',
   },
 ]
 
@@ -105,11 +105,12 @@ export default function AdminLayout({
                 ? pathname === '/admin'
                 : pathname.startsWith(item.href)
 
-            if (item.external) {
+            if ((item as any).hash) {
               return (
-                <a
+                <Link
                   key={item.href}
-                  href={item.href}
+                  href={`${item.href}${(item as any).hash}`}
+                  onClick={() => setSidebarOpen(false)}
                   className={`
                     flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors
                     ${
@@ -121,7 +122,7 @@ export default function AdminLayout({
                 >
                   <item.icon className="w-4 h-4 shrink-0" />
                   {item.label}
-                </a>
+                </Link>
               )
             }
 
