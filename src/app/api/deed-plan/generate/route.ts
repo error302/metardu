@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
       easting: Number(p.easting) || 0,
       northing: Number(p.northing) || 0,
       elevation: p.elevation != null ? Number(p.elevation) : undefined,
-      markType: String(p.markType || 'CONCRETE_BEACON'),
-      markStatus: String(p.markStatus || 'SET'),
+      markType: String(p.markType || 'CONCRETE_BEACON') as import('@/types/deedPlan').BeaconType,
+      markStatus: String(p.markStatus || 'SET') as import('@/types/deedPlan').BeaconStatus,
       description: p.description ? String(p.description) : undefined,
     }))
 

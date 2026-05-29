@@ -1,6 +1,20 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { MapLayer, FieldBeacon, FieldParcel, GeoPDFLayer, MBTilesSession } from '@/types/field';
+
+/* ------------------------------------------------------------------ */
+/*  Kenya bounding box — EPSG:4326                                   */
+/*  [west, south, east, north]                                        */
+/* ------------------------------------------------------------------ */
+const KENYA_BBOX_4326: [number, number, number, number] = [33.90, -4.72, 41.92, 4.62];
+
+export interface MapHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetToKenya: () => void;
+  fitToData: () => void;
+  getView: () => { center: number[]; zoom: number } | null;
+}
 
 interface Props {
   layers: MapLayer[];
@@ -9,11 +23,66 @@ interface Props {
   geoPDFLayers?: GeoPDFLayer[];
   mbtilesSessions?: MBTilesSession[];
   onMapClick?: (lat: number, lng: number) => void;
+  onGPSUpdate?: (lat: number, lng: number, accuracy: number) => void;
+  onPerimeterWalk?: () => void;
 }
 
-export default function MapViewer({ layers, beacons, parcels, geoPDFLayers, mbtilesSessions, onMapClick }: Props) {
+const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
+  { layers, beacons, parcels, geoPDFLayers, mbtilesSessions, onMapClick, onGPSUpdate, onPerimeterWalk },
+  ref
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const kenyaExtentRef = useRef<number[]>([0, 0, 0, 0]); // will be set after transformExtent
+
+  /* ---- Expose imperative handle to parent ---- */
+  useImperativeHandle(ref, () => ({
+    zoomIn() {
+      const map = mapRef.current;
+      if (!map) return;
+      const view = map.getView();
+      view.animate({ zoom: view.getZoom()! + 1, duration: 250 });
+    },
+    zoomOut() {
+      const map = mapRef.current;
+      if (!map) return;
+      const view = map.getView();
+      view.animate({ zoom: view.getZoom()! - 1, duration: 250 });
+    },
+    resetToKenya() {
+      const map = mapRef.current;
+      if (!map) return;
+      const view = map.getView();
+      view.fit(kenyaExtentRef.current, { duration: 400, padding: [0, 0, 0, 0] });
+    },
+    fitToData() {
+      const map = mapRef.current;
+      if (!map) return;
+      const layers = map.getLayers().getArray();
+      // Try beacon / parcel layers first, then geojson
+      for (let i = layers.length - 1; i >= 0; i--) {
+        const l = layers[i] as any;
+        const src = l?.getSource?.();
+        if (src && src.getFeatures && src.getFeatures().length > 0) {
+          const ext = src.getExtent();
+          if (ext && ext[0] !== Infinity && ext[1] !== Infinity) {
+            map.getView().fit(ext, { padding: [80, 80, 80, 80], maxZoom: 17, duration: 400 });
+            return;
+          }
+        }
+      }
+    },
+    getView() {
+      const map = mapRef.current;
+      if (!map) return null;
+      const v = map.getView();
+      return { center: v.getCenter() ?? [], zoom: v.getZoom() ?? 6 };
+    },
+  }), []);
+
+  /* ---- Stable callback refs so OL event handlers stay valid ---- */
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -23,15 +92,16 @@ export default function MapViewer({ layers, beacons, parcels, geoPDFLayers, mbti
       try {
         // Inject OpenLayers CSS via link tag (dynamic import of CSS crashes in Next.js)
         if (!document.querySelector('link[href*="ol/ol.css"]')) {
-          try { await import('ol/ol.css' as any); } catch {
-            // Fallback: inject from CDN if bundler CSS import fails
+          try {
+            await import('ol/ol.css' as any);
+          } catch {
             const link = document.createElement('link');
             link.rel = 'stylesheet';
             link.href = 'https://cdn.jsdelivr.net/npm/ol@10.8.0/ol.css';
             document.head.appendChild(link);
           }
         }
-        
+
         // Import OpenLayers modules individually
         const { default: Map } = await import('ol/Map');
         const { default: View } = await import('ol/View');
@@ -48,7 +118,10 @@ export default function MapViewer({ layers, beacons, parcels, geoPDFLayers, mbti
         const { default: Fill } = await import('ol/style/Fill');
         const { default: Stroke } = await import('ol/style/Stroke');
         const { default: TextStyle } = await import('ol/style/Text');
-        const { fromLonLat, toLonLat } = await import('ol/proj');
+        const { fromLonLat, toLonLat, transformExtent } = await import('ol/proj');
+        const { default: Attribution } = await import('ol/control/Attribution');
+        const olControl = await import('ol/control');
+        const defaultControls = olControl.defaults;
 
         if (!mounted || !containerRef.current) return;
 
@@ -58,13 +131,17 @@ export default function MapViewer({ layers, beacons, parcels, geoPDFLayers, mbti
           mapRef.current = null;
         }
 
-        // Nairobi default center
-        const defaultCenter = fromLonLat([36.817223, -1.286389]);
+        // Transform Kenya bbox from EPSG:4326 → EPSG:3857
+        const kenyaExtent = transformExtent(KENYA_BBOX_4326, 'EPSG:4326', 'EPSG:3857');
+        kenyaExtentRef.current = kenyaExtent;
+
+        // Kenya geographic centre in 4326 → 3857
+        const kenyaCenter = fromLonLat([37.91, 0.02]);
 
         // Base OSM tile layer
         const baseLayer = new TileLayer({ source: new OSM() });
 
-        // GeoJSON vector layers
+        // GeoJSON vector layers (from imported KML/KMZ)
         const vectorLayers = layers
           .filter(l => l.visible && l.geojson)
           .map(l => {
@@ -133,27 +210,42 @@ export default function MapViewer({ layers, beacons, parcels, geoPDFLayers, mbti
           target: containerRef.current,
           layers: [baseLayer, ...vectorLayers, parcelLayer, beaconLayer],
           view: new View({
-            center: defaultCenter,
-            zoom: 13,
+            center: kenyaCenter,
+            zoom: 6,
+            minZoom: 6,
+            maxZoom: 20,
+            extent: kenyaExtent,
           }),
+          controls: defaultControls({ attribution: false }),
         });
 
-        // Fit to data extent
+        // Fit to data extent (if we have beacons or parcels) — but still within Kenya
         if (beaconFeatures.length > 0) {
           const src = beaconLayer.getSource();
-          if (src) { const ext = src.getExtent(); if (ext) map.getView().fit(ext, { padding: [60, 60, 60, 60], maxZoom: 17 }); }
+          if (src) {
+            const ext = src.getExtent();
+            if (ext && ext[0] !== Infinity) {
+              map.getView().fit(ext, { padding: [80, 80, 80, 80], maxZoom: 17 });
+            }
+          }
         } else if (parcelFeatures.length > 0) {
           const src = parcelLayer.getSource();
-          if (src) { const ext = src.getExtent(); if (ext) map.getView().fit(ext, { padding: [60, 60, 60, 60], maxZoom: 17 }); }
+          if (src) {
+            const ext = src.getExtent();
+            if (ext && ext[0] !== Infinity) {
+              map.getView().fit(ext, { padding: [80, 80, 80, 80], maxZoom: 17 });
+            }
+          }
         }
 
-        // Map click handler
-        if (onMapClick) {
-          map.on('click', (e: any) => {
+        // Map click handler — uses ref for stable callback
+        map.on('click', (e: any) => {
+          const cb = onMapClickRef.current;
+          if (cb) {
             const [lng, lat] = toLonLat(e.coordinate);
-            onMapClick(lat, lng);
-          });
-        }
+            cb(lat, lng);
+          }
+        });
 
         // GeoPDF layers
         if (geoPDFLayers?.length) {
@@ -186,7 +278,16 @@ export default function MapViewer({ layers, beacons, parcels, geoPDFLayers, mbti
         mapRef.current = null;
       }
     };
-  }, [layers, beacons, parcels, geoPDFLayers, mbtilesSessions, onMapClick]);
+  }, [layers, beacons, parcels, geoPDFLayers, mbtilesSessions]);
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: '400px' }} />;
-}
+  return (
+    <div
+      ref={containerRef}
+      style={{ width: '100%', height: '100%' }}
+      className="absolute inset-0"
+    />
+  );
+});
+
+MapViewer.displayName = 'MapViewer';
+export default MapViewer;

@@ -262,19 +262,38 @@ export const recommendedIndexes = {
 }
 
 // Migration script for indexes
-export async function applyRecommendedIndexes(): Promise<void> {
+export async function applyRecommendedIndexes(): Promise<{ applied: string[]; skipped: string[] }> {
   const dbClient = createClient()
+  const applied: string[] = []
+  const skipped: string[] = []
   
   for (const [table, indexes] of Object.entries(recommendedIndexes)) {
     for (const sql of indexes) {
       try {
         await dbClient.rpc('execute_sql', { sql })
+        applied.push(sql)
         console.log(`[DB] Applied index: ${sql}`)
       } catch (error) {
+        skipped.push(sql)
         console.error(`[DB] Failed to apply index: ${sql}`, error)
       }
     }
   }
+
+  return { applied, skipped }
+}
+
+/** Named export for the recommended indexes (returns the static object) */
+export function getRecommendedIndexes() {
+  return recommendedIndexes
+}
+
+/** Get slow queries from the optimizer stats */
+export async function getSlowQueries(): Promise<{ query: string; avgDuration: number; count: number }[]> {
+  const stats = dbOptimizer.getQueryStats()
+  return Object.entries(stats)
+    .filter(([, s]) => s.avg > SLOW_QUERY_THRESHOLD)
+    .map(([query, s]) => ({ query, avgDuration: s.avg, count: s.count }))
 }
 
 // Export singleton

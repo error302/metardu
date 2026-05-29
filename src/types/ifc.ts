@@ -56,7 +56,7 @@ export interface IFCExportOptions {
   surveyorName?: string;
   surveyorLicense?: string;
   coordinateSystem: string; // e.g. 'UTM_37S'
-  epsgCode?: number; // e.g. 32737
+  epsgCode?: number; // e.g. 21037 (Arc 1960 / UTM Zone 37S)
   originEasting?: number; // false origin for IFC coordinate offsets
   originNorthing?: number;
   parcels?: IFCParcel[];

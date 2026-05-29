@@ -1,11 +1,18 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import type { SubmissionPackage } from '../types'
 
-export function generateComputationWorkbook(pkg: SubmissionPackage): Buffer {
-  const wb = XLSX.utils.book_new()
+function addRowsFromAoA(ws: ExcelJS.Worksheet, data: (string | number)[][]): void {
+  for (const row of data) {
+    ws.addRow(row)
+  }
+}
+
+export async function generateComputationWorkbook(pkg: SubmissionPackage): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook()
 
   // Sheet 1: Project Details
-  const projectSheet = XLSX.utils.aoa_to_sheet([
+  const projectWs = wb.addWorksheet('Project Details')
+  addRowsFromAoA(projectWs, [
     ['METARDU COMPUTATION WORKBOOK'],
     [''],
     ['FORM NO. 5 — COMPUTATION SHEET'],
@@ -26,7 +33,6 @@ export function generateComputationWorkbook(pkg: SubmissionPackage): Buffer {
     ['Firm', pkg.surveyor.firmName],
     ['Date', new Date(pkg.generatedAt).toLocaleDateString('en-KE')],
   ])
-  XLSX.utils.book_append_sheet(wb, projectSheet, 'Project Details')
 
   // Sheet 2: Traverse Computation
   const traverseHeaders = [
@@ -53,7 +59,8 @@ export function generateComputationWorkbook(pkg: SubmissionPackage): Buffer {
     (pt.adjustedNorthing - pt.northing).toFixed(4)
   ])
 
-  const traverseSheet = XLSX.utils.aoa_to_sheet([
+  const traverseWs = wb.addWorksheet('Traverse Computation')
+  addRowsFromAoA(traverseWs, [
     ['TRAVERSE COMPUTATION'],
     ['Method', pkg.traverse.adjustmentMethod === 'transit' ? 'Transit (Least Squares)' : 'Bowditch'],
     [''],
@@ -67,7 +74,6 @@ export function generateComputationWorkbook(pkg: SubmissionPackage): Buffer {
     ['Closing Error E', pkg.traverse.closingErrorE.toFixed(4), 'm'],
     ['Closing Error N', pkg.traverse.closingErrorN.toFixed(4), 'm'],
   ])
-  XLSX.utils.book_append_sheet(wb, traverseSheet, 'Traverse Computation')
 
   // Sheet 3: Coordinates
   const coordHeaders = ['Point', 'Easting (m)', 'Northing (m)', 'Category']
@@ -78,17 +84,18 @@ export function generateComputationWorkbook(pkg: SubmissionPackage): Buffer {
     i === 0 || i === pkg.traverse.points.length - 1 ? 'Boundary Beacon' : 'Boundary Beacon'
   ])
 
-  const coordSheet = XLSX.utils.aoa_to_sheet([
+  const coordWs = wb.addWorksheet('Coordinates')
+  addRowsFromAoA(coordWs, [
     ['FINAL ADJUSTED COORDINATES'],
     ['Coordinate System: Arc 1960 / UTM Zone 37S (SRID: 21037)'],
     [''],
     coordHeaders,
     ...coordRows
   ])
-  XLSX.utils.book_append_sheet(wb, coordSheet, 'Coordinates')
 
   // Sheet 4: Area Computation
-  const areaSheet = XLSX.utils.aoa_to_sheet([
+  const areaWs = wb.addWorksheet('Area Computation')
+  addRowsFromAoA(areaWs, [
     ['AREA COMPUTATION'],
     ['Method: Shoelace Formula (Coordinate Method)'],
     [''],
@@ -107,10 +114,10 @@ export function generateComputationWorkbook(pkg: SubmissionPackage): Buffer {
       pt.adjustedNorthing.toFixed(4)
     ])
   ])
-  XLSX.utils.book_append_sheet(wb, areaSheet, 'Area Computation')
 
   // Sheet 5: Index to Computations
-  const indexSheet = XLSX.utils.aoa_to_sheet([
+  const indexWs = wb.addWorksheet('Index')
+  addRowsFromAoA(indexWs, [
     ['INDEX TO COMPUTATIONS'],
     [''],
     ['Sheet No.', 'Description', 'Page'],
@@ -128,10 +135,10 @@ export function generateComputationWorkbook(pkg: SubmissionPackage): Buffer {
     ['Date', ''],
     ['Surveyor Name', pkg.surveyor.fullName],
   ])
-  XLSX.utils.book_append_sheet(wb, indexSheet, 'Index')
 
   // Sheet 6: Theoretical Computations
-  const theoSheet = XLSX.utils.aoa_to_sheet([
+  const theoWs = wb.addWorksheet('Theoretical Comps')
+  addRowsFromAoA(theoWs, [
     ['THEORETICAL COMPUTATIONS'],
     [''],
     ['LINEAR MEASUREMENTS'],
@@ -147,27 +154,10 @@ export function generateComputationWorkbook(pkg: SubmissionPackage): Buffer {
     ['Precision ratio', pkg.traverse.precisionRatio],
     ['Required for cadastral', '1:5000'],
   ])
-  XLSX.utils.book_append_sheet(wb, theoSheet, 'Theoretical Comps')
 
   // Sheet 7: Consistency Checks
-  const consistencyCheckRows = pkg.traverse.points.slice(0, -1).map((pt, i) => {
-    const next = pkg.traverse.points[i + 1]
-    const calcDist = Math.sqrt(
-      Math.pow(next.adjustedEasting - pt.adjustedEasting, 2) +
-      Math.pow(next.adjustedNorthing - pt.adjustedNorthing, 2)
-    )
-    const obsDist = (pt.observedDistance + next.observedDistance) / 2
-    const diff = Math.abs(calcDist - obsDist)
-    return [
-      `Line ${pt.pointName}-${next.pointName}`,
-      calcDist.toFixed(4),
-      obsDist.toFixed(4),
-      diff.toFixed(4),
-      diff < 0.05 ? 'PASS' : 'CHECK'
-    ]
-  })
-
-  const consistencySheet = XLSX.utils.aoa_to_sheet([
+  const consistencyWs = wb.addWorksheet('Consistency Checks')
+  addRowsFromAoA(consistencyWs, [
     ['CONSISTENCY CHECKS'],
     [''],
     ['CHECK 1: Raw vs Adjusted'],
@@ -193,16 +183,15 @@ export function generateComputationWorkbook(pkg: SubmissionPackage): Buffer {
     ['Computed from adjusted', '', 'm'],
     ['Closure error (should be ~0)', pkg.traverse.linearMisclosure.toFixed(4), 'm'],
   ])
-  XLSX.utils.book_append_sheet(wb, consistencySheet, 'Consistency Checks')
 
   // Sheet 8: Supporting Documents
+  const supportWs = wb.addWorksheet('Supporting Docs')
   const supportingDocsRows = pkg.supportingDocs.map(doc => [
     doc.type?.toUpperCase() || doc.label,
     doc.required ? 'Required' : 'Optional',
     doc.fileUrl ? 'Attached' : 'Not Uploaded'
   ])
-
-  const supportSheet = XLSX.utils.aoa_to_sheet([
+  addRowsFromAoA(supportWs, [
     ['SUPPORTING DOCUMENTS'],
     [''],
     ['Document Type', 'Status', 'File'],
@@ -213,7 +202,7 @@ export function generateComputationWorkbook(pkg: SubmissionPackage): Buffer {
     ['LCB Consent - Land Control Board', 'Required'],
     ['Mutation Form / Subdivision Scheme', 'Required'],
   ])
-  XLSX.utils.book_append_sheet(wb, supportSheet, 'Supporting Docs')
 
-  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+  const arrayBuffer = await wb.xlsx.writeBuffer()
+  return Buffer.from(arrayBuffer)
 }

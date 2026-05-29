@@ -222,7 +222,7 @@ export function OfflineTileDownloader({
         zoomRange[0],
         zoomRange[1],
         source.type,
-        (p) => setProgress({ ...p }),
+        (p: DownloadProgress) => setProgress({ ...p }),
         abortController.signal,
       )
 

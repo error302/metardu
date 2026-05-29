@@ -94,17 +94,6 @@ describe('getProjectionConfig', () => {
     }
   })
 
-  it('returns config for EPSG:32737 (WGS84 / UTM 37S)', () => {
-    const cfg = getProjectionConfig('EPSG:32737')
-    expect(cfg).toBeDefined()
-    if (cfg) {
-      expect(cfg.code).toBe('EPSG:32737')
-      expect(cfg.datum).toBe('WGS84')
-      expect(cfg.zone).toBe(37)
-      expect(cfg.hemisphere).toBe('S')
-    }
-  })
-
   it('returns config for EPSG:32736 (WGS84 / UTM 36S)', () => {
     const cfg = getProjectionConfig('EPSG:32736')
     expect(cfg).toBeDefined()
@@ -165,7 +154,7 @@ describe('getProjectionConfig', () => {
   it('all configs have a valid 4-element extent', () => {
     const codes = [
       'EPSG:21037', 'EPSG:21036', 'EPSG:21035',
-      'EPSG:32737', 'EPSG:32736', 'EPSG:32735',
+      'EPSG:32736', 'EPSG:32735',
       'EPSG:32637', 'EPSG:32636',
     ]
     for (const code of codes) {
@@ -183,7 +172,7 @@ describe('getProjectionConfig', () => {
   it('all configs have a proj4def string', () => {
     const codes = [
       'EPSG:21037', 'EPSG:21036', 'EPSG:21035',
-      'EPSG:32737', 'EPSG:32736', 'EPSG:32735',
+      'EPSG:32736', 'EPSG:32735',
       'EPSG:32637', 'EPSG:32636',
     ]
     for (const code of codes) {
@@ -197,7 +186,7 @@ describe('getProjectionConfig', () => {
   })
 
   it('Southern hemisphere zones use KENYA_EXTENT_S', () => {
-    const codes = ['EPSG:21037', 'EPSG:21036', 'EPSG:21035', 'EPSG:32737', 'EPSG:32736', 'EPSG:32735']
+    const codes = ['EPSG:21037', 'EPSG:21036', 'EPSG:21035', 'EPSG:32736', 'EPSG:32735']
     for (const code of codes) {
       const cfg = getProjectionConfig(code)
       if (cfg) {

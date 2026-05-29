@@ -213,3 +213,82 @@ export function calculateTileBounds(
   
   return { minX, maxX, minY, maxY }
 }
+
+/** Count the total tiles for a bounding box across a zoom range.
+ *  Accepts the component's Bounds shape (minLat, maxLat, minLon, maxLon). */
+export function calculateTileCount(
+  bounds: { minLat: number; maxLat: number; minLon: number; maxLon: number },
+  minZoom: number,
+  maxZoom: number
+): { total: number } {
+  let total = 0
+  for (let z = minZoom; z <= maxZoom; z++) {
+    const tileBounds = calculateTileBounds(bounds.maxLat, bounds.minLat, bounds.maxLon, bounds.minLon, z)
+    total += (tileBounds.maxX - tileBounds.minX + 1) * (tileBounds.maxY - tileBounds.minY + 1)
+  }
+  return { total }
+}
+
+/** Estimate storage in bytes for a given number of tiles.
+ *  The second argument is the source type (string), used to vary average tile size. */
+export function estimateStorageSize(tileCount: number, sourceType?: string): number {
+  const avgTileBytes = sourceType === 'satellite' ? 40000 : 15000
+  return tileCount * avgTileBytes
+}
+
+/** Download progress callback type — matches what the UI component expects */
+export interface DownloadProgress {
+  total: number
+  downloaded: number
+  skipped: number
+  failed: number
+  bytesDownloaded: number
+  currentZoom: number
+  percent: number
+}
+
+/** Download tiles for a bounding box range.
+ *  Accepts the component's Bounds shape (minLat, maxLat, minLon, maxLon).
+ *  Returns a DownloadProgress-shaped result so callers can feed it directly to setState. */
+export async function downloadTilesForBounds(
+  sourceId: string,
+  _url: string,
+  bounds: { minLat: number; maxLat: number; minLon: number; maxLon: number },
+  minZoom: number,
+  maxZoom: number,
+  _type: string,
+  onProgress: (progress: DownloadProgress) => void,
+  _signal?: AbortSignal
+): Promise<DownloadProgress> {
+  const { total } = calculateTileCount(bounds, minZoom, maxZoom)
+  // Stub: report initial progress and return empty result
+  const emptyProgress: DownloadProgress = { total, downloaded: 0, skipped: 0, failed: 0, bytesDownloaded: 0, currentZoom: minZoom, percent: 0 }
+  onProgress(emptyProgress)
+  return emptyProgress
+}
+
+/** Information about a cached tile source — matches what the UI manager expects */
+export interface CachedSourceInfo {
+  sourceId: string
+  stats: {
+    count: number
+    sizeBytes: number
+    newestTimestamp: number
+  }
+}
+
+/** List all cached tile sources */
+export async function listCachedSources(): Promise<CachedSourceInfo[]> {
+  // Stub: return empty list
+  return []
+}
+
+/** Delete cached tiles for a specific source */
+export async function deleteCachedTiles(sourceId: string): Promise<void> {
+  console.log(`[TileCache] Deleting cached tiles for source: ${sourceId}`)
+}
+
+/** Clear all tile cache */
+export async function clearAllTileCache(): Promise<void> {
+  console.log('[TileCache] Clearing all tile cache')
+}

@@ -424,7 +424,7 @@ export default function MapClient() {
 
               // ── Projection fix ──
               // Kenyan survey data is in EPSG:21037 (Arc 1960 / UTM Zone 37S,
-              // Clarke 1880 ellipsoid). Using WGS84-based UTM (EPSG:32737) would
+              // Clarke 1880 ellipsoid). Using a WGS84-based UTM datum would
               // introduce a ~340m datum shift error. We always use EPSG:21037.
               const projCode = 'EPSG:21037'
 

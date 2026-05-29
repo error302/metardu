@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/api-client/server'
-import type { SurveyJob, JobApplication, JobReview, SurveyorProfile as SurveyorProfileJob } from '@/types/jobs'
+import type { SurveyJob, JobApplication, JobReview, SurveyorProfileJob } from '@/types/jobs'
 import type { PeerReviewRequest, PeerReviewer } from '@/types/peerReview'
 
 export { type SurveyorProfileJob }

@@ -206,7 +206,18 @@ export default function ToolsPage() {
             <ToolLink href="/tools/tacheometry" title="Tacheometry" description="Stadia/EDM distance & elevation | RDM 1.1 Section 5.6" />
             <ToolLink href="/tools/superelevation" title="Superelevation" description="e = V squared / 127R calculator per KRDM" />
             <ToolLink href="/tools/sight-distance" title="Sight Distance" description="SSD &amp; OSD calculator per KRDM/KeRRA" />
+            <ToolLink href="/tools/pipe-gradient" title="Pipe Gradient" description="Manning's equation pipe gradient check with drainage standards" />
             <ToolLink href="/tools/chainage" title="Chainage" description="Chainage calculator for road projects" />
+          </div>
+        </section>
+
+        {/* EARTHWORKS & VOLUMES */}
+        <section>
+          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Earthworks &amp; Volumes</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <ToolLink href="/tools/cross-sections" title="Cross Sections" description="Road cross-section generation and analysis" />
+            <ToolLink href="/tools/borrow-pit-volume" title="Borrow Pit Volume" description="Grid method borrow pit volume computation" />
+            <ToolLink href="/tools/stockpile-volume" title="Stockpile Volume" description="Stockpile volume from survey points" />
           </div>
         </section>
 
@@ -230,10 +241,6 @@ export default function ToolsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ToolLink href="/tools/machine-control" title="Machine Control Export" description="Trimble, Leica, Topcon export formats" badge="NEW" />
             <ToolLink href="/tools/progress-monitor" title="Progress Monitor" description="Construction progress tracking &amp; reports" badge="NEW" />
-            <ToolLink href="/tools/pipe-gradient" title="Pipe Gradient" description="Manning's equation pipe gradient check with drainage standards" />
-            <ToolLink href="/tools/cross-sections" title="Cross Sections" description="Road cross-section generation and analysis" />
-            <ToolLink href="/tools/borrow-pit-volume" title="Borrow Pit Volume" description="Grid method borrow pit volume computation" />
-            <ToolLink href="/tools/stockpile-volume" title="Stockpile Volume" description="Stockpile volume from survey points" />
           </div>
         </section>
 

@@ -78,7 +78,7 @@ export interface JobReview {
   createdAt: string
 }
 
-export interface SurveyorProfile {
+export interface SurveyorProfileJob {
   userId: string
   displayName: string
   iskNumber?: string

@@ -11,7 +11,7 @@ export type SurveySubtype =
   | 'cadastral_resurvey'
   | 'cadastral_mutation'
 
-export interface SurveyorProfile {
+export interface SubmissionSurveyorIdentity {
   registrationNumber: string
   iskNumber: string
   verifiedIsk: boolean
@@ -65,7 +65,7 @@ export interface SupportingDocument {
 export interface SubmissionPackage {
   submissionRef: string
   projectId: string
-  surveyor: SurveyorProfile
+  surveyor: SubmissionSurveyorIdentity
   subtype: SurveySubtype
   parcel: ParcelDetails
   traverse: TraverseResult

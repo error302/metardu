@@ -219,7 +219,7 @@ describe('detectRTCMMessageType', () => {
 
   it('returns null for too short data', () => {
     expect(detectRTCMMessageType(new Uint8Array([0xD3, 0x00]))).toBeNull()
-    expect(detectRTCMMessageType(new Uint8Array([])).toBeNull())
+    expect(detectRTCMMessageType(new Uint8Array([]))).toBeNull()
   })
 
   it('returns null for invalid preamble', () => {

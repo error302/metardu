@@ -103,11 +103,11 @@ export default function EnhancedSplitLayout({
       {/*  Main resizable area: top = horizontal split, bottom = log       */}
       {/* ================================================================ */}
       <div className="flex-1 min-h-0">
-        <ResizablePanelGroup direction="vertical" className="h-full">
+        <ResizablePanelGroup orientation="vertical" className="h-full">
           {/* ---- Top section: Left workflow + Right map ---- */}
           <ResizablePanel defaultSize={logCollapsed ? 100 : 75} minSize={40}>
             <div className="h-full overflow-hidden">
-              <ResizablePanelGroup direction="horizontal" className="h-full">
+              <ResizablePanelGroup orientation="horizontal" className="h-full">
                 {/* Left panel — workflow content (55 %) */}
                 <ResizablePanel defaultSize={55} minSize={30}>
                   <div className="h-full overflow-y-auto scroll-smooth">

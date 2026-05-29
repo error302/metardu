@@ -144,7 +144,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     // Use the proper feature gates instead of granting all features to paid plans
     if (features.includes(feature)) return true
     // Check against the feature gates system for known feature keys
-    if (TIERS[plan]?.features?.includes(feature)) return true
+    if (TIERS[plan]?.features?.includes(feature as FeatureKey)) return true
     return featureCanAccess(plan, feature as FeatureKey)
   }
 

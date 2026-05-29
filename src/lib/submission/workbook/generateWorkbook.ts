@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import type { TraverseResult, ParcelData, ReportPoint } from '@/lib/reports/surveyReport/types'
 import type { BoundaryPoint } from '@/lib/reports/surveyPlan/types'
 
@@ -18,7 +18,14 @@ interface SubmissionWorkbookData {
   consistencyChecks: Array<{ station: string; computedN: number; computedE: number; planN: number; planE: number; deltaN: number; deltaE: number; status: string }>
 }
 
-function addReportSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addRowsFromAoA(ws: ExcelJS.Worksheet, data: (string | number)[][]): void {
+  for (const row of data) {
+    ws.addRow(row)
+  }
+}
+
+function addReportSheet(wb: ExcelJS.Workbook, data: SubmissionWorkbookData): void {
+  const ws = wb.addWorksheet('REPORT')
   const wsData = [
     ['REPORT', ''],
     ['Submission No.', data.submission_number],
@@ -38,11 +45,11 @@ function addReportSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
     ['', ''],
     ['Signature / Date', ''],
   ]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, 'REPORT')
+  addRowsFromAoA(ws, wsData)
 }
 
-function addIndexSheet(wb: XLSX.WorkBook): void {
+function addIndexSheet(wb: ExcelJS.Workbook): void {
+  const ws = wb.addWorksheet('INDEX TO COMPUTATIONS')
   const wsData = [
     ['INDEX TO COMPUTATIONS', ''],
     ['No.', 'Section', 'Status', 'Pages'],
@@ -56,11 +63,11 @@ function addIndexSheet(wb: XLSX.WorkBook): void {
     ['8', 'Consistency Checks', 'Complete', '1'],
     ['9', 'Areas', 'Complete', '1'],
   ]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, 'INDEX TO COMPUTATIONS')
+  addRowsFromAoA(ws, wsData)
 }
 
-function addCoordinateListSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addCoordinateListSheet(wb: ExcelJS.Workbook, data: SubmissionWorkbookData): void {
+  const ws = wb.addWorksheet('FINAL COORDINATE LIST')
   const wsData = [
     ['FINAL COORDINATE LIST', ''],
     ['Station', 'Northing', 'Easting', 'Height', 'Class', 'Description'],
@@ -73,11 +80,11 @@ function addCoordinateListSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData)
       '',
     ]),
   ]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, 'FINAL COORDINATE LIST')
+  addRowsFromAoA(ws, wsData)
 }
 
-function addDatumJoinsSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addDatumJoinsSheet(wb: ExcelJS.Workbook, data: SubmissionWorkbookData): void {
+  const ws = wb.addWorksheet('DATUM JOINS')
   const wsData = [
     ['DATUM JOINS', ''],
     ['From', 'To', 'Delta Northing', 'Delta Easting', 'Distance', 'Bearing'],
@@ -90,11 +97,11 @@ function addDatumJoinsSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): vo
       j.bearing.toFixed(4),
     ]),
   ]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, 'DATUM JOINS')
+  addRowsFromAoA(ws, wsData)
 }
 
-function addConsistencyOfDatumSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addConsistencyOfDatumSheet(wb: ExcelJS.Workbook, data: SubmissionWorkbookData): void {
+  const ws = wb.addWorksheet('CONSISTENCY OF DATUM')
   const wsData = [
     ['CONSISTENCY OF DATUM', ''],
     ['Station', 'Computed N', 'Computed E', 'Plan N', 'Plan E', 'Delta N', 'Delta E', 'Status'],
@@ -109,11 +116,11 @@ function addConsistencyOfDatumSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookD
       c.status,
     ]),
   ]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, 'CONSISTENCY OF DATUM')
+  addRowsFromAoA(ws, wsData)
 }
 
-function addTheoreticalsSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addTheoreticalsSheet(wb: ExcelJS.Workbook, data: SubmissionWorkbookData): void {
+  const ws = wb.addWorksheet('THEORETICALS')
   const wsData = [
     ['THEORETICALS', ''],
     ['Station', 'Northing', 'Easting', 'Class'],
@@ -124,11 +131,11 @@ function addTheoreticalsSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): 
       'Theoretical',
     ]),
   ]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, 'THEORETICALS')
+  addRowsFromAoA(ws, wsData)
 }
 
-function addRTKResultSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addRTKResultSheet(wb: ExcelJS.Workbook, data: SubmissionWorkbookData): void {
+  const ws = wb.addWorksheet('RTK RESULT')
   const rows = Array.isArray(data.rtkResults) ? data.rtkResults : []
   const headerKeys = rows.length ? Object.keys(rows[0]) : []
   const wsData = rows.length
@@ -141,11 +148,11 @@ function addRTKResultSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): voi
         ['RTK RESULT', ''],
         ['Status', 'No RTK field result attached to this package'],
       ]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, 'RTK RESULT')
+  addRowsFromAoA(ws, wsData)
 }
 
-function addConsistencyChecksSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addConsistencyChecksSheet(wb: ExcelJS.Workbook, data: SubmissionWorkbookData): void {
+  const ws = wb.addWorksheet('CONSISTENCY CHECKS')
   const wsData = [
     ['CONSISTENCY CHECKS', ''],
     ['Check', 'Detail', 'Status'],
@@ -155,11 +162,11 @@ function addConsistencyChecksSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookDa
     ['RTK result bundle', data.rtkResults?.length ? `${data.rtkResults.length} record(s) attached` : 'No RTK result attached', data.rtkResults?.length ? 'OK' : 'PENDING'],
     ['Area computation', `${data.parcels.length} parcel area row(s) prepared`, data.parcels.length ? 'OK' : 'PENDING'],
   ]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, 'CONSISTENCY CHECKS')
+  addRowsFromAoA(ws, wsData)
 }
 
-function addAreasSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
+function addAreasSheet(wb: ExcelJS.Workbook, data: SubmissionWorkbookData): void {
+  const ws = wb.addWorksheet('AREAS')
   const startRow = 3
   const endRow = data.parcels.length + startRow - 1
   const wsData = [
@@ -173,14 +180,16 @@ function addAreasSheet(wb: XLSX.WorkBook, data: SubmissionWorkbookData): void {
       '0.00%',
       'OK',
     ]),
-    ['', `=SUM(B${startRow}:B${endRow})`, `=SUM(C${startRow}:C${endRow})`, '', '', ''],
+    ['', { formula: `SUM(B${startRow}:B${endRow})` }, { formula: `SUM(C${startRow}:C${endRow})` }, '', '', ''],
   ]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, 'AREAS')
+  // Add rows — formulas need special handling via worksheet cells
+  for (const row of wsData) {
+    ws.addRow(row)
+  }
 }
 
-export function generateSubmissionWorkbook(data: SubmissionWorkbookData): ArrayBuffer {
-  const wb = XLSX.utils.book_new()
+export async function generateSubmissionWorkbook(data: SubmissionWorkbookData): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook()
 
   addReportSheet(wb, data)
   addIndexSheet(wb)
@@ -192,12 +201,11 @@ export function generateSubmissionWorkbook(data: SubmissionWorkbookData): ArrayB
   addConsistencyChecksSheet(wb, data)
   addAreasSheet(wb, data)
 
-  wb.Props = {
-    Title: data.project_name,
-    Subject: data.submission_number,
-    Author: data.surveyor_name,
-    CreatedDate: new Date(),
-  }
+  wb.creator = data.surveyor_name
+  wb.title = data.project_name
+  wb.subject = data.submission_number
+  wb.created = new Date()
 
-  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  const arrayBuffer = await wb.xlsx.writeBuffer()
+  return Buffer.from(arrayBuffer)
 }

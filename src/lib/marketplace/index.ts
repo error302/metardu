@@ -22,7 +22,7 @@ export interface SurveyTemplate {
   updatedAt: number
 }
 
-export interface SurveyorProfile {
+export interface MarketplaceSurveyor {
   id: string
   name: string
   title: string
@@ -131,7 +131,7 @@ const templates: SurveyTemplate[] = [
   },
 ]
 
-const surveyors: SurveyorProfile[] = [
+const surveyors: MarketplaceSurveyor[] = [
   {
     id: 'srv-001',
     name: 'Eng. Joseph Kamau',
@@ -216,18 +216,18 @@ export function getTopTemplates(limit = 5): SurveyTemplate[] {
   return [...templates].sort((a: any, b: any) => b.downloads - a.downloads).slice(0, limit)
 }
 
-export function getSurveyors(specialty?: string): SurveyorProfile[] {
+export function getSurveyors(specialty?: string): MarketplaceSurveyor[] {
   if (!specialty || specialty === 'all') return surveyors
   return surveyors.filter((s: any) => s.specialties.some((sp: any) => 
     sp.toLowerCase().includes(specialty.toLowerCase())
   ))
 }
 
-export function getSurveyorById(id: string): SurveyorProfile | undefined {
+export function getSurveyorById(id: string): MarketplaceSurveyor | undefined {
   return surveyors.find((s: any) => s.id === id)
 }
 
-export function searchSurveyors(query: string): SurveyorProfile[] {
+export function searchSurveyors(query: string): MarketplaceSurveyor[] {
   const q = query.toLowerCase()
   return surveyors.filter((s: any) => 
     s.name.toLowerCase().includes(q) ||

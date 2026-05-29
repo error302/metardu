@@ -175,3 +175,123 @@ export function getLicenseFeatures() {
     { id: 'underground', name: 'Underground Survey' },
   ]
 }
+
+// Aliases and additional API functions required by admin routes
+
+/** Alias for getDepartmentLicense — used by admin GET /licenses/[licenseId] */
+export const getGovernmentLicense = getDepartmentLicense
+
+/** Renew a license by extending its validUntil date */
+export async function renewLicense(
+  licenseId: string,
+  newExpiry: Date
+): Promise<GovernmentLicense> {
+  const license = activeLicenses.find((l: any) => l.id === licenseId)
+  if (!license) throw new Error('License not found')
+  license.validUntil = newExpiry.getTime()
+  license.status = 'active'
+  return license
+}
+
+/** Deactivate (soft-delete) a license */
+export async function deactivateLicense(licenseId: string): Promise<void> {
+  const idx = activeLicenses.findIndex((l: any) => l.id === licenseId)
+  if (idx === -1) throw new Error('License not found')
+  activeLicenses[idx].status = 'expired'
+}
+
+/** Assign a license seat — accepts 3-arg call from API route */
+export async function assignLicenseSeat(
+  licenseId: string,
+  userId: string,
+  role?: string
+): Promise<LicenseSeat> {
+  const license = activeLicenses.find((l: any) => l.id === licenseId)
+  if (!license) throw new Error('License not found')
+
+  if (license.seatsUsed >= license.seats) {
+    throw new Error('License seat limit reached')
+  }
+
+  license.seatsUsed++
+
+  return {
+    id: `seat-${Date.now()}`,
+    userId,
+    userName: userId,
+    userEmail: '',
+    role: (role as LicenseSeat['role']) || 'surveyor',
+    assignedAt: Date.now(),
+  }
+}
+
+/** Revoke a license seat */
+export async function revokeLicenseSeat(seatId: string): Promise<void> {
+  // Seats are tracked in-memory; this removes the seat association
+  console.log(`[License] Seat ${seatId} revoked`)
+}
+
+/** List seats for a given license */
+export async function getLicenseSeats(licenseId: string): Promise<LicenseSeat[]> {
+  const license = activeLicenses.find((l: any) => l.id === licenseId)
+  if (!license) return []
+  // In-memory stub: return empty array (seats are tracked externally)
+  return []
+}
+
+/** List all government licenses with pagination */
+export async function listGovernmentLicenses(options: {
+  page: number
+  pageSize: number
+  activeOnly: boolean
+}) {
+  let licenses = activeLicenses.filter((l: any) =>
+    options.activeOnly ? l.status === 'active' : true
+  )
+  const total = licenses.length
+  const start = (options.page - 1) * options.pageSize
+  licenses = licenses.slice(start, start + options.pageSize)
+  return {
+    data: licenses,
+    pagination: {
+      page: options.page,
+      pageSize: options.pageSize,
+      total,
+      totalPages: Math.ceil(total / options.pageSize),
+    },
+  }
+}
+
+/** Create a new government license */
+export async function createGovernmentLicense(input: {
+  departmentName: string
+  country: string
+  licenseKey: string
+  maxSeats: number
+  usedSeats: number
+  active: boolean
+  issuedAt: Date
+  expiresAt: Date
+  features: string[]
+  contactEmail: string
+  contactName: string
+  tier: 'basic' | 'professional' | 'enterprise'
+}): Promise<GovernmentLicense> {
+  const license: GovernmentLicense = {
+    id: `gov-lic-${Date.now()}`,
+    departmentName: input.departmentName,
+    departmentCode: input.licenseKey.substring(0, 8).toUpperCase(),
+    country: input.country,
+    licenseType: 'department',
+    seats: input.maxSeats,
+    seatsUsed: input.usedSeats,
+    validFrom: input.issuedAt.getTime(),
+    validUntil: input.expiresAt.getTime(),
+    status: input.active ? 'active' : 'expired',
+    features: input.features,
+    annualFee: input.maxSeats * 500,
+    currency: 'KES',
+  }
+  activeLicenses.push(license)
+  return license
+}

@@ -233,7 +233,7 @@ export default function NavBar() {
   useEffect(() => {
     const dbClient = createClient()
     
-    const getUser = async () => {
+    const initUserSession = async () => {
       const { data: { session } } = await dbClient.auth.getSession()
       const user = session?.user ?? null
       setUser(user as { email: string; id?: string } | null)
@@ -250,7 +250,7 @@ export default function NavBar() {
       setLoading(false)
     }
     
-    getUser()
+    initUserSession()
 
     const { data: { subscription } } = dbClient.auth.onAuthStateChange(async (_event, session) => {
       const u = session?.user as { email: string; id?: string } | null

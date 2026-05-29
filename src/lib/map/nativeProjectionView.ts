@@ -120,15 +120,6 @@ const WGS84_DEFS: Array<{
   extent: [number, number, number, number];
 }> = [
   {
-    code: 'EPSG:32737',
-    name: 'WGS 84 / UTM zone 37S',
-    datum: 'WGS84',
-    zone: 37,
-    hemisphere: 'S',
-    proj4def: '+proj=utm +zone=37 +south +datum=WGS84 +units=m +no_defs',
-    extent: KENYA_EXTENT_S,
-  },
-  {
     code: 'EPSG:32736',
     name: 'WGS 84 / UTM zone 36S',
     datum: 'WGS84',
@@ -175,7 +166,7 @@ const ALL_DEFS = [...ARC1960_DEFS, ...WGS84_DEFS];
  * Registers all Kenyan UTM projections with OpenLayers via proj4.
  *
  * Calls {@link registerProjections} first (which registers EPSG:21037),
- * then adds the remaining seven Kenyan CRS definitions.  Each projection
+ * then adds the remaining six Kenyan CRS definitions.  Each projection
  * is registered with its proj4 string, a Kenya-wide extent, and
  * `metersPerUnit: 1`.
  *
@@ -318,7 +309,7 @@ export function getProjectionConfig(code: string): ProjectionConfig | undefined 
  * @returns {Promise<import('ol/View').default>} The newly created and applied view.
  *
  * @example
- *   await switchMapView(map, 'EPSG:32737');
+ *   await switchMapView(map, 'EPSG:21037');
  */
 export async function switchMapView(
   map: { getView: () => import('ol/View').default | null; setView: (view: import('ol/View').default) => void },

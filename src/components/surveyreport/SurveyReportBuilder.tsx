@@ -319,6 +319,7 @@ Firm: ___________________________    Stamp: _______________`
           ) : (
             <div
               className="bg-gray-50 border border-gray-200 rounded-lg p-6 prose prose-sm max-w-none"
+              // TODO: Sanitize with DOMPurify before rendering: import DOMPurify from 'dompurify'
               dangerouslySetInnerHTML={{ __html: section?.content || '<p class="text-gray-400">No content generated yet. Click Regenerate to populate this section.</p>' }}
             />
           )}
@@ -962,12 +963,14 @@ Firm: ___________________________    Stamp: _______________`
         {generatedSections.map((section: any) => (
           <div key={section.section} className={section.sectionNumber > 1 ? 'mt-8' : ''}>
             {section.sectionNumber === 1 ? (
+              // TODO: Sanitize with DOMPurify before rendering: import DOMPurify from 'dompurify'
               <div dangerouslySetInnerHTML={{ __html: section.content }} />
             ) : (
               <>
                 <h2 className="text-lg font-bold border-b border-gray-300 pb-2 mb-4">
                   {section.sectionNumber}. {section.title}
                 </h2>
+                // TODO: Sanitize with DOMPurify before rendering: import DOMPurify from 'dompurify'
                 <div dangerouslySetInnerHTML={{ __html: section.content }} />
               </>
             )}

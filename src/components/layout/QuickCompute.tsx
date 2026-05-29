@@ -72,7 +72,6 @@ const TOOLS = [
       { label: 'Cross Sections', href: '/tools/cross-sections' },
       { label: 'Borrow Pit Volume', href: '/tools/borrow-pit-volume' },
       { label: 'Stockpile Volume', href: '/tools/stockpile-volume' },
-      { label: 'Chainage', href: '/tools/chainage' },
     ]
   },
   {
@@ -92,10 +91,6 @@ const TOOLS = [
     items: [
       { label: 'Machine Control Export', href: '/tools/machine-control' },
       { label: 'Progress Monitor', href: '/tools/progress-monitor' },
-      { label: 'Pipe Gradient', href: '/tools/pipe-gradient' },
-      { label: 'Cross Sections', href: '/tools/cross-sections' },
-      { label: 'Borrow Pit Volume', href: '/tools/borrow-pit-volume' },
-      { label: 'Stockpile Volume', href: '/tools/stockpile-volume' },
     ]
   },
   {

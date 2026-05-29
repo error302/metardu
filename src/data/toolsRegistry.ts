@@ -1,9 +1,8 @@
-/**
- * Single source of truth for all tools on METARDU.
- * Imported by QuickCompute (sidebar), /tools page, and /reports page.
- *
- * Adding a new tool = ONE edit here → automatically appears everywhere.
- */
+// DEPRECATED: This file is no longer imported by any component.
+// The canonical tool list is maintained in:
+//   - src/app/tools/page.tsx (Tools Hub page)
+//   - src/components/layout/QuickCompute.tsx (Quick Compute sidebar)
+// Consider removing this file in a future cleanup.
 
 export interface ToolItem {
   label: string

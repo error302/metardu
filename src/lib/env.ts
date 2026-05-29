@@ -55,6 +55,11 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
+
+  AFRICASTALKING_USERNAME: z.string().optional(),
+  AFRICASTALKING_API_KEY: z.string().optional(),
+  AFRICASTALKING_ENABLED: z.string().optional(),
+  AFRICASTALKING_SENDER_ID: z.string().optional(),
 })
 
 const parsedEnv = envSchema.safeParse(process.env)

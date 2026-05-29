@@ -2,14 +2,38 @@ import type { ParsedInput, BOQData, BOQItem } from './types'
 
 export async function parseBOQSpreadsheet(file: File): Promise<ParsedInput> {
   try {
-    const XLSX = await import('xlsx')
-    
+    const ExcelJS = await import('exceljs')
+
     const arrayBuffer = await file.arrayBuffer()
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' })
-    
-    const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][]
-    
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(arrayBuffer)
+
+    const firstSheet = workbook.worksheets[0]
+    if (!firstSheet) {
+      return {
+        type: 'BOQ',
+        sourceFileName: file.name,
+        sourceFileSize: file.size,
+        sourceFileLastModified: file.lastModified,
+        parsedAt: new Date().toISOString(),
+        version: '1.0.0',
+        errors: ['BOQ file appears empty or has no sheets'],
+        warnings: [],
+        confidence: 0,
+      }
+    }
+
+    // Convert worksheet rows to a 2D array (similar to sheet_to_json with header: 1)
+    const jsonData: any[][] = []
+    firstSheet.eachRow({ includeEmpty: false }, (row) => {
+      const rowArray: any[] = []
+      for (let col = 1; col <= row.cellCount; col++) {
+        const cell = row.getCell(col)
+        rowArray.push(cell.value ?? '')
+      }
+      jsonData.push(rowArray)
+    })
+
     if (jsonData.length < 2) {
       return {
         type: 'BOQ',
@@ -25,11 +49,11 @@ export async function parseBOQSpreadsheet(file: File): Promise<ParsedInput> {
     }
 
     const headers = jsonData[0].map((h: string) => String(h || '').toLowerCase().trim())
-    
+
     const findColumn = (patterns: string[]): number => {
       return headers.findIndex(h => patterns.some((p: any) => h.includes(p)))
     }
-    
+
     const descCol = findColumn(['description', 'item', 'work', 'description', 'particular'])
     const qtyCol = findColumn(['quantity', 'qty', 'amount', 'num', 'no.'])
     const unitCol = findColumn(['unit', 'units', 'measure'])
@@ -109,7 +133,7 @@ export async function parseBOQSpreadsheet(file: File): Promise<ParsedInput> {
       parsedAt: new Date().toISOString(),
       version: '1.0.0',
       errors: [error instanceof Error ? error.message : 'BOQ parsing failed'],
-      warnings: ['Ensure xlsx is properly installed'],
+      warnings: ['Ensure exceljs is properly installed'],
       confidence: 0,
     }
   }

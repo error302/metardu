@@ -236,11 +236,13 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
                   transformOrigin: 'top left',
                   position: 'absolute',
                 }}
+                // TODO: Sanitize with DOMPurify before rendering: import DOMPurify from 'dompurify'
                 dangerouslySetInnerHTML={{ __html: svgContent }}
               />
             </div>
           ) : (
             <div className="shadow-lg mx-auto" style={{ transform: `scale(${scale})`, transformOrigin: 'top center', width: 'fit-content' }}
+              // TODO: Sanitize with DOMPurify before rendering: import DOMPurify from 'dompurify'
               dangerouslySetInnerHTML={{ __html: svgContent }} />
           )
         ) : (

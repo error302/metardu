@@ -56,6 +56,7 @@ export default function BeaconPicker({ value, status, onChange, disabled }: Beac
                   ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                 `}
               >
+                // TODO: Sanitize with DOMPurify before rendering: import DOMPurify from 'dompurify'
                 <div 
                   className="w-6 h-6"
                   dangerouslySetInnerHTML={{ 

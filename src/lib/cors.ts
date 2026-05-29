@@ -4,7 +4,7 @@
 const ALLOWED_ORIGINS = [
   'https://metardu.duckdns.org',
   'capacitor://localhost',
-  'http://localhost:3000',
+  ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : []),
 ]
 
 export function corsHeaders(origin: string | null): Record<string, string> {
