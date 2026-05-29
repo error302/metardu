@@ -1,0 +1,94 @@
+/**
+ * /api/marketplace/inquiries
+ *
+ * GET  — Get inquiries for a listing (owner only)
+ * POST — Send an inquiry to a listing (any authenticated user)
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
+import { apiSuccess, apiError } from '@/lib/api/response'
+import db from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
+
+// ── GET ────────────────────────────────────────────────────────────────────
+
+export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+  const { searchParams } = new URL(req.url)
+  const listingId = searchParams.get('listingId')
+
+  if (!listingId) {
+    return NextResponse.json(apiError('listingId query parameter is required'), { status: 400 })
+  }
+
+  // Verify the requesting user owns the listing
+  const { rows: listingRows } = await db.query(
+    'SELECT user_id FROM instrument_listings WHERE id = $1',
+    [listingId]
+  )
+  if (listingRows.length === 0) {
+    return NextResponse.json(apiError('Listing not found'), { status: 404 })
+  }
+  if (listingRows[0].user_id !== ctx.userId) {
+    return NextResponse.json(apiError('Only the listing owner can view inquiries'), { status: 403 })
+  }
+
+  const { rows } = await db.query(
+    'SELECT * FROM instrument_inquiries WHERE listing_id = $1 ORDER BY created_at DESC',
+    [listingId]
+  )
+
+  const inquiries = rows.map((row: Record<string, unknown>) => ({
+    id: row.id,
+    listingId: row.listing_id,
+    buyerName: row.buyer_name,
+    buyerContact: row.buyer_contact,
+    message: row.message,
+    sentAt: row.created_at,
+  }))
+
+  return NextResponse.json(apiSuccess(inquiries))
+})
+
+// ── POST ───────────────────────────────────────────────────────────────────
+
+export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+  const body = ctx.body as Record<string, unknown>
+
+  const listingId = String(body.listingId ?? '')
+  const buyerName = String(body.buyerName ?? '').trim()
+  const buyerContact = String(body.buyerContact ?? '').trim()
+  const message = String(body.message ?? '').trim()
+
+  if (!listingId) return NextResponse.json(apiError('Listing ID is required'), { status: 400 })
+  if (!buyerName) return NextResponse.json(apiError('Your name is required'), { status: 400 })
+  if (!buyerContact) return NextResponse.json(apiError('Your contact is required'), { status: 400 })
+  if (!message) return NextResponse.json(apiError('Message is required'), { status: 400 })
+
+  // Verify listing exists
+  const { rows: listingRows } = await db.query(
+    'SELECT id FROM instrument_listings WHERE id = $1 AND NOT sold',
+    [listingId]
+  )
+  if (listingRows.length === 0) {
+    return NextResponse.json(apiError('Listing not found or already sold'), { status: 404 })
+  }
+
+  const { rows } = await db.query(
+    `INSERT INTO instrument_inquiries (listing_id, buyer_name, buyer_contact, message)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [listingId, buyerName, buyerContact, message]
+  )
+
+  const row = rows[0] as Record<string, unknown>
+  return NextResponse.json(apiSuccess({
+    id: row.id,
+    listingId: row.listing_id,
+    buyerName: row.buyer_name,
+    buyerContact: row.buyer_contact,
+    message: row.message,
+    sentAt: row.created_at,
+  }), { status: 201 })
+})

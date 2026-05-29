@@ -1,0 +1,90 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to GCP VM via Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Only deploy after CI passes (typecheck + lint)
+    # CI is separate workflow — this runs on push to main only
+
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VM_SSH_KEY }}
+
+      - name: Add VM to known hosts
+        run: ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest code and rebuild Docker
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} bash -s << 'DEPLOY'
+          set -eo pipefail
+
+          APP_DIR="$HOME/metardu"
+          cd "$APP_DIR"
+
+          echo "=== [1/5] Pulling latest code ==="
+          git fetch origin main
+          git reset --hard origin/main
+
+          echo "=== [2/5] Ensuring .env.local is correct for Docker ==="
+          if grep -q 'host.docker.internal' .env.local 2>/dev/null; then
+            echo "DATABASE_URL already set for Docker (host.docker.internal) - OK"
+          else
+            echo "Updating DATABASE_URL for Docker (host.docker.internal)..."
+            sed -i 's|@localhost:5432|@host.docker.internal:5432|g' .env.local 2>/dev/null || true
+          fi
+
+          echo "=== [3/5] Rebuilding Docker containers (incremental) ==="
+          # Use --build instead of --no-cache to leverage Docker layer cache
+          # Only changed layers are rebuilt — typically just the COPY + npm run build
+          docker compose up -d --build 2>&1
+
+          echo "=== [4/5] Waiting for container to be healthy ==="
+          for i in $(seq 1 36); do
+            sleep 5
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' metardu_nextjs 2>/dev/null || echo "not_found")
+            if [ "$STATUS" = "healthy" ]; then
+              echo "Container is healthy after $((i * 5)) seconds"
+              break
+            fi
+            if [ "$i" = "36" ]; then
+              echo "WARNING: Container not healthy after 180s"
+              docker logs --tail 30 metardu_nextjs 2>&1
+            fi
+            echo "  Waiting... ($((i * 5))s) status=$STATUS"
+          done
+
+          echo "=== [5/5] Verifying deployment ==="
+          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 15 http://localhost:3000/ || echo "000")
+          echo "HTTP status: $HTTP_CODE"
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Deploy successful!"
+          else
+            echo "WARNING: Health check returned HTTP $HTTP_CODE"
+            docker logs --tail 50 metardu_nextjs 2>&1
+            exit 1
+          fi
+          DEPLOY
+
+      - name: Verify live deployment
+        if: always()
+        run: |
+          sleep 5
+          HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 20 "https://${{ secrets.VM_HOST }}/" || echo "000")
+          echo "Live site HTTP: $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "WARNING: Live site returned HTTP $HTTP_CODE"
+          fi

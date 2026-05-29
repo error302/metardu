@@ -1,0 +1,80 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
+import db from '@/lib/db'
+import { callPythonCompute } from '@/lib/compute/pythonService'
+
+export const POST = apiHandler({ auth: true }, async (request, ctx) => {
+  const { projectId, files, stationLabels } = ctx.body as {
+    projectId?: string
+    files?: unknown[]
+    stationLabels?: string[]
+  }
+
+  if (!projectId || !files || files.length < 2) {
+    return NextResponse.json(
+      { error: 'Need at least 2 RINEX files to compute baselines' },
+      { status: 400 }
+    )
+  }
+
+  // Create session record
+  const sessionRes = await db.query(
+    `INSERT INTO gnss_sessions (
+      project_id, user_id, status, input_files
+    ) VALUES ($1, $2, $3, $4)
+    RETURNING id`,
+    [projectId, ctx.userId, 'processing', JSON.stringify(files)]
+  )
+  const gnssSessionId = sessionRes.rows[0].id
+
+  // Call Python service for processing
+  const result = await callPythonCompute<any>('/gnss/process', {
+    files,
+    stationLabels
+  })
+
+  let results: any[] = []
+  let status: 'complete' | 'failed' | 'simulated' = 'complete'
+  let errorMsg: string | undefined
+
+  if (result.ok) {
+    results = result.value?.baselines || []
+  } else if ((result as { ok: false; fallback?: boolean }).fallback) {
+    // Simulation mode - generate mock results
+    status = 'simulated'
+    results = generateMockBaselines(stationLabels ?? [])
+    errorMsg = (result as { error: string }).error
+  } else {
+    status = 'failed'
+    errorMsg = (result as { error: string }).error
+  }
+
+  // Update session with results
+  await db.query(
+    `UPDATE gnss_sessions SET
+      status = $1,
+      results = $2,
+      error_msg = $3,
+      updated_at = $4
+    WHERE id = $5`,
+    [
+      results.length > 0 ? 'complete' : 'failed',
+      JSON.stringify(results),
+      errorMsg,
+      new Date().toISOString(),
+      gnssSessionId
+    ]
+  )
+
+  return NextResponse.json({
+    sessionId: gnssSessionId,
+    results,
+    status,
+    message: status === 'simulated' ? 'Simulation mode — upload valid RINEX for real processing' : undefined
+  })
+})
+
+function generateMockBaselines(stationLabels: string[]): any[] {
+  // No fabricated baseline data — return empty result
+  return []
+}

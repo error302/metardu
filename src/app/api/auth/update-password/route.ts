@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import bcrypt from 'bcryptjs'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import db from '@/lib/db'
+import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
+
+const updateSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  password: z.string().min(8, 'New password must be at least 8 characters'),
+})
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const userId = (session.user as any).id
+
+    const body = await req.json().catch(() => ({}))
+    const parsed = updateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
+    }
+
+    const identifier = `${userId}:${getClientIdentifier(req)}`
+    const { allowed } = await rateLimit(`update-password:${identifier}`, 10, 15 * 60 * 1000)
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+
+    // Verify current password
+    const { rows: userRows } = await db.query(
+      'SELECT password_hash FROM users WHERE id = $1',
+      [userId]
+    )
+    if (userRows.length === 0) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const currentValid = await bcrypt.compare(parsed.data.currentPassword, userRows[0].password_hash)
+    if (!currentValid) {
+      return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 })
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.password, 10)
+    await db.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      [passwordHash, userId]
+    )
+
+    return NextResponse.json({
+      success: true,
+      user: { id: userId, email: session.user.email, name: session.user.name },
+    })
+  } catch (err) {
+    console.error('[update-password] Error:', err)
+    return NextResponse.json({ error: 'Failed to update password' }, { status: 500 })
+  }
+}

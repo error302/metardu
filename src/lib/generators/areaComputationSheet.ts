@@ -1,0 +1,493 @@
+// METARDU Area Computation Sheet Generator
+// Standalone PDF — Shoelace formula with professional layout
+// Reference: Arc 1960 / UTM Zone 37S, Survey Act Cap 299, Survey Regulations 1994
+
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+// ─── INPUT INTERFACE ─────────────────────────────────────────────────────────
+
+export interface AreaComputationInput {
+  projectName: string
+  lrNumber: string
+  surveyorName: string
+  iskNumber: string
+  firmName: string
+  referenceNumber: string
+  stations: Array<{
+    label: string
+    easting: number
+    northing: number
+  }>
+  precisionRatio?: string
+  perimeterM?: number
+  adjustmentMethod?: string
+}
+
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+
+const A4_W = 210
+const A4_H = 297
+const MARGIN = 15
+const CONTENT_W = A4_W - MARGIN * 2
+
+// ─── SHOELACE COMPUTATION ────────────────────────────────────────────────────
+
+interface ShoelaceRow {
+  label: string
+  easting: number
+  northing: number
+  eTimesNNext: number
+  nTimesENext: number
+}
+
+interface ShoelaceResult {
+  rows: ShoelaceRow[]
+  sumENext: number
+  sumNENext: number
+  twoA: number
+  areaM2: number
+  areaHa: number
+  perimeter: number
+}
+
+function computeShoelace(stations: AreaComputationInput['stations'], perimeterOverride?: number): ShoelaceResult {
+  const n = stations.length
+  const rows: ShoelaceRow[] = []
+
+  let sumENext = 0
+  let sumNENext = 0
+  let perimeter = 0
+
+  for (let i = 0; i < n; i++) {
+    const curr = stations[i]
+    const next = stations[(i + 1) % n]
+
+    const eTimesNNext = curr.easting * next.northing
+    const nTimesENext = curr.northing * next.easting
+
+    sumENext += eTimesNNext
+    sumNENext += nTimesENext
+
+    rows.push({
+      label: curr.label,
+      easting: curr.easting,
+      northing: curr.northing,
+      eTimesNNext,
+      nTimesENext,
+    })
+
+    // Perimeter leg
+    const dE = next.easting - curr.easting
+    const dN = next.northing - curr.northing
+    perimeter += Math.sqrt(dE * dE + dN * dN)
+  }
+
+  const twoA = Math.abs(sumENext - sumNENext)
+  const areaM2 = twoA / 2
+  const areaHa = areaM2 / 10000
+
+  return {
+    rows,
+    sumENext,
+    sumNENext,
+    twoA,
+    areaM2,
+    areaHa,
+    perimeter: perimeterOverride ?? perimeter,
+  }
+}
+
+// ─── HEADER DRAWING ──────────────────────────────────────────────────────────
+
+function drawHeader(doc: jsPDF, input: AreaComputationInput, today: string): number {
+  const headerTop = MARGIN
+
+  // Outer border box
+  doc.setDrawColor(0, 0, 0)
+  doc.setLineWidth(0.8)
+  doc.rect(MARGIN, headerTop, CONTENT_W, 44)
+
+  // Left: METARDU branding
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(0, 0, 0)
+  doc.text('METARDU', MARGIN + 4, headerTop + 12)
+
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(80, 80, 80)
+  doc.text('Professional Survey Platform', MARGIN + 4, headerTop + 17)
+
+  // Center: Title block
+  doc.setFontSize(13)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(20, 20, 20)
+  doc.text('AREA COMPUTATION SHEET', A4_W / 2, headerTop + 12, { align: 'center' })
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(60, 60, 60)
+  doc.text(input.projectName, A4_W / 2, headerTop + 18, { align: 'center' })
+
+  if (input.lrNumber) {
+    doc.text(`L.R. No. ${input.lrNumber}`, A4_W / 2, headerTop + 23, { align: 'center' })
+  }
+
+  doc.setFontSize(7)
+  doc.setTextColor(100, 100, 100)
+  doc.text('Arc 1960 / UTM Zone 37S  |  Survey Act Cap 299  |  Survey Regulations 1994', A4_W / 2, headerTop + 28, { align: 'center' })
+
+  // Right: Date & Reference
+  const rightX = A4_W - MARGIN - 4
+  doc.setFontSize(8)
+  doc.setTextColor(60, 60, 60)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Date: ${today}`, rightX, headerTop + 12, { align: 'right' })
+  doc.text(`Ref: ${input.referenceNumber}`, rightX, headerTop + 18, { align: 'right' })
+
+  // Surveyor info line below the box
+  doc.setFontSize(7.5)
+  doc.setTextColor(80, 80, 80)
+  doc.text(
+    `Surveyor: ${input.surveyorName} (ISK ${input.iskNumber})  |  Firm: ${input.firmName}`,
+    A4_W / 2,
+    headerTop + 38,
+    { align: 'center' }
+  )
+
+  // Divider line
+  doc.setDrawColor(200, 200, 200)
+  doc.setLineWidth(0.3)
+  doc.line(MARGIN, headerTop + 48, A4_W - MARGIN, headerTop + 48)
+
+  return headerTop + 52
+}
+
+// ─── SECTION HELPER ──────────────────────────────────────────────────────────
+
+function drawSectionTitle(doc: jsPDF, title: string, x: number, y: number): number {
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(0, 0, 0)
+  doc.text(title, x, y)
+
+  doc.setDrawColor(180, 180, 180)
+  doc.setLineWidth(0.2)
+  doc.line(x, y + 1.5, A4_W - MARGIN, y + 1.5)
+
+  return y + 5
+}
+
+// ─── DISCLAIMER ──────────────────────────────────────────────────────────────
+
+const DISCLAIMER_LINES = [
+  'This document was generated by METARDU, a computation tool. All values must be independently',
+  'verified by a licensed surveyor registered with ISK/EBK before being relied upon for any legal,',
+  'construction, or registration purpose. This output does not constitute a certified survey under',
+  'the Survey Act Cap 299 unless separately certified and authenticated by the Survey of Kenya.',
+]
+
+// ─── MAIN GENERATOR ─────────────────────────────────────────────────────────
+
+export function generateAreaComputationSheet(input: AreaComputationInput): Buffer {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
+  const today = new Date().toLocaleDateString('en-KE', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  })
+
+  // ── Header ──
+  let y = drawHeader(doc, input, today)
+
+  // ── Validate input ──
+  if (input.stations.length < 3) {
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(180, 0, 0)
+    doc.text('ERROR: A minimum of 3 stations is required for area computation.', MARGIN, y + 10)
+    return Buffer.from(doc.output('arraybuffer'))
+  }
+
+  // ── Shoelace computation ──
+  const result = computeShoelace(input.stations, input.perimeterM)
+
+  // ── Section 1: Shoelace Computation Table ──
+  y = drawSectionTitle(doc, '1. SHOELACE FORMULA COMPUTATION', MARGIN, y)
+
+  const tableBody = result.rows.map((r) => [
+    r.label,
+    r.easting.toFixed(3),
+    r.northing.toFixed(3),
+    r.eTimesNNext.toFixed(3),
+    r.nTimesENext.toFixed(3),
+  ])
+
+  autoTable(doc, {
+    startY: y,
+    head: [[
+      'Station / Beacon No.',
+      'Easting (m)',
+      'Northing (m)',
+      'E × N(next)',
+      'N × E(next)',
+    ]],
+    body: tableBody,
+    foot: [[
+      'TOTALS',
+      '',
+      '',
+      result.sumENext.toFixed(3),
+      result.sumNENext.toFixed(3),
+    ]],
+    styles: {
+      fontSize: 7.5,
+      cellPadding: 2,
+      lineColor: [180, 180, 180],
+      lineWidth: 0.2,
+    },
+    headStyles: {
+      fillColor: [0, 0, 0],
+      textColor: 255,
+      fontSize: 7,
+      fontStyle: 'bold',
+      halign: 'center',
+    },
+    footStyles: {
+      fillColor: [240, 243, 246],
+      textColor: 0,
+      fontSize: 7.5,
+      fontStyle: 'bold',
+    },
+    alternateRowStyles: {
+      fillColor: [245, 248, 250],
+    },
+    columnStyles: {
+      0: { cellWidth: 38, fontStyle: 'bold' },
+      1: { cellWidth: 38, halign: 'right' },
+      2: { cellWidth: 38, halign: 'right' },
+      3: { cellWidth: 38, halign: 'right' },
+      4: { cellWidth: 38, halign: 'right' },
+    },
+    margin: { left: MARGIN, right: MARGIN },
+    theme: 'grid',
+  })
+
+  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+
+  // ── Section 2: Area Computation Result ──
+  y = drawSectionTitle(doc, '2. AREA COMPUTATION RESULT', MARGIN, y)
+
+  // Result box with border
+  const resultBoxX = MARGIN
+  const resultBoxW = CONTENT_W
+  const resultLineH = 7
+  const resultBoxH = resultLineH * 5 + 8
+
+  doc.setDrawColor(0, 0, 0)
+  doc.setLineWidth(0.5)
+  doc.rect(resultBoxX, y, resultBoxW, resultBoxH)
+
+  // Inner padding
+  let ry = y + 6
+
+  doc.setFontSize(8.5)
+  doc.setFont('courier', 'normal')
+  doc.setTextColor(0, 0, 0)
+
+  // 2A = |Σ(E×N_next) - Σ(N×E_next)|
+  const diff = result.sumENext - result.sumNENext
+  doc.text(
+    `2A = |Σ(E×N_next) - Σ(N×E_next)| = |${result.sumENext.toFixed(3)} - ${result.sumNENext.toFixed(3)}|`,
+    resultBoxX + 6,
+    ry
+  )
+  doc.text(
+    `   = |${diff.toFixed(3)}| = ${result.twoA.toFixed(3)} m²`,
+    resultBoxX + 6,
+    ry + resultLineH
+  )
+  ry += resultLineH * 2
+
+  // Area in m²
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.text(
+    `Area (A) = ${result.areaM2.toFixed(3)} m²`,
+    resultBoxX + 6,
+    ry
+  )
+  ry += resultLineH
+
+  // Area in hectares
+  doc.text(
+    `Area (A) = ${result.areaHa.toFixed(4)} Ha`,
+    resultBoxX + 6,
+    ry
+  )
+  ry += resultLineH
+
+  // Perimeter
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8.5)
+  doc.text(
+    `Perimeter = ${result.perimeter.toFixed(3)} m`,
+    resultBoxX + 6,
+    ry
+  )
+
+  y += resultBoxH + 8
+
+  // ── Section 3: Verification ──
+  y = drawSectionTitle(doc, '3. VERIFICATION', MARGIN, y)
+
+  const verificationRows: string[][] = [
+    ['Coordinate System', 'Arc 1960 / UTM Zone 37S (EPSG:21037)'],
+    ['Computation Method', 'Shoelace Formula (Gauss\'s Area Formula)'],
+    ['Number of Stations', String(input.stations.length)],
+  ]
+
+  if (input.adjustmentMethod) {
+    verificationRows.push(['Adjustment Method', input.adjustmentMethod])
+  } else {
+    verificationRows.push(['Adjustment Method', 'Bowditch (Compass Rule)'])
+  }
+
+  if (input.precisionRatio) {
+    // Parse precision ratio to determine pass/fail
+    const ratioParts = input.precisionRatio.split(':')
+    const ratioDenom = ratioParts.length === 2 ? parseFloat(ratioParts[1]) : 0
+    const passes = ratioDenom >= 5000
+    const statusText = passes ? 'PASS' : 'FAIL'
+
+    verificationRows.push(['Precision Ratio', input.precisionRatio])
+    verificationRows.push(['Closure Status', `${statusText} (vs 1:5000 minimum — Survey Act Cap 299)`])
+  } else {
+    verificationRows.push(['Precision Ratio', 'Not provided'])
+    verificationRows.push(['Closure Status', 'N/A — traverse data not available'])
+  }
+
+  verificationRows.push(['Perimeter', `${result.perimeter.toFixed(3)} m`])
+  verificationRows.push(['Regulatory Standard', 'Survey Act Cap 299 / Kenya Survey Regulations 1994'])
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Parameter', 'Value']],
+    body: verificationRows,
+    styles: {
+      fontSize: 7.5,
+      cellPadding: 2,
+      lineColor: [180, 180, 180],
+      lineWidth: 0.2,
+    },
+    headStyles: {
+      fillColor: [0, 0, 0],
+      textColor: 255,
+      fontSize: 7,
+      fontStyle: 'bold',
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 48 },
+      1: { cellWidth: CONTENT_W - 50 },
+    },
+    margin: { left: MARGIN, right: MARGIN },
+    theme: 'grid',
+    didParseCell: (data) => {
+      // Color the closure status cell based on pass/fail
+      if (data.section === 'body' && data.column.index === 1) {
+        const cellText = String(data.cell.raw ?? '')
+        if (cellText.startsWith('PASS')) {
+          data.cell.styles.textColor = [0, 120, 60]
+          data.cell.styles.fontStyle = 'bold'
+        } else if (cellText.startsWith('FAIL')) {
+          data.cell.styles.textColor = [180, 0, 0]
+          data.cell.styles.fontStyle = 'bold'
+        }
+      }
+    },
+  })
+
+  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+
+  // ── Section 4: Professional Disclaimer ──
+  y = drawSectionTitle(doc, '4. PROFESSIONAL DISCLAIMER', MARGIN, y)
+
+  // Disclaimer box
+  doc.setFillColor(252, 248, 240)
+  doc.setDrawColor(200, 180, 140)
+  doc.setLineWidth(0.3)
+  const disclaimerH = DISCLAIMER_LINES.length * 4 + 6
+  doc.rect(MARGIN, y, CONTENT_W, disclaimerH, 'FD')
+
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'italic')
+  doc.setTextColor(100, 80, 40)
+
+  let dy = y + 5
+  for (const line of DISCLAIMER_LINES) {
+    doc.text(line, MARGIN + 4, dy)
+    dy += 4
+  }
+
+  y += disclaimerH + 8
+
+  // ── Section 5: Surveyor's Signature Block ──
+  y = drawSectionTitle(doc, "5. SURVEYOR'S SIGNATURE", MARGIN, y)
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(0, 0, 0)
+
+  // Signature line
+  doc.setFont('helvetica', 'bold')
+  doc.text('Surveyor:', MARGIN, y + 2)
+  doc.setFont('helvetica', 'normal')
+  doc.text(input.surveyorName, MARGIN + 24, y + 2)
+  doc.setLineWidth(0.2)
+  doc.setDrawColor(0)
+  doc.line(MARGIN + 24, y + 3.5, MARGIN + 100, y + 3.5)
+  y += 10
+
+  doc.setFont('helvetica', 'bold')
+  doc.text('ISK No.:', MARGIN, y + 2)
+  doc.setFont('helvetica', 'normal')
+  doc.text(input.iskNumber, MARGIN + 24, y + 2)
+  doc.line(MARGIN + 24, y + 3.5, MARGIN + 70, y + 3.5)
+  y += 10
+
+  doc.setFont('helvetica', 'bold')
+  doc.text('Firm:', MARGIN, y + 2)
+  doc.setFont('helvetica', 'normal')
+  doc.text(input.firmName, MARGIN + 24, y + 2)
+  doc.line(MARGIN + 24, y + 3.5, MARGIN + 120, y + 3.5)
+  y += 10
+
+  doc.setFont('helvetica', 'bold')
+  doc.text('Signature:', MARGIN, y + 2)
+  doc.line(MARGIN + 24, y + 3.5, MARGIN + 100, y + 3.5)
+
+  doc.setFont('helvetica', 'bold')
+  doc.text('Date:', MARGIN + 110, y + 2)
+  doc.line(MARGIN + 122, y + 3.5, A4_W - MARGIN, y + 3.5)
+  y += 12
+
+  // ── Page footer ──
+  const pageH = A4_H
+  doc.setDrawColor(200, 200, 200)
+  doc.setLineWidth(0.3)
+  doc.line(MARGIN, pageH - 12, A4_W - MARGIN, pageH - 12)
+
+  doc.setFontSize(7)
+  doc.setTextColor(150, 150, 150)
+  doc.text(`Metardu — ${input.projectName}`, MARGIN, pageH - 7)
+  doc.text(
+    `Page 1 of 1 | Generated ${new Date().toLocaleDateString('en-KE')}`,
+    A4_W - MARGIN,
+    pageH - 7,
+    { align: 'right' }
+  )
+
+  return Buffer.from(doc.output('arraybuffer'))
+}
