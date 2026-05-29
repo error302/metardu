@@ -6,7 +6,6 @@ import AuthProvider from '@/components/AuthProvider'
 import { ProjectionInit } from '@/components/layout/ProjectionInit'
 import AppShell from '@/components/layout/AppShell'
 import { getPublicAppUrl } from '@/lib/site'
-import { QueryProvider } from '@/lib/cache/QueryProvider'
 
 const publicAppUrl = getPublicAppUrl()
 
@@ -123,11 +122,9 @@ export default function RootLayout({
           Skip to content
         </a>
         <AuthProvider>
-          <QueryProvider>
-            <AppShell>
-              {children}
-            </AppShell>
-          </QueryProvider>
+          <AppShell>
+            {children}
+          </AppShell>
         </AuthProvider>
       </body>
     </html>

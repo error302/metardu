@@ -7,7 +7,7 @@ const sections = [
   },
   {
     title: 'Essential cookies',
-    body: 'These cookies are strictly necessary for the platform to function and cannot be disabled: Session token — stores your NextAuth JWT authentication state, allowing you to stay logged in as you navigate between pages; CSRF token — prevents cross-site request forgery attacks on state-changing operations; Locale preference — stores your language and region settings for the next-intl internationalization system. Without these cookies, you cannot log in, use the platform, or perform any authenticated actions.',
+    body: 'These cookies are strictly necessary for the platform to function and cannot be disabled: Session token — stores your NextAuth JWT authentication state, allowing you to stay logged in as you navigate between pages; CSRF token — prevents cross-site request forgery attacks on state-changing operations; Locale preference — stores your language and region settings for the internationalization system. Without these cookies, you cannot log in, use the platform, or perform any authenticated actions.',
   },
   {
     title: 'Functional cookies',
