@@ -3,7 +3,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { getOpenPeerReviews, submitPeerReview } from '@/lib/community'
 import { awardCPDPoints } from '@/lib/cpd'
 
-export const GET = apiHandler({ auth: false }, async () => {
+export const GET = apiHandler({ auth: true }, async () => {
   const reviews = await getOpenPeerReviews()
   return NextResponse.json({ reviews })
 })

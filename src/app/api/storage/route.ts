@@ -61,7 +61,7 @@ export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ct
   })
 })
 
-export const GET = apiHandler({ auth: false }, async (request, ctx) => {
+export const GET = apiHandler({ auth: true }, async (request, ctx) => {
   const filePath = request.nextUrl.searchParams.get('path')
   if (!filePath) return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 })
 
