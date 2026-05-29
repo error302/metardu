@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
 import db from '@/lib/db'
 import type { NLIMSSearchResult, NLIMSParcel } from '@/types/nlims'
 
@@ -9,6 +10,15 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
+    // Require authentication — parcel data is sensitive and costs API calls
+    const session = await getServerSession()
+    if (!session?.user) {
+      return NextResponse.json(
+        { found: false, error: 'Authentication required' } as NLIMSSearchResult,
+        { status: 401 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const parcelNumber = searchParams.get('parcel')
     const county = searchParams.get('county')

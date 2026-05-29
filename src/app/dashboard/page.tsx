@@ -50,24 +50,37 @@ export default async function DashboardPage() {
     ? Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - Date.now()) / 86400000))
     : null
 
-  const projectsWithCounts = await Promise.all(
-    projects.map(async (project) => {
-      try {
-        const dbClient = await createClient()
-        const [pointsRes, parcelsRes] = await Promise.all([
-          dbClient.from('survey_points').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
-          dbClient.from('parcels').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
-        ])
-        return {
-          ...project,
-          point_count: pointsRes.count ?? 0,
-          parcel_count: parcelsRes.count ?? 0,
-        }
-      } catch {
-        return { ...project, point_count: 0, parcel_count: 0 }
+  /* ── Batch point/parcel counts (avoids N+1 queries) ─────────────── */
+  let projectsWithCounts = projects
+  if (projects.length > 0) {
+    try {
+      const dbClient = await createClient()
+      const projectIds = projects.map(p => p.id)
+
+      const [pointsRes, parcelsRes] = await Promise.all([
+        dbClient.from('survey_points').select('project_id').in('project_id', projectIds),
+        dbClient.from('parcels').select('project_id').in('project_id', projectIds),
+      ])
+
+      // Aggregate counts in JS (2 queries instead of 2N)
+      const pointCounts: Record<string, number> = {}
+      for (const row of pointsRes.data ?? []) {
+        pointCounts[row.project_id] = (pointCounts[row.project_id] ?? 0) + 1
       }
-    })
-  )
+      const parcelCounts: Record<string, number> = {}
+      for (const row of parcelsRes.data ?? []) {
+        parcelCounts[row.project_id] = (parcelCounts[row.project_id] ?? 0) + 1
+      }
+
+      projectsWithCounts = projects.map(project => ({
+        ...project,
+        point_count: pointCounts[project.id] ?? 0,
+        parcel_count: parcelCounts[project.id] ?? 0,
+      }))
+    } catch {
+      projectsWithCounts = projects.map(project => ({ ...project, point_count: 0, parcel_count: 0 }))
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-4 md:py-8">

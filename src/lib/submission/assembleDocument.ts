@@ -25,10 +25,10 @@ async function fetchSurveyorProfile(projectId: string): Promise<{
       };
     }
 
-    // Fall back to user profile
+    // Fall back to surveyor profile (correct table: surveyor_profiles, not profiles)
     if (proj?.user_id) {
       const userRes = await db.query(
-        'SELECT full_name, isk_number, firm_name FROM profiles WHERE id = $1',
+        'SELECT full_name, isk_number, firm_name FROM surveyor_profiles WHERE user_id = $1',
         [proj.user_id]
       );
       const user = userRes.rows[0];
