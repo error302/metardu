@@ -7,7 +7,7 @@ import type { RawSounding, TideObservation, ReducedSounding, RosData, HydroSurve
 import { buildBathymetricSurface } from '@/lib/hydro/bathymetricSurface'
 import { generateBathymetricFairSheet } from '@/lib/hydro/bathymetricDXF'
 import { buildReportOfSurveyContent } from '@/lib/hydro/reportOfSurvey'
-import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfileClient'
+import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile'
 import dynamic from 'next/dynamic'
 import { generateContours } from '@/lib/topo/contourGenerator'
 import type { ContourLine } from '@/lib/topo/contourGenerator'

@@ -12,72 +12,10 @@ import {
 } from '@/components/map/PremiumIcons'
 import { useMapHistory } from '@/hooks/useMapHistory'
 import type { MapContext } from '@/hooks/useMapTypes'
-
-// ─── Proper React Error Boundary (class component required) ───────────
-// The previous implementation only caught window.error / unhandledrejection
-// events, which does NOT catch React rendering errors (those bypass it and
-// propagate to Next.js error.tsx showing the generic "Something went wrong").
-// A true error boundary MUST be a class component with getDerivedStateFromError.
-
-interface ErrorBoundaryState {
-  hasError: boolean
-  error: Error | null
-}
-
-class MapErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  ErrorBoundaryState
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props)
-    this.state = { hasError: false, error: null }
-  }
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error }
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[MapErrorBoundary] Caught render error:', error, errorInfo)
-  }
-
-  private handleReload = () => {
-    this.setState({ hasError: false, error: null })
-    // Force a full remount by using setTimeout
-    window.location.reload()
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="h-[calc(100vh-4rem)] bg-black/60 backdrop-blur-sm flex items-center justify-center">
-          <div className="text-center max-w-lg px-6 bg-[#14141e]/90 rounded-xl py-6 shadow-2xl">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-red-500/10 flex items-center justify-center">
-              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-white font-semibold text-lg mb-2">Map failed to load</h3>
-            <p className="text-gray-400 text-sm mb-1">{this.state.error?.message || 'An unexpected error occurred'}</p>
-            {this.state.error?.stack && (
-              <pre className="text-[10px] text-gray-600 mt-2 p-2 bg-white/[0.02] rounded-lg text-left overflow-auto max-h-32">
-                {this.state.error.stack.slice(0, 500)}
-              </pre>
-            )}
-            <button
-              onClick={this.handleReload}
-              className="mt-4 px-5 py-2 bg-[#E8841A] hover:bg-[#E8841A]/80 text-white text-sm rounded-lg transition-colors"
-            >
-              Reload Page
-            </button>
-          </div>
-        </div>
-      )
-    }
-
-    return this.props.children
-  }
-}
+import MapErrorBoundary from '@/app/map/MapErrorBoundary'
+import MapGlobalStyles from '@/app/map/MapGlobalStyles'
+import type { BasemapMode, DrawMode, MeasureMode, PopupData } from '@/app/map/mapTypes'
+import { handleCoordSearch } from '@/app/map/utils/coordSearch'
 
 /**
  * METARDU Global Map Page — Premium OpenLayers Interface
@@ -139,19 +77,6 @@ class MapErrorBoundary extends React.Component<
  *   - URL param ?projectId=xxx to auto-load a specific project boundary
  *   - Two-way sync: edit on map → update boundary_data → regenerate docs
  */
-
-type BasemapMode = 'osm' | 'satellite' | 'dark' | 'terrain'
-type DrawMode = 'none' | 'Point' | 'LineString' | 'Polygon' | 'Circle'
-type MeasureMode = 'none' | 'distance' | 'area'
-
-interface PopupData {
-  coordinate: number[]
-  projectName?: string
-  stationName?: string
-  easting?: string
-  northing?: string
-  geometryType?: string
-}
 
 /* ══════════════════════════════════════════════════════════════════════
  *  MAIN COMPONENT
@@ -1108,27 +1033,8 @@ export default function MapClient() {
   // ══════════════════════════════════════════════════════════════════
   //  COORDINATE SEARCH
   // ══════════════════════════════════════════════════════════════════
-  const handleCoordSearch = useCallback(async () => {
-    if (!mapInstance.current || !searchInput.trim()) return
-    const parts = searchInput.trim().split(/[,\s]+/).map(Number).filter(n => !isNaN(n))
-    if (parts.length >= 2) {
-      let lon = parts[1]
-      let lat = parts[0]
-      // If values look like Eastings/Northings (large numbers), treat differently
-      if (Math.abs(parts[0]) > 100 && Math.abs(parts[1]) > 100) {
-        // Likely UTM coordinates - try to transform from EPSG:21037
-        try {
-          const { transform } = await import('ol/proj')
-          const [x, y] = transform([parts[0], parts[1]], 'EPSG:21037', 'EPSG:3857')
-          mapInstance.current.getView().animate({ center: [x, y], zoom: 16, duration: 600 })
-        } catch { /* fallback */ }
-      } else {
-        if (lon > lat) { [lon, lat] = [lat, lon] } // common swap
-        const { fromLonLat } = await import('ol/proj')
-        const center = fromLonLat([lon, lat])
-        mapInstance.current.getView().animate({ center, zoom: 16, duration: 600 })
-      }
-    }
+  const handleCoordSearchLocal = useCallback(async () => {
+    await handleCoordSearch(searchInput, mapInstance)
     setSearchInput('')
   }, [searchInput])
 
@@ -1244,7 +1150,7 @@ export default function MapClient() {
                   placeholder="lat, lon or E N"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCoordSearch()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCoordSearchLocal()}
                   className="w-44 h-8 bg-[#0d0d14]/90 backdrop-blur-xl border border-white/[0.06] rounded-xl pl-8 pr-3 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors shadow-lg"
                 />
               </div>
@@ -1534,96 +1440,4 @@ export default function MapClient() {
     </div>
     </MapErrorBoundary>
   )
-}
-
-// ─── Global Styles Injector ──────────────────────────────────────────────
-// Injects OpenLayers and custom scrollbar styles via a <style> element.
-// This replaces styled-jsx which doesn't work reliably inside components
-// loaded via next/dynamic with ssr:false.
-
-function MapGlobalStyles() {
-  useEffect(() => {
-    const id = 'metardu-map-global-styles'
-    if (document.getElementById(id)) return // prevent duplicates
-
-    const style = document.createElement('style')
-    style.id = id
-    style.textContent = `
-      .ol-mouse-position {
-        display: none !important;
-      }
-      .ol-overviewmap {
-        bottom: 50px !important;
-        left: 50% !important;
-        right: auto !important;
-        transform: translateX(-50%);
-        border: 1px solid rgba(232,132,26,0.3) !important;
-        border-radius: 10px !important;
-        overflow: hidden !important;
-        background: rgba(13,13,20,0.95) !important;
-      }
-      .ol-overviewmap .ol-overviewmap-map {
-        border: none !important;
-      }
-      .ol-overviewmap button {
-        background: rgba(13,13,20,0.9) !important;
-        color: #E8841A !important;
-        border-radius: 6px !important;
-      }
-      .ol-zoomslider {
-        background: rgba(13,13,20,0.9) !important;
-        border: 1px solid rgba(255,255,255,0.06) !important;
-        border-radius: 10px !important;
-        left: auto !important;
-        right: 8px !important;
-        top: 50% !important;
-        transform: translateY(-50%);
-        height: 120px !important;
-      }
-      .ol-zoomslider:hover {
-        background: rgba(13,13,20,1) !important;
-      }
-      .ol-zoomslider .ol-zoomslider-thumb {
-        background: #E8841A !important;
-        border-radius: 6px !important;
-        border: none !important;
-      }
-      .ol-zoomslider .ol-zoomslider-range {
-        background: rgba(232,132,26,0.2) !important;
-      }
-      .ol-scale-line {
-        display: none !important;
-      }
-      .ol-control button {
-        background: rgba(13,13,20,0.9) !important;
-        color: #9ca3af !important;
-        border-radius: 8px !important;
-        border: 1px solid rgba(255,255,255,0.06) !important;
-      }
-      .ol-control button:hover {
-        background: rgba(13,13,20,1) !important;
-        color: #E8841A !important;
-      }
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 3px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.08);
-        border-radius: 3px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(255,255,255,0.15);
-      }
-    `
-    document.head.appendChild(style)
-
-    return () => {
-      document.getElementById(id)?.remove()
-    }
-  }, [])
-
-  return null
 }

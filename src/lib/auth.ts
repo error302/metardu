@@ -32,7 +32,7 @@ export const authOptions: AuthOptions = {
         const clientIp = forwarded.split(',')[0]?.trim() || 'unknown'
 
         // Check brute-force lockout BEFORE checking credentials
-        const loginCheck = checkLoginAllowed(credentials.email, clientIp)
+        const loginCheck = await checkLoginAllowed(credentials.email, clientIp)
         if (!loginCheck.allowed) {
           console.warn(`[auth] Login blocked for ${credentials.email} from ${clientIp}: ${loginCheck.reason}`)
           return null
@@ -45,15 +45,15 @@ export const authOptions: AuthOptions = {
           )
 
           if (rows.length === 0) {
-            recordFailedLogin(credentials.email, clientIp)
+            await recordFailedLogin(credentials.email, clientIp)
             return null
           }
 
           const user = rows[0]
           const valid = await bcrypt.compare(credentials.password, user.password_hash)
           if (!valid) {
-            recordFailedLogin(credentials.email, clientIp)
-            const remaining = 5 - getFailedAttemptCount(credentials.email, clientIp)
+            await recordFailedLogin(credentials.email, clientIp)
+            const remaining = 5 - await getFailedAttemptCount(credentials.email, clientIp)
             if (remaining <= 2 && remaining > 0) {
               console.warn(`[auth] ${remaining} attempts remaining for ${credentials.email} from ${clientIp}`)
             }
@@ -75,7 +75,7 @@ export const authOptions: AuthOptions = {
           }
 
           // Successful login — clear failure count
-          recordSuccessfulLogin(credentials.email, clientIp)
+          await recordSuccessfulLogin(credentials.email, clientIp)
 
           // Determine role — priority: ADMIN_EMAILS > users.role > surveyor_profiles.role > 'surveyor'
           let role = user.role || 'surveyor'
