@@ -11,13 +11,6 @@ interface GridPoint {
   designLevel: number
 }
 
-interface SectionData {
-  id: number
-  area: number
-  length: number
-  volume: number
-}
-
 export default function BorrowPitVolumePage() {
   const [gridSize, setGridSize] = useState(10)
   const [designElevation, setDesignElevation] = useState(100)
@@ -92,29 +85,31 @@ export default function BorrowPitVolumePage() {
   }
 
   const volume = computeVolume()
+  const inputClass = 'w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none transition-colors'
+  const smallInputClass = 'bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-[var(--text-primary)] text-right focus:border-[var(--accent)] outline-none'
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
         title="Borrow Pit Volume Calculator"
-        subtitle="Calculate earthwork volumes using the grid method (average end area)"
+        subtitle="Calculate earthwork volumes using the grid method (average height)"
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-zinc-400 mb-2">Grid Size (m)</label>
+              <label className="block text-sm text-[var(--text-secondary)] mb-2">Grid Size (m)</label>
               <input
                 type="number"
                 value={gridSize}
                 onChange={e => setGridSize(Number(e.target.value))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+                className={inputClass}
                 min={1}
               />
             </div>
             <div>
-              <label className="block text-sm text-zinc-400 mb-2">Design Elevation (m)</label>
+              <label className="block text-sm text-[var(--text-secondary)] mb-2">Design Elevation (m)</label>
               <input
                 type="number"
                 step="0.01"
@@ -124,89 +119,93 @@ export default function BorrowPitVolumePage() {
                   setDesignElevation(val)
                   setPoints(points.map((p: any) => ({ ...p, designLevel: val })))
                 }}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+                className={inputClass}
               />
             </div>
           </div>
 
-          <div className="border border-zinc-700 rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-zinc-800 text-zinc-400">
-                <tr>
-                  <th className="px-3 py-2 text-left">#</th>
-                  <th className="px-3 py-2 text-right">Easting (m)</th>
-                  <th className="px-3 py-2 text-right">Northing (m)</th>
-                  <th className="px-3 py-2 text-right">Ground Level (m)</th>
-                  <th className="px-3 py-2 text-right">Cut/Fill (m)</th>
-                  <th className="px-3 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {points.map((p, idx) => (
-                  <tr key={p.id} className="border-t border-zinc-800">
-                    <td className="px-3 py-2 text-zinc-500">{idx + 1}</td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        value={p.easting}
-                        onChange={e => updatePoint(p.id, 'easting', Number(e.target.value))}
-                        className="w-20 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-right"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        value={p.northing}
-                        onChange={e => updatePoint(p.id, 'northing', Number(e.target.value))}
-                        className="w-20 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-right"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={p.groundLevel}
-                        onChange={e => updatePoint(p.id, 'groundLevel', Number(e.target.value))}
-                        className="w-24 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-right"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span className={p.groundLevel < designElevation ? 'text-green-400' : 'text-amber-400'}>
-                        {designElevation - p.groundLevel > 0 ? '+' : ''}{(designElevation - p.groundLevel).toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <button onClick={() => removePoint(p.id)} className="text-red-400 hover:text-red-300">✕</button>
-                    </td>
+          <div className="card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-[500px] table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th className="text-right">Easting (m)</th>
+                    <th className="text-right">Northing (m)</th>
+                    <th className="text-right">Ground Level (m)</th>
+                    <th className="text-right">Cut/Fill (m)</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {points.map((p, idx) => (
+                    <tr key={p.id}>
+                      <td className="text-[var(--text-muted)]">{idx + 1}</td>
+                      <td className="text-right">
+                        <input
+                          type="number"
+                          value={p.easting}
+                          onChange={e => updatePoint(p.id, 'easting', Number(e.target.value))}
+                          className={`w-20 ${smallInputClass}`}
+                        />
+                      </td>
+                      <td className="text-right">
+                        <input
+                          type="number"
+                          value={p.northing}
+                          onChange={e => updatePoint(p.id, 'northing', Number(e.target.value))}
+                          className={`w-20 ${smallInputClass}`}
+                        />
+                      </td>
+                      <td className="text-right">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={p.groundLevel}
+                          onChange={e => updatePoint(p.id, 'groundLevel', Number(e.target.value))}
+                          className={`w-24 ${smallInputClass}`}
+                        />
+                      </td>
+                      <td className="text-right font-mono">
+                        <span className={p.groundLevel < designElevation ? 'text-green-400' : 'text-amber-400'}>
+                          {designElevation - p.groundLevel > 0 ? '+' : ''}{(designElevation - p.groundLevel).toFixed(2)}
+                        </span>
+                      </td>
+                      <td>
+                        <button onClick={() => removePoint(p.id)} className="text-red-400 hover:text-red-300 text-sm">✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <button
             onClick={addPoint}
-            className="px-4 py-2 border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800"
+            className="btn btn-secondary"
           >
             + Add Point
           </button>
         </div>
 
         <div className="space-y-6">
-          <div className="p-6 bg-zinc-900 rounded-lg border border-zinc-700">
-            <h3 className="text-lg font-semibold text-white mb-4">Volume Summary</h3>
-            <div className="space-y-4">
+          <div className="card">
+            <div className="card-header">
+              <span className="label">Volume Summary</span>
+            </div>
+            <div className="card-body space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">Cut Volume</span>
+                <span className="text-[var(--text-secondary)]">Cut Volume</span>
                 <span className="text-2xl font-bold text-green-400">{volume.cut.toFixed(2)} m³</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">Fill Volume</span>
+                <span className="text-[var(--text-secondary)]">Fill Volume</span>
                 <span className="text-2xl font-bold text-amber-400">{volume.fill.toFixed(2)} m³</span>
               </div>
-              <div className="h-px bg-zinc-700 my-2"></div>
+              <div className="border-t border-[var(--border-color)] my-2"></div>
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">Net Volume</span>
+                <span className="text-[var(--text-secondary)]">Net Volume</span>
                 <span className={`text-2xl font-bold ${volume.net >= 0 ? 'text-green-400' : 'text-amber-400'}`}>
                   {volume.net.toFixed(2)} m³
                 </span>
@@ -214,12 +213,14 @@ export default function BorrowPitVolumePage() {
             </div>
           </div>
 
-          <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
-            <h4 className="text-sm font-medium text-white mb-2">Method</h4>
-            <p className="text-xs text-zinc-500">
-              Grid Method (Average End Area)<br/>
-              V = ((A1 + A2) / 2) × L
-            </p>
+          <div className="card">
+            <div className="card-body">
+              <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">Method</h4>
+              <p className="text-xs text-[var(--text-muted)]">
+                Grid Method (Average Height)<br/>
+                V = ((h1 + h2 + h3 + h4) / 4) x width x length
+              </p>
+            </div>
           </div>
         </div>
       </div>
