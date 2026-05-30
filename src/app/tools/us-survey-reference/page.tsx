@@ -10,17 +10,16 @@ import {
   TRACT_NUMBERING,
   LAND_STATUS_TYPES
 } from '@/lib/data/usSurveyStandards'
+import { PageHeader } from '@/components/shared/PageHeader'
 
 export default function USSurveyReferencePage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] p-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold">US Survey Standards Reference</h1>
-          <p className="text-[var(--text-muted)] mt-1">
-            Based on US Fish & Wildlife Service Land Survey Handbook (May 2015) · BLM Manual of Surveying Instructions
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto">
+        <PageHeader
+          title="US Survey Standards Reference"
+          subtitle="Based on US Fish & Wildlife Service Land Survey Handbook (May 2015) · BLM Manual of Surveying Instructions"
+        />
 
         {/* Legal Description Types */}
         <section className="mb-8">

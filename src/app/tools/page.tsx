@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader } from '@/components/shared/PageHeader'
 import type { ComponentType } from 'react'
 import {
   BookOpenText,
@@ -95,12 +96,10 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
 export default function ToolsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-16">
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-1">Quick Tools</h1>
-          <p className="text-sm text-[var(--text-muted)]">No project required — enter values and get instant results</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Quick Tools"
+        subtitle="No project required — enter values and get instant results"
+      />
       
       <div className="space-y-8">
 

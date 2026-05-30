@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { exportGCPs, GCP_FORMATS, GCPFormat, GCPPoint } from '@/lib/export/gcpExport'
+import { PageHeader } from '@/components/shared/PageHeader'
 import Link from 'next/link'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -93,15 +94,13 @@ export default function GCPExportPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">GCP export for drone software</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            Export ground control points in formats compatible with Pix4D, DroneDeploy, Agisoft Metashape, OpenDroneMap and QGIS/ArcGIS.
-          </p>
-        </div>
+        <PageHeader
+          title="GCP export for drone software"
+          subtitle="Export ground control points in formats compatible with Pix4D, DroneDeploy, Agisoft Metashape, OpenDroneMap and QGIS/ArcGIS."
+        />
 
         {/* What is a GCP? — for context */}
         <div className="bg-[var(--accent)]/5 border border-[var(--accent)]/20 rounded-xl p-4 mb-6 text-sm">

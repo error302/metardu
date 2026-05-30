@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PageHeader } from '@/components/shared/PageHeader'
 import { 
   geodeticToECEF, 
   ecefToGeodetic, 
@@ -108,13 +109,7 @@ export default function GNSSProcessor() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">GNSS Baseline Processing</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-1">
-        Process GPS/GNSS observations, compute baselines and network adjustments
-      </p>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
-        Survey Regulations 1994 &nbsp;|&nbsp; RDM 1.1 (2025) Section 5.6 &nbsp;|&nbsp; WGS84 / SRID 21037
-      </p>
+      <PageHeader title="GNSS Baseline Processing" subtitle="Process GPS/GNSS observations, compute baselines and network adjustments" reference="Survey Regulations 1994  |  RDM 1.1 (2025) Section 5.6  |  WGS84 / SRID 21037" />
 
       <div className="flex gap-4 mb-6">
         <button onClick={() => { setMode('baseline'); setResult(null); }} className={`btn ${mode === 'baseline' ? 'btn-primary' : 'btn-secondary'}`}>

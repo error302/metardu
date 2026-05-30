@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react'
+import { PageHeader } from '@/components/shared/PageHeader'
 
 interface SurfacePoint {
   id: number
@@ -81,10 +82,10 @@ export default function StockpileVolumePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Stockpile Volume Calculator</h1>
-      <p className="text-sm text-zinc-400 mb-6">
-        Estimate volume of stockpiles using geometric methods
-      </p>
+      <PageHeader
+        title="Stockpile Volume Calculator"
+        subtitle="Estimate volume of stockpiles using geometric methods"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="space-y-6">

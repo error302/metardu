@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import HorizontalCurveCalculator from '@/components/road-design/HorizontalCurveCalculator'
+import { PageHeader } from '@/components/shared/PageHeader'
 import VerticalCurveCalculator from '@/components/road-design/VerticalCurveCalculator'
 import SuperelevationCalculator from '@/components/road-design/SuperelevationCalculator'
 import SightDistanceChecker from '@/components/road-design/SightDistanceChecker'
@@ -20,10 +21,10 @@ export default function RoadDesignPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Road Design</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-6">
-        RDM 1.3 (Kenya, August 2023) | Kenya Roads Act Cap 403 | All computations shown with full derivation
-      </p>
+      <PageHeader
+        title="Road Design"
+        subtitle="RDM 1.3 (Kenya, August 2023) | Kenya Roads Act Cap 403 | All computations shown with full derivation"
+      />
 
       <div className="flex gap-1 border-b border-[var(--border-color)] mb-6 overflow-x-auto">
         {TABS.map((t: any) => (

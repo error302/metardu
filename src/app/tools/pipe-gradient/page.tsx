@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { DRAINAGE_STANDARDS } from '@/lib/standards/engineering'
 
 export default function PipeGradientPage() {
@@ -18,10 +19,10 @@ export default function PipeGradientPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Pipe Gradient Check</h1>
-      <p className="text-sm text-zinc-400 mb-6">
-        Verify pipe gradient and calculate velocity/capacity using Manning's Equation
-      </p>
+      <PageHeader
+        title="Pipe Gradient Check"
+        subtitle="Verify pipe gradient and calculate velocity/capacity using Manning's Equation"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react'
+import { PageHeader } from '@/components/shared/PageHeader'
 import CrossSectionInput from '@/components/earthworks/CrossSectionInput'
 
 /**
@@ -83,10 +84,10 @@ export default function EarthworksPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Earthworks Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-6">
-        Cut &amp; fill analysis with mass haul diagram | End Area + Prismoidal Methods | Ghilani &amp; Wolf Ch.26 | Merritt Civil Engineering Handbook Sec.21
-      </p>
+      <PageHeader
+        title="Earthworks Calculator"
+        subtitle="Cut &amp; fill analysis with mass haul diagram | End Area + Prismoidal Methods | Ghilani &amp; Wolf Ch.26 | Merritt Civil Engineering Handbook Sec.21"
+      />
 
       {/* Earthworks-specific summary panel */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

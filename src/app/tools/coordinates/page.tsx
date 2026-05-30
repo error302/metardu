@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PageHeader } from '@/components/shared/PageHeader'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { dmsToDecimalSolved, geographicToUtmSolved, utmToGeographicSolved, decimalToDmsSolved } from '@/lib/engine/solution/wrappers/coordinates'
@@ -42,13 +43,11 @@ export default function CoordinatesCalculator() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">Coordinate Conversion</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-1">
-        WGS84 ↔ UTM coordinate conversions — SRID 21037 (Arc 1960 / UTM Zone 37S) for Kenya surveys
-      </p>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
-        Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; Kenya UTM Zones 36S / 37S
-      </p>
+      <PageHeader
+        title="Coordinate Conversion"
+        subtitle="WGS84 ↔ UTM coordinate conversions — SRID 21037 (Arc 1960 / UTM Zone 37S) for Kenya surveys"
+        reference="Survey Regulations 1994 | Survey Act Cap 299 | Kenya UTM Zones 36S / 37S"
+      />
 
       <div className="flex gap-4 mb-6 flex-wrap">
         <button onClick={() => { setTab('utm-to-geo'); setSteps(null); setSolutionTitle(undefined); }} className={`btn ${tab === 'utm-to-geo' ? 'btn-primary' : 'btn-secondary'}`}>

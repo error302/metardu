@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { exportCivil, CIVIL_FORMATS, CivilFormat, CivilPoint } from '@/lib/export/civilHandoff'
+import { PageHeader } from '@/components/shared/PageHeader'
 import Link from 'next/link'
 
 function download(content: string, filename: string) {
@@ -68,13 +69,11 @@ export default function CivilExportPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Civil engineering data export</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            Export survey points in formats compatible with AutoCAD Civil 3D, 12d Model, QGIS, ArcGIS, and CloudCompare.
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <PageHeader
+          title="Civil engineering data export"
+          subtitle="Export survey points in formats compatible with AutoCAD Civil 3D, 12d Model, QGIS, ArcGIS, and CloudCompare."
+        />
 
         <div className="grid lg:grid-cols-2 gap-6">
           <div className="space-y-5">

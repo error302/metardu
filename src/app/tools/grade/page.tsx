@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PageHeader } from '@/components/shared/PageHeader'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { gradeSolved } from '@/lib/engine/solution/wrappers/grade'
@@ -24,13 +25,11 @@ export default function GradeCalculator() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">Gradient Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-1">
-        Gradient percentage, ratio, and slope angle between two reduced levels
-      </p>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
-        Survey Regulations 1994 &nbsp;|&nbsp; RDM 1.1 (2025) &nbsp;|&nbsp; Survey Act Cap 299
-      </p>
+      <PageHeader
+        title="Gradient Calculator"
+        subtitle="Gradient percentage, ratio, and slope angle between two reduced levels"
+        reference="Survey Regulations 1994 | RDM 1.1 (2025) | Survey Act Cap 299"
+      />
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="card">

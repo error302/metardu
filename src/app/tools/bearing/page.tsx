@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PageHeader } from '@/components/shared/PageHeader';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer';
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder';
 import { bearingSolvedFromCoords, backBearingSolved } from '@/lib/engine/solution/wrappers/bearing';
@@ -29,13 +30,11 @@ export default function BearingCalculator() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">Bearing Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-1">
-        WCB (Whole Circle Bearing) and Quadrant Bearing from coordinates or back bearing
-      </p>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
-        Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; WCB in degrees 0–360°
-      </p>
+      <PageHeader
+        title="Bearing Calculator"
+        subtitle="WCB (Whole Circle Bearing) and Quadrant Bearing from coordinates or back bearing"
+        reference="Survey Regulations 1994 | Survey Act Cap 299 | WCB in degrees 0–360°"
+      />
 
       <div className="flex gap-4 mb-6">
         <button onClick={() => { setMode('coords'); setSteps(null); setSolutionTitle(undefined); }} className={`btn ${mode === 'coords' ? 'btn-primary' : 'btn-secondary'}`}>

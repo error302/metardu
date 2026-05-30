@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { cutFillVolumeFromSignedSections, volumeFromSections } from '@/lib/engine/volume';
 
 interface InclinedLeg {
@@ -281,8 +282,10 @@ export default function MiningSurveyPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">⛏ Mining Survey Tools</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Underground survey, volume calculations, and blast hole layout</p>
+      <PageHeader
+        title="⛏ Mining Survey Tools"
+        subtitle="Underground survey, volume calculations, and blast hole layout"
+      />
 
       <div className="flex gap-2 mb-6 flex-wrap">
         {[

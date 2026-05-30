@@ -9,6 +9,7 @@ import { bowditchAdjustmentSolvedFromResult, transitAdjustmentSolvedFromResult }
 import { computeTraverseAccuracy } from '@/lib/reports/traverseAccuracy'
 import { buildPrintDocument, openPrint } from '@/lib/print/buildPrintDocument'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
+import { PageHeader } from '@/components/shared/PageHeader'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -268,14 +269,11 @@ ${azmSection}`
   return (
     <div className="w-full max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-8">
 
-      {/* Page header */}
-      <h1 className="text-3xl font-bold mb-1">Traverse Adjustment</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-1">
-        Closed traverse adjustment — Bowditch (Compass) Rule or Transit Rule
-      </p>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
-        RDM 1.1 (2025) Table 5.1 &nbsp;|&nbsp; Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299
-      </p>
+      <PageHeader
+        title="Traverse Adjustment"
+        subtitle="Closed traverse adjustment — Bowditch (Compass) Rule or Transit Rule"
+        reference="RDM 1.1 (2025) Table 5.1 | Survey Regulations 1994 | Survey Act Cap 299"
+      />
 
       {/* Hint bar */}
       <div className="mb-4 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-muted)] flex flex-wrap gap-x-6 gap-y-1">

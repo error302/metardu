@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PageHeader } from '@/components/shared/PageHeader';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer';
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder';
 import { distanceBearingSolvedFromCoords, slopeReductionSolved } from '@/lib/engine/solution/wrappers/distance';
@@ -31,13 +32,11 @@ export default function DistanceCalculator() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">Distance &amp; Bearing Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-1">
-        WCB and horizontal distance from coordinates, or slope distance reduction
-      </p>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
-        Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; WCB (Whole Circle Bearing)
-      </p>
+      <PageHeader
+        title="Distance & Bearing Calculator"
+        subtitle="WCB and horizontal distance from coordinates, or slope distance reduction"
+        reference="Survey Regulations 1994 | Survey Act Cap 299 | WCB (Whole Circle Bearing)"
+      />
 
       <div className="flex gap-4 mb-6">
         <button onClick={() => { setMode('coords'); setSteps(null); setSolutionTitle(undefined); }} className={`btn ${mode === 'coords' ? 'btn-primary' : 'btn-secondary'}`}>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react'
+import { PageHeader } from '@/components/shared/PageHeader'
 import {
   processBaselineFile,
   validateBaseline,
@@ -56,9 +57,8 @@ export default function GNSSBaselinePage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">GNSS Baseline Processing</h1>
-        <p className="text-[var(--text-muted)] mb-8">Upload RINEX or proprietary GNSS baseline files for processing</p>
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <PageHeader title="GNSS Baseline Processing" subtitle="Upload RINEX or proprietary GNSS baseline files for processing" />
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-4">

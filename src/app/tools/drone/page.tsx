@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { printDroneReport, type DroneReportInput } from '@/lib/print/droneReportPrint';
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel';
 
@@ -203,8 +204,10 @@ export default function DroneSurveyPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">🚁 Drone/UAV Survey Tools</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">GCP planning, accuracy verification, and survey reports</p>
+      <PageHeader
+        title="🚁 Drone/UAV Survey Tools"
+        subtitle="GCP planning, accuracy verification, and survey reports"
+      />
 
       <div className="flex gap-2 mb-6 flex-wrap">
         {[

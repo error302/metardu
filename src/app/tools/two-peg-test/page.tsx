@@ -4,6 +4,7 @@ import { useState } from 'react';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { twoPegTestSolved } from '@/lib/engine/solution/wrappers/twoPegTest'
+import { PageHeader } from '@/components/shared/PageHeader'
 
 export default function TwoPegTestCalculator() {
   const [inputs, setInputs] = useState({
@@ -31,13 +32,11 @@ export default function TwoPegTestCalculator() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">Two Peg Test</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-1">
-        Determine levelling instrument collimation error from two instrument positions
-      </p>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
-        Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; RDM 1.1 (2025)
-      </p>
+      <PageHeader
+        title="Two Peg Test"
+        subtitle="Determine levelling instrument collimation error from two instrument positions"
+        reference="Survey Regulations 1994 | Survey Act Cap 299 | RDM 1.1 (2025)"
+      />
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="card">

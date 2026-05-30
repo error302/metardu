@@ -4,6 +4,7 @@ import { useState } from 'react';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { tacheometrySolved } from '@/lib/engine/solution/wrappers/tacheometry'
+import { PageHeader } from '@/components/shared/PageHeader'
 
 export default function TacheometryCalculator() {
   const [inputs, setInputs] = useState({
@@ -50,13 +51,11 @@ export default function TacheometryCalculator() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">Tacheometry</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-1">
-        Horizontal distance and elevation from staff intercept and vertical angle (stadia method)
-      </p>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
-        Survey Regulations 1994 &nbsp;|&nbsp; RDM 1.1 (2025) Section 5.6 &nbsp;|&nbsp; Survey Act Cap 299
-      </p>
+      <PageHeader
+        title="Tacheometry"
+        subtitle="Horizontal distance and elevation from staff intercept and vertical angle (stadia method)"
+        reference="Survey Regulations 1994 | RDM 1.1 (2025) Section 5.6 | Survey Act Cap 299"
+      />
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="card">

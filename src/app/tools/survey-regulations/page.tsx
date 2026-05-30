@@ -10,18 +10,13 @@ import {
   MEASUREMENT_UNITS,
   PERMITTED_ERRORS
 } from '@/lib/data/kenyaSurveyStandards'
+import { PageHeader } from '@/components/shared/PageHeader'
 
 export default function SurveyRegulationsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div>
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-1">Kenya Survey Standards Reference</h1>
-          <p className="text-sm text-[var(--text-muted)] mb-1">Permitted errors, datums, UTM zones, traverse and levelling accuracy standards, and survey marks</p>
-          <p className="text-xs text-[var(--text-muted)] font-mono">
-            Survey Regulations 1994 (L.N. 168) &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; RDM 1.1 (2025)
-          </p>
-        </div>
+        <PageHeader title="Kenya Survey Standards Reference" subtitle="Permitted errors, datums, UTM zones, traverse and levelling accuracy standards, and survey marks" reference="Survey Regulations 1994 (L.N. 168)  |  Survey Act Cap 299  |  RDM 1.1 (2025)" />
 
         {/* Measurement Units */}
         <section className="mb-8">

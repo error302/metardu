@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PageHeader } from '@/components/shared/PageHeader'
 
 interface TideReading {
   id: number;
@@ -270,8 +271,7 @@ export default function HydrographicSurveyPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">🌊 Hydrographic Survey Tools</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">Bathymetry, tidal corrections, and chart datum conversions</p>
+      <PageHeader title="🌊 Hydrographic Survey Tools" subtitle="Bathymetry, tidal corrections, and chart datum conversions" />
 
       <div className="flex gap-2 mb-6 flex-wrap">
         {[

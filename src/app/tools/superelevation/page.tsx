@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react'
+import { PageHeader } from '@/components/shared/PageHeader'
 
 export default function SuperelevationPage() {
   const [designSpeed, setDesignSpeed] = useState(60)
@@ -12,10 +13,10 @@ export default function SuperelevationPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Superelevation Calculator</h1>
-      <p className="text-sm text-zinc-400 mb-6">
-        Calculate required superelevation rate per KRDM/KeRRA | Formula: e = V²/127R
-      </p>
+      <PageHeader
+        title="Superelevation Calculator"
+        subtitle="Calculate required superelevation rate per KRDM/KeRRA | Formula: e = V²/127R"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">

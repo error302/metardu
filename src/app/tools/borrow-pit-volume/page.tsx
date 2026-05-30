@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react'
+import { PageHeader } from '@/components/shared/PageHeader'
 
 interface GridPoint {
   id: number
@@ -94,10 +95,10 @@ export default function BorrowPitVolumePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Borrow Pit Volume Calculator</h1>
-      <p className="text-sm text-zinc-400 mb-6">
-        Calculate earthwork volumes using the grid method (average end area)
-      </p>
+      <PageHeader
+        title="Borrow Pit Volume Calculator"
+        subtitle="Calculate earthwork volumes using the grid method (average end area)"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">

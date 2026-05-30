@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PageHeader } from '@/components/shared/PageHeader'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { heightOfObjectSolved } from '@/lib/engine/solution/wrappers/heightOfObject'
@@ -37,13 +38,11 @@ export default function HeightOfObjectCalculator() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">Height of Object</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-1">
-        Trigonometric height from horizontal distance and vertical angles to top and base
-      </p>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
-        Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; RDM 1.1 (2025)
-      </p>
+      <PageHeader
+        title="Height of Object"
+        subtitle="Trigonometric height from horizontal distance and vertical angles to top and base"
+        reference="Survey Regulations 1994 | Survey Act Cap 299 | RDM 1.1 (2025)"
+      />
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="card">

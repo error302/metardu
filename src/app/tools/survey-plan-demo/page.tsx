@@ -1,5 +1,6 @@
 import SurveyPlanViewer from '@/components/SurveyPlanViewer'
 import GeometryValidationPanel from '@/components/GeometryValidationPanel'
+import { PageHeader } from '@/components/shared/PageHeader'
 import type { SurveyPlanData } from '@/lib/reports/surveyPlan/types'
 
 const demoData: SurveyPlanData = {
@@ -64,11 +65,11 @@ export default function SurveyPlanDemoPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white px-6 py-4 shadow-sm border-b border-gray-200 flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold">Survey Plan CAD Generator</h1>
-          <p className="text-sm text-gray-500">Live preview of the professional Boundary Identification Plan renderer.</p>
-        </div>
-        <a href="/tools" className="text-sm font-semibold text-blue-600 hover:underline">
+        <PageHeader
+          title="Survey Plan CAD Generator"
+          subtitle="Live preview of the professional Boundary Identification Plan renderer."
+        />
+        <a href="/tools" className="text-sm font-semibold text-blue-600 hover:underline flex-shrink-0">
           ← Back to Tools
         </a>
       </header>

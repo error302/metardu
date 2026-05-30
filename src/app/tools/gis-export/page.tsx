@@ -5,6 +5,7 @@ import { createClient } from '@/lib/api-client/client'
 import { generateGeoJSON } from '@/lib/export/generateGeoJSON'
 import { generateLandXML } from '@/lib/export/generateLandXML'
 import { utmToGeographic } from '@/lib/engine/coordinates'
+import { PageHeader } from '@/components/shared/PageHeader'
 import Link from 'next/link'
 
 function download(content: string, filename: string, mime = 'text/plain') {
@@ -181,15 +182,12 @@ export default function GISExportPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
 
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">GIS data package</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            Export survey data in every GIS format — GeoJSON, KML, LandXML, CSV with CRS declaration.
-            All files are properly georeferenced with the correct coordinate system declared.
-          </p>
-        </div>
+        <PageHeader
+          title="GIS data package"
+          subtitle="Export survey data in every GIS format — GeoJSON, KML, LandXML, CSV with CRS declaration. All files are properly georeferenced with the correct coordinate system declared."
+        />
 
         {/* Project selector */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-5 mb-6">

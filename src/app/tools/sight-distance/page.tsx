@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { KRDM2017, KeRRA } from '@/lib/standards/engineering'
+import { PageHeader } from '@/components/shared/PageHeader'
 
 export default function SightDistancePage() {
   const [designSpeed, setDesignSpeed] = useState(60)
@@ -14,10 +15,10 @@ export default function SightDistancePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Sight Distance Calculator</h1>
-      <p className="text-sm text-zinc-400 mb-6">
-        Calculate Stopping Sight Distance (SSD) and Overtaking Sight Distance (OSD) per KRDM/KeRRA
-      </p>
+      <PageHeader
+        title="Sight Distance Calculator"
+        subtitle="Calculate Stopping Sight Distance (SSD) and Overtaking Sight Distance (OSD) per KRDM/KeRRA"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">

@@ -1,12 +1,13 @@
 import StatutoryWorkbookBuilder from '@/components/StatutoryWorkbookBuilder'
+import { PageHeader } from '@/components/shared/PageHeader'
 
 export default function StatutoryWorkbookPage() {
   return (
-    <main className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">Statutory Computation Workbook</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-8">
-        Generate the 9-sheet field abstract and computation workbook used for formal survey submissions.
-      </p>
+    <main className="max-w-7xl mx-auto px-4 py-8">
+      <PageHeader
+        title="Statutory Computation Workbook"
+        subtitle="Generate the 9-sheet field abstract and computation workbook used for formal survey submissions."
+      />
       <StatutoryWorkbookBuilder />
     </main>
   )

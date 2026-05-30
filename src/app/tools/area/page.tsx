@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Point2D } from '@/lib/engine/types';
+import { PageHeader } from '@/components/shared/PageHeader';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer';
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder';
 import { coordinateAreaSolution, offsetAreaSolution } from '@/lib/engine/solution/wrappers/area';
@@ -69,13 +70,11 @@ export default function AreaCalculator() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">Area Calculator</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-1">
-        Coordinate / Trapezoidal / Simpson&apos;s area computation (Shoelace formula)
-      </p>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-8">
-        Survey Regulations 1994 &nbsp;|&nbsp; Survey Act Cap 299 &nbsp;|&nbsp; RDM 1.1 (2025)
-      </p>
+      <PageHeader
+        title="Area Calculator"
+        subtitle="Coordinate / Trapezoidal / Simpson's area computation (Shoelace formula)"
+        reference="Survey Regulations 1994 | Survey Act Cap 299 | RDM 1.1 (2025)"
+      />
 
       <div className="flex gap-4 mb-6 flex-wrap">
         <button onClick={() => { setMethod('coordinate'); setSteps(null); setSolutionTitle(undefined); }} className={`btn ${method === 'coordinate' ? 'btn-primary' : 'btn-secondary'}`}>
