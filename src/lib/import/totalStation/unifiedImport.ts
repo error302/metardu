@@ -73,16 +73,16 @@ function unknownFormatFallback(
   const rawPoints: UnifiedRawPoint[] = []
 
   // Attempt CSV coordinate extraction as a last resort
-  var lines = content.trim().split('\n')
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim()
+  let lines = content.trim().split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim()
     if (!line) continue
-    var parts = line.split(',')
+    let parts = line.split(',')
     if (parts.length >= 4) {
-      var id = parts[0] ? parts[0].trim() : ''
-      var n = parseFloat(parts[1])
-      var e = parseFloat(parts[2])
-      var el = parseFloat(parts[3])
+      let id = parts[0] ? parts[0].trim() : ''
+      let n = parseFloat(parts[1])
+      let e = parseFloat(parts[2])
+      let el = parseFloat(parts[3])
       if (id && !isNaN(n) && !isNaN(e)) {
         rawPoints.push({
           id: id,

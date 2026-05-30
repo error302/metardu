@@ -428,7 +428,7 @@ export class InstrumentSerialConnection {
         }
       } catch (error) {
         if (this.readLoopActive) {
-          this._stats && (this._stats.errors++)
+          if (this._stats) { this._stats.errors++ }
 
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.setStatus('reconnecting')

@@ -556,7 +556,7 @@ export function isConfigured(): boolean {
   return !!process.env.NVIDIA_API_KEY
 }
 
-export default {
+const nvidiaService = {
   chat,
   chatStream,
   visionChat,
@@ -567,3 +567,5 @@ export default {
   interpretFieldPhoto,
   isConfigured,
 }
+
+export default nvidiaService

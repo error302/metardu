@@ -70,7 +70,7 @@ export function traverseToLSQ(
   const fixedPoints = stations
     .filter(function(s) { return s.isFixed && s.easting !== undefined && s.northing !== undefined })
     .map(function(s) {
-      var pt: any = {
+      let pt: any = {
         name: s.name,
         easting: s.easting,
         northing: s.northing,
@@ -84,7 +84,7 @@ export function traverseToLSQ(
       return !s.isFixed && s.easting !== undefined && s.northing !== undefined
     })
     .map(function(s) {
-      var pt: any = {
+      let pt: any = {
         name: s.name,
         easting: s.easting,
         northing: s.northing,
@@ -95,7 +95,7 @@ export function traverseToLSQ(
 
   // Convert traverse observations to LSQ Observation format
   const lsqObservations: Observation[] = observations.map(function(obs) {
-    var lsqObs: any = {
+    let lsqObs: any = {
       from: obs.from,
       to: obs.to,
     }
@@ -177,7 +177,7 @@ export function observationsToLSQ(
   }>
 ): Observation[] {
   return observations.map(function(obs) {
-    var lsqObs: any = {
+    let lsqObs: any = {
       from: obs.from,
       to: obs.to,
     }

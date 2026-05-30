@@ -87,7 +87,7 @@ export default function GCPExportPage() {
   const togglePoint = (name: string) => {
     setSelectedPoints(prev => {
       const s = new Set(Array.from(prev))
-      s.has(name) ? s.delete(name) : s.add(name)
+      if (s.has(name)) { s.delete(name) } else { s.add(name) }
       return s
     })
   }

@@ -338,9 +338,9 @@ function adjustAllFixed(
 
 function multiplyAtWA(A: number[][], W: number[], n: number): number[][] {
   const result = Array.from({ length: n }, function() { return new Array(n).fill(0) })
-  for (var i = 0; i < n; i++) {
-    for (var j = 0; j < n; j++) {
-      for (var k = 0; k < A.length; k++) {
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      for (let k = 0; k < A.length; k++) {
         result[i][j] += A[k][i] * W[k] * A[k][j]
       }
     }
@@ -349,9 +349,9 @@ function multiplyAtWA(A: number[][], W: number[], n: number): number[][] {
 }
 
 function multiplyAtWl(A: number[][], W: number[], l: number[], n: number): number[] {
-  var result = new Array(n).fill(0)
-  for (var i = 0; i < n; i++) {
-    for (var k = 0; k < A.length; k++) {
+  let result = new Array(n).fill(0)
+  for (let i = 0; i < n; i++) {
+    for (let k = 0; k < A.length; k++) {
       result[i] += A[k][i] * W[k] * l[k]
     }
   }
@@ -359,35 +359,35 @@ function multiplyAtWl(A: number[][], W: number[], l: number[], n: number): numbe
 }
 
 function solveLinearSystem(A: number[][], b: number[]): number[] {
-  var n = b.length
-  var M = A.map(function(row, i) { return row.concat([b[i]]) })
+  let n = b.length
+  let M = A.map(function(row, i) { return row.concat([b[i]]) })
 
-  for (var col = 0; col < n; col++) {
+  for (let col = 0; col < n; col++) {
     // Partial pivoting
-    var maxRow = col
-    for (var row = col + 1; row < n; row++) {
+    let maxRow = col
+    for (let row = col + 1; row < n; row++) {
       if (Math.abs(M[row][col]) > Math.abs(M[maxRow][col])) maxRow = row
     }
-    var tmp = M[col]; M[col] = M[maxRow]; M[maxRow] = tmp
+    let tmp = M[col]; M[col] = M[maxRow]; M[maxRow] = tmp
 
-    var pivot = M[col][col]
+    let pivot = M[col][col]
     if (Math.abs(pivot) < 1e-12) {
       throw new Error('Singular normal equation matrix — check network geometry (possibly under-determined)')
     }
 
-    for (var row2 = col + 1; row2 < n; row2++) {
-      var factor = M[row2][col] / pivot
-      for (var k = col; k <= n; k++) {
+    for (let row2 = col + 1; row2 < n; row2++) {
+      let factor = M[row2][col] / pivot
+      for (let k = col; k <= n; k++) {
         M[row2][k] -= factor * M[col][k]
       }
     }
   }
 
   // Back substitution
-  var x = new Array(n).fill(0)
-  for (var i = n - 1; i >= 0; i--) {
+  let x = new Array(n).fill(0)
+  for (let i = n - 1; i >= 0; i--) {
     x[i] = M[i][n]
-    for (var j = i + 1; j < n; j++) {
+    for (let j = i + 1; j < n; j++) {
       x[i] -= M[i][j] * x[j]
     }
     x[i] /= M[i][i]
@@ -396,32 +396,32 @@ function solveLinearSystem(A: number[][], b: number[]): number[] {
 }
 
 function invertMatrix(A: number[][], n: number): number[][] {
-  var M = A.map(function(row, i) {
-    var aug = row.slice()
-    for (var j = 0; j < n; j++) aug.push(0)
+  let M = A.map(function(row, i) {
+    let aug = row.slice()
+    for (let j = 0; j < n; j++) aug.push(0)
     aug[n + i] = 1
     return aug
   })
 
-  for (var col = 0; col < n; col++) {
-    var maxRow = col
-    for (var row = col + 1; row < n; row++) {
+  for (let col = 0; col < n; col++) {
+    let maxRow = col
+    for (let row = col + 1; row < n; row++) {
       if (Math.abs(M[row][col]) > Math.abs(M[maxRow][col])) maxRow = row
     }
-    var tmp2 = M[col]; M[col] = M[maxRow]; M[maxRow] = tmp2
+    let tmp2 = M[col]; M[col] = M[maxRow]; M[maxRow] = tmp2
 
-    var pivot = M[col][col]
+    let pivot = M[col][col]
     if (Math.abs(pivot) < 1e-12) {
       return Array.from({ length: n }, function() { return new Array(n).fill(0) })
     }
 
-    for (var k = 0; k < 2 * n; k++) {
+    for (let k = 0; k < 2 * n; k++) {
       M[col][k] /= pivot
     }
-    for (var row3 = 0; row3 < n; row3++) {
+    for (let row3 = 0; row3 < n; row3++) {
       if (row3 === col) continue
-      var factor2 = M[row3][col]
-      for (var k2 = 0; k2 < 2 * n; k2++) {
+      let factor2 = M[row3][col]
+      for (let k2 = 0; k2 < 2 * n; k2++) {
         M[row3][k2] -= factor2 * M[col][k2]
       }
     }

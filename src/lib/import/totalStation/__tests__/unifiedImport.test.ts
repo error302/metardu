@@ -331,27 +331,27 @@ describe('Unified Total Station Import', () => {
 
   describe('Cross-format consistency', () => {
     it('all adapters return stationName as a string', () => {
-      var results = [
+      let results = [
         adaptGSI(GSI_SAMPLE),
         adaptSDR(SDR_SAMPLE),
         adaptSouth(SOUTH_COORD_SAMPLE),
         adaptTopcon(TOPCON_SAMPLE),
         adaptJobXML(JOBXML_SAMPLE),
       ]
-      for (var i = 0; i < results.length; i++) {
+      for (let i = 0; i < results.length; i++) {
         expect(typeof results[i].stationName).toBe('string')
       }
     })
 
     it('all adapters have non-null errors and warnings arrays', () => {
-      var results = [
+      let results = [
         adaptGSI(GSI_SAMPLE),
         adaptSDR(SDR_SAMPLE),
         adaptSouth(SOUTH_COORD_SAMPLE),
         adaptTopcon(TOPCON_SAMPLE),
         adaptJobXML(JOBXML_SAMPLE),
       ]
-      for (var i = 0; i < results.length; i++) {
+      for (let i = 0; i < results.length; i++) {
         expect(Array.isArray(results[i].errors)).toBe(true)
         expect(Array.isArray(results[i].warnings)).toBe(true)
       }

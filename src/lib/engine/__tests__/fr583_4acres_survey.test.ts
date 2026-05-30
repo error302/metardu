@@ -226,22 +226,22 @@ describe('F/R 583/58 — Datum Join Inverse Computations', () => {
 
   it('should verify back-bearings for all datum joins', () => {
     DATUM_JOINS.forEach(function(join) {
-      var forward = distanceBearing(STATIONS[join.from], STATIONS[join.to]);
-      var reverse = distanceBearing(STATIONS[join.to], STATIONS[join.from]);
-      var backBear = backBearing(forward.bearing);
+      let forward = distanceBearing(STATIONS[join.from], STATIONS[join.to]);
+      let reverse = distanceBearing(STATIONS[join.to], STATIONS[join.from]);
+      let backBear = backBearing(forward.bearing);
       expect(reverse.bearing).toBeCloseTo(backBear, 3);
     });
   });
 
   it('should verify the F/R boundary closes within acceptable tolerance', () => {
-    var boundaryOrder = ['CN4', 'CN4a', 'RD21', 'RDa1', 'RDa2', 'Ne1', 'Ne2', 'Ne3', 'Ne4', 'Ne5'];
-    var sumDeltaN = 0;
-    var sumDeltaE = 0;
+    let boundaryOrder = ['CN4', 'CN4a', 'RD21', 'RDa1', 'RDa2', 'Ne1', 'Ne2', 'Ne3', 'Ne4', 'Ne5'];
+    let sumDeltaN = 0;
+    let sumDeltaE = 0;
 
-    for (var i = 0; i < boundaryOrder.length; i++) {
-      var from = STATIONS[boundaryOrder[i]];
-      var to = STATIONS[boundaryOrder[(i + 1) % boundaryOrder.length]];
-      var result = distanceBearing(from, to);
+    for (let i = 0; i < boundaryOrder.length; i++) {
+      let from = STATIONS[boundaryOrder[i]];
+      let to = STATIONS[boundaryOrder[(i + 1) % boundaryOrder.length]];
+      let result = distanceBearing(from, to);
       sumDeltaN += result.deltaN;
       sumDeltaE += result.deltaE;
     }
@@ -249,7 +249,7 @@ describe('F/R 583/58 — Datum Join Inverse Computations', () => {
     // Linear misclosure should be near zero for a consistent coordinate list.
     // Real-world coordinates may have rounding inconsistencies between sheets,
     // so we allow up to 2m for a ~4.2 km perimeter.
-    var misclosure = Math.sqrt(sumDeltaN * sumDeltaN + sumDeltaE * sumDeltaE);
+    let misclosure = Math.sqrt(sumDeltaN * sumDeltaN + sumDeltaE * sumDeltaE);
     expect(misclosure).toBeLessThan(2.0);
   });
 });
@@ -262,8 +262,8 @@ describe('F/R 583/58 — Datum Consistency Verification', () => {
    */
   it('should verify all datum joins match plan values within rounding tolerance', () => {
     DATUM_JOINS.forEach(function(join) {
-      var result = distanceBearing(STATIONS[join.from], STATIONS[join.to]);
-      var planBearing = parseDMSString(join.planBearingDMS);
+      let result = distanceBearing(STATIONS[join.from], STATIONS[join.to]);
+      let planBearing = parseDMSString(join.planBearingDMS);
 
       // Distance: most lines match within 1m, but RDa1-RDa2 has a known 6m
       // discrepancy between plan (381.71) and coordinate-derived (387.72) values.
@@ -285,8 +285,8 @@ describe('F/R 583/58 — Datum Consistency Verification', () => {
   });
 
   it('should confirm RD21-RDa1 and CN4a-RD21 share the same bearing', () => {
-    var line1 = distanceBearing(STATIONS.RD21, STATIONS.RDa1);
-    var line2 = distanceBearing(STATIONS.CN4a, STATIONS.RD21);
+    let line1 = distanceBearing(STATIONS.RD21, STATIONS.RDa1);
+    let line2 = distanceBearing(STATIONS.CN4a, STATIONS.RD21);
     expect(line1.bearing).toBeCloseTo(line2.bearing, 2);
     expect(line1.bearing).toBeCloseTo(287.2344, 2); // 287° 14' 04"
   });
@@ -300,115 +300,115 @@ describe('F/R 583/58 — Theoretical Beacon Placement', () => {
    */
 
   it('RD21 to AB3: 102.2m on 287 14 04', () => {
-    var bearing = parseDMSString('287° 14\' 04"');
+    let bearing = parseDMSString('287° 14\' 04"');
     expect(bearing).not.toBeNull();
-    var deltas = bearingDistanceToDelta(bearing!, 102.2);
+    let deltas = bearingDistanceToDelta(bearing!, 102.2);
     expect(deltas.deltaN).toBeCloseTo(30.28, 1);
     expect(deltas.deltaE).toBeCloseTo(-97.61, 1);
-    var computed = polarPoint(STATIONS.RD21, bearing!, 102.2);
+    let computed = polarPoint(STATIONS.RD21, bearing!, 102.2);
     expect(computed.northing).toBeCloseTo(114400.63, 1);
     expect(computed.easting).toBeCloseTo(-4279.98, 1);
   });
 
   it('AB3 to AB4a: 74.49m on 287 14 04', () => {
-    var bearing = parseDMSString('287° 14\' 04"');
+    let bearing = parseDMSString('287° 14\' 04"');
     expect(bearing).not.toBeNull();
-    var computed = polarPoint(STATIONS.AB3, bearing!, 74.49);
+    let computed = polarPoint(STATIONS.AB3, bearing!, 74.49);
     expect(computed.northing).toBeCloseTo(114422.70, 1);
     expect(computed.easting).toBeCloseTo(-4351.13, 1);
   });
 
   it('AB4a to AB4: 6m on 287 14 04', () => {
-    var bearing = parseDMSString('287° 14\' 04"');
+    let bearing = parseDMSString('287° 14\' 04"');
     expect(bearing).not.toBeNull();
-    var computed = polarPoint(STATIONS.AB4a, bearing!, 6);
+    let computed = polarPoint(STATIONS.AB4a, bearing!, 6);
     expect(computed.northing).toBeCloseTo(114424.48, 1);
     expect(computed.easting).toBeCloseTo(-4356.86, 1);
   });
 
   it('AB4 to AB4b: 6m on 174 04 11', () => {
-    var bearing = parseDMSString('174° 04\' 11"');
+    let bearing = parseDMSString('174° 04\' 11"');
     expect(bearing).not.toBeNull();
-    var computed = polarPoint(STATIONS.AB4, bearing!, 6);
+    let computed = polarPoint(STATIONS.AB4, bearing!, 6);
     expect(computed.northing).toBeCloseTo(114418.51, 1);
     expect(computed.easting).toBeCloseTo(-4356.24, 1);
   });
 
   it('AB4b to AB1: 228.8m on 174 04 11', () => {
-    var bearing = parseDMSString('174° 04\' 11"');
+    let bearing = parseDMSString('174° 04\' 11"');
     expect(bearing).not.toBeNull();
-    var computed = polarPoint(STATIONS.AB4b, bearing!, 228.8);
+    let computed = polarPoint(STATIONS.AB4b, bearing!, 228.8);
     expect(computed.northing).toBeCloseTo(114190.94, 1);
     expect(computed.easting).toBeCloseTo(-4332.60, 1);
   });
 
   it('AB1 to AB2: 74m on 84 04 11', () => {
-    var bearing = parseDMSString('84° 04\' 11"');
+    let bearing = parseDMSString('84° 04\' 11"');
     expect(bearing).not.toBeNull();
-    var computed = polarPoint(STATIONS.AB1, bearing!, 74);
+    let computed = polarPoint(STATIONS.AB1, bearing!, 74);
     expect(computed.northing).toBeCloseTo(114198.58, 1);
     expect(computed.easting).toBeCloseTo(-4259.00, 1);
   });
 
   it('AB2 to AB3: 203.14m on 354 04 11 (closure back to AB3)', () => {
-    var bearing = parseDMSString('354° 04\' 11"');
+    let bearing = parseDMSString('354° 04\' 11"');
     expect(bearing).not.toBeNull();
-    var computed = polarPoint(STATIONS.AB2, bearing!, 203.14);
+    let computed = polarPoint(STATIONS.AB2, bearing!, 203.14);
     expect(computed.northing).toBeCloseTo(114400.63, 0); // within ~10mm
     expect(computed.easting).toBeCloseTo(-4279.98, 0);
   });
 
   it('should chain all theoretical computations from RD21 through all new beacons', () => {
     // Starting from RD21, compute each beacon forward and verify against expected
-    var b1 = parseDMSString('287° 14\' 04"');
-    var b2 = parseDMSString('174° 04\' 11"');
-    var b3 = parseDMSString('84° 04\' 11"');
-    var b4 = parseDMSString('354° 04\' 11"');
+    let b1 = parseDMSString('287° 14\' 04"');
+    let b2 = parseDMSString('174° 04\' 11"');
+    let b3 = parseDMSString('84° 04\' 11"');
+    let b4 = parseDMSString('354° 04\' 11"');
     if (b1 === null || b2 === null || b3 === null || b4 === null) {
       throw new Error('Failed to parse bearing strings');
     }
 
     // RD21 → AB3
-    var ab3 = polarPoint(STATIONS.RD21, b1, 102.2);
+    let ab3 = polarPoint(STATIONS.RD21, b1, 102.2);
     expect(ab3.northing).toBeCloseTo(114400.63, 1);
     expect(ab3.easting).toBeCloseTo(-4279.98, 1);
 
     // AB3 → AB4a
-    var ab4a = polarPoint(ab3, b1, 74.49);
+    let ab4a = polarPoint(ab3, b1, 74.49);
     expect(ab4a.northing).toBeCloseTo(114422.70, 1);
     expect(ab4a.easting).toBeCloseTo(-4351.13, 1);
 
     // AB4a → AB4
-    var ab4 = polarPoint(ab4a, b1, 6);
+    let ab4 = polarPoint(ab4a, b1, 6);
     expect(ab4.northing).toBeCloseTo(114424.48, 1);
     expect(ab4.easting).toBeCloseTo(-4356.86, 1);
 
     // AB4 → AB4b
-    var ab4b = polarPoint(ab4, b2, 6);
+    let ab4b = polarPoint(ab4, b2, 6);
     expect(ab4b.northing).toBeCloseTo(114418.51, 1);
     expect(ab4b.easting).toBeCloseTo(-4356.24, 1);
 
     // AB4b → AB1
-    var ab1 = polarPoint(ab4b, b2, 228.8);
+    let ab1 = polarPoint(ab4b, b2, 228.8);
     expect(ab1.northing).toBeCloseTo(114190.94, 1);
     expect(ab1.easting).toBeCloseTo(-4332.60, 1);
 
     // AB1 → AB2
-    var ab2 = polarPoint(ab1, b3, 74);
+    let ab2 = polarPoint(ab1, b3, 74);
     expect(ab2.northing).toBeCloseTo(114198.58, 1);
     expect(ab2.easting).toBeCloseTo(-4259.00, 1);
 
     // AB2 → AB3 (closure back to AB3)
-    var ab3_check = polarPoint(ab2, b4, 203.14);
+    let ab3_check = polarPoint(ab2, b4, 203.14);
     expect(ab3_check.northing).toBeCloseTo(114400.63, 0);
     expect(ab3_check.easting).toBeCloseTo(-4279.98, 0);
   });
 
   it('should verify all theoretical deltas match bearingDistanceToDelta', () => {
     THEORETICALS.forEach(function(tc) {
-      var bearing = parseDMSString(tc.bearingDMS);
+      let bearing = parseDMSString(tc.bearingDMS);
       if (bearing === null) return;
-      var deltas = bearingDistanceToDelta(bearing, tc.distance);
+      let deltas = bearingDistanceToDelta(bearing, tc.distance);
       expect(deltas.deltaN).toBeCloseTo(tc.deltaN, 1);
       expect(deltas.deltaE).toBeCloseTo(tc.deltaE, 1);
     });
@@ -426,8 +426,8 @@ describe('F/R 583/58 — RTK Consistency Checks', () => {
   it('should verify all RTK misclosures are within acceptable limits (<30mm)', () => {
     RTK_CHECKS.forEach(function(check) {
       // Compute actual misclosure from the coordinates (RTK - theoretical)
-      var actualMiscN = (check.rtkN - check.theoreticalN) * 1000; // m → mm
-      var actualMiscE = (check.rtkE - check.theoreticalE) * 1000;
+      let actualMiscN = (check.rtkN - check.theoreticalN) * 1000; // m → mm
+      let actualMiscE = (check.rtkE - check.theoreticalE) * 1000;
 
       // Verify magnitude matches (sign conventions may differ)
       expect(Math.abs(actualMiscN)).toBeCloseTo(Math.abs(check.misclosureN_mm), 0);
@@ -440,11 +440,11 @@ describe('F/R 583/58 — RTK Consistency Checks', () => {
   });
 
   it('should compute the maximum linear misclosure across all new beacons', () => {
-    var maxLinearMisclosure = 0;
-    var worstStation = '';
+    let maxLinearMisclosure = 0;
+    let worstStation = '';
 
     RTK_CHECKS.forEach(function(check) {
-      var linear = Math.sqrt(
+      let linear = Math.sqrt(
         check.misclosureN_mm * check.misclosureN_mm +
         check.misclosureE_mm * check.misclosureE_mm
       );
@@ -460,21 +460,21 @@ describe('F/R 583/58 — RTK Consistency Checks', () => {
   });
 
   it('should verify RMS of all RTK misclosures is within acceptable limits', () => {
-    var sumSqMisclosure = 0;
+    let sumSqMisclosure = 0;
     RTK_CHECKS.forEach(function(check) {
       sumSqMisclosure += check.misclosureN_mm * check.misclosureN_mm + check.misclosureE_mm * check.misclosureE_mm;
     });
 
-    var rms = Math.sqrt(sumSqMisclosure / RTK_CHECKS.length);
+    let rms = Math.sqrt(sumSqMisclosure / RTK_CHECKS.length);
     // RMS should be well under 20mm for a good GNSS RTK survey
     expect(rms).toBeLessThan(20);
   });
 
   it('should verify all individual linear misclosures are sub-3cm class', () => {
     // Count how many beacons have <20mm linear misclosure
-    var sub20mm = 0;
+    let sub20mm = 0;
     RTK_CHECKS.forEach(function(check) {
-      var linear = Math.sqrt(
+      let linear = Math.sqrt(
         check.misclosureN_mm * check.misclosureN_mm +
         check.misclosureE_mm * check.misclosureE_mm
       );
@@ -502,7 +502,7 @@ describe('F/R 583/58 — Parcel Area Computation', () => {
   it('should compute Parcel A area (new subdivision approximately 1.619 Ha)', () => {
     // Parcel A is bounded by the new beacons
     // Order: AB1, AB2, AB3, AB4a, AB4, AB4b
-    var parcelA = [
+    let parcelA = [
       STATIONS.AB1,
       STATIONS.AB2,
       STATIONS.AB3,
@@ -511,7 +511,7 @@ describe('F/R 583/58 — Parcel Area Computation', () => {
       STATIONS.AB4b,
     ];
 
-    var result = coordinateArea(parcelA);
+    let result = coordinateArea(parcelA);
 
     // Parcel A should be approximately 1.619 Ha (16,190 m²)
     expect(result.areaHa).toBeGreaterThan(1.5);
@@ -523,7 +523,7 @@ describe('F/R 583/58 — Parcel Area Computation', () => {
   });
 
   it('should compute the full F/R boundary area (approximately 93.81 Ha)', () => {
-    var frBoundary = [
+    let frBoundary = [
       STATIONS.CN4,
       STATIONS.CN4a,
       STATIONS.RD21,
@@ -536,7 +536,7 @@ describe('F/R 583/58 — Parcel Area Computation', () => {
       STATIONS.Ne5,
     ];
 
-    var result = coordinateArea(frBoundary);
+    let result = coordinateArea(frBoundary);
 
     // F/R total area should be approximately 93.81 Ha (938,100 m²)
     expect(result.areaHa).toBeGreaterThan(88);
@@ -544,7 +544,7 @@ describe('F/R 583/58 — Parcel Area Computation', () => {
   });
 
   it('should verify the centroid of the F/R boundary is reasonable', () => {
-    var frBoundary = [
+    let frBoundary = [
       STATIONS.CN4,
       STATIONS.CN4a,
       STATIONS.RD21,
@@ -557,7 +557,7 @@ describe('F/R 583/58 — Parcel Area Computation', () => {
       STATIONS.Ne5,
     ];
 
-    var result = coordinateArea(frBoundary);
+    let result = coordinateArea(frBoundary);
 
     // Centroid should be roughly in the middle of the boundary
     expect(result.centroid.northing).toBeGreaterThan(113000);
@@ -567,7 +567,7 @@ describe('F/R 583/58 — Parcel Area Computation', () => {
   });
 
   it('should compute Parcel A centroid within the expected bounds', () => {
-    var parcelA = [
+    let parcelA = [
       STATIONS.AB1,
       STATIONS.AB2,
       STATIONS.AB3,
@@ -576,7 +576,7 @@ describe('F/R 583/58 — Parcel Area Computation', () => {
       STATIONS.AB4b,
     ];
 
-    var result = coordinateArea(parcelA);
+    let result = coordinateArea(parcelA);
 
     // Parcel A centroid should be near the middle of the new beacons
     // All new beacons have N around 114190-114424 and E around -4259 to -4357
@@ -589,14 +589,14 @@ describe('F/R 583/58 — Parcel Area Computation', () => {
 
 describe('F/R 583/58 — Forward Traverse Around F/R Boundary', () => {
   it('should close the traverse around the F/R boundary', () => {
-    var boundaryOrder = ['CN4', 'CN4a', 'RD21', 'RDa1', 'RDa2', 'Ne1', 'Ne2', 'Ne3', 'Ne4', 'Ne5'];
-    var bearings = DATUM_JOINS.map(function(j) {
-      var b = parseDMSString(j.planBearingDMS);
+    let boundaryOrder = ['CN4', 'CN4a', 'RD21', 'RDa1', 'RDa2', 'Ne1', 'Ne2', 'Ne3', 'Ne4', 'Ne5'];
+    let bearings = DATUM_JOINS.map(function(j) {
+      let b = parseDMSString(j.planBearingDMS);
       return b !== null ? b : 0;
     });
-    var distances = DATUM_JOINS.map(function(j) { return j.planDistance; });
+    let distances = DATUM_JOINS.map(function(j) { return j.planDistance; });
 
-    var result = forwardTraverse({
+    let result = forwardTraverse({
       start: { name: 'CN4', northing: STATIONS.CN4.northing, easting: STATIONS.CN4.easting },
       stations: boundaryOrder.slice(1),
       distances: distances,
@@ -607,9 +607,9 @@ describe('F/R 583/58 — Forward Traverse Around F/R Boundary', () => {
     expect(result.totalDistance).toBeCloseTo(4219, -1);
 
     // End point should be close to CN4
-    var misclosureN = Math.abs(result.end.northing - STATIONS.CN4.northing);
-    var misclosureE = Math.abs(result.end.easting - STATIONS.CN4.easting);
-    var linearMisclosure = Math.sqrt(misclosureN * misclosureN + misclosureE * misclosureE);
+    let misclosureN = Math.abs(result.end.northing - STATIONS.CN4.northing);
+    let misclosureE = Math.abs(result.end.easting - STATIONS.CN4.easting);
+    let linearMisclosure = Math.sqrt(misclosureN * misclosureN + misclosureE * misclosureE);
 
     // Allow generous tolerance — plan distances have rounding and the RDa1-RDa2
     // join has a known 6m discrepancy between plan and coordinate-derived distance
@@ -624,8 +624,8 @@ describe('F/R 583/58 — Bowditch Adjustment of New Beacon Traverse', () => {
    */
 
   it('should adjust the Parcel A traverse and verify closure', () => {
-    var parcelAOrder = ['AB1', 'AB2', 'AB3', 'AB4a', 'AB4', 'AB4b'];
-    var bearings = [
+    let parcelAOrder = ['AB1', 'AB2', 'AB3', 'AB4a', 'AB4', 'AB4b'];
+    let bearings = [
       parseDMSString('84° 04\' 11"'),
       parseDMSString('354° 04\' 11"'),
       parseDMSString('287° 14\' 04"'),
@@ -633,16 +633,16 @@ describe('F/R 583/58 — Bowditch Adjustment of New Beacon Traverse', () => {
       parseDMSString('174° 04\' 11"'),
       parseDMSString('174° 04\' 11"'),
     ];
-    var distances = [74, 203.14, 74.49, 6, 6, 228.8];
+    let distances = [74, 203.14, 74.49, 6, 6, 228.8];
 
-    var points = parcelAOrder.map(function(name) {
+    let points = parcelAOrder.map(function(name) {
       return { name: name, northing: STATIONS[name].northing, easting: STATIONS[name].easting };
     });
 
     // Filter out null bearings
-    var validBearings = bearings.map(function(b) { return b !== null ? b : 0; });
+    let validBearings = bearings.map(function(b) { return b !== null ? b : 0; });
 
-    var result = bowditchAdjustment({
+    let result = bowditchAdjustment({
       points: points,
       distances: distances,
       bearings: validBearings,
@@ -653,7 +653,7 @@ describe('F/R 583/58 — Bowditch Adjustment of New Beacon Traverse', () => {
     expect(result.totalDistance).toBeCloseTo(592.43, 0);
 
     // The theoretical coordinates are already consistent, so misclosure should be small
-    var linearMisclosure = result.linearError;
+    let linearMisclosure = result.linearError;
     expect(linearMisclosure).toBeLessThan(0.5); // < 500mm for theoretical coords
 
     // Precision ratio should be excellent (1:1000+ for <0.5m error over 592m)
@@ -665,26 +665,26 @@ describe('F/R 583/58 — Bowditch Adjustment of New Beacon Traverse', () => {
 describe('F/R 583/58 — Traverse Precision Evaluation', () => {
   it('should evaluate the F/R boundary traverse against cadastral standard (1:5000)', () => {
     // Use a generous 2m misclosure estimate for the 4.2km boundary
-    var evalResult = evaluateTraverseClosure(2.0, 4219, 'cadastral');
+    let evalResult = evaluateTraverseClosure(2.0, 4219, 'cadastral');
 
     expect(evalResult.minimum).toBe(5000);
     // 4219/2 = 2109.5 — does not meet 1:5000 with 2m misclosure
     // But with 0.84m misclosure (4219/5000), it would pass
-    var passingResult = evaluateTraverseClosure(0.84, 4219, 'cadastral');
+    let passingResult = evaluateTraverseClosure(0.84, 4219, 'cadastral');
     expect(passingResult.passes).toBe(true);
     expect(passingResult.ratio).toBeGreaterThanOrEqual(5000);
   });
 
   it('should evaluate the new beacon traverse against cadastral standard', () => {
-    var evalResult = evaluateTraverseClosure(0.5, 592.43, 'cadastral');
+    let evalResult = evaluateTraverseClosure(0.5, 592.43, 'cadastral');
     expect(evalResult.ratio).toBe(Math.round(592.43 / 0.5)); // approximately 1185
   });
 });
 
 describe('F/R 583/58 — Arc 1960 Datum Parameters', () => {
   it('should have Arc 1960 registered for Kenya', () => {
-    var kenyaDatums = getDatumByCountry('kenya');
-    var arc1960 = kenyaDatums.find(function(d) { return d.name === 'Arc 1960'; });
+    let kenyaDatums = getDatumByCountry('kenya');
+    let arc1960 = kenyaDatums.find(function(d) { return d.name === 'Arc 1960'; });
 
     expect(arc1960).toBeDefined();
     expect(arc1960!.ellipsoid).toBe('Clarke 1880 (RGS)');
@@ -694,7 +694,7 @@ describe('F/R 583/58 — Arc 1960 Datum Parameters', () => {
   });
 
   it('should have correct Helmert transformation parameters for Arc 1960', () => {
-    var arc1960 = DATUM_REGISTRY.ARC1960;
+    let arc1960 = DATUM_REGISTRY.ARC1960;
     // Kenya-specific TOWGS84 parameters from EPSG:1284 (~6m accuracy)
     // Previous values (-157, -2, -299) were from the default EPSG:1122 (~35m accuracy)
     expect(arc1960.dx).toBe(-160);
@@ -703,7 +703,7 @@ describe('F/R 583/58 — Arc 1960 Datum Parameters', () => {
   });
 
   it('should confirm Arc 1960 projection is UTM Zone 36/37', () => {
-    var arc1960 = DATUM_REGISTRY.ARC1960;
+    let arc1960 = DATUM_REGISTRY.ARC1960;
     expect(arc1960.projection).toBe('UTM Zone 36/37');
   });
 });
@@ -711,8 +711,8 @@ describe('F/R 583/58 — Arc 1960 Datum Parameters', () => {
 describe('F/R 583/58 — Bearing String Formatting and Parsing', () => {
   it('should format bearings matching the survey report style', () => {
     // Test 287 degrees 14 minutes 4 seconds
-    var bearing = 287 + 14 / 60 + 4 / 3600;
-    var formatted = bearingToString(bearing);
+    let bearing = 287 + 14 / 60 + 4 / 3600;
+    let formatted = bearingToString(bearing);
 
     expect(formatted).toContain('287');
     expect(formatted).toContain('14');
@@ -721,7 +721,7 @@ describe('F/R 583/58 — Bearing String Formatting and Parsing', () => {
   });
 
   it('should parse all bearing strings from the datum joins sheet', () => {
-    var bearingStrings = [
+    let bearingStrings = [
       '287° 14\' 04"',
       '176° 51\' 40"',
       '109° 46\' 42"',
@@ -737,7 +737,7 @@ describe('F/R 583/58 — Bearing String Formatting and Parsing', () => {
     ];
 
     bearingStrings.forEach(function(str) {
-      var parsed = parseDMSString(str);
+      let parsed = parseDMSString(str);
       expect(parsed).not.toBeNull();
       expect(parsed).toBeGreaterThan(0);
       expect(parsed).toBeLessThanOrEqual(360);
@@ -746,11 +746,11 @@ describe('F/R 583/58 — Bearing String Formatting and Parsing', () => {
 
   it('should round-trip parse and format key bearings', () => {
     // Parse → format → parse should be consistent
-    var original = '287° 14\' 04"';
-    var parsed = parseDMSString(original);
+    let original = '287° 14\' 04"';
+    let parsed = parseDMSString(original);
     expect(parsed).not.toBeNull();
-    var formatted = bearingToString(parsed!);
-    var reparsed = parseDMSString(formatted);
+    let formatted = bearingToString(parsed!);
+    let reparsed = parseDMSString(formatted);
     expect(reparsed).not.toBeNull();
     expect(reparsed!).toBeCloseTo(parsed!, 3);
   });
@@ -758,24 +758,24 @@ describe('F/R 583/58 — Bearing String Formatting and Parsing', () => {
 
 describe('F/R 583/58 — Side Length Summary', () => {
   it('should compute all F/R boundary side lengths from coordinates', () => {
-    var sides = DATUM_JOINS.map(function(j) {
-      var result = distanceBearing(STATIONS[j.from], STATIONS[j.to]);
+    let sides = DATUM_JOINS.map(function(j) {
+      let result = distanceBearing(STATIONS[j.from], STATIONS[j.to]);
       return { from: j.from, to: j.to, distance: result.distance };
     });
 
     // Verify total perimeter from coordinates
-    var totalPerimeter = sides.reduce(function(sum, s) { return sum + s.distance; }, 0);
+    let totalPerimeter = sides.reduce(function(sum, s) { return sum + s.distance; }, 0);
     // Coordinate-derived perimeter may differ from plan distances due to rounding
     expect(totalPerimeter).toBeGreaterThan(4200);
     expect(totalPerimeter).toBeLessThan(4300);
 
     // Longest side should be RD21-RDa1 (846.49m)
-    var longest = sides.reduce(function(max, s) { return s.distance > max.distance ? s : max; }, sides[0]);
+    let longest = sides.reduce(function(max, s) { return s.distance > max.distance ? s : max; }, sides[0]);
     expect(longest.from + '-' + longest.to).toBe('RD21-RDa1');
     expect(longest.distance).toBeCloseTo(846.49, 1);
 
     // Shortest side should be one of the short theoretical lines or RDa2-Ne1
-    var shortest = sides.reduce(function(min, s) { return s.distance < min.distance ? s : min; }, sides[0]);
+    let shortest = sides.reduce(function(min, s) { return s.distance < min.distance ? s : min; }, sides[0]);
     expect(shortest.distance).toBeLessThan(200);
   });
 });

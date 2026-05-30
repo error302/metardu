@@ -22,7 +22,7 @@ import {
  * Convert DMS components (degrees, minutes, seconds) to decimal degrees.
  */
 function dmsToDecimal(deg: number, min: number, sec: number): number {
-  var sign = deg < 0 ? -1 : 1
+  let sign = deg < 0 ? -1 : 1
   return sign * (Math.abs(deg) + min / 60 + sec / 3600)
 }
 
@@ -49,8 +49,8 @@ export function adaptSouth(content: string): UnifiedImportResult {
   // ── Observations ────────────────────────────────────────────────────
 
   const observations: UnifiedObservation[] = parsed.observations.map(function (obs) {
-    var hz = dmsToDecimal(obs.hclDeg, obs.hclMin, obs.hclSec)
-    var va = dmsToDecimal(obs.vaDeg, obs.vaMin, obs.vaSec)
+    let hz = dmsToDecimal(obs.hclDeg, obs.hclMin, obs.hclSec)
+    let va = dmsToDecimal(obs.vaDeg, obs.vaMin, obs.vaSec)
 
     return {
       stationId: obs.station,
@@ -74,7 +74,7 @@ export function adaptSouth(content: string): UnifiedImportResult {
 
   // ── Station name (first observation's station if available) ─────────
 
-  var stationName = ''
+  let stationName = ''
   if (observations.length > 0) {
     stationName = observations[0].stationId
   } else if (rawPoints.length > 0) {
@@ -83,9 +83,9 @@ export function adaptSouth(content: string): UnifiedImportResult {
 
   // ── Station coordinates (look up station name in raw points) ────────
 
-  var stationCoords: UnifiedImportResult['stationCoords'] = undefined
+  let stationCoords: UnifiedImportResult['stationCoords'] = undefined
   if (stationName) {
-    var match = rawPoints.find(function (p) { return p.id === stationName })
+    let match = rawPoints.find(function (p) { return p.id === stationName })
     if (match) {
       stationCoords = {
         easting: match.easting,

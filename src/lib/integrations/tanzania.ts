@@ -7,7 +7,7 @@
 export interface TanzaniaPlot {
   plotNumber: string
   sheetNumber: string
-  district: String
+  district: string
   region: string
   ward: string
   village?: string
