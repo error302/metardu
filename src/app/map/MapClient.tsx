@@ -5,9 +5,9 @@ import {
   MapPinIcon, PencilIcon, HexagonIcon, CircleIcon,
   GlobeIcon, CrosshairIcon, SatelliteIcon, MapIcon,
   TrashIcon, BoltIcon, CompassIcon, RulerIcon,
-  LayersIcon, EditIcon, UndoIcon, RedoIcon,
+  EditIcon, UndoIcon, RedoIcon,
   TargetIcon, DownloadIcon, ChevronLeftIcon, ChevronRightIcon,
-  SearchIcon, LocationDotIcon,
+  LocationDotIcon,
   MoonIcon, TerrainIcon, GridIcon, OpacityIcon,
 } from '@/components/map/PremiumIcons'
 import { useMapHistory } from '@/hooks/useMapHistory'
@@ -30,7 +30,6 @@ import { handleCoordSearch } from '@/app/map/utils/coordSearch'
  *  - Drag & Drop file import
  *  - MousePosition (live EPSG:21037 coords)
  *  - Geolocation (GPS tracking)
- *  - OverviewMap mini-navigation
  *  - Cluster source for project markers
  *  - Multiple basemaps (OSM, Satellite, Dark, Terrain)
  *
@@ -96,7 +95,7 @@ export default function MapClient() {
   const mouseCoordThrottleRef = useRef(0)
   const [gpsTracking, setGpsTracking] = useState(false)
   const [gpsPos, setGpsPos] = useState<{ lon: number; lat: number; accuracy: number } | null>(null)
-  const [showOverview, setShowOverview] = useState(false)
+  // showOverview removed — no longer needed
   const [featureCount, setFeatureCount] = useState(0)
   const [importMsg, setImportMsg] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
@@ -193,11 +192,8 @@ export default function MapClient() {
           import('ol/style/Text'),
           import('ol/style/Icon'),
           import('ol/control/ScaleLine'),
-          import('ol/control/FullScreen'),
           import('ol/control/Attribution'),
           import('ol/control/MousePosition'),
-          import('ol/control/OverviewMap'),
-          import('ol/control/ZoomSlider'),
           import('ol/interaction/Draw'),
           import('ol/interaction/Select'),
           import('ol/interaction/Snap'),
@@ -215,8 +211,8 @@ export default function MapClient() {
 
         const [Map, View, TileLayer, VectorLayer, LayerGroup, OSM, XYZ, VectorSource,
           Cluster, Feature, Point, Polygon, CircleGeom, LineString, Style, Fill, Stroke,
-          CircleStyle, Text, Icon, ScaleLine, FullScreen, Attribution, MousePosition,
-          OverviewMap, ZoomSlider, Draw, Select, Snap, Modify, DragAndDrop, Overlay, Geolocation,
+          CircleStyle, Text, Icon, ScaleLine, Attribution, MousePosition,
+          Draw, Select, Snap, Modify, DragAndDrop, Overlay, Geolocation,
           GeoJSONFormat, KMLFormat, WKTFormat] = imports.map(i => ('default' in i ? i.default : i)) as any[]
 
         olModules.VectorSource = VectorSource
@@ -465,16 +461,15 @@ export default function MapClient() {
           target: mapRef.current,
           layers: [basemaps.osm, basemaps.satellite, basemaps.dark, basemaps.terrain, clusterLayer, drawLayer, measureLayer],
           view: new View({
-            center: proj.fromLonLat([37.0, -1.0]),
-            zoom: 7,
-            maxZoom: 22,
-            minZoom: 2,
+            center: proj.fromLonLat([37.91, 0.02]),  // geographic centre of Kenya
+            zoom: 6,
+            maxZoom: 20,      // cadastral-grade close zoom
+            minZoom: 6,       // never zoom out past full-Kenya view
+            extent: proj.transformExtent([33.90, -4.72, 41.92, 4.62], 'EPSG:4326', 'EPSG:3857'),
           }),
           controls: [
             new ScaleLine({ units: 'metric' }),
-            new FullScreen(),
             new Attribution({ collapsible: true }),
-            new ZoomSlider(),
             new MousePosition({
               coordinateFormat: (coord: number[]) => {
                 const lon = coord[0]
@@ -956,30 +951,13 @@ export default function MapClient() {
   }, [gpsTracking])
 
   // ══════════════════════════════════════════════════════════════════
-  //  OVERVIEW MAP TOGGLE
+  //  RESET TO KENYA
   // ══════════════════════════════════════════════════════════════════
-  const toggleOverview = useCallback(async () => {
+  const resetToKenya = useCallback(() => {
     if (!mapInstance.current) return
-    const { default: OverviewMap } = await import('ol/control/OverviewMap')
-    const { default: TileLayer } = await import('ol/layer/Tile')
-    const { default: OSM } = await import('ol/source/OSM')
-
-    if (showOverview) {
-      const controls = mapInstance.current.getControls()
-      controls.forEach((c: any) => {
-        if (c instanceof OverviewMap) mapInstance.current.removeControl(c)
-      })
-      setShowOverview(false)
-    } else {
-      const overview = new OverviewMap({
-        layers: [new TileLayer({ source: new OSM() })],
-        collapsed: false,
-        className: 'ol-overviewmap',
-      })
-      mapInstance.current.addControl(overview)
-      setShowOverview(true)
-    }
-  }, [showOverview])
+    const KENYA_EXTENT = mapInstance.current.getView().getExtent()
+    mapInstance.current.getView().fit(KENYA_EXTENT, { duration: 400, padding: [0, 0, 0, 0] })
+  }, [])
 
   // ══════════════════════════════════════════════════════════════════
   //  NAVIGATION
@@ -1141,20 +1119,25 @@ export default function MapClient() {
               </button>
             )}
 
-            {/* Search - top right */}
-            <div className="absolute top-3 right-3 z-20">
-              <div className="relative">
-                <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="lat, lon or E N"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCoordSearchLocal()}
-                  className="w-44 h-8 bg-[#0d0d14]/90 backdrop-blur-xl border border-white/[0.06] rounded-xl pl-8 pr-3 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors shadow-lg"
-                />
-              </div>
+            {/* Zoom controls - top right */}
+            <div className="fixed top-[16px] right-[16px] z-[1000] flex flex-col gap-1">
+              <button onClick={() => mapInstance.current?.getView().animate({zoom: mapInstance.current.getView().getZoom() + 1}, {duration: 200})}
+                className="w-10 h-10 bg-[#14141e]/90 backdrop-blur-sm border border-[var(--border-color)] rounded-lg text-white flex items-center justify-center hover:bg-[#E8841A]/20 transition-colors"
+                title="Zoom In">+</button>
+              <button onClick={() => mapInstance.current?.getView().animate({zoom: Math.max(6, mapInstance.current.getView().getZoom() - 1)}, {duration: 200})}
+                className="w-10 h-10 bg-[#14141e]/90 backdrop-blur-sm border border-[var(--border-color)] rounded-lg text-white flex items-center justify-center hover:bg-[#E8841A]/20 transition-colors"
+                title="Zoom Out">−</button>
+              <button onClick={resetToKenya}
+                className="w-10 h-10 bg-[#14141e]/90 backdrop-blur-sm border border-[#E8841A]/30 rounded-lg text-[#E8841A] flex items-center justify-center hover:bg-[#E8841A]/20 transition-colors text-xs font-bold"
+                title="Reset to Kenya">KE</button>
             </div>
+
+            {/* GPS status badge - bottom left */}
+            {gpsTracking && gpsPos && (
+              <div className="fixed bottom-[16px] left-[16px] z-[1000] bg-[#14141e]/90 backdrop-blur-sm border border-green-500/30 rounded-lg px-3 py-1.5 text-xs text-green-400 font-mono">
+                GPS ±{Math.round(gpsPos.accuracy)}m
+              </div>
+            )}
 
             {/* Project count - top center */}
             {projectCount > 0 && (
@@ -1355,7 +1338,6 @@ export default function MapClient() {
                     {actionButton('Fit to Kenya', <TargetIcon className="w-4 h-4" active={false} />, false, fitToKenya)}
                     {actionButton('Fit to Drawn', <CrosshairIcon className="w-4 h-4" active={false} />, false, fitToDrawn)}
                     {actionButton('GPS Tracking', <LocationDotIcon className="w-4 h-4" active={gpsTracking} />, gpsTracking, toggleGPS)}
-                    {actionButton('Overview Map', <LayersIcon className="w-4 h-4" active={showOverview} />, showOverview, toggleOverview)}
                   </div>
 
                   {/* ── EXPORT ── */}
@@ -1399,17 +1381,8 @@ export default function MapClient() {
                   )}
                 </div>
 
-                {/* GPS status */}
-                <div className="flex items-center gap-2">
-                  {gpsTracking && gpsPos && (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                      <span className="text-[10px] text-green-400/80 font-mono">
-                        {gpsPos.accuracy.toFixed(0)}m
-                      </span>
-                    </div>
-                  )}
-                </div>
+                {/* Right side placeholder for potential future info */}
+                <div />
               </div>
 
               {/* Drag-drop hint */}

@@ -77,8 +77,14 @@ export const authOptions: AuthOptions = {
           // Successful login — clear failure count
           await recordSuccessfulLogin(credentials.email, clientIp)
 
-          // Determine role — priority: ADMIN_EMAILS > users.role > surveyor_profiles.role > 'surveyor'
+          // Determine role — priority: hardcoded owner > ADMIN_EMAILS > users.role > surveyor_profiles.role > 'surveyor'
           let role = user.role || 'surveyor'
+
+          // Platform owner always gets super_admin regardless of env var or DB state
+          if (user.email.toLowerCase() === 'mohameddosho20@gmail.com') {
+            role = 'super_admin'
+          }
+
           const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean)
           if (adminEmails.includes(user.email.toLowerCase())) {
             role = 'super_admin'

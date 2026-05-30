@@ -54,6 +54,10 @@ function getPoolConfig() {
 export function getPool(): Pool {
   if (!pool) {
     pool = new Pool(getPoolConfig())
+    // Auto-migrate: ensure payment_history has plan_id and transaction_id columns
+    // (Migration 004 may not have been applied in all environments)
+    pool.query(`ALTER TABLE payment_history ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(255)`).catch(() => {})
+    pool.query(`ALTER TABLE payment_history ADD COLUMN IF NOT EXISTS plan_id VARCHAR(50)`).catch(() => {})
   }
   return pool
 }
