@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { BeaconType, BeaconStatus } from '@/types/deedPlan'
 import { BEACON_DEFINITIONS, getBeaconSymbolSVG, BEACON_CATEGORIES } from '@/lib/compute/beaconSymbols'
+import { sanitizeHtml } from '@/lib/security/sanitize'
 
 interface BeaconPickerProps {
   value: BeaconType
@@ -56,11 +57,10 @@ export default function BeaconPicker({ value, status, onChange, disabled }: Beac
                   ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                 `}
               >
-                // TODO: Sanitize with DOMPurify before rendering: import DOMPurify from 'dompurify'
                 <div 
                   className="w-6 h-6"
                   dangerouslySetInnerHTML={{ 
-                    __html: getBeaconSymbolSVG(type, 'FOUND', 12) 
+                    __html: sanitizeHtml(getBeaconSymbolSVG(type, 'FOUND', 12)) 
                   }} 
                 />
                 <span className="text-[10px] mt-1 text-[var(--text-muted)]">{def.shortCode}</span>

@@ -1,4 +1,4 @@
-import { SurveyDataset, ObservationType } from '../observations/types'
+import type { SurveyDataset, SurveyObservation } from '../workflows/workflowEngine'
 import { detectSurveyType } from './surveyDetector'
 
 export interface CSVInterpretResult {
@@ -50,7 +50,6 @@ export function interpretCSV(csvText: string): CSVInterpretResult {
         value1: values.value1,
         value2: values.value2,
         value3: values.value3,
-        raw: Object.values(row).join(',')
       }
     })
     
@@ -122,7 +121,7 @@ function valuesForSurveyType(
     }
   }
 
-  if (surveyType === 'boundary') {
+  if (surveyType === 'coordinates') {
     return {
       value1: readNumber(row, ['Easting', 'easting', 'X', 'x']),
       value2: readNumber(row, ['Northing', 'northing', 'Y', 'y']),
@@ -138,11 +137,11 @@ function mapRowToType(
   row: Record<string, string>,
   headers: string[],
   surveyType: SurveyDataset['surveyType']
-): ObservationType {
+): SurveyObservation['type'] {
   const h = headers.map((h: any) => h.toLowerCase())
   if (surveyType === 'traverse') return 'BEARING'
   if (surveyType === 'radiation') return h.includes('bearing') || h.includes('wcb') || h.includes('azimuth') ? 'BEARING' : 'ANGLE'
-  if (surveyType === 'boundary') return 'COORDINATE'
+  if (surveyType === 'coordinates') return 'COORDINATE'
   if (h.includes('bs') && row['BS']) return 'BS'
   if (h.includes('fs') && row['FS']) return 'FS'
   if (h.includes('is') && row['IS']) return 'IS'

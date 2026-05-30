@@ -74,7 +74,12 @@ export default function PricingPage() {
     if (paypalLoadedRef.current) return
 
     const script = document.createElement('script')
-    script.src = 'https://www.paypal.com/sdk/js?client-id=BAA9J-C9OXd6DwVJJyDc2xo0VxriI-EFSgAvs5GI6ooeKPhrzE6GInrQK1Xv0PQBUZKIBWksx4Ob9UDB64&components=hosted-buttons&disable-funding=credit,card'
+    const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || ''
+    if (!clientId) {
+      console.error('PayPal client ID not configured — set NEXT_PUBLIC_PAYPAL_CLIENT_ID')
+      return
+    }
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&components=hosted-buttons&disable-funding=credit,card`
     script.async = true
     script.onload = () => {
       paypalLoadedRef.current = true

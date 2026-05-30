@@ -1,4 +1,4 @@
-import { SurveyDataset } from '../observations/types'
+import { SurveyDataset } from '../workflows/workflowEngine'
 
 export function detectSurveyType(
   headers: string[], 
@@ -30,7 +30,7 @@ export function detectSurveyType(
   
   // Coordinate data
   if (h.includes('easting') && h.includes('northing')) {
-    return 'boundary'
+    return 'coordinates'
   }
   
   return 'unknown'

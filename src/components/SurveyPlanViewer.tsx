@@ -7,6 +7,7 @@ import { FormNo4Renderer } from '@/lib/reports/surveyPlan/formNo4Renderer'
 import { SurveyPlanDataSchema } from '@/lib/validation/surveySchema'
 import ComplianceChecklistModal from '@/components/ComplianceChecklistModal'
 import { AlertCircle, FileCheck, Globe } from 'lucide-react'
+import { sanitizeHtml } from '@/lib/security/sanitize'
 
 interface SurveyPlanViewerProps {
   data: SurveyPlanData
@@ -236,14 +237,12 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
                   transformOrigin: 'top left',
                   position: 'absolute',
                 }}
-                // TODO: Sanitize with DOMPurify before rendering: import DOMPurify from 'dompurify'
-                dangerouslySetInnerHTML={{ __html: svgContent }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(svgContent) }}
               />
             </div>
           ) : (
             <div className="shadow-lg mx-auto" style={{ transform: `scale(${scale})`, transformOrigin: 'top center', width: 'fit-content' }}
-              // TODO: Sanitize with DOMPurify before rendering: import DOMPurify from 'dompurify'
-              dangerouslySetInnerHTML={{ __html: svgContent }} />
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(svgContent) }} />
           )
         ) : (
           <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">No plan data available</div>

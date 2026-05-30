@@ -1,3 +1,34 @@
+/**
+ * Sanitize HTML content using DOMPurify to prevent XSS attacks.
+ * Safe for use with dangerouslySetInnerHTML.
+ */
+export function sanitizeHtml(dirty: string): string {
+  // Dynamic import to avoid SSR issues — DOMPurify requires `window`
+  if (typeof window !== 'undefined') {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const DOMPurify = require('dompurify')
+    return DOMPurify.sanitize(dirty, {
+      ALLOWED_TAGS: [
+        'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+        'ul', 'ol', 'li', 'a', 'strong', 'em', 'b', 'i', 'u',
+        'br', 'hr', 'img', 'svg', 'style', 'blockquote', 'pre', 'code',
+        'sub', 'sup', 'section', 'article', 'header', 'footer', 'nav',
+      ],
+      ALLOWED_ATTR: [
+        'class', 'id', 'style', 'href', 'src', 'alt', 'title',
+        'width', 'height', 'viewBox', 'xmlns', 'd', 'fill', 'stroke',
+        'stroke-width', 'transform', 'x', 'y', 'cx', 'cy', 'r',
+        'border', 'cellpadding', 'cellspacing', 'colspan', 'rowspan',
+        'text-align', 'font-size', 'font-weight', 'font-style',
+        'background', 'color', 'padding', 'margin', 'vertical-align',
+      ],
+    })
+  }
+  // Server-side fallback: strip all tags
+  return dirty.replace(/<[^>]*>/g, '')
+}
+
 export function sanitizeText(input: string): string {
   return input
     .trim()
