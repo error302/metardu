@@ -108,7 +108,7 @@ export function apiHandler(
       userId = (session?.user as { id?: string })?.id ?? 'anonymous'
 
       let body: unknown = undefined
-      if (req.method !== 'GET' && req.method !== 'HEAD' && !rawBody) {
+      if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'DELETE' && !rawBody) {
         try {
           body = await req.json()
         } catch {
