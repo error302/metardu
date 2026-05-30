@@ -58,6 +58,7 @@ const TOOLS = [
     category: 'Road Design',
     items: [
       { label: 'Road Design', href: '/tools/road-design' },
+      { label: 'Chainage', href: '/tools/chainage' },
       { label: 'Earthworks', href: '/tools/earthworks' },
       { label: 'Horizontal Curves', href: '/tools/curves' },
       { label: 'Tacheometry', href: '/tools/tacheometry' },
@@ -125,7 +126,7 @@ export function QuickCompute() {
       {/* ── FAB Button ────────────────────────────────────────── */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-32 right-4 md:bottom-16 md:right-6 z-[41] flex items-center gap-2.5
+        className="fixed bottom-40 right-4 md:bottom-16 md:right-6 z-[41] flex items-center gap-2.5
                    bg-gradient-to-r from-[#FFB84D] to-[#E8841A] text-white
                    px-5 py-3 rounded-2xl font-semibold text-sm
                    shadow-[0_0_20px_rgba(232,132,26,0.3)]
@@ -151,7 +152,7 @@ export function QuickCompute() {
 
         {/* Panel */}
         <div
-          className={`w-80 bg-[#0d0d14]/98 backdrop-blur-xl border-l border-white/[0.06]
+          className={`w-full sm:w-80 bg-[#0d0d14]/98 backdrop-blur-xl border-l border-white/[0.06]
                       overflow-y-auto custom-scrollbar-quick
                       transition-transform duration-300 ease-out
                       ${open ? 'translate-x-0' : 'translate-x-full'}`}

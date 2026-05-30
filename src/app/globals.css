@@ -398,7 +398,7 @@ html {
 
 /* --- Spacer so content isn't hidden behind the fixed bottom nav ------ */
 .mobile-nav-spacer {
-  padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 768px) {
   .mobile-nav-spacer {

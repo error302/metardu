@@ -159,7 +159,7 @@ export const authOptions: AuthOptions = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 7 * 24 * 60 * 60, // 7 days (reduced from 30 for security)
   },
   secret: (() => {
     const s = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
@@ -169,6 +169,7 @@ export const authOptions: AuthOptions = {
         console.warn('[auth] AUTH_SECRET not set during build — using dummy. Set it before running the app.')
         return 'build-time-dummy-secret-do-not-use-in-production'
       }
+      // Fail hard at runtime — never use a dummy secret in production
       throw new Error('AUTH_SECRET is not set. Run: openssl rand -base64 32')
     }
     return s

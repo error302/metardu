@@ -288,7 +288,7 @@ export default function NewProjectPage() {
                     className={`flex-1 py-3 text-sm font-medium transition-colors ${
                       hemisphere === h ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}>
-                    {h === 'N' ? 'N — Northern' : 'S — Southern'}
+                    {h === 'N' ? <><span className="sm:hidden">N</span><span className="hidden sm:inline">N — Northern</span></> : <><span className="sm:hidden">S</span><span className="hidden sm:inline">S — Southern</span></>}
                   </button>
                 ))}
               </div>
