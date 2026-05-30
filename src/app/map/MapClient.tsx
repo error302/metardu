@@ -1103,7 +1103,7 @@ export default function MapClient() {
   // ══════════════════════════════════════════════════════════════════
   return (
     <MapErrorBoundary>
-    <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden" style={{ '--map-bottom-offset': isMobile ? '56px' : '0px' } as React.CSSProperties}>
+    <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden" style={{ '--map-bottom-offset': isMobile ? '64px' : '0px' } as React.CSSProperties}>
 
       {/* ── MAP CONTAINER ────────────────────────────────────────────── */}
       <div className="w-full h-full relative">
