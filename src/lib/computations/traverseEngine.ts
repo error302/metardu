@@ -228,7 +228,11 @@ export function computeTraverse(input: {
   const stations = [input.openingStation, ...obs.map((o: any) => o.station)]
 
   for (let i = 0; i < obs.length; i++) {
-    // Source: Basak, Chapter 10 — WCB(n) = WCB(n-1) + interiorAngle
+    // Source: Basak, Chapter 10 — WCB propagation using observed angles
+    // WCB(forward) = back_bearing(previous line) + observed angle (clockwise from BS to FS)
+    // back_bearing(x) = x + 180°
+    // currentWCB is initialized as the backsight bearing (already a back bearing),
+    // then after each iteration it is updated to the back bearing of the computed line.
     const angle = reduced[i].meanAngle * Math.PI / 180
     let wcb = currentWCB + angle
     if (wcb < 0) wcb += 2 * Math.PI
@@ -259,7 +263,13 @@ export function computeTraverse(input: {
       adjLat: lat,
     })
 
-    currentWCB = wcb
+    // FIXED: Update currentWCB to the BACK BEARING of the line just computed.
+    // Previous version set currentWCB = wcb (forward bearing), which caused all
+    // subsequent WCBs to be wrong by 180°. The correct propagation requires:
+    //   WCB_next = back_bearing(WCB_current) + angle_next
+    // Source: Basak Ch.10, Ghilani & Wolf Ch.10
+    currentWCB = wcb + Math.PI
+    if (currentWCB >= 2 * Math.PI) currentWCB -= 2 * Math.PI
   }
 
   const closingE = input.closingEasting

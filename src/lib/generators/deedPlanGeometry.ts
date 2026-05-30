@@ -124,21 +124,21 @@ export async function computeDeedPlanGeometry(
 
   const adjusted: AdjustedStation[] = [];
   let cumDist = 0;
-  let adjE = seed?.startE ?? 0;
-  let adjN = seed?.startN ?? 0;
 
+  // FIXED: Standard Bowditch adjustment for a loop traverse.
+  // Each adjusted coordinate = raw coordinate + cumulative correction.
+  // Cumulative correction at point i = -(misclosure / totalDistance) × cumulative_distance_to_i
+  // Source: Basak Ch.11, Ghilani & Wolf Ch.12 — Bowditch (Compass) Rule
   for (let i = 0; i < legs.length; i++) {
     const leg = legs[i];
     cumDist += leg.distance;
-    const kE = closureLinear > 0 ? -(closureE / totalDist) * cumDist : 0;
-    const kN = closureLinear > 0 ? -(closureN / totalDist) * cumDist : 0;
-    adjE = rawCoords[i].e + kE + (seed?.startE ?? 0) - (rawCoords[0]?.e - rawCoords[0].de + kE);
-    adjN = rawCoords[i].n + kN + (seed?.startN ?? 0) - (rawCoords[0]?.n - rawCoords[0].dn + kN);
+    const corrE = closureLinear > 0 ? -(closureE / totalDist) * cumDist : 0;
+    const corrN = closureLinear > 0 ? -(closureN / totalDist) * cumDist : 0;
 
     adjusted.push({
       station: leg.station,
-      easting: parseFloat(adjE.toFixed(3)),
-      northing: parseFloat(adjN.toFixed(3)),
+      easting: rawCoords[i].e + corrE,
+      northing: rawCoords[i].n + corrN,
       beaconNo: leg.beaconNo,
       monument: leg.monument,
       markStatus: leg.markStatus,
