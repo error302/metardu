@@ -25,7 +25,7 @@ export function HydroBook({
         <span className="label">{t('field.hydroNotes')}</span>
       </div>
       <div className="card-body space-y-4">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <table className="table min-w-[980px]">
             <thead className="sticky top-0 z-10">
               <tr>

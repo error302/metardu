@@ -159,7 +159,7 @@ export default function WorkingDiagramClient() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-[380px] border-r bg-white overflow-y-auto p-4">
+        <div className="w-[320px] md:w-[380px] border-r bg-white overflow-y-auto p-4">
           <div className="flex border-b mb-4">
             {tabs.map((tab: any) => (
               <button

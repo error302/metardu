@@ -68,7 +68,7 @@ export function ControlBook({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <table className="table min-w-[1100px]">
             <thead className="sticky top-0 z-10">
               <tr>

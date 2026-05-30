@@ -141,7 +141,7 @@ export default function LevelBook({ projectId }: LevelBookProps) {
           </div>
 
           {/* Field book table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
             <table className="min-w-[700px] w-full text-xs">
               <thead>
                 <tr className="border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]/30">
