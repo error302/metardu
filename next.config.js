@@ -195,9 +195,10 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // NOTE: 'unsafe-inline' removed from script-src — middleware sets nonce-based CSP.
-              // This static header is a fallback for non-middleware routes (e.g. _next/static).
-              `script-src 'self'${isProd ? '' : " 'unsafe-eval'"} 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com`,
+              // 'unsafe-inline' required because next.config.js static headers override
+              // the middleware nonce-based CSP. Next.js RSC inline scripts
+              // (self.__next_f.push) need 'unsafe-inline' to execute.
+              `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"} 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
