@@ -29,9 +29,9 @@ const nextConfig = {
   // Disabled — SWC minifier breaks OpenLayers tile rendering in production builds
   swcMinify: true,  // OPTIMIZED: 20x faster than Terser
 
-  // ─── Image optimization (disabled — VM has no image optimization needs) ───
+  // ─── Image optimization (enabled for web, disabled for Capacitor mobile builds) ───
   images: {
-    unoptimized: process.env.MOBILE_BUILD === 'true' || true,
+    unoptimized: process.env.MOBILE_BUILD === 'true',
     minimumCacheTTL: 60 * 60 * 24,
   },
 

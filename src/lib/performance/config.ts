@@ -1,6 +1,12 @@
-/**
+/*
  * Performance Configuration
  * Optimized settings for production
+ *
+ * NOTE: The `images` section (quality, sizes, formats) is only active when
+ * `images.unoptimized` is false in next.config.js — i.e., when MOBILE_BUILD
+ * is not set.  With Fix 2 applied, web builds now enable Next.js image
+ * optimization, making this config live for web deployments while remaining
+ * inert for Capacitor mobile builds.
  */
 
 export const PERFORMANCE_CONFIG = {

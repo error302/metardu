@@ -1,5 +1,15 @@
 'use client';
 
+/*
+ * PERFORMANCE NOTE — OpenLayers static imports (~700KB vendor-ol chunk)
+ * These 14 OL modules are intentionally imported at the top level rather than
+ * dynamically imported because the webpack splitChunks config already isolates
+ * them into a separate `vendor-ol` chunk.  This page is only navigated to
+ * explicitly (not on the initial load path), so the OL chunk is never part of
+ * the critical-path bundle.  Dynamic imports would add complexity without
+ * measurable benefit since the chunk is already code-split.
+ */
+
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'

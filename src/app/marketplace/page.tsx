@@ -99,7 +99,7 @@ function ImagePicker({
           {images.map((src, i) => (
             <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[var(--border-color)] group">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+              <img src={src} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
               <button
                 onClick={() => remove(i)}
                 className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
@@ -187,7 +187,7 @@ function ImageGallery({ images }: { images: string[] }) {
         onClick={() => setLightbox(true)}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={images[active]} alt="Listing photo" className="w-full h-full object-contain" />
+        <img src={images[active]} alt="Listing photo" className="w-full h-full object-contain" loading="lazy" decoding="async" />
         {images.length > 1 && (
           <>
             <button
@@ -224,7 +224,7 @@ function ImageGallery({ images }: { images: string[] }) {
                 i === active ? 'border-[var(--accent)]' : 'border-[var(--border-color)] hover:border-[var(--accent)]/50'
               }`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="w-full h-full object-cover" />
+              <img src={src} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
             </button>
           ))}
         </div>
@@ -250,7 +250,7 @@ function ImageGallery({ images }: { images: string[] }) {
             </>
           )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={images[active]} alt="" className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg" onClick={e => e.stopPropagation()} />
+          <img src={images[active]} alt="" className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg" loading="lazy" decoding="async" onClick={e => e.stopPropagation()} />
         </div>
       )}
     </>
@@ -672,7 +672,7 @@ function ListingCard({ listing, onClick }: { listing: InstrumentListing; onClick
       <div className="h-44 bg-[var(--bg-secondary)] overflow-hidden relative flex-shrink-0">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <img src={cover} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" decoding="async" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <svg className="w-10 h-10 text-[var(--border-color)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
