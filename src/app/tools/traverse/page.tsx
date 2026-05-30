@@ -117,8 +117,8 @@ export default function TraverseCalculator() {
       const distances = legs.map(l => parseFloat(l.dist)).filter(d => !isNaN(d))
       const bearings  = legs.map(l => dmsToDecimal(l.bearingD, l.bearingM, l.bearingS)).filter(b => !isNaN(b))
 
-      if (points.length < 2 || distances.length < 2 || bearings.length < 2) {
-        setCalcError('Enter at least 2 legs with valid distances, bearings, and at least one known coordinate.')
+      if (points.length < 1 || distances.length < 2 || bearings.length < 2) {
+        setCalcError('Enter at least 2 legs with valid distances, bearings, and at least one known coordinate (first row N & E).')
         return
       }
 
