@@ -46,10 +46,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
+    if (pathname === '/login' || pathname.startsWith('/login/')) return
     if (!localStorage.getItem('metardu_onboarding_seen')) {
       setShowOnboarding(true)
     }
-  }, [])
+  }, [pathname])
 
   const dismissOnboarding = () => {
     localStorage.setItem('metardu_onboarding_seen', 'true')

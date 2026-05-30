@@ -12,7 +12,7 @@ import * as path from 'path'
 const BASE_URL = process.env.BASE_URL || 'https://metardu.duckdns.org'
 const RESULTS_DIR = path.join(__dirname, '../live-test-results')
 const TEST_EMAIL = process.env.TEST_EMAIL || 'mohameddosho20@gmail.com'
-const TEST_PASSWORD = process.env.TEST_PASSWORD || 'Dosho10701$'
+const TEST_PASSWORD = process.env.TEST_PASSWORD || ''
 
 interface TestResult {
   name: string
@@ -40,67 +40,61 @@ async function ensureDevServer() {
   process.exit(1)
 }
 
+async function prepareBrowserContext(page: any) {
+  await page.addInitScript(() => {
+    localStorage.setItem('metardu_onboarding_seen', 'true')
+  })
+}
+
+async function dismissOnboardingIfPresent(page: any) {
+  const overlay = page.locator('.fixed.inset-0.z-50')
+  if (await overlay.count()) {
+    await page.evaluate(() => {
+      localStorage.setItem('metardu_onboarding_seen', 'true')
+    })
+    await page.keyboard.press('Escape').catch(() => {})
+    await overlay.first().click({ force: true, position: { x: 5, y: 5 } }).catch(() => {})
+    await page.waitForTimeout(300)
+  }
+}
+
 async function loginAsTestUser(page: any): Promise<boolean> {
   console.log('Logging in as test user...')
   console.log(`  Email: ${TEST_EMAIL}`)
-  
-  // Navigate to login page
+
+  if (!TEST_PASSWORD) {
+    console.log('  Error: TEST_PASSWORD environment variable is required')
+    return false
+  }
+
+  await prepareBrowserContext(page)
   await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle', timeout: 30000 })
-  
-  // Wait for the form to be present
+  await dismissOnboardingIfPresent(page)
+
   await page.waitForSelector('input[type="email"]', { timeout: 5000 })
-  
-  console.log('  Filling form via JavaScript...')
-  
-  // Use page.evaluate to directly set React state
-  await page.evaluate(({ email, password }: { email: string; password: string }) => {
-    // Find the email input and set its value
-    const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement
-    const passwordInput = document.querySelector('input[type="password"]') as HTMLInputElement
-    
-    if (emailInput) {
-      emailInput.value = email
-      emailInput.dispatchEvent(new Event('input', { bubbles: true }))
-      emailInput.dispatchEvent(new Event('change', { bubbles: true }))
-    }
-    
-    if (passwordInput) {
-      passwordInput.value = password
-      passwordInput.dispatchEvent(new Event('input', { bubbles: true }))
-      passwordInput.dispatchEvent(new Event('change', { bubbles: true }))
-    }
-    
-    console.log('[TEST] Form filled via JavaScript')
-  }, { email: TEST_EMAIL, password: TEST_PASSWORD })
-  
-  // Wait for React to update state
-  await page.waitForTimeout(1000)
-  
-  // Verify values
-  const emailValue = await page.locator('input[type="email"]').inputValue()
-  const passwordValue = await page.locator('input[type="password"]').inputValue()
-  console.log(`    Email value: ${emailValue ? 'SET' : 'EMPTY'}`)
-  console.log(`    Password value: ${passwordValue ? 'SET' : 'EMPTY'}`)
-  
-  // Take screenshot
+
+  console.log('  Filling form...')
+  await page.locator('input[type="email"]').fill(TEST_EMAIL)
+  await page.locator('input[type="password"]').fill(TEST_PASSWORD)
+  await page.locator('input[type="email"]').blur()
+  await page.locator('input[type="password"]').blur()
+
   await takeScreenshot(page, 'login-before-submit')
-  
+
   console.log('  Submitting form...')
-  
-  // Click submit button
   await page.locator('button[type="submit"]').click()
-  
-  // Wait for the page to process
-  await page.waitForTimeout(5000)
-  
-  // Check URL
+
+  try {
+    await page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 20000 })
+  } catch {
+    // fall through to status checks below
+  }
+
   const currentUrl = page.url()
   console.log(`  URL after submit: ${currentUrl}`)
-  
-  // Get page content to check for error messages
+
   const pageText = await page.locator('body').innerText({ timeout: 2000 }).catch(() => '')
-  
-  // Print any error messages visible on page
+
   if (pageText.includes('Incorrect email or password')) {
     console.log('  Error: Incorrect email or password')
   }
@@ -110,15 +104,14 @@ async function loginAsTestUser(page: any): Promise<boolean> {
   if (pageText.includes('Please enter your password')) {
     console.log('  Error: Password validation failed')
   }
-  
-  // Take screenshot after submit
+
   await takeScreenshot(page, 'login-after-submit')
-  
+
   if (currentUrl.includes('/login')) {
     console.log('  Login failed - still on login page')
     return false
   }
-  
+
   console.log('  Login successful!')
   return true
 }
@@ -257,8 +250,8 @@ async function testSurveyReportBuilder(page: any): Promise<TestResult> {
   const start = Date.now()
   console.log('\nTEST: Survey Report Builder')
   try {
-    await page.goto(`${BASE_URL}/tools/survey-report-builder`, { waitUntil: 'networkidle', timeout: 15000 })
-    await page.waitForTimeout(2000)
+    await page.goto(`${BASE_URL}/tools/survey-report-builder`, { waitUntil: 'domcontentloaded', timeout: 30000 })
+    await page.waitForSelector('main, h1, h2', { timeout: 15000 })
     await takeScreenshot(page, 'survey-report-builder')
     const currentUrl = page.url()
     if (currentUrl.includes('/login')) {
@@ -325,6 +318,9 @@ async function runTests() {
   console.log('\nLaunching browser...')
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } })
+  await context.addInitScript(() => {
+    localStorage.setItem('metardu_onboarding_seen', 'true')
+  })
   const page = await context.newPage()
   const results: TestResult[] = []
   
