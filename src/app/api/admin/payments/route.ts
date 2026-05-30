@@ -22,7 +22,7 @@ export const GET = apiHandler(
       db.query(
         `SELECT ph.id, ph.user_id, u.email AS user_email,
                 COALESCE(u.full_name, SPLIT_PART(u.email, '@', 1)) AS user_name,
-                ph.amount, ph.currency, ph.status, ph.method, ph.plan_id, ph.created_at
+                ph.amount, ph.currency, ph.status, ph.payment_method AS method, ph.plan_id, ph.created_at
          FROM payment_history ph
          LEFT JOIN users u ON u.id = ph.user_id
          ORDER BY ph.created_at DESC
