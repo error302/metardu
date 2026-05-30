@@ -188,17 +188,17 @@ export function TraverseBook({
           {travMode === 'link' ? (
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="label">{t('traverse.closeE')}</label>
+                <label className="label">{t('traverse.closeE')} <span className="text-red-400">*</span></label>
                 <input inputMode="decimal" className="input input-sm" value={closeE} onChange={(e) => setCloseE(e.target.value)} />
               </div>
               <div>
-                <label className="label">{t('traverse.closeN')}</label>
+                <label className="label">{t('traverse.closeN')} <span className="text-red-400">*</span></label>
                 <input inputMode="decimal" className="input input-sm" value={closeN} onChange={(e) => setCloseN(e.target.value)} />
               </div>
             </div>
           ) : (
-            <div className="p-3 bg-[var(--bg-primary)]/40 border border-[var(--border-color)] rounded text-xs text-[var(--text-muted)] flex items-center">
-              {travMode === 'closed' ? t('traverse.closedHint') : t('traverse.openHint')}
+            <div className={`p-3 border rounded text-xs flex items-center ${travMode === 'open' ? 'bg-red-900/20 border-red-600 text-red-400' : 'bg-[var(--bg-primary)]/40 border-[var(--border-color)] text-[var(--text-muted)]'}`}>
+              {travMode === 'closed' ? t('traverse.closedHint') : '⚠ Open traverse: No closing control — prohibited for cadastral surveys per Reg. 67 (swinging traverse). Use link or closed mode instead.'}
             </div>
           )}
         </div>

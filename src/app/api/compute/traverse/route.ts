@@ -27,6 +27,15 @@ export const POST = apiHandler(
   async (req, ctx) => {
     const { task, method, surveyType, startPoint, legs, closingPoint } = ctx.body as any
 
+    // Validate: cadastral and control traverses require closing control point per Survey Regulations Reg 60 & 67
+    const requiresClosingControl = ['cadastral', 'control', 'boundary', 'engineering', 'mining'].includes(surveyType)
+    if (task === 'adjust' && requiresClosingControl && !closingPoint) {
+      return NextResponse.json(
+        { error: 'Closing control point is required for cadastral/control/boundary/engineering/mining traverses per Survey Regulations Reg. 60(2)(c) and Reg. 67. Swinging/hanging traverses are prohibited.' },
+        { status: 400 }
+      )
+    }
+
     const { forwardTraverse, bowditchAdjustment, transitAdjustment, evaluateTraverseClosure, TRAVERSE_PRECISION_STANDARDS } = await import('@/lib/engine/traverse')
     const { coordinateArea } = await import('@/lib/engine/area')
 

@@ -80,7 +80,7 @@ export default function TraverseCalculator() {
     { id: 1, name: 'A', n: '5000', e: '3000', dist: '250.0',  bearingD: '45',  bearingM: '32', bearingS: '08' },
     { id: 2, name: 'B', n: '',     e: '',     dist: '180.5',  bearingD: '120', bearingM: '07', bearingS: '24' },
     { id: 3, name: 'C', n: '',     e: '',     dist: '220.75', bearingD: '200', bearingM: '20', bearingS: '44' },
-    { id: 4, name: 'D', n: '',     e: '',     dist: '190.25', bearingD: '290', bearingM: '34', bearingS: '04' },
+    { id: 4, name: 'D', n: '5020', e: '3050', dist: '190.25', bearingD: '290', bearingM: '34', bearingS: '04' },
   ])
   const [method, setMethod]       = useState<'bowditch' | 'transit'>('bowditch')
   const [result, setResult]       = useState<any>(null)
@@ -117,8 +117,8 @@ export default function TraverseCalculator() {
       const distances = legs.map(l => parseFloat(l.dist)).filter(d => !isNaN(d))
       const bearings  = legs.map(l => dmsToDecimal(l.bearingD, l.bearingM, l.bearingS)).filter(b => !isNaN(b))
 
-      if (points.length < 1 || distances.length < 2 || bearings.length < 2) {
-        setCalcError('Enter at least 2 legs with valid distances, bearings, and at least one known coordinate (first row N & E).')
+      if (points.length < 2 || distances.length < 2 || bearings.length < 2) {
+        setCalcError('Enter at least 2 legs with valid distances, bearings, and at least TWO known coordinates (first and last rows N & E). Per Survey Regulations Reg. 60 & 67, a traverse requires both opening and closing control points — swinging/hanging traverses are prohibited.')
         return
       }
 

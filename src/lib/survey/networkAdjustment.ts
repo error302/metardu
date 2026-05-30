@@ -88,6 +88,9 @@ export function adjustNetwork(
   if (fixed.length === 0) {
     throw new Error('At least one fixed control station is required.')
   }
+  if (fixed.length < 2) {
+    warnings.push('Only 1 fixed control station provided. Per Survey Regulations Reg. 60(2)(c) and Reg. 67, cadastral traverses must close between two previously fixed stations. A single fixed point results in an unconstrained network (swinging traverse) — prohibited for cadastral surveys.')
+  }
   if (observations.length === 0) {
     throw new Error('At least one baseline observation is required.')
   }

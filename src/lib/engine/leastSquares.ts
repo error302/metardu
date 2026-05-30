@@ -286,6 +286,12 @@ export function leastSquaresAdjustment(
     }
   }
 
+  // Warn if only 1 fixed point — cadastral surveys require 2 per Survey Regulations Reg 60 & 67
+  const lsqWarnings: string[] = []
+  if (fixedPoints.length < 2) {
+    lsqWarnings.push('Only 1 fixed control point provided. Per Survey Regulations Reg. 60(2)(c) and Reg. 67, cadastral traverses must close between two previously fixed stations. A single fixed point creates a swinging traverse — prohibited for cadastral surveys.')
+  }
+
   const hasAtLeastOneBearing = observations.some((o: any) => typeof o.bearing === 'number')
   if (!hasAtLeastOneBearing && fixedPoints.length < 2) {
     return {

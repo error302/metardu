@@ -242,7 +242,7 @@ export default function TraverseModal({
   const [closingName, setClosingName] = useState('')
   const [closingEasting, setClosingEasting] = useState('')
   const [closingNorthing, setClosingNorthing] = useState('')
-  const [hasClosingControl, setHasClosingControl] = useState(false)
+  const [hasClosingControl, setHasClosingControl] = useState(true)
   
   // Results
   const [results, setResults] = useState<any>(null)
@@ -299,6 +299,11 @@ export default function TraverseModal({
     setLoading(true)
 
     try {
+      // Validate: closed/link traverses require closing control point per Survey Regulations Reg 60 & 67
+      if ((traverseType === 'closed' || traverseType === 'link') && !hasClosingControl) {
+        throw new Error('Closing control point is required for closed/link traverses per Survey Regulations Reg. 60(2)(c) and Reg. 67. Swinging/hanging traverses are prohibited.')
+      }
+
       // Handle Radial Survey
       if (traverseType === 'radial') {
         if (!radialStationId) {
@@ -564,7 +569,7 @@ export default function TraverseModal({
       { id: 4, stationName: 'P4', distance: '100', bearingDeg: '270', bearingMin: '0', bearingSec: '0' },
       { id: 5, stationName: 'P5', distance: '100', bearingDeg: '0', bearingMin: '0', bearingSec: '0' },
     ])
-    setHasClosingControl(false)
+    setHasClosingControl(true)
   }
 
   const handleClose = () => {
@@ -716,10 +721,10 @@ export default function TraverseModal({
               </div>
               
               <div className="text-sm text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/50 rounded p-3">
-                {traverseType === 'closed' && 'Closed Loop: Starts and ends at same control point. Misclosure computed and adjusted.'}
-                {traverseType === 'link' && 'Link Traverse: Connects two known control points. Precision checked against closing control.'}
-                {traverseType === 'open' && 'Open Traverse: Starts at known control, no closing control. Used for roads/pipelines. Running coordinates computed.'}
-                {traverseType === 'radial' && 'Radial Survey: One instrument station observing multiple detail points. Compute coordinates for each ray.'}
+                {traverseType === 'closed' && 'Closed Loop: Starts and ends at same known control point. Misclosure computed and Bowditch-adjusted. A minimum of 2 known control points (opening + closing) are required per Survey Regulations Reg. 60 & 67 — swinging/hanging traverses are prohibited.'}
+                {traverseType === 'link' && 'Link Traverse: Connects two known control points. Precision checked against closing control. Both opening AND closing control points are mandatory per Survey Regulations Reg. 60 & 67.'}
+                {traverseType === 'open' && 'Open Traverse: Starts at known control, no closing control. Used for roads/pipelines where no check is available. Running coordinates only — NOT acceptable for cadastral surveys per Reg. 67 (swinging traverses prohibited).'}
+                {traverseType === 'radial' && 'Radial Survey: One instrument station observing multiple detail points. Compute coordinates for each ray. Requires at least one known control point with backsight orientation.'}
               </div>
             </div>
 
@@ -1009,7 +1014,7 @@ export default function TraverseModal({
               </button>
             </div>
 
-            {/* Section 3: Closing Control - only for closed/link */}
+            {/* Section 3: Closing Control - MANDATORY for closed/link per Survey Regulations Reg 60 & 67 */}
             {(traverseType === 'closed' || traverseType === 'link') && (
             <div className="border border-[var(--border-color)] rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -1020,7 +1025,14 @@ export default function TraverseModal({
                   className="w-4 h-4 text-[var(--accent)]"
                 />
                 <h3 className="text-lg font-semibold text-[var(--text-primary)]">Closing Control Point</h3>
+                <span className="ml-2 px-2 py-0.5 bg-red-900/50 text-red-400 text-xs rounded font-semibold">REQUIRED</span>
               </div>
+
+              {!hasClosingControl && (
+                <div className="mb-3 p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
+                  ⚠ Without a closing control point, this becomes a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A traverse must close between two previously fixed stations.
+                </div>
+              )}
               
               {hasClosingControl && (
                 <>
@@ -1084,7 +1096,7 @@ export default function TraverseModal({
               )}
 
               {!hasClosingControl && (
-                <p className="text-[var(--text-muted)] text-sm">Leave blank for loop traverse</p>
+                <p className="text-red-400 text-sm font-medium">A closing control point is required. Uncheck only if you understand the regulatory implications.</p>
               )}
             </div>
             )}

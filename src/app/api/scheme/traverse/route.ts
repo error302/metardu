@@ -42,6 +42,15 @@ export const POST = apiHandler(
   async (req, ctx) => {
     const { parcel_id, observations, ...config } = ctx.body as z.infer<typeof saveTraverseSchema>
 
+    // Validate: closing control point required per Survey Regulations Reg 60 & 67
+    // Swinging/hanging traverses are prohibited for cadastral surveys
+    if (!config.closing_easting || !config.closing_northing) {
+      return NextResponse.json(
+        { error: 'Closing control point coordinates (closing_easting, closing_northing) are required per Survey Regulations Reg. 60(2)(c) and Reg. 67. A traverse must close between two previously fixed stations. Swinging/hanging traverses are prohibited.' },
+        { status: 400 }
+      )
+    }
+
     const parcelCheck = await db.query(
       `SELECT p.id, p.project_id FROM parcels p
       JOIN projects pr ON pr.id = p.project_id

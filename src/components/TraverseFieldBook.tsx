@@ -357,18 +357,18 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
               </div>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Station (optional)</label>
-              <input value={closingName} onChange={e => setClosingName(e.target.value)} placeholder="CP1"
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Station <span className="text-red-400 font-semibold">(Required)</span></label>
+              <input value={closingName} onChange={e => setClosingName(e.target.value)} placeholder="CP2"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Easting (m)</label>
-              <input value={closingE} onChange={e => setClosingE(e.target.value)} type="number" step="0.001" placeholder="Optional"
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Easting (m) <span className="text-red-400">*</span></label>
+              <input value={closingE} onChange={e => setClosingE(e.target.value)} type="number" step="0.001" placeholder="Required"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Northing (m)</label>
-              <input value={closingN} onChange={e => setClosingN(e.target.value)} type="number" step="0.001" placeholder="Optional"
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Northing (m) <span className="text-red-400">*</span></label>
+              <input value={closingN} onChange={e => setClosingN(e.target.value)} type="number" step="0.001" placeholder="Required"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
           </div>
@@ -436,6 +436,13 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
             className="px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-xs">
             + Add Observation Row
           </button>
+
+          {/* Regulatory warning when no closing control */}
+          {!closingE && !closingN && (
+            <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
+              ⚠ Without closing control coordinates, this is a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A traverse must close between two previously fixed stations. Enter closing control point coordinates above.
+            </div>
+          )}
 
           <div className="flex justify-end">
             <button onClick={handleCompute}

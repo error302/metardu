@@ -140,8 +140,9 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
     if (!config.opening_easting || !config.opening_northing) {
       setError('Opening coordinates are required'); return
     }
-    if (config.is_closed && (!config.closing_easting || !config.closing_northing)) {
-      setError('Closing coordinates are required for closed traverses'); return
+    // Closing control is MANDATORY for all traverses per Survey Regulations Reg 60 & 67
+    if (!config.closing_easting || !config.closing_northing) {
+      setError('Closing coordinates are required per Survey Regulations Reg. 60(2)(c) and Reg. 67. A traverse must close between two previously fixed stations. Swinging/hanging traverses are prohibited.'); return
     }
     const validObs = observations.filter(o => o.station && o.slope_dist)
     if (validObs.length < 1) {
@@ -239,7 +240,14 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
               className="rounded border-[var(--border-color)]"
             />
             Closed Traverse
+            <span className="text-red-400 text-[10px] font-semibold ml-1">(Closing control required by law)</span>
           </label>
+
+          {!config.is_closed && (
+            <div className="p-2 bg-red-900/30 border border-red-600 rounded text-red-400 text-xs">
+              ⚠ Without closing control, this is a swinging traverse — prohibited by Survey Regulations Reg. 67. Enable "Closed Traverse" and provide closing coordinates.
+            </div>
+          )}
 
           {config.is_closed && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-[var(--bg-tertiary)] rounded-lg">
