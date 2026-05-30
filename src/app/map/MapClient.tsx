@@ -16,6 +16,7 @@ import MapErrorBoundary from '@/app/map/MapErrorBoundary'
 import MapGlobalStyles from '@/app/map/MapGlobalStyles'
 import type { BasemapMode, DrawMode, MeasureMode, PopupData } from '@/app/map/mapTypes'
 import { handleCoordSearch } from '@/app/map/utils/coordSearch'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 /**
  * METARDU Global Map Page — Premium OpenLayers Interface
@@ -81,6 +82,7 @@ import { handleCoordSearch } from '@/app/map/utils/coordSearch'
  *  MAIN COMPONENT
  * ══════════════════════════════════════════════════════════════════════ */
 export default function MapClient() {
+  const isMobile = useIsMobile()
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<any>(null)
   const popupRef = useRef<HTMLDivElement | null>(null)
@@ -474,14 +476,18 @@ export default function MapClient() {
               coordinateFormat: (coord: number[]) => {
                 const lon = coord[0]
                 const lat = coord[1]
+                // Guard against undefined/NaN coords (e.g. during projection transform failures)
+                if (lon == null || lat == null || isNaN(lon) || isNaN(lat)) return ''
                 try {
                   const [e, n] = proj.transform(coord, 'EPSG:3857', 'EPSG:21037')
+                  const eSafe = (e != null && !isNaN(e)) ? e : 0
+                  const nSafe = (n != null && !isNaN(n)) ? n : 0
                   const now = Date.now()
                   if (now - mouseCoordThrottleRef.current > 100) {
                     mouseCoordThrottleRef.current = now
-                    setMouseCoord({ lon, lat, e, n })
+                    setMouseCoord({ lon, lat, e: eSafe, n: nSafe })
                   }
-                  return `E: ${e.toFixed(1)}  N: ${n.toFixed(1)}`
+                  return `E: ${eSafe.toFixed(1)}  N: ${nSafe.toFixed(1)}`
                 } catch {
                   const now = Date.now()
                   if (now - mouseCoordThrottleRef.current > 100) {
@@ -1097,7 +1103,7 @@ export default function MapClient() {
   // ══════════════════════════════════════════════════════════════════
   return (
     <MapErrorBoundary>
-    <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden">
+    <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden" style={{ '--map-bottom-offset': isMobile ? '56px' : '0px' } as React.CSSProperties}>
 
       {/* ── MAP CONTAINER ────────────────────────────────────────────── */}
       <div className="w-full h-full relative">
@@ -1359,25 +1365,25 @@ export default function MapClient() {
             )}
 
             {/* ── BOTTOM BAR ── */}
-            <div className="absolute bottom-0 left-0 right-0 z-10">
-              <div className="mx-2 mb-2 h-8 bg-[#0d0d14]/95 backdrop-blur-xl border border-white/[0.06] rounded-lg flex items-center justify-between px-3">
+            <div className="absolute bottom-0 left-0 right-0 z-10 md:bottom-0" style={{ bottom: 'var(--map-bottom-offset, 0px)' }}>
+              <div className="mx-2 mb-2 h-8 bg-[#0d0d14]/95 backdrop-blur-xl border border-white/[0.06] rounded-lg flex items-center justify-between px-2 md:px-3 overflow-x-auto">
                 {/* Coordinates */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 md:gap-3 min-w-0">
                   {mouseCoord ? (
-                    <div className="flex items-center gap-3 text-[11px] font-mono">
+                    <div className="flex items-center gap-1.5 md:gap-3 text-[10px] md:text-[11px] font-mono whitespace-nowrap">
                       <span className="text-gray-600">Lon</span>
-                      <span className="text-gray-300 w-[76px] text-right">{mouseCoord.lon.toFixed(6)}</span>
+                      <span className="text-gray-300 w-[60px] md:w-[76px] text-right">{mouseCoord.lon.toFixed(6)}</span>
                       <span className="text-gray-600">Lat</span>
-                      <span className="text-gray-300 w-[76px] text-right">{mouseCoord.lat.toFixed(6)}</span>
-                      <span className="w-px h-3.5 bg-white/[0.06]" />
+                      <span className="text-gray-300 w-[60px] md:w-[76px] text-right">{mouseCoord.lat.toFixed(6)}</span>
+                      <span className="hidden md:block w-px h-3.5 bg-white/[0.06]" />
                       <span className="text-[#E8841A]/70">E</span>
-                      <span className="text-[#E8841A] font-medium w-[80px] text-right">{mouseCoord.e.toFixed(1)}</span>
+                      <span className="text-[#E8841A] font-medium w-[64px] md:w-[80px] text-right">{mouseCoord.e.toFixed(1)}</span>
                       <span className="text-[#E8841A]/70">N</span>
-                      <span className="text-[#E8841A] font-medium w-[80px] text-right">{mouseCoord.n.toFixed(1)}</span>
-                      <span className="text-gray-600 text-[10px]">EPSG:21037</span>
+                      <span className="text-[#E8841A] font-medium w-[64px] md:w-[80px] text-right">{mouseCoord.n.toFixed(1)}</span>
+                      <span className="text-gray-600 text-[9px] md:text-[10px]">EPSG:21037</span>
                     </div>
                   ) : (
-                    <span className="text-[11px] text-gray-600">Move cursor for coordinates</span>
+                    <span className="text-[10px] md:text-[11px] text-gray-600">Move cursor for coordinates</span>
                   )}
                 </div>
 
