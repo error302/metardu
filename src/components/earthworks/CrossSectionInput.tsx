@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react'
+import { useState, useRef, Fragment } from 'react'
 import { computeCrossSection, computeEarthwork, parseEarthworkCSV, type CrossSectionInput, type CrossSectionComputed, type RoadTemplate, type EarthworkResult, type GroundShot } from '@/lib/computations/earthworksEngine'
 import CrossSectionDrawing from './CrossSectionDrawing'
 import EarthworkQuantitiesTable from './EarthworkQuantitiesTable'
@@ -216,8 +216,8 @@ export default function EarthworksCalculator() {
               <th className="px-2 py-2 text-left border border-[var(--border-color)] text-[var(--text-muted)] font-medium">Ch m</th>
               <th className="px-2 py-2 text-left border border-[var(--border-color)] text-[var(--text-muted)] font-medium">CL RL</th>
               <th className="px-2 py-2 text-left border border-[var(--border-color)] text-[var(--text-muted)] font-medium">Form RL</th>
-              <th className="px-2 py-2 text-left border border-[var(--border-color)] text-[var(--text-muted)] font-medium" colSpan={4}>Left Shots (outer→CL)</th>
-              <th className="px-2 py-2 text-left border border-[var(--border-color)] text-[var(--text-muted)] font-medium" colSpan={4}>Right Shots (CL→outer)</th>
+              <th className="px-2 py-2 text-left border border-[var(--border-color)] text-[var(--text-muted)] font-medium" colSpan={8}>Left Shots (outer→CL)</th>
+              <th className="px-2 py-2 text-left border border-[var(--border-color)] text-[var(--text-muted)] font-medium" colSpan={8}>Right Shots (CL→outer)</th>
               <th className="px-2 py-2 border border-[var(--border-color)]"></th>
             </tr>
             <tr className="bg-[var(--bg-tertiary)]/50">
@@ -225,7 +225,7 @@ export default function EarthworksCalculator() {
               <th className="border border-[var(--border-color)]"></th>
               <th className="border border-[var(--border-color)]"></th>
               <th className="border border-[var(--border-color)]"></th>
-              {['Off', 'RL', 'Off', 'RL', 'Off', 'RL', 'Off', 'RL'].map((h, i) => (
+              {['L1 Off', 'L1 RL', 'L2 Off', 'L2 RL', 'L3 Off', 'L3 RL', 'L4 Off', 'L4 RL', 'R1 Off', 'R1 RL', 'R2 Off', 'R2 RL', 'R3 Off', 'R3 RL', 'R4 Off', 'R4 RL'].map((h, i) => (
                 <th key={i} className="px-2 py-1 border border-[var(--border-color)] text-[var(--text-muted)] font-medium text-[10px]">{h}</th>
               ))}
               <th className="border border-[var(--border-color)]"></th>
@@ -239,13 +239,16 @@ export default function EarthworksCalculator() {
                 <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.clRL} onChange={e => updateRow(row.id, 'clRL', e.target.value)} type="number" step="0.001" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
                 <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.formRL} onChange={e => updateRow(row.id, 'formRL', e.target.value)} type="number" step="0.001" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
                 {[0, 1, 2, 3].map((i: any) => (
-                  <td key={'lo' + i} className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.leftShots[i]?.off || ''} onChange={e => updateShot(row.id, 'left', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                  <Fragment key={'ls' + i}>
+                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.leftShots[i]?.off || ''} onChange={e => updateShot(row.id, 'left', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="Off" /></td>
+                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.leftShots[i]?.rl || ''} onChange={e => updateShot(row.id, 'left', i, 'rl', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="RL" /></td>
+                  </Fragment>
                 ))}
                 {[0, 1, 2, 3].map((i: any) => (
-                  <td key={'ri' + i} className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.rightShots[i]?.off || ''} onChange={e => updateShot(row.id, 'right', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
-                ))}
-                {[0, 1, 2, 3].map((i: any) => (
-                  <td key={'rl' + i} className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.rightShots[i]?.rl || ''} onChange={e => updateShot(row.id, 'right', i, 'rl', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                  <Fragment key={'rs' + i}>
+                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.rightShots[i]?.off || ''} onChange={e => updateShot(row.id, 'right', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="Off" /></td>
+                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.rightShots[i]?.rl || ''} onChange={e => updateShot(row.id, 'right', i, 'rl', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="RL" /></td>
+                  </Fragment>
                 ))}
                 <td className="px-1 py-1 border border-[var(--border-color)]/50">
                   <button onClick={() => removeRow(row.id)} className="text-red-400 hover:text-red-300 text-xs px-1">✕</button>
