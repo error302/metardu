@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
 import path from 'path';
 
 const TMP_DIR = '/tmp/metardu-mbtiles';
@@ -18,6 +17,8 @@ export async function GET(
   const filePath = path.join(TMP_DIR, `${key}.mbtiles`);
 
   try {
+    // Lazy-load better-sqlite3 (optional dep for offline mbtiles feature)
+    const Database = (await import('better-sqlite3')).default;
     const db = new Database(filePath, { readonly: true });
 
     // MBTiles uses TMS y-axis (inverted) — flip y for OpenLayers XYZ

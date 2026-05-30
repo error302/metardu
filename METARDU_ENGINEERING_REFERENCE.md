@@ -2,7 +2,7 @@
 
 > Master reference document for the METARDU project.
 > Professional land surveying computation platform for Kenya / East Africa.
-> Last updated: 2026-05-04
+> Last updated: 2026-05-30
 
 ---
 
@@ -240,7 +240,7 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 - Auto-fixed 150 errors via `eslint --fix` (var to let/const across 40+ files)
 - Manually fixed 3 code issues (side-effect expressions, anonymous export)
 - Suppressed false-positive rules: `no-page-custom-font` (App Router), `@typescript-eslint/no-require-imports` (DOMPurify SSR)
-- Removed conflicting parent-directory ESLint configs (`/home/z/my-project/.eslintrc.json`, `eslint.config.mjs`)
+- Removed conflicting parent-directory ESLint config and broken flat config (`eslint.config.mjs`)
 
 **Result:** `next lint` exits with code 0. Zero errors, zero warnings.
 
@@ -272,8 +272,7 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 - `/project/[id]/documents`: SurveyPlanViewer, SurveyPlanExport, ShapefileExport -> dynamic
 - `/field/map`: GeoPDFImport -> dynamic
 - `/fieldguard/DataCleaner`: CleanedExport -> dynamic
-- Fixed ESLint: restored `.eslintrc.json`, removed broken flat config, removed conflicting parent configs
-- Fixed `sanitize.ts`: DOMPurify require() compatibility
+- Fixed `sanitize.ts`: DOMPurify dynamic import compatibility
 
 **Status:** CLOSED
 
@@ -318,7 +317,7 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 | Phase 13 (6 briefs) | ✅ All compliant | RDM 1.1, SRVY2025-1 |
 | Auth System | ✅ NextAuth only | Dual auth eliminated |
 | Security | ✅ Hardened | DOMPurify, CSP, rate limiting |
-| UI Consistency | ✅ Standardized | PageHeader on 51 tool pages |
+| UI Consistency | ✅ Standardized | PageHeader on 48+ tool pages |
 | Print System | ✅ Complete | Certificate block, 10 print modules |
 | HPC Terminology | ✅ Correct | No HI usage |
 | Max-Width | ✅ Standardized | `max-w-7xl` (2 intentional exceptions) |
@@ -482,7 +481,7 @@ docker compose up -d
 | ESLint not enforced in build | Lint errors may accumulate if committed without running | `ignoreDuringBuilds: true`; run `npm run lint` before committing |
 | TypeScript not checked during build | Type regressions possible if `tsc` not run | `ignoreBuildErrors: true`; TypeScript checked via `tsc --noEmit` separately |
 | No CI/CD pipeline | Manual deployment required | Deployment checklist in Section 7 |
-| Better-sqlite3 still in devDependencies | Unused since PostgreSQL migration | Moved to devDependencies; no native compilation in production Docker build |
+| Better-sqlite3 still in devDependencies | Used by mbtiles route (lazy-loaded) | Moved to devDependencies; dynamic import in mbtiles tile route prevents production crash if uninstalled |
 | Images unoptimized | `images.unoptimized: true` | VM has no image optimization needs |
 | OpenTelemetry build warning | `require-in-the-middle` critical dependency warning | Sentry/Postgres instrumentation chain; cosmetic only, no runtime impact |
 | AUTH_SECRET missing at build time | Build logs show warning | Set via `.env.local` on VM; build uses dummy placeholder |
@@ -537,7 +536,7 @@ docker compose up -d
 | `src/lib/submission/` | SRVY2025-1 submission assembly and validation |
 | `src/lib/parsers/` | CSV, PDF, DXF, BOQ, total station data parsers |
 | `src/lib/payments/` | PayPal, M-Pesa, Stripe payment integrations |
-| `src/lib/rateLimit.ts` | Redis-based rate limiter |
+| `src/lib/security/rateLimit.ts` | Canonical Redis-based general-purpose rate limiter |
 | `src/components/shared/PageHeader.tsx` | Standardized page header component |
 
 ### Type Definitions
