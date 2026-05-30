@@ -625,12 +625,7 @@ export function stoppingSightDistance(V: number, grade: number = 0): number {
  */
 export function passingSightDistance(V: number): number {
   // PSD = 3 * SSD approximately
-  return parseFloat((3 * stoppingSightSightDistance(V)).toFixed(1));
-}
-
-// Helper to avoid naming conflict
-function stoppingSightSightDistance(V: number): number {
-  return stoppingSightDistance(V);
+  return parseFloat((3 * stoppingSightDistance(V)).toFixed(1));
 }
 
 /**

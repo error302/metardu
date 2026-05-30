@@ -98,17 +98,20 @@ export function checkTolerance(
   if (input.traverse) {
     const { precisionRatio, angularMisclosure, linearError, totalDistance, numStations } = input.traverse
 
-    const precision = precisionRatio > 0 ? 1 / precisionRatio : 0
-    
-    checks.push({
+    // FIXED: Previous version used `precision = 1/precisionRatio` which is a tiny decimal
+  // (e.g. 0.0002 for 1:5000), and compared it against config.linearPrecision (e.g. 5000).
+  // This meant the check ALWAYS failed. The precisionRatio IS already the large number
+  // (e.g. 5000 means 1:5000), so compare it directly.
+  // Source: Basak, Ghilani & Wolf — precision ratio = perimeter / linearMisclosure
+  checks.push({
       name: 'Linear Precision',
-      passed: precision >= config.linearPrecision,
-      actual: precision,
+      passed: precisionRatio >= config.linearPrecision,
+      actual: precisionRatio,
       allowable: config.linearPrecision,
       unit: '1:X',
-      message: precision >= config.linearPrecision
-        ? `Precision 1:${precision.toFixed(0)} meets ${config.name} standard (1:${config.linearPrecision})`
-        : `Precision 1:${precision.toFixed(0)} below ${config.name} standard (1:${config.linearPrecision})`
+      message: precisionRatio >= config.linearPrecision
+        ? `Precision 1:${Math.round(precisionRatio)} meets ${config.name} standard (1:${config.linearPrecision})`
+        : `Precision 1:${Math.round(precisionRatio)} below ${config.name} standard (1:${config.linearPrecision})`
     })
 
     if (angularMisclosure !== null) {
@@ -210,13 +213,15 @@ function getPrecisionGrade(checks: ToleranceCheck[]): string {
   const linearCheck = checks.find((c: any) => c.name === 'Linear Precision')
   if (!linearCheck) return 'Unknown'
 
-  const precision = linearCheck.actual
+  // FIXED: linearCheck.actual is now the precision ratio (e.g. 5000 for 1:5000),
+  // not the reciprocal (0.0002). Compare ratio directly against thresholds.
+  const ratio = linearCheck.actual
 
-  if (precision >= 20000) return 'Control Grade'
-  if (precision >= 10000) return 'Engineering Grade'
-  if (precision >= 5000) return 'Cadastral Grade'
-  if (precision >= 3000) return 'Good'
-  if (precision >= 1000) return 'Acceptable'
+  if (ratio >= 20000) return 'Control Grade'
+  if (ratio >= 10000) return 'Engineering Grade'
+  if (ratio >= 5000) return 'Cadastral Grade'
+  if (ratio >= 3000) return 'Good'
+  if (ratio >= 1000) return 'Acceptable'
   return 'Poor - Rejected'
 }
 

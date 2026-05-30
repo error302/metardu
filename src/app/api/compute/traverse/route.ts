@@ -36,6 +36,19 @@ export const POST = apiHandler(
       )
     }
 
+    // Validate: closing control must be a DIFFERENT point from start for cadastral surveys
+    // Source: Basak Ch.10-11 — A closed traverse "begins and ends at points whose positions on plan are known."
+    // With only 1 known point, the traverse has no absolute position check.
+    if (task === 'adjust' && requiresClosingControl && closingPoint) {
+      const coordDiff = Math.abs(closingPoint.easting - startPoint.easting) + Math.abs(closingPoint.northing - startPoint.northing)
+      if (coordDiff < 0.001) {
+        return NextResponse.json(
+          { error: 'Closing control point must be DIFFERENT from starting control point. A cadastral traverse requires minimum 2 distinct known control points for position verification per Survey Regulations Reg. 60(2)(c) and Reg. 67. A 1-point traverse has no absolute position check.' },
+          { status: 400 }
+        )
+      }
+    }
+
     const { forwardTraverse, bowditchAdjustment, transitAdjustment, evaluateTraverseClosure, TRAVERSE_PRECISION_STANDARDS } = await import('@/lib/engine/traverse')
     const { coordinateArea } = await import('@/lib/engine/area')
 

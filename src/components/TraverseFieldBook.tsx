@@ -160,6 +160,19 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
     setError('')
     if (!openingE || !openingN) { setError('Enter opening point coordinates'); return }
     if (!bsDeg) { setError('Enter backsight bearing'); return }
+    // FIX: Closing control coordinates are REQUIRED per Survey Regulations Reg. 60 & 67.
+    // Source: Basak Ch.10-11 — A cadastral traverse must close between two known points.
+    // Without closing control, this is a swinging/hanging traverse with no position check.
+    if (!closingE || !closingN) {
+      setError('Closing control coordinates are REQUIRED per Survey Regulations Reg. 60(2)(c) and Reg. 67. A cadastral traverse must close between two known control points. Without closing control, this is a swinging/hanging traverse — prohibited. Enter closing Easting and Northing above.')
+      return
+    }
+    // Validate: closing point must be DIFFERENT from opening point
+    const coordDiff = Math.abs(parseFloat(closingE) - parseFloat(openingE)) + Math.abs(parseFloat(closingN) - parseFloat(openingN))
+    if (coordDiff < 0.001) {
+      setError('Closing control point must be DIFFERENT from opening control point. A cadastral traverse requires minimum 2 distinct known control points for position verification per Survey Regulations Reg. 60 & 67. A 1-point traverse has no absolute position check.')
+      return
+    }
     const validObs = observations.filter((o: any) => o.station && o.slopeDist)
     if (validObs.length === 0) { setError('At least one valid observation required'); return }
     try {
@@ -438,9 +451,17 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
           </button>
 
           {/* Regulatory warning when no closing control */}
-          {!closingE && !closingN && (
+          {(!closingE || !closingN) && (
             <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
-              ⚠ Without closing control coordinates, this is a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A traverse must close between two previously fixed stations. Enter closing control point coordinates above.
+              ⚠ CLOSING CONTROL IS MANDATORY — Without closing control coordinates, this is a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A cadastral traverse must close between two previously fixed stations (minimum 2 distinct known control points). Enter closing control point coordinates above.
+            </div>
+          )}
+          {/* Warning when closing = opening (1-point traverse) */}
+          {closingE && closingN && openingE && openingN && (
+            Math.abs(parseFloat(closingE) - parseFloat(openingE)) + Math.abs(parseFloat(closingN) - parseFloat(openingN)) < 0.001
+          ) && (
+            <div className="p-3 bg-amber-900/30 border border-amber-600 rounded text-amber-400 text-sm">
+              ⚠ Closing point is the SAME as opening point — this is a 1-point traverse with no absolute position check. For cadastral surveys, minimum 2 DISTINCT known control points are required. The traverse could be shifted/rotated from true position undetected.
             </div>
           )}
 

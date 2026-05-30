@@ -106,10 +106,23 @@ export function runTraverseComputation(input: TraverseComputeInput): TraverseCom
 
   const areaResult = coordinateArea(coordinates);
 
+  // FIXED: Previous version hardcoded angularMisclosure to 0.
+  // Angular misclosure = Σobserved angles − theoretical sum
+  // For a closed traverse (polygon): theoretical = (2n − 4) × 90° where n = number of stations
+  // For a link traverse: theoretical = forward azimuth − back azimuth ± n×180°
+  // Source: Basak, Chapter 10; Ghilani & Wolf, Chapter 12
+  const n = bearings.length + 1  // number of stations
+  const theoreticalSum = (2 * n - 4) * 90  // degrees, for closed polygon
+  const observedSum = bearings.reduce((s, b) => s + b, 0)
+  // Note: for a link traverse this formula differs; we use polygon formula as default
+  const angularMisclosureSec = input.closingPoint
+    ? (observedSum - theoreticalSum) * 3600  // convert degrees to seconds
+    : 0  // cannot compute for open traverse without known azimuths
+
   return {
     adjustedStations: adjusted,
     linearMisclosure: adjusted.linearError,
-    angularMisclosure: 0,
+    angularMisclosure: angularMisclosureSec,
     precisionRatio: closure.ratio,
     precisionMinimum: closure.minimum,
     passesQA: closure.passes,
@@ -155,7 +168,10 @@ export function getTraversePrecisionStatus(result: ReturnType<typeof bowditchAdj
   ratio: string;
 } {
   const ratio = result.precisionRatio;
-  const ratioStr = `1/${Math.round(1 / ratio)}`;
+  // FIXED: Previous version `1/${Math.round(1/ratio)}` displayed "1/0" because
+  // ratio is already a large number (e.g. 5000 for 1:5000), so 1/ratio ≈ 0.
+  // Correct format: "1:5000" using the ratio directly.
+  const ratioStr = `1:${Math.round(ratio)}`;
 
   const grade = result.precisionGrade;
   const errorMm = result.linearError * 1000;

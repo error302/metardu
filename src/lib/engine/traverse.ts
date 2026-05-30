@@ -250,7 +250,7 @@ export function bowditchAdjustment(input: TraverseInput): TraverseResult {
 }
 
 export function transitAdjustment(input: TraverseInput): TraverseResult {
-  const { points, distances, bearings } = input;
+  const { points, distances, bearings, closingPoint } = input;
   
   // Source: Basak, Chapter 11 — Transit Rule: corrections proportional to |Δ| of each leg
   // Source: Ghilani & Wolf, Chapter 12 — Transit adjustment
@@ -293,9 +293,18 @@ export function transitAdjustment(input: TraverseInput): TraverseResult {
     });
   }
   
-  // Closing error
-  const closingErrorN = -sumLat;
-  const closingErrorE = -sumDep;
+  // Closing error — support link traverse (closing to a different known point)
+  // Source: Basak Ch.11, Ghilani & Wolf Ch.12
+  const start = points[0]
+  const computedEndNorthing = start.northing + sumLat
+  const computedEndEasting = start.easting + sumDep
+
+  const closingErrorN = closingPoint
+    ? (closingPoint.northing - computedEndNorthing)
+    : -sumLat
+  const closingErrorE = closingPoint
+    ? (closingPoint.easting - computedEndEasting)
+    : -sumDep
   const linearError = Math.sqrt(closingErrorN * closingErrorN + closingErrorE * closingErrorE);
   // precisionRatio = perimeter / linearMisclosure (large number, e.g. 5000 means 1:5000)
   const precisionRatio = totalDistance > 0 ? totalDistance / linearError : Infinity;
@@ -311,9 +320,8 @@ export function transitAdjustment(input: TraverseInput): TraverseResult {
     let correctionE = 0;
     
     // FIXED: Removed spurious negative sign. Transit rule correction = (|Δ|/Σ|Δ|) × closingError.
-    // The closingError (e_L = -ΣLat, e_D = -ΣDep) already carries the correct sign.
-    // The previous code had an extra negation that caused corrections to double the error
-    // instead of eliminating it. Source: Basak Ch.11; Ghilani & Wolf Ch.12.
+    // The closingError already carries the correct sign.
+    // Source: Basak Ch.11; Ghilani & Wolf Ch.12.
     if (absSumLat > 0) {
       correctionN = (Math.abs(leg.rawDeltaN) / absSumLat) * closingErrorN;
     }

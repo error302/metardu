@@ -104,43 +104,51 @@ function classifyAccuracy(C_mm: number, K_km: number): AccuracyClass {
   // Source: RDM 1.1 Kenya 2025, Table 2.4 — Accuracy Classification
   // m = C/√K (mm/√km), where C = closing error in mm, K = perimeter in km
   // Source: Ghilani & Wolf, Chapter 12 — Traverse accuracy standards
-  const m = C_mm / 1000
+  //
+  // FIXED: Previous version computed m = C_mm/1000 (metres) but compared against
+  // allowable values in mm — units mismatch made everything classify as 1st Order.
+  // Now correctly computes m in mm/√km and compares against RDM 1.1 coefficients.
   const K = K_km
-  // Source: RDM 1.1 Table 2.4 — m values for each order
-  const allow1a = 0.5 * Math.sqrt(K)
-  const allow1b = 0.7 * Math.sqrt(K)
-  const allow2a = 1.0 * Math.sqrt(K)
-  const allow2b = 1.3 * Math.sqrt(K)
-  const allow3 = 2.0 * Math.sqrt(K)
+  const m = K > 0 ? C_mm / Math.sqrt(K) : 0  // mm/√km — the RDM 1.1 classification metric
 
+  // Source: RDM 1.1 Table 2.4 — allowable m values in mm/√km for each order
+  const allow1a = 0.5   // First Order Class I: m ≤ 0.5 mm/√km
+  const allow1b = 0.7   // First Order Class II: m ≤ 0.7 mm/√km
+  const allow2a = 1.0   // Second Order Class I: m ≤ 1.0 mm/√km
+  const allow2b = 1.3   // Second Order Class II: m ≤ 1.3 mm/√km
+  const allow3 = 2.0    // Third Order: m ≤ 2.0 mm/√km
+
+  // The allowable closing error in mm = coefficient × √K
   let order: string
-  let allowable: number
+  let allowableCoeff: number
   if (m <= allow1a) {
     order = 'FIRST ORDER CLASS I'
-    allowable = allow1a
+    allowableCoeff = allow1a
   } else if (m <= allow1b) {
     order = 'FIRST ORDER CLASS II'
-    allowable = allow1b
+    allowableCoeff = allow1b
   } else if (m <= allow2a) {
     order = 'SECOND ORDER CLASS I'
-    allowable = allow2a
+    allowableCoeff = allow2a
   } else if (m <= allow2b) {
     order = 'SECOND ORDER CLASS II'
-    allowable = allow2b
+    allowableCoeff = allow2b
   } else if (m <= allow3) {
     order = 'THIRD ORDER'
-    allowable = allow3
+    allowableCoeff = allow3
   } else {
     order = 'FOURTH ORDER'
-    allowable = allow3
+    allowableCoeff = allow3
   }
+
+  const allowableMm = allowableCoeff * Math.sqrt(K)  // allowable closing error in mm
 
   return {
     order,
     C_mm,
     K_km: K,
-    allowable,
-    formula: `C = ${C_mm.toFixed(2)} mm, K = ${K.toFixed(3)} km, Allowable = ${allowable.toFixed(2)} mm`,
+    allowable: allowableMm,
+    formula: `m = ${m.toFixed(2)} mm/√km, C = ${C_mm.toFixed(2)} mm, K = ${K.toFixed(3)} km, Allowable C = ${allowableMm.toFixed(2)} mm (${allowableCoeff} mm/√km × √${K.toFixed(3)})`,
     pass: m <= allow3,
   }
 }
@@ -267,27 +275,35 @@ export function computeTraverse(input: {
   let K_km = 0
 
   if (isClosed && closingE !== undefined && closingN !== undefined) {
-    const actualDep = closingE - currentE
-    const actualLat = closingN - currentN
-    sumDep += actualDep
-    sumLat += actualLat
-    linearError = Math.sqrt(sumDep * sumDep + sumLat * sumLat)
     const totalDist = legs.reduce((s, l) => s + l.hd, 0)
+
+    // FIXED: Previous version added actualDep/actualLat to sumDep/sumLat before
+    // computing corrections. This was WRONG — for a loop traverse (closing=opening),
+    // it made sumDep=0, resulting in ZERO Bowditch adjustment despite misclosure.
+    //
+    // Correct approach (Source: Basak Ch.11, Ghilani & Wolf Ch.12):
+    //   Misclosure in departure = Σdep − (Eclosing − Eopening)
+    //   Misclosure in latitude  = Σlat − (Nclosing − Nopening)
+    //   Bowditch correction_i = −(misclosure/ΣD) × D_i
+    //
+    // After correction, ΣadjDep = Eclosing − Eopening, ΣadjLat = Nclosing − Nopening
+    const eDep = sumDep - (closingE - input.openingEasting)   // departure misclosure
+    const eLat = sumLat - (closingN - input.openingNorthing)  // latitude misclosure
+    linearError = Math.sqrt(eDep * eDep + eLat * eLat)
     K_km = totalDist / 1000
     precisionRatio = totalDist / Math.max(linearError, 1e-12)
     C_mm = linearError * 1000
 
-    const totalPerimeter = totalDist
-
-    // Source: Ghilani & Wolf, Chapter 12 — Bowditch rule: correction_i = -(C/ΣD) × D_i
+    // Source: Ghilani & Wolf, Chapter 12 — Bowditch rule: correction_i = -(misclosure/ΣD) × D_i
     // Source: Basak, Chapter 11 — Bowditch correction proportional to leg distance
     for (const leg of legs) {
-      leg.depCorrection = -sumDep * (leg.hd / totalDist)
-      leg.latCorrection = -sumLat * (leg.hd / totalDist)
+      leg.depCorrection = -(eDep * (leg.hd / totalDist))
+      leg.latCorrection = -(eLat * (leg.hd / totalDist))
       leg.adjDep = leg.departure + leg.depCorrection
       leg.adjLat = leg.latitude + leg.latCorrection
     }
 
+    // Verify: adjusted sums should now equal (closing − opening)
     sumDep = legs.reduce((s, l) => s + l.adjDep, 0)
     sumLat = legs.reduce((s, l) => s + l.adjLat, 0)
   }
@@ -424,7 +440,11 @@ export function computeLevelBook(input: {
       out.rl = rl
       if (method === 'rise_and_fall') {
         const prevRL = result.length > 0 ? (result[result.length - 1].rl ?? currentRL) : currentRL
-        const diff = prevRL - rl
+        // FIXED: Previous version had diff = prevRL - rl, which inverted rise/fall.
+        // Convention: Rise = current RL > previous RL (ground goes UP)
+        //             Fall = current RL < previous RL (ground goes DOWN)
+        // Source: Basak, Chapter 5 — Rise and Fall method
+        const diff = rl - prevRL
         if (diff >= 0) { out.rise = diff; sumRise += diff }
         else { out.fall = Math.abs(diff); sumFall += Math.abs(diff) }
       }
@@ -438,7 +458,8 @@ export function computeLevelBook(input: {
       out.rl = rl
       if (method === 'rise_and_fall') {
         const prevRL = result.length > 0 ? (result[result.length - 1].rl ?? currentRL) : currentRL
-        const diff = prevRL - rl
+        // FIXED: Same rise/fall sign correction as IS case above
+        const diff = rl - prevRL
         if (diff >= 0) { out.rise = diff; sumRise += diff }
         else { out.fall = Math.abs(diff); sumFall += Math.abs(diff) }
       }

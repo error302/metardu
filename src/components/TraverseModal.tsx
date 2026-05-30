@@ -265,7 +265,11 @@ export default function TraverseModal({
       setControlPoints(data)
       if (data.length > 0) {
         setOpeningPointId(data[0].id)
-        setClosingPointId(data[0].id)
+        // FIX: Default closing to SECOND control point — cadastral traverses require minimum 2
+        // distinct known control points per Survey Regulations Reg. 60 & 67 (Basak Ch.10-11).
+        // Defaulting to the same point as opening creates a 1-point traverse (swinging),
+        // which has no absolute position check.
+        setClosingPointId(data.length > 1 ? data[1].id : '')
       }
     }
   }, [dbClient, projectId])
@@ -302,6 +306,14 @@ export default function TraverseModal({
       // Validate: closed/link traverses require closing control point per Survey Regulations Reg 60 & 67
       if ((traverseType === 'closed' || traverseType === 'link') && !hasClosingControl) {
         throw new Error('Closing control point is required for closed/link traverses per Survey Regulations Reg. 60(2)(c) and Reg. 67. Swinging/hanging traverses are prohibited.')
+      }
+
+      // Validate: cadastral closed/link traverses require 2 DISTINCT known control points
+      // Source: Basak Ch.10-11 — A closed traverse "begins and ends at points whose positions
+      // on plan are known." With only 1 known point, the traverse has no absolute position
+      // check — it could be shifted/rotated from true position. Minimum 2 known points required.
+      if (traverseType === 'closed' || traverseType === 'link') {
+        // Will validate after resolving opening/closing coordinates (see below)
       }
 
       // Handle Radial Survey
@@ -455,6 +467,30 @@ export default function TraverseModal({
         openingE = parseFloat(openingEasting)
         openingN = parseFloat(openingNorthing)
         openingPtName = openingName
+      }
+
+      // Validate: for closed/link traverses, opening and closing must be DIFFERENT known points.
+      // Source: Basak Ch.10-11 — A cadastral traverse must begin and end at points whose
+      // positions are known. Using the same point for both gives a 1-point traverse with
+      // no absolute position check — the traverse could be rotated/shifted undetected.
+      // Minimum 2 distinct known control points are required per Survey Regulations Reg. 60 & 67.
+      if (traverseType === 'closed' || traverseType === 'link') {
+        if (hasClosingControl) {
+          let closingECheck: number | undefined, closingNCheck: number | undefined
+          if (closingUseExisting && closingPointId) {
+            const pt = controlPoints.find((p: any) => p.id === closingPointId)
+            if (pt) { closingECheck = pt.easting; closingNCheck = pt.northing }
+          } else if (closingEasting && closingNorthing) {
+            closingECheck = parseFloat(closingEasting)
+            closingNCheck = parseFloat(closingNorthing)
+          }
+          if (closingECheck !== undefined && closingNCheck !== undefined) {
+            const coordDiff = Math.abs(closingECheck - openingE) + Math.abs(closingNCheck - openingN)
+            if (coordDiff < 0.001) {
+              throw new Error('Closing control point must be DIFFERENT from opening control point. A cadastral traverse requires minimum 2 distinct known control points for position verification per Survey Regulations Reg. 60(2)(c) and Reg. 67. A 1-point traverse has no absolute position check — the entire traverse could be shifted/rotated from its true position undetected.')
+            }
+          }
+        }
       }
 
       // Build traverse points - each leg's bearing is from previous point to this leg's point
@@ -721,8 +757,8 @@ export default function TraverseModal({
               </div>
               
               <div className="text-sm text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/50 rounded p-3">
-                {traverseType === 'closed' && 'Closed Loop: Starts and ends at same known control point. Misclosure computed and Bowditch-adjusted. A minimum of 2 known control points (opening + closing) are required per Survey Regulations Reg. 60 & 67 — swinging/hanging traverses are prohibited.'}
-                {traverseType === 'link' && 'Link Traverse: Connects two known control points. Precision checked against closing control. Both opening AND closing control points are mandatory per Survey Regulations Reg. 60 & 67.'}
+                {traverseType === 'closed' && 'Link Traverse (Closed): Connects two different known control points. The traverse is Bowditch-adjusted to distribute the closing error. Both opening AND closing control points are mandatory and must be DIFFERENT — minimum 2 distinct known points per Survey Regulations Reg. 60 & 67. A 1-point traverse has no absolute position check.'}
+                {traverseType === 'link' && 'Link Traverse: Connects two known control points. Precision checked against closing control. Both opening AND closing control points are mandatory and must be DIFFERENT per Survey Regulations Reg. 60 & 67. Minimum 2 distinct known control points required.'}
                 {traverseType === 'open' && 'Open Traverse: Starts at known control, no closing control. Used for roads/pipelines where no check is available. Running coordinates only — NOT acceptable for cadastral surveys per Reg. 67 (swinging traverses prohibited).'}
                 {traverseType === 'radial' && 'Radial Survey: One instrument station observing multiple detail points. Compute coordinates for each ray. Requires at least one known control point with backsight orientation.'}
               </div>
@@ -1018,21 +1054,13 @@ export default function TraverseModal({
             {(traverseType === 'closed' || traverseType === 'link') && (
             <div className="border border-[var(--border-color)] rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
-                <input
-                  type="checkbox"
-                  checked={hasClosingControl}
-                  onChange={(e) => setHasClosingControl(e.target.checked)}
-                  className="w-4 h-4 text-[var(--accent)]"
-                />
                 <h3 className="text-lg font-semibold text-[var(--text-primary)]">Closing Control Point</h3>
-                <span className="ml-2 px-2 py-0.5 bg-red-900/50 text-red-400 text-xs rounded font-semibold">REQUIRED</span>
+                <span className="ml-2 px-2 py-0.5 bg-red-900/50 text-red-400 text-xs rounded font-semibold">REQUIRED — 2+ Known Points</span>
               </div>
 
-              {!hasClosingControl && (
-                <div className="mb-3 p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
-                  ⚠ Without a closing control point, this becomes a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A traverse must close between two previously fixed stations.
-                </div>
-              )}
+              <div className="mb-3 p-3 bg-blue-900/20 border border-blue-700/50 rounded text-blue-300 text-xs">
+                <strong>Survey Principle (Basak Ch.10-11):</strong> A cadastral traverse must begin and end at points whose positions are known — minimum 2 distinct known control points. Using only 1 known point creates a swinging traverse with no absolute position check: the entire traverse could be shifted or rotated from its true position without detection. The closing control point must be a DIFFERENT known station from the opening.
+              </div>
               
               {hasClosingControl && (
                 <>
@@ -1063,8 +1091,9 @@ export default function TraverseModal({
                       onChange={(e) => setClosingPointId(e.target.value)}
                       className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
                     >
+                      <option value="">Select closing control point...</option>
                       {controlPoints.map((p: any) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
+                        <option key={p.id} value={p.id}>{p.name} (E: {p.easting.toFixed(4)}, N: {p.northing.toFixed(4)})</option>
                       ))}
                     </select>
                   ) : (
@@ -1096,7 +1125,9 @@ export default function TraverseModal({
               )}
 
               {!hasClosingControl && (
-                <p className="text-red-400 text-sm font-medium">A closing control point is required. Uncheck only if you understand the regulatory implications.</p>
+                <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
+                  ⚠ Without a closing control point, this becomes a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A traverse must close between two previously fixed stations.
+                </div>
               )}
             </div>
             )}
@@ -1137,7 +1168,7 @@ export default function TraverseModal({
               </div>
               <div className="bg-[var(--bg-tertiary)]/50 rounded p-3">
                 <p className="text-[var(--text-secondary)] text-xs">Precision</p>
-                <p className="text-xl font-mono text-[var(--text-primary)]">1 : {Math.round(1 / results.precisionRatio).toLocaleString()}</p>
+                <p className="text-xl font-mono text-[var(--text-primary)]">1 : {results.precisionRatio > 0 ? Math.round(results.precisionRatio).toLocaleString() : '—'}</p>
               </div>
             </div>
 

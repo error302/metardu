@@ -51,6 +51,20 @@ export const POST = apiHandler(
       )
     }
 
+    // FIXED: Validate that closing control point is DIFFERENT from opening control point.
+    // A cadastral traverse requires minimum 2 DISTINCT known control points for position
+    // verification. Using the same point for both opening and closing is equivalent to a
+    // 1-point (hanging/swinging) traverse with no absolute position check.
+    // Source: Basak Ch.10-11, Survey Regulations Reg. 60(2)(c) and Reg. 67
+    const coordDiff = Math.abs(config.closing_easting - config.opening_easting) +
+                       Math.abs(config.closing_northing - config.opening_northing)
+    if (coordDiff < 0.001) {
+      return NextResponse.json(
+        { error: 'Closing control point must be DIFFERENT from opening control point. A cadastral traverse requires minimum 2 distinct known control points for position verification per Survey Regulations Reg. 60(2)(c) and Reg. 67. A 1-point traverse has no absolute position check.' },
+        { status: 400 }
+      )
+    }
+
     const parcelCheck = await db.query(
       `SELECT p.id, p.project_id FROM parcels p
       JOIN projects pr ON pr.id = p.project_id
