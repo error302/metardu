@@ -463,7 +463,9 @@ export default function MapClient() {
           view: new View({
             center: proj.fromLonLat([37.91, 0.02]),  // geographic centre of Kenya
             zoom: 6,
+            minZoom: 6,
             maxZoom: 20,      // cadastral-grade close zoom
+            extent: [-2.2e7, -1.2e7, 2.2e7, 1.5e7],
           }),
           controls: [
             new ScaleLine({ units: 'metric' }),

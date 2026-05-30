@@ -29,6 +29,7 @@ const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const kenyaCenterRef = useRef<number[]>([0, 0]);
 
 
   /* ---- Expose imperative handle to parent ---- */
@@ -49,7 +50,7 @@ const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
       const map = mapRef.current;
       if (!map) return;
       const view = map.getView();
-      view.animate({ center: mapRef.current.getView().getInitialCenter() || proj.fromLonLat([37.91, 0.02]), zoom: 6, duration: 400 });
+      view.animate({ center: kenyaCenterRef.current, zoom: 6, duration: 400 });
     },
     fitToData() {
       const map = mapRef.current;
@@ -129,6 +130,7 @@ const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
 
         // Default center at Kenya
         const kenyaCenter = fromLonLat([37.91, 0.02]);
+        kenyaCenterRef.current = kenyaCenter;
 
         // Base OSM tile layer
         const baseLayer = new TileLayer({ source: new OSM() });
@@ -204,7 +206,9 @@ const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
           view: new View({
             center: kenyaCenter,
             zoom: 6,
+            minZoom: 6,
             maxZoom: 20,
+            extent: [-2.2e7, -1.2e7, 2.2e7, 1.5e7],
           }),
           controls: defaultControls({ attribution: false }),
         });
