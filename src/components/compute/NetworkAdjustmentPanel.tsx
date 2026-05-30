@@ -68,7 +68,7 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
           deltaE: leg.adjDep ?? leg.departure ?? 0,
           deltaN: leg.adjLat ?? leg.latitude ?? 0,
           deltaH: 0,
-          stdDev: 0.005 + (leg.hd ?? 100) * 0.00001, // 5mm + 10ppm
+          stdDevE: 0.005 + (leg.hd ?? 100) * 0.00001, stdDevN: 0.005 + (leg.hd ?? 100) * 0.00001, stdDevH: (0.005 + (leg.hd ?? 100) * 0.00001) * 2, // 5mm + 10ppm
         }
       }).filter(Boolean) as Observation[]
 

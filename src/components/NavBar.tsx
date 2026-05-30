@@ -394,10 +394,10 @@ export default function NavBar() {
                   className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]/40 hover:border-[var(--accent)] transition-colors"
                 >
                   <span className="w-8 h-8 rounded-full bg-[var(--accent)]/20 border border-[var(--accent)]/30 text-[var(--accent)] flex items-center justify-center font-bold">
-                    {(user.email || 'U').slice(0, 1).toUpperCase()}
+                    {(user?.email || 'U').slice(0, 1).toUpperCase()}
                   </span>
                   <div className="hidden lg:flex flex-col">
-                    <span className="text-sm text-[var(--text-primary)] max-w-[180px] truncate leading-tight">{user.email}</span>
+                    <span className="text-sm text-[var(--text-primary)] max-w-[180px] truncate leading-tight">{user?.email}</span>
                     <SubscriptionBadge plan={userPlan} compact />
                   </div>
                   <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
