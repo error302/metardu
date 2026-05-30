@@ -19,8 +19,7 @@ import { TraverseBook } from '@/components/fieldbook/TraverseBook'
 import { ControlBook } from '@/components/fieldbook/ControlBook'
 import { HydroBook } from '@/components/fieldbook/HydroBook'
 import { MiningBook } from '@/components/fieldbook/MiningBook'
-import { VoiceNoteButton } from '@/components/fieldbook/VoiceNoteButton'
-import { VoiceNoteList } from '@/components/fieldbook/VoiceNoteList'
+
 
 type FieldbookType = 'leveling' | 'traverse' | 'control' | 'hydrographic' | 'mining'
 
@@ -144,7 +143,6 @@ export default function DigitalFieldBookPage() {
   ])
   const [activeControlSetupId, setActiveControlSetupId] = useState<string>(initialControlSetupId)
 
-  const [voiceNotesRefreshKey, setVoiceNotesRefreshKey] = useState(0)
   const [planGenerating, setPlanGenerating] = useState(false)
   const [planStep, setPlanStep] = useState('')
   const [planResult, setPlanResult] = useState<{ success: boolean; downloadUrl?: string; error?: string } | null>(null)
@@ -1021,19 +1019,7 @@ export default function DigitalFieldBookPage() {
             <MiningBook t={t} station={miningStation} setStation={setMiningStation as any} rows={miningRows as any} setRows={setMiningRows as any} computed={miningComputed as any} />
           )}
 
-          {/* Voice Notes Section */}
-          <div className="space-y-4">
-            <div className="card p-4">
-              <span className="label">Voice Notes</span>
-              <VoiceNoteButton
-                projectId={projectId || undefined}
-                stationId={type === 'control' ? controlStation.name : undefined}
-                stationName={type === 'control' ? controlStation.name : undefined}
-                onNoteSaved={() => setVoiceNotesRefreshKey(k => k + 1)}
-              />
-            </div>
-            <VoiceNoteList key={voiceNotesRefreshKey} projectId={projectId || undefined} />
-          </div>
+
         </div>
       </div>
     </div>

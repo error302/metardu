@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Mic, Camera, Check } from 'lucide-react';
+import { X, Camera, Check } from 'lucide-react';
 
 interface QuickAddModalProps {
   onAdd: (obs: {
@@ -164,12 +164,7 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
                 className={`${inputClass} flex-1`}
                 placeholder="Concrete beacon, flush"
               />
-              <button 
-                className="p-4 border rounded-lg bg-gray-50 hover:bg-gray-100"
-                title="Voice input (Phase 28)"
-              >
-                <Mic className="w-6 h-6 text-gray-400" />
-              </button>
+
             </div>
           </div>
 

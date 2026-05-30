@@ -119,9 +119,6 @@ export const featureFlags = {
   /** Enable beacon registry */
   beaconRegistry: true,
 
-  /** Enable voice notes in field book */
-  voiceNotes: true,
-
   /** Enable OCR import */
   ocrImport: true,
 

@@ -2,11 +2,7 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { MapLayer, FieldBeacon, FieldParcel, GeoPDFLayer, MBTilesSession } from '@/types/field';
 
-/* ------------------------------------------------------------------ */
-/*  Kenya bounding box — EPSG:4326                                   */
-/*  [west, south, east, north]                                        */
-/* ------------------------------------------------------------------ */
-const KENYA_BBOX_4326: [number, number, number, number] = [33.90, -4.72, 41.92, 4.62];
+
 
 export interface MapHandle {
   zoomIn: () => void;
@@ -33,7 +29,7 @@ const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const kenyaExtentRef = useRef<number[]>([0, 0, 0, 0]); // will be set after transformExtent
+
 
   /* ---- Expose imperative handle to parent ---- */
   useImperativeHandle(ref, () => ({
@@ -53,7 +49,7 @@ const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
       const map = mapRef.current;
       if (!map) return;
       const view = map.getView();
-      view.fit(kenyaExtentRef.current, { duration: 400, padding: [0, 0, 0, 0] });
+      view.animate({ center: mapRef.current.getView().getInitialCenter() || proj.fromLonLat([37.91, 0.02]), zoom: 6, duration: 400 });
     },
     fitToData() {
       const map = mapRef.current;
@@ -118,7 +114,7 @@ const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
         const { default: Fill } = await import('ol/style/Fill');
         const { default: Stroke } = await import('ol/style/Stroke');
         const { default: TextStyle } = await import('ol/style/Text');
-        const { fromLonLat, toLonLat, transformExtent } = await import('ol/proj');
+        const { fromLonLat, toLonLat } = await import('ol/proj');
         const { default: Attribution } = await import('ol/control/Attribution');
         const olControl = await import('ol/control');
         const defaultControls = olControl.defaults;
@@ -131,11 +127,7 @@ const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
           mapRef.current = null;
         }
 
-        // Transform Kenya bbox from EPSG:4326 → EPSG:3857
-        const kenyaExtent = transformExtent(KENYA_BBOX_4326, 'EPSG:4326', 'EPSG:3857');
-        kenyaExtentRef.current = kenyaExtent;
-
-        // Kenya geographic centre in 4326 → 3857
+        // Default center at Kenya
         const kenyaCenter = fromLonLat([37.91, 0.02]);
 
         // Base OSM tile layer
@@ -212,14 +204,12 @@ const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
           view: new View({
             center: kenyaCenter,
             zoom: 6,
-            minZoom: 6,
             maxZoom: 20,
-            extent: kenyaExtent,
           }),
           controls: defaultControls({ attribution: false }),
         });
 
-        // Fit to data extent (if we have beacons or parcels) — but still within Kenya
+        // Fit to data extent (if we have beacons or parcels)
         if (beaconFeatures.length > 0) {
           const src = beaconLayer.getSource();
           if (src) {

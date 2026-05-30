@@ -464,8 +464,6 @@ export default function MapClient() {
             center: proj.fromLonLat([37.91, 0.02]),  // geographic centre of Kenya
             zoom: 6,
             maxZoom: 20,      // cadastral-grade close zoom
-            minZoom: 6,       // never zoom out past full-Kenya view
-            extent: proj.transformExtent([33.90, -4.72, 41.92, 4.62], 'EPSG:4326', 'EPSG:3857'),
           }),
           controls: [
             new ScaleLine({ units: 'metric' }),
