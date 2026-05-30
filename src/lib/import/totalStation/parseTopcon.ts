@@ -17,7 +17,12 @@ export function parseTopcon(content: string): {
 
   for (const line of lines) {
     const parts = line.trim().split(',')
-    if (parts.length < 4) continue
+    if (parts.length < 4) {
+      if (parts.length >= 2 && parts[0]?.trim()) {
+        warnings.push(`Skipped row with too few columns (expected ≥4, got ${parts.length}): ${line.trim()}`)
+      }
+      continue
+    }
 
     const pointId = parts[0]?.trim()
     const northing = parseFloat(parts[1])

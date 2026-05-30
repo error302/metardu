@@ -17,6 +17,8 @@ import {
 
 // ─── Mock WebSocket ────────────────────────────────────────────────────────
 
+type EventCallback = (event: any) => void
+
 class MockWebSocket {
   static OPEN = 1
   static CLOSED = 3
@@ -31,14 +33,37 @@ class MockWebSocket {
   onclose: ((event: { code: number; reason: string }) => void) | null = null
   send = jest.fn()
   close = jest.fn()
-  addEventListener = jest.fn()
-  removeEventListener = jest.fn()
+
+  private listeners: Map<string, Set<EventCallback>> = new Map()
+
+  addEventListener(type: string, callback: EventCallback) {
+    if (!this.listeners.has(type)) {
+      this.listeners.set(type, new Set())
+    }
+    this.listeners.get(type)!.add(callback)
+  }
+
+  removeEventListener(type: string, callback: EventCallback) {
+    this.listeners.get(type)?.delete(callback)
+  }
+
+  private emit(type: string, event?: any) {
+    const callbacks = this.listeners.get(type)
+    if (callbacks) {
+      callbacks.forEach(cb => cb(event))
+    }
+    // Also call the on* handler
+    if (type === 'open' && this.onopen) this.onopen()
+    if (type === 'message' && this.onmessage) this.onmessage(event)
+    if (type === 'error' && this.onerror) this.onerror(event)
+    if (type === 'close' && this.onclose) this.onclose(event)
+  }
 
   constructor(public url: string, public protocols?: string[]) {
     // Auto-open after a microtask
     setTimeout(() => {
       this.readyState = MockWebSocket.OPEN
-      this.onopen?.()
+      this.emit('open')
     }, 10)
   }
 }
@@ -203,18 +228,13 @@ describe('NTRIPClient', () => {
 
 describe('detectRTCMMessageType', () => {
   it('detects RTCM 3.x preamble (0xD3)', () => {
-    // Construct a minimal RTCM 3.x message: preamble + length + type
-    const data = new Uint8Array([0xD3, 0x00, 0x03, 0x00, 0x64, 0x00])
+    // Construct a minimal RTCM 3.x message for type 100
+    // type = (data[3] << 4) | ((data[4] & 0xF0) >> 4)
+    // 100 = 0x064, so data[3] = 0x06, data[4] = 0x40
+    const data = new Uint8Array([0xD3, 0x00, 0x03, 0x06, 0x40, 0x00])
     const result = detectRTCMMessageType(data)
     expect(result).not.toBeNull()
-    expect(result!.type).toBe(100) // type = (0x00 & 0x3F) << 4 | (0x64 & 0xF0) >> 4 = 0x64 >> 0 = 100 ... actually (0x00 << 4) | (0x64 >> 4) = 0 | 6 = 6
-    // Let me recalculate: data[3]=0x00, data[4]=0x64
-    // type = ((data[3] & 0x3F) << 4) | ((data[4] & 0xF0) >> 4)
-    //      = ((0x00 & 0x3F) << 4) | ((0x64 & 0xF0) >> 4)
-    //      = (0 << 4) | (0x60 >> 4)
-    //      = 0 | 6
-    //      = 6
-    expect(result!.type).toBe(6)
+    expect(result!.type).toBe(100)
   })
 
   it('returns null for too short data', () => {
@@ -223,20 +243,14 @@ describe('detectRTCMMessageType', () => {
   })
 
   it('returns null for invalid preamble', () => {
-    const data = new Uint8Array([0xAA, 0x00, 0x03, 0x00, 0x64, 0x00])
+    const data = new Uint8Array([0xAA, 0x00, 0x03, 0x06, 0x40, 0x00])
     expect(detectRTCMMessageType(data)).toBeNull()
   })
 
   it('detects message type 1074 (GPS MSM4)', () => {
-    // Message type 1074 = 0x432
-    // type = ((data[3] & 0x3F) << 4) | ((data[4] & 0xF0) >> 4)
-    // 1074 = 0x432 → data[3] & 0x3F = 0x04, data[4] = 0x32 → 0x30 >> 4 = 3
-    // So (0x04 << 4) | 0x03 = 0x40 | 0x03 = 0x43 = 67
-    // Actually 1074 decimal = 0b010000110010
-    // top 6 bits of type: 010000 = 0x10 → data[3] & 0x3F = 0x10
-    // next 4 bits: 1100 → data[4] top nibble = 0xC0
-    // So data[3] = 0x10, data[4] = 0xC0
-    const data = new Uint8Array([0xD3, 0x00, 0x03, 0x10, 0xC0, 0x00])
+    // type = (data[3] << 4) | ((data[4] & 0xF0) >> 4)
+    // 1074 = 0x432, so data[3] = 0x43, data[4] = 0x20
+    const data = new Uint8Array([0xD3, 0x00, 0x03, 0x43, 0x20, 0x00])
     const result = detectRTCMMessageType(data)
     expect(result).not.toBeNull()
     expect(result!.type).toBe(1074)

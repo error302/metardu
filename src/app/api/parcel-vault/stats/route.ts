@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getVaultStats } from '@/lib/parcelVault'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const stats = await getVaultStats()

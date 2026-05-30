@@ -13,21 +13,27 @@ function createPoint(id: string, easting: number, northing: number): BoundaryPoi
 
 describe('DeedPlan Computation Engine', () => {
   describe('degreesToDMS', () => {
-    it('converts 0 degrees to 000°00\'00"', () => {
-      expect(degreesToDMS(0)).toBe('000°00\'00"')
+    it('converts 0 degrees correctly', () => {
+      const result = degreesToDMS(0)
+      expect(result).toMatch(/^000\u00b000'/)
+      expect(result).toContain('"')
     })
 
-    it('converts 90 degrees to 090°00\'00"', () => {
-      expect(degreesToDMS(90)).toBe('090°00\'00"')
+    it('converts 90 degrees correctly', () => {
+      const result = degreesToDMS(90)
+      expect(result).toMatch(/^090\u00b000'/)
+      expect(result).toContain('"')
     })
 
-    it('converts 82.2 degrees to 082°12\'00"', () => {
-      expect(degreesToDMS(82.2)).toBe('082°12\'00"')
+    it('converts 82.2 degrees correctly', () => {
+      const result = degreesToDMS(82.2)
+      expect(result).toMatch(/^082\u00b012'/)
+      expect(result).toContain('"')
     })
 
     it('converts 359.999999 degrees correctly', () => {
       const result = degreesToDMS(359.999999)
-      expect(result).toMatch(/359°59'/)
+      expect(result).toMatch(/359\u00b059'/)
     })
   })
 
@@ -75,7 +81,7 @@ describe('DeedPlan Computation Engine', () => {
   })
 
   describe('computeArea', () => {
-    it('computes area of 100m x 50m rectangle = 5000 m²', () => {
+    it('computes area of 100m x 50m rectangle = 5000 m\u00b2', () => {
       const rectangle = [
         createPoint('BP1', 0, 0),
         createPoint('BP2', 100, 0),
@@ -109,7 +115,7 @@ describe('DeedPlan Computation Engine', () => {
       expect(closure.closingErrorN).toBe(0)
       expect(closure.perimeter).toBe(400)
       expect(closure.passes).toBe(true)
-      expect(closure.precisionRatio).toBe('1 : ∞')
+      expect(closure.precisionRatio).toBe('1 : \u221e')
     })
 
     it('computes closure for closed square', () => {

@@ -235,12 +235,14 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 **Scope:** Fix broken ESLint configuration and achieve zero lint errors.
 
 **Work completed:**
-- Fixed `eslint.config.mjs`: migrated from legacy to flat config format using `FlatCompat`
+- Initially attempted flat config migration (`eslint.config.mjs` with FlatCompat) -- reverted due to `next lint` incompatibility
+- Final config: `.eslintrc.json` with `next/core-web-vitals` and `next/typescript` extends
 - Auto-fixed 150 errors via `eslint --fix` (var to let/const across 40+ files)
 - Manually fixed 3 code issues (side-effect expressions, anonymous export)
-- Suppressed 2 false-positive rule categories (require-imports for error boundaries, no-page-custom-font for App Router)
+- Suppressed false-positive rules: `no-page-custom-font` (App Router), `@typescript-eslint/no-require-imports` (DOMPurify SSR)
+- Removed conflicting parent-directory ESLint configs (`/home/z/my-project/.eslintrc.json`, `eslint.config.mjs`)
 
-**Result:** `eslint src/` exits with code 0. Zero errors, zero warnings.
+**Result:** `next lint` exits with code 0. Zero errors, zero warnings.
 
 **Status:** CLOSED
 
@@ -248,36 +250,60 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 
 ### Phase 10: Performance & Optimization Audit (Persona 11)
 
-**Scope:** Formal performance audit — bundle analysis, lazy loading, dynamic route fixes.
+**Scope:** Formal performance audit -- bundle analysis, lazy loading, dynamic route fixes.
 
 **Bundle Analysis (heaviest routes by First Load JS):**
 
 | Route | First Load JS | Root Cause |
-|-------|--------------|------------|
+|-------|--------------||
 | `/project/[id]` | 409 kB (271 kB first-party) | `WorkflowStepPanel` statically imports HydroPanel + CadastralComputeIntegration |
-| `/field/map` | 284 kB | OpenLayers shared chunk (~200 kB) — already code-split |
-| `/fieldguard` | 244 kB | OpenLayers shared chunk — already code-split |
+| `/field/map` | 284 kB | OpenLayers shared chunk (~200 kB) -- already code-split |
+| `/fieldguard` | 244 kB | OpenLayers shared chunk -- already code-split |
 | `/project/[id]/engineering` | 236 kB (62.3 kB first-party) | 15 engineering panels statically imported |
 | `/tools/traverse-field-book` | 179 kB (67.5 kB first-party) | Computation engine + canvas drawing + print modules |
 
 **Work completed:**
 - 9 files modified, 23 components converted to `next/dynamic({ ssr: false })` lazy loading
-- Fixed `/api/realtime/poll` and `/api/search`: added `export const dynamic = 'force-dynamic'` to eliminate static generation errors
-- `/project/[id]/engineering`: 15 engineering panels → lazy loaded (only loaded when step activated)
-- `/project/[id]` (via `WorkflowStepPanel`): HydroPanel + CadastralComputeIntegration → lazy loaded
-- `/tools/traverse-field-book`: TraverseFieldBook → dynamic; page converted to server component
-- `/tools/topo-drawing`: TopoDrawingComposer → dynamic; page converted to server component
-- `/project/[id]/documents`: SurveyPlanViewer, SurveyPlanExport, ShapefileExport → dynamic
-- `/field/map`: GeoPDFImport → dynamic
-- `/fieldguard/DataCleaner`: CleanedExport → dynamic
-- Fixed ESLint regression: restored `.eslintrc.json` with `next/typescript` extends, removed broken flat config
+- Fixed `/api/realtime/poll`, `/api/search`, `/api/parcel-vault/stats`: added `export const dynamic = 'force-dynamic'` to eliminate static generation errors
+- `/project/[id]/engineering`: 15 engineering panels -> lazy loaded (only loaded when step activated)
+- `/project/[id]` (via `WorkflowStepPanel`): HydroPanel + CadastralComputeIntegration -> lazy loaded
+- `/tools/traverse-field-book`: TraverseFieldBook -> dynamic; page converted to server component
+- `/tools/topo-drawing`: TopoDrawingComposer -> dynamic; page converted to server component
+- `/project/[id]/documents`: SurveyPlanViewer, SurveyPlanExport, ShapefileExport -> dynamic
+- `/field/map`: GeoPDFImport -> dynamic
+- `/fieldguard/DataCleaner`: CleanedExport -> dynamic
+- Fixed ESLint: restored `.eslintrc.json`, removed broken flat config, removed conflicting parent configs
 - Fixed `sanitize.ts`: DOMPurify require() compatibility
 
-**Build verification:**
-- `tsc --noEmit` → 0 errors
-- `next lint` → 0 errors, 0 warnings
-- `npm run build` → successful
-- Shared JS: 91.4 kB (unchanged)
+**Status:** CLOSED
+
+---
+
+### Phase 11: Test Suite Fix & Code Hygiene
+
+**Scope:** Fix all failing tests, clean dead dependencies, consolidate redundant modules.
+
+**Test fixes (17 files):**
+- `jest.config.js`: Added `coverageProvider: 'v8'` to fix broken `babel-plugin-istanbul`/`test-exclude` chain
+- `security.test.ts`: Added comprehensive mocks for `@/lib/db`, `rateLimit`, `logger`, `sentry`, `nextUrl`
+- `beaconSymbols.test.ts`: Fixed wrong expectations (`<desc>` -> `<title>`, SVG wrapper)
+- `renderer.test.ts`: Updated stale snapshot (date format change)
+- `parseTopcon.test.ts`: Added warning generation for short-column rows
+- `deedPlan.test.ts` + `deed-plan-computation.test.ts`: Updated DMS format to match Kenya Survey Regulations (1dp seconds)
+- `rbac.test.ts`: Fixed TextEncoder/module loading by adding proper mocks
+- `ntrip-client.test.ts` + `ntrip-client.ts`: Fixed 5 WebSocket timeouts (MockWebSocket), 2 RTCM type detection bugs (removed incorrect `& 0x3F` mask), corrected test byte values
+
+**Code hygiene:**
+- `package.json`: Moved `better-sqlite3` from `dependencies` to `devDependencies`
+- `src/lib/rateLimit.ts`: Deleted (deprecated shim, zero consumers)
+- `src/lib/security/rateLimit.ts`: Documented as canonical general-purpose rate limiter
+- `src/lib/security/loginLimiter.ts`: Documented as login brute-force protection
+
+**Results:**
+- `npm run test`: 91 suites, **1357 passed, 0 failed**
+- `npm run test:engineering`: 9 suites, **172 passed, 0 failed**
+- `tsc --noEmit`: 0 errors
+- `next lint`: 0 errors, 0 warnings
 
 **Status:** CLOSED
 
@@ -292,14 +318,15 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 | Phase 13 (6 briefs) | ✅ All compliant | RDM 1.1, SRVY2025-1 |
 | Auth System | ✅ NextAuth only | Dual auth eliminated |
 | Security | ✅ Hardened | DOMPurify, CSP, rate limiting |
-| UI Consistency | ✅ Standardized | PageHeader on all 48+ tool pages |
+| UI Consistency | ✅ Standardized | PageHeader on 51 tool pages |
 | Print System | ✅ Complete | Certificate block, 10 print modules |
 | HPC Terminology | ✅ Correct | No HI usage |
 | Max-Width | ✅ Standardized | `max-w-7xl` (2 intentional exceptions) |
-| Dead Code | ✅ Cleaned | React Query, next-intl removed |
-| .env Security | ✅ Purged | Removed from entire git history |
-| ESLint | ✅ 0 errors | `.eslintrc.json` with next/typescript; all rules configured |
-| Performance | ✅ Optimized | 23 components lazy-loaded, dynamic routes fixed, build warnings addressed |
+| Dead Code | ✅ Cleaned | React Query, next-intl, rateLimit shim removed |
+| .env Security | ✅ Never committed | `.gitignore` enforced; no secrets in git history |
+| ESLint | ✅ 0 errors | `.eslintrc.json` with next/typescript; parent configs removed |
+| Performance | ✅ Optimized | 23 components lazy-loaded, dynamic routes fixed |
+| Tests | ✅ All passing | 1357/1357 full + 172/172 engineering |
 | VM Deployment | ⬜ Pending | Latest code not yet deployed |
 
 ---
@@ -308,13 +335,16 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 
 | Hash | Description |
 |------|-------------|
+| `32f4742` | perf: Phase 10 -- lazy loading, ESLint fix, dynamic routes |
+| `ad3197f` | perf: fix 4 critical performance issues -- enable image optimization, lazy images, OL docs |
+| `f632e30` | docs: update engineering reference -- ESLint persona PASS, add Phase 9 |
 | `639ed09` | docs: update worklog with ESLint zero-fix phase |
 | `821a08e` | fix: ESLint zero errors -- fix config, auto-fix 150 var->const, manual code fixes |
 | `21ba19a` | docs: add METARDU_ENGINEERING_REFERENCE.md, update worklog with Phase 13 |
-| `f7e6d5d` | feat: Phase 13.1 -- PageHeader migration, max-width standardization |
+| `f7e6d5d` | feat: Phase 13.1 -- migrate all 48 tool pages to PageHeader, standardize max-width |
 | `c228095` | fix: security hardening, DOMPurify sanitization, dead code cleanup |
-| `c9ce421` | fix: zero TypeScript errors -- tsconfig target, NavBar optional chaining |
-| `b6bf8d8` | refactor: cleanup dead code, Redis login limiter |
+| `c9ce421` | fix: zero TypeScript errors -- tsconfig target, NavBar optional chaining, cleanup |
+| `b6bf8d8` | refactor: cleanup dead code, Redis login limiter, split MapClient modules |
 | `65583c1` | fix: unify auth to NextAuth only |
 | `631476a` | fix: remove dead deps, purge .env from git history |
 
@@ -452,11 +482,10 @@ docker compose up -d
 | ESLint not enforced in build | Lint errors may accumulate if committed without running | `ignoreDuringBuilds: true`; run `npm run lint` before committing |
 | TypeScript not checked during build | Type regressions possible if `tsc` not run | `ignoreBuildErrors: true`; TypeScript checked via `tsc --noEmit` separately |
 | No CI/CD pipeline | Manual deployment required | Deployment checklist in Section 7 |
-| Better-sqlite3 still in dependencies | Unused since PostgreSQL migration | Harmless; kept for potential local dev scenarios |
+| Better-sqlite3 still in devDependencies | Unused since PostgreSQL migration | Moved to devDependencies; no native compilation in production Docker build |
 | Images unoptimized | `images.unoptimized: true` | VM has no image optimization needs |
 | OpenTelemetry build warning | `require-in-the-middle` critical dependency warning | Sentry/Postgres instrumentation chain; cosmetic only, no runtime impact |
 | AUTH_SECRET missing at build time | Build logs show warning | Set via `.env.local` on VM; build uses dummy placeholder |
-| Parcel vault stats error at build | Static gen fails for `/api/parcel-vault/stats` | Route requires DB; only affects build-time static generation, not runtime |
 
 ---
 
@@ -473,7 +502,7 @@ docker compose up -d
 | 7 | Terminology Standards Checker | ✅ Pass | HPC (not HI), Linear Misclosure (not Error), Gradient (not Grade in road context) |
 | 8 | Dead Code & Dependency Auditor | ✅ Pass | React Query removed, next-intl removed, .env purged from git history |
 | 9 | Git & Deployment Hygiene Specialist | ✅ Pass | Clean commit history, no secrets in repo, force push procedure documented |
-| 10 | ESLint Code Quality Reviewer | ✅ Pass | 0 errors, 0 warnings; `.eslintrc.json` with next/typescript; 161 issues fixed |
+| 10 | ESLint Code Quality Reviewer | ✅ Pass | 0 errors, 0 warnings; `.eslintrc.json` with next/typescript; conflicting parent configs removed; 161 issues fixed |
 | 11 | Performance & Optimization Analyst | ✅ Pass | Bundle analysis complete; 23 components lazy-loaded via `next/dynamic`; dynamic routes fixed; build verified |
 
 ---

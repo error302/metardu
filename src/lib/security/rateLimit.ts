@@ -1,4 +1,13 @@
 /**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * General-purpose rate limiter for METARDU API routes.
+ *
+ * Distinction from loginLimiter.ts:
+ *   • This module enforces per-IP request quotas (e.g., "max 60 req/min").
+ *   • loginLimiter.ts handles login brute-force protection — it tracks
+ *     failed attempts per email+IP and issues account lockouts.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
  * Rate limiter for METARDU API routes.
  *
  * Uses Upstash Redis when UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN

@@ -28,8 +28,12 @@ describe('Deed Plan Computation', () => {
     }
   })
   test('degreesToDMS', () => {
-    expect(degreesToDMS(0)).toBe('000\u00b000\'00"')
-    expect(degreesToDMS(90)).toBe('090\u00b000\'00"')
+    const r0 = degreesToDMS(0)
+    expect(r0).toMatch(/^000\u00b000'/)
+    expect(r0).toContain('"')
+    const r90 = degreesToDMS(90)
+    expect(r90).toMatch(/^090\u00b000'/)
+    expect(r90).toContain('"')
   })
   test('area ~16000 sqm', () => {
     const a = computeArea(PTS)

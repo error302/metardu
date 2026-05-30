@@ -1,4 +1,13 @@
 /**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Login brute-force protection for METARDU.
+ *
+ * Distinction from rateLimit.ts:
+ *   • This module tracks failed login attempts per email+IP and locks
+ *     accounts after too many failures (5 failures → 30-min lockout).
+ *   • rateLimit.ts handles general per-IP request quotas for API routes.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
  * Login Brute-Force Protection for METARDU
  *
  * Tracks failed login attempts per email+IP combination.

@@ -1,5 +1,27 @@
 import { hasRole, isAdmin, ROLES, DEFAULT_ROLE, PROJECT_WRITE_ROLES, SCHEME_ADMIN_ROLES } from '../rbac'
 
+// Mock the db module to prevent pg from loading (which requires TextEncoder)
+jest.mock('@/lib/db', () => ({
+  db: { query: jest.fn() },
+  setCurrentUserId: jest.fn(),
+  getPool: jest.fn(),
+}))
+
+// Mock next/server to prevent Next.js module loading issues
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: jest.fn((data, init) => ({ data, status: init?.status || 200 })),
+  },
+}))
+
+jest.mock('next-auth', () => ({
+  getServerSession: jest.fn(),
+}))
+
+jest.mock('@/lib/auth', () => ({
+  authOptions: {},
+}))
+
 describe('RBAC Module', () => {
   describe('hasRole', () => {
     it('should return true when user role is in allowed list', () => {

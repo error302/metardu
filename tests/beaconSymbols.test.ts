@@ -58,11 +58,12 @@ describe('beaconSymbols', () => {
       })
     })
 
-    it('should include <desc> element in all symbols', () => {
+    it('should include <title> element with beacon type and status', () => {
       ALL_BEACON_TYPES.forEach(type => {
         const result = getBeaconSymbol(type, 'FOUND')
-        expect(result).toContain('<desc>')
-        expect(result).toContain('</desc>')
+        expect(result).toContain('<title>')
+        expect(result).toContain('</title>')
+        expect(result).toContain('FOUND')
       })
     })
 
@@ -140,10 +141,10 @@ describe('beaconSymbols', () => {
   })
 
   describe('getBeaconSymbolSVG', () => {
-    it('should wrap symbol in <g> tags', () => {
+    it('should wrap symbol in <svg> tags', () => {
       const result = getBeaconSymbolSVG('PSC', 'FOUND')
-      expect(result.startsWith('<g>')).toBe(true)
-      expect(result.endsWith('</g>')).toBe(true)
+      expect(result.startsWith('<svg')).toBe(true)
+      expect(result.endsWith('</svg>')).toBe(true)
     })
   })
 })

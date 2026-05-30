@@ -527,7 +527,7 @@ export function detectRTCMMessageType(data: Uint8Array): {
   const length = ((data[1] & 0x03) << 8) | data[2];
 
   // Message type (12 bits from bytes 3-4)
-  const type = ((data[3] & 0x3F) << 4) | ((data[4] & 0xF0) >> 4);
+  const type = (data[3] << 4) | ((data[4] & 0xF0) >> 4);
 
   // Reference station ID (12 bits from bytes 4-5)
   const stationId = ((data[4] & 0x0F) << 8) | data[5];
