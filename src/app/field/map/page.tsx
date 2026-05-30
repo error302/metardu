@@ -34,7 +34,12 @@ const MapViewer = dynamic(() => import('@/components/field/MapViewer'), {
 });
 
 /* ── Non-OL imports (safe to import at module level) ──────────────── */
-import GeoPDFImport from '@/components/field/GeoPDFImport';
+const GeoPDFImport = dynamic(() => import('@/components/field/GeoPDFImport'), {
+  ssr: false,
+  loading: () => (
+    <div className="p-4 text-white/50 text-sm">Loading GeoPDF importer…</div>
+  ),
+});
 
 /* ================================================================== */
 /*  FIELD MAP PAGE — Full-bleed map with zero-obstruction overlays      */

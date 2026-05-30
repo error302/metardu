@@ -9,7 +9,10 @@ const AnomalyHeatmap = dynamic(() => import('./AnomalyHeatmap'), {
   ssr: false,
   loading: () => <div className="animate-pulse bg-gray-200 rounded h-64" />,
 })
-import CleanedExport from './CleanedExport'
+const CleanedExport = dynamic(() => import('./CleanedExport'), {
+  ssr: false,
+  loading: () => <div className="p-4 text-center text-gray-500 text-sm">Loading export options…</div>,
+})
 import type { RawSurveyPoint, CleanDataResponse } from '@/types/fieldguard'
 
 export default function DataCleaner({ projectId }: { projectId: string }) {

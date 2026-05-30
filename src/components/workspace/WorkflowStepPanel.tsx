@@ -6,12 +6,12 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { FileText, Map, Download, Loader2, Sparkles } from 'lucide-react';
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile';
-import { HydroPanel } from '@/components/compute/HydroPanel';
 import { useState } from 'react';
-import CadastralComputeIntegration from './CadastralComputeIntegration';
 
 const DynamicFieldBook = dynamic(() => import('./DynamicFieldBook'), { ssr: false });
 const GenerateReportModal = dynamic(() => import('./GenerateReportModal'), { ssr: false });
+const HydroPanel = dynamic(() => import('@/components/compute/HydroPanel').then(m => ({ default: m.HydroPanel })), { ssr: false });
+const CadastralComputeIntegration = dynamic(() => import('./CadastralComputeIntegration'), { ssr: false });
 
 interface Props {
   projectId: string;

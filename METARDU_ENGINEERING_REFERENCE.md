@@ -246,6 +246,43 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 
 ---
 
+### Phase 10: Performance & Optimization Audit (Persona 11)
+
+**Scope:** Formal performance audit — bundle analysis, lazy loading, dynamic route fixes.
+
+**Bundle Analysis (heaviest routes by First Load JS):**
+
+| Route | First Load JS | Root Cause |
+|-------|--------------|------------|
+| `/project/[id]` | 409 kB (271 kB first-party) | `WorkflowStepPanel` statically imports HydroPanel + CadastralComputeIntegration |
+| `/field/map` | 284 kB | OpenLayers shared chunk (~200 kB) — already code-split |
+| `/fieldguard` | 244 kB | OpenLayers shared chunk — already code-split |
+| `/project/[id]/engineering` | 236 kB (62.3 kB first-party) | 15 engineering panels statically imported |
+| `/tools/traverse-field-book` | 179 kB (67.5 kB first-party) | Computation engine + canvas drawing + print modules |
+
+**Work completed:**
+- 9 files modified, 23 components converted to `next/dynamic({ ssr: false })` lazy loading
+- Fixed `/api/realtime/poll` and `/api/search`: added `export const dynamic = 'force-dynamic'` to eliminate static generation errors
+- `/project/[id]/engineering`: 15 engineering panels → lazy loaded (only loaded when step activated)
+- `/project/[id]` (via `WorkflowStepPanel`): HydroPanel + CadastralComputeIntegration → lazy loaded
+- `/tools/traverse-field-book`: TraverseFieldBook → dynamic; page converted to server component
+- `/tools/topo-drawing`: TopoDrawingComposer → dynamic; page converted to server component
+- `/project/[id]/documents`: SurveyPlanViewer, SurveyPlanExport, ShapefileExport → dynamic
+- `/field/map`: GeoPDFImport → dynamic
+- `/fieldguard/DataCleaner`: CleanedExport → dynamic
+- Fixed ESLint regression: restored `.eslintrc.json` with `next/typescript` extends, removed broken flat config
+- Fixed `sanitize.ts`: DOMPurify require() compatibility
+
+**Build verification:**
+- `tsc --noEmit` → 0 errors
+- `next lint` → 0 errors, 0 warnings
+- `npm run build` → successful
+- Shared JS: 91.4 kB (unchanged)
+
+**Status:** CLOSED
+
+---
+
 ## 4. CURRENT STATUS DASHBOARD
 
 | Category | Status | Details |
@@ -261,7 +298,8 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 | Max-Width | ✅ Standardized | `max-w-7xl` (2 intentional exceptions) |
 | Dead Code | ✅ Cleaned | React Query, next-intl removed |
 | .env Security | ✅ Purged | Removed from entire git history |
-| ESLint | ✅ 0 errors | Flat config, 161 issues fixed |
+| ESLint | ✅ 0 errors | `.eslintrc.json` with next/typescript; all rules configured |
+| Performance | ✅ Optimized | 23 components lazy-loaded, dynamic routes fixed, build warnings addressed |
 | VM Deployment | ⬜ Pending | Latest code not yet deployed |
 
 ---
@@ -416,6 +454,9 @@ docker compose up -d
 | No CI/CD pipeline | Manual deployment required | Deployment checklist in Section 7 |
 | Better-sqlite3 still in dependencies | Unused since PostgreSQL migration | Harmless; kept for potential local dev scenarios |
 | Images unoptimized | `images.unoptimized: true` | VM has no image optimization needs |
+| OpenTelemetry build warning | `require-in-the-middle` critical dependency warning | Sentry/Postgres instrumentation chain; cosmetic only, no runtime impact |
+| AUTH_SECRET missing at build time | Build logs show warning | Set via `.env.local` on VM; build uses dummy placeholder |
+| Parcel vault stats error at build | Static gen fails for `/api/parcel-vault/stats` | Route requires DB; only affects build-time static generation, not runtime |
 
 ---
 
@@ -432,8 +473,8 @@ docker compose up -d
 | 7 | Terminology Standards Checker | ✅ Pass | HPC (not HI), Linear Misclosure (not Error), Gradient (not Grade in road context) |
 | 8 | Dead Code & Dependency Auditor | ✅ Pass | React Query removed, next-intl removed, .env purged from git history |
 | 9 | Git & Deployment Hygiene Specialist | ✅ Pass | Clean commit history, no secrets in repo, force push procedure documented |
-| 10 | ESLint Code Quality Reviewer | ✅ Pass | 0 errors, 0 warnings; flat config with FlatCompat; 161 issues fixed |
-| 11 | Performance & Optimization Analyst | ⬜ Not done | No formal performance audit conducted; bundle analysis available via `ANALYZE=true` |
+| 10 | ESLint Code Quality Reviewer | ✅ Pass | 0 errors, 0 warnings; `.eslintrc.json` with next/typescript; 161 issues fixed |
+| 11 | Performance & Optimization Analyst | ✅ Pass | Bundle analysis complete; 23 components lazy-loaded via `next/dynamic`; dynamic routes fixed; build verified |
 
 ---
 

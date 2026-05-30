@@ -1,6 +1,11 @@
-import TopoDrawingComposer from '@/components/topo/TopoDrawingComposer'
+import dynamic from 'next/dynamic'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 import { PageHeader } from '@/components/shared/PageHeader'
+
+const TopoDrawingComposer = dynamic(() => import('@/components/topo/TopoDrawingComposer'), {
+  ssr: false,
+  loading: () => <div className="p-8 text-center text-[var(--text-muted)]">Loading Topo Drawing Composer…</div>,
+})
 
 export default function TopoDrawingPage() {
   return (

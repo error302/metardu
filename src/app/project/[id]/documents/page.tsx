@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { getOrCreateProjectSubmission, updateProjectSubmission } from '@/lib/api-client/projectSubmissions'
 import {
@@ -10,6 +10,7 @@ import {
   surveyorProfileToDetailsRecord,
 } from '@/lib/api-client/surveyorProfiles'
 import { ProfessionalDisclaimer } from '@/components/shared/ProfessionalDisclaimer'
+import dynamic from 'next/dynamic'
 import {
   getDocsForType, DocumentDef, SurveyDocType,
   generateCoverLetter, generateComputationSheet, generateAreaCertificate,
@@ -19,11 +20,6 @@ import {
 } from '@/lib/reports/documentPackage'
 import type { SurveyPoint } from '@/types/surveyPoint'
 import type { SurveyPlanData, ControlPoint } from '@/lib/reports/surveyPlan/types'
-import SurveyPlanViewer from '@/components/SurveyPlanViewer'
-import SurveyPlanExport from '@/components/SurveyPlanExport'
-import ShapefileExport from '@/components/ShapefileExport'
-import Link from 'next/link'
-import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import {
   formatBearingDegMinSec,
   shoelaceArea,
@@ -33,6 +29,20 @@ import {
 } from '@/lib/reports/surveyPlan/geometry'
 import { computeTraverseAccuracy, getAccuracyBadgeLabel, getAccuracyBadgeClass } from '@/lib/reports/traverseAccuracy'
 import type { ProjectSubmission } from '@/types/submission'
+import Link from 'next/link'
+import { useSubscription } from '@/lib/subscription/subscriptionContext'
+
+/* ── Lazy-loaded heavy components (canvas/DXF/PDF renderers) ────────── */
+const SurveyPlanViewer = dynamic(() => import('@/components/SurveyPlanViewer'), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-full text-[var(--text-muted)]">Loading Survey Plan…</div>,
+})
+const SurveyPlanExport = dynamic(() => import('@/components/SurveyPlanExport'), {
+  ssr: false,
+})
+const ShapefileExport = dynamic(() => import('@/components/ShapefileExport'), {
+  ssr: false,
+})
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 

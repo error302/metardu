@@ -3,10 +3,10 @@
  * Safe for use with dangerouslySetInnerHTML.
  */
 export function sanitizeHtml(dirty: string): string {
-  // Dynamic import to avoid SSR issues — DOMPurify requires `window`
+  // DOMPurify requires `window` — use synchronous client-side loading
   if (typeof window !== 'undefined') {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const DOMPurify = require('dompurify')
+    const createDOMPurify = require('dompurify');
+    const DOMPurify = createDOMPurify.default || createDOMPurify;
     return DOMPurify.sanitize(dirty, {
       ALLOWED_TAGS: [
         'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -23,10 +23,10 @@ export function sanitizeHtml(dirty: string): string {
         'text-align', 'font-size', 'font-weight', 'font-style',
         'background', 'color', 'padding', 'margin', 'vertical-align',
       ],
-    })
+    });
   }
   // Server-side fallback: strip all tags
-  return dirty.replace(/<[^>]*>/g, '')
+  return dirty.replace(/<[^>]*>/g, '');
 }
 
 export function sanitizeText(input: string): string {

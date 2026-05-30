@@ -2,28 +2,65 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/api-client/client'
 import type { EngineeringData, EngineeringMode, EngineeringStandard, RoadDesignData, DrainageData, StationData, IntersectionPoint, VerticalIP, CrossSectionTemplate, StepStatus, Manhole, PipeRun } from '@/types/engineering'
 import { KRDM2017, KeRRA, getDesignSpeedRange, getCarriagewayWidth, getShoulderWidth } from '@/lib/standards/engineering'
-import { HorizontalCurvePanel } from '@/components/engineering/HorizontalCurvePanel'
-import SuperelevationPanel from '@/components/engineering/SuperelevationPanel'
-import { VolumesPanel } from '@/components/engineering/VolumesPanel'
-import { NetworkAdjustmentPanel } from '@/components/compute/NetworkAdjustmentPanel'
 import type { SurveyorProfileSubmission } from '@/lib/api-client/community'
 import { MANNING_N } from '@/lib/engineering/drainageDesign'
-import LongSectionRenderer from '@/components/engineering/LongSectionRenderer'
 import CrossSectionRenderer from '@/components/engineering/CrossSectionRenderer'
-import CrossSectionSeries from '@/components/engineering/CrossSectionSeries'
-import RoadReservePanel from '@/components/engineering/RoadReservePanel'
-import AsBuiltSurveyPanel from '@/components/engineering/AsBuiltSurveyPanel'
-import PavementDesignPanel from '@/components/engineering/PavementDesignPanel'
-import DrainageDesignPanel from '@/components/engineering/DrainageDesignPanel'
-import RoadCompletionCertificatePanel from '@/components/engineering/RoadCompletionCertificatePanel'
-import PileGridPanel from '@/components/engineering/PileGridPanel'
-import SlopeAnalysisPanel from '@/components/engineering/SlopeAnalysisPanel'
-import ProgressMonitorPanel from '@/components/engineering/ProgressMonitorPanel'
-import MachineControlExportPanel from '@/components/engineering/MachineControlExportPanel'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
+
+/* ── Lazy-loaded engineering panels (only one step visible at a time) ─── */
+const HorizontalCurvePanel = dynamic(() => import('@/components/engineering/HorizontalCurvePanel').then(m => ({ default: m.HorizontalCurvePanel })), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const SuperelevationPanel = dynamic(() => import('@/components/engineering/SuperelevationPanel'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const VolumesPanel = dynamic(() => import('@/components/engineering/VolumesPanel').then(m => ({ default: m.VolumesPanel })), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const NetworkAdjustmentPanel = dynamic(() => import('@/components/compute/NetworkAdjustmentPanel').then(m => ({ default: m.NetworkAdjustmentPanel })), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const LongSectionRenderer = dynamic(() => import('@/components/engineering/LongSectionRenderer'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const CrossSectionSeries = dynamic(() => import('@/components/engineering/CrossSectionSeries'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const RoadReservePanel = dynamic(() => import('@/components/engineering/RoadReservePanel'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const AsBuiltSurveyPanel = dynamic(() => import('@/components/engineering/AsBuiltSurveyPanel'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const PavementDesignPanel = dynamic(() => import('@/components/engineering/PavementDesignPanel'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const DrainageDesignPanel = dynamic(() => import('@/components/engineering/DrainageDesignPanel'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const RoadCompletionCertificatePanel = dynamic(() => import('@/components/engineering/RoadCompletionCertificatePanel'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const PileGridPanel = dynamic(() => import('@/components/engineering/PileGridPanel'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const SlopeAnalysisPanel = dynamic(() => import('@/components/engineering/SlopeAnalysisPanel'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const ProgressMonitorPanel = dynamic(() => import('@/components/engineering/ProgressMonitorPanel'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const MachineControlExportPanel = dynamic(() => import('@/components/engineering/MachineControlExportPanel'), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+
+function EngineeringPanelSkeleton() {
+  return <div className="animate-pulse bg-zinc-800/50 rounded-lg p-8 h-48 flex items-center justify-center text-zinc-500 text-sm">Loading panel…</div>
+}
 
 type EngineeringStepId = 'setup' | 'horizontal' | 'vertical' | 'cross_section' | 'stations' | 'outputs' | 'export' | 'manholes' | 'pipes' | 'drainage_outputs' | 'long_section' | 'cross_section_view' | 'road_reserve' | 'pavement_design' | 'drainage_design' | 'as_built' | 'road_completion' | 'pile_grid' | 'slope_analysis' | 'progress_monitor' | 'topo_drawing' | 'machine_control'
 
