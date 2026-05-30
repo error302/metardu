@@ -3,7 +3,7 @@
  * Stores files on the VM filesystem with metadata in PostgreSQL.
  *
  * POST   /api/storage — Upload a file (multipart/form-data, needs rawBody)
- * GET    /api/storage?path=<path> — Download a file (no auth required for public access)
+ * GET    /api/storage?path=<path> — Download a file (auth required, owner-only)
  * DELETE /api/storage?path=<path> — Delete a file
  */
 
@@ -67,6 +67,21 @@ export const GET = apiHandler({ auth: true }, async (request, ctx) => {
 
   const fullPath = safeResolvePath(filePath)
   if (!fullPath) return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
+
+  const { rows } = await db.query(
+    'SELECT user_id FROM file_uploads WHERE file_path = $1',
+    [filePath]
+  ).catch(() => ({ rows: [] as { user_id: string }[] }))
+
+  const isOwner = rows.some(row => row.user_id === ctx.userId)
+  const pathOwnedByUser = filePath.includes(`/${ctx.userId}/`)
+
+  if (rows.length > 0 && !isOwner) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  if (rows.length === 0 && !pathOwnedByUser) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const ext = path.extname(filePath).toLowerCase()
   const mimeMap: Record<string, string> = {

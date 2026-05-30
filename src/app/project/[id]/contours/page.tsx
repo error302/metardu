@@ -2,7 +2,7 @@
 import { useState, useEffect, use } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { generateContours, SpotHeight, ContourLine } from '@/lib/engine/contours'
-import MobileDesktopNotice from '@/components/layout/MobileDesktopNotice'
+import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 
 type EngineMode = 'python' | 'typescript' | null
 

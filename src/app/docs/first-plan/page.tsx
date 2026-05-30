@@ -62,7 +62,7 @@ export default function FirstPlanPage() {
           <section>
             <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-3">Step 4 — Run a Level Run Check (if applicable)</h2>
             <p className="text-[var(--text-secondary)] mb-3">
-              If your survey includes elevation data, use the <Link href="/tools/levelling" className="text-[var(--accent)] hover:underline">Levelling Calculator</Link>:
+              If your survey includes elevation data, use the <Link href="/tools/leveling" className="text-[var(--accent)] hover:underline">Levelling Calculator</Link>:
             </p>
             <ul className="list-disc list-inside space-y-1 text-[var(--text-secondary)]">
               <li>Enter your BS, IS, and FS readings.</li>

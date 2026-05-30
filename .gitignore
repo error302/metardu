@@ -121,6 +121,7 @@ skills-lock.json
 
 # Infrastructure configs (VM-specific)
 ecosystem.config.js
+ecosystem.config.cjs
 nginx-metardu
 env-metardu
 
