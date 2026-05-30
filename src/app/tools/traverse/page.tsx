@@ -125,7 +125,19 @@ export default function TraverseCalculator() {
       const r = method === 'bowditch'
         ? bowditchAdjustment({ points, distances, bearings })
         : transitAdjustment({ points, distances, bearings })
-      setResult(r)
+
+      // Map engine property names to display property names for compatibility
+      const mappedResult = {
+        ...r,
+        legs: r.legs.map((leg: any) => ({
+          ...leg,
+          departure: leg.rawDeltaE,
+          latitude: leg.rawDeltaN,
+          correctedDeparture: leg.adjDeltaE,
+          correctedLatitude: leg.adjDeltaN,
+        }))
+      }
+      setResult(mappedResult)
       trackEvent('tool_used', { tool: 'traverse', method })
 
       try {
