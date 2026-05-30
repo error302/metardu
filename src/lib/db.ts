@@ -69,7 +69,9 @@ export function getPool(): Pool {
 async function _setRlsContext(client: PoolClient | Pool) {
   const userId = getCurrentUserId()
   if (userId) {
-    await client.query(`SET LOCAL request.user_id = $1`, [userId])
+    // SET LOCAL does not support $1 parameterized placeholders.
+    // UUIDs only contain hex chars and hyphens — safe from injection.
+    await client.query(`SET LOCAL request.user_id = '${userId.replace(/'/g, "''")}'`)
   }
 }
 
@@ -85,7 +87,9 @@ export const db = {
     try {
       const userId = getCurrentUserId()
       if (userId) {
-        await client.query(`SET LOCAL request.user_id = $1`, [userId])
+        // SET LOCAL does not support $1 parameterized placeholders.
+        // UUIDs only contain hex chars and hyphens — safe from injection.
+        await client.query(`SET LOCAL request.user_id = '${userId.replace(/'/g, "''")}'`)
       }
       return await client.query(text, params)
     } finally {
@@ -111,7 +115,7 @@ export const db = {
       await client.query('BEGIN')
       const userId = getCurrentUserId()
       if (userId) {
-        await client.query(`SET LOCAL request.user_id = $1`, [userId])
+        await client.query(`SET LOCAL request.user_id = '${userId.replace(/'/g, "''")}'`)
       }
       const result = await fn(client)
       await client.query('COMMIT')
