@@ -43,7 +43,7 @@
 | Components (src/components/) | ~271 |
 | Library modules (src/lib/) | ~332 |
 | Type definition files (src/types/) | 43 |
-| API endpoints (route.ts) | ~174 |
+| API endpoints (route.ts) | ~173 |
 | Print modules (src/lib/print/) | 10 |
 
 ---
@@ -181,7 +181,7 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 
 #### Brief 13.1: UI Consistency
 
-- 48 pages migrated to standardized `PageHeader` component
+- 51 pages migrated to standardized `PageHeader` component
 - 8 max-width fixes (standardized to `max-w-7xl`)
 - Consistent subtitle, description, and reference citation pattern
 - Print template standardization via `buildPrintDocument.ts`
@@ -326,7 +326,7 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 | ESLint | ✅ 0 errors | `.eslintrc.json` with next/typescript; parent configs removed |
 | Performance | ✅ Optimized | 23 components lazy-loaded, dynamic routes fixed |
 | Tests | ✅ All passing | 1357/1357 full + 172/172 engineering |
-| VM Deployment | ⬜ Pending | Latest code not yet deployed |
+| VM Deployment | ✅ Automated | GitHub Actions `deploy.yml` auto-deploys on push to main |
 
 ---
 
@@ -334,6 +334,7 @@ CSS variable-based dark theme using `next-themes`. All color tokens defined as C
 
 | Hash | Description |
 |------|-------------|
+| `4f34a39` | fix: audit cleanup -- mbtiles lazy-load better-sqlite3, Phase 10 doc fix |
 | `32f4742` | perf: Phase 10 -- lazy loading, ESLint fix, dynamic routes |
 | `ad3197f` | perf: fix 4 critical performance issues -- enable image optimization, lazy images, OL docs |
 | `f632e30` | docs: update engineering reference -- ESLint persona PASS, add Phase 9 |
@@ -464,12 +465,27 @@ docker compose up -d
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `NEXTAUTH_SECRET` | NextAuth session encryption key |
+| `NEXTAUTH_SECRET` | NextAuth session encryption key (aliased as `AUTH_SECRET`) |
 | `NEXTAUTH_URL` | Public URL for OAuth callbacks |
 | `REDIS_URL` | Redis connection for rate limiting |
 | `NEXT_PUBLIC_SITE_URL` | Public site URL (for CSP headers) |
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | Gmail SMTP for email |
 | `NEXT_PUBLIC_SENTRY_DSN` | Sentry error monitoring (optional) |
+
+### CI/CD Pipeline (GitHub Actions)
+
+4 workflows in `.github/workflows/`:
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `ci.yml` | Push/PR to main | TypeScript check, ESLint, npm audit (critical) |
+| `deploy.yml` | Push to main | SSH to GCP VM, `git pull`, `docker compose up -d --build`, health check |
+| `pr-checks.yml` | PRs to main | TypeScript + ESLint gates |
+| `weekly-security.yml` | Weekly cron | `npm audit --audit-level=high` |
+
+**Auto-deploy flow:** Push to `main` triggers `deploy.yml`, which SSHs into the VM, pulls latest code, rebuilds Docker containers, and waits for health check. The Section 7 manual checklist above is a fallback if CI/CD fails.
+
+**Required GitHub Secrets:** `VM_SSH_KEY`, `VM_HOST`, `VM_USER`
 
 ---
 
@@ -478,11 +494,8 @@ docker compose up -d
 | Limitation | Impact | Mitigation |
 |-----------|--------|------------|
 | PayPal server-side API credentials invalid | Cannot verify payments server-side | PayPal Hosted Button works as client-side fallback |
-| ESLint not enforced in build | Lint errors may accumulate if committed without running | `ignoreDuringBuilds: true`; run `npm run lint` before committing |
-| TypeScript not checked during build | Type regressions possible if `tsc` not run | `ignoreBuildErrors: true`; TypeScript checked via `tsc --noEmit` separately |
-| No CI/CD pipeline | Manual deployment required | Deployment checklist in Section 7 |
 | Better-sqlite3 still in devDependencies | Used by mbtiles route (lazy-loaded) | Moved to devDependencies; dynamic import in mbtiles tile route prevents production crash if uninstalled |
-| Images unoptimized | `images.unoptimized: true` | VM has no image optimization needs |
+| Images unoptimized (mobile only) | `images.unoptimized: true` when `MOBILE_BUILD=true` | Only affects Capacitor/Android builds; web builds use Next.js image optimization |
 | OpenTelemetry build warning | `require-in-the-middle` critical dependency warning | Sentry/Postgres instrumentation chain; cosmetic only, no runtime impact |
 | AUTH_SECRET missing at build time | Build logs show warning | Set via `.env.local` on VM; build uses dummy placeholder |
 
@@ -500,7 +513,7 @@ docker compose up -d
 | 6 | Print & Document Standards Expert | ✅ Pass | Surveyor's Certificate block, 10 print modules, `buildPrintDocument` shared template |
 | 7 | Terminology Standards Checker | ✅ Pass | HPC (not HI), Linear Misclosure (not Error), Gradient (not Grade in road context) |
 | 8 | Dead Code & Dependency Auditor | ✅ Pass | React Query removed, next-intl removed, .env purged from git history |
-| 9 | Git & Deployment Hygiene Specialist | ✅ Pass | Clean commit history, no secrets in repo, force push procedure documented |
+| 9 | Git & Deployment Hygiene Specialist | ✅ Pass | Clean commit history, no secrets in repo; 4 GitHub Actions workflows (ci, deploy, pr-checks, weekly-security); auto-deploy on push to main |
 | 10 | ESLint Code Quality Reviewer | ✅ Pass | 0 errors, 0 warnings; `.eslintrc.json` with next/typescript; conflicting parent configs removed; 161 issues fixed |
 | 11 | Performance & Optimization Analyst | ✅ Pass | Bundle analysis complete; 23 components lazy-loaded via `next/dynamic`; dynamic routes fixed; build verified |
 
