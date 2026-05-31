@@ -50,14 +50,18 @@ function getPoolConfig() {
   throw new Error('Database connection is not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER.')
 }
 
+/** UUID validation regex for RLS context safety */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /** Get the singleton Pool instance (lazy-initialized) */
 export function getPool(): Pool {
   if (!pool) {
     pool = new Pool(getPoolConfig())
-    // Auto-migrate: ensure payment_history has plan_id and transaction_id columns
-    // (Migration 004 may not have been applied in all environments)
-    pool.query(`ALTER TABLE payment_history ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(255)`).catch(() => {})
-    pool.query(`ALTER TABLE payment_history ADD COLUMN IF NOT EXISTS plan_id VARCHAR(50)`).catch(() => {})
+    // NOTE: DDL migrations removed from hot path.
+    // Column additions (payment_history.plan_id, transaction_id) are handled
+    // by scripts/migrate.js which runs in docker-entrypoint.sh before the
+    // server starts. Running ALTER TABLE on every pool creation takes an
+    // ACCESS EXCLUSIVE lock on the table, blocking all reads/writes.
   }
   return pool
 }
@@ -69,9 +73,12 @@ export function getPool(): Pool {
 async function _setRlsContext(client: PoolClient | Pool) {
   const userId = getCurrentUserId()
   if (userId) {
+    // Defense-in-depth: validate UUID format before interpolating into SQL.
     // SET LOCAL does not support $1 parameterized placeholders.
-    // UUIDs only contain hex chars and hyphens — safe from injection.
-    await client.query(`SET LOCAL request.user_id = '${userId.replace(/'/g, "''")}'`)
+    if (!UUID_RE.test(userId)) {
+      throw new Error(`Invalid userId format for RLS context: ${userId}`)
+    }
+    await client.query(`SET LOCAL request.user_id = '${userId}'`)
   }
 }
 
@@ -87,9 +94,11 @@ export const db = {
     try {
       const userId = getCurrentUserId()
       if (userId) {
-        // SET LOCAL does not support $1 parameterized placeholders.
-        // UUIDs only contain hex chars and hyphens — safe from injection.
-        await client.query(`SET LOCAL request.user_id = '${userId.replace(/'/g, "''")}'`)
+        // Defense-in-depth: validate UUID format before interpolating into SQL.
+        if (!UUID_RE.test(userId)) {
+          throw new Error(`Invalid userId format for RLS context: ${userId}`)
+        }
+        await client.query(`SET LOCAL request.user_id = '${userId}'`)
       }
       return await client.query(text, params)
     } finally {
@@ -115,7 +124,10 @@ export const db = {
       await client.query('BEGIN')
       const userId = getCurrentUserId()
       if (userId) {
-        await client.query(`SET LOCAL request.user_id = '${userId.replace(/'/g, "''")}'`)
+        if (!UUID_RE.test(userId)) {
+          throw new Error(`Invalid userId format for RLS context: ${userId}`)
+        }
+        await client.query(`SET LOCAL request.user_id = '${userId}'`)
       }
       const result = await fn(client)
       await client.query('COMMIT')

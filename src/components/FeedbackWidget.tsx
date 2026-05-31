@@ -112,7 +112,7 @@ export default function FeedbackWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 left-4 sm:left-auto bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-2xl w-[calc(100vw-2rem)] sm:w-[22rem] max-h-[80vh] z-50 flex flex-col overflow-hidden">
+    <div className="fixed bottom-24 right-4 left-4 sm:bottom-6 sm:left-auto bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-2xl w-[calc(100vw-2rem)] sm:w-[22rem] max-h-[80vh] z-50 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-[var(--accent)] px-4 py-3 flex justify-between items-center flex-shrink-0">
         <h3 className="text-black font-bold text-sm">Beta Feedback</h3>
@@ -172,13 +172,13 @@ export default function FeedbackWidget() {
                   key={key}
                   type="button"
                   onClick={() => setType(key)}
-                  className={`flex-1 py-2 rounded-lg text-[10px] font-medium transition-all ${
+                  className={`flex-1 py-3 rounded-lg text-[10px] font-medium transition-all ${
                     type === key
                       ? 'bg-[var(--accent)] text-black shadow-md shadow-[var(--accent)]/20'
                       : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-white hover:bg-[var(--border-color)]'
                   }`}
                 >
-                  <span className="block text-sm mb-0.5">{icon}</span>
+                  <span className="block text-lg mb-0.5">{icon}</span>
                   {label}
                 </button>
               ))}
@@ -247,7 +247,7 @@ export default function FeedbackWidget() {
                   <button
                     type="button"
                     onClick={() => setScreenshot(null)}
-                    className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px]"
+                    className="absolute top-1 right-1 w-8 h-8 bg-red-500/80 rounded-full flex items-center justify-center text-white text-xs"
                     aria-label="Remove screenshot"
                   >
                     ✕

@@ -177,7 +177,7 @@ export default function FieldMapPage() {
 
   /* ── Render ───────────────────────────────────────────────────── */
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#0a0a0f]">
+    <div className="relative w-full h-screen overflow-hidden bg-[#0a0a0f]">
       {/* ═══════════════════════════════════════════════════════════ */}
       {/*  MAP — FULL BLEED (absolute, no padding)                    */}
       {/* ═══════════════════════════════════════════════════════════ */}
@@ -364,14 +364,14 @@ export default function FieldMapPage() {
         {/* Drawer body */}
         <div
           className="h-full flex flex-col bg-black/65 backdrop-blur-xl border-r border-white/[0.08] text-white"
-          style={{ width: 240 }}
+          style={{ width: 'min(240px, 65vw)' }}
         >
           {/* Drawer header */}
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.08]">
             <span className="text-xs font-semibold uppercase tracking-wider text-white/70">Export &amp; Layers</span>
             <button
               onClick={closeDrawer}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors"
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors"
               aria-label="Close drawer"
             >
               <X className="w-4 h-4" />
@@ -476,7 +476,7 @@ export default function FieldMapPage() {
       {!drawerOpen && (
         <button
           onClick={openDrawer}
-          className="absolute z-10 top-1/2 -translate-y-1/2 w-6 flex items-center justify-center rounded-r-lg bg-black/50 backdrop-blur-md hover:bg-black/65 text-white/60 hover:text-white transition-all"
+          className="absolute z-10 top-1/2 -translate-y-1/2 w-10 flex items-center justify-center rounded-r-lg bg-black/50 backdrop-blur-md hover:bg-black/65 text-white/60 hover:text-white transition-all py-4"
           style={{ left: 0 }}
           aria-label="Open export drawer"
         >

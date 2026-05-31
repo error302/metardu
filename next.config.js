@@ -227,13 +227,15 @@ const nextConfig = {
       {
         source: '/api/projects/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=60, stale-while-revalidate=300' },
+          // User-specific data — must not be cached by CDNs/proxies
+          { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {
         source: '/api/survey-report/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, stale-while-revalidate=600' },
+          // User-specific report data — must not be cached by CDNs/proxies
+          { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {

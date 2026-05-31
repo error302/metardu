@@ -601,7 +601,7 @@ export default function AdminUsersPage() {
               <button
                 onClick={() => handlePageChange(pagination.page - 1)}
                 disabled={pagination.page <= 1}
-                className="btn btn-secondary text-xs px-3 py-1.5 disabled:opacity-40"
+                className="btn btn-secondary text-xs px-4 py-2.5 disabled:opacity-40"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Previous
@@ -612,7 +612,7 @@ export default function AdminUsersPage() {
               <button
                 onClick={() => handlePageChange(pagination.page + 1)}
                 disabled={!pagination.hasMore}
-                className="btn btn-secondary text-xs px-3 py-1.5 disabled:opacity-40"
+                className="btn btn-secondary text-xs px-4 py-2.5 disabled:opacity-40"
               >
                 Next
                 <ChevronRight className="w-4 h-4" />

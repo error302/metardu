@@ -57,7 +57,7 @@ export default function MobileNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
+                className={`flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
                   isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -76,7 +76,7 @@ export default function MobileNav() {
               <Link
                 key={reportsItem.href}
                 href={reportsItem.href}
-                className={`flex flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
+                className={`flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
                   isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -89,7 +89,7 @@ export default function MobileNav() {
           {/* More button */}
           <button
             onClick={() => setShowMore(true)}
-            className={`flex flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
+            className={`flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
               isMoreActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
             }`}
           >

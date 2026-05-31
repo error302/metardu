@@ -58,7 +58,7 @@ export default function AdminLayout({
   const userRole = (session?.user as { role?: string })?.role ?? ''
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex">
+    <div className="min-h-screen flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -165,7 +165,7 @@ export default function AdminLayout({
         <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="p-2 -ml-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             <Menu className="w-5 h-5" />
           </button>
