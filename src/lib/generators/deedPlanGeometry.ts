@@ -184,8 +184,13 @@ function buildFromPreAdjusted(
 /**
  * Attempt to load pre-adjusted coordinates from the traverse_coordinates
  * table. Returns null if no saved traverse exists.
+ *
+ * Also queries the field book entries for beacon descriptions (monument type,
+ * mark status, beacon number) so that the DeedPlanGeometry includes rich
+ * beacon metadata — matching the behaviour of the external helper in
+ * deedPlan.ts.
  */
-async function loadPreAdjustedFromDB(
+export async function loadPreAdjustedFromDB(
   projectId: string
 ): Promise<{ stations: PreAdjustedCoordinate[]; closure: PreAdjustedClosure } | null> {
   try {
@@ -212,14 +217,39 @@ async function loadPreAdjustedFromDB(
 
     if (coordsRes.rows.length < 3) return null;
 
-    const stations: PreAdjustedCoordinate[] = coordsRes.rows.map((c: Record<string, unknown>) => ({
-      station: String(c.station),
-      easting: parseFloat(String(c.easting)),
-      northing: parseFloat(String(c.northing)),
-      beaconNo: String(c.station),
-      monument: 'psc found',
-      markStatus: 'FOUND',
-    }));
+    // Also try to get beacon info from field book entries for richer metadata
+    let beaconLookup = new Map<string, { beaconNo: string; monument: string; markStatus: string }>();
+    try {
+      const fbRes = await db.query(
+        'SELECT station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
+        [projectId]
+      );
+      for (const row of fbRes.rows) {
+        const raw = row.raw_data as Record<string, unknown> | null;
+        if (row.station && raw) {
+          beaconLookup.set(String(row.station), {
+            beaconNo: String(raw.beacon_no ?? ''),
+            monument: String(raw.monument_type ?? ''),
+            markStatus: String(raw.mark_status ?? raw.monument_status ?? 'FOUND'),
+          });
+        }
+      }
+    } catch {
+      // Field book table may not exist — proceed with defaults
+    }
+
+    const stations: PreAdjustedCoordinate[] = coordsRes.rows.map((c: Record<string, unknown>) => {
+      const stn = String(c.station);
+      const beacon = beaconLookup.get(stn);
+      return {
+        station: stn,
+        easting: parseFloat(String(c.easting)),
+        northing: parseFloat(String(c.northing)),
+        beaconNo: beacon?.beaconNo || stn,
+        monument: beacon?.monument || 'psc found',
+        markStatus: beacon?.markStatus || 'FOUND',
+      };
+    });
 
     const closure: PreAdjustedClosure = {
       misclosureMm: parseFloat(String(traverse.linear_misclosure ?? 0)) * 1000,

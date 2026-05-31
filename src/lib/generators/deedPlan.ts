@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import db from '@/lib/db';
-import { computeDeedPlanGeometry, type PreAdjustedCoordinate, type PreAdjustedClosure } from './deedPlanGeometry';
+import { computeDeedPlanGeometry, loadPreAdjustedFromDB, type PreAdjustedCoordinate, type PreAdjustedClosure } from './deedPlanGeometry';
 import { renderBoundaryPlan } from './deedPlanRenderer';
 import { addPageFooter } from './pdfTitleBlock';
 
@@ -44,83 +44,10 @@ function getBeaconDescription(monument: string): { type: string; material: strin
 
 /**
  * Load Bowditch-adjusted traverse coordinates from the database.
- * Returns null if no saved traverse exists — the caller should fall back
- * to computeDeedPlanGeometry's internal Path B / Path C logic.
- *
- * This is the authoritative source for adjusted coordinates: the
- * traverse computation sheet saves results here after Bowditch
- * adjustment, so all output documents derive from the same source.
+ * Delegates to the shared loadPreAdjustedFromDB() from deedPlanGeometry.ts
+ * which now includes field book beacon enrichment.
+ * This ensures all output documents use a single, consistent source of truth.
  */
-async function loadTraverseCoordinatesFromDB(
-  projectId: string
-): Promise<{ stations: PreAdjustedCoordinate[]; closure: PreAdjustedClosure } | null> {
-  try {
-    // Find the most recent traverse for this project via parcels
-    const traverseRes = await db.query(
-      `SELECT pt.id, pt.linear_misclosure, pt.precision_ratio
-       FROM parcel_traverses pt
-       JOIN parcels p ON p.id = pt.parcel_id
-       JOIN blocks b ON b.id = p.block_id
-       WHERE b.project_id = $1
-       ORDER BY pt.created_at DESC LIMIT 1`,
-      [projectId]
-    );
-
-    if (traverseRes.rows.length === 0) return null;
-
-    const traverse = traverseRes.rows[0];
-    const traverseId = traverse.id;
-
-    const coordsRes = await db.query(
-      'SELECT station, easting, northing, rl FROM traverse_coordinates WHERE traverse_id = $1 ORDER BY station',
-      [traverseId]
-    );
-
-    if (coordsRes.rows.length < 3) return null;
-
-    // Also try to get beacon info from field book entries
-    const fbRes = await db.query(
-      'SELECT station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
-      [projectId]
-    );
-
-    // Build a lookup of station → beacon info from field book
-    const beaconLookup = new Map<string, { beaconNo: string; monument: string; markStatus: string }>();
-    for (const row of fbRes.rows) {
-      const raw = row.raw_data as Record<string, unknown> | null;
-      if (row.station && raw) {
-        beaconLookup.set(String(row.station), {
-          beaconNo: String(raw.beacon_no ?? ''),
-          monument: String(raw.monument_type ?? ''),
-          markStatus: String(raw.mark_status ?? raw.monument_status ?? 'FOUND'),
-        });
-      }
-    }
-
-    const stations: PreAdjustedCoordinate[] = coordsRes.rows.map((c: Record<string, unknown>) => {
-      const stn = String(c.station);
-      const beacon = beaconLookup.get(stn);
-      return {
-        station: stn,
-        easting: parseFloat(String(c.easting)),
-        northing: parseFloat(String(c.northing)),
-        beaconNo: beacon?.beaconNo || stn,
-        monument: beacon?.monument || 'psc found',
-        markStatus: beacon?.markStatus || 'FOUND',
-      };
-    });
-
-    const closure: PreAdjustedClosure = {
-      misclosureMm: parseFloat(String(traverse.linear_misclosure ?? 0)) * 1000,
-      precisionRatio: parseFloat(String(traverse.precision_ratio ?? 0)) || Infinity,
-    };
-
-    return { stations, closure };
-  } catch {
-    // Table may not exist in all deployments — fall back gracefully
-    return null;
-  }
-}
 
 export async function generateDeedPlan(
   projectId: string
@@ -150,7 +77,7 @@ export async function generateDeedPlan(
   // This guarantees 100% consistency with the traverse computation sheet,
   // Form C22, area computation, and all other output documents.
   // Source: Ghilani & Wolf Ch.12 — Bowditch (Compass) Rule
-  const preAdjusted = await loadTraverseCoordinatesFromDB(projectId);
+  const preAdjusted = await loadPreAdjustedFromDB(projectId);
   const geom = await computeDeedPlanGeometry(projectId, {
     preAdjustedCoordinates: preAdjusted?.stations,
     preAdjustedClosure: preAdjusted?.closure,

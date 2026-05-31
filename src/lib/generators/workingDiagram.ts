@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import db from '@/lib/db';
-import { computeDeedPlanGeometry } from './deedPlanGeometry';
+import { computeDeedPlanGeometry, loadPreAdjustedFromDB } from './deedPlanGeometry';
 import { renderBoundaryPlan } from './deedPlanRenderer';
 import { addPageFooter } from './pdfTitleBlock';
 
@@ -24,7 +24,12 @@ export async function generateWorkingDiagramPdf(
 
   if (!project) throw new Error('Project not found.');
 
-  const geom = await computeDeedPlanGeometry(projectId);
+  // Use Bowditch-adjusted coordinates from traverse engine — single source of truth
+  const preAdjusted = await loadPreAdjustedFromDB(projectId);
+  const geom = await computeDeedPlanGeometry(projectId, {
+    preAdjustedCoordinates: preAdjusted?.stations,
+    preAdjustedClosure: preAdjusted?.closure,
+  });
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 

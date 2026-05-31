@@ -1,6 +1,6 @@
 import { uploadFile, getSignedUrl } from '@/lib/storage';
 import { db } from '@/lib/db';
-import type { PreAdjustedCoordinate, PreAdjustedClosure } from '../generators/deedPlanGeometry';
+import { loadPreAdjustedFromDB, type PreAdjustedCoordinate, type PreAdjustedClosure } from '../generators/deedPlanGeometry';
 
 // ── Helper: Fetch surveyor profile data from the project owner ────────────
 async function fetchSurveyorProfile(projectId: string): Promise<{
@@ -139,55 +139,9 @@ function computeTraverseAdjustment(
 
 /**
  * Load pre-adjusted traverse coordinates from the database.
- * Returns null if no saved traverse exists.
- * This ensures all document generators use the same Bowditch-adjusted
- * coordinates from the traverse computation sheet.
+ * Delegates to the shared loadPreAdjustedFromDB() from deedPlanGeometry.ts
+ * which now includes field book beacon enrichment.
  */
-async function loadPreAdjustedCoords(
-  projectId: string
-): Promise<{ stations: PreAdjustedCoordinate[]; closure: PreAdjustedClosure } | null> {
-  try {
-    const traverseRes = await db.query(
-      `SELECT pt.id, pt.linear_misclosure, pt.precision_ratio
-       FROM parcel_traverses pt
-       JOIN parcels p ON p.id = pt.parcel_id
-       JOIN blocks b ON b.id = p.block_id
-       WHERE b.project_id = $1
-       ORDER BY pt.created_at DESC LIMIT 1`,
-      [projectId]
-    );
-
-    if (traverseRes.rows.length === 0) return null;
-
-    const traverse = traverseRes.rows[0];
-    const traverseId = traverse.id;
-
-    const coordsRes = await db.query(
-      'SELECT station, easting, northing, rl FROM traverse_coordinates WHERE traverse_id = $1 ORDER BY station',
-      [traverseId]
-    );
-
-    if (coordsRes.rows.length < 3) return null;
-
-    const stations: PreAdjustedCoordinate[] = coordsRes.rows.map((c: Record<string, unknown>) => ({
-      station: String(c.station),
-      easting: parseFloat(String(c.easting)),
-      northing: parseFloat(String(c.northing)),
-      beaconNo: String(c.station),
-      monument: 'psc found',
-      markStatus: 'FOUND',
-    }));
-
-    const closure: PreAdjustedClosure = {
-      misclosureMm: parseFloat(String(traverse.linear_misclosure ?? 0)) * 1000,
-      precisionRatio: parseFloat(String(traverse.precision_ratio ?? 0)) || Infinity,
-    };
-
-    return { stations, closure };
-  } catch {
-    return null;
-  }
-}
 
 interface GenerateDocumentInput {
   projectId: string;
@@ -326,7 +280,7 @@ export async function generateDocument(
           [projectId]
         ),
         fetchSurveyorProfile(projectId),
-        loadPreAdjustedCoords(projectId),
+        loadPreAdjustedFromDB(projectId),
       ]);
       const proj = projectRes.rows[0];
       const geom = await computeDeedPlanGeometry(projectId, {
@@ -373,7 +327,7 @@ export async function generateDocument(
           [projectId]
         ),
         fetchSurveyorProfile(projectId),
-        loadPreAdjustedCoords(projectId),
+        loadPreAdjustedFromDB(projectId),
       ]);
       const proj = projectRes.rows[0];
       const geom = await computeDeedPlanGeometry(projectId, {
@@ -409,7 +363,7 @@ export async function generateDocument(
           [projectId]
         ),
         fetchSurveyorProfile(projectId),
-        loadPreAdjustedCoords(projectId),
+        loadPreAdjustedFromDB(projectId),
       ]);
       const proj = projectRes.rows[0];
       const geom = await computeDeedPlanGeometry(projectId, {

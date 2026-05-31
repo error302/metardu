@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import db from '@/lib/db';
-import { computeDeedPlanGeometry } from './deedPlanGeometry';
+import { computeDeedPlanGeometry, loadPreAdjustedFromDB } from './deedPlanGeometry';
 
 export async function generateBoundaryShapefile(
   projectId: string
@@ -13,7 +13,12 @@ export async function generateBoundaryShapefile(
 
   if (!project) throw new Error('Project not found');
 
-  const geom = await computeDeedPlanGeometry(projectId);
+  // Use Bowditch-adjusted coordinates from traverse engine — single source of truth
+  const preAdjusted = await loadPreAdjustedFromDB(projectId);
+  const geom = await computeDeedPlanGeometry(projectId, {
+    preAdjustedCoordinates: preAdjusted?.stations,
+    preAdjustedClosure: preAdjusted?.closure,
+  });
 
   const beacons = geom.stations.map((s, i) => ({
     name: s.station,
