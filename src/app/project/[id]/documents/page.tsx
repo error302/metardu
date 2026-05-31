@@ -306,6 +306,7 @@ export default function DocumentsPage({ params }: PageProps) {
   const [submissionNumber, setSubmissionNumber] = useState<string>('')
   const [isCreatingSubmission, setIsCreatingSubmission] = useState(false)
   const [generated, setGenerated] = useState<Set<SurveyDocType>>(new Set())
+  const [adjacentParcels, setAdjacentParcels] = useState<Array<{ id: string; lrNumber: string; planReference: string; boundaryPoints: Array<{ easting: number; northing: number }> }>>([])
 
   const load = useCallback(async () => {
     const dbClient = createClient()
@@ -347,6 +348,48 @@ export default function DocumentsPage({ params }: PageProps) {
         })
     }
   }, [params.id])
+
+  // Fetch adjacent parcels (other parcels in the same block/scheme)
+  useEffect(() => {
+    if (!project) return
+    const dbClient = createClient()
+    // Fetch parcels in the same project that are not the subject parcel
+    dbClient.from('parcels')
+      .select('id, parcel_number, lr_number_proposed, boundary_geojson')
+      .eq('project_id', params.id)
+      .then(({ data }) => {
+        if (data && data.length > 1) {
+          const adjLots = data.slice(0, 5).map((p: any) => {
+            // Parse boundary coordinates from GeoJSON if available
+            let bdyPts: Array<{ easting: number; northing: number }> = []
+            if (p.boundary_geojson) {
+              try {
+                const geojson = typeof p.boundary_geojson === 'string'
+                  ? JSON.parse(p.boundary_geojson)
+                  : p.boundary_geojson
+                if (geojson?.features?.[0]?.geometry?.coordinates) {
+                  const coords = geojson.features[0].geometry.coordinates[0] || geojson.features[0].geometry.coordinates
+                  bdyPts = coords.map((c: number[]) => ({ easting: c[0], northing: c[1] }))
+                } else if (geojson?.geometry?.coordinates) {
+                  const coords = geojson.geometry.coordinates[0] || geojson.geometry.coordinates
+                  bdyPts = coords.map((c: number[]) => ({ easting: c[0], northing: c[1] }))
+                } else if (Array.isArray(geojson?.coordinates)) {
+                  const coords = geojson.coordinates[0] || geojson.coordinates
+                  bdyPts = coords.map((c: number[]) => ({ easting: c[0], northing: c[1] }))
+                }
+              } catch { /* ignore parse errors */ }
+            }
+            return {
+              id: p.lr_number_proposed || p.parcel_number || `Parcel ${p.id}`,
+              lrNumber: p.lr_number_proposed || '',
+              planReference: p.parcel_number || '',
+              boundaryPoints: bdyPts,
+            }
+          }).filter((lot: any) => lot.boundaryPoints.length >= 2)
+          setAdjacentParcels(adjLots)
+        }
+      })
+  }, [project, params.id])
 
 
 
@@ -480,6 +523,13 @@ export default function DocumentsPage({ params }: PageProps) {
       } : undefined,
       controlPoints: controlPts,
       fenceOffsets: [],
+      // Adjacent lots — populated from other parcels in the same project
+      // Used to draw adjacent LR numbers on boundary lines per Cap. 299 practice
+      adjacentLots: adjacentParcels.map(ap => ({
+        id: ap.lrNumber || ap.id,
+        boundaryPoints: ap.boundaryPoints,
+        planReference: ap.planReference,
+      })),
     }
   }
 

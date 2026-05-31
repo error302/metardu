@@ -53,10 +53,15 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
       approvedDate: '',
       authenticatedBy: '',
       authenticatedDate: '',
-      // Surveyor declaration
-      declarationText: `I, ${p.surveyor_name || '[SURVEYOR NAME]'}, a Licensed Surveyor, hereby certify that this survey was carried out under my direct supervision in accordance with the Survey Act Cap. 299 and Survey Regulations 1994.`,
+      // Surveyor declaration — per Survey Act Cap. 299, Form No. 4
+      declarationText: `I, ${p.surveyor_name || '[SURVEYOR NAME]'}, a Licensed Surveyor ${p.surveyor_licence ? '(LS/' + p.surveyor_licence + ')' : '(LS/_______________)'}, ${p.iskRegNo ? 'ISK Reg. No. ' + p.iskRegNo + ',' : ''} hereby certify that this survey was carried out under my direct supervision in accordance with the Survey Act Cap. 299 and the Survey Regulations 1994, and that all measurements, computations and beacon placements are correct.`,
       declarationDate: new Date().toLocaleDateString('en-GB'),
       letterNo: '',
+      // Surveyor credentials for stamp area
+      surveyorName: p.surveyor_name || '',
+      surveyorLicence: p.surveyor_licence || '',
+      iskRegNo: p.iskRegNo || '',
+      firmName: p.firm_name || '',
     }
   }
 
@@ -326,18 +331,21 @@ private drawFormNo4RightPanel(): string {
 
   private drawSurveyorCertificateInternal(x: number, y: number, w: number): string {
     const d = this.formNo4Data
-    const h = mmToPx(78) // Increased from 62 to accommodate enhanced auth block
+    const h = mmToPx(105) // Expanded to accommodate declaration + enhanced auth block
 
     let svg = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">SURVEYOR CERTIFICATE</text>`
 
-    // Declaration text (wrapped)
+    // ── DECLARATION ──
+    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">DECLARATION</text>`
+    svg += `<line x1="${x}" y1="${y + mmToPx(6.5)}" x2="${x + w}" y2="${y + mmToPx(6.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
+
+    // Declaration text (wrapped at ~48 chars per line)
     const words = d.declarationText.split(' ')
     const lines: string[] = []
     let currentLine = ''
 
     words.forEach(word => {
-      if ((currentLine + word).length > 45) {
+      if ((currentLine + word).length > 48) {
         lines.push(currentLine.trim())
         currentLine = word + ' '
       } else {
@@ -347,24 +355,58 @@ private drawFormNo4RightPanel(): string {
     if (currentLine) lines.push(currentLine.trim())
 
     let textY = y + mmToPx(12)
-    lines.slice(0, 4).forEach(line => {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(line)}</text>`
+    lines.slice(0, 6).forEach(line => {
+      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">${escapeXml(line)}</text>`
       textY += mmToPx(4)
     })
 
-    // Signature line
-    textY += mmToPx(3)
-    svg += `<line x1="${x + mmToPx(2)}" y1="${textY}" x2="${x + w - mmToPx(2)}" y2="${textY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${textY + mmToPx(4)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="#555">Signature of Licensed Surveyor</text>`
-    svg += `<text x="${x + w - mmToPx(2)}" y="${textY + mmToPx(4)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ${escapeXml(d.declarationDate)}</text>`
+    // Surveyor signature line with name and licence
+    textY += mmToPx(2)
+    svg += `<line x1="${x + mmToPx(2)}" y1="${textY}" x2="${x + w * 0.55}" y2="${textY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
+    svg += `<text x="${x + mmToPx(2)}" y="${textY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Signature of Licensed Surveyor</text>`
 
-    // ── SoK Authentication block — per Survey Act Cap. 299, Form No. 4 ──
-    // This block is completed by the Director of Surveys office after
-    // the plan is submitted for authentication. The three signature lines
-    // correspond to: examination (checking computations), approval
-    // (verifying compliance), and authentication (official SoK seal).
-    const authY = textY + mmToPx(8)
-    const authH = mmToPx(32) // Expanded to include Letter No. and SoK Reference
+    // Date on the right side of signature line
+    svg += `<line x1="${x + w * 0.6}" y1="${textY}" x2="${x + w - mmToPx(2)}" y2="${textY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
+    svg += `<text x="${x + w * 0.6}" y="${textY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ${escapeXml(d.declarationDate)}</text>`
+
+    // Surveyor credentials below signature
+    textY += mmToPx(6)
+    if (d.surveyorName) {
+      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">${escapeXml(d.surveyorName)}</text>`
+      textY += mmToPx(3.5)
+    }
+    if (d.surveyorLicence) {
+      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">LS/${escapeXml(d.surveyorLicence)}</text>`
+      textY += mmToPx(3.5)
+    }
+    if (d.iskRegNo) {
+      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">ISK Reg. ${escapeXml(d.iskRegNo)}</text>`
+      textY += mmToPx(3.5)
+    }
+    if (d.firmName) {
+      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">${escapeXml(d.firmName)}</text>`
+      textY += mmToPx(3.5)
+    }
+
+    // ── Surveyor Stamp Area ──
+    // Small rectangle for the surveyor's rubber stamp (per ISK practice)
+    const stampX = x + w - mmToPx(22)
+    const stampY = textY - mmToPx(12)
+    const stampW = mmToPx(18)
+    const stampH = mmToPx(12)
+    svg += `<rect x="${stampX}" y="${stampY}" width="${stampW}" height="${stampH}" fill="none" stroke="#999" stroke-width="0.3" stroke-dasharray="2,1"/>`
+    svg += `<text x="${stampX + stampW/2}" y="${stampY + stampH/2 - 1}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">SURVEYOR</text>`
+    svg += `<text x="${stampX + stampW/2}" y="${stampY + stampH/2 + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">STAMP</text>`
+
+    textY += mmToPx(2)
+
+    // ── SoK AUTHENTICATION BLOCK ──
+    // Per Survey Act Cap. 299, Form No. 4 — this block is completed by the
+    // Director of Surveys office after the plan is submitted for authentication.
+    // The three signature lines correspond to: examination (checking computations),
+    // approval (verifying compliance), and authentication (official SoK seal).
+    const authY = textY + mmToPx(1)
+    const authH = mmToPx(36)
     svg += `<rect x="${x}" y="${authY}" width="${w}" height="${authH}" fill="#fafafa" stroke="${C_BLACK}" stroke-width="0.5"/>`
 
     // Header
@@ -387,13 +429,16 @@ private drawFormNo4RightPanel(): string {
     svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(24)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Authenticated by: ____________________</text>`
     svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(24)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
 
-    // Official SoK Seal area — improved with circle and proper label
+    // Official SoK Seal area — circle with proper label
     const sealCx = x + w - mmToPx(11)
-    const sealCy = authY + mmToPx(28)
+    const sealCy = authY + mmToPx(30)
     const sealR = mmToPx(5)
     svg += `<circle cx="${sealCx}" cy="${sealCy}" r="${sealR}" fill="none" stroke="${C_BLACK}" stroke-width="0.4" stroke-dasharray="1.5,1"/>`
     svg += `<text x="${sealCx}" y="${sealCy - 1}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#888">OFFICIAL SEAL</text>`
     svg += `<text x="${sealCx}" y="${sealCy + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#888">SURVEY OF KENYA</text>`
+
+    // Legal reference note at bottom of auth block
+    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(33)}" font-family="Share Tech Mono, Courier New" font-size="3" fill="#999">Per Survey Act Cap. 299, Sec. 22 — Authentication by Director of Surveys</text>`
 
     return svg
   }
@@ -508,6 +553,11 @@ interface FormNo4Data {
   declarationText: string
   declarationDate: string
   letterNo: string
+  // Surveyor credentials for stamp and certificate
+  surveyorName: string
+  surveyorLicence: string
+  iskRegNo: string
+  firmName: string
 }
 
 export default FormNo4Renderer
