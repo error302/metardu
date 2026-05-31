@@ -112,3 +112,42 @@ Stage Summary:
 - Coordinate pipeline now uses engine's bowditchAdjustment as single source of truth
 - SoK authentication blocks enhanced in both renderer.ts and formNo4Renderer.ts
 - Adjacent LR numbers drawn on boundary lines per Kenya cadastral practice
+
+---
+Task ID: Phase-1-Surveyor-Plan
+Agent: Main Agent
+Task: Phase 1 — Production-Ready Surveyor's Plan Improvements (coordinate pipeline, SoK auth block, adjacent LR numbers)
+
+Work Log:
+- Read and analyzed all key source files: deedPlanGeometry.ts, traverseRunner.ts, formNo4Renderer.ts, deedPlanRenderer.ts, renderer.ts, deed-plan/route.ts, deedPlan.ts, assembleDocument.ts
+- Identified that deedPlanGeometry.ts already uses Bowditch adjustment but could accept pre-adjusted coordinates for guaranteed consistency
+- Identified that SoK auth block already existed but was missing Letter No. field and had a basic seal placeholder
+- Identified that drawBoundaryAdjacentLRNumbers() existed in base renderer but was NOT called from FormNo4Renderer.renderFormNo4()
+
+Fix 1 — Coordinate Pipeline:
+- Added PreAdjustedCoordinate, PreAdjustedClosure, ComputeDeedPlanGeometryOptions interfaces
+- Added coordinateSource field to DeedPlanGeometry for tracking
+- Implemented 3-tier coordinate resolution: A) explicit pre-adjusted, B) DB traverse_coordinates table, C) compute from field book
+- loadPreAdjustedFromDB() queries parcel_traverses + traverse_coordinates tables
+- Backward compatible — existing callers continue to work unchanged
+
+Fix 2 — SoK Authentication Block:
+- Added Letter No. field with blank line for Director of Surveys' reference
+- Added FIR Reference in authentication header
+- Replaced rectangular seal placeholder with circular SoK seal (more authentic)
+- Changed "SEAL OF SURVEY / OF KENYA" to "OFFICIAL SEAL / SURVEY OF KENYA"
+- Added explanatory comments for each signature line (examined → checks computations, approved → verifies compliance, authenticated → applies seal)
+- Expanded auth block height from 20mm to 32mm (FormNo4) and 30mm to 35mm (base renderer)
+
+Fix 3 — Adjacent LR Numbers on Boundary Lines:
+- Added this.drawBoundaryAdjacentLRNumbers() call to FormNo4Renderer.renderFormNo4()
+- This places adjacent LR number labels on the OUTSIDE of each boundary segment
+- Labels are rotated to align with boundary direction
+- Includes plan reference when available (e.g. "LR 209/45 (D.P. 123)")
+
+Stage Summary:
+- TypeScript compilation: PASS (0 errors)
+- Next.js build: PASS
+- Git commit: 8ce010c
+- Pushed to main → CI/CD will deploy
+- 3 files modified: deedPlanGeometry.ts, formNo4Renderer.ts, renderer.ts
