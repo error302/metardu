@@ -553,12 +553,27 @@ export class SurveyPlanRenderer {
     })
 
     const authY = certY + mmToPx(7) + lines.length * lineHeight + mmToPx(4)
-    const authH = mmToPx(16)
+    const authH = mmToPx(30)
     svg += `<rect x="${leftPad}" y="${authY}" width="${panelInnerW}" height="${authH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(4)}" font-family="Share Tech Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">AUTHENTICATION</text>`
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(7.5)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="#555">For Director of Surveys use only</text>`
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(11)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Signature: ___________________________</text>`
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(14)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Seal of Survey of Kenya</text>`
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(4)}" font-family="Share Tech Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">AUTHENTICATION — FOR DIRECTOR OF SURVEYS</text>`
+    svg += `<line x1="${leftPad}" y1="${authY + mmToPx(5.5)}" x2="${leftPad + panelInnerW}" y2="${authY + mmToPx(5.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
+
+    // Examined by
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(9)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Examined by: ________________________</text>`
+    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(9)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+
+    // Approved by
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(14)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Approved by: ________________________</text>`
+    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(14)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+
+    // Authenticated by
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(19)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Authenticated by: ____________________</text>`
+    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(19)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+
+    // Seal / stamp area
+    svg += `<rect x="${leftPad + panelInnerW - mmToPx(22)}" y="${authY + mmToPx(21)}" width="${mmToPx(20)}" height="${mmToPx(8)}" fill="none" stroke="${C_BLACK}" stroke-width="0.3" stroke-dasharray="2,2"/>`
+    svg += `<text x="${leftPad + panelInnerW - mmToPx(12)}" y="${authY + mmToPx(25.5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3.5" fill="#888">SEAL OF SURVEY</text>`
+    svg += `<text x="${leftPad + panelInnerW - mmToPx(12)}" y="${authY + mmToPx(28)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3.5" fill="#888">OF KENYA</text>`
 
     return svg
   }
@@ -595,6 +610,81 @@ export class SurveyPlanRenderer {
       else if (!isTop) transform = `transform="translate(${px},${py}) rotate(90)"`
       svg += `<text ${transform} x="${px}" y="${py}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}" opacity="0.4">${escapeXml(ref)}</text>`
     }
+    return svg
+  }
+
+  /**
+   * Draw adjacent LR numbers directly on the boundary lines of the subject parcel.
+   * Per Kenya cadastral practice, each shared boundary shows the neighbour's
+   * LR number on the OUTSIDE of the subject parcel.
+   * Source: Survey Act Cap. 299, Form No. 3 & 4 standard practice
+   */
+  protected drawBoundaryAdjacentLRNumbers(): string {
+    const lots = this.data.adjacentLots
+    if (!lots || lots.length === 0) return ''
+
+    const parcelPts = this.rotatedPoints
+    if (parcelPts.length < 3) return ''
+
+    const [parcelCe, parcelCn] = centroid(parcelPts)
+    let svg = ''
+
+    // For each boundary segment of the subject parcel, find matching adjacent lot
+    for (let segIdx = 0; segIdx < parcelPts.length; segIdx++) {
+      const segFrom = parcelPts[segIdx]
+      const segTo = parcelPts[(segIdx + 1) % parcelPts.length]
+
+      // Find which adjacent lot has a segment matching this one (reversed)
+      const matchingLot = lots.find(lot => {
+        const lpts = lot.boundaryPoints
+        for (let j = 0; j < lpts.length; j++) {
+          const lpFrom = lpts[j]
+          const lpTo = lpts[(j + 1) % lpts.length]
+          // Match if the adjacent lot segment runs in reverse (shared boundary)
+          const d1 = Math.abs(lpFrom.easting - segTo.easting) + Math.abs(lpFrom.northing - segTo.northing)
+          const d2 = Math.abs(lpTo.easting - segFrom.easting) + Math.abs(lpTo.northing - segFrom.northing)
+          if (d1 < 0.5 && d2 < 0.5) return true
+        }
+        return false
+      })
+
+      if (!matchingLot || !matchingLot.id) continue
+
+      // Compute midpoint of the boundary segment
+      const midE = (segFrom.easting + segTo.easting) / 2
+      const midN = (segFrom.northing + segTo.northing) / 2
+
+      // Offset the label AWAY from the parcel centroid (to the outside)
+      // Direction: from parcel centroid toward midpoint, then extend further
+      const awayDirE = midE - parcelCe
+      const awayDirN = midN - parcelCn
+      const awayLen = Math.sqrt(awayDirE * awayDirE + awayDirN * awayDirN)
+      const offsetDist = 8 / PX_PER_M // 8mm offset in ground units
+      const awayNormE = awayLen > 0 ? awayDirE / awayLen : 0
+      const awayNormN = awayLen > 0 ? awayDirN / awayLen : 0
+
+      const labelE = midE + awayNormE * offsetDist
+      const labelN = midN + awayNormN * offsetDist
+
+      const px = this.toSvgX(labelE)
+      const py = this.toSvgY(labelN)
+
+      // Rotate text to align with boundary direction
+      const angleDeg = segmentAngle(segFrom.easting, segFrom.northing, segTo.easting, segTo.northing)
+      let textAngle = angleDeg
+      if (textAngle > 90 || textAngle < -90) textAngle += 180
+
+      const lrLabel = matchingLot.id
+      const planRef = matchingLot.planReference || ''
+      const label = planRef ? `${lrLabel} (${planRef})` : lrLabel
+
+      svg += `<g transform="translate(${px},${py})">`
+      svg += `<g transform="rotate(${textAngle})">`
+      svg += `<rect x="${-label.length * 2.8}" y="${-5}" width="${label.length * 5.6}" height="${10}" fill="white" opacity="0.75" stroke="none"/>`
+      svg += `<text x="0" y="3" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}" opacity="0.6">${escapeXml(label)}</text>`
+      svg += `</g></g>`
+    }
+
     return svg
   }
 
@@ -858,6 +948,7 @@ export class SurveyPlanRenderer {
     layers.push(this.drawStreetInfo())
     layers.push(this.drawBoundary())
     layers.push(this.drawBoundaryLabels())
+    layers.push(this.drawBoundaryAdjacentLRNumbers())
     layers.push(this.drawMonuments())
     layers.push(this.drawAdjacentLotPlanRefs())
     layers.push(this.drawFenceOffsets())
@@ -908,6 +999,7 @@ export class SurveyPlanRenderer {
       layers.push(this.drawStreetInfo())
       layers.push(this.drawBoundary())
       layers.push(this.drawBoundaryLabels())
+      layers.push(this.drawBoundaryAdjacentLRNumbers())
       layers.push(this.drawMonuments())
       layers.push(this.drawAdjacentLotPlanRefs())
       layers.push(this.drawFenceOffsets())

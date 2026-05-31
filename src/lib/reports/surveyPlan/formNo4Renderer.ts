@@ -325,16 +325,16 @@ private drawFormNo4RightPanel(): string {
 
   private drawSurveyorCertificateInternal(x: number, y: number, w: number): string {
     const d = this.formNo4Data
-    const h = mmToPx(45)
-    
+    const h = mmToPx(62)
+
     let svg = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>`
     svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">SURVEYOR CERTIFICATE</text>`
-    
+
     // Declaration text (wrapped)
     const words = d.declarationText.split(' ')
     const lines: string[] = []
     let currentLine = ''
-    
+
     words.forEach(word => {
       if ((currentLine + word).length > 45) {
         lines.push(currentLine.trim())
@@ -344,18 +344,39 @@ private drawFormNo4RightPanel(): string {
       }
     })
     if (currentLine) lines.push(currentLine.trim())
-    
+
     let textY = y + mmToPx(12)
     lines.slice(0, 4).forEach(line => {
       svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(line)}</text>`
       textY += mmToPx(4)
     })
-    
+
     // Signature line
-    textY += mmToPx(5)
+    textY += mmToPx(3)
     svg += `<line x1="${x + mmToPx(2)}" y1="${textY}" x2="${x + w - mmToPx(2)}" y2="${textY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${textY + mmToPx(4)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="#555">Surveyor Signature</text>`
-    
+    svg += `<text x="${x + w/2}" y="${textY + mmToPx(4)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="#555">Signature of Licensed Surveyor</text>`
+    svg += `<text x="${x + w - mmToPx(2)}" y="${textY + mmToPx(4)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ${escapeXml(d.declarationDate)}</text>`
+
+    // SoK Authentication block — per Survey Act Cap. 299, Form No. 4
+    const authY = textY + mmToPx(8)
+    svg += `<rect x="${x}" y="${authY}" width="${w}" height="${mmToPx(20)}" fill="#fafafa" stroke="${C_BLACK}" stroke-width="0.5"/>`
+    svg += `<text x="${x + w/2}" y="${authY + mmToPx(4)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">FOR DIRECTOR OF SURVEYS</text>`
+    svg += `<line x1="${x}" y1="${authY + mmToPx(5.5)}" x2="${x + w}" y2="${authY + mmToPx(5.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
+
+    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(9)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Examined by: ________________________</text>`
+    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(9)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+
+    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(13)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Approved by: ________________________</text>`
+    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(13)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+
+    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(17)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Authenticated by: ____________________</text>`
+    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(17)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+
+    // Seal placeholder
+    svg += `<rect x="${x + w - mmToPx(20)}" y="${authY + mmToPx(5.5)}" width="${mmToPx(18)}" height="${mmToPx(10)}" fill="none" stroke="${C_BLACK}" stroke-width="0.3" stroke-dasharray="2,2"/>`
+    svg += `<text x="${x + w - mmToPx(11)}" y="${authY + mmToPx(11)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3.5" fill="#888">SEAL OF SURVEY</text>`
+    svg += `<text x="${x + w - mmToPx(11)}" y="${authY + mmToPx(14)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3.5" fill="#888">OF KENYA</text>`
+
     return svg
   }
 

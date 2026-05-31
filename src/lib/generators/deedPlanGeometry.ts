@@ -1,5 +1,8 @@
 import db from '@/lib/db';
 import { coordinateArea } from '@/lib/engine/area';
+import { bowditchAdjustment } from '@/lib/engine/traverse';
+import { bearingToString } from '@/lib/engine/angles';
+import type { NamedPoint2D } from '@/lib/engine/types';
 
 export interface TraverseStation {
   station: string;
@@ -51,13 +54,6 @@ function parseBearing(raw: string | number): number {
   return parseFloat(String(raw)) || 0;
 }
 
-function decimalToDMS(deg: number): string {
-  const d = Math.floor(deg);
-  const mRaw = (deg - d) * 60;
-  const m = Math.floor(mRaw);
-  const s = ((mRaw - m) * 60).toFixed(0);
-  return `${String(d).padStart(3, '0')}°${String(m).padStart(2, '0')}'${s.padStart(2, '0')}"`;
-}
 
 export async function computeDeedPlanGeometry(
   projectId: string
@@ -93,64 +89,51 @@ export async function computeDeedPlanGeometry(
     throw new Error('Insufficient traverse data. Ensure bearing and distance are entered for each leg.');
   }
 
+  // Use boundary seed as starting coordinate
   const seed = project?.boundary_data as { startE?: number; startN?: number } | null;
-  let E = seed?.startE ?? 0;
-  let N = seed?.startN ?? 0;
+  const startE = seed?.startE ?? 0;
+  const startN = seed?.startN ?? 0;
 
-  const rawCoords: { e: number; n: number; de: number; dn: number }[] = [];
+  // Build the traverse input for the engine's Bowditch adjustment
+  // This ensures the deed plan uses the SAME adjusted coordinates as the
+  // traverse computation sheet — single source of truth for all outputs.
+  // Source: Ghilani & Wolf Ch.12 — Bowditch (Compass) Rule
+  const startPoint: NamedPoint2D = { name: legs[0].station, easting: startE, northing: startN };
+  const traversePoints: NamedPoint2D[] = legs.map(l => ({ name: l.station, easting: 0, northing: 0 }));
 
-  for (const leg of legs) {
-    const bearingRad = (leg.bearing * Math.PI) / 180;
-    const dE = leg.distance * Math.sin(bearingRad);
-    const dN = leg.distance * Math.cos(bearingRad);
-    E += dE;
-    N += dN;
-    rawCoords.push({ e: E, n: N, de: dE, dn: dN });
-  }
+  const traverseResult = bowditchAdjustment({
+    points: [startPoint, ...traversePoints],
+    distances: legs.map(l => l.distance),
+    bearings: legs.map(l => l.bearing),
+    closingPoint: { easting: startE, northing: startN },
+  });
 
-  const closureE = E - (seed?.startE ?? 0);
-  const closureN = N - (seed?.startN ?? 0);
-  const closureLinear = Math.sqrt(closureE ** 2 + closureN ** 2);
-  const totalDist = legs.reduce((s, l) => s + l.distance, 0);
-  const misclosureMm = closureLinear * 1000;
+  // Extract adjusted coordinates from the engine result
+  const adjusted: AdjustedStation[] = traverseResult.legs.map((leg, i) => ({
+    station: legs[i].station,
+    easting: leg.adjEasting,
+    northing: leg.adjNorthing,
+    beaconNo: legs[i].beaconNo,
+    monument: legs[i].monument,
+    markStatus: legs[i].markStatus,
+  }));
 
-  const ratio = totalDist > 0 && closureLinear > 0
-    ? Math.round(totalDist / closureLinear)
-    : 999999;
-  const precisionRatio = `1:${ratio.toLocaleString()}`;
-
-  const closureStatus: 'PASS' | 'FAIL' | 'UNVERIFIED' =
-    ratio >= 5000 ? 'PASS' : ratio > 0 ? 'FAIL' : 'UNVERIFIED';
-
-  const adjusted: AdjustedStation[] = [];
-  let cumDist = 0;
-
-  // FIXED: Standard Bowditch adjustment for a loop traverse.
-  // Each adjusted coordinate = raw coordinate + cumulative correction.
-  // Cumulative correction at point i = -(misclosure / totalDistance) × cumulative_distance_to_i
-  // Source: Basak Ch.11, Ghilani & Wolf Ch.12 — Bowditch (Compass) Rule
-  for (let i = 0; i < legs.length; i++) {
-    const leg = legs[i];
-    cumDist += leg.distance;
-    const corrE = closureLinear > 0 ? -(closureE / totalDist) * cumDist : 0;
-    const corrN = closureLinear > 0 ? -(closureN / totalDist) * cumDist : 0;
-
-    adjusted.push({
-      station: leg.station,
-      easting: rawCoords[i].e + corrE,
-      northing: rawCoords[i].n + corrN,
-      beaconNo: leg.beaconNo,
-      monument: leg.monument,
-      markStatus: leg.markStatus,
-    });
-  }
-
+  // Compute area from adjusted coordinates (Shoelace formula)
   const pts = adjusted.map((s) => ({ easting: s.easting, northing: s.northing }));
   const areaResult = coordinateArea(pts);
   const areaM2 = areaResult.areaSqm;
   const areaHa = areaResult.areaHa;
   const areaAcres = areaResult.areaAcres;
 
+  // Closure metrics from the engine result
+  const misclosureMm = traverseResult.linearError * 1000;
+  const ratio = traverseResult.precisionRatio;
+  const precisionRatio = `1:${Math.round(ratio).toLocaleString()}`;
+  const closureStatus: 'PASS' | 'FAIL' | 'UNVERIFIED' =
+    ratio >= 5000 ? 'PASS' : ratio > 0 ? 'FAIL' : 'UNVERIFIED';
+
+  // Bearing schedule from adjusted coordinates — bearings are recomputed from
+  // the adjusted positions to ensure consistency with the coordinate schedule
   const bearingSchedule: BearingLeg[] = adjusted.map((st, i) => {
     const next = adjusted[(i + 1) % adjusted.length];
     const dE = next.easting - st.easting;
@@ -161,13 +144,13 @@ export async function computeDeedPlanGeometry(
     return {
       from: st.station,
       to: next.station,
-      bearing: decimalToDMS(brg),
+      bearing: bearingToString(brg),
       distance: dist.toFixed(3),
     };
   });
 
-  const eastings = adjusted.map((s) => s.easting)
-  const northings = adjusted.map((s) => s.northing)
+  const eastings = adjusted.map((s) => s.easting);
+  const northings = adjusted.map((s) => s.northing);
 
   return {
     stations: adjusted,
