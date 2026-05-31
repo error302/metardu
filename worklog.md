@@ -73,3 +73,42 @@ Stage Summary:
 - Mobile layouts now stack vertically instead of side-by-side
 - NavBar, map tools, pricing card, workspace layouts all responsive on 360px screens
 - Deployment triggered via GitHub Actions CI/CD pipeline
+
+---
+Task ID: 1
+Agent: Phase 1 Fix Agent
+Task: Survey Plan Phase 1 — coordinate pipeline, SoK authentication, boundary LR numbers
+
+Work Log:
+- FIX 1: Replaced inline Bowditch adjustment in deedPlanGeometry.ts with engine's bowditchAdjustment from @/lib/engine/traverse
+  - Added imports: bowditchAdjustment, bearingToString, NamedPoint2D
+  - Removed now-unused decimalToDMS function (replaced by bearingToString)
+  - Built TraverseInput from parsed legs and ran bowditchAdjustment() for single source of truth
+  - Extracted adjusted coordinates from traverseResult.legs[].adjEasting/adjNorthing
+  - Bearing schedule now uses bearingToString for consistent formatting
+  - Closure metrics derived from engine result (linearError, precisionRatio)
+- FIX 2: Enhanced SoK Authentication Block in renderer.ts
+  - Replaced minimal 4-line auth block with full SoK authentication section
+  - Added Examined by, Approved by, Authenticated by rows with name and date fields
+  - Added Seal of Survey of Kenya dashed placeholder box
+  - Per Survey Act Cap. 299 requirements
+- FIX 3: Draw Adjacent LR Numbers on Boundary Lines in renderer.ts
+  - Added drawBoundaryAdjacentLRNumbers() method to SurveyPlanRenderer
+  - For each boundary segment, finds matching adjacent lot by reverse segment matching
+  - Draws LR number label on OUTSIDE of parcel, offset perpendicular away from centroid
+  - Text rotated to align with boundary direction
+  - Added method call in render() and renderMultiSheet() after drawBoundaryLabels()
+- FIX 2b: Enhanced Authentication in FormNo4Renderer
+  - Replaced drawSurveyorCertificateInternal with enhanced version
+  - Added signature line with date field
+  - Added SoK authentication block (Examined/Approved/Authenticated rows)
+  - Added Seal of Survey of Kenya placeholder
+  - Height increased from mmToPx(45) to mmToPx(62) to accommodate auth block
+- TypeScript compilation verified (tsc --noEmit passed with no errors)
+- Committed and pushed to origin main
+
+Stage Summary:
+- 3 files changed, 170 insertions, 74 deletions
+- Coordinate pipeline now uses engine's bowditchAdjustment as single source of truth
+- SoK authentication blocks enhanced in both renderer.ts and formNo4Renderer.ts
+- Adjacent LR numbers drawn on boundary lines per Kenya cadastral practice
