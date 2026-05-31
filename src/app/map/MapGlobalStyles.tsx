@@ -2,22 +2,31 @@
 
 import { useEffect } from 'react'
 
-// ─── Global Styles Injector ──────────────────────────────────────────────
-// Injects OpenLayers and custom scrollbar styles via a <style> element.
-// This replaces styled-jsx which doesn't work reliably inside components
-// loaded via next/dynamic with ssr:false.
+/**
+ * Global Styles Injector for the Map page.
+ *
+ * Injects OpenLayers and custom scrollbar styles via a <style> element.
+ * Also includes responsive touch-friendly styles for mobile devices,
+ * hardware acceleration hints, and performance-optimized tile rendering.
+ */
 
 export default function MapGlobalStyles() {
   useEffect(() => {
     const id = 'metardu-map-global-styles'
-    if (document.getElementById(id)) return // prevent duplicates
+    if (document.getElementById(id)) return
 
     const style = document.createElement('style')
     style.id = id
     style.textContent = `
+      /* ── Hide default OL controls (we render our own) ── */
       .ol-mouse-position {
         display: none !important;
       }
+      .ol-scale-line {
+        display: none !important;
+      }
+
+      /* ── Overview map styling ── */
       .ol-overviewmap {
         bottom: 50px !important;
         left: 50% !important;
@@ -36,6 +45,8 @@ export default function MapGlobalStyles() {
         color: #E8841A !important;
         border-radius: 6px !important;
       }
+
+      /* ── Zoom slider styling ── */
       .ol-zoomslider {
         background: rgba(13,13,20,0.9) !important;
         border: 1px solid rgba(255,255,255,0.06) !important;
@@ -57,9 +68,8 @@ export default function MapGlobalStyles() {
       .ol-zoomslider .ol-zoomslider-range {
         background: rgba(232,132,26,0.2) !important;
       }
-      .ol-scale-line {
-        display: none !important;
-      }
+
+      /* ── Generic OL control buttons ── */
       .ol-control button {
         background: rgba(13,13,20,0.9) !important;
         color: #9ca3af !important;
@@ -70,6 +80,8 @@ export default function MapGlobalStyles() {
         background: rgba(13,13,20,1) !important;
         color: #E8841A !important;
       }
+
+      /* ── Custom scrollbar ── */
       .custom-scrollbar::-webkit-scrollbar {
         width: 3px;
       }
@@ -82,6 +94,61 @@ export default function MapGlobalStyles() {
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: rgba(255,255,255,0.15);
+      }
+
+      /* ── Performance: Hardware acceleration for map canvas ── */
+      .ol-viewport {
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        -webkit-perspective: 1000;
+        perspective: 1000;
+      }
+
+      /* ── Performance: Reduce paint on tile layers ── */
+      .ol-layer {
+        will-change: transform;
+      }
+
+      /* ── Mobile: Larger touch targets for OL controls ── */
+      @media (max-width: 768px) {
+        .ol-control button {
+          min-width: 36px !important;
+          min-height: 36px !important;
+          font-size: 18px !important;
+        }
+        .ol-zoomslider {
+          display: none !important;
+        }
+        .ol-overviewmap {
+          display: none !important;
+        }
+      }
+
+      /* ── Mobile: Prevent text selection on map ── */
+      .ol-viewport {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+
+      /* ── Mobile: Smoother touch interactions ── */
+      .ol-viewport canvas {
+        touch-action: none;
+      }
+
+      /* ── Attribution collapse on mobile ── */
+      @media (max-width: 640px) {
+        .ol-attribution {
+          display: none !important;
+        }
+      }
+
+      /* ── Terrain tile loading indicator ── */
+      .ol-layer-loading {
+        opacity: 0.7;
+        transition: opacity 0.3s ease;
       }
     `
     document.head.appendChild(style)
