@@ -4,7 +4,7 @@ import Link from 'next/link'
 export default function SubscriptionStatus({ subscription }: { subscription: any }) {
   const plan = subscription?.plan_id || 'free'
   const isTrialing = subscription?.status === 'trial'
-  
+
   const trialDaysLeft = isTrialing && subscription?.trial_ends_at
     ? Math.max(0, Math.ceil(
         (new Date(subscription.trial_ends_at).getTime() - Date.now()) / 86400000
@@ -12,6 +12,20 @@ export default function SubscriptionStatus({ subscription }: { subscription: any
     : 0
 
   const getBadge = () => {
+    if (plan === 'enterprise') {
+      return (
+        <span className="text-xs bg-amber-900/50 text-amber-400 px-2 py-1 rounded font-semibold">
+          Enterprise ✓
+        </span>
+      )
+    }
+    if (plan === 'firm') {
+      return (
+        <span className="text-xs bg-purple-900/50 text-purple-400 px-2 py-1 rounded font-semibold">
+          Firm ✓
+        </span>
+      )
+    }
     if (plan === 'team') {
       return (
         <span className="text-xs bg-blue-900/50 text-blue-400 px-2 py-1 rounded">

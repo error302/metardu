@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { createClient } from '@/lib/api-client/client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -230,18 +229,18 @@ export default function NavBar() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  // Fetch user subscription plan when session changes
+  // Fetch user subscription plan when session changes (uses server API which detects admin emails)
   useEffect(() => {
     const fetchPlan = async () => {
       if (user?.id) {
         try {
-          const dbClient = createClient()
-          const { data: sub } = await dbClient
-            .from('user_subscriptions')
-            .select('plan_id')
-            .eq('user_id', user.id)
-            .maybeSingle()
-          setUserPlan((sub?.plan_id as PlanId) || 'free')
+          const res = await fetch('/api/subscription', { cache: 'no-store', credentials: 'same-origin' })
+          if (res.ok) {
+            const data = await res.json()
+            setUserPlan(data.plan as PlanId)
+          } else {
+            setUserPlan('free')
+          }
         } catch {
           setUserPlan('free')
         }

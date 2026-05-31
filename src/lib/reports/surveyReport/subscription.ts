@@ -1,7 +1,26 @@
 import { createClient } from '@/lib/api-client/client'
 import type { SubscriptionStatus, SubscriptionTier } from './types'
 
-export async function checkReportAccess(userId: string): Promise<SubscriptionStatus> {
+/**
+ * Check if a user can generate professional survey reports.
+ * Uses the subscriptionEngine (which has admin email detection) via a
+ * lightweight DB query with the same logic.
+ */
+export async function checkReportAccess(userId: string, email?: string): Promise<SubscriptionStatus> {
+  // Admin emails always get full access
+  const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
+  const isFounder = email?.toLowerCase() === 'mohameddosho20@gmail.com'
+  const isAdmin = isFounder || (email ? adminEmails.includes(email.toLowerCase()) : false)
+
+  if (isAdmin) {
+    return {
+      canGenerate: true,
+      tier: 'enterprise',
+      upgradeRequired: false,
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    }
+  }
+
   const dbClient = createClient()
 
   const { data, error } = await dbClient
@@ -22,11 +41,11 @@ export async function checkReportAccess(userId: string): Promise<SubscriptionSta
 
   const planId = data.plan_id || 'free'
   const expired = data.current_period_end && new Date(data.current_period_end) < new Date()
-  const isPro = planId === 'pro' || planId === 'team'
+  const isPro = planId === 'pro' || planId === 'team' || planId === 'firm' || planId === 'enterprise'
   const canGenerate = isPro && !expired
 
   const tierMap: Record<string, SubscriptionTier> = {
-    free: 'free', pro: 'professional', team: 'firm', enterprise: 'enterprise',
+    free: 'free', pro: 'professional', team: 'firm', firm: 'firm', enterprise: 'enterprise',
   }
 
   return {

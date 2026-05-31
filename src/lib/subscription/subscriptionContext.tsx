@@ -1,12 +1,12 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { createClient } from '@/lib/api-client/client'
 import type { PlanId } from '@/lib/subscription/catalog'
 import { canAccess as featureCanAccess, TIERS, type FeatureKey } from '@/lib/subscription/featureGates'
 
 interface SubscriptionContextType {
   plan: PlanId
+  isAdmin: boolean
   isTrialing: boolean
   trialDaysLeft: number
   canCreateProject: boolean
@@ -19,6 +19,7 @@ interface SubscriptionContextType {
 
 const SubscriptionContext = createContext<SubscriptionContextType>({
   plan: 'free',
+  isAdmin: false,
   isTrialing: false,
   trialDaysLeft: 0,
   canCreateProject: true,
@@ -31,9 +32,9 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [authResolved, setAuthResolved] = useState(false)
   const [plan, setPlan] = useState<PlanId>('free')
+  const [isAdmin, setIsAdmin] = useState(false)
   const [isTrialing, setIsTrialing] = useState(false)
   const [trialDaysLeft, setTrialDaysLeft] = useState(0)
   const [features, setFeatures] = useState<string[]>([])
@@ -42,11 +43,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   const resetState = useCallback(() => {
     setPlan('free')
+    setIsAdmin(false)
     setIsTrialing(false)
     setTrialDaysLeft(0)
     setFeatures([])
     setProjectCount(0)
-    setUserEmail(null)
   }, [])
 
   const loadSubscription = useCallback(async () => {
@@ -56,36 +57,53 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return
     }
 
-    const dbClient = createClient()
+    try {
+      // Use the server-side API which includes admin email detection
+      const res = await fetch('/api/subscription', {
+        cache: 'no-store',
+        credentials: 'same-origin',
+      })
 
-    const { data: sub } = await dbClient
-      .from('user_subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle()
+      if (!res.ok) {
+        resetState()
+        setLoading(false)
+        return
+      }
 
-    resetState()
+      const data = await res.json()
 
-    if (sub) {
-      setPlan(sub.plan_id as PlanId)
-      setFeatures(sub.features || [])
+      resetState()
 
-      if (sub.status === 'trial') {
+      setPlan(data.plan as PlanId)
+      setIsAdmin(data.isAdmin === true)
+
+      if (data.status === 'trial' && data.trialEndsAt) {
         setIsTrialing(true)
         const daysLeft = Math.ceil(
-          (new Date(sub.trial_ends_at).getTime() - Date.now()) / 86400000
+          (new Date(data.trialEndsAt).getTime() - Date.now()) / 86400000
         )
         setTrialDaysLeft(Math.max(0, daysLeft))
       }
+
+      // Load tier features from the feature gates system
+      const tierFeatures = TIERS[data.plan as PlanId]?.features || []
+      setFeatures(tierFeatures.map(String))
+
+      // Fetch project count separately (lightweight query)
+      const countRes = await fetch('/api/subscription/project-count', {
+        cache: 'no-store',
+        credentials: 'same-origin',
+      }).catch(() => null)
+
+      if (countRes?.ok) {
+        const countData = await countRes.json()
+        setProjectCount(countData.count || 0)
+      }
+    } catch {
+      resetState()
+    } finally {
+      setLoading(false)
     }
-
-    const { count } = await dbClient
-      .from('projects')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-
-    setProjectCount(count || 0)
-    setLoading(false)
   }, [resetState, userId])
 
   useEffect(() => {
@@ -105,8 +123,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         const session = await response.json()
         if (!active) return
 
-        setUserId((session?.user as { id?: string; email?: string } | undefined)?.id ?? null)
-        setUserEmail((session?.user as { id?: string; email?: string } | undefined)?.email ?? null)
+        setUserId((session?.user as { id?: string } | undefined)?.id ?? null)
       } catch {
         if (!active) return
         setUserId(null)
@@ -137,10 +154,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     void loadSubscription()
   }, [authResolved, loadSubscription, resetState, userId])
 
-  const canCreateProject = plan !== 'free' || projectCount < 1
+  // Admin always has full access, regardless of plan
+  const canCreateProject = isAdmin || plan !== 'free' || projectCount < 1
   const canAddPoints = true
 
   function hasFeature(feature: string) {
+    // Admin always has access to everything
+    if (isAdmin) return true
     // Use the proper feature gates instead of granting all features to paid plans
     if (features.includes(feature)) return true
     // Check against the feature gates system for known feature keys
@@ -152,6 +172,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     <SubscriptionContext.Provider
       value={{
         plan,
+        isAdmin,
         isTrialing,
         trialDaysLeft,
         canCreateProject,

@@ -24,12 +24,20 @@ export default function AccountPage() {
   useEffect(() => {
     if (!user?.id) return
     async function loadSubscription() {
-      const { data: sub } = await dbClient
-        .from('user_subscriptions')
-        .select('*')
-        .eq('user_id', user!.id)
-        .maybeSingle()
-      setSubscription(sub)
+      try {
+        const res = await fetch('/api/subscription', { cache: 'no-store', credentials: 'same-origin' })
+        if (res.ok) {
+          const data = await res.json()
+          setSubscription({
+            plan_id: data.plan || 'free',
+            status: data.status || 'active',
+            trial_ends_at: data.trialEndsAt || '',
+            current_period_end: data.periodEnd || new Date(Date.now() + 30 * 86400000).toISOString(),
+          })
+        }
+      } catch {
+        // Subscription fetch failed — keep default
+      }
     }
     loadSubscription()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,6 +144,8 @@ export default function AccountPage() {
                     </p>
                   </div>
                   <span className={`text-xs px-2 py-1 rounded ${
+                    subscription.plan_id === 'enterprise' ? 'bg-amber-900/50 text-amber-400' :
+                    subscription.plan_id === 'firm' ? 'bg-purple-900/50 text-purple-400' :
                     subscription.plan_id === 'team' ? 'bg-blue-900/50 text-blue-400' :
                     subscription.plan_id === 'pro' ? 'bg-green-900/50 text-green-400' :
                     'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'

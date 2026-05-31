@@ -30,7 +30,7 @@ export default async function DashboardPage() {
     const dbClient = await createClient()
 
     if (userIsAdmin) {
-      subscription = { plan_id: 'pro', trial_ends_at: null }
+      subscription = { plan_id: 'enterprise', status: 'active', trial_ends_at: null }
       const { data, error } = await dbClient.from('projects').select('*').order('created_at', { ascending: false })
       if (!error) projects = data ?? []
     } else {

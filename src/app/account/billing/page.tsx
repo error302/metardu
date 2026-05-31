@@ -58,11 +58,22 @@ export default function BillingPage() {
     setUser(user)
 
     if (user) {
-      const [{ data: sub }, { data: pay }] = await Promise.all([
-        dbClient.from('user_subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
+      const [subRes, { data: pay }] = await Promise.all([
+        fetch('/api/subscription', { cache: 'no-store', credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null),
         dbClient.from('payment_history').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
       ])
-      setSubscription(sub as any)
+      // Map API response to SubscriptionRecord format
+      if (subRes) {
+        setSubscription({
+          plan_id: subRes.plan as PlanId,
+          status: subRes.status || 'active',
+          payment_method: subRes.paymentMethod || '',
+          currency: subRes.currency || 'KES',
+          current_period_start: subRes.periodStart || new Date().toISOString(),
+          current_period_end: subRes.periodEnd || new Date(Date.now() + 30 * 86400000).toISOString(),
+          trial_ends_at: subRes.trialEndsAt || null,
+        })
+      }
       setPayments((pay || []) as any)
     }
     setLoading(false)
