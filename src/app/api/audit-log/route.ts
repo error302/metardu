@@ -1,0 +1,53 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
+import db from '@/lib/db'
+import { z } from 'zod'
+
+const insertSchema = z.object({
+  event_type: z.string().min(1).max(120),
+  description: z.string().min(1).max(500),
+  metadata: z.record(z.unknown()).optional(),
+})
+
+export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+  const { rows } = await db.query(
+    `SELECT id, action as event_type, details as description, details as metadata, created_at
+     FROM audit_logs
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT 100`,
+    [ctx.userId]
+  )
+  return NextResponse.json({ logs: rows })
+})
+
+export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+  const parsed = insertSchema.safeParse(ctx.body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 })
+  }
+
+  const { event_type, description, metadata } = parsed.data
+
+  const { rows } = await db.query(
+    `INSERT INTO audit_logs (user_id, action, details)
+     VALUES ($1, $2, $3)
+     RETURNING id, action as event_type, details as description, details as metadata, created_at`,
+    [ctx.userId, event_type, JSON.stringify({ description, ...(metadata ?? {}) })]
+  )
+
+  const cpdEvents = ['plan_generated', 'traverse_completed', 'report_exported', 'levelbook_completed']
+  if (cpdEvents.includes(event_type)) {
+    try {
+      await db.query(
+        `INSERT INTO cpd_activities (user_id, title, provider, hours, category, source)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [ctx.userId, 'METARDU Professional Practice', 'METARDU Platform — auto-logged', 0.5, 'Technical Practice', 'METARDU Platform — auto-logged']
+      )
+    } catch (e) {
+      console.warn('Could not insert CPD activity (table might not exist)', e)
+    }
+  }
+
+  return NextResponse.json({ log: rows[0] }, { status: 201 })
+})

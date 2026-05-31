@@ -1,0 +1,440 @@
+/* OpenLayers CSS - loaded via component */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================================================
+   METARDU – Premium Dark Theme
+   ======================================================================== */
+
+/* ----- Smooth scroll -------------------------------------------------- */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========================================================================
+   1. DESIGN TOKENS (CSS custom properties)
+   ======================================================================== */
+:root {
+  /* --- Base palette ---------------------------------------------------- */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-tertiary: #1a1a1a;
+  --bg-card: #151515;
+  --border-color: #2a2a2a;
+  --border-hover: #3a3a3a;
+
+  /* --- Typography ------------------------------------------------------ */
+  --text-primary: #e5e5e5;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+
+  /* --- Accent ---------------------------------------------------------- */
+  --accent: #e8841a;
+  --accent-dim: #c46f15;
+  --accent-subtle: rgba(232, 132, 26, 0.1);
+
+  /* --- Semantic -------------------------------------------------------- */
+  --success: #4ade80;
+  --error: #ef4444;
+  --warning: #fcd34d;
+  --primary-blue: #1a3a5c;
+
+  /* --- Gradient -------------------------------------------------------- */
+  --accent-gradient: linear-gradient(135deg, #e8841a 0%, #ff6b35 50%, #ffb347 100%);
+
+  /* --- Glassmorphism --------------------------------------------------- */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-bg-hover: rgba(255, 255, 255, 0.06);
+
+  /* --- Shadows --------------------------------------------------------- */
+  --shadow-glow: 0 0 40px rgba(232, 132, 26, 0.15);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+
+  /* --- Component-specific aliases (used by some pages like GNSS) ------- */
+  --card: #151515;
+  --popover: #111111;
+  --border: #2a2a2a;
+  --popover-foreground: #e5e5e5;
+
+  /* ====================================================================
+     shadcn/ui compatibility variables (dark theme values)
+     NOTE: Prefixed with --shadcn- to avoid overriding METARDU's own
+     --accent, --border, --muted etc. which use different value formats.
+     ==================================================================== */
+  --shadcn-background: 0 0% 4%;
+  --shadcn-foreground: 0 0% 90%;
+  --shadcn-card: 0 0% 6%;
+  --shadcn-card-foreground: 0 0% 90%;
+  --shadcn-popover: 0 0% 6%;
+  --shadcn-popover-foreground: 0 0% 90%;
+  --shadcn-primary: 28 79% 50%;
+  --shadcn-primary-foreground: 0 0% 0%;
+  --shadcn-secondary: 0 0% 10%;
+  --shadcn-secondary-foreground: 0 0% 90%;
+  --shadcn-muted: 0 0% 10%;
+  --shadcn-muted-foreground: 0 0% 45%;
+  --shadcn-accent: 28 79% 50%;
+  --shadcn-accent-foreground: 0 0% 0%;
+  --shadcn-destructive: 0 63% 31%;
+  --shadcn-destructive-foreground: 0 0% 90%;
+  --shadcn-border: 0 0% 17%;
+  --shadcn-input: 0 0% 17%;
+  --shadcn-ring: 28 79% 50%;
+  --shadcn-radius: 0.625rem;
+  --shadcn-chart-1: 28 79% 50%;
+  --shadcn-chart-2: 160 60% 45%;
+  --shadcn-chart-3: 30 80% 55%;
+  --shadcn-chart-4: 280 65% 60%;
+  --shadcn-chart-5: 340 75% 55%;
+}
+
+/* ========================================================================
+   2. BASE LAYER
+   ======================================================================== */
+@layer base {
+  body {
+    @apply bg-[var(--bg-primary)] text-[var(--text-primary)];
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    max-width: 100vw;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /* --- Text selection -------------------------------------------------- */
+  ::selection {
+    background: rgba(232, 132, 26, 0.3);
+    color: #fff;
+  }
+  ::-moz-selection {
+    background: rgba(232, 132, 26, 0.3);
+    color: #fff;
+  }
+
+  /* --- Focus-visible ring ---------------------------------------------- */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ========================================================================
+   3. KEYFRAME ANIMATIONS
+   ======================================================================== */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(232, 132, 26, 0.1); }
+  50% { box-shadow: 0 0 40px rgba(232, 132, 26, 0.25); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes orb1 {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(40px, -30px); }
+  50% { transform: translate(-20px, 20px); }
+  75% { transform: translate(10px, -10px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes orb2 {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-30px, 20px); }
+  50% { transform: translate(20px, -40px); }
+  75% { transform: translate(-10px, 10px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes scaleIn {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes text-reveal {
+  0% { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes beam {
+  0% { transform: translateY(-100%) rotate(45deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(200%) rotate(45deg); opacity: 0; }
+}
+
+@keyframes noise-move {
+  0% { transform: translate(0, 0); }
+  10% { transform: translate(-5%, -5%); }
+  20% { transform: translate(-10%, 5%); }
+  30% { transform: translate(5%, -10%); }
+  40% { transform: translate(-5%, 15%); }
+  50% { transform: translate(-10%, 5%); }
+  60% { transform: translate(15%, 0); }
+  70% { transform: translate(0, 10%); }
+  80% { transform: translate(-15%, 0); }
+  90% { transform: translate(10%, 5%); }
+  100% { transform: translate(5%, 0); }
+}
+
+/* ========================================================================
+   4. COMPONENT UTILITIES
+   ======================================================================== */
+@layer components {
+  /* --- Glass card ------------------------------------------------------ */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+  }
+  .glass-card:hover {
+    background: var(--glass-bg-hover);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  /* --- Gradient text --------------------------------------------------- */
+  .gradient-text {
+    background: var(--accent-gradient);
+    background-size: 200% 200%;
+    animation: gradient-shift 4s ease infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* --- Glow border ----------------------------------------------------- */
+  .glow-border {
+    position: relative;
+    border: 1px solid var(--border-color);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .glow-border:hover {
+    border-color: rgba(232, 132, 26, 0.4);
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* --- Premium transition ---------------------------------------------- */
+  .transition-premium {
+    transition: all 0.3s cubic-bezier(0.25, 0.4, 0.25, 1);
+  }
+
+  /* --- Focus ring utility ---------------------------------------------- */
+  .focus-ring {
+    outline: none;
+    transition: box-shadow 0.2s ease;
+  }
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
+  }
+
+  /* ==================================================================
+     Existing METARDU utility classes (enhanced with transitions)
+     ================================================================== */
+
+  /* --- Inputs ---------------------------------------------------------- */
+  .input {
+    @apply w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)];
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  }
+  .input:hover {
+    border-color: var(--border-hover);
+  }
+  .input:focus {
+    @apply outline-none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+
+  /* --- Buttons --------------------------------------------------------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn text-white;
+    background: var(--accent-gradient);
+    background-size: 200% 200%;
+    box-shadow: 0 2px 12px rgba(232, 132, 26, 0.25);
+  }
+  .btn-primary:hover {
+    background-position: 100% 50%;
+    box-shadow: 0 4px 24px rgba(232, 132, 26, 0.4);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 12px rgba(232, 132, 26, 0.2);
+  }
+
+  .btn-secondary {
+    @apply btn border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)];
+    transition: all 0.2s ease;
+  }
+  .btn-secondary:hover {
+    border-color: var(--border-hover);
+    background-color: var(--bg-tertiary);
+  }
+
+  /* --- Badge ----------------------------------------------------------- */
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .badge:hover {
+    transform: scale(1.04);
+  }
+
+  /* --- Table helpers --------------------------------------------------- */
+  .table-header {
+    @apply bg-[var(--bg-secondary)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)];
+  }
+  .table-row {
+    @apply border-b border-[var(--border-color)] transition-colors duration-150;
+  }
+  .table-row:hover {
+    background-color: var(--glass-bg);
+  }
+  .table-cell {
+    @apply px-4 py-3 text-sm text-[var(--text-secondary)];
+  }
+
+  /* --- Card ------------------------------------------------------------- */
+  .card {
+    @apply bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-[var(--shadow-card)];
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-header {
+    @apply px-5 py-4 border-b border-[var(--border-color)] flex items-center justify-between;
+  }
+  .card-body {
+    @apply p-5;
+  }
+}
+
+
+/* ========================================================================
+   5. SCROLLBAR
+   ======================================================================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-hover);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hover) var(--bg-secondary);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+img, video, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ========================================================================
+   6. NOISE / GRAIN TEXTURE (applied via utility class)
+   ======================================================================== */
+.noise-overlay::before {
+  content: "";
+  position: fixed;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  animation: noise-move 0.5s steps(3) infinite;
+}
+
+/* ========================================================================
+   7. UTILITY LAYER
+   ======================================================================== */
+
+/* --- Safe area inset for mobile bottom nav --------------------------- */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* --- Touch targets optimization -------------------------------------- */
+.btn, .card, a, button, select, input {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+
+/* --- Spacer so content isn't hidden behind the fixed bottom nav ------ */
+.mobile-nav-spacer {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .mobile-nav-spacer {
+    padding-bottom: 0;
+  }
+}
+
+@layer utilities {
+  .animate-shimmer {
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient-shift 4s ease infinite;
+  }
+
+  .animate-text-reveal {
+    animation: text-reveal 0.8s ease forwards;
+  }
+}
