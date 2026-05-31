@@ -1,0 +1,140 @@
+/**
+ * /api/marketplace/listings
+ *
+ * GET  — List active (unsold) instrument listings with optional filters
+ * POST — Create a new listing (auth required, Pro/Team only)
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
+import { apiSuccess, apiError } from '@/lib/api/response'
+import db from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
+
+// ── Row mapper ─────────────────────────────────────────────────────────────
+
+function rowToListing(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    type: row.type,
+    category: row.category,
+    title: row.title,
+    brand: row.brand,
+    model: row.model,
+    condition: row.condition,
+    year: row.year ?? undefined,
+    description: row.description,
+    price: Number(row.price),
+    currency: row.currency,
+    rentPeriod: row.rent_period ?? undefined,
+    location: row.location,
+    country: row.country,
+    sellerName: row.seller_name,
+    sellerContact: row.seller_contact,
+    images: row.images || [],
+    verified: row.verified ?? false,
+    sold: row.sold ?? false,
+    userId: row.user_id,
+    postedAt: row.created_at,
+  }
+}
+
+// ── GET ────────────────────────────────────────────────────────────────────
+
+export const GET = apiHandler({ auth: false }, async (req) => {
+  const { searchParams } = new URL(req.url)
+  const type = searchParams.get('type') ?? undefined
+  const category = searchParams.get('category') ?? undefined
+  const country = searchParams.get('country') ?? undefined
+  const maxPrice = searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined
+  const q = searchParams.get('q') ?? undefined
+  const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
+
+  const conditions: string[] = ['NOT l.sold']
+  const params: unknown[] = []
+  let idx = 1
+
+  if (type) { conditions.push(`l.type = $${idx++}`); params.push(type) }
+  if (category) { conditions.push(`l.category = $${idx++}`); params.push(category) }
+  if (country) { conditions.push(`l.country = $${idx++}`); params.push(country) }
+  if (maxPrice) { conditions.push(`l.price <= $${idx++}`); params.push(maxPrice) }
+  if (q) {
+    conditions.push(`(
+      l.title ILIKE $${idx} OR
+      l.brand ILIKE $${idx} OR
+      l.model ILIKE $${idx} OR
+      l.description ILIKE $${idx} OR
+      l.location ILIKE $${idx}
+    )`)
+    params.push(`%${q}%`)
+    idx++
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+  params.push(limit)
+
+  const { rows } = await db.query(
+    `SELECT l.* FROM instrument_listings l
+     ${where}
+     ORDER BY l.created_at DESC
+     LIMIT $${idx}`,
+    params
+  )
+
+  return NextResponse.json(apiSuccess(rows.map(rowToListing)))
+})
+
+// ── POST ───────────────────────────────────────────────────────────────────
+
+export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+  const body = ctx.body as Record<string, unknown>
+
+  // Required fields
+  const title = String(body.title ?? '').trim()
+  const brand = String(body.brand ?? '').trim()
+  const model = String(body.model ?? '').trim()
+  const description = String(body.description ?? '').trim()
+  const price = parseFloat(String(body.price ?? 0))
+  const location = String(body.location ?? '').trim()
+  const sellerName = String(body.sellerName ?? '').trim()
+  const sellerContact = String(body.sellerContact ?? '').trim()
+
+  if (!title) return NextResponse.json(apiError('Title is required'), { status: 400 })
+  if (!brand) return NextResponse.json(apiError('Brand is required'), { status: 400 })
+  if (!model) return NextResponse.json(apiError('Model is required'), { status: 400 })
+  if (!description) return NextResponse.json(apiError('Description is required'), { status: 400 })
+  if (price <= 0) return NextResponse.json(apiError('Price must be greater than 0'), { status: 400 })
+  if (!location) return NextResponse.json(apiError('Location is required'), { status: 400 })
+  if (!sellerName) return NextResponse.json(apiError('Seller name is required'), { status: 400 })
+  if (!sellerContact) return NextResponse.json(apiError('Seller contact is required'), { status: 400 })
+
+  const validTypes = ['sale', 'rent', 'wanted']
+  const validCategories = ['total_station', 'gnss', 'level', 'theodolite', 'edm', 'drone', 'accessories', 'software', 'other']
+  const validConditions = ['new', 'excellent', 'good', 'fair', 'for_parts']
+  const validCurrencies = ['KES', 'UGX', 'TZS', 'NGN', 'USD', 'GHS', 'ZAR']
+
+  const type = validTypes.includes(String(body.type)) ? String(body.type) : 'sale'
+  const category = validCategories.includes(String(body.category)) ? String(body.category) : 'other'
+  const condition = validConditions.includes(String(body.condition)) ? String(body.condition) : 'good'
+  const currency = validCurrencies.includes(String(body.currency)) ? String(body.currency) : 'KES'
+  const rentPeriod = ['day', 'week', 'month'].includes(String(body.rentPeriod)) ? String(body.rentPeriod) : null
+  const year = body.year ? parseInt(String(body.year)) : null
+  const country = String(body.country ?? 'Kenya').trim()
+  const images = Array.isArray(body.images) ? body.images.filter((img: unknown) => typeof img === 'string').slice(0, 5) : []
+  const verified = Boolean(body.verified)
+
+  const { rows } = await db.query(
+    `INSERT INTO instrument_listings
+      (user_id, type, category, title, brand, model, condition, year, description,
+       price, currency, rent_period, location, country, seller_name, seller_contact,
+       images, verified)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+     RETURNING *`,
+    [ctx.userId, type, category, title, brand, model, condition, year, description,
+     price, currency, rentPeriod, location, country, sellerName, sellerContact,
+     images, verified]
+  )
+
+  return NextResponse.json(apiSuccess(rowToListing(rows[0])), { status: 201 })
+})

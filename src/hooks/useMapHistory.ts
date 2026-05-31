@@ -1,0 +1,116 @@
+'use client'
+
+import { useRef, useState, useCallback } from 'react'
+import type { HistoryEntry, MapContext } from './useMapTypes'
+
+/**
+ * Manages undo/redo history for the draw source features.
+ * Maintains a stack of serialized feature snapshots (max 50 entries).
+ */
+export function useMapHistory(ctx: MapContext) {
+  const historyRef = useRef<HistoryEntry[]>([])
+  const historyIndexRef = useRef(-1)
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
+
+  // ── Push current state to history ──
+  const pushHistory = useCallback(() => {
+    if (!ctx.drawSourceRef.current) return
+    const json = JSON.stringify(
+      ctx.drawSourceRef.current.getFeatures().map((f: any) => ({
+        geometry: f.getGeometry()?.toJSON(),
+        properties: f.getProperties(),
+      }))
+    )
+    const newHistory = historyRef.current.slice(0, historyIndexRef.current + 1)
+    newHistory.push({ featuresJson: json })
+    if (newHistory.length > 50) newHistory.shift()
+    historyRef.current = newHistory
+    historyIndexRef.current = newHistory.length - 1
+    setCanUndo(historyIndexRef.current > 0)
+    setCanRedo(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Restore features from a history entry ──
+  const restoreEntry = useCallback(async (entry: HistoryEntry) => {
+    const features = JSON.parse(entry.featuresJson)
+    ctx.drawSourceRef.current.clear()
+    for (const f of features) {
+      if (f.geometry) {
+        const { default: Feature } = await import('ol/Feature')
+        const geomType = f.geometry.type
+        let geom: any = null
+        if (geomType === 'Point') {
+          const { default: Point } = await import('ol/geom/Point')
+          geom = new Point(f.geometry.coordinates)
+        } else if (geomType === 'LineString') {
+          const { default: LineString } = await import('ol/geom/LineString')
+          geom = new LineString(f.geometry.coordinates)
+        } else if (geomType === 'Polygon') {
+          const { default: Polygon } = await import('ol/geom/Polygon')
+          geom = new Polygon(f.geometry.coordinates)
+        } else if (geomType === 'Circle') {
+          const { default: Circle } = await import('ol/geom/Circle')
+          geom = new Circle(f.geometry.center, f.geometry.radius)
+        }
+        if (geom) {
+          const feature = new Feature({ geometry: geom })
+          if (f.properties) {
+            Object.entries(f.properties).forEach(([k, v]) => {
+              if (k !== 'geometry') feature.set(k, v)
+            })
+          }
+          ctx.drawSourceRef.current.addFeature(feature)
+        }
+      }
+    }
+    ctx.setFeatureCount(ctx.drawSourceRef.current.getFeatures().length)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Undo ──
+  const undo = useCallback(async () => {
+    if (historyIndexRef.current <= 0 || !ctx.drawSourceRef.current) return
+    historyIndexRef.current--
+    const entry = historyRef.current[historyIndexRef.current]
+    try {
+      await restoreEntry(entry)
+    } catch { /* ignore */ }
+    setCanUndo(historyIndexRef.current > 0)
+    setCanRedo(historyIndexRef.current < historyRef.current.length - 1)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Redo ──
+  const redo = useCallback(async () => {
+    if (historyIndexRef.current >= historyRef.current.length - 1 || !ctx.drawSourceRef.current) return
+    historyIndexRef.current++
+    const entry = historyRef.current[historyIndexRef.current]
+    try {
+      await restoreEntry(entry)
+    } catch { /* ignore */ }
+    setCanUndo(historyIndexRef.current > 0)
+    setCanRedo(historyIndexRef.current < historyRef.current.length - 1)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Clear history (used by "Clear All") ──
+  const clearHistory = useCallback(() => {
+    historyRef.current = []
+    historyIndexRef.current = -1
+    setCanUndo(false)
+    setCanRedo(false)
+  }, [])
+
+  return {
+    pushHistory,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    clearHistory,
+    historyRef,
+    historyIndexRef,
+  }
+}

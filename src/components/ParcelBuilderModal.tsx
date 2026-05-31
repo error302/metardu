@@ -1,0 +1,349 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { createClient } from '@/lib/api-client/client';
+import { coordinateArea } from '@/lib/engine/area';
+import { distanceBearing } from '@/lib/engine/distance';
+
+interface Point {
+  id: string;
+  name: string;
+  easting: number;
+  northing: number;
+  elevation?: number | null;
+  is_control?: boolean;
+  locked?: boolean;
+}
+
+interface ParcelBuilderModalProps {
+  projectId: string;
+  points: Point[];
+  onClose: () => void;
+  onParcelCreated: (parcel?: { id: string; name: string | null; boundary_points: Array<{ name?: string; easting: number; northing: number }>; created_at?: string }) => void;
+  onDraftBoundaryChange?: (boundary: Array<{ easting: number; northing: number }> | null) => void;
+}
+
+interface BoundaryPoint {
+  id: string;
+  name: string;
+  easting: number;
+  northing: number;
+}
+
+interface BoundaryLine {
+  from: string;
+  to: string;
+  bearing: string;
+  bearingDeg: number;
+  distance: number;
+}
+
+export default function ParcelBuilderModal({ projectId, points, onClose, onParcelCreated, onDraftBoundaryChange }: ParcelBuilderModalProps) {
+  const [parcelName, setParcelName] = useState('');
+  const [selectedPoints, setSelectedPoints] = useState<BoundaryPoint[]>([]);
+  const [isSelecting, setIsSelecting] = useState(true);
+  const [boundaryLines, setBoundaryLines] = useState<BoundaryLine[]>([]);
+  const [areaResult, setAreaResult] = useState<{
+    areaSqm: number;
+    areaHa: number;
+    areaAcres: number;
+    perimeter: number;
+  } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const dbClient = createClient();
+
+  const computeParcel = useCallback(() => {
+    if (selectedPoints.length < 3) {
+      setBoundaryLines([]);
+      setAreaResult(null);
+      return;
+    }
+
+    const coords = selectedPoints.map((p: any) => ({ easting: p.easting, northing: p.northing }));
+    const areaData = coordinateArea(coords);
+
+    const lines: BoundaryLine[] = [];
+    for (let i = 0; i < selectedPoints.length; i++) {
+      const from = selectedPoints[i];
+      const to = selectedPoints[(i + 1) % selectedPoints.length];
+      const db = distanceBearing(from, to);
+      lines.push({
+        from: from.name,
+        to: to.name,
+        bearing: db.bearingDMS,
+        bearingDeg: db.bearing,
+        distance: db.distance
+      });
+    }
+
+    setBoundaryLines(lines);
+    setAreaResult({
+      areaSqm: areaData.areaSqm,
+      areaHa: areaData.areaHa,
+      areaAcres: areaData.areaAcres,
+      perimeter: areaData.perimeter
+    });
+  }, [selectedPoints]);
+
+  useEffect(() => {
+    if (selectedPoints.length >= 3) {
+      computeParcel();
+    } else {
+      setBoundaryLines([]);
+      setAreaResult(null);
+    }
+  }, [selectedPoints, computeParcel]);
+
+  const handlePointClick = (point: Point) => {
+    if (!isSelecting) return;
+
+    const firstPoint = selectedPoints[0]
+    if (selectedPoints.length > 0 && firstPoint && firstPoint.id === point.id) {
+      if (selectedPoints.length >= 3) setIsSelecting(false);
+      return;
+    }
+
+    if (selectedPoints.find((p: any) => p.id === point.id)) return;
+
+    setSelectedPoints([
+      ...selectedPoints,
+      {
+        id: point.id,
+        name: point.name,
+        easting: point.easting,
+        northing: point.northing
+      }
+    ]);
+  };
+
+  const handleSave = async () => {
+    if (!parcelName || selectedPoints.length < 3 || !areaResult) return;
+
+    setSaving(true);
+    try {
+      const { data: { session } } = await dbClient.auth.getSession();
+      const user = session?.user;
+
+      const { data, error } = await dbClient.from('parcels').insert({
+        project_id: projectId,
+        name: parcelName,
+        point_ids: selectedPoints.map((p: any) => p.id),
+        boundary_points: selectedPoints.map((p: any) => ({
+          name: p.name,
+          easting: p.easting,
+          northing: p.northing
+        })),
+        area_sqm: areaResult.areaSqm,
+        area_ha: areaResult.areaHa,
+        area_acres: areaResult.areaAcres,
+        perimeter_m: areaResult.perimeter,
+        created_by: user?.id
+      }).select('id, name, boundary_points, created_at').single();
+
+      if (error) throw error;
+
+      onParcelCreated((data as any) ?? undefined);
+      onClose();
+    } catch (err) {
+      console.error('Error saving parcel:', err);
+      alert('Failed to save parcel');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = () => {
+    setSelectedPoints([]);
+    setIsSelecting(true);
+    setBoundaryLines([]);
+    setAreaResult(null);
+    setParcelName('');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-[var(--border-color)] flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold text-white">Build Parcel</h2>
+            <p className="text-sm text-[var(--text-secondary)]">Click points in boundary order. Click first point to close.</p>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-secondary)] hover:text-white text-2xl">&times;</button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-semibold text-[var(--text-primary)] mb-3">Available Points</h3>
+              <div className="bg-[var(--bg-tertiary)] rounded-lg p-3 max-h-64 overflow-y-auto">
+                {points.filter((p: any) => !p.locked).length === 0 ? (
+                  <p className="text-[var(--text-muted)] text-sm">No points available</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {points.filter((p: any) => !p.locked).map((point: any) => {
+                      const isAlreadySelected = selectedPoints.some((p: any) => p.id === point.id)
+                      const isFirst = selectedPoints.length > 0 && selectedPoints[0].id === point.id
+                      const canClose = isFirst && selectedPoints.length >= 3
+                      const disabled = !isSelecting || (isAlreadySelected && !canClose)
+
+                      return (
+                        <button
+                          key={point.id}
+                          onClick={() => handlePointClick(point)}
+                          disabled={disabled}
+                          className={`px-3 py-2 rounded text-sm font-mono text-left transition-colors ${
+                            isAlreadySelected
+                              ? canClose
+                                ? 'bg-green-900/40 border border-green-700 text-green-200 hover:bg-green-900/60'
+                                : 'bg-[var(--accent)] text-black'
+                              : isSelecting
+                                ? 'bg-gray-700 hover:bg-[var(--border-hover)] text-[var(--text-primary)]'
+                                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
+                          }`}
+                          title={canClose ? 'Click to close boundary' : undefined}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span>{point.name}</span>
+                            {canClose ? <span className="text-xs font-sans">Close</span> : null}
+                          </div>
+                          <span className="text-xs text-[var(--text-secondary)] ml-1 block">
+                            {point.easting.toFixed(0)}, {point.northing.toFixed(0)}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {isSelecting && selectedPoints.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Selected Boundary ({selectedPoints.length})</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedPoints.map((p, idx) => (
+                      <span key={p.id} className="px-2 py-1 bg-[var(--accent)]/20 text-[var(--accent)] rounded text-sm">
+                        {p.name}
+                        {idx < selectedPoints.length - 1 && ' → '}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (selectedPoints.length >= 3) setIsSelecting(false)
+                      }}
+                      disabled={selectedPoints.length < 3}
+                      className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm disabled:opacity-50"
+                    >
+                      Close boundary
+                    </button>
+                    <span className="text-xs text-[var(--text-muted)]">
+                      or click the first point again
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              {areaResult ? (
+                <div className="bg-[var(--bg-tertiary)] rounded-xl p-6">
+                  <h3 className="font-bold text-white text-lg mb-4">PARCEL SUMMARY</h3>
+                  {isSelecting ? (
+                    <div className="mb-3 rounded border border-amber-700/50 bg-amber-900/10 px-3 py-2 text-xs text-amber-200">
+                      Preview only — close the boundary (click the first point again) to enter a name and save.
+                    </div>
+                  ) : null}
+                  <div className="border-b border-[var(--border-color)] pb-2 mb-3">
+                    <span className="text-[var(--text-secondary)] text-sm">Boundary: </span>
+                    <span className="text-[var(--text-primary)]">
+                      {selectedPoints.map((p: any) => p.name).join(' → ')}
+                    </span>
+                  </div>
+
+                  <table className="w-full text-sm mb-4">
+                    <thead>
+                      <tr className="border-b border-[var(--border-color)]">
+                        <th className="text-left py-2 text-[var(--text-secondary)]">Line</th>
+                        <th className="text-right py-2 text-[var(--text-secondary)]">Bearing</th>
+                        <th className="text-right py-2 text-[var(--text-secondary)]">Distance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {boundaryLines.map((line, idx) => (
+                        <tr key={idx} className="border-b border-[var(--border-color)]">
+                          <td className="py-2 text-[var(--text-primary)]">{line.from}→{line.to}</td>
+                          <td className="py-2 text-right font-mono text-[var(--text-primary)]">{line.bearing}</td>
+                          <td className="py-2 text-right font-mono text-[var(--text-primary)]">{line.distance.toFixed(3)} m</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div className="space-y-2 pt-4 border-t border-[var(--border-color)]">
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-secondary)]">Area:</span>
+                      <span className="font-mono text-white">{areaResult.areaSqm.toFixed(4)} m²</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-secondary)]"></span>
+                      <span className="font-mono text-white">{areaResult.areaHa.toFixed(6)} ha</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-secondary)]"></span>
+                      <span className="font-mono text-white">{areaResult.areaAcres.toFixed(4)} acres</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-[var(--border-color)]">
+                      <span className="text-[var(--text-secondary)]">Perimeter:</span>
+                      <span className="font-mono text-white">{areaResult.perimeter.toFixed(3)} m</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-[var(--bg-tertiary)]/50 rounded-xl p-6 text-center">
+                  <p className="text-[var(--text-muted)]">
+                    {selectedPoints.length < 3
+                      ? `Select at least 3 points (${3 - selectedPoints.length} more)`
+                      : 'Click the first point again to close the boundary'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {!isSelecting && areaResult && (
+            <div className="border-t border-[var(--border-color)] pt-6">
+              <div className="max-w-md">
+                <label className="label">Parcel Name</label>
+                <input
+                  className="input"
+                  value={parcelName}
+                  onChange={e => setParcelName(e.target.value)}
+                  placeholder="e.g., Plot A, Parcel 1"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 border-t border-[var(--border-color)] flex gap-3 justify-end">
+          <button onClick={handleReset} className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded">
+            Reset
+          </button>
+          <button onClick={onClose} className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded">
+            Cancel
+          </button>
+          {!isSelecting && areaResult && (
+            <button
+              onClick={handleSave}
+              disabled={!parcelName || saving}
+              className="px-6 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Parcel'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

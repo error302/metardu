@@ -1,0 +1,138 @@
+/**
+ * /api/storage — File storage endpoint
+ * Stores files on the VM filesystem with metadata in PostgreSQL.
+ *
+ * POST   /api/storage — Upload a file (multipart/form-data, needs rawBody)
+ * GET    /api/storage?path=<path> — Download a file (auth required, owner-only)
+ * DELETE /api/storage?path=<path> — Delete a file
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
+import db from '@/lib/db'
+import { promises as fs } from 'fs'
+import path from 'path'
+import crypto from 'crypto'
+
+const STORAGE_ROOT = process.env.STORAGE_ROOT || path.join(process.cwd(), 'upload')
+const MAX_FILE_SIZE = 50 * 1024 * 1024
+
+async function ensureDir(dirPath: string) {
+  await fs.mkdir(dirPath, { recursive: true }).catch(() => {})
+}
+
+function safeResolvePath(relativePath: string): string | null {
+  const full = path.resolve(path.join(STORAGE_ROOT, relativePath))
+  return full.startsWith(path.resolve(STORAGE_ROOT)) ? full : null
+}
+
+export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ctx) => {
+  const formData = await request.formData()
+  const file = formData.get('file') as File | null
+  const bucket = (formData.get('bucket') as string | null) ?? 'default'
+  const filePath = (formData.get('path') as string | null) ?? ''
+
+  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+  if (file.size > MAX_FILE_SIZE) return NextResponse.json({ error: 'File too large (max 50MB)' }, { status: 400 })
+
+  const hash = crypto.randomBytes(8).toString('hex')
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const storagePath = filePath || `${bucket}/${ctx.userId}/${hash}-${safeName}`
+
+  const fullPath = safeResolvePath(storagePath)
+  if (!fullPath) return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
+
+  await ensureDir(path.dirname(fullPath))
+  const buffer = Buffer.from(await file.arrayBuffer())
+  await fs.writeFile(fullPath, buffer)
+
+  await db.query(
+    `INSERT INTO file_uploads (user_id, bucket, file_path, original_name, mime_type, size_bytes, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())
+     ON CONFLICT (file_path) DO UPDATE SET updated_at = NOW()`,
+    [ctx.userId, bucket, storagePath, file.name, file.type, file.size]
+  ).catch(() => {
+    // Table might not exist yet — file is still stored on disk
+  })
+
+  return NextResponse.json({
+    data: { path: storagePath, fullPath: `/api/storage?path=${encodeURIComponent(storagePath)}` },
+    error: null,
+  })
+})
+
+export const GET = apiHandler({ auth: true }, async (request, ctx) => {
+  const filePath = request.nextUrl.searchParams.get('path')
+  if (!filePath) return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 })
+
+  const fullPath = safeResolvePath(filePath)
+  if (!fullPath) return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
+
+  const { rows } = await db.query(
+    'SELECT user_id FROM file_uploads WHERE file_path = $1',
+    [filePath]
+  ).catch(() => ({ rows: [] as { user_id: string }[] }))
+
+  const isOwner = rows.some(row => row.user_id === ctx.userId)
+  const pathOwnedByUser = filePath.includes(`/${ctx.userId}/`)
+
+  if (rows.length > 0 && !isOwner) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  if (rows.length === 0 && !pathOwnedByUser) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const ext = path.extname(filePath).toLowerCase()
+  const mimeMap: Record<string, string> = {
+    '.pdf': 'application/pdf',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.svg': 'image/svg+xml',
+    '.csv': 'text/csv',
+    '.json': 'application/json',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.zip': 'application/zip',
+    '.dxf': 'application/dxf',
+  }
+
+  try {
+    const buffer = await fs.readFile(fullPath)
+    const contentType = mimeMap[ext] ?? 'application/octet-stream'
+    return new NextResponse(buffer, {
+      headers: {
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="${path.basename(filePath)}"`,
+        'Cache-Control': 'private, max-age=3600',
+      },
+    })
+  } catch {
+    return NextResponse.json({ error: 'File not found' }, { status: 404 })
+  }
+})
+
+export const DELETE = apiHandler({ auth: true }, async (request, ctx) => {
+  const filePath = request.nextUrl.searchParams.get('path')
+  if (!filePath) return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 })
+
+  const fullPath = safeResolvePath(filePath)
+  if (!fullPath) return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
+
+  const { rows } = await db.query(
+    'SELECT id FROM file_uploads WHERE file_path = $1 AND user_id = $2',
+    [filePath, ctx.userId]
+  ).catch(() => ({ rows: [] as unknown[] }))
+
+  await fs.unlink(fullPath).catch(() => {})
+
+  if (rows.length > 0) {
+    await db.query(
+      'DELETE FROM file_uploads WHERE file_path = $1 AND user_id = $2',
+      [filePath, ctx.userId]
+    ).catch(() => {})
+  }
+
+  return NextResponse.json({ data: null, error: null })
+})

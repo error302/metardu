@@ -1,0 +1,42 @@
+# Test Runner Dockerfile
+FROM node:20-alpine
+
+# Install Chromium + canvas dependencies
+RUN apk add --no-cache \
+  chromium \
+  nss \
+  freetype \
+  harfbuzz \
+  ca-certificates \
+  ttf-freefont \
+  pixman-dev \
+  pango-dev \
+  cairo-dev \
+  libjpeg-turbo-dev \
+  giflib-dev \
+  python3 \
+  make \
+  g++ \
+  vips-dev
+
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
+# Install Playwright globally
+RUN npm install -g playwright
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --legacy-peer-deps
+
+# Copy test scripts
+COPY scripts/ ./scripts/
+COPY src/lib/ ./src/lib/
+COPY src/types/ ./src/types/
+
+ENV CI=true
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Default command runs quick smoke tests
+CMD ["npm", "run", "test:quick"]

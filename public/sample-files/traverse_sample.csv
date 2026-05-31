@@ -1,0 +1,5 @@
+Station,Target,Bearing,Distance
+A,B,0,100
+B,C,90,100
+C,D,180,100
+D,A,270,100

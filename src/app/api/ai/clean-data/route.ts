@@ -1,0 +1,94 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { setCurrentUserId } from '@/lib/db'
+import db from '@/lib/db'
+import { callPythonCompute } from '@/lib/compute/pythonService'
+import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
+import type { CleanDataRequest, CleanDataResponse } from '@/types/fieldguard'
+
+export async function POST(request: NextRequest) {
+  // Rate limit: 10 requests per 60 seconds (AI compute)
+  const identifier = getClientIdentifier(request)
+  const { allowed } = await rateLimit(identifier, 10, 60_000)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' }, { status: 429 })
+  }
+
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
+  }
+  const userId = (session.user as any).id
+  if (userId) setCurrentUserId(String(userId))
+
+  try {
+    const body: CleanDataRequest = await request.json()
+    
+    if (!body.points || body.points.length === 0) {
+      return NextResponse.json({ error: 'No points provided' }, { status: 400 })
+    }
+    
+    if (!body.data_type || !['gnss', 'totalstation', 'lidar'].includes(body.data_type)) {
+      return NextResponse.json({ error: 'Invalid data_type' }, { status: 400 })
+    }
+    
+    const result = await callPythonCompute<CleanDataResponse>(
+      '/clean-data',
+      body,
+      { timeoutMs: 30000 }
+    )
+    
+    if (!result.ok) {
+      const err = result as { ok: false; status: number; error: string }
+      return NextResponse.json({ error: err.error }, { status: err.status })
+    }
+    
+    return NextResponse.json(result.value)
+  } catch (error) {
+    console.error('Clean data error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
+  }
+  const userId = (session.user as any).id
+  if (userId) setCurrentUserId(String(userId))
+
+  const { searchParams } = new URL(request.url)
+  const projectId = searchParams.get('project_id')
+  const datasetId = searchParams.get('id')
+  
+  if (!projectId && !datasetId) {
+    return NextResponse.json({ error: 'Missing project_id or id' }, { status: 400 })
+  }
+  
+  try {
+    if (datasetId) {
+      const result = await db.query(
+        'SELECT * FROM cleaned_datasets WHERE id = $1',
+        [datasetId]
+      )
+      
+      if (result.rows.length === 0) {
+        return NextResponse.json({ error: 'Dataset not found' }, { status: 404 })
+      }
+      
+      return NextResponse.json(result.rows[0])
+    } else if (projectId) {
+      const result = await db.query(
+        'SELECT * FROM cleaned_datasets WHERE project_id = $1 ORDER BY created_at DESC',
+        [projectId]
+      )
+      
+      return NextResponse.json(result.rows)
+    }
+  } catch (error) {
+    console.error('Cleaned datasets GET error:', error)
+    return NextResponse.json({ error: 'Failed to fetch datasets' }, { status: 500 })
+  }
+}
