@@ -81,7 +81,8 @@ export const authOptions: AuthOptions = {
           let role = user.role || 'surveyor'
 
           // Platform owner always gets super_admin regardless of env var or DB state
-          if (user.email.toLowerCase() === 'mohameddosho20@gmail.com') {
+          const platformOwnerEmail = (process.env.PLATFORM_OWNER_EMAIL || 'mohameddosho20@gmail.com').toLowerCase()
+          if (user.email.toLowerCase() === platformOwnerEmail) {
             role = 'super_admin'
           }
 

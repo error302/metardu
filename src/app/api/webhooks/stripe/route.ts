@@ -54,29 +54,38 @@ export async function POST(request: NextRequest) {
 
       const now = new Date()
       const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-
-      const { rows: existingRows } = await db.query(
-        'SELECT id FROM user_subscriptions WHERE user_id = $1 LIMIT 1',
-        [userId]
-      )
-      const existing = existingRows[0]
-
       const currency = (session.currency || 'USD').toUpperCase()
 
-      if (existing?.id) {
-        await db.query(
-          `UPDATE user_subscriptions 
-           SET plan_id = $1, status = $2, payment_method = $3, currency = $4, current_period_start = $5, current_period_end = $6
-           WHERE id = $7`,
-          [planId, 'active', 'stripe', currency, now.toISOString(), periodEnd.toISOString(), existing.id]
+      await db.query(
+        `INSERT INTO user_subscriptions (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (user_id) DO UPDATE SET
+           plan_id = EXCLUDED.plan_id, status = EXCLUDED.status, payment_method = EXCLUDED.payment_method,
+           currency = EXCLUDED.currency, current_period_start = EXCLUDED.current_period_start,
+           current_period_end = EXCLUDED.current_period_end`,
+        [userId, planId, 'active', 'stripe', currency, now.toISOString(), periodEnd.toISOString()]
+      ).catch(async () => {
+        // Fallback: upsert may fail if no unique constraint on user_id
+        const { rows: existingRows2 } = await db.query(
+          'SELECT id FROM user_subscriptions WHERE user_id = $1 LIMIT 1',
+          [userId]
         )
-      } else {
-        await db.query(
-          `INSERT INTO user_subscriptions (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [userId, planId, 'active', 'stripe', currency, now.toISOString(), periodEnd.toISOString()]
-        )
-      }
+        const existing2 = existingRows2[0]
+        if (existing2?.id) {
+          await db.query(
+            `UPDATE user_subscriptions
+             SET plan_id = $1, status = $2, payment_method = $3, currency = $4, current_period_start = $5, current_period_end = $6
+             WHERE id = $7`,
+            [planId, 'active', 'stripe', currency, now.toISOString(), periodEnd.toISOString(), existing2.id]
+          )
+        } else {
+          await db.query(
+            `INSERT INTO user_subscriptions (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [userId, planId, 'active', 'stripe', currency, now.toISOString(), periodEnd.toISOString()]
+          )
+        }
+      })
 
       await db.query(
         'UPDATE payment_history SET status = $1, transaction_id = $2 WHERE id = $3 AND user_id = $4',
