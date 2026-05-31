@@ -36,12 +36,12 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
         </div>
       </div>
 
-      <div className="flex border-b border-zinc-700 mb-4">
+      <div className="flex overflow-x-auto border-b border-zinc-700 mb-4">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as typeof activeTab)}
-            className={`px-4 py-2 text-sm ${activeTab === tab.id ? 'text-amber-500 border-b-2 border-amber-500' : 'text-zinc-400'}`}
+            className={`px-4 py-2 text-sm whitespace-nowrap ${activeTab === tab.id ? 'text-amber-500 border-b-2 border-amber-500' : 'text-zinc-400'}`}
           >
             {tab.label}
           </button>
@@ -141,9 +141,9 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
       {activeTab === 'settingout' && (
         <div>
           <div className="text-lg font-medium mb-3">Setting Out Schedule</div>
-          <div className="p-4 bg-zinc-800 rounded-lg text-sm">
+          <div className="p-4 bg-zinc-800 rounded-lg text-sm overflow-x-auto">
             <div className="text-zinc-400">Bearing and distance from nearest control point</div>
-            <table className="w-full mt-3">
+            <table className="w-full mt-3 min-w-[400px]">
               <thead>
                 <tr className="text-zinc-400 border-b border-zinc-700">
                   <th className="text-left py-2">Point</th>

@@ -47,12 +47,12 @@ export function RailwayPanel({ projectId, subtype }: EngineeringPanelProps) {
         </div>
       </div>
 
-      <div className="flex border-b border-zinc-700 mb-4">
+      <div className="flex overflow-x-auto border-b border-zinc-700 mb-4">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as typeof activeTab)}
-            className={`px-4 py-2 text-sm ${activeTab === tab.id ? 'text-amber-500 border-b-2 border-amber-500' : 'text-zinc-400'}`}
+            className={`px-4 py-2 text-sm whitespace-nowrap ${activeTab === tab.id ? 'text-amber-500 border-b-2 border-amber-500' : 'text-zinc-400'}`}
           >
             {tab.label}
           </button>

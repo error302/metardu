@@ -688,28 +688,30 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
           {/* Bearing Schedule */}
           <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
             <h3 className="text-lg font-semibold mb-4">Bearing Schedule</h3>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2">Leg</th>
-                  <th className="text-left py-2">From</th>
-                  <th className="text-left py-2">To</th>
-                  <th className="text-left py-2">Bearing (WCB)</th>
-                  <th className="text-right py-2">Distance (m)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {output.bearingSchedule.map((leg, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="py-2">{i + 1}</td>
-                    <td className="py-2">{leg.fromPoint}</td>
-                    <td className="py-2">{leg.toPoint}</td>
-                    <td className="py-2 font-mono">{leg.bearing}</td>
-                    <td className="py-2 text-right">{leg.distance.toFixed(2)}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2">Leg</th>
+                    <th className="text-left py-2">From</th>
+                    <th className="text-left py-2">To</th>
+                    <th className="text-left py-2">Bearing (WCB)</th>
+                    <th className="text-right py-2">Distance (m)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {output.bearingSchedule.map((leg, i) => (
+                    <tr key={i} className="border-b">
+                      <td className="py-2">{i + 1}</td>
+                      <td className="py-2">{leg.fromPoint}</td>
+                      <td className="py-2">{leg.toPoint}</td>
+                      <td className="py-2 font-mono">{leg.bearing}</td>
+                      <td className="py-2 text-right">{leg.distance.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Beacon Description Schedule */}
