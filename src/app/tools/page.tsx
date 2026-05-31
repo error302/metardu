@@ -1,5 +1,11 @@
+'use client'
+
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { useSubscription } from '@/lib/subscription/subscriptionContext'
+import type { FeatureKey } from '@/lib/subscription/featureGates'
+import type { PlanId } from '@/lib/subscription/catalog'
 import type { ComponentType } from 'react'
 import {
   BookOpenText,
@@ -33,12 +39,38 @@ import {
   RulerDimensionLine,
   Satellite,
   ScanLine,
+  Search,
   Ship,
   Spline,
   SquareDashedMousePointer,
+  Star,
   TrendingUp,
   Waypoints,
+  X,
+  Lock,
+  Clock,
 } from 'lucide-react'
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  TOOL FEATURE GATE MAP
+ *  Maps each tool route to the minimum plan + feature key required.
+ *  If a tool is NOT in this map, it's available on ALL tiers (free+).
+ * ══════════════════════════════════════════════════════════════════════ */
+type GateInfo = { minPlan: PlanId; feature: FeatureKey; label: string }
+
+const TOOL_GATES: Record<string, GateInfo> = {
+  '/tools/civil-export':    { minPlan: 'pro', feature: 'dxf_export',   label: 'DXF Export' },
+  '/tools/gis-export':      { minPlan: 'pro', feature: 'landxml',     label: 'LandXML' },
+  '/tools/machine-control': { minPlan: 'pro', feature: 'dxf_export',  label: 'DXF Export' },
+  '/tools/topo-drawing':    { minPlan: 'pro', feature: 'dxf_export',  label: 'DXF Export' },
+  '/tools/survey-plan-demo':{ minPlan: 'pro', feature: 'full_pdf',    label: 'Full PDF' },
+  '/tools/gnss-baseline':   { minPlan: 'pro', feature: 'process_notes', label: 'Process Notes' },
+  '/tools/drone':           { minPlan: 'pro', feature: 'process_notes', label: 'Process Notes' },
+  '/tools/slope-analysis':  { minPlan: 'pro', feature: 'full_pdf',    label: 'Full PDF' },
+  '/tools/progress-monitor':{ minPlan: 'team', feature: 'realtime_collab', label: 'Collaboration' },
+}
+
+const PLAN_RANK: Record<PlanId, number> = { free: 0, pro: 1, team: 2, firm: 3, enterprise: 4 }
 
 const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '/tools/beacon-certificate': FileBadge,
@@ -93,206 +125,428 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '/tools/gnss-baseline': Satellite,
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ *  RECENTLY USED TOOLS (localStorage)
+ * ══════════════════════════════════════════════════════════════════════ */
+const STORAGE_KEY = 'metardu-recent-tools'
+const MAX_RECENT = 6
+
+function getRecentTools(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function addRecentTool(href: string) {
+  try {
+    const recent = getRecentTools().filter(h => h !== href)
+    recent.unshift(href)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)))
+  } catch { /* ignore */ }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  FAVORITE TOOLS (localStorage)
+ * ══════════════════════════════════════════════════════════════════════ */
+const FAV_STORAGE_KEY = 'metardu-fav-tools'
+
+function getFavTools(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(FAV_STORAGE_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function toggleFavTool(href: string): boolean {
+  try {
+    const favs = getFavTools()
+    const isFav = favs.includes(href)
+    const updated = isFav ? favs.filter(h => h !== href) : [href, ...favs]
+    localStorage.setItem(FAV_STORAGE_KEY, JSON.stringify(updated))
+    return !isFav
+  } catch {
+    return false
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  TOOL DEFINITIONS (structured data for search/filter)
+ * ══════════════════════════════════════════════════════════════════════ */
+interface ToolDef {
+  href: string
+  title: string
+  description: string
+  badge?: string
+  section: string
+  keywords: string
+}
+
+const TOOL_DEFS: ToolDef[] = [
+  // Documents & Certificates
+  { href: '/tools/beacon-certificate', title: 'Beacon Certificate', description: 'Signed beacon description sheet | Reg. 20 Survey Regulations 1994', badge: 'NEW', section: 'Documents & Certificates', keywords: 'beacon certificate signed description sheet reg 20' },
+  { href: '/tools/billable-documents', title: 'Billable Documents', description: 'Subdivision, road reserve, valuation, title search, and setback certificates', badge: 'NEW', section: 'Documents & Certificates', keywords: 'billable subdivision road reserve valuation title search setback certificate' },
+  { href: '/tools/gnss-observation-log', title: 'GNSS Observation Log', description: 'Occupation schedule & baseline report | ISO 17123-8', badge: 'NEW', section: 'Documents & Certificates', keywords: 'gnss observation log occupation schedule baseline iso 17123' },
+  { href: '/tools/statutory-workbook', title: 'Statutory Workbook', description: '9-sheet field abstract and computation workbook', badge: 'NEW', section: 'Documents & Certificates', keywords: 'statutory workbook field abstract computation 9-sheet' },
+  { href: '/tools/detail-tolerances', title: 'Detail Tolerances', description: 'RDM 1.1 Table 5.2 detailed survey tolerances (printable)', section: 'Documents & Certificates', keywords: 'detail tolerances rdm table 5.2 survey' },
+  { href: '/tools/survey-report-builder', title: 'Survey Report', description: 'RDM 1.1 Table 5.4 topographic survey report', section: 'Documents & Certificates', keywords: 'survey report builder rdm table 5.4 topographic' },
+  { href: '/tools/mobilisation-report', title: 'Mobilisation Report', description: 'RDM 1.1 Table 5.3 field mobilisation sheet', section: 'Documents & Certificates', keywords: 'mobilisation report rdm table 5.3 field sheet' },
+
+  // Field Layout
+  { href: '/tools/setting-out', title: 'Setting Out', description: 'Stakeout from known coords | RDM 1.1', section: 'Field Layout', keywords: 'setting out stakeout known coordinates rdm' },
+  { href: '/tools/missing-line', title: 'Missing Line', description: 'Distance & bearing between two points', section: 'Field Layout', keywords: 'missing line distance bearing two points' },
+  { href: '/tools/control-marks-register', title: 'Control Marks Register', description: 'RDM 1.1 s5.6.3 mark register', section: 'Field Layout', keywords: 'control marks register rdm 5.6.3 mark' },
+  { href: '/tools/pile-grid', title: 'Pile / Column Grid', description: 'Foundation grid coordinates & staking | Basak §8.5', badge: 'NEW', section: 'Field Layout', keywords: 'pile column grid foundation staking basak' },
+
+  // Leveling
+  { href: '/tools/leveling', title: 'Leveling', description: 'Quick differential levelling | 10√K closure', section: 'Leveling', keywords: 'leveling differential levelling closure 10√K' },
+  { href: '/tools/level-book', title: 'Level Book', description: 'HPC / Rise & Fall field book | 10√K closure', section: 'Leveling', keywords: 'level book hpc rise fall field closure' },
+  { href: '/tools/two-peg-test', title: 'Two Peg Test', description: 'Instrument collimation error check', section: 'Leveling', keywords: 'two peg test collimation error instrument' },
+  { href: '/tools/height-of-object', title: 'Height of Object', description: 'Trigonometric height measurement', section: 'Leveling', keywords: 'height object trigonometric measurement' },
+
+  // Calculations
+  { href: '/tools/distance', title: 'Distance & Bearing', description: 'WCB & distance from coordinates', section: 'Calculations', keywords: 'distance bearing wcb coordinates' },
+  { href: '/tools/bearing', title: 'Bearing', description: 'Forward & back bearing computation', section: 'Calculations', keywords: 'bearing forward back computation' },
+  { href: '/tools/area', title: 'Area', description: 'Area from coordinate list', section: 'Calculations', keywords: 'area coordinate list computation' },
+  { href: '/tools/grade', title: 'Gradient', description: 'Gradient & slope percentage', section: 'Calculations', keywords: 'gradient grade slope percentage' },
+
+  // Traverse & Adjustment
+  { href: '/tools/traverse', title: 'Traverse', description: 'Bowditch/Transit closed traverse | RDM 1.1 grading', section: 'Traverse & Adjustment', keywords: 'traverse bowditch transit closed rdm grading' },
+  { href: '/tools/traverse-field-book', title: 'Traverse Field Book', description: 'Field observations with angular closure', section: 'Traverse & Adjustment', keywords: 'traverse field book observations angular closure' },
+  { href: '/tools/coordinates', title: 'Coordinates', description: 'Survey Regulations 1994 | Kenya UTM Zones 36S/37S', section: 'Traverse & Adjustment', keywords: 'coordinates kenya utm zones 36s 37s survey regulations' },
+  { href: '/tools/cogo', title: 'COGO Calculator', description: 'Coordinate geometry computations', section: 'Traverse & Adjustment', keywords: 'cogo coordinate geometry calculator' },
+  { href: '/tools/gnss', title: 'GNSS', description: 'GNSS observation & baseline processing', section: 'Traverse & Adjustment', keywords: 'gnss observation baseline processing' },
+
+  // Road Design
+  { href: '/tools/road-design', title: 'Road Design', description: 'Full road design workflow | RDM 1.1 (2025)', section: 'Road Design', keywords: 'road design workflow rdm' },
+  { href: '/tools/earthworks', title: 'Earthworks', description: 'Cut/fill volumes | Prismoidal formula | RDM 1.1', section: 'Road Design', keywords: 'earthworks cut fill volumes prismoidal formula rdm' },
+  { href: '/tools/curves', title: 'Horizontal Curves', description: 'Horizontal/vertical curve elements | RDM 1.1', section: 'Road Design', keywords: 'curves horizontal vertical elements rdm' },
+  { href: '/tools/tacheometry', title: 'Tacheometry', description: 'Stadia/EDM distance & elevation | RDM 1.1 Section 5.6', section: 'Road Design', keywords: 'tacheometry stadia edm distance elevation rdm 5.6' },
+  { href: '/tools/superelevation', title: 'Superelevation', description: 'e = V²/127R calculator per KRDM', section: 'Road Design', keywords: 'superelevation v2 127r krdm calculator' },
+  { href: '/tools/sight-distance', title: 'Sight Distance', description: 'SSD & OSD calculator per KRDM/KeRRA', section: 'Road Design', keywords: 'sight distance ssd osd krdm kerra calculator' },
+  { href: '/tools/pipe-gradient', title: 'Pipe Gradient', description: "Manning's equation pipe gradient check with drainage standards", section: 'Road Design', keywords: 'pipe gradient mannings equation drainage' },
+  { href: '/tools/chainage', title: 'Chainage', description: 'Chainage calculator for road projects', section: 'Road Design', keywords: 'chainage calculator road projects' },
+
+  // Earthworks & Volumes
+  { href: '/tools/cross-sections', title: 'Cross Sections', description: 'Road cross-section generation and analysis', section: 'Earthworks & Volumes', keywords: 'cross sections road generation analysis' },
+  { href: '/tools/borrow-pit-volume', title: 'Borrow Pit Volume', description: 'Grid method borrow pit volume computation', section: 'Earthworks & Volumes', keywords: 'borrow pit volume grid method computation' },
+  { href: '/tools/stockpile-volume', title: 'Stockpile Volume', description: 'Stockpile volume from survey points', section: 'Earthworks & Volumes', keywords: 'stockpile volume survey points' },
+
+  // Specialized Surveys
+  { href: '/tools/mining', title: 'Mining Survey', description: 'Volume computation & DXF export', section: 'Specialized Surveys', keywords: 'mining survey volume dxf export' },
+  { href: '/tools/hydrographic', title: 'Hydrographic', description: 'Water survey & depth reduction', section: 'Specialized Surveys', keywords: 'hydrographic water survey depth reduction' },
+  { href: '/tools/drone', title: 'Drone/UAV', description: 'UAV survey & GCP processing', section: 'Specialized Surveys', keywords: 'drone uav survey gcp processing' },
+  { href: '/tools/topo-drawing', title: 'Topo Drawing Composer', description: 'Feature codes & DXF topographic drawings', badge: 'NEW', section: 'Specialized Surveys', keywords: 'topo drawing composer feature codes dxf topographic' },
+  { href: '/tools/slope-analysis', title: 'Slope & Area Analysis', description: 'DTM slope classification, cut/fill, area', badge: 'NEW', section: 'Specialized Surveys', keywords: 'slope area analysis dtm classification cut fill' },
+  { href: '/tools/gnss-baseline', title: 'GNSS Baseline', description: 'GNSS baseline file processing | RINEX, Topcon, Trimble', section: 'Specialized Surveys', keywords: 'gnss baseline rinex topcon trimble processing' },
+  { href: '/tools/survey-plan-demo', title: 'Survey Plan Viewer', description: 'CAD-style boundary identification plan renderer', section: 'Specialized Surveys', keywords: 'survey plan viewer cad boundary identification renderer' },
+
+  // Engineering
+  { href: '/tools/machine-control', title: 'Machine Control Export', description: 'Trimble, Leica, Topcon export formats', badge: 'NEW', section: 'Engineering', keywords: 'machine control export trimble leica topcon' },
+  { href: '/tools/progress-monitor', title: 'Progress Monitor', description: 'Construction progress tracking & reports', badge: 'NEW', section: 'Engineering', keywords: 'progress monitor construction tracking reports' },
+
+  // Data Export
+  { href: '/tools/civil-export', title: 'Civil Engineering Export', description: 'Export for Civil 3D, 12d, QGIS, ArcGIS, CloudCompare', section: 'Data Export', keywords: 'civil engineering export 3d 12d qgis arcgis cloudcompare' },
+  { href: '/tools/gis-export', title: 'GIS Export', description: 'GeoJSON, KML, LandXML, CSV with UTM to WGS84 conversion', section: 'Data Export', keywords: 'gis export geojson kml landxml csv utm wgs84' },
+  { href: '/tools/gcp-export', title: 'GCP Export', description: 'Ground control points for Pix4D, DroneDeploy, Metashape, ODM', section: 'Data Export', keywords: 'gcp export ground control points pix4d dronedeploy metashape odm' },
+
+  // Reference
+  { href: '/tools/beacon-reference', title: 'Beacon Reference', description: 'Kenya Survey Regulations 1994 beacon symbols & descriptions', section: 'Reference', keywords: 'beacon reference kenya survey regulations symbols descriptions' },
+  { href: '/tools/survey-regulations', title: 'Kenya Survey Standards', description: 'Permitted errors, datums, UTM zones, accuracy classes', section: 'Reference', keywords: 'kenya survey standards permitted errors datums utm zones accuracy' },
+  { href: '/tools/us-survey-reference', title: 'US Survey Standards', description: 'BLM Manual, FWS Land Survey Handbook, DOJ Title Standards', section: 'Reference', keywords: 'us survey standards blm manual fws doj title' },
+]
+
+const SECTION_ORDER = [
+  'Documents & Certificates',
+  'Field Layout',
+  'Leveling',
+  'Calculations',
+  'Traverse & Adjustment',
+  'Road Design',
+  'Earthworks & Volumes',
+  'Specialized Surveys',
+  'Engineering',
+  'Data Export',
+  'Reference',
+]
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  MAIN COMPONENT
+ * ══════════════════════════════════════════════════════════════════════ */
 export default function ToolsPage() {
+  const { plan, isAdmin, hasFeature, loading } = useSubscription()
+  const [searchQuery, setSearchQuery] = useState('')
+  const [recentTools, setRecentTools] = useState<string[]>([])
+  const [favTools, setFavTools] = useState<string[]>([])
+  const [mounted, setMounted] = useState(false)
+
+  // Hydration-safe: only read localStorage after mount
+  useEffect(() => {
+    setRecentTools(getRecentTools())
+    setFavTools(getFavTools())
+    setMounted(true)
+  }, [])
+
+  const handleToggleFav = useCallback((href: string) => {
+    const isNowFav = toggleFavTool(href)
+    setFavTools(getFavTools())
+  }, [])
+
+  // Filter tools by search query
+  const filteredTools = useMemo(() => {
+    if (!searchQuery.trim()) return TOOL_DEFS
+    const q = searchQuery.toLowerCase().trim()
+    return TOOL_DEFS.filter(t =>
+      t.title.toLowerCase().includes(q) ||
+      t.description.toLowerCase().includes(q) ||
+      t.keywords.toLowerCase().includes(q) ||
+      t.section.toLowerCase().includes(q)
+    )
+  }, [searchQuery])
+
+  // Group filtered tools by section
+  const groupedTools = useMemo(() => {
+    const groups: Record<string, ToolDef[]> = {}
+    for (const tool of filteredTools) {
+      if (!groups[tool.section]) groups[tool.section] = []
+      groups[tool.section].push(tool)
+    }
+    // Return in defined section order
+    return SECTION_ORDER
+      .filter(s => groups[s]?.length)
+      .map(s => ({ section: s, tools: groups[s] }))
+  }, [filteredTools])
+
+  // Recent tools (only show tools that exist in TOOL_DEFS)
+  const recentToolDefs = useMemo(() => {
+    if (!mounted) return []
+    return recentTools
+      .map(href => TOOL_DEFS.find(t => t.href === href))
+      .filter((t): t is ToolDef => !!t)
+  }, [recentTools, mounted])
+
+  // Favorite tools
+  const favToolDefs = useMemo(() => {
+    if (!mounted) return []
+    return favTools
+      .map(href => TOOL_DEFS.find(t => t.href === href))
+      .filter((t): t is ToolDef => !!t)
+  }, [favTools, mounted])
+
+  const userPlanRank = PLAN_RANK[plan] ?? 0
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-16">
       <PageHeader
         title="Quick Tools"
         subtitle="No project required — enter values and get instant results"
       />
-      
+
+      {/* ── SEARCH BAR ────────────────────────────────────────────── */}
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search tools by name, category, or keyword..."
+          className="w-full h-10 pl-10 pr-10 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-white transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       <div className="space-y-8">
 
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
-            Documents &amp; Certificates
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink
-              href="/tools/beacon-certificate"
-              title="Beacon Certificate"
-              description="Signed beacon description sheet | Reg. 20 Survey Regulations 1994"
-              badge="NEW"
-            />
-            <ToolLink
-              href="/tools/billable-documents"
-              title="Billable Documents"
-              description="Subdivision, road reserve, valuation, title search, and setback certificates"
-              badge="NEW"
-            />
-            <ToolLink
-              href="/tools/gnss-observation-log"
-              title="GNSS Observation Log"
-              description="Occupation schedule & baseline report | ISO 17123-8"
-              badge="NEW"
-            />
-            <ToolLink
-              href="/tools/statutory-workbook"
-              title="Statutory Workbook"
-              description="9-sheet field abstract and computation workbook"
-              badge="NEW"
-            />
-            <ToolLink
-              href="/tools/detail-tolerances"
-              title="Detail Tolerances"
-              description="RDM 1.1 Table 5.2 detailed survey tolerances (printable)"
-            />
-            <ToolLink
-              href="/tools/survey-report-builder"
-              title="Survey Report"
-              description="RDM 1.1 Table 5.4 topographic survey report"
-            />
-            <ToolLink
-              href="/tools/mobilisation-report"
-              title="Mobilisation Report"
-              description="RDM 1.1 Table 5.3 field mobilisation sheet"
-            />
-          </div>
-        </section>
+        {/* ── RECENTLY USED ─────────────────────────────────────────── */}
+        {mounted && recentToolDefs.length > 0 && !searchQuery && (
+          <section>
+            <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5" />
+              Recently Used
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {recentToolDefs.map(tool => (
+                <ToolLink
+                  key={tool.href}
+                  href={tool.href}
+                  title={tool.title}
+                  description={tool.description}
+                  badge={tool.badge}
+                  gate={TOOL_GATES[tool.href]}
+                  userPlanRank={userPlanRank}
+                  hasFeature={hasFeature}
+                  isFav={favTools.includes(tool.href)}
+                  onToggleFav={handleToggleFav}
+                  onNavigate={addRecentTool}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
-        {/* FIELD LAYOUT */}
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Field Layout</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/setting-out" title="Setting Out" description="Stakeout from known coords | RDM 1.1" />
-            <ToolLink href="/tools/missing-line" title="Missing Line" description="Distance & bearing between two points" />
-            <ToolLink href="/tools/control-marks-register" title="Control Marks Register" description="RDM 1.1 s5.6.3 mark register" />
-            <ToolLink href="/tools/pile-grid" title="Pile / Column Grid" description="Foundation grid coordinates &amp; staking | Basak §8.5" badge="NEW" />
-          </div>
-        </section>
+        {/* ── FAVORITES ─────────────────────────────────────────────── */}
+        {mounted && favToolDefs.length > 0 && !searchQuery && (
+          <section>
+            <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Star className="h-3.5 w-3.5" />
+              Favorites
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {favToolDefs.map(tool => (
+                <ToolLink
+                  key={tool.href}
+                  href={tool.href}
+                  title={tool.title}
+                  description={tool.description}
+                  badge={tool.badge}
+                  gate={TOOL_GATES[tool.href]}
+                  userPlanRank={userPlanRank}
+                  hasFeature={hasFeature}
+                  isFav={true}
+                  onToggleFav={handleToggleFav}
+                  onNavigate={addRecentTool}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
-        {/* LEVELING */}
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Leveling</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/leveling" title="Leveling" description="Quick differential levelling | 10√K closure" />
-            <ToolLink href="/tools/level-book" title="Level Book" description="HPC / Rise & Fall field book | 10√K closure" />
-            <ToolLink href="/tools/two-peg-test" title="Two Peg Test" description="Instrument collimation error check" />
-            <ToolLink href="/tools/height-of-object" title="Height of Object" description="Trigonometric height measurement" />
+        {/* ── SEARCH RESULTS / ALL TOOLS BY SECTION ─────────────────── */}
+        {searchQuery && filteredTools.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-[var(--text-muted)] text-sm">No tools found matching &quot;{searchQuery}&quot;</p>
+            <button onClick={() => setSearchQuery('')} className="mt-2 text-[var(--accent)] text-sm hover:underline">
+              Clear search
+            </button>
           </div>
-        </section>
+        )}
 
-        {/* CALCULATIONS */}
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Calculations</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/distance" title="Distance & Bearing" description="WCB & distance from coordinates" />
-            <ToolLink href="/tools/bearing" title="Bearing" description="Forward & back bearing computation" />
-            <ToolLink href="/tools/area" title="Area" description="Area from coordinate list" />
-            <ToolLink href="/tools/grade" title="Gradient" description="Gradient & slope percentage" />
-          </div>
-        </section>
-
-        {/* TRAVERSE & ADJUSTMENT */}
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Traverse & Adjustment</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/traverse" title="Traverse" description="Bowditch/Transit closed traverse | RDM 1.1 grading" />
-            <ToolLink href="/tools/traverse-field-book" title="Traverse Field Book" description="Field observations with angular closure" />
-            <ToolLink href="/tools/coordinates" title="Coordinates" description="Survey Regulations 1994 | Kenya UTM Zones 36S/37S" />
-            <ToolLink href="/tools/cogo" title="COGO Calculator" description="Coordinate geometry computations" />
-            <ToolLink href="/tools/gnss" title="GNSS" description="GNSS observation & baseline processing" />
-          </div>
-        </section>
-
-        {/* ROAD DESIGN */}
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Road Design</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/road-design" title="Road Design" description="Full road design workflow | RDM 1.1 (2025)" />
-            <ToolLink href="/tools/earthworks" title="Earthworks" description="Cut/fill volumes | Prismoidal formula | RDM 1.1" />
-            <ToolLink href="/tools/curves" title="Horizontal Curves" description="Horizontal/vertical curve elements | RDM 1.1" />
-            <ToolLink href="/tools/tacheometry" title="Tacheometry" description="Stadia/EDM distance & elevation | RDM 1.1 Section 5.6" />
-            <ToolLink href="/tools/superelevation" title="Superelevation" description="e = V squared / 127R calculator per KRDM" />
-            <ToolLink href="/tools/sight-distance" title="Sight Distance" description="SSD &amp; OSD calculator per KRDM/KeRRA" />
-            <ToolLink href="/tools/pipe-gradient" title="Pipe Gradient" description="Manning's equation pipe gradient check with drainage standards" />
-            <ToolLink href="/tools/chainage" title="Chainage" description="Chainage calculator for road projects" />
-          </div>
-        </section>
-
-        {/* EARTHWORKS & VOLUMES */}
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Earthworks &amp; Volumes</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/cross-sections" title="Cross Sections" description="Road cross-section generation and analysis" />
-            <ToolLink href="/tools/borrow-pit-volume" title="Borrow Pit Volume" description="Grid method borrow pit volume computation" />
-            <ToolLink href="/tools/stockpile-volume" title="Stockpile Volume" description="Stockpile volume from survey points" />
-          </div>
-        </section>
-
-        {/* SPECIALIZED SURVEYS */}
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Specialized Surveys</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/mining" title="Mining Survey" description="Volume computation & DXF export" />
-            <ToolLink href="/tools/hydrographic" title="Hydrographic" description="Water survey & depth reduction" />
-            <ToolLink href="/tools/drone" title="Drone/UAV" description="UAV survey & GCP processing" />
-            <ToolLink href="/tools/topo-drawing" title="Topo Drawing Composer" description="Feature codes &amp; DXF topographic drawings" badge="NEW" />
-            <ToolLink href="/tools/slope-analysis" title="Slope &amp; Area Analysis" description="DTM slope classification, cut/fill, area" badge="NEW" />
-            <ToolLink href="/tools/gnss-baseline" title="GNSS Baseline" description="GNSS baseline file processing | RINEX, Topcon, Trimble" />
-            <ToolLink href="/tools/survey-plan-demo" title="Survey Plan Viewer" description="CAD-style boundary identification plan renderer" />
-          </div>
-        </section>
-
-        {/* ENGINEERING */}
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Engineering</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/machine-control" title="Machine Control Export" description="Trimble, Leica, Topcon export formats" badge="NEW" />
-            <ToolLink href="/tools/progress-monitor" title="Progress Monitor" description="Construction progress tracking &amp; reports" badge="NEW" />
-          </div>
-        </section>
-
-        {/* DATA EXPORT */}
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Data Export</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/civil-export" title="Civil Engineering Export" description="Export for Civil 3D, 12d, QGIS, ArcGIS, CloudCompare" />
-            <ToolLink href="/tools/gis-export" title="GIS Export" description="GeoJSON, KML, LandXML, CSV with UTM to WGS84 conversion" />
-            <ToolLink href="/tools/gcp-export" title="GCP Export" description="Ground control points for Pix4D, DroneDeploy, Metashape, ODM" />
-          </div>
-        </section>
-
-        {/* REFERENCE */}
-        <section>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Reference</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolLink href="/tools/beacon-reference" title="Beacon Reference" description="Kenya Survey Regulations 1994 beacon symbols &amp; descriptions" />
-            <ToolLink href="/tools/survey-regulations" title="Kenya Survey Standards" description="Permitted errors, datums, UTM zones, accuracy classes" />
-            <ToolLink href="/tools/us-survey-reference" title="US Survey Standards" description="BLM Manual, FWS Land Survey Handbook, DOJ Title Standards" />
-          </div>
-        </section>
-
+        {groupedTools.map(({ section, tools }) => (
+          <section key={section}>
+            <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+              {section}
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {tools.map(tool => (
+                <ToolLink
+                  key={tool.href}
+                  href={tool.href}
+                  title={tool.title}
+                  description={tool.description}
+                  badge={tool.badge}
+                  gate={TOOL_GATES[tool.href]}
+                  userPlanRank={userPlanRank}
+                  hasFeature={hasFeature}
+                  isFav={favTools.includes(tool.href)}
+                  onToggleFav={handleToggleFav}
+                  onNavigate={addRecentTool}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   )
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ *  TOOL LINK COMPONENT (with feature gating + favorites)
+ * ══════════════════════════════════════════════════════════════════════ */
 function ToolLink({
   href,
   title,
   description,
   badge,
+  gate,
+  userPlanRank,
+  hasFeature,
+  isFav,
+  onToggleFav,
+  onNavigate,
 }: {
   href: string
   title: string
   description?: string
   badge?: string
+  gate?: GateInfo
+  userPlanRank: number
+  hasFeature: (feature: string) => boolean
+  isFav: boolean
+  onToggleFav: (href: string) => void
+  onNavigate: (href: string) => void
 }) {
   const Icon = TOOL_ICONS[href] ?? FileCog
 
+  const isLocked = gate ? !hasFeature(gate.feature) : false
+  const requiredPlanRank = gate ? PLAN_RANK[gate.minPlan] : 0
+
+  const handleClick = () => {
+    if (!isLocked) {
+      onNavigate(href)
+    }
+  }
+
   return (
-    <Link href={href} className="card-interactive p-4 hover:border-[var(--accent)] transition-colors block relative rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)]">
-      {badge && (
-        <span className="absolute top-2 right-2 text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-[var(--accent)] text-black leading-none">
-          {badge}
-        </span>
-      )}
-      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] text-[var(--accent)]">
-        <Icon className="h-5 w-5" />
-      </div>
-      <p className="font-semibold text-sm pr-8">{title}</p>
-      {description && <p className="text-xs text-[var(--text-muted)] mt-1">{description}</p>}
-    </Link>
+    <div className="relative group">
+      <Link
+        href={isLocked ? '#' : href}
+        onClick={handleClick}
+        className={`card-interactive p-4 transition-colors block relative rounded-xl border bg-[var(--bg-card)] ${
+          isLocked
+            ? 'border-[var(--border-color)] opacity-70 cursor-not-allowed'
+            : 'border-[var(--border-color)] hover:border-[var(--accent)]'
+        }`}
+      >
+        {/* Top-right badges */}
+        <div className="absolute top-2 right-2 flex items-center gap-1">
+          {badge && !isLocked && (
+            <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-[var(--accent)] text-black leading-none">
+              {badge}
+            </span>
+          )}
+          {isLocked && gate && (
+            <span className="flex items-center gap-1 text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 leading-none">
+              <Lock className="h-2.5 w-2.5" />
+              {gate.minPlan.toUpperCase()}
+            </span>
+          )}
+        </div>
+
+        {/* Favorite button */}
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFav(href) }}
+          className={`absolute top-2 left-2 z-10 transition-opacity ${
+            isFav ? 'opacity-100 text-amber-400' : 'opacity-0 group-hover:opacity-60 text-[var(--text-muted)] hover:!opacity-100 hover:text-amber-400'
+          }`}
+          title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          <Star className={`h-3.5 w-3.5 ${isFav ? 'fill-current' : ''}`} />
+        </button>
+
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] text-[var(--accent)]">
+          <Icon className="h-5 w-5" />
+        </div>
+        <p className={`font-semibold text-sm pr-8 ${isLocked ? 'text-[var(--text-muted)]' : ''}`}>{title}</p>
+        {description && <p className="text-xs text-[var(--text-muted)] mt-1">{description}</p>}
+
+        {/* Upgrade prompt for locked tools */}
+        {isLocked && gate && (
+          <p className="text-[10px] text-amber-400/80 mt-2 flex items-center gap-1">
+            <Lock className="h-3 w-3" />
+            Requires {gate.minPlan.charAt(0).toUpperCase() + gate.minPlan.slice(1)} plan — {gate.label}
+          </p>
+        )}
+      </Link>
+    </div>
   )
 }

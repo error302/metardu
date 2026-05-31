@@ -17,6 +17,9 @@ import MapGlobalStyles from '@/app/map/MapGlobalStyles'
 import type { BasemapMode, DrawMode, MeasureMode, PopupData } from '@/app/map/mapTypes'
 import { handleCoordSearch } from '@/app/map/utils/coordSearch'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useSubscription } from '@/lib/subscription/subscriptionContext'
+import { downloadDXF, type SurveyPoint, type DXFExportOptions } from '@/lib/export/generateDXF'
+import { downloadLandXML, type LandXMLProject, type LandXMLPoint } from '@/lib/export/generateLandXML'
 
 /**
  * METARDU Global Map Page — Premium OpenLayers Interface
@@ -83,6 +86,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
  * ══════════════════════════════════════════════════════════════════════ */
 export default function MapClient() {
   const isMobile = useIsMobile()
+  const { hasFeature, isAdmin, plan } = useSubscription()
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<any>(null)
   const popupRef = useRef<HTMLDivElement | null>(null)
@@ -107,6 +111,9 @@ export default function MapClient() {
   const [featureName, setFeatureName] = useState('')
   const [measureResult, setMeasureResult] = useState('')
   const [layerOpacity, setLayerOpacity] = useState(100)
+  const [stakeoutTarget, setStakeoutTarget] = useState<{ e: number; n: number } | null>(null)
+  const [stakeoutActive, setStakeoutActive] = useState(false)
+  const [saveMsg, setSaveMsg] = useState('')
 
   // OL refs
   const drawSourceRef = useRef<any>(null)
@@ -876,8 +883,81 @@ export default function MapClient() {
   // ══════════════════════════════════════════════════════════════════
   //  EXPORT FEATURES
   // ══════════════════════════════════════════════════════════════════
-  const exportFeatures = useCallback(async (format: 'GeoJSON' | 'KML' | 'WKT') => {
+  const exportFeatures = useCallback(async (format: 'GeoJSON' | 'KML' | 'WKT' | 'DXF' | 'LandXML') => {
     if (!drawSourceRef.current || drawSourceRef.current.getFeatures().length === 0) return
+
+    // ── DXF Export (Pro+ feature) ──
+    if (format === 'DXF') {
+      if (!hasFeature('dxf_export')) return
+      const features = drawSourceRef.current.getFeatures()
+      const { transform } = await import('ol/proj')
+      const points: SurveyPoint[] = []
+      for (const f of features) {
+        const geom = f.getGeometry()
+        if (!geom) continue
+        const geomType = geom.getType()
+        if (geomType === 'Point') {
+          const coord = geom.getCoordinates()
+          try {
+            const [e, n] = transform(coord, 'EPSG:3857', 'EPSG:21037')
+            points.push({ name: f.get('name') || f.get('label') || `P${points.length + 1}`, easting: e, northing: n, is_control: false })
+          } catch { /* skip */ }
+        }
+      }
+      if (points.length === 0) {
+        // If no point features, generate points from polygon/line vertices
+        for (const f of features) {
+          const geom = f.getGeometry()
+          if (!geom) continue
+          const geomType = geom.getType()
+          let coords: number[][] = []
+          if (geomType === 'LineString') {
+            coords = geom.getCoordinates()
+          } else if (geomType === 'Polygon') {
+            coords = geom.getCoordinates()[0] || []
+          }
+          for (const coord of coords) {
+            try {
+              const [e, n] = transform(coord, 'EPSG:3857', 'EPSG:21037')
+              points.push({ name: `V${points.length + 1}`, easting: e, northing: n, is_control: false })
+            } catch { /* skip */ }
+          }
+        }
+      }
+      downloadDXF({ projectName: 'metardu-map-export', points })
+      return
+    }
+
+    // ── LandXML Export (Pro+ feature) ──
+    if (format === 'LandXML') {
+      if (!hasFeature('landxml')) return
+      const features = drawSourceRef.current.getFeatures()
+      const { transform } = await import('ol/proj')
+      const points: LandXMLPoint[] = []
+      for (const f of features) {
+        const geom = f.getGeometry()
+        if (!geom) continue
+        const geomType = geom.getType()
+        if (geomType === 'Point') {
+          const coord = geom.getCoordinates()
+          try {
+            const [e, n] = transform(coord, 'EPSG:3857', 'EPSG:21037')
+            points.push({ name: f.get('name') || f.get('label') || `P${points.length + 1}`, easting: e, northing: n, is_control: false })
+          } catch { /* skip */ }
+        } else if (geomType === 'LineString' || geomType === 'Polygon') {
+          const coords = geomType === 'Polygon' ? (geom.getCoordinates()[0] || []) : geom.getCoordinates()
+          for (const coord of coords) {
+            try {
+              const [e, n] = transform(coord, 'EPSG:3857', 'EPSG:21037')
+              points.push({ name: `V${points.length + 1}`, easting: e, northing: n, is_control: false })
+            } catch { /* skip */ }
+          }
+        }
+      }
+      const project: LandXMLProject = { name: 'metardu-map-export', utm_zone: 37, hemisphere: 'S' }
+      downloadLandXML(project, points)
+      return
+    }
 
     let output = ''
     let filename = ''
@@ -917,7 +997,7 @@ export default function MapClient() {
     a.download = filename
     a.click()
     URL.revokeObjectURL(url)
-  }, [])
+  }, [hasFeature])
 
   // ══════════════════════════════════════════════════════════════════
   //  CLEAR DRAWN
@@ -946,6 +1026,7 @@ export default function MapClient() {
     if (gpsTracking) {
       cleanup.geolocation.setTracking(false)
       setGpsTracking(false)
+      setStakeoutActive(false)
     } else {
       cleanup.geolocation.setTracking(true)
       setGpsTracking(true)
@@ -955,6 +1036,134 @@ export default function MapClient() {
       })
     }
   }, [gpsTracking])
+
+  // ══════════════════════════════════════════════════════════════════
+  //  GPS STAKEOUT MODE (Pro+ feature)
+  // ══════════════════════════════════════════════════════════════════
+  const toggleStakeout = useCallback(() => {
+    if (!hasFeature('gps_stakeout')) return
+    if (!stakeoutTarget) {
+      // Set stakeout target: use center of map
+      if (!mapInstance.current) return
+      const center = mapInstance.current.getView().getCenter()
+      if (center) {
+        import('ol/proj').then(({ transform }) => {
+          const [e, n] = transform(center, 'EPSG:3857', 'EPSG:21037')
+          setStakeoutTarget({ e, n })
+          setStakeoutActive(true)
+          // Auto-enable GPS if not already on
+          if (!gpsTracking) toggleGPS()
+        })
+      }
+    } else {
+      setStakeoutTarget(null)
+      setStakeoutActive(false)
+    }
+  }, [hasFeature, stakeoutTarget, gpsTracking, toggleGPS])
+
+  // Compute stakeout bearing/distance from GPS position
+  const stakeoutInfo = useCallback(() => {
+    if (!stakeoutTarget || !gpsPos) return null
+    const { transform } = require('ol/proj')
+    let gpsE = 0, gpsN = 0
+    try {
+      const [e, n] = transform(
+        [gpsPos.lon, gpsPos.lat],
+        'EPSG:4326',
+        'EPSG:21037'
+      )
+      gpsE = e; gpsN = n
+    } catch { return null }
+    const dE = stakeoutTarget.e - gpsE
+    const dN = stakeoutTarget.n - gpsN
+    const dist = Math.sqrt(dE * dE + dN * dN)
+    let bearing = (Math.atan2(dE, dN) * 180) / Math.PI
+    if (bearing < 0) bearing += 360
+    return { distance: dist, bearing, dE, dN }
+  }, [stakeoutTarget, gpsPos])
+
+  // ══════════════════════════════════════════════════════════════════
+  //  SAVE DRAWN FEATURES TO PROJECT
+  // ══════════════════════════════════════════════════════════════════
+  const saveToProject = useCallback(async () => {
+    if (!drawSourceRef.current) return
+    const features = drawSourceRef.current.getFeatures()
+    if (features.length === 0) return
+
+    try {
+      const { transform } = await import('ol/proj')
+      const { createClient } = await import('@/lib/api-client/client')
+      const dbClient = createClient()
+      const { data: { session } } = await dbClient.auth.getSession()
+      if (!session?.user) { setSaveMsg('Not authenticated'); setTimeout(() => setSaveMsg(''), 3000); return }
+
+      // Convert drawn features to GeoJSON in EPSG:4326
+      const { default: GeoJSONFormat } = await import('ol/format/GeoJSON')
+      const fmt = new GeoJSONFormat()
+      const geojson = fmt.writeFeatures(features, {
+        featureProjection: 'EPSG:3857',
+        dataProjection: 'EPSG:4326',
+      })
+
+      // Create a new project with the drawn boundary data
+      const { error } = await dbClient
+        .from('projects')
+        .insert({
+          user_id: session.user.id,
+          name: `Map Drawing — ${new Date().toLocaleDateString()}`,
+          survey_type: 'topographic',
+          location: 'Drawn on map',
+          utm_zone: 37,
+          hemisphere: 'S',
+          boundary_data: {
+            source: 'map-drawing',
+            drawnFeatures: JSON.parse(geojson),
+            createdFrom: 'map-client',
+          },
+        })
+
+      if (error) {
+        setSaveMsg(`Error: ${error.message}`)
+      } else {
+        setSaveMsg(`Saved ${features.length} feature(s) to new project`)
+      }
+      setTimeout(() => setSaveMsg(''), 4000)
+    } catch (err: any) {
+      setSaveMsg(`Error: ${err?.message || 'Save failed'}`)
+      setTimeout(() => setSaveMsg(''), 4000)
+    }
+  }, [])
+
+  // ══════════════════════════════════════════════════════════════════
+  //  KEYBOARD SHORTCUTS
+  // ══════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Don't capture if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault()
+        redo()
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedFeature) {
+          e.preventDefault()
+          deleteSelected()
+        }
+      } else if (e.key === 'Escape') {
+        if (drawMode !== 'none') { toggleDraw('none') }
+        else if (editMode) { toggleEdit() }
+        else if (measureMode !== 'none') { toggleMeasure('none') }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [undo, redo, selectedFeature, deleteSelected, drawMode, editMode, measureMode, toggleDraw, toggleEdit, toggleMeasure])
 
   // ══════════════════════════════════════════════════════════════════
   //  RESET TO KENYA
@@ -1140,10 +1349,42 @@ export default function MapClient() {
 
             {/* GPS status badge - bottom left */}
             {gpsTracking && gpsPos && (
-              <div className="fixed bottom-[16px] left-[16px] z-[1000] bg-[#14141e]/90 backdrop-blur-sm border border-green-500/30 rounded-lg px-3 py-1.5 text-xs text-green-400 font-mono">
+              <div className="fixed z-[1000] bg-[#14141e]/90 backdrop-blur-sm border border-green-500/30 rounded-lg px-3 py-1.5 text-xs text-green-400 font-mono" style={{ bottom: 'calc(var(--map-bottom-offset, 16px) + 16px)', left: '16px' }}>
                 GPS ±{Math.round(gpsPos.accuracy)}m
               </div>
             )}
+
+            {/* ── STAKEOUT HUD ── */}
+            {stakeoutActive && stakeoutTarget && (() => {
+              const info = stakeoutInfo()
+              return (
+                <div className="fixed z-[1000] bg-[#14141e]/95 backdrop-blur-xl border border-[#E8841A]/30 rounded-xl px-4 py-3 shadow-2xl" style={{ bottom: 'calc(var(--map-bottom-offset, 16px) + 16px)', right: '16px', width: '220px' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] text-[#E8841A] uppercase tracking-[0.15em] font-bold">Stakeout</span>
+                    <button onClick={toggleStakeout} className="text-[10px] text-gray-500 hover:text-white transition-colors">Stop</button>
+                  </div>
+                  <div className="text-[10px] text-gray-500 mb-1">Target</div>
+                  <div className="text-[11px] text-white font-mono mb-2">E: {stakeoutTarget.e.toFixed(1)} N: {stakeoutTarget.n.toFixed(1)}</div>
+                  {info ? (
+                    <>
+                      <div className="text-[10px] text-gray-500 mb-1">Distance / Bearing</div>
+                      <div className="text-lg font-bold text-[#E8841A] font-mono">{info.distance.toFixed(1)} m</div>
+                      <div className="text-sm text-blue-300 font-mono">{info.bearing.toFixed(2)}°</div>
+                      <div className="mt-1.5 text-[10px] text-gray-600">
+                        dE: {info.dE.toFixed(1)} | dN: {info.dN.toFixed(1)}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-[10px] text-gray-600">Waiting for GPS position...</div>
+                  )}
+                  {!gpsTracking && (
+                    <button onClick={toggleGPS} className="mt-2 w-full py-1.5 rounded-lg bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-medium hover:bg-green-500/30 transition-colors">
+                      Enable GPS
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Project count - top center */}
             {projectCount > 0 && (
@@ -1344,7 +1585,27 @@ export default function MapClient() {
                     {actionButton('Fit to Kenya', <TargetIcon className="w-4 h-4" active={false} />, false, fitToKenya)}
                     {actionButton('Fit to Drawn', <CrosshairIcon className="w-4 h-4" active={false} />, false, fitToDrawn)}
                     {actionButton('GPS Tracking', <LocationDotIcon className="w-4 h-4" active={gpsTracking} />, gpsTracking, toggleGPS)}
+                    {/* GPS Stakeout (Pro+ feature) */}
+                    {actionButton(
+                      stakeoutActive ? 'Stakeout ON' : 'Stakeout',
+                      <CompassIcon className="w-4 h-4" active={stakeoutActive} />,
+                      stakeoutActive,
+                      toggleStakeout
+                    )}
+                    {!hasFeature('gps_stakeout') && (
+                      <div className="text-[10px] text-amber-400/70 px-1">Pro+ required for Stakeout</div>
+                    )}
                   </div>
+
+                  {/* ── SAVE TO PROJECT ── */}
+                  {featureCount > 0 && (
+                    <>
+                      {sectionHeader('Project')}
+                      <div className="space-y-1">
+                        {actionButton('Save to Project', <BoltIcon className="w-4 h-4" active={false} />, false, saveToProject)}
+                      </div>
+                    </>
+                  )}
 
                   {/* ── EXPORT ── */}
                   {featureCount > 0 && (
@@ -1354,12 +1615,41 @@ export default function MapClient() {
                         {actionButton('GeoJSON', <DownloadIcon className="w-4 h-4" active={false} />, false, () => exportFeatures('GeoJSON'))}
                         {actionButton('KML', <DownloadIcon className="w-4 h-4" active={false} />, false, () => exportFeatures('KML'))}
                         {actionButton('WKT', <DownloadIcon className="w-4 h-4" active={false} />, false, () => exportFeatures('WKT'))}
+                        {/* DXF Export (Pro+ feature) */}
+                        {actionButton(
+                          hasFeature('dxf_export') ? 'DXF' : 'DXF (Pro+)',
+                          <DownloadIcon className="w-4 h-4" active={false} />,
+                          false,
+                          () => exportFeatures('DXF')
+                        )}
+                        {!hasFeature('dxf_export') && (
+                          <div className="text-[10px] text-amber-400/70 px-1">Pro+ required for DXF export</div>
+                        )}
+                        {/* LandXML Export (Pro+ feature) */}
+                        {actionButton(
+                          hasFeature('landxml') ? 'LandXML' : 'LandXML (Pro+)',
+                          <DownloadIcon className="w-4 h-4" active={false} />,
+                          false,
+                          () => exportFeatures('LandXML')
+                        )}
+                        {!hasFeature('landxml') && (
+                          <div className="text-[10px] text-amber-400/70 px-1">Pro+ required for LandXML</div>
+                        )}
                         <div className="pt-1">
                           {actionButton('Clear All', <TrashIcon className="w-4 h-4" active={false} />, false, clearDrawn, true)}
                         </div>
                       </div>
                     </>
                   )}
+
+                  {/* ── KEYBOARD SHORTCUTS HINT ── */}
+                  <div className="mt-4 pt-3 border-t border-white/[0.06]">
+                    <div className="text-[10px] text-gray-600 space-y-1">
+                      <div className="font-semibold text-gray-500 mb-1">Shortcuts</div>
+                      <div>Ctrl+Z Undo | Ctrl+Y Redo</div>
+                      <div>Del Delete | Esc Cancel</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1405,6 +1695,15 @@ export default function MapClient() {
             {importMsg && (
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-[#E8841A] text-white px-5 py-2.5 rounded-xl shadow-2xl text-sm font-semibold">
                 {importMsg}
+              </div>
+            )}
+
+            {/* ── SAVE TO PROJECT NOTIFICATION ── */}
+            {saveMsg && (
+              <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-20 px-5 py-2.5 rounded-xl shadow-2xl text-sm font-semibold ${
+                saveMsg.startsWith('Error') ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+              }`}>
+                {saveMsg}
               </div>
             )}
           </>
