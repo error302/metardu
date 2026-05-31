@@ -51,7 +51,8 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
       {activeTab === 'control' && (
         <div>
           <div className="text-lg font-medium mb-3">Control Points (min 3 required)</div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[380px]">
             <thead>
               <tr className="text-zinc-400 border-b border-zinc-700">
                 <th className="text-left py-2">Point</th>
@@ -83,7 +84,8 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
       {activeTab === 'corners' && (
         <div>
           <div className="text-lg font-medium mb-3">Building Corners</div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[380px]">
             <thead>
               <tr className="text-zinc-400 border-b border-zinc-700">
                 <th className="text-left py-2">Corner</th>
@@ -103,7 +105,7 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
               ))}
             </tbody>
           </table>
-          <div className="flex gap-2 mt-3">
+          <div className="flex flex-wrap gap-2 mt-3">
             <input
               type="text"
               placeholder="Label (A, B, C...)"

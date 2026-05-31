@@ -34,7 +34,8 @@ export default function LongitudinalSection({ projectId, points = [] }: Props) {
   return (
     <div className="rounded-lg border border-gray-200 p-4 bg-white">
       <h3 className="font-semibold text-gray-800 mb-3">Longitudinal Section</h3>
-      <table className="w-full text-sm border-collapse">
+      <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse min-w-[320px]">
         <thead>
           <tr className="bg-gray-50">
             <th className="border px-2 py-1 text-left">Chainage (m)</th>

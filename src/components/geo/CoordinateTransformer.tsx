@@ -64,7 +64,8 @@ export default function CoordinateTransformer({ projectId }: { projectId?: strin
         </div>
       </div>
 
-      <table className="w-full text-sm border-collapse">
+      <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse min-w-[400px]">
         <thead>
           <tr className="bg-gray-50">
             <th className="border px-2 py-1 text-left">Point</th>
@@ -98,7 +99,8 @@ export default function CoordinateTransformer({ projectId }: { projectId?: strin
       {results.length > 0 && (
         <div className="mt-4">
           <h3 className="text-sm font-medium text-gray-700 mb-2">Results — {toCRS}</h3>
-          <table className="w-full text-sm border-collapse">
+          <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse min-w-[400px]">
             <thead>
               <tr className="bg-gray-50">
                 <th className="border px-2 py-1 text-left">Point</th>

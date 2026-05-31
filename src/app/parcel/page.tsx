@@ -50,7 +50,7 @@ export default function ParcelSearchPage() {
         <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Parcel Intelligence</h1>
         <p className="text-[var(--text-muted)] mb-8">Search land registries and get legal boundary guidance</p>
 
-        <div className="flex space-x-4 mb-6">
+        <div className="flex flex-wrap gap-3 mb-6">
           <button
             onClick={() => setActiveTab('search')}
             className={`px-4 py-2 rounded-lg font-medium transition ${

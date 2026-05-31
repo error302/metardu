@@ -121,10 +121,12 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
   const handleDownloadPNG = async () => {
     if (!output) return
     try {
-      // A1 at 300 DPI: 9933 x 7016 pixels
-      const SCALE = 3
-      const imgW = 841 * SCALE
-      const imgH = 594 * SCALE
+      // A1 at 300 DPI: 9933 x 7016 pixels — use 12x for high quality
+      const SCALE = 12
+      const svgW = 841
+      const svgH = 594
+      const imgW = svgW * SCALE
+      const imgH = svgH * SCALE
 
       const svgBlob = new Blob([output.svg], { type: 'image/svg+xml;charset=utf-8' })
       const url = URL.createObjectURL(svgBlob)
@@ -140,9 +142,27 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
           alert('Canvas not supported in this browser')
           return
         }
+        // White background
         ctx.fillStyle = 'white'
         ctx.fillRect(0, 0, imgW, imgH)
-        ctx.drawImage(img, 0, 0, imgW, imgH)
+        // Draw SVG preserving aspect ratio — center if dimensions differ
+        const svgAspect = svgW / svgH
+        const canvasAspect = imgW / imgH
+        let drawW, drawH, drawX, drawY
+        if (canvasAspect > svgAspect) {
+          // Canvas is wider — fit height
+          drawH = imgH
+          drawW = imgH * svgAspect
+          drawX = (imgW - drawW) / 2
+          drawY = 0
+        } else {
+          // Canvas is taller — fit width
+          drawW = imgW
+          drawH = imgW / svgAspect
+          drawX = 0
+          drawY = (imgH - drawH) / 2
+        }
+        ctx.drawImage(img, drawX, drawY, drawW, drawH)
         URL.revokeObjectURL(url)
 
         canvas.toBlob((blob) => {

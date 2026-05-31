@@ -99,7 +99,9 @@ html {
   body {
     @apply bg-[var(--bg-primary)] text-[var(--text-primary)];
     font-family: "Inter", system-ui, -apple-system, sans-serif;
-    overflow-x: hidden;
+    max-width: 100vw;
+    overflow-x: auto;
+    overflow-y: auto;
   }
 
   /* --- Text selection -------------------------------------------------- */
@@ -362,6 +364,13 @@ html {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border-hover) var(--bg-secondary);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+img, video, svg {
+  max-width: 100%;
+  height: auto;
 }
 
 /* ========================================================================

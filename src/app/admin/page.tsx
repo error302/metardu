@@ -350,8 +350,8 @@ export default function AdminDashboardPage() {
           </div>
           <div className="p-0">
             {data.recentSignups.length > 0 ? (
-              <div className="max-h-72 overflow-y-auto">
-                <table className="w-full">
+              <div className="max-h-72 overflow-x-auto overflow-y-auto">
+                <table className="w-full min-w-[500px]">
                   <thead>
                     <tr className="table-header">
                       <th className="px-4 py-2 text-left">User</th>

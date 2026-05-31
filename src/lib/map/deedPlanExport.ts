@@ -711,11 +711,19 @@ export async function exportDeedPlan(options: DeedPlanExportOptions): Promise<Bl
           ctx.globalAlpha = op;
           ctx.setTransform(1, 0, 0, 1, 0, 0); // identity — draw at native px
 
-          // Draw at native pixel resolution; scale only when dimensions differ
+          // Draw at native pixel resolution; scale preserving aspect ratio when dims differ
           if (lc.width === targetW && lc.height === targetH) {
             ctx.drawImage(lc, 0, 0);
           } else {
-            ctx.drawImage(lc, 0, 0, targetW, targetH);
+            // Preserve aspect ratio to prevent distortion
+            const scaleX = targetW / lc.width;
+            const scaleY = targetH / lc.height;
+            const drawScale = Math.min(scaleX, scaleY);
+            const dw = lc.width * drawScale;
+            const dh = lc.height * drawScale;
+            const dx = (targetW - dw) / 2;
+            const dy = (targetH - dh) / 2;
+            ctx.drawImage(lc, dx, dy, dw, dh);
           }
         }
 

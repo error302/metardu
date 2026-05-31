@@ -305,7 +305,7 @@ export default function FieldPage() {
         <div className="mb-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]/20 p-3">
           <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Workflow</div>
           <div className="text-sm text-[var(--text-primary)] mt-1">Field Mode = quick capture (phone/tablet). Field Book = textbook tables + checks + exports.</div>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             <button
               onClick={() => router.push('/fieldbook')}
               className="text-[10px] bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] px-2 py-1.5 rounded"
@@ -547,8 +547,8 @@ export default function FieldPage() {
             )}
 
             {lReadings.length > 0 && (
-              <div className="bg-[var(--bg-secondary)]/50 rounded overflow-hidden text-[10px]">
-                <table className="w-full">
+              <div className="bg-[var(--bg-secondary)]/50 rounded overflow-x-auto text-[10px]">
+                <table className="w-full min-w-[240px]">
                   <thead className="bg-[var(--bg-tertiary)]">
                     <tr>
                       <th className="px-2 py-1 text-left text-[var(--text-secondary)]">Stn</th>
@@ -671,8 +671,8 @@ export default function FieldPage() {
         )}
       </main>
 
-      {/* Bottom Tabs */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border-color)]">
+      {/* Bottom Tabs - hidden when MobileNav is present */}
+      <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex">
           {renderTabButton('points', MapPin, 'Points')}
           {renderTabButton('traverse', RefreshCw, 'Traverse')}

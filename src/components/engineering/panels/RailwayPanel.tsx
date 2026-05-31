@@ -95,7 +95,8 @@ export function RailwayPanel({ projectId, subtype }: EngineeringPanelProps) {
               />
             </div>
           </div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[400px]">
             <thead>
               <tr className="text-zinc-400 border-b border-zinc-700">
                 <th className="text-left py-2">Chainage</th>

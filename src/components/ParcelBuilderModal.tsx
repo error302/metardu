@@ -261,7 +261,8 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                     </span>
                   </div>
 
-                  <table className="w-full text-sm mb-4">
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-sm mb-4 min-w-[300px]">
                     <thead>
                       <tr className="border-b border-[var(--border-color)]">
                         <th className="text-left py-2 text-[var(--text-secondary)]">Line</th>

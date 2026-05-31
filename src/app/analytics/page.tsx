@@ -109,7 +109,7 @@ export default function AnalyticsPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-wrap justify-between items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-[var(--text-primary)]">Analytics</h1>
             <p className="text-[var(--text-muted)]">Track your METARDU usage</p>

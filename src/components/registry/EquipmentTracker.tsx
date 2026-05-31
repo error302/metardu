@@ -210,9 +210,9 @@ export default function EquipmentTracker() {
               </div>
 
               {selectedEquipment.calibrationHistory && selectedEquipment.calibrationHistory.length > 0 && (
-                <div>
+                <div className="overflow-x-auto">
                   <h4 className="font-medium mb-2">Calibration History</h4>
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[500px]">
                     <thead>
                       <tr className="border-b">
                         <th className="text-left py-2">Date</th>
