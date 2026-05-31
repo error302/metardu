@@ -25,3 +25,23 @@ Stage Summary:
 - Admin (mohameddosho20@gmail.com) now shows ENTERPRISE everywhere
 - API response: {plan:"enterprise", isAdmin:true, isUnlimitedProjects:true}
 - Commit: d21187c
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix feature gates not respecting admin/enterprise/firm tiers
+
+Work Log:
+- Comprehensive audit found 13 feature-gate locations; 5 had critical bugs blocking admin/enterprise users
+- Fixed marketplace isPro check: added firm, enterprise, isAdmin (was only pro/team/isTrialing)
+- Fixed ai-client.ts: replaced profiles.tier read with /api/subscription endpoint (which has admin detection)
+- Fixed AI chat route: added 'firm' to TIER_LIMITS (was missing), added admin email bypass for unlimited calls
+- Fixed develop-full-plan.ts: now uses the corrected ai-client tier check
+- Build passed, committed c9a03d3, deployed via GitHub Actions
+- Verified live: admin shows ENTERPRISE, marketplace post button visible, AI chat accessible
+
+Stage Summary:
+- 5 critical feature gate bugs fixed
+- All tiers (free, pro, team, firm, enterprise) now properly recognized
+- Admin email bypass added to AI usage tracking
+- Tool pages still have no subscription gates (noted as future improvement, not blocking)
