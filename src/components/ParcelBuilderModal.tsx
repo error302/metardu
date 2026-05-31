@@ -280,6 +280,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                       ))}
                     </tbody>
                   </table>
+                  </div>
 
                   <div className="space-y-2 pt-4 border-t border-[var(--border-color)]">
                     <div className="flex justify-between">

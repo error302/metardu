@@ -85,6 +85,7 @@ export default function CoordinateTransformer({ projectId }: { projectId?: strin
           ))}
         </tbody>
       </table>
+      </div>
 
       <div className="flex gap-2">
         <button onClick={addRow} className="px-3 py-1.5 text-sm bg-gray-100 rounded hover:bg-gray-200">+ Add Row</button>
@@ -120,6 +121,7 @@ export default function CoordinateTransformer({ projectId }: { projectId?: strin
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

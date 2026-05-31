@@ -116,6 +116,7 @@ export function RailwayPanel({ projectId, subtype }: EngineeringPanelProps) {
               ))}
             </tbody>
           </table>
+          </div>
           <button
             onClick={() => setAlignment([...alignment, { chainage: alignment.length > 0 ? alignment[alignment.length-1].chainage + 20 : 0, easting: 0, northing: 0 }])}
             className="mt-3 px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 rounded"

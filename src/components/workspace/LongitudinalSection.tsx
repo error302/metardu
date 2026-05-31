@@ -74,6 +74,7 @@ export default function LongitudinalSection({ projectId, points = [] }: Props) {
           ))}
         </tbody>
       </table>
+      </div>
       <button
         onClick={addRow}
         className="mt-2 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"

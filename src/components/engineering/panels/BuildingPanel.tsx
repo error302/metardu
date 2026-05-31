@@ -72,6 +72,7 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
               ))}
             </tbody>
           </table>
+          </div>
           <button
             onClick={() => setControlPoints([...controlPoints, { easting: 0, northing: 0 }])}
             className="mt-3 px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 rounded"
@@ -105,6 +106,7 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
               ))}
             </tbody>
           </table>
+          </div>
           <div className="flex flex-wrap gap-2 mt-3">
             <input
               type="text"
