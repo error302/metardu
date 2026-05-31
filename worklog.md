@@ -140,3 +140,50 @@ Stage Summary:
 - Only MapClient split (low priority refactor) remains deferred
 - Deployment triggered via GitHub Actions workflow dispatch
 - Site responding 200 OK at metardu.duckdns.org
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Map performance optimization + terrain fix + MapClient split + cross-device optimization
+
+Work Log:
+- Analyzed full MapClient.tsx (1,984 lines) and all map-related code
+- Identified performance issues: no React.memo, no useMemo (imported but unused), 25+ useState causing full re-renders, no code-splitting of toolbar/status UI
+- Fixed terrain basemap: verified OpenTopoMap URL correct, added cacheSize: 2048 for better tile caching
+- Created 6 sub-components (all wrapped in React.memo):
+  - MapToolbar.tsx (left sidebar panel)
+  - MapOverlays.tsx (zoom/GPS/stakeout HUD)
+  - MapStatusBar.tsx (bottom coordinate bar)
+  - MapLoadingOverlay.tsx (loading/error states)
+  - MapNotifications.tsx (toast notifications)
+  - MapCoordSearch.tsx (coordinate search input)
+- Created 4 custom hooks:
+  - useMapInit.ts (map lifecycle, all OL imports, project loading)
+  - useMapBasemaps.ts (basemap layer creation/management)
+  - useMapState.ts (view/feature persistence to localStorage)
+  - useMapInteractions.ts (draw/measure/GPS/export/annotations)
+- Refactored MapClient.tsx from 1,984 → ~430 lines (orchestrator only)
+- Added useMemo for stable MapContext reference
+- Added useCallback for all interaction handlers
+- Added tile cache size 2048 for all basemaps
+- Enhanced MapGlobalStyles with:
+  - Hardware acceleration (translateZ, will-change, backface-visibility)
+  - Larger touch targets on mobile (36px min for OL controls)
+  - Responsive stakeout HUD (narrower on phones)
+  - Smoother touch interactions (touch-action: none)
+  - Prevent text selection on map viewport
+  - Hide zoom slider/overview map on mobile
+  - Hide attribution on very small screens
+  - Terrain tile loading transition effect
+- Build verified clean (npx next build)
+- Pushed to GitHub (commit 9935aa7)
+- CI/CD will auto-deploy to production
+
+Stage Summary:
+- MapClient split: 1,984 → ~430 lines (78% reduction)
+- 6 memoized sub-components + 4 custom hooks created
+- Performance: React.memo on all sub-components, useMemo for context, useCallback everywhere
+- Hardware acceleration enabled for map viewport and tile layers
+- Cross-device: mobile touch targets, responsive HUD, smoother interactions
+- Terrain basemap verified working with cache optimization
+- Commit: 9935aa7
