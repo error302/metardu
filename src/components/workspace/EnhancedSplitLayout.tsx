@@ -95,7 +95,7 @@ export default function EnhancedSplitLayout({
   return (
     <div
       className={cn(
-        'flex flex-col h-[calc(100vh-48px)] overflow-hidden',
+        'flex flex-col h-[calc(100vh-48px)] overflow-x-clip',
         className,
       )}
     >
@@ -103,57 +103,70 @@ export default function EnhancedSplitLayout({
       {/*  Main resizable area: top = horizontal split, bottom = log       */}
       {/* ================================================================ */}
       <div className="flex-1 min-h-0">
-        <ResizablePanelGroup orientation="vertical" className="h-full">
-          {/* ---- Top section: Left workflow + Right map ---- */}
-          <ResizablePanel defaultSize={logCollapsed ? 100 : 75} minSize={40}>
-            <div className="h-full overflow-hidden">
-              <ResizablePanelGroup orientation="horizontal" className="h-full">
-                {/* Left panel — workflow content (55 %) */}
-                <ResizablePanel defaultSize={55} minSize={30}>
-                  <div className="h-full overflow-y-auto scroll-smooth">
-                    {leftPanel}
-                  </div>
-                </ResizablePanel>
+        {/* Desktop: resizable panels */}
+        <div className="hidden md:block h-full">
+          <ResizablePanelGroup orientation="vertical" className="h-full">
+            {/* ---- Top section: Left workflow + Right map ---- */}
+            <ResizablePanel defaultSize={logCollapsed ? 100 : 75} minSize={40}>
+              <div className="h-full overflow-hidden">
+                <ResizablePanelGroup orientation="horizontal" className="h-full">
+                  {/* Left panel — workflow content (55 %) */}
+                  <ResizablePanel defaultSize={55} minSize={30}>
+                    <div className="h-full overflow-y-auto scroll-smooth">
+                      {leftPanel}
+                    </div>
+                  </ResizablePanel>
 
-                <ResizableHandle withHandle />
+                  <ResizableHandle withHandle />
 
-                {/* Right panel — map (45 %) */}
-                <ResizablePanel defaultSize={45} minSize={25}>
-                  <div className="h-full overflow-hidden bg-[var(--bg-tertiary)]">
-                    {rightPanel}
-                  </div>
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            </div>
-          </ResizablePanel>
+                  {/* Right panel — map (45 %) */}
+                  <ResizablePanel defaultSize={45} minSize={25}>
+                    <div className="h-full overflow-hidden bg-[var(--bg-tertiary)]">
+                      {rightPanel}
+                    </div>
+                  </ResizablePanel>
+                </ResizablePanelGroup>
+              </div>
+            </ResizablePanel>
 
-          {/* ---- Horizontal divider ---- */}
-          <ResizableHandle withHandle />
+            {/* ---- Horizontal divider ---- */}
+            <ResizableHandle withHandle />
 
-          {/* ---- Bottom section: Computation log ---- */}
-          <ResizablePanel
-            defaultSize={logCollapsed ? 0 : 25}
-            minSize={logCollapsed ? 0 : 15}
-            maxSize={logCollapsed ? 0 : 50}
-            collapsible
-            collapsedSize={0}
-          >
-            <div className="h-full overflow-hidden">{logPanel}</div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            {/* ---- Bottom section: Computation log ---- */}
+            <ResizablePanel
+              defaultSize={logCollapsed ? 0 : 25}
+              minSize={logCollapsed ? 0 : 15}
+              maxSize={logCollapsed ? 0 : 50}
+              collapsible
+              collapsedSize={0}
+            >
+              <div className="h-full overflow-hidden">{logPanel}</div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
+
+        {/* Mobile: stacked layout */}
+        <div className="md:hidden flex flex-col h-full">
+          <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth">
+            {leftPanel}
+          </div>
+          <div className="h-[35vh] border-t border-[var(--border-color)] bg-[var(--bg-tertiary)] overflow-hidden">
+            {rightPanel}
+          </div>
+        </div>
       </div>
 
       {/* ================================================================ */}
       {/*  Compact status bar (28px)                                       */}
       {/* ================================================================ */}
-      <div className="flex-shrink-0 h-7 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
-        <div className="flex items-center justify-between h-full px-3 gap-3">
+      <div className="flex-shrink-0 h-7 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] overflow-x-clip">
+        <div className="flex items-center justify-between h-full px-2 sm:px-3 gap-2 sm:gap-3">
           {/* Left section: user-provided entries */}
-          <div className="flex items-center gap-4 min-w-0 overflow-hidden">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0 overflow-x-auto scrollbar-none">
             {statusBarEntries.map((entry, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-1 text-xs whitespace-nowrap"
+                className="flex items-center gap-1 text-xs whitespace-nowrap flex-shrink-0"
               >
                 <StatusIcon status={entry.status} />
                 <span className="text-[var(--text-muted)]">
@@ -176,7 +189,7 @@ export default function EnhancedSplitLayout({
           </div>
 
           {/* Right section: bridge-derived values + log toggle */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             {/* Selection */}
             <div className="flex items-center gap-1 text-xs">
               <Crosshair className="w-3 h-3 text-[var(--accent)]" />
@@ -187,7 +200,7 @@ export default function EnhancedSplitLayout({
             </div>
 
             {/* Misclosure */}
-            <div className="flex items-center gap-1 text-xs">
+            <div className="hidden sm:flex items-center gap-1 text-xs">
               <StatusIcon status={misclosureStatus} />
               <span className="text-[var(--text-muted)]">Misc:</span>
               <span
@@ -203,7 +216,7 @@ export default function EnhancedSplitLayout({
             </div>
 
             {/* Precision */}
-            <div className="flex items-center gap-1 text-xs">
+            <div className="hidden sm:flex items-center gap-1 text-xs">
               <StatusIcon status={precisionStatus} />
               <span className="text-[var(--text-muted)]">Prec:</span>
               <span
@@ -219,7 +232,7 @@ export default function EnhancedSplitLayout({
             </div>
 
             {/* Area */}
-            <div className="flex items-center gap-1 text-xs">
+            <div className="hidden md:flex items-center gap-1 text-xs">
               <SquareSlash className="w-3 h-3 text-[var(--text-muted)]" />
               <span className="text-[var(--text-muted)]">Area:</span>
               <span

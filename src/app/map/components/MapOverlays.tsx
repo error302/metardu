@@ -45,7 +45,7 @@ export const MapOverlays = memo(function MapOverlays({
         <button
           onClick={() => setPanelOpen(false)}
           className="absolute top-3 z-30 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
-          style={{ left: isMobile ? '0px' : '280px' }}
+          style={{ left: isMobile ? '0px' : '260px' }}
           title="Collapse panel"
         >
           <span className="text-sm">{'\u2039'}</span>

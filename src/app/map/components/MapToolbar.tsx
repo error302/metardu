@@ -282,7 +282,7 @@ export const MapToolbar = memo(function MapToolbar({
 
       {/* Expanded panel */}
       {panelOpen && (
-        <div className="absolute top-0 left-0 bottom-0 z-10 w-[280px] bg-[#0d0d14]/95 backdrop-blur-xl border-r border-white/[0.06] flex flex-col transition-all duration-300 ease-out overflow-hidden">
+        <div className="absolute top-0 left-0 bottom-0 z-10 w-[260px] sm:w-[280px] bg-[#0d0d14]/95 backdrop-blur-xl border-r border-white/[0.06] flex flex-col transition-all duration-300 ease-out overflow-hidden">
           {/* Panel header */}
           <div className="h-11 flex items-center justify-between px-3 shrink-0 border-b border-white/[0.06]">
             <span className="text-xs text-gray-400 font-medium">Tools</span>

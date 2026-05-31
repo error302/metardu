@@ -7,11 +7,12 @@
    METARDU – Premium Dark Theme
    ======================================================================== */
 
-/* ----- Smooth scroll -------------------------------------------------- */
+/* ----- Smooth scroll + mobile overflow guard -------------------------- */
 html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
 }
 
 /* ========================================================================
@@ -99,8 +100,8 @@ html {
   body {
     @apply bg-[var(--bg-primary)] text-[var(--text-primary)];
     font-family: "Inter", system-ui, -apple-system, sans-serif;
-    max-width: 100vw;
-    overflow-x: hidden;
+    max-width: 100%;
+    overflow-x: clip;
     overflow-y: auto;
   }
 
@@ -330,7 +331,9 @@ html {
 
   /* --- Card ------------------------------------------------------------- */
   .card {
-    @apply bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-[var(--shadow-card)];
+    @apply bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-[var(--shadow-card)];
+    overflow-x: clip;
+    overflow-y: hidden;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
   .card-header {
@@ -360,17 +363,43 @@ html {
   background: #555;
 }
 
-/* Firefox */
-* {
+/* Firefox scrollbar + universal box-sizing */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: var(--border-hover) var(--bg-secondary);
-  max-width: 100%;
-  box-sizing: border-box;
 }
 
+/* Prevent media from overflowing — but allow scroll containers to exceed */
 img, video, svg {
   max-width: 100%;
   height: auto;
+}
+
+/* Responsive media containers: constrain to viewport width */
+main, section, header, footer, nav, article, aside {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Allow overflow-x-auto / overflow-x-scroll containers to scroll */
+[class*="overflow-x-auto"],
+[class*="overflow-x-scroll"],
+[class*="overflow-auto"],
+[class*="overflow-scroll"],
+.overflow-x-auto,
+.overflow-x-scroll {
+  max-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile: ensure no element stretches the page beyond viewport */
+@media (max-width: 767px) {
+  body > * {
+    max-width: 100vw;
+  }
 }
 
 /* ========================================================================
@@ -385,6 +414,7 @@ img, video, svg {
   z-index: 9999;
   pointer-events: none;
   opacity: 0.03;
+  overflow: clip;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   animation: noise-move 0.5s steps(3) infinite;
 }
@@ -436,5 +466,20 @@ img, video, svg {
 
   .animate-text-reveal {
     animation: text-reveal 0.8s ease forwards;
+  }
+
+  /* Hide scrollbar but allow scrolling (for category tabs etc.) */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mobile-safe container — constrains children to viewport */
+  .mobile-safe {
+    max-width: 100%;
+    overflow-x: clip;
   }
 }

@@ -79,29 +79,42 @@ export default function SplitWorkspaceLayout({
   return (
     <div
       className={cn(
-        'flex flex-col h-[calc(100vh-48px)] overflow-hidden',
+        'flex flex-col h-[calc(100vh-48px)] overflow-x-clip',
         className,
       )}
     >
-      {/* ---- Resizable main area ---- */}
+      {/* ---- Resizable main area ---- desktop: side-by-side, mobile: stacked */}
       <div className="flex-1 min-h-0">
-        <ResizablePanelGroup orientation="horizontal" className="h-full">
-          {/* Left panel — workflow content */}
-          <ResizablePanel defaultSize={60} minSize={35}>
-            <div className="h-full overflow-y-auto scroll-smooth">
-              {leftPanel}
-            </div>
-          </ResizablePanel>
+        {/* Desktop: resizable panels */}
+        <div className="hidden md:block h-full">
+          <ResizablePanelGroup orientation="horizontal" className="h-full">
+            {/* Left panel — workflow content */}
+            <ResizablePanel defaultSize={60} minSize={35}>
+              <div className="h-full overflow-y-auto scroll-smooth">
+                {leftPanel}
+              </div>
+            </ResizablePanel>
 
-          <ResizableHandle withHandle />
+            <ResizableHandle withHandle />
 
-          {/* Right panel — map */}
-          <ResizablePanel defaultSize={40} minSize={25}>
-            <div className="h-full overflow-hidden bg-[var(--bg-tertiary)]">
-              {rightPanel}
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            {/* Right panel — map */}
+            <ResizablePanel defaultSize={40} minSize={25}>
+              <div className="h-full overflow-hidden bg-[var(--bg-tertiary)]">
+                {rightPanel}
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
+
+        {/* Mobile: stacked layout */}
+        <div className="md:hidden flex flex-col h-full">
+          <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth">
+            {leftPanel}
+          </div>
+          <div className="h-[40vh] border-t border-[var(--border-color)] bg-[var(--bg-tertiary)] overflow-hidden">
+            {rightPanel}
+          </div>
+        </div>
       </div>
 
       {/* ---- Bottom status bar ---- */}
@@ -112,13 +125,13 @@ export default function SplitWorkspaceLayout({
             isCollapsed ? 'h-8' : 'h-10',
           )}
         >
-          <div className="flex items-center justify-between h-full px-4 gap-4">
+          <div className="flex items-center justify-between h-full px-2 sm:px-4 gap-2 sm:gap-4">
             {/* Status entries */}
-            <div className="flex items-center gap-5 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-5 min-w-0 overflow-x-auto scrollbar-none">
               {statusBarEntries.map((entry, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-1.5 text-xs whitespace-nowrap"
+                  className="flex items-center gap-1.5 text-xs whitespace-nowrap flex-shrink-0"
                 >
                   <StatusIcon status={entry.status} />
                   <span className="text-[var(--text-muted)]">{entry.label}:</span>

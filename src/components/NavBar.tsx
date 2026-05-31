@@ -148,9 +148,9 @@ function GlobalSearch({ t, isAuthenticated }: { t: Translator; isAuthenticated: 
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-tertiary)]/50 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:border-[var(--accent)] transition-colors"
+        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-[var(--bg-tertiary)]/50 border border-[var(--border-color)] rounded-lg text-xs sm:text-sm text-[var(--text-secondary)] hover:border-[var(--accent)] transition-colors"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <span className="hidden sm:inline">{t('nav.search')}</span>
@@ -353,18 +353,18 @@ export default function NavBar() {
           </div>
 
           {/* Right Side */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Global Search */}
             <GlobalSearch t={t} isAuthenticated={isAuthenticated} />
 
-            {/* Language Selector */}
+            {/* Language Selector — compact on mobile */}
             <Dropdown
               label={`${currentLang.flag} ${currentLang.code.toUpperCase()}`}
               isOpen={openDropdown === 'lang'}
               onToggle={() => handleDropdownToggle('lang')}
               align="right"
               panelClassName="min-w-[180px] py-1"
-              buttonClassName="flex items-center gap-2 px-2 py-1 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
+              buttonClassName="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2 py-1 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
             >
               {languages.map((lang) => (
                 <button

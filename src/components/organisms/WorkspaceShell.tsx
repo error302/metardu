@@ -19,11 +19,11 @@ export default function WorkspaceShell({
   const [leftCollapsed, setLeftCollapsed] = useState(false)
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex flex-col bg-[var(--bg-primary)]">
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col bg-[var(--bg-primary)] overflow-x-clip">
       {/* Main 3-column area */}
-      <div className="flex-1 flex min-h-0 p-2 gap-2">
+      <div className="flex-1 flex flex-col md:flex-row min-h-0 p-1 sm:p-2 gap-1 sm:gap-2">
 
-        {/* Left sidebar — collapsible */}
+        {/* Left sidebar — collapsible (hidden on mobile) */}
         <aside
           className={`hidden md:flex flex-shrink-0 transition-all duration-200 min-h-0 overflow-y-auto rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] ${
             leftCollapsed ? 'w-10' : 'w-72'
@@ -67,7 +67,7 @@ export default function WorkspaceShell({
       </div>
 
       {/* Bottom panel — collapsible */}
-      <div className="flex-shrink-0 mx-2 mb-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] overflow-hidden">
+      <div className="flex-shrink-0 mx-1 sm:mx-2 mb-1 sm:mb-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] overflow-hidden">
         <button
           onClick={() => setBottomOpen(v => !v)}
           className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
