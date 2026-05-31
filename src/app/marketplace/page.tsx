@@ -733,8 +733,8 @@ function ListingCard({ listing, onClick }: { listing: InstrumentListing; onClick
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function MarketplacePage() {
-  const { plan, isTrialing, loading: subLoading } = useSubscription()
-  const isPro = plan === 'pro' || plan === 'team' || isTrialing
+  const { plan, isAdmin, isTrialing, loading: subLoading } = useSubscription()
+  const isPro = isAdmin || plan === 'pro' || plan === 'team' || plan === 'firm' || plan === 'enterprise' || isTrialing
 
   const [listings, setListings]       = useState<InstrumentListing[]>([])
   const [search, setSearch]           = useState('')

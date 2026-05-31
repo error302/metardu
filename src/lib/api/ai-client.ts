@@ -1,5 +1,3 @@
-import { createClient } from '@/lib/api-client/client'
-
 const AI_BASE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || 'https://metardu-ai.up.railway.app'
 
 export interface AICallOptions {
@@ -16,47 +14,43 @@ export interface AIResponse<T> {
   callsRemaining: number | null
 }
 
+/**
+ * Check if the current user has a paid subscription.
+ * Uses the /api/subscription endpoint which includes admin email detection
+ * and correctly reads from user_subscriptions (not profiles.tier).
+ */
+async function checkSubscriptionAccess(): Promise<{ allowed: boolean; plan: string; isAdmin: boolean }> {
+  try {
+    const res = await fetch('/api/subscription', {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    })
+    if (!res.ok) return { allowed: false, plan: 'free', isAdmin: false }
+
+    const data = await res.json()
+    const plan = data.plan || 'free'
+    const isAdmin = data.isAdmin === true
+
+    // Admin always has access; paid plans (pro, team, firm, enterprise) have access
+    const allowed = isAdmin || ['pro', 'team', 'firm', 'enterprise'].includes(plan)
+    return { allowed, plan, isAdmin }
+  } catch {
+    return { allowed: false, plan: 'free', isAdmin: false }
+  }
+}
+
 export async function callAI<T>(options: AICallOptions): Promise<AIResponse<T>> {
   const { endpoint, body, requirePro = true } = options
 
-  const dbClient = createClient()
-  const { data: { session }, error: sessionError } = await dbClient.auth.getSession()
-
-  if (sessionError || !session) {
-    return {
-      success: false,
-      data: null,
-      error: 'NOT_AUTHENTICATED',
-      tier: null,
-      callsRemaining: null,
-    }
-  }
-
   if (requirePro) {
-    const { data: profile, error: profileError } = await dbClient
-      .from('profiles')
-      .select('tier, ai_calls_remaining')
-      .eq('id', session.user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return {
-        success: false,
-        data: null,
-        error: 'PROFILE_NOT_FOUND',
-        tier: null,
-        callsRemaining: null,
-      }
-    }
-
-    const validTiers = ['pro', 'team', 'enterprise']
-    if (!validTiers.includes(profile.tier)) {
+    const access = await checkSubscriptionAccess()
+    if (!access.allowed) {
       return {
         success: false,
         data: null,
         error: 'PRO_REQUIRED',
-        tier: profile.tier,
-        callsRemaining: profile.ai_calls_remaining ?? null,
+        tier: access.plan,
+        callsRemaining: null,
       }
     }
   }

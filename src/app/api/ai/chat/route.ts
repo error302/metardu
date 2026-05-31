@@ -34,8 +34,12 @@ const TIER_LIMITS: Record<string, number> = {
   free: 10,
   pro: 100,
   team: 500,
+  firm: 500,
   enterprise: Infinity,
 }
+
+// Admin emails get unlimited AI calls
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
 
 // ─── Request schema ───────────────────────────────────────────────────────────
 
@@ -53,7 +57,14 @@ const requestSchema = z.object({
 
 // ─── AI usage tracking ────────────────────────────────────────────────────────
 
-async function decrementAiCalls(userId: string): Promise<{ remaining: number; limit: number }> {
+async function decrementAiCalls(userId: string, email?: string): Promise<{ remaining: number; limit: number }> {
+  // Admin users get unlimited AI calls — skip decrement entirely
+  const isFounder = email?.toLowerCase() === 'mohameddosho20@gmail.com'
+  const isAdmin = isFounder || (email ? ADMIN_EMAILS.includes(email.toLowerCase()) : false)
+  if (isAdmin) {
+    return { remaining: Infinity, limit: Infinity }
+  }
+
   try {
     // Get current usage — use SELECT FOR UPDATE to prevent race conditions
     const profile = await db.query(
@@ -121,7 +132,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. AI usage check (tier-based)
-    const usage = await decrementAiCalls(userId)
+    const userEmail = (session.user as { email?: string }).email
+    const usage = await decrementAiCalls(userId, userEmail)
     if (usage.remaining <= 0) {
       return NextResponse.json(
         {

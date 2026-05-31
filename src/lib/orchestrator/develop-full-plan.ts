@@ -225,6 +225,8 @@ export async function developFullPlan(
     includeSettingOut: false,
   }
 ): Promise<PlanPackage> {
+  // Check subscription access using the /api/subscription endpoint
+  // (which correctly detects admin emails and all paid tiers)
   const tierCheck = await callAI<void>({ endpoint: '/api/tier-check', body: {}, requirePro: true })
   
   if (isProError(tierCheck)) {
