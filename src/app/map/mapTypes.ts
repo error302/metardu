@@ -9,4 +9,5 @@ export interface PopupData {
   easting?: string
   northing?: string
   geometryType?: string
+  projectId?: string
 }

@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
+import { trackToolUsed } from '@/lib/analytics/events'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import type { FeatureKey } from '@/lib/subscription/featureGates'
 import type { PlanId } from '@/lib/subscription/catalog'
 import type { ComponentType } from 'react'
@@ -273,6 +275,37 @@ const SECTION_ORDER = [
 ]
 
 /* ══════════════════════════════════════════════════════════════════════
+ *  NEW BADGE EXPIRY (time-based)
+ * ══════════════════════════════════════════════════════════════════════ */
+const NEW_BADGE_EXPIRY_DAYS = 30
+const NEW_BADGE_START: Record<string, string> = {
+  '/tools/beacon-certificate': '2025-05-15',
+  '/tools/billable-documents': '2025-05-15',
+  '/tools/gnss-observation-log': '2025-05-15',
+  '/tools/statutory-workbook': '2025-05-15',
+  '/tools/pile-grid': '2025-05-15',
+  '/tools/topo-drawing': '2025-05-20',
+  '/tools/slope-analysis': '2025-05-20',
+  '/tools/machine-control': '2025-05-25',
+  '/tools/progress-monitor': '2025-05-25',
+}
+
+function isActiveNewBadge(href: string): boolean {
+  const startStr = NEW_BADGE_START[href]
+  if (!startStr) return false
+  const startDate = new Date(startStr)
+  const now = new Date()
+  const diffDays = (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+  return diffDays >= 0 && diffDays <= NEW_BADGE_EXPIRY_DAYS
+}
+
+function getEffectiveBadge(tool: ToolDef): string | undefined {
+  if (!tool.badge) return undefined
+  if (tool.badge === 'NEW' && !isActiveNewBadge(tool.href)) return undefined
+  return tool.badge
+}
+
+/* ══════════════════════════════════════════════════════════════════════
  *  MAIN COMPONENT
  * ══════════════════════════════════════════════════════════════════════ */
 export default function ToolsPage() {
@@ -281,6 +314,7 @@ export default function ToolsPage() {
   const [recentTools, setRecentTools] = useState<string[]>([])
   const [favTools, setFavTools] = useState<string[]>([])
   const [mounted, setMounted] = useState(false)
+  const [activeSection, setActiveSection] = useState<string>('all')
 
   // Hydration-safe: only read localStorage after mount
   useEffect(() => {
@@ -294,17 +328,23 @@ export default function ToolsPage() {
     setFavTools(getFavTools())
   }, [])
 
-  // Filter tools by search query
+  // Filter tools by section and search query
   const filteredTools = useMemo(() => {
-    if (!searchQuery.trim()) return TOOL_DEFS
-    const q = searchQuery.toLowerCase().trim()
-    return TOOL_DEFS.filter(t =>
-      t.title.toLowerCase().includes(q) ||
-      t.description.toLowerCase().includes(q) ||
-      t.keywords.toLowerCase().includes(q) ||
-      t.section.toLowerCase().includes(q)
-    )
-  }, [searchQuery])
+    let tools = TOOL_DEFS
+    if (activeSection !== 'all') {
+      tools = tools.filter(t => t.section === activeSection)
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      tools = tools.filter(t =>
+        t.title.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q) ||
+        t.keywords.toLowerCase().includes(q) ||
+        t.section.toLowerCase().includes(q)
+      )
+    }
+    return tools
+  }, [searchQuery, activeSection])
 
   // Group filtered tools by section
   const groupedTools = useMemo(() => {
@@ -339,10 +379,49 @@ export default function ToolsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-16">
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Quick Tools</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <PageHeader
         title="Quick Tools"
         subtitle="No project required — enter values and get instant results"
       />
+
+      {/* ── CATEGORY FILTER TABS ── */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-none">
+        <button
+          onClick={() => setActiveSection('all')}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+            activeSection === 'all'
+              ? 'bg-[var(--accent)] text-black'
+              : 'bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-white hover:border-[var(--accent)]/30'
+          }`}
+        >
+          All Tools
+        </button>
+        {SECTION_ORDER.map(s => (
+          <button
+            key={s}
+            onClick={() => setActiveSection(s)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+              activeSection === s
+                ? 'bg-[var(--accent)] text-black'
+                : 'bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-white hover:border-[var(--accent)]/30'
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
 
       {/* ── SEARCH BAR ────────────────────────────────────────────── */}
       <div className="relative mb-6">
@@ -373,14 +452,14 @@ export default function ToolsPage() {
               <Clock className="h-3.5 w-3.5" />
               Recently Used
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {recentToolDefs.map(tool => (
                 <ToolLink
                   key={tool.href}
                   href={tool.href}
                   title={tool.title}
                   description={tool.description}
-                  badge={tool.badge}
+                  badge={getEffectiveBadge(tool)}
                   gate={TOOL_GATES[tool.href]}
                   userPlanRank={userPlanRank}
                   hasFeature={hasFeature}
@@ -400,14 +479,14 @@ export default function ToolsPage() {
               <Star className="h-3.5 w-3.5" />
               Favorites
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {favToolDefs.map(tool => (
                 <ToolLink
                   key={tool.href}
                   href={tool.href}
                   title={tool.title}
                   description={tool.description}
-                  badge={tool.badge}
+                  badge={getEffectiveBadge(tool)}
                   gate={TOOL_GATES[tool.href]}
                   userPlanRank={userPlanRank}
                   hasFeature={hasFeature}
@@ -435,14 +514,14 @@ export default function ToolsPage() {
             <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
               {section}
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {tools.map(tool => (
                 <ToolLink
                   key={tool.href}
                   href={tool.href}
                   title={tool.title}
                   description={tool.description}
-                  badge={tool.badge}
+                  badge={getEffectiveBadge(tool)}
                   gate={TOOL_GATES[tool.href]}
                   userPlanRank={userPlanRank}
                   hasFeature={hasFeature}
@@ -493,6 +572,7 @@ function ToolLink({
   const handleClick = () => {
     if (!isLocked) {
       onNavigate(href)
+      trackToolUsed(href)
     }
   }
 

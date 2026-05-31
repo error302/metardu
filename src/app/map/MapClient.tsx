@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
   MapPinIcon, PencilIcon, HexagonIcon, CircleIcon,
   GlobeIcon, CrosshairIcon, SatelliteIcon, MapIcon,
@@ -17,6 +17,12 @@ import MapGlobalStyles from '@/app/map/MapGlobalStyles'
 import type { BasemapMode, DrawMode, MeasureMode, PopupData } from '@/app/map/mapTypes'
 import { handleCoordSearch } from '@/app/map/utils/coordSearch'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useSearchParams } from 'next/navigation'
+import { Search as SearchIcon } from 'lucide-react'
+import dynamic from 'next/dynamic'
+
+const OfflineTileDownloader = dynamic(() => import('@/components/map/OfflineTileDownloader').then(m => ({ default: m.OfflineTileDownloader })), { ssr: false })
+const OfflineTileManager = dynamic(() => import('@/components/map/OfflineTileManager').then(m => ({ default: m.OfflineTileManager })), { ssr: false })
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import { downloadDXF, type SurveyPoint, type DXFExportOptions } from '@/lib/export/generateDXF'
 import { downloadLandXML, type LandXMLProject, type LandXMLPoint } from '@/lib/export/generateLandXML'
@@ -86,6 +92,7 @@ import { downloadLandXML, type LandXMLProject, type LandXMLPoint } from '@/lib/e
  * ══════════════════════════════════════════════════════════════════════ */
 export default function MapClient() {
   const isMobile = useIsMobile()
+  const searchParams = useSearchParams()
   const { hasFeature, isAdmin, plan } = useSubscription()
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<any>(null)
@@ -114,6 +121,12 @@ export default function MapClient() {
   const [stakeoutTarget, setStakeoutTarget] = useState<{ e: number; n: number } | null>(null)
   const [stakeoutActive, setStakeoutActive] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  const [restoredState, setRestoredState] = useState(false)
+  const [offlineDialogOpen, setOfflineDialogOpen] = useState(false)
+  const [showAnnotations, setShowAnnotations] = useState(false)
+  const annotationLayerRef = useRef<any>(null)
+  const [projectSearch, setProjectSearch] = useState('')
+  const [filteredProjectCount, setFilteredProjectCount] = useState(0)
 
   // OL refs
   const drawSourceRef = useRef<any>(null)
@@ -267,9 +280,9 @@ export default function MapClient() {
           }),
           terrain: new TileLayer({
             source: new XYZ({
-              url: 'https://{a-d}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-              crossOrigin: 'anonymous', maxZoom: 19,
-              attributions: '&copy; CartoDB',
+              url: 'https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png',
+              crossOrigin: 'anonymous', maxZoom: 17,
+              attributions: '&copy; OpenTopoMap (CC-BY-SA)',
             }),
             visible: false,
           }),
@@ -375,6 +388,7 @@ export default function MapClient() {
                   stationCount: validCoords.length,
                   surveyType: project.survey_type || 'cadastral',
                 })
+                feature.set('projectId', project.id)
                 projectSource.addFeature(feature)
               } catch { /* skip */ }
             }
@@ -462,6 +476,14 @@ export default function MapClient() {
             card.append(coords)
           }
 
+          if (data.projectId) {
+            const link = document.createElement('a')
+            link.href = `/project/${data.projectId}`
+            link.className = 'block mt-2 text-[11px] text-[#E8841A] hover:underline font-medium'
+            link.textContent = 'Go to Project →'
+            card.append(link)
+          }
+
           popupElement.append(card)
         }
 
@@ -513,6 +535,34 @@ export default function MapClient() {
 
         mapInstance.current = map
 
+        // Restore saved map view state
+        try {
+          const savedView = localStorage.getItem('metardu-map-view')
+          if (savedView) {
+            const { center, zoom } = JSON.parse(savedView)
+            if (center && zoom) {
+              map.getView().setCenter(center)
+              map.getView().setZoom(zoom)
+            }
+          }
+        } catch { /* ignore */ }
+
+        // Restore saved drawn features
+        try {
+          const savedFeatures = localStorage.getItem('metardu-map-features')
+          if (savedFeatures) {
+            const { default: GeoJSONFormat } = await import('ol/format/GeoJSON')
+            const fmt = new GeoJSONFormat()
+            const parsed = JSON.parse(savedFeatures)
+            const features = fmt.readFeatures(parsed, {
+              dataProjection: 'EPSG:4326',
+              featureProjection: 'EPSG:3857',
+            })
+            drawSource.addFeatures(features)
+            setFeatureCount(drawSource.getFeatures().length)
+          }
+        } catch { /* ignore */ }
+
         // ── Select interaction ──
         const select = new Select({
           style: new Style({
@@ -544,6 +594,7 @@ export default function MapClient() {
 
             const projectName = props.projectName || (clusterFeatures?.[0]?.get?.('projectName')) || ''
             const stationName = props.stationName || props.label || props.name || ''
+            const projectId = props.projectId || (clusterFeatures?.[0]?.get?.('projectId')) || ''
 
             setSelectedFeature(feature)
             setFeatureName(stationName || projectName || geomType)
@@ -553,6 +604,7 @@ export default function MapClient() {
               projectName: projectName || undefined,
               stationName: stationName || undefined,
               geometryType: geomType,
+              projectId: projectId || undefined,
             }
             renderPopup(popupData)
             if (coord) popupOverlay.setPosition(coord)
@@ -619,6 +671,18 @@ export default function MapClient() {
           } catch { /* keep default */ }
         }
 
+        // Auto-load specific project from URL param
+        const projectIdParam = searchParams.get('projectId')
+        if (projectIdParam) {
+          const projectFeature = projectSource.getFeatures().find((f: any) => f.get('projectId') === projectIdParam)
+          if (projectFeature) {
+            const extent = projectFeature.getGeometry()?.getExtent()
+            if (extent && extent[0] !== Infinity) {
+              map.getView().fit(extent, { padding: [200, 200, 200, 200], maxZoom: 17, duration: 800 })
+            }
+          }
+        }
+
         // Store cleanup
         ;(map as any)._cleanup = { geolocation, snap, dragAndDrop }
 
@@ -657,6 +721,55 @@ export default function MapClient() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ══════════════════════════════════════════════════════════════════
+  //  SAVE MAP STATE PERIODICALLY AND ON UNMOUNT
+  // ══════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!mapInstance.current) return
+
+    const interval = setInterval(() => {
+      try {
+        const view = mapInstance.current?.getView()
+        if (view) {
+          const center = view.getCenter()
+          const zoom = view.getZoom()
+          if (center && zoom != null) {
+            localStorage.setItem('metardu-map-view', JSON.stringify({ center, zoom }))
+          }
+        }
+        if (drawSourceRef.current) {
+          const features = drawSourceRef.current.getFeatures()
+          if (features.length > 0) {
+            const { default: GeoJSONFormat } = require('ol/format/GeoJSON')
+            const fmt = new GeoJSONFormat()
+            const geojson = fmt.writeFeatures(features, {
+              featureProjection: 'EPSG:3857',
+              dataProjection: 'EPSG:4326',
+            })
+            localStorage.setItem('metardu-map-features', JSON.stringify(geojson))
+          } else {
+            localStorage.removeItem('metardu-map-features')
+          }
+        }
+      } catch { /* ignore */ }
+    }, 10000) // every 10 seconds
+
+    return () => {
+      clearInterval(interval)
+      // Save on unmount
+      try {
+        const view = mapInstance.current?.getView()
+        if (view) {
+          const center = view.getCenter()
+          const zoom = view.getZoom()
+          if (center && zoom != null) {
+            localStorage.setItem('metardu-map-view', JSON.stringify({ center, zoom }))
+          }
+        }
+      } catch { /* ignore */ }
+    }
+  }, [mapReady])
 
   // ══════════════════════════════════════════════════════════════════
   //  BASEMAP TOGGLE
@@ -854,14 +967,28 @@ export default function MapClient() {
       setMeasureResult('')
     })
 
-    draw.on('drawend', (evt: any) => {
+    draw.on('drawend', async (evt: any) => {
       const geom = evt.feature.getGeometry()
       if (mode === 'distance') {
         const length = geom.getLength()
+        const coords = geom.getCoordinates()
+        let bearingStr = ''
+        if (coords.length >= 2) {
+          try {
+            const { transform } = await import('ol/proj')
+            const first = transform(coords[0], 'EPSG:3857', 'EPSG:21037')
+            const last = transform(coords[coords.length - 1], 'EPSG:3857', 'EPSG:21037')
+            const dE = last[0] - first[0]
+            const dN = last[1] - first[1]
+            let bearing = (Math.atan2(dE, dN) * 180) / Math.PI
+            if (bearing < 0) bearing += 360
+            bearingStr = ` | Brg: ${bearing.toFixed(2)}°`
+          } catch { /* skip bearing */ }
+        }
         if (length > 1000) {
-          setMeasureResult(`Distance: ${(length / 1000).toFixed(3)} km`)
+          setMeasureResult(`Distance: ${(length / 1000).toFixed(3)} km${bearingStr}`)
         } else {
-          setMeasureResult(`Distance: ${length.toFixed(2)} m`)
+          setMeasureResult(`Distance: ${length.toFixed(2)} m${bearingStr}`)
         }
       } else {
         const area = geom.getArea()
@@ -1166,6 +1293,59 @@ export default function MapClient() {
   }, [undo, redo, selectedFeature, deleteSelected, drawMode, editMode, measureMode, toggleDraw, toggleEdit, toggleMeasure])
 
   // ══════════════════════════════════════════════════════════════════
+  //  BEARING/DISTANCE ANNOTATIONS ON DRAWN FEATURES
+  // ══════════════════════════════════════════════════════════════════
+  const toggleAnnotations = useCallback(async () => {
+    if (!mapInstance.current) return
+
+    // Remove existing annotation layer
+    if (annotationLayerRef.current) {
+      mapInstance.current.removeLayer(annotationLayerRef.current)
+      annotationLayerRef.current = null
+    }
+
+    if (showAnnotations) {
+      // Turning off
+      setShowAnnotations(false)
+      return
+    }
+
+    // Turning on — generate annotations from drawn features
+    if (!drawSourceRef.current) return
+    const features = drawSourceRef.current.getFeatures()
+    if (features.length === 0) { setShowAnnotations(false); return }
+
+    const allCoords: Array<{ coords: Array<[number, number]>; type: string }> = []
+    for (const f of features) {
+      const geom = f.getGeometry()
+      if (!geom) continue
+      const type = geom.getType()
+      if (type === 'LineString') {
+        allCoords.push({ coords: geom.getCoordinates(), type: 'LineString' })
+      } else if (type === 'Polygon') {
+        allCoords.push({ coords: geom.getCoordinates()[0] || [], type: 'Polygon' })
+      }
+    }
+
+    if (allCoords.length === 0) { setShowAnnotations(false); return }
+
+    try {
+      const { createDrawAnnotationLayer } = await import('@/app/map/utils/drawAnnotations')
+      // Create annotation layer for first feature (primary)
+      const layer = await createDrawAnnotationLayer({
+        coords3857: allCoords[0].coords,
+        geomType: allCoords[0].type as 'LineString' | 'Polygon',
+      })
+      mapInstance.current.addLayer(layer)
+      annotationLayerRef.current = layer
+      setShowAnnotations(true)
+    } catch (err) {
+      console.warn('Failed to create annotations:', err)
+      setShowAnnotations(false)
+    }
+  }, [showAnnotations])
+
+  // ══════════════════════════════════════════════════════════════════
   //  RESET TO KENYA
   // ══════════════════════════════════════════════════════════════════
   const resetToKenya = useCallback(() => {
@@ -1221,6 +1401,23 @@ export default function MapClient() {
     if (extent[0] !== Infinity) {
       mapInstance.current.getView().fit(extent, { padding: [80, 80, 80, 80], duration: 400 })
     }
+  }, [])
+
+  // ══════════════════════════════════════════════════════════════════
+  //  GET MAP EXTENT (for offline tile dialog)
+  // ══════════════════════════════════════════════════════════════════
+  const getMapExtent = useCallback(() => {
+    if (!mapInstance.current) return null
+    try {
+      const view = mapInstance.current.getView()
+      const size = mapInstance.current.getSize()
+      if (!size) return null
+      const extent = view.calculateExtent(size)
+      const { transform } = require('ol/proj')
+      const [minLon, minLat] = transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
+      const [maxLon, maxLat] = transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
+      return { minLat, minLon, maxLat, maxLon }
+    } catch { return null }
   }, [])
 
   // ══════════════════════════════════════════════════════════════════
@@ -1532,8 +1729,42 @@ export default function MapClient() {
                         placeholder="Feature name..."
                         className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md px-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors"
                       />
-                      <div className="text-[10px] text-gray-600">
-                        Type: {selectedFeature.getGeometry()?.getType() || 'unknown'}
+                      <div className="text-[10px] text-gray-600 space-y-0.5">
+                        <div>Type: {selectedFeature.getGeometry()?.getType() || 'unknown'}</div>
+                        {(() => {
+                          const geom = selectedFeature.getGeometry()
+                          if (!geom) return null
+                          const type = geom.getType()
+                          let details: string[] = []
+                          if (type === 'Point') {
+                            const c = geom.getCoordinates()
+                            if (c) details.push(`Coords: ${c[0].toFixed(1)}, ${c[1].toFixed(1)}`)
+                          } else if (type === 'LineString') {
+                            const coords = geom.getCoordinates()
+                            details.push(`Vertices: ${coords?.length || 0}`)
+                            const len = geom.getLength()
+                            details.push(len > 1000 ? `Length: ${(len/1000).toFixed(3)} km` : `Length: ${len.toFixed(2)} m`)
+                          } else if (type === 'Polygon') {
+                            const coords = geom.getCoordinates()
+                            const ring = coords?.[0] || []
+                            details.push(`Vertices: ${(ring?.length || 1) - 1}`)
+                            const area = geom.getArea()
+                            details.push(area > 10000 ? `Area: ${(area/10000).toFixed(4)} ha` : `Area: ${area.toFixed(2)} m²`)
+                            const peri = ring.reduce((acc: number, _: any, i: number) => {
+                              if (i === 0) return acc
+                              const dx = ring[i][0] - ring[i-1][0]
+                              const dy = ring[i][1] - ring[i-1][1]
+                              return acc + Math.sqrt(dx*dx + dy*dy)
+                            }, 0)
+                            details.push(peri > 1000 ? `Perimeter: ${(peri/1000).toFixed(3)} km` : `Perimeter: ${peri.toFixed(2)} m`)
+                          } else if (type === 'Circle') {
+                            const r = geom.getRadius()
+                            details.push(`Radius: ${r.toFixed(2)} m`)
+                            const cArea = Math.PI * r * r
+                            details.push(cArea > 10000 ? `Area: ${(cArea/10000).toFixed(4)} ha` : `Area: ${cArea.toFixed(2)} m²`)
+                          }
+                          return details.map((d, i) => <div key={i}>{d}</div>)
+                        })()}
                       </div>
                     </div>
                   )}
@@ -1543,6 +1774,7 @@ export default function MapClient() {
                   <div className="space-y-1">
                     {actionButton('Distance', <RulerIcon className="w-4 h-4" active={measureMode === 'distance'} />, measureMode === 'distance', () => toggleMeasure('distance'))}
                     {actionButton('Area', <GridIcon className="w-4 h-4" active={measureMode === 'area'} />, measureMode === 'area', () => toggleMeasure('area'))}
+                    {actionButton('Bearings', <CompassIcon className="w-4 h-4" active={showAnnotations} />, showAnnotations, toggleAnnotations)}
                   </div>
                   {measureResult && (
                     <div className="mt-1.5 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
@@ -1595,6 +1827,28 @@ export default function MapClient() {
                     {!hasFeature('gps_stakeout') && (
                       <div className="text-[10px] text-amber-400/70 px-1">Pro+ required for Stakeout</div>
                     )}
+                    {actionButton('Offline Tiles', <BoltIcon className="w-4 h-4" active={offlineDialogOpen} />, offlineDialogOpen, () => setOfflineDialogOpen(true))}
+                    {!hasFeature('offline_tiles') && (
+                      <div className="text-[10px] text-amber-400/70 px-1">Pro+ required for Offline Tiles</div>
+                    )}
+                  </div>
+
+                  {/* ── PROJECTS ── */}
+                  {sectionHeader('Projects')}
+                  <div className="space-y-1.5">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={projectSearch}
+                        onChange={(e) => setProjectSearch(e.target.value)}
+                        placeholder="Filter projects..."
+                        className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md pl-7 pr-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors"
+                      />
+                      <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
+                    </div>
+                    <div className="text-[10px] text-gray-600">
+                      {projectCount} project{projectCount !== 1 ? 's' : ''} loaded
+                    </div>
                   </div>
 
                   {/* ── SAVE TO PROJECT ── */}
@@ -1715,6 +1969,15 @@ export default function MapClient() {
           issues with next/dynamic ssr:false components)
       ════════════════════════════════════════════════════════════ */}
       <MapGlobalStyles />
+
+      {/* ── OFFLINE TILE DOWNLOADER DIALOG ── */}
+      {mapReady && (
+        <OfflineTileDownloader
+          open={offlineDialogOpen}
+          onOpenChange={setOfflineDialogOpen}
+          mapExtent={getMapExtent()}
+        />
+      )}
     </div>
     </MapErrorBoundary>
   )
