@@ -553,27 +553,34 @@ export class SurveyPlanRenderer {
     })
 
     const authY = certY + mmToPx(7) + lines.length * lineHeight + mmToPx(4)
-    const authH = mmToPx(30)
+    const authH = mmToPx(35) // Expanded to include Letter No. and SoK Reference
     svg += `<rect x="${leftPad}" y="${authY}" width="${panelInnerW}" height="${authH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
     svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(4)}" font-family="Share Tech Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">AUTHENTICATION — FOR DIRECTOR OF SURVEYS</text>`
     svg += `<line x1="${leftPad}" y1="${authY + mmToPx(5.5)}" x2="${leftPad + panelInnerW}" y2="${authY + mmToPx(5.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
 
-    // Examined by
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(9)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Examined by: ________________________</text>`
-    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(9)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+    // Letter No. — reference number for the Director of Surveys' covering letter
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(9)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Letter No.: __________________________</text>`
+    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(9)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Ref: ${this.data.project.firNumber || '___________'}</text>`
 
-    // Approved by
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(14)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Approved by: ________________________</text>`
+    // Examined by — checks computations and field work
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(14)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Examined by: ________________________</text>`
     svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(14)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
 
-    // Authenticated by
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(19)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Authenticated by: ____________________</text>`
+    // Approved by — verifies compliance with Survey Act Cap. 299
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(19)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Approved by: ________________________</text>`
     svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(19)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
 
-    // Seal / stamp area
-    svg += `<rect x="${leftPad + panelInnerW - mmToPx(22)}" y="${authY + mmToPx(21)}" width="${mmToPx(20)}" height="${mmToPx(8)}" fill="none" stroke="${C_BLACK}" stroke-width="0.3" stroke-dasharray="2,2"/>`
-    svg += `<text x="${leftPad + panelInnerW - mmToPx(12)}" y="${authY + mmToPx(25.5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3.5" fill="#888">SEAL OF SURVEY</text>`
-    svg += `<text x="${leftPad + panelInnerW - mmToPx(12)}" y="${authY + mmToPx(28)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3.5" fill="#888">OF KENYA</text>`
+    // Authenticated by — applies the official Survey of Kenya seal
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(24)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Authenticated by: ____________________</text>`
+    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(24)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+
+    // Official SoK Seal area — improved with circle and proper label
+    const sealCx = leftPad + panelInnerW - mmToPx(12)
+    const sealCy = authY + mmToPx(30)
+    const sealR = mmToPx(4.5)
+    svg += `<circle cx="${sealCx}" cy="${sealCy}" r="${sealR}" fill="none" stroke="${C_BLACK}" stroke-width="0.4" stroke-dasharray="1.5,1"/>`
+    svg += `<text x="${sealCx}" y="${sealCy - 1}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#888">OFFICIAL SEAL</text>`
+    svg += `<text x="${sealCx}" y="${sealCy + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#888">SURVEY OF KENYA</text>`
 
     return svg
   }

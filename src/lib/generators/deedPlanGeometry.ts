@@ -42,6 +42,42 @@ export interface DeedPlanGeometry {
   maxE: number;
   minN: number;
   maxN: number;
+  /** Source of the coordinates — tracks whether pre-adjusted or independently computed */
+  coordinateSource: 'pre_adjusted' | 'computed';
+}
+
+/**
+ * Pre-adjusted coordinates from an external source (e.g. traverse_coordinates
+ * table, or a TraverseComputationResult). When provided to
+ * computeDeedPlanGeometry(), the function skips independent Bowditch
+ * computation and uses these coordinates directly — guaranteeing 100%
+ * consistency with the traverse computation sheet.
+ */
+export interface PreAdjustedCoordinate {
+  station: string;
+  easting: number;
+  northing: number;
+  beaconNo?: string;
+  monument?: string;
+  markStatus?: string;
+}
+
+export interface PreAdjustedClosure {
+  misclosureMm: number;
+  precisionRatio: number;
+}
+
+export interface ComputeDeedPlanGeometryOptions {
+  /**
+   * Pre-adjusted traverse coordinates from an authoritative source.
+   * When provided, computeDeedPlanGeometry() will use these coordinates
+   * directly instead of recomputing from raw field book entries.
+   * This ensures single-source-of-truth consistency with the traverse
+   * computation sheet and all other output documents.
+   */
+  preAdjustedCoordinates?: PreAdjustedCoordinate[];
+  /** Closure metrics corresponding to the pre-adjusted coordinates */
+  preAdjustedClosure?: PreAdjustedClosure;
 }
 
 function parseBearing(raw: string | number): number {
@@ -56,8 +92,153 @@ function parseBearing(raw: string | number): number {
 
 
 export async function computeDeedPlanGeometry(
-  projectId: string
+  projectId: string,
+  options?: ComputeDeedPlanGeometryOptions
 ): Promise<DeedPlanGeometry> {
+  // ── Path A: Use pre-adjusted coordinates from an authoritative source ──
+  // When the caller has already computed adjusted traverse coordinates (e.g.
+  // from the traverse computation sheet or the traverse_coordinates table),
+  // use them directly. This guarantees 100% consistency between all output
+  // documents — the deed plan, computation sheet, Form C22, and DXF all
+  // derive from the same adjusted coordinates.
+  if (options?.preAdjustedCoordinates && options.preAdjustedCoordinates.length >= 3) {
+    return buildFromPreAdjusted(options.preAdjustedCoordinates, options.preAdjustedClosure);
+  }
+
+  // ── Path B: Try to load pre-adjusted coordinates from the DB ──
+  // If the project has a saved traverse with adjusted coordinates in the
+  // traverse_coordinates table, use those instead of recomputing.
+  const savedCoords = await loadPreAdjustedFromDB(projectId);
+  if (savedCoords) {
+    return buildFromPreAdjusted(savedCoords.stations, savedCoords.closure);
+  }
+
+  // ── Path C: Compute from raw field book entries (fallback) ──
+  return computeFromFieldBook(projectId);
+}
+
+/**
+ * Build DeedPlanGeometry from pre-adjusted coordinates.
+ * Bearings and distances are RECOMPUTED from the adjusted coordinates to
+ * ensure the bearing schedule is consistent with the coordinate schedule.
+ */
+function buildFromPreAdjusted(
+  coords: PreAdjustedCoordinate[],
+  closure?: PreAdjustedClosure
+): DeedPlanGeometry {
+  const adjusted: AdjustedStation[] = coords.map(c => ({
+    station: c.station,
+    easting: c.easting,
+    northing: c.northing,
+    beaconNo: c.beaconNo,
+    monument: c.monument,
+    markStatus: c.markStatus,
+  }));
+
+  // Compute area from adjusted coordinates (Shoelace formula)
+  const pts = adjusted.map((s) => ({ easting: s.easting, northing: s.northing }));
+  const areaResult = coordinateArea(pts);
+
+  // Bearing schedule recomputed from adjusted positions — ensures consistency
+  const bearingSchedule: BearingLeg[] = adjusted.map((st, i) => {
+    const next = adjusted[(i + 1) % adjusted.length];
+    const dE = next.easting - st.easting;
+    const dN = next.northing - st.northing;
+    let brg = (Math.atan2(dE, dN) * 180) / Math.PI;
+    if (brg < 0) brg += 360;
+    const dist = Math.sqrt(dE ** 2 + dN ** 2);
+    return {
+      from: st.station,
+      to: next.station,
+      bearing: bearingToString(brg),
+      distance: dist.toFixed(3),
+    };
+  });
+
+  const eastings = adjusted.map((s) => s.easting);
+  const northings = adjusted.map((s) => s.northing);
+
+  const misclosureMm = closure?.misclosureMm ?? 0;
+  const ratio = closure?.precisionRatio ?? Infinity;
+  const precisionRatio = ratio === Infinity ? '1:∞' : `1:${Math.round(ratio).toLocaleString()}`;
+  const closureStatus: 'PASS' | 'FAIL' | 'UNVERIFIED' =
+    ratio >= 5000 ? 'PASS' : ratio > 0 && ratio < Infinity ? 'FAIL' : 'UNVERIFIED';
+
+  return {
+    stations: adjusted,
+    bearingSchedule,
+    areaM2: areaResult.areaSqm,
+    areaHa: areaResult.areaHa,
+    areaAcres: areaResult.areaAcres,
+    misclosureMm,
+    precisionRatio,
+    closureStatus,
+    minE: Math.min(...eastings),
+    maxE: Math.max(...eastings),
+    minN: Math.min(...northings),
+    maxN: Math.max(...northings),
+    coordinateSource: 'pre_adjusted',
+  };
+}
+
+/**
+ * Attempt to load pre-adjusted coordinates from the traverse_coordinates
+ * table. Returns null if no saved traverse exists.
+ */
+async function loadPreAdjustedFromDB(
+  projectId: string
+): Promise<{ stations: PreAdjustedCoordinate[]; closure: PreAdjustedClosure } | null> {
+  try {
+    // Find the most recent traverse for this project via parcels
+    const traverseRes = await db.query(
+      `SELECT pt.id, pt.linear_misclosure, pt.precision_ratio
+       FROM parcel_traverses pt
+       JOIN parcels p ON p.id = pt.parcel_id
+       JOIN blocks b ON b.id = p.block_id
+       WHERE b.project_id = $1
+       ORDER BY pt.created_at DESC LIMIT 1`,
+      [projectId]
+    );
+
+    if (traverseRes.rows.length === 0) return null;
+
+    const traverse = traverseRes.rows[0];
+    const traverseId = traverse.id;
+
+    const coordsRes = await db.query(
+      'SELECT station, easting, northing, rl FROM traverse_coordinates WHERE traverse_id = $1 ORDER BY station',
+      [traverseId]
+    );
+
+    if (coordsRes.rows.length < 3) return null;
+
+    const stations: PreAdjustedCoordinate[] = coordsRes.rows.map((c: Record<string, unknown>) => ({
+      station: String(c.station),
+      easting: parseFloat(String(c.easting)),
+      northing: parseFloat(String(c.northing)),
+      beaconNo: String(c.station),
+      monument: 'psc found',
+      markStatus: 'FOUND',
+    }));
+
+    const closure: PreAdjustedClosure = {
+      misclosureMm: parseFloat(String(traverse.linear_misclosure ?? 0)) * 1000,
+      precisionRatio: parseFloat(String(traverse.precision_ratio ?? 0)) || Infinity,
+    };
+
+    return { stations, closure };
+  } catch {
+    // Table may not exist in all deployments — fall back gracefully
+    return null;
+  }
+}
+
+/**
+ * Compute DeedPlanGeometry from raw field book entries using Bowditch
+ * adjustment. This is the fallback path when no pre-adjusted coordinates
+ * are available.
+ */
+async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry> {
   const entriesRes = await db.query(
     'SELECT row_index, station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
     [projectId]
@@ -165,5 +346,6 @@ export async function computeDeedPlanGeometry(
     maxE: Math.max(...eastings),
     minN: Math.min(...northings),
     maxN: Math.max(...northings),
+    coordinateSource: 'computed',
   };
 }
