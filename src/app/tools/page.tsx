@@ -124,6 +124,7 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '/tools/gis-export': Download,
   '/tools/gcp-export': Download,
   '/tools/survey-plan-demo': MapPinned,
+  '/tools/mutation-plan': MapPinned,
   '/tools/gnss-baseline': Satellite,
 }
 
@@ -244,6 +245,7 @@ const TOOL_DEFS: ToolDef[] = [
   { href: '/tools/slope-analysis', title: 'Slope & Area Analysis', description: 'DTM slope classification, cut/fill, area', badge: 'NEW', section: 'Specialized Surveys', keywords: 'slope area analysis dtm classification cut fill' },
   { href: '/tools/gnss-baseline', title: 'GNSS Baseline', description: 'GNSS baseline file processing | RINEX, Topcon, Trimble', section: 'Specialized Surveys', keywords: 'gnss baseline rinex topcon trimble processing' },
   { href: '/tools/survey-plan-demo', title: 'Survey Plan Viewer', description: 'CAD-style boundary identification plan renderer', section: 'Specialized Surveys', keywords: 'survey plan viewer cad boundary identification renderer' },
+  { href: '/tools/mutation-plan', title: 'Mutation Survey Plan (Form No. 3)', description: 'Generate Form No. 3 mutation scheme plans for subdivision submissions to Director of Surveys', badge: 'NEW', section: 'Documents & Certificates', keywords: 'mutation form 3 survey plan subdivision scheme' },
 
   // Engineering
   { href: '/tools/machine-control', title: 'Machine Control Export', description: 'Trimble, Leica, Topcon export formats', badge: 'NEW', section: 'Engineering', keywords: 'machine control export trimble leica topcon' },
@@ -288,6 +290,7 @@ const NEW_BADGE_START: Record<string, string> = {
   '/tools/slope-analysis': '2025-05-20',
   '/tools/machine-control': '2025-05-25',
   '/tools/progress-monitor': '2025-05-25',
+  '/tools/mutation-plan': '2026-06-01',
 }
 
 function isActiveNewBadge(href: string): boolean {
