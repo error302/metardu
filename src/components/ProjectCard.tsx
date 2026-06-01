@@ -12,6 +12,7 @@ function DeleteConfirmModal({
   onConfirm,
   onCancel,
   isDeleting,
+  deleteError,
 }: {
   projectName: string
   pointCount: number
@@ -19,6 +20,7 @@ function DeleteConfirmModal({
   onConfirm: () => void
   onCancel: () => void
   isDeleting: boolean
+  deleteError: string
 }) {
   const modalRef = useRef<HTMLDivElement>(null)
 
@@ -82,11 +84,22 @@ function DeleteConfirmModal({
               All associated data including points, parcels, alignments, chainage data, and submissions will be removed.
             </p>
           </div>
+
+          {/* Error display */}
+          {deleteError && (
+            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400 flex items-start gap-2">
+              <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9.303 3.376c-.866 1.5-.217 3.374-1.948 3.374H4.645c-1.73 0-2.813-1.874-1.948-3.374L10.051 3.378c.866-1.5 3.032-1.5 3.898 0l7.354 13.122zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              <span>{deleteError}</span>
+            </div>
+          )}
         </div>
 
         {/* Footer with actions */}
         <div className="px-6 pb-6 flex gap-3">
           <button
+            type="button"
             onClick={onCancel}
             disabled={isDeleting}
             className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50"
@@ -94,6 +107,7 @@ function DeleteConfirmModal({
             Cancel
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             disabled={isDeleting}
             className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
@@ -162,7 +176,15 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
   }, [])
 
   const handleCardClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.menu-trigger') || (e.target as HTMLElement).closest('.menu-dropdown')) return
+    // Ignore clicks on any interactive element: menu, delete, links, buttons
+    const target = e.target as HTMLElement
+    if (
+      target.closest('.menu-trigger') ||
+      target.closest('.menu-dropdown') ||
+      target.closest('.delete-trigger') ||
+      target.closest('a') ||
+      target.closest('button')
+    ) return
     router.push(`/project/${project.id}`)
   }
 
@@ -177,13 +199,15 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
         setIsDeleting(false)
       } else {
         setShowDeleteModal(false)
-        router.refresh()
+        // Force a full page reload to guarantee the deleted project disappears
+        // router.refresh() alone is unreliable for Server Component data
+        window.location.href = window.location.pathname
       }
     } catch (err: any) {
-      setDeleteError(err.message || 'Failed to delete project')
+      setDeleteError(err.message || 'Failed to delete project — check your connection and try again')
       setIsDeleting(false)
     }
-  }, [project.id, router])
+  }, [project.id])
 
   const badgeColor = (() => {
     const type = project.survey_type?.toLowerCase() || 'topo'
@@ -242,12 +266,16 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
 
           <div className="flex items-center gap-2 relative" ref={menuRef}>
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation()
+                e.preventDefault()
+                setMenuOpen(false)
                 setShowDeleteModal(true)
               }}
-              className="w-9 h-9 flex items-center justify-center rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
+              className="delete-trigger w-9 h-9 flex items-center justify-center rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
               title="Delete project"
+              aria-label="Delete project"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -263,11 +291,14 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
             </Link>
 
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation()
+                e.preventDefault()
                 setMenuOpen(!menuOpen)
               }}
               className="menu-trigger w-9 h-9 flex items-center justify-center rounded hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              aria-label="More options"
             >
               •••
             </button>
@@ -314,6 +345,7 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
                 </Link>
                 <div className="border-t border-[var(--border-color)] my-1"></div>
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation()
                     setMenuOpen(false)
@@ -341,6 +373,7 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
           onConfirm={handleDelete}
           onCancel={() => { setShowDeleteModal(false); setDeleteError('') }}
           isDeleting={isDeleting}
+          deleteError={deleteError}
         />
       )}
     </>

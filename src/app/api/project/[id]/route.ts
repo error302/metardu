@@ -49,18 +49,22 @@ export const DELETE = apiHandler({ auth: true }, async (req, ctx) => {
 
   const projectName = projectRows[0].name
 
-  // ── Audit log before deletion (so we capture the project name) ──
-  await db.query(
-    `INSERT INTO audit_logs (action, table_name, record_id, user_id, details)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [
-      'DELETE',
-      'projects',
-      id,
-      ctx.userId,
-      JSON.stringify({ project_name: projectName, message: 'Project deleted with CASCADE' }),
-    ]
-  )
+  // ── Audit log before deletion (non-blocking — never fail the delete if audit fails) ──
+  try {
+    await db.query(
+      `INSERT INTO audit_logs (action, table_name, record_id, user_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        'DELETE',
+        'projects',
+        id,
+        ctx.userId,
+        JSON.stringify({ project_name: projectName, message: 'Project deleted with CASCADE' }),
+      ]
+    )
+  } catch (auditErr) {
+    console.warn('[DELETE /api/project] audit_logs insert failed (non-fatal):', auditErr)
+  }
 
   // ── Single DELETE — CASCADE handles all child tables automatically ──
   const { rowCount } = await db.query(
