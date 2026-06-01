@@ -53,6 +53,7 @@ import {
   X,
   Lock,
   Clock,
+  ArrowRightLeft,
 } from 'lucide-react'
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -98,6 +99,7 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '/tools/traverse': Waypoints,
   '/tools/traverse-field-book': BookOpenText,
   '/tools/coordinates': DraftingCompass,
+  '/tools/cassini-utm': ArrowRightLeft,
   '/tools/cogo': DraftingCompass,
   '/tools/gnss': Satellite,
   '/tools/road-design': Construction,
@@ -226,6 +228,7 @@ const TOOL_DEFS: ToolDef[] = [
   { href: '/tools/traverse', title: 'Traverse', description: 'Bowditch/Transit closed traverse | RDM 1.1 grading', section: 'Traverse & Adjustment', keywords: 'traverse bowditch transit closed rdm grading' },
   { href: '/tools/traverse-field-book', title: 'Traverse Field Book', description: 'Field observations with angular closure', section: 'Traverse & Adjustment', keywords: 'traverse field book observations angular closure' },
   { href: '/tools/coordinates', title: 'Coordinates', description: 'Survey Regulations 1994 | Kenya UTM Zones 36S/37S', section: 'Traverse & Adjustment', keywords: 'coordinates kenya utm zones 36s 37s survey regulations' },
+  { href: '/tools/cassini-utm', title: 'Cassini ↔ UTM Converter', description: 'Convert legacy Cassini-Soldner (Clarke 1858) to UTM with preset Kenya district origins', badge: 'NEW', section: 'Traverse & Adjustment', keywords: 'cassini soldner utm converter clarke 1858 kenya district origin legacy' },
   { href: '/tools/cogo', title: 'COGO Calculator', description: 'Coordinate geometry computations', section: 'Traverse & Adjustment', keywords: 'cogo coordinate geometry calculator' },
   { href: '/tools/gnss', title: 'GNSS', description: 'GNSS observation & baseline processing', section: 'Traverse & Adjustment', keywords: 'gnss observation baseline processing' },
 
@@ -309,6 +312,7 @@ const NEW_BADGE_START: Record<string, string> = {
   '/tools/point-cloud-import': '2026-06-01',
   '/tools/contour-generator': '2026-06-01',
   '/tools/volume-comparison': '2026-06-01',
+  '/tools/cassini-utm': '2026-06-02',
 }
 
 function isActiveNewBadge(href: string): boolean {
