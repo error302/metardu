@@ -565,125 +565,42 @@ private drawFormNo4RightPanel(): string {
     return `<text x="${cx}" y="${y}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}">Submission: ${escapeXml(d.submissionNumber)}</text>`
   }
 
-  /**
-   * Draw road truncation lines on boundary segments that abut roads.
-   * Per Kenya cadastral practice, road boundaries are shown with short
-   * perpendicular tick marks (truncation lines) at regular intervals along
-   * the boundary edge, indicating the road reserve extent.
-   * Source: Survey Act Cap. 299, Form No. 3 & 4 — Road Truncation Lines
-   */
-  private drawRoadTruncationLines(): string {
-    const lots = this.data.adjacentLots
-    if (!lots || lots.length === 0) return ''
-
-    const parcelPts = this.rotatedPoints
-    if (parcelPts.length < 3) return ''
-
-    let svg = ''
-
-    // For each boundary segment, check if the adjacent lot is a road
-    for (let segIdx = 0; segIdx < parcelPts.length; segIdx++) {
-      const segFrom = parcelPts[segIdx]
-      const segTo = parcelPts[(segIdx + 1) % parcelPts.length]
-
-      // Find adjacent lot for this segment
-      const matchingLot = lots.find(lot => {
-        const lpts = lot.boundaryPoints
-        for (let j = 0; j < lpts.length; j++) {
-          const lpFrom = lpts[j]
-          const lpTo = lpts[(j + 1) % lpts.length]
-          const d1 = Math.abs(lpFrom.easting - segTo.easting) + Math.abs(lpFrom.northing - segTo.northing)
-          const d2 = Math.abs(lpTo.easting - segFrom.easting) + Math.abs(lpTo.northing - segFrom.northing)
-          if (d1 < 0.5 && d2 < 0.5) return true
-        }
-        return false
-      })
-
-      // Draw truncation ticks if adjacent lot appears to be a road
-      // (id contains "road", "rd", "street", "st", "reserve", or project has road_class)
-      const isRoad = matchingLot && (
-        /road|rd\.?|street|st\.?|reserve|lane|drive|way|avenue|ave/i.test(matchingLot.id) ||
-        this.data.project.road_class ||
-        this.data.project.street
-      )
-
-      if (!isRoad) continue
-
-      // Draw perpendicular tick marks along this boundary segment
-      const dE = segTo.easting - segFrom.easting
-      const dN = segTo.northing - segFrom.northing
-      const segLen = Math.sqrt(dE * dE + dN * dN)
-      if (segLen < 0.001) continue
-
-      // Unit perpendicular vector (pointing outward from parcel)
-      const [parcelCe, parcelCn] = (() => {
-        const c = this.calculateCentroid(parcelPts)
-        return [c.easting, c.northing]
-      })()
-      const midE = (segFrom.easting + segTo.easting) / 2
-      const midN = (segFrom.northing + segTo.northing) / 2
-      let perpE = -dN / segLen
-      let perpN = dE / segLen
-      // Ensure perpendicular points AWAY from parcel centroid
-      const toMidE = midE - parcelCe
-      const toMidN = midN - parcelCn
-      if (perpE * toMidE + perpN * toMidN < 0) {
-        perpE = -perpE
-        perpN = -perpN
-      }
-
-      const tickSpacing = 5 / PX_PER_M // 5mm spacing in ground units
-      const tickLength = 3 / PX_PER_M   // 3mm tick length in ground units
-      const numTicks = Math.max(2, Math.floor(segLen / tickSpacing))
-
-      for (let t = 1; t < numTicks; t++) {
-        const frac = t / numTicks
-        const tickBaseE = segFrom.easting + dE * frac
-        const tickBaseN = segFrom.northing + dN * frac
-        const tickEndE = tickBaseE + perpE * tickLength
-        const tickEndN = tickBaseN + perpN * tickLength
-
-        const x1 = this.toSvgX(tickBaseE)
-        const y1 = this.toSvgY(tickBaseN)
-        const x2 = this.toSvgX(tickEndE)
-        const y2 = this.toSvgY(tickEndN)
-
-        svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C_BLACK}" stroke-width="0.5" opacity="0.7"/>`
-      }
-    }
-
-    return svg
-  }
+  // drawRoadTruncationLines() — inherited from SurveyPlanRenderer base class
 
   /**
    * Draw print verification hash at the bottom of the plan.
-   * Generates a SHA-256 hash of the plan's key geometric data
-   * (coordinates, bearings, area) and displays it as a verification
-   * string that can be used to confirm the plan hasn't been altered.
-   * Per Kenya survey practice, plan integrity verification is required
-   * for legal admissibility.
+   * Overrides base class to include Form No. 4 specific data (folio, register).
+   * Uses FNV-1a double-pass hash for stronger verification codes.
    */
-  private drawPrintVerification(): string {
+  protected drawPrintVerification(): string {
     const d = this.formNo4Data
     const pts = this.rotatedPoints
 
-    // Build a verification string from key plan data
+    // Build a verification string from key plan data (includes Form No. 4 fields)
     const coordString = pts.map(p => `${p.easting.toFixed(4)},${p.northing.toFixed(4)}`).join('|')
     const areaVal = this.data.parcel.area_sqm.toFixed(4)
     const lrNum = d.lrNumber || 'UNKNOWN'
     const scaleVal = this.scale
     const dateStr = d.declarationDate || new Date().toISOString().split('T')[0]
+    const folio = d.folioNumber || ''
+    const register = d.registerNumber || ''
 
-    // Simple hash-like verification code (deterministic, not cryptographic)
-    // For production, this would use a proper SHA-256 from the crypto module
-    const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}`
-    let hash = 0
+    // FNV-1a double-pass hash for deterministic verification code
+    const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}|${folio}|${register}`
+    let h1 = 0x811c9dc5 // FNV offset basis
     for (let i = 0; i < rawString.length; i++) {
-      const char = rawString.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
-      hash = hash & hash // Convert to 32bit integer
+      h1 ^= rawString.charCodeAt(i)
+      h1 = Math.imul(h1, 0x01000193) // FNV prime
+      h1 = h1 >>> 0
     }
-    const verCode = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0')
+    let h2 = 0x811c9dc5
+    const hex1 = h1.toString(16).toUpperCase().padStart(8, '0')
+    for (let i = 0; i < hex1.length; i++) {
+      h2 ^= hex1.charCodeAt(i)
+      h2 = Math.imul(h2, 0x01000193)
+      h2 = h2 >>> 0
+    }
+    const verCode = hex1 + h2.toString(16).toUpperCase().padStart(8, '0')
 
     const y = this.pageH - mmToPx(3)
     const cx = this.pageW / 2

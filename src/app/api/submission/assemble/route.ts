@@ -1,26 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { setCurrentUserId } from '@/lib/db'
+import { apiHandler } from '@/lib/apiHandler'
+import { z } from 'zod'
 import { assembleSubmissionPackage } from '@/lib/submission/assembleSubmission'
 
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+const AssembleRequestSchema = z.object({
+  projectId: z.string().uuid('Valid project ID is required'),
+})
 
-  try {
-    const { projectId } = await req.json()
-
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'projectId is required' },
-        { status: 400 }
-      )
-    }
+export const POST = apiHandler(
+  { auth: true, schema: AssembleRequestSchema, audit: 'submission_assembled' },
+  async (req, ctx) => {
+    const { projectId } = ctx.body as z.infer<typeof AssembleRequestSchema>
 
     const { zipBuffer, ref, qa } = await assembleSubmissionPackage(projectId)
 
@@ -43,24 +33,5 @@ export async function POST(req: NextRequest) {
         'X-Submission-Ref': ref
       }
     })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error'
-    console.error('Submission assembly error:', message)
-
-    if (
-      message.includes('profile not found') ||
-      message.includes('Project not found') ||
-      message.includes('Not authenticated')
-    ) {
-      return NextResponse.json(
-        { error: message },
-        { status: 422 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
   }
-}
+)

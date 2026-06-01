@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { apiHandler } from '@/lib/apiHandler'
+import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
 import { apiSuccess, apiError } from '@/lib/api/response'
 import db from '@/lib/db'
 
@@ -58,13 +58,13 @@ export const GET = apiHandler({ auth: false }, async (req, ctx) => {
 
 // ── PATCH ──────────────────────────────────────────────────────────────────
 
-export const PATCH = apiHandler({ auth: true }, async (req, ctx) => {
+export const PATCH = apiHandler({ auth: true, optimisticLock: true }, async (req, ctx) => {
   const { id } = ctx.params
   const body = ctx.body as Record<string, unknown>
 
   // Verify ownership
   const { rows: existing } = await db.query(
-    'SELECT user_id FROM instrument_listings WHERE id = $1',
+    'SELECT user_id, updated_at FROM instrument_listings WHERE id = $1',
     [id]
   )
   if (existing.length === 0) {
@@ -73,6 +73,10 @@ export const PATCH = apiHandler({ auth: true }, async (req, ctx) => {
   if (existing[0].user_id !== ctx.userId) {
     return NextResponse.json(apiError('You can only edit your own listings'), { status: 403 })
   }
+
+  // Optimistic locking — check if the record was modified since the client last read it
+  const conflict = checkOptimisticLock(body, existing[0])
+  if (conflict) return conflict
 
   // Build dynamic SET clause for allowed fields
   const allowedFields: Record<string, unknown> = {}

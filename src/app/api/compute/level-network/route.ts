@@ -8,63 +8,61 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { setCurrentUserId } from '@/lib/db'
+import { apiHandler } from '@/lib/apiHandler'
+import { z } from 'zod'
 import { adjustLevelNetwork } from '@/lib/survey/digitalLevel/levelNetworkAdjustment'
 import { generateBenchmarkSheet, validateBenchmarkSheet } from '@/lib/survey/digitalLevel/benchmarkSheet'
 import { LevelObservation, LevelControlPoint } from '@/lib/survey/digitalLevel/digitalLevelTypes'
 
-export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+const LevelObservationSchema = z.object({
+  fromId: z.string().min(1),
+  toId: z.string().min(1),
+  heightDifference: z.number(),
+  distance: z.number().optional(),
+  order: z.enum(['first', 'second', 'third']).optional(),
+})
 
-  try {
-    const body = await request.json()
+const LevelControlPointSchema = z.object({
+  id: z.string().min(1),
+  rl: z.number(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+})
 
-    const { observations, controlPoints, order, metadata } = body
+const LevelNetworkRequestSchema = z.object({
+  observations: z.array(LevelObservationSchema).min(1),
+  controlPoints: z.array(LevelControlPointSchema).min(1),
+  order: z.enum(['first', 'second', 'third']).optional(),
+  metadata: z.object({
+    projectName: z.string().optional(),
+    surveyor: z.string().optional(),
+    date: z.string().optional(),
+    instrument: z.string().optional(),
+    staff: z.string().optional(),
+    remarks: z.string().optional(),
+  }).optional(),
+})
 
-    // Validate inputs
-    if (!Array.isArray(observations) || observations.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one observation is required' },
-        { status: 400 }
-      )
-    }
-
-    if (!Array.isArray(controlPoints) || controlPoints.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one control point is required' },
-        { status: 400 }
-      )
-    }
-
-    // Validate observation structure
-    for (let i = 0; i < observations.length; i++) {
-      const obs = observations[i]
-      if (!obs.fromId || !obs.toId || typeof obs.heightDifference !== 'number') {
-        return NextResponse.json(
-          { error: `Observation at index ${i} is missing required fields (fromId, toId, heightDifference)` },
-          { status: 400 }
-        )
-      }
-    }
+export const POST = apiHandler(
+  { auth: true, schema: LevelNetworkRequestSchema, audit: 'compute_level_network' },
+  async (req, ctx) => {
+    const data = ctx.body as z.infer<typeof LevelNetworkRequestSchema>
 
     // Run adjustment
-    const result = adjustLevelNetwork(observations, controlPoints, order || 'third')
+    const result = adjustLevelNetwork(
+      data.observations as LevelObservation[],
+      data.controlPoints as LevelControlPoint[],
+      data.order || 'third'
+    )
 
     // Generate benchmark sheet
-    const sheet = generateBenchmarkSheet(result, controlPoints, {
-      projectName: metadata?.projectName,
-      surveyor: metadata?.surveyor,
-      date: metadata?.date,
-      instrument: metadata?.instrument,
-      staff: metadata?.staff,
-      remarks: metadata?.remarks,
+    const sheet = generateBenchmarkSheet(result, data.controlPoints as LevelControlPoint[], {
+      projectName: data.metadata?.projectName,
+      surveyor: data.metadata?.surveyor,
+      date: data.metadata?.date,
+      instrument: data.metadata?.instrument,
+      staff: data.metadata?.staff,
+      remarks: data.metadata?.remarks,
     })
 
     // Validate sheet
@@ -75,10 +73,5 @@ export async function POST(request: NextRequest) {
       benchmarkSheet: sheet,
       validation,
     })
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Level network adjustment failed' },
-      { status: 500 }
-    )
   }
-}
+)

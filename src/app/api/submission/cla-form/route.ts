@@ -58,8 +58,8 @@ export const GET = apiHandler({ auth: false }, async () => {
  * - `Content-Disposition: attachment; filename="CLA-Form-{N}.pdf"`
  * - Body: PDF bytes
  */
-export const POST = apiHandler({ auth: false }, async (req, ctx) => {
-  const userId = ctx.session?.user?.id ?? null
+export const POST = apiHandler({ auth: true, audit: 'cla_form_generated' }, async (req, ctx) => {
+  const userId = ctx.userId
 
   const body = ctx.body as {
     formNumber: number;

@@ -1,20 +1,20 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { apiHandler } from '@/lib/apiHandler'
+import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
 import { UpdateBlockSchema } from '@/lib/validation/apiSchemas'
 
 export const dynamic = 'force-dynamic'
 
 export const PATCH = apiHandler(
-  { auth: true, schema: UpdateBlockSchema, audit: 'block_updated' },
+  { auth: true, schema: UpdateBlockSchema, optimisticLock: true, audit: 'block_updated' },
   async (req, ctx) => {
     const blockId = ctx.params.id
-    const { block_number, block_name, description } = ctx.body as {
-      block_number?: string; block_name?: string; description?: string
+    const validated = ctx.body as Record<string, unknown> & {
+      block_number?: string; block_name?: string; description?: string; updated_at?: string
     }
 
     const check = await db.query(
-      `SELECT b.id, b.project_id FROM blocks b
+      `SELECT b.id, b.project_id, b.updated_at FROM blocks b
       JOIN projects p ON p.id = b.project_id
       WHERE b.id = $1 AND p.user_id = $2`,
       [blockId, ctx.userId]
@@ -23,13 +23,17 @@ export const PATCH = apiHandler(
       return NextResponse.json({ error: 'Block not found' }, { status: 404 })
     }
 
-    if (block_number) {
+    // Optimistic locking — check if the record was modified since the client last read it
+    const conflict = checkOptimisticLock(validated, check.rows[0])
+    if (conflict) return conflict
+
+    if (validated.block_number) {
       const dupCheck = await db.query(
         `SELECT id FROM blocks WHERE project_id = $1 AND block_number = $2 AND id != $3`,
-        [check.rows[0].project_id, block_number, blockId]
+        [check.rows[0].project_id, validated.block_number, blockId]
       )
       if (dupCheck.rows.length > 0) {
-        return NextResponse.json({ error: `Block "${block_number}" already exists` }, { status: 409 })
+        return NextResponse.json({ error: `Block "${validated.block_number}" already exists` }, { status: 409 })
       }
     }
 
@@ -37,17 +41,17 @@ export const PATCH = apiHandler(
     const values: any[] = []
     let paramIndex = 1
 
-    if (block_number !== undefined) {
+    if (validated.block_number !== undefined) {
       updates.push(`block_number = $${paramIndex++}`)
-      values.push(block_number)
+      values.push(validated.block_number)
     }
-    if (block_name !== undefined) {
+    if (validated.block_name !== undefined) {
       updates.push(`block_name = $${paramIndex++}`)
-      values.push(block_name || null)
+      values.push(validated.block_name || null)
     }
-    if (description !== undefined) {
+    if (validated.description !== undefined) {
       updates.push(`description = $${paramIndex++}`)
-      values.push(description || null)
+      values.push(validated.description || null)
     }
 
     if (updates.length === 0) {

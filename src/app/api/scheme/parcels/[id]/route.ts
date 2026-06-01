@@ -1,15 +1,15 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { apiHandler } from '@/lib/apiHandler'
+import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
 import { UpdateParcelSchema } from '@/lib/validation/apiSchemas'
 
 export const dynamic = 'force-dynamic'
 
 export const PATCH = apiHandler(
-  { auth: true, schema: UpdateParcelSchema, audit: 'parcel_updated' },
+  { auth: true, schema: UpdateParcelSchema, optimisticLock: true, audit: 'parcel_updated' },
   async (req, ctx) => {
     const parcelId = ctx.params.id
-    const validated = ctx.body as {
+    const validated = ctx.body as Record<string, unknown> & {
       parcel_number?: string; lr_number_proposed?: string; lr_number_confirmed?: string;
       area_ha?: number; status?: string; assigned_surveyor?: string | null; notes?: string;
       updated_at?: string
@@ -25,16 +25,9 @@ export const PATCH = apiHandler(
       return NextResponse.json({ error: 'Parcel not found' }, { status: 404 })
     }
 
-    if (validated.updated_at) {
-      const dbUpdatedAt = new Date(check.rows[0].updated_at).toISOString()
-      const clientUpdatedAt = new Date(validated.updated_at).toISOString()
-      if (dbUpdatedAt !== clientUpdatedAt) {
-        return NextResponse.json(
-          { error: 'This parcel was modified by another user. Please refresh and retry.', code: 'CONFLICT' },
-          { status: 409 }
-        )
-      }
-    }
+    // Optimistic locking — check if the record was modified since the client last read it
+    const conflict = checkOptimisticLock(validated, check.rows[0])
+    if (conflict) return conflict
 
     if (validated.parcel_number) {
       const dupCheck = await db.query(

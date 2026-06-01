@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { setCurrentUserId } from '@/lib/db'
+import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { z } from 'zod'
 import { processSeabedSurvey, SeabedObservationSchema, type SeabedObservation } from '@/lib/compute/seabed'
 import { callPythonCompute } from '@/lib/compute/pythonService'
-import { apiSuccess, apiError } from '@/lib/api/response'
+import { apiError } from '@/lib/api/response'
 
 const SeabedRequestSchema = z.object({
   project_id: z.string().uuid().optional(),
@@ -13,24 +11,16 @@ const SeabedRequestSchema = z.object({
   chart_datum_offset_m: z.number(),
 })
 
-export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+export const POST = apiHandler(
+  { auth: true, schema: SeabedRequestSchema, audit: 'compute_seabed' },
+  async (req, ctx) => {
+    const data = ctx.body as z.infer<typeof SeabedRequestSchema>
 
-  const body = await request.json().catch(() => null)
-
-  // Try native TS processing first
-  const parsed = SeabedRequestSchema.safeParse(body)
-  if (parsed.success) {
     try {
       const result = await processSeabedSurvey(
-        parsed.data.project_id ?? 'unknown',
-        parsed.data.observations as SeabedObservation[],
-        parsed.data.chart_datum_offset_m
+        data.project_id ?? 'unknown',
+        data.observations as SeabedObservation[],
+        data.chart_datum_offset_m
       )
       return NextResponse.json(apiSuccess({
         ...result,
@@ -41,28 +31,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(apiError(message), { status: 500 })
     }
   }
+)
 
-  // Fallback to Python service if native TS parsing fails (e.g., different schema)
-  const python = await callPythonCompute<unknown>('/hydro/seabed', body, { timeoutMs: 30000 })
-  if (!python.ok) {
-    const err = python as { ok: false; status: number; error: string; fallback?: boolean; details?: unknown }
-    return NextResponse.json(
-      apiError(err.error, { fallback: err.fallback ?? true, details: err.details, python_required: true }),
-      { status: err.status }
-    )
+export const GET = apiHandler(
+  { auth: true },
+  async () => {
+    return NextResponse.json(apiSuccess({
+      endpoint: '/api/compute/seabed',
+      description: 'Hydrographic seabed modeling (native TypeScript with Python fallback).',
+      python_required: false,
+    }))
   }
-  return NextResponse.json(python.value)
-}
-
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-
-  return NextResponse.json(apiSuccess({
-    endpoint: '/api/compute/seabed',
-    description: 'Hydrographic seabed modeling (native TypeScript with Python fallback).',
-    python_required: false,
-  }))
-}
+)

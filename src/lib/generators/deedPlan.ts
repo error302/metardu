@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import db from '@/lib/db';
 import { computeDeedPlanGeometry, loadPreAdjustedFromDB, type PreAdjustedCoordinate, type PreAdjustedClosure } from './deedPlanGeometry';
-import { renderBoundaryPlan } from './deedPlanRenderer';
+import { renderBoundaryPlan, drawRevisionHistory, type RoadSegment } from './deedPlanRenderer';
 import { addPageFooter } from './pdfTitleBlock';
 
 const A3_W = 420;
@@ -104,11 +104,39 @@ export async function generateDeedPlan(
   doc.setLineWidth(0.5);
   doc.line(PLAN_WIDTH, MARGIN, PLAN_WIDTH, A3_H - MARGIN);
 
+  // ── Phase 2: Road segments for truncation lines ──
+  // Check if the project has road-related data for road truncation ticks
+  const roadRes = await db.query(
+    `SELECT road_class, street FROM projects WHERE id = $1`,
+    [projectId]
+  );
+  const roadData = roadRes.rows[0];
+  const roadSegments: RoadSegment[] = [];
+
+  // If the project has a road class or street name, mark boundary segments
+  // that abut roads for truncation line rendering
+  if (roadData?.road_class || roadData?.street) {
+    for (let i = 0; i < geom.stations.length; i++) {
+      const from = geom.stations[i];
+      const to = geom.stations[(i + 1) % geom.stations.length];
+      roadSegments.push({
+        segmentIndex: i,
+        from: { easting: from.easting, northing: from.northing },
+        to: { easting: to.easting, northing: to.northing },
+      });
+    }
+  }
+
   const scaleRatio = renderBoundaryPlan(doc, geom, {
     x: MARGIN,
     y: MARGIN,
     width: PLAN_WIDTH - MARGIN,
     height: A3_H - MARGIN * 2,
+  }, {
+    roadSegments,
+    surveyorName: profile?.full_name,
+    surveyorLicence: profile?.isk_number,
+    firmName: profile?.firm_name,
   });
 
   let ry = MARGIN + 4;
@@ -286,6 +314,16 @@ export async function generateDeedPlan(
   });
 
   ry = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
+
+  // ── Phase 2: Revision History ──
+  // Per Survey Act Cap. 299, every amendment must be recorded
+  const revisionsRes = await db.query(
+    `SELECT revisions FROM projects WHERE id = $1`,
+    [projectId]
+  );
+  const savedRevisions = (revisionsRes.rows[0]?.revisions as Array<{ rev: string; date: string; description: string; by: string }>) || [];
+  const revisionH = drawRevisionHistory(doc, SCHEDULE_X, ry, SCHEDULE_W, savedRevisions, profile?.full_name);
+  ry += revisionH + 4;
 
   const certY = ry;
   const certH = A3_H - MARGIN - 2 - certY;

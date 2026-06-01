@@ -1,27 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
+import { z } from 'zod'
 
 // ─── Tile count calculation (server-side) ─────────────────────────────────
 // This is the server-side counterpart that validates input and calculates
 // tile counts for the requested bounding box and zoom range.
 // Actual tile fetching is done client-side.
-
-interface TileSourceRequest {
-  id: string
-  url: string
-  label: string
-}
-
-interface TileCountRequest {
-  sources: TileSourceRequest[]
-  bounds: {
-    minLat: number
-    minLon: number
-    maxLat: number
-    maxLon: number
-  }
-  minZoom: number
-  maxZoom: number
-}
 
 interface ZoomBreakdown {
   zoom: number
@@ -40,6 +24,23 @@ interface SourceTileInfo {
   estimatedSizeBytes: number
   zoomBreakdown: ZoomBreakdown[]
 }
+
+const tileCountRequestSchema = z.object({
+  sources: z.array(z.object({
+    id: z.string().min(1),
+    url: z.string().min(1),
+    label: z.string().min(1),
+  })).min(1),
+  bounds: z.object({
+    minLat: z.number().min(-90).max(90),
+    minLon: z.number().min(-180).max(180),
+    maxLat: z.number().min(-90).max(90),
+    maxLon: z.number().min(-180).max(180),
+  }).refine(b => b.minLat < b.maxLat, { message: 'minLat must be less than maxLat' })
+    .refine(b => b.minLon < b.maxLon, { message: 'minLon must be less than maxLon' }),
+  minZoom: z.number().int().min(0).max(22),
+  maxZoom: z.number().int().min(0).max(22),
+}).refine(d => d.minZoom <= d.maxZoom, { message: 'minZoom must be <= maxZoom' })
 
 function calculateTilesForBounds(
   bounds: { minLat: number; minLon: number; maxLat: number; maxLon: number },
@@ -83,57 +84,13 @@ function estimateTileSize(sourceId: string): number {
   return 20 * 1024 // default/custom
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body: TileCountRequest = await request.json()
-
-    // ─── Input validation ───────────────────────────────────────────────
-    if (!body.sources || !Array.isArray(body.sources) || body.sources.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one tile source is required' },
-        { status: 400 },
-      )
-    }
-
-    if (!body.bounds || typeof body.bounds.minLat !== 'number' || typeof body.bounds.maxLat !== 'number' ||
-        typeof body.bounds.minLon !== 'number' || typeof body.bounds.maxLon !== 'number') {
-      return NextResponse.json(
-        { error: 'Valid bounds (minLat, maxLat, minLon, maxLon) are required' },
-        { status: 400 },
-      )
-    }
-
-    const { minLat, maxLat, minLon, maxLon } = body.bounds
-    if (minLat >= maxLat || minLon >= maxLon) {
-      return NextResponse.json(
-        { error: 'Invalid bounds: minLat must be less than maxLat and minLon less than maxLon' },
-        { status: 400 },
-      )
-    }
-
-    if (minLat < -90 || maxLat > 90 || minLon < -180 || maxLon > 180) {
-      return NextResponse.json(
-        { error: 'Bounds must be within valid WGS84 coordinate ranges' },
-        { status: 400 },
-      )
-    }
-
-    if (typeof body.minZoom !== 'number' || typeof body.maxZoom !== 'number') {
-      return NextResponse.json(
-        { error: 'minZoom and maxZoom are required numbers' },
-        { status: 400 },
-      )
-    }
+export const POST = apiHandler(
+  { auth: true, schema: tileCountRequestSchema, rateLimit: { max: 30, windowMs: 60000 } },
+  async (req, ctx) => {
+    const body = ctx.body as z.infer<typeof tileCountRequestSchema>
 
     const minZoom = Math.max(0, Math.min(22, Math.floor(body.minZoom)))
     const maxZoom = Math.max(0, Math.min(22, Math.floor(body.maxZoom)))
-
-    if (minZoom > maxZoom) {
-      return NextResponse.json(
-        { error: 'minZoom must be less than or equal to maxZoom' },
-        { status: 400 },
-      )
-    }
 
     // ─── Calculate tile counts ──────────────────────────────────────────
     const { total, breakdown } = calculateTilesForBounds(body.bounds, minZoom, maxZoom)
@@ -166,10 +123,5 @@ export async function POST(request: NextRequest) {
       capped,
       maxTiles: MAX_TILES,
     })
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message ?? 'Internal server error' },
-      { status: 500 },
-    )
   }
-}
+)

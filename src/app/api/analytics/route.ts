@@ -3,20 +3,15 @@ import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 import { z } from 'zod'
 
-export const POST = apiHandler({ auth: false }, async (req, ctx) => {
-  const schema = z.object({
-    event: z.string().min(1).max(80).regex(/^[a-z0-9._:-]+$/i),
-    properties: z.record(z.unknown()).optional(),
-    url: z.string().max(2048).optional(),
-  })
+const analyticsEventSchema = z.object({
+  event: z.string().min(1).max(80).regex(/^[a-z0-9._:-]+$/i),
+  properties: z.record(z.unknown()).optional(),
+  url: z.string().max(2048).optional(),
+})
 
-  const parsed = schema.safeParse(ctx.body)
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid analytics payload', issues: parsed.error.issues }, { status: 400 })
-  }
-
-  const { event, properties, url } = parsed.data
-  const userId = ctx.session?.user ? ctx.userId : null
+export const POST = apiHandler({ auth: true, schema: analyticsEventSchema, rateLimit: { max: 60, windowMs: 60000 }, audit: 'analytics_event' }, async (req, ctx) => {
+  const { event, properties, url } = ctx.body as z.infer<typeof analyticsEventSchema>
+  const userId = ctx.userId
 
   const safeProps: Record<string, unknown> = {}
   if (properties) {

@@ -1,17 +1,27 @@
 /**
- * requireAuth — Server-side auth guard for API routes.
- * Uses NextAuth getServerSession (not getUser, which causes timeouts).
- * 
- * Usage in any /api/* route handler:
- *   const { session, error } = await requireAuth()
- *   if (error) return error
- *   // session.user is available
+ * requireAuth / requireRole — Server-side auth guards for API routes.
+ *
+ * ⚠️ DEPRECATED: New routes should use `apiHandler()` from '@/lib/apiHandler'
+ * instead of calling requireAuth/requireRole directly. apiHandler provides
+ * auth, Zod validation, optimistic locking, rate limiting, error handling,
+ * and Sentry integration in a single composable wrapper.
+ *
+ * These functions are kept for backward compatibility with existing routes
+ * that haven't been migrated yet.
+ *
+ * Migration guide:
+ *   BEFORE: const { session, error } = await requireAuth()
+ *           if (error) return error
+ *   AFTER:  export const GET = apiHandler({ auth: true }, async (req, ctx) => { ... })
  */
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import { db, setCurrentUserId } from '@/lib/db'
 
+/**
+ * @deprecated Use apiHandler({ auth: true }) instead
+ */
 export async function requireAuth() {
   try {
     const session = await getServerSession(authOptions)
@@ -43,12 +53,13 @@ export async function requireAuth() {
 }
 
 /**
- * requireRole — Auth guard that also checks user role from surveyor_profiles.
- * Call after requireAuth() succeeds.
+ * @deprecated Use apiHandler({ auth: true, roles: [...] }) instead
  */
-
 export type UserRole = 'surveyor' | 'admin' | 'enterprise' | 'university' | 'government_auditor'
 
+/**
+ * @deprecated Use apiHandler({ auth: true, roles: [...] }) instead
+ */
 export async function requireRole(allowedRoles: UserRole[], userId: string) {
   // Ensure RLS context is set for this request
   setCurrentUserId(String(userId))

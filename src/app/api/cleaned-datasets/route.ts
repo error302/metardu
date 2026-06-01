@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import db from '@/lib/db'
 
 const cleanedDatasetSchema = z.object({
@@ -13,19 +12,11 @@ const cleanedDatasetSchema = z.object({
   data_type: z.string().optional(),
 })
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const userId = (session.user as any).id
-    const body = await request.json().catch(() => ({}))
-    const parsed = cleanedDatasetSchema.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid input', issues: parsed.error.issues }, { status: 400 })
-    }
+export const POST = apiHandler(
+  { auth: true, schema: cleanedDatasetSchema, audit: 'cleaned_dataset_saved' },
+  async (req, ctx) => {
+    const data = ctx.body as z.infer<typeof cleanedDatasetSchema>
+    const userId = ctx.userId
 
     const { rows } = await db.query(
       `INSERT INTO cleaned_datasets (
@@ -33,19 +24,16 @@ export async function POST(request: NextRequest) {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *`,
       [
-        parsed.data.project_id,
+        data.project_id,
         userId,  // Always use authenticated user's ID
-        parsed.data.raw_data ? JSON.stringify(parsed.data.raw_data) : null,
-        parsed.data.cleaned_data ? JSON.stringify(parsed.data.cleaned_data) : null,
-        parsed.data.anomalies ? JSON.stringify(parsed.data.anomalies) : null,
-        parsed.data.confidence_scores ? JSON.stringify(parsed.data.confidence_scores) : null,
-        parsed.data.data_type
+        data.raw_data ? JSON.stringify(data.raw_data) : null,
+        data.cleaned_data ? JSON.stringify(data.cleaned_data) : null,
+        data.anomalies ? JSON.stringify(data.anomalies) : null,
+        data.confidence_scores ? JSON.stringify(data.confidence_scores) : null,
+        data.data_type
       ]
     )
 
     return NextResponse.json(rows[0])
-  } catch (error: any) {
-    console.error('Cleaned dataset insert error:', error)
-    return NextResponse.json({ error: 'Failed to save cleaned dataset' }, { status: 500 })
   }
-}
+)

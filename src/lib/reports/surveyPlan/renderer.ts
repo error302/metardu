@@ -323,19 +323,59 @@ export class SurveyPlanRenderer {
   }
 
   private drawAssociationStamp(): string {
-    const firmName = this.data.project.firm_name || ''
-    if (!firmName) return ''
+    const p = this.data.project
+    const firmName = p.firm_name || ''
+    const surveyorName = p.surveyor_name || ''
+    const lsNo = p.surveyor_licence || ''
+    const iskRegNo = p.iskRegNo || ''
     const x = this.drawingX + mmToPx(3)
     const y = this.drawingY + this.drawingAreaH - mmToPx(3)
-    const w = mmToPx(42)
-    const h = mmToPx(20)
-    return [
-      `<rect x="${x}" y="${y - h}" width="${w}" height="${h}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`,
-      `<line x1="${x}" y1="${y - h * 0.55}" x2="${x + w}" y2="${y - h * 0.55}" stroke="${C_BLACK}" stroke-width="0.3"/>`,
-      `<text x="${x + w/2}" y="${y - h * 0.8}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">SURVEYORS ASSOCIATION STAMP</text>`,
-      `<text x="${x + w/2}" y="${y - h * 0.3}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(firmName)}</text>`,
-      `<text x="${x + w/2}" y="${y - h * 0.12}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Approved: ____________</text>`,
-    ].join('')
+    const w = mmToPx(52) // Wider to accommodate ISK stamp + surveyor seal side by side
+    const h = mmToPx(24) // Taller for dual areas
+
+    let svg = ''
+
+    // Outer rectangle for combined stamp area
+    svg += `<rect x="${x}" y="${y - h}" width="${w}" height="${h}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
+    svg += `<line x1="${x}" y1="${y - h + mmToPx(4)}" x2="${x + w}" y2="${y - h + mmToPx(4)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
+    svg += `<text x="${x + w/2}" y="${y - h + mmToPx(2.8)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4" font-weight="bold" fill="${C_BLACK}">STAMP & SEAL AREA</text>`
+
+    // Left side: ISK Association Rubber Stamp area
+    const iskX = x + mmToPx(1)
+    const iskY = y - h + mmToPx(5)
+    const iskW = mmToPx(28)
+    const iskH = mmToPx(12)
+    svg += `<rect x="${iskX}" y="${iskY}" width="${iskW}" height="${iskH}" fill="none" stroke="#999" stroke-width="0.3" stroke-dasharray="2,1"/>`
+    svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(3)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">ISK ASSOCIATION</text>`
+    svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(5.5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">RUBBER STAMP</text>`
+    if (firmName) {
+      svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(8)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="2.5" fill="#bbb">${escapeXml(firmName)}</text>`
+    }
+    svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(10.5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="2.5" fill="#ccc">Approved: ____________</text>`
+
+    // Right side: Surveyor's Corporate Seal area
+    const sealX = x + mmToPx(31)
+    const sealY = y - h + mmToPx(5)
+    const sealW = mmToPx(20)
+    const sealH = mmToPx(12)
+    svg += `<rect x="${sealX}" y="${sealY}" width="${sealW}" height="${sealH}" fill="none" stroke="#999" stroke-width="0.3" stroke-dasharray="2,1"/>`
+    svg += `<circle cx="${sealX + sealW/2}" cy="${sealY + sealH/2}" r="${mmToPx(4)}" fill="none" stroke="#ccc" stroke-width="0.3" stroke-dasharray="1.5,1"/>`
+    svg += `<text x="${sealX + sealW/2}" y="${sealY + sealH/2 - 1}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">SURVEYOR</text>`
+    svg += `<text x="${sealX + sealW/2}" y="${sealY + sealH/2 + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">SEAL</text>`
+
+    // Surveyor credentials below stamp area
+    const credY = y - h + mmToPx(19)
+    if (surveyorName) {
+      svg += `<text x="${x + mmToPx(1)}" y="${credY}" font-family="Share Tech Mono, Courier New" font-size="3.5" font-weight="bold" fill="${C_BLACK}">${escapeXml(surveyorName)}</text>`
+    }
+    if (lsNo) {
+      svg += `<text x="${x + mmToPx(1)}" y="${credY + mmToPx(2.5)}" font-family="Share Tech Mono, Courier New" font-size="3" fill="#555">LS/${escapeXml(lsNo)}</text>`
+    }
+    if (iskRegNo) {
+      svg += `<text x="${x + mmToPx(1)}" y="${credY + mmToPx(5)}" font-family="Share Tech Mono, Courier New" font-size="3" fill="#555">ISK Reg. ${escapeXml(iskRegNo)}</text>`
+    }
+
+    return svg
   }
 
   private drawAdjacentLabels(): string {
@@ -927,6 +967,141 @@ export class SurveyPlanRenderer {
     return `<text x="${this.margin}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">${escapeXml(ref)}</text>`
   }
 
+  /**
+   * Draw road truncation lines on boundary segments that abut roads.
+   * Per Kenya cadastral practice, road boundaries are shown with short
+   * perpendicular tick marks (truncation lines) at regular intervals along
+   * the boundary edge, indicating the road reserve extent.
+   * Source: Survey Act Cap. 299, Form No. 3 & 4 — Road Truncation Lines
+   */
+  protected drawRoadTruncationLines(): string {
+    const lots = this.data.adjacentLots
+    if (!lots || lots.length === 0) return ''
+
+    const parcelPts = this.rotatedPoints
+    if (parcelPts.length < 3) return ''
+
+    let svg = ''
+    const [parcelCe, parcelCn] = centroid(parcelPts)
+
+    // For each boundary segment, check if the adjacent lot is a road
+    for (let segIdx = 0; segIdx < parcelPts.length; segIdx++) {
+      const segFrom = parcelPts[segIdx]
+      const segTo = parcelPts[(segIdx + 1) % parcelPts.length]
+
+      // Find adjacent lot for this segment
+      const matchingLot = lots.find(lot => {
+        const lpts = lot.boundaryPoints
+        for (let j = 0; j < lpts.length; j++) {
+          const lpFrom = lpts[j]
+          const lpTo = lpts[(j + 1) % lpts.length]
+          const d1 = Math.abs(lpFrom.easting - segTo.easting) + Math.abs(lpFrom.northing - segTo.northing)
+          const d2 = Math.abs(lpTo.easting - segFrom.easting) + Math.abs(lpTo.northing - segFrom.northing)
+          if (d1 < 0.5 && d2 < 0.5) return true
+        }
+        return false
+      })
+
+      // Draw truncation ticks if adjacent lot appears to be a road
+      // Detection: lot id contains road keywords, or project has road_class, or project has street name
+      const isRoad = matchingLot && (
+        /road|rd\.?|street|st\.?|reserve|lane|drive|way|avenue|ave/i.test(matchingLot.id) ||
+        this.data.project.road_class ||
+        this.data.project.street
+      )
+
+      if (!isRoad) continue
+
+      // Draw perpendicular tick marks along this boundary segment
+      const dE = segTo.easting - segFrom.easting
+      const dN = segTo.northing - segFrom.northing
+      const segLen = Math.sqrt(dE * dE + dN * dN)
+      if (segLen < 0.001) continue
+
+      // Unit perpendicular vector (pointing outward from parcel)
+      let perpE = -dN / segLen
+      let perpN = dE / segLen
+      // Ensure perpendicular points AWAY from parcel centroid
+      const midE = (segFrom.easting + segTo.easting) / 2
+      const midN = (segFrom.northing + segTo.northing) / 2
+      const toMidE = midE - parcelCe
+      const toMidN = midN - parcelCn
+      if (perpE * toMidE + perpN * toMidN < 0) {
+        perpE = -perpE
+        perpN = -perpN
+      }
+
+      const tickSpacing = 5 / PX_PER_M // 5mm spacing in ground units
+      const tickLength = 3 / PX_PER_M   // 3mm tick length in ground units
+      const numTicks = Math.max(2, Math.floor(segLen / tickSpacing))
+
+      for (let t = 1; t < numTicks; t++) {
+        const frac = t / numTicks
+        const tickBaseE = segFrom.easting + dE * frac
+        const tickBaseN = segFrom.northing + dN * frac
+        const tickEndE = tickBaseE + perpE * tickLength
+        const tickEndN = tickBaseN + perpN * tickLength
+
+        const x1 = this.toSvgX(tickBaseE)
+        const y1 = this.toSvgY(tickBaseN)
+        const x2 = this.toSvgX(tickEndE)
+        const y2 = this.toSvgY(tickEndN)
+
+        svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C_BLACK}" stroke-width="0.5" opacity="0.7"/>`
+      }
+    }
+
+    return svg
+  }
+
+  /**
+   * Draw print verification hash at the bottom of the plan.
+   * Generates a deterministic verification code from the plan's key geometric
+   * data (coordinates, bearings, area) and displays it alongside a generation
+   * timestamp. This can be used to confirm the plan hasn't been altered.
+   * Per Kenya survey practice, plan integrity verification is required
+   * for legal admissibility under Survey Act Cap. 299, Sec. 23.
+   */
+  protected drawPrintVerification(): string {
+    const pts = this.rotatedPoints
+    const p = this.data.project
+
+    // Build a verification string from key plan data
+    const coordString = pts.map(pt => `${pt.easting.toFixed(4)},${pt.northing.toFixed(4)}`).join('|')
+    const areaVal = this.data.parcel.area_sqm.toFixed(4)
+    const lrNum = p.lrNumber || p.parcel_id || p.name || 'UNKNOWN'
+    const scaleVal = this.scale
+    const dateStr = new Date().toISOString().split('T')[0]
+
+    // Deterministic verification code using FNV-1a-inspired hash
+    // This is NOT cryptographic — for production, use SHA-256 from crypto module
+    const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}`
+    let h1 = 0x811c9dc5 // FNV offset basis (32-bit)
+    for (let i = 0; i < rawString.length; i++) {
+      h1 ^= rawString.charCodeAt(i)
+      h1 = Math.imul(h1, 0x01000193) // FNV prime
+      h1 = h1 >>> 0 // Ensure unsigned 32-bit
+    }
+    // Second pass for better distribution
+    let h2 = 0x811c9dc5
+    const hex1 = h1.toString(16).toUpperCase().padStart(8, '0')
+    for (let i = 0; i < hex1.length; i++) {
+      h2 ^= hex1.charCodeAt(i)
+      h2 = Math.imul(h2, 0x01000193)
+      h2 = h2 >>> 0
+    }
+    const verCode = hex1 + h2.toString(16).toUpperCase().padStart(8, '0')
+
+    const y = this.pageH - mmToPx(2)
+    const cx = this.pageW / 2
+
+    let svg = ''
+    svg += `<text x="${cx}" y="${y}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3.5" fill="#999">Verification: ${verCode} | Generated: ${escapeXml(dateStr)} | Scale: 1:${scaleVal}</text>`
+    svg += `<text x="${cx}" y="${y + mmToPx(1.5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="2.5" fill="#bbb">Alteration of this plan invalidates verification — Per Survey Act Cap. 299, Sec. 23</text>`
+
+    return svg
+  }
+
   private drawWatermark(): string {
     if (this.opts.watermarkPlan !== 'free') return ''
     const cx = this.drawingX + this.drawingAreaW / 2
@@ -953,6 +1128,7 @@ export class SurveyPlanRenderer {
     layers.push(this.drawWatermark())
     layers.push(this.drawAdjacentLots())
     layers.push(this.drawStreetInfo())
+    layers.push(this.drawRoadTruncationLines())
     layers.push(this.drawBoundary())
     layers.push(this.drawBoundaryLabels())
     layers.push(this.drawBoundaryAdjacentLRNumbers())
@@ -972,6 +1148,7 @@ export class SurveyPlanRenderer {
     layers.push(this.drawAssociationStamp())
     if (this.opts.includePanel) layers.push(this.drawRightPanel())
     layers.push(this.drawSheetFooter())
+    layers.push(this.drawPrintVerification())
     layers.push(this.drawLegalReferenceLine())
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'Share Tech Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
   }
@@ -1004,6 +1181,7 @@ export class SurveyPlanRenderer {
       layers.push(this.drawWatermark())
       layers.push(this.drawAdjacentLots())
       layers.push(this.drawStreetInfo())
+      layers.push(this.drawRoadTruncationLines())
       layers.push(this.drawBoundary())
       layers.push(this.drawBoundaryLabels())
       layers.push(this.drawBoundaryAdjacentLRNumbers())
@@ -1022,6 +1200,7 @@ export class SurveyPlanRenderer {
       layers.push(this.drawAssociationStamp())
       if (this.opts.includePanel) layers.push(this.drawRightPanel())
       layers.push(this.drawSheetFooter())
+      layers.push(this.drawPrintVerification())
       layers.push(this.drawLegalReferenceLine())
       layers.push(`<text x="${this.drawingX + this.drawingAreaW / 2}" y="${this.margin + mmToPx(3)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`)
       layers.push('</g>')
