@@ -15,13 +15,26 @@ export interface MutationPlot {
   /** Parent plot id when this is a sub-division, e.g. "a1" is parent of "a1a", "a1b" */
   parentId?: string
   /** Boundary vertices in survey coordinates (m) */
-  boundaryPoints: Array<{ easting: number; northing: number }>
+  boundaryPoints: Array<{ easting: number; northing: number; beacon?: string }>
   /** Area in hectares */
   area_ha: number
   /** If true, suffix label with "(Approx)" */
   isApprox: boolean
   /** Series group label */
   seriesLabel: string
+}
+
+// ─── Parent parcel ──────────────────────────────────────────────────────────
+
+export interface ParentParcel {
+  /** Parent parcel identifier, e.g. "LR No. 12345/6" */
+  id: string
+  /** Display label for the parent plot */
+  label: string
+  /** Boundary vertices in survey coordinates (m) */
+  boundaryPoints: Array<{ easting: number; northing: number; beacon?: string }>
+  /** Area in hectares */
+  area_ha: number
 }
 
 // ─── Road corridor ──────────────────────────────────────────────────────────
@@ -114,6 +127,8 @@ export interface MutationPlanData {
   monuments: SurveyMonument[]
   /** Bearing & distance schedule for all lines */
   bearingSchedule: BearingScheduleEntry[]
+  /** Optional parent parcel for area reconciliation */
+  parentParcel?: ParentParcel
   /** Grid / graticule configuration */
   grid: {
     minE: number

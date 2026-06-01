@@ -132,7 +132,7 @@ function makeSampleData(): {
       bearingSchedule.push({
         lineId: `${plot.id}-${i + 1}`,
         from: `${plot.id}.${i + 1}`,
-        to: `${plot.id}.${i + 2 > 4 ? 1 : i + 2}`,
+        to: `${plot.id}.${i + 2 > pts.length ? 1 : i + 2}`,
         bearing_dms: `${d}\u00B0${String(m).padStart(2, '0')}'${s.toFixed(1)}"`,
         distance_m: parseFloat(dist.toFixed(2)),
       });
