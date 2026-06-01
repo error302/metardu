@@ -213,6 +213,7 @@ export default function MutationPlanGenerator() {
   const [csvError, setCsvError] = useState<string | null>(null);
   const [csvSuccess, setCsvSuccess] = useState('');
   const [bearingScheduleOpen, setBearingScheduleOpen] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
 
   // ── Computed bearing schedule from plot boundaries ──
   const computedBearingSchedule = useMemo(() => {
@@ -532,6 +533,26 @@ export default function MutationPlanGenerator() {
     }
   };
 
+  // ── PDF export via print API ──
+  const handleDownloadPDF = () => {
+    if (!svgOutput) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html>
+<html><head>
+  <title>${projectInfo.name || 'Mutation Plan'}</title>
+  <style>
+    @page { size: A1 landscape; margin: 10mm; }
+    body { margin: 0; padding: 0; background: white; }
+    svg { width: 100%; height: auto; max-height: 100vh; }
+  </style>
+</head><body>
+  ${svgOutput}
+  <script>window.onload = () => window.print();<\/script>
+</body></html>`);
+    win.document.close();
+  };
+
   // ── Update helpers ──
   const updatePlot = (index: number, field: keyof MutationPlot, value: any) => {
     const updated = [...plots];
@@ -591,6 +612,111 @@ export default function MutationPlanGenerator() {
       .map(([series, count]) => `Series ${series.toUpperCase()}: ${count} plot${count > 1 ? 's' : ''}`)
       .join(', ');
   }, [plots]);
+
+  // ── Series color map for SVG mini map ──
+  const SERIES_COLORS: Record<string, { fill: string; stroke: string }> = {
+    a: { fill: 'rgba(59,130,246,0.25)', stroke: '#3b82f6' },
+    b: { fill: 'rgba(34,197,94,0.25)', stroke: '#22c55e' },
+    c: { fill: 'rgba(245,158,11,0.25)', stroke: '#f59e0b' },
+    d: { fill: 'rgba(239,68,68,0.25)', stroke: '#ef4444' },
+  };
+
+  // ── Plot bounding box for mini map ──
+  const plotBounds = useMemo(() => {
+    const allPts = [
+      ...plots.flatMap((p) => p.boundaryPoints),
+      ...roads.flatMap((r) => r.centerline),
+    ];
+    if (allPts.length < 2) return null;
+    const minE = Math.min(...allPts.map((p) => p.easting));
+    const maxE = Math.max(...allPts.map((p) => p.easting));
+    const minN = Math.min(...allPts.map((p) => p.northing));
+    const maxN = Math.max(...allPts.map((p) => p.northing));
+    const rangeE = maxE - minE || 200;
+    const rangeN = maxN - minN || 200;
+    const pad = Math.max(rangeE, rangeN) * 0.08;
+    const intE = rangeE > 1000 ? 200 : rangeE > 400 ? 100 : 50;
+    const intN = rangeN > 1000 ? 200 : rangeN > 400 ? 100 : 50;
+    return { minE: minE - pad, maxE: maxE + pad, minN: minN - pad, maxN: maxN + pad, rangeE: rangeE + 2 * pad, rangeN: rangeN + 2 * pad, intervalE: intE, intervalN: intN };
+  }, [plots, roads]);
+
+  // ── Road corridor polygons (perpendicular offset from centerline) ──
+  const roadCorridorPolygons = useMemo(() => {
+    return roads.map((road) => {
+      const hw = road.width_m / 2;
+      if (road.centerline.length < 2) return { points: [] as Array<{ easting: number; northing: number }>, id: road.id, width_m: road.width_m };
+      const pts: Array<{ easting: number; northing: number }> = [];
+      // Left side (forward along centerline)
+      for (let i = 0; i < road.centerline.length; i++) {
+        let dx = 0, dy = 0;
+        if (i < road.centerline.length - 1) {
+          dx = road.centerline[i + 1].easting - road.centerline[i].easting;
+          dy = road.centerline[i + 1].northing - road.centerline[i].northing;
+        } else {
+          dx = road.centerline[i].easting - road.centerline[i - 1].easting;
+          dy = road.centerline[i].northing - road.centerline[i - 1].northing;
+        }
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        pts.push({ easting: road.centerline[i].easting + (-dy / len) * hw, northing: road.centerline[i].northing + (dx / len) * hw });
+      }
+      // Right side (reverse along centerline)
+      for (let i = road.centerline.length - 1; i >= 0; i--) {
+        let dx = 0, dy = 0;
+        if (i < road.centerline.length - 1) {
+          dx = road.centerline[i + 1].easting - road.centerline[i].easting;
+          dy = road.centerline[i + 1].northing - road.centerline[i].northing;
+        } else {
+          dx = road.centerline[i].easting - road.centerline[i - 1].easting;
+          dy = road.centerline[i].northing - road.centerline[i - 1].northing;
+        }
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        pts.push({ easting: road.centerline[i].easting + (dy / len) * hw, northing: road.centerline[i].northing + (-dx / len) * hw });
+      }
+      return { points: pts, id: road.id, width_m: road.width_m };
+    });
+  }, [roads]);
+
+  // ── Road area estimate (Shoelace on corridor polygons) ──
+  const roadAreaHa = useMemo(() => {
+    let total = 0;
+    roadCorridorPolygons.forEach((rc) => {
+      if (rc.points.length >= 3) total += shoelaceArea(rc.points);
+    });
+    return total / 10000;
+  }, [roadCorridorPolygons]);
+
+  // ── Full reconciliation data ──
+  const reconciliation = useMemo(() => {
+    let computedTotal = 0;
+    const seriesMap = new Map<string, { count: number; computedArea: number; declaredArea: number }>();
+    plots.forEach((plot) => {
+      const computed = computedPlotAreas.get(plot.id) || plot.area_ha;
+      computedTotal += computed;
+      const existing = seriesMap.get(plot.seriesLabel) || { count: 0, computedArea: 0, declaredArea: 0 };
+      existing.count++;
+      existing.computedArea += computed;
+      existing.declaredArea += plot.area_ha;
+      seriesMap.set(plot.seriesLabel, existing);
+    });
+    const declaredTotal = plots.reduce((s, p) => s + p.area_ha, 0);
+    const discrepancy = computedTotal - declaredTotal;
+    const discrepancyPct = declaredTotal > 0 ? (Math.abs(discrepancy) / declaredTotal) * 100 : 0;
+    const boundary = schemeBoundary.length >= 3 ? schemeBoundary : computedSchemeBoundary();
+    const parentAreaHa = boundary.length >= 3 ? shoelaceArea(boundary) / 10000 : 0;
+    const availableArea = parentAreaHa - roadAreaHa;
+    const plotsExceed = availableArea > 0 && computedTotal > availableArea;
+    return {
+      computedTotal,
+      declaredTotal,
+      discrepancy,
+      discrepancyPct,
+      roadArea: roadAreaHa,
+      parentArea: parentAreaHa,
+      availableArea,
+      plotsExceed,
+      seriesEntries: Array.from(seriesMap.entries()).sort(([a], [b]) => a.localeCompare(b)),
+    };
+  }, [plots, computedPlotAreas, roadAreaHa, schemeBoundary]);
 
   // ── Step navigation ──
   const canGoNext = (): boolean => {
@@ -915,6 +1041,122 @@ export default function MutationPlanGenerator() {
             )}
           </div>
 
+          {/* ── Mini Map Preview (collapsible) ── */}
+          {plots.length > 0 && plotBounds && (
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
+              <button
+                onClick={() => setShowPreview(!showPreview)}
+                className="flex items-center justify-between w-full text-left mb-3"
+              >
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <MapPinned className="h-4 w-4 text-[var(--accent)]" />
+                  Layout Preview
+                  <span className="text-xs text-zinc-500 font-normal">
+                    ({plots.length} plots, {roads.length} roads)
+                  </span>
+                </h3>
+                {showPreview ? (
+                  <ChevronUp className="h-4 w-4 text-zinc-400" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-zinc-400" />
+                )}
+              </button>
+              {showPreview && (
+                <>
+                  <svg
+                    viewBox={`${plotBounds.minE} ${plotBounds.minN} ${plotBounds.rangeE} ${plotBounds.rangeN}`}
+                    className="w-full h-72 bg-zinc-900 rounded border border-zinc-700"
+                  >
+                    {/* Grid lines — Easting (vertical) */}
+                    {Array.from({ length: Math.ceil(plotBounds.rangeE / plotBounds.intervalE) + 1 }, (_, i) => {
+                      const startX = Math.ceil(plotBounds.minE / plotBounds.intervalE) * plotBounds.intervalE;
+                      const x = startX + i * plotBounds.intervalE;
+                      if (x > plotBounds.maxE) return null;
+                      return (
+                        <g key={`ge-${i}`}>
+                          <line x1={x} y1={plotBounds.minN} x2={x} y2={plotBounds.maxN} stroke="#334155" strokeWidth={0.4} />
+                          <text x={x} y={plotBounds.minN + plotBounds.rangeN * 0.02} fill="#6b7280" fontSize={Math.max(plotBounds.rangeE * 0.012, 1.5)} textAnchor="middle">
+                            {x.toFixed(0)}
+                          </text>
+                        </g>
+                      );
+                    })}
+                    {/* Grid lines — Northing (horizontal) */}
+                    {Array.from({ length: Math.ceil(plotBounds.rangeN / plotBounds.intervalN) + 1 }, (_, i) => {
+                      const startY = Math.ceil(plotBounds.minN / plotBounds.intervalN) * plotBounds.intervalN;
+                      const y = startY + i * plotBounds.intervalN;
+                      if (y > plotBounds.maxN) return null;
+                      return (
+                        <g key={`gn-${i}`}>
+                          <line x1={plotBounds.minE} y1={y} x2={plotBounds.maxE} y2={y} stroke="#334155" strokeWidth={0.4} />
+                          <text x={plotBounds.minE + plotBounds.rangeE * 0.01} y={y - plotBounds.rangeN * 0.005} fill="#6b7280" fontSize={Math.max(plotBounds.rangeE * 0.012, 1.5)}>
+                            {y.toFixed(0)}
+                          </text>
+                        </g>
+                      );
+                    })}
+                    {/* Road corridors */}
+                    {roadCorridorPolygons.map((rc) =>
+                      rc.points.length >= 3 ? (
+                        <polygon
+                          key={`road-${rc.id}`}
+                          points={rc.points.map((p) => `${p.easting},${p.northing}`).join(' ')}
+                          fill="rgba(161,161,170,0.2)"
+                          stroke="#71717a"
+                          strokeWidth={0.5}
+                        />
+                      ) : null
+                    )}
+                    {/* Plot polygons */}
+                    {plots.map((plot) => {
+                      const color = SERIES_COLORS[plot.seriesLabel] || SERIES_COLORS.a;
+                      return (
+                        <polygon
+                          key={plot.id}
+                          points={plot.boundaryPoints.map((p) => `${p.easting},${p.northing}`).join(' ')}
+                          fill={color.fill}
+                          stroke={color.stroke}
+                          strokeWidth={0.8}
+                        />
+                      );
+                    })}
+                    {/* Plot labels at centroids */}
+                    {plots.map((plot) => {
+                      const pts = plot.boundaryPoints;
+                      if (pts.length === 0) return null;
+                      const cx = pts.reduce((s, p) => s + p.easting, 0) / pts.length;
+                      const cy = pts.reduce((s, p) => s + p.northing, 0) / pts.length;
+                      return (
+                        <text
+                          key={`lbl-${plot.id}`}
+                          x={cx} y={cy}
+                          textAnchor="middle" dominantBaseline="central"
+                          fill="white" fontSize={Math.max(plotBounds.rangeE * 0.02, 2)} fontWeight="bold"
+                          style={{ pointerEvents: 'none', userSelect: 'none' }}
+                        >
+                          {plot.id}
+                        </text>
+                      );
+                    })}
+                  </svg>
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-3 mt-3">
+                    {Object.entries(SERIES_COLORS).map(([key, color]) => (
+                      <div key={key} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                        <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: color.stroke }} />
+                        Series {key.toUpperCase()}
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                      <span className="inline-block w-3 h-3 rounded-sm bg-zinc-500" />
+                      Roads
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-between">
             <button
               onClick={prevStep}
@@ -1191,33 +1433,134 @@ export default function MutationPlanGenerator() {
        * ══════════════════════════════════════════════════════════════ */}
       {step === 4 && (
         <div className="space-y-6">
-          {/* ── Area Reconciliation Summary ── */}
+          {/* ── Area Reconciliation Report ── */}
           <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-emerald-400" />
-              Area Reconciliation Summary
+              Area Reconciliation Report
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+            {/* Top-level stat cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
               <div className="bg-zinc-800 rounded-lg p-3 text-center">
                 <div className="text-xs text-zinc-400 mb-1">Total Plots</div>
                 <div className="text-xl font-bold text-[var(--accent)]">{plots.length}</div>
               </div>
               <div className="bg-zinc-800 rounded-lg p-3 text-center">
-                <div className="text-xs text-zinc-400 mb-1">Total Area</div>
-                <div className="text-xl font-bold text-[var(--accent)]">{totalArea.toFixed(4)} Ha</div>
+                <div className="text-xs text-zinc-400 mb-1">Declared Area</div>
+                <div className="text-lg font-mono font-bold text-[var(--accent)]">{reconciliation.declaredTotal.toFixed(4)} Ha</div>
               </div>
               <div className="bg-zinc-800 rounded-lg p-3 text-center">
-                <div className="text-xs text-zinc-400 mb-1">Roads</div>
-                <div className="text-xl font-bold text-[var(--accent)]">{roads.length}</div>
+                <div className="text-xs text-zinc-400 mb-1">Computed Area</div>
+                <div className="text-lg font-mono font-bold text-[var(--accent)]">{reconciliation.computedTotal.toFixed(4)} Ha</div>
+              </div>
+              <div className="bg-zinc-800 rounded-lg p-3 text-center">
+                <div className="text-xs text-zinc-400 mb-1">Road Area</div>
+                <div className="text-lg font-mono font-bold text-zinc-300">{reconciliation.roadArea.toFixed(4)} Ha</div>
               </div>
               <div className="bg-zinc-800 rounded-lg p-3 text-center">
                 <div className="text-xs text-zinc-400 mb-1">Monuments</div>
                 <div className="text-xl font-bold text-[var(--accent)]">{monuments.length}</div>
               </div>
             </div>
-            {seriesBreakdown && (
-              <div className="text-sm text-zinc-400 bg-zinc-800/50 rounded-lg px-4 py-2">
-                <span className="text-zinc-500 font-medium">Plot Series:</span> {seriesBreakdown}
+            {/* Computed vs Declared comparison */}
+            <div className="bg-zinc-800/60 rounded-lg p-4 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <span className="text-xs text-zinc-400">Computed Total</span>
+                  <div className="font-mono text-lg">{reconciliation.computedTotal.toFixed(4)} Ha</div>
+                </div>
+                <div>
+                  <span className="text-xs text-zinc-400">Declared Total</span>
+                  <div className="font-mono text-lg">{reconciliation.declaredTotal.toFixed(4)} Ha</div>
+                </div>
+                <div>
+                  <span className="text-xs text-zinc-400">Discrepancy</span>
+                  <div className={`font-mono text-lg ${reconciliation.discrepancyPct > 2 ? 'text-red-400' : 'text-emerald-400'}`}>
+                    {reconciliation.discrepancy >= 0 ? '+' : ''}{reconciliation.discrepancy.toFixed(4)} Ha ({reconciliation.discrepancyPct.toFixed(2)}%)
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs text-zinc-400">Road Area (Est.)</span>
+                  <div className="font-mono text-lg">{reconciliation.roadArea.toFixed(4)} Ha</div>
+                </div>
+              </div>
+              {/* Parent parcel area breakdown */}
+              {reconciliation.parentArea > 0 && (
+                <div className="mt-3 pt-3 border-t border-zinc-700">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-xs text-zinc-400">Parent Parcel Area</span>
+                      <div className="font-mono">{reconciliation.parentArea.toFixed(4)} Ha</div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-zinc-400">Available (Parent − Roads)</span>
+                      <div className="font-mono">{reconciliation.availableArea.toFixed(4)} Ha</div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-zinc-400">Plots vs Available</span>
+                      <div className={`font-mono ${reconciliation.plotsExceed ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {reconciliation.plotsExceed
+                          ? `Exceeds by ${(reconciliation.computedTotal - reconciliation.availableArea).toFixed(4)} Ha`
+                          : `Within by ${(reconciliation.availableArea - reconciliation.computedTotal).toFixed(4)} Ha`}
+                      </div>
+                    </div>
+                  </div>
+                  {reconciliation.plotsExceed && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-red-400 bg-red-950/30 border border-red-800/60 rounded-lg px-3 py-2">
+                      <AlertCircle className="h-4 w-4" />
+                      Total plot area ({reconciliation.computedTotal.toFixed(4)} Ha) exceeds available area ({reconciliation.availableArea.toFixed(4)} Ha) after deducting roads.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Per-series area breakdown table */}
+            {reconciliation.seriesEntries.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-zinc-300 mb-2">Per-Series Breakdown</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-700">
+                        <th className="text-left py-2 px-3 text-zinc-400 text-xs">Series</th>
+                        <th className="text-center py-2 px-3 text-zinc-400 text-xs">Plots</th>
+                        <th className="text-right py-2 px-3 text-zinc-400 text-xs">Computed (Ha)</th>
+                        <th className="text-right py-2 px-3 text-zinc-400 text-xs">Declared (Ha)</th>
+                        <th className="text-right py-2 px-3 text-zinc-400 text-xs">Diff (Ha)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reconciliation.seriesEntries.map(([series, data]) => {
+                        const diff = data.computedArea - data.declaredArea;
+                        return (
+                          <tr key={series} className="border-b border-zinc-800/50">
+                            <td className="py-2 px-3">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: (SERIES_COLORS[series] || SERIES_COLORS.a).stroke }} />
+                                <span className="font-medium">Series {series.toUpperCase()}</span>
+                              </div>
+                            </td>
+                            <td className="py-2 px-3 text-center">{data.count}</td>
+                            <td className="py-2 px-3 text-right font-mono">{data.computedArea.toFixed(4)}</td>
+                            <td className="py-2 px-3 text-right font-mono">{data.declaredArea.toFixed(4)}</td>
+                            <td className={`py-2 px-3 text-right font-mono ${Math.abs(diff) < 0.0001 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                              {diff >= 0 ? '+' : ''}{diff.toFixed(4)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="border-t border-zinc-600 font-semibold">
+                        <td className="py-2 px-3">Total</td>
+                        <td className="py-2 px-3 text-center">{plots.length}</td>
+                        <td className="py-2 px-3 text-right font-mono">{reconciliation.computedTotal.toFixed(4)}</td>
+                        <td className="py-2 px-3 text-right font-mono">{reconciliation.declaredTotal.toFixed(4)}</td>
+                        <td className={`py-2 px-3 text-right font-mono ${reconciliation.discrepancyPct > 2 ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {reconciliation.discrepancy >= 0 ? '+' : ''}{reconciliation.discrepancy.toFixed(4)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -1237,7 +1580,7 @@ export default function MutationPlanGenerator() {
           </div>
 
           {/* Export buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
             <button
               onClick={handleDownloadSVG}
               disabled={!svgOutput}
@@ -1263,12 +1606,20 @@ export default function MutationPlanGenerator() {
               Download DXF
             </button>
             <button
-              onClick={() => { const w = window.open('', '_blank'); if (w) { w.document.write(svgOutput); w.document.close(); } }}
+              onClick={handleDownloadPDF}
               disabled={!svgOutput}
               className="flex items-center justify-center gap-2 px-6 py-4 border border-[var(--border-color)] rounded-lg text-zinc-300 hover:border-[var(--accent)]/50 disabled:opacity-40"
             >
               <Printer className="h-5 w-5" />
-              Print A1
+              Download PDF (Print)
+            </button>
+            <button
+              onClick={() => { const w = window.open('', '_blank'); if (w) { w.document.write(svgOutput); w.document.close(); } }}
+              disabled={!svgOutput}
+              className="flex items-center justify-center gap-2 px-6 py-4 border border-[var(--border-color)] rounded-lg text-zinc-300 hover:border-[var(--accent)]/50 disabled:opacity-40"
+            >
+              <Eye className="h-5 w-5" />
+              Open in New Tab
             </button>
           </div>
 

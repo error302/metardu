@@ -34,6 +34,7 @@ import {
   MapPinned,
   Milestone,
   Mountain,
+  Layers,
   NotebookPen,
   Pickaxe,
   PlaneTakeoff,
@@ -108,6 +109,8 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '/tools/drone': Drone,
   '/tools/orthophoto-viewer': Eye,
   '/tools/gcp-validation': FileCheck,
+  '/tools/contour-generator': Layers,
+  '/tools/volume-comparison': ChartNoAxesCombined,
   '/tools/point-cloud-import': ScanLine,
   '/tools/topo-drawing': SquareDashedMousePointer,
   '/tools/slope-analysis': ChartArea,
@@ -248,6 +251,8 @@ const TOOL_DEFS: ToolDef[] = [
   { href: '/tools/orthophoto-viewer', title: 'GeoTIFF / Orthophoto Viewer', description: 'Upload orthophotos from Pix4D/Agisoft, trace boundaries on the map, export DXF & KML', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'geotiff orthophoto viewer trace boundaries pix4d agisoft dxf kml' },
   { href: '/tools/gcp-validation', title: 'GCP Residual Validation', description: 'Import residuals from Agisoft/Pix4D, compare against known GCPs, flag per Kenya accuracy classes', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'gcp residual validation agisoft pix4d accuracy class kenya isk' },
   { href: '/tools/point-cloud-import', title: 'Point Cloud Import', description: 'Import XYZ/CSV point clouds from CloudCompare/Agisoft into slope analysis & TIN volume engine', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'point cloud import xyz csv cloudcompare agisoft slope tin volume' },
+  { href: '/tools/contour-generator', title: 'Contour Generator', description: 'Generate contour lines from point cloud data with TIN interpolation, SVG map preview, DXF & KML export', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'contour generator point cloud tin marching triangles dxf kml svg' },
+  { href: '/tools/volume-comparison', title: 'Volume Comparison', description: 'Compare two surveys — cut/fill volumes between existing and as-built surfaces using TIN or IDW grid methods', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'volume comparison cut fill survey as-built tin idw earthworks' },
   { href: '/tools/topo-drawing', title: 'Topo Drawing Composer', description: 'Feature codes & DXF topographic drawings', badge: 'NEW', section: 'Specialized Surveys', keywords: 'topo drawing composer feature codes dxf topographic' },
   { href: '/tools/slope-analysis', title: 'Slope & Area Analysis', description: 'DTM slope classification, cut/fill, area', badge: 'NEW', section: 'Specialized Surveys', keywords: 'slope area analysis dtm classification cut fill' },
   { href: '/tools/gnss-baseline', title: 'GNSS Baseline', description: 'GNSS baseline file processing | RINEX, Topcon, Trimble', section: 'Specialized Surveys', keywords: 'gnss baseline rinex topcon trimble processing' },
@@ -302,6 +307,8 @@ const NEW_BADGE_START: Record<string, string> = {
   '/tools/orthophoto-viewer': '2026-06-01',
   '/tools/gcp-validation': '2026-06-01',
   '/tools/point-cloud-import': '2026-06-01',
+  '/tools/contour-generator': '2026-06-01',
+  '/tools/volume-comparison': '2026-06-01',
 }
 
 function isActiveNewBadge(href: string): boolean {
