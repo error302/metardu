@@ -1,28 +1,28 @@
 /**
- * METARDU — Sign Plan API Route (Phase 3 Enhanced)
+ * METARDU — Cadastral Plan DXF Export API Route
  *
- * Accepts projectId, loads survey plan data from the database,
- * generates the SVG → PDF, applies the digital signature using
- * surveyor credentials from the project, stores the signature
- * record, and returns the signed PDF bytes.
+ * Generates a CAD-ready DXF file from a project's survey plan data.
+ * Uses the dedicated cadastralPlanDXF generator with proper DXF layers
+ * for boundary, beacons, bearings, adjacent lots, buildings, fence,
+ * grid, and title block — all in real-world UTM coordinates.
  *
- * POST /api/sign-plan
- * Body: { projectId: string }
- * Response: PDF binary (application/pdf) or JSON error
+ * GET /api/survey-plan/export/dxf?projectId=xxx
+ * Response: DXF binary (application/dxf) or JSON error
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 import { log } from '@/lib/logger'
-import { generateSignedPdf, type SignedPdfResult } from '@/lib/reports/surveyPlan/signedPdfExport'
+import { generateCadastralPlanDXF } from '@/lib/export/cadastralPlanDXF'
 import type { SurveyPlanData } from '@/lib/reports/surveyPlan/types'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
-  const { projectId } = (ctx.body as { projectId?: string }) || {}
+export const GET = apiHandler({ auth: true }, async (req: NextRequest, ctx) => {
+  const url = new URL(req.url)
+  const projectId = url.searchParams.get('projectId')
   if (!projectId) {
     return NextResponse.json(
-      { error: 'Missing projectId', code: 'MISSING_PROJECT_ID' },
+      { error: 'Missing projectId query parameter', code: 'MISSING_PROJECT_ID' },
       { status: 400 },
     )
   }
@@ -34,7 +34,8 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
             firm_phone, firm_email, drawing_no, reference, plan_title, area_sqm,
             area_ha, parcel_id, street, road_class, isk_reg_no, version,
             sheet_no, total_sheets, north_rotation_deg, lr_number, plot_parcel_number,
-            folio_number, register_number, fir_number, file_reference
+            folio_number, register_number, fir_number, file_reference, hundred,
+            locality
      FROM projects WHERE id = $1 LIMIT 1`,
     [projectId],
   )
@@ -57,7 +58,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
 
   if (boundaryRows.length < 3) {
     return NextResponse.json(
-      { error: 'Project must have at least 3 boundary points', code: 'INSUFFICIENT_POINTS' },
+      { error: 'Project must have at least 3 boundary points for DXF export', code: 'INSUFFICIENT_POINTS' },
       { status: 400 },
     )
   }
@@ -80,13 +81,6 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
     [projectId],
   )
 
-  // ── Load surveyor profile ──
-  const { rows: profileResult } = await db.query(
-    'SELECT full_name, isk_number, firm_name FROM profiles WHERE id = $1 LIMIT 1',
-    [ctx.userId],
-  )
-  const profile = profileResult[0]
-
   // ── Build SurveyPlanData ──
   const surveyPlanData: SurveyPlanData = {
     project: {
@@ -97,9 +91,9 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
       hemisphere: project.hemisphere || 'S',
       datum: project.datum || 'ARC1960',
       client_name: project.client_name || undefined,
-      surveyor_name: project.surveyor_name || profile?.full_name || '',
+      surveyor_name: project.surveyor_name || '',
       surveyor_licence: project.surveyor_licence || '',
-      firm_name: project.firm_name || profile?.firm_name || '',
+      firm_name: project.firm_name || '',
       firm_address: project.firm_address || undefined,
       firm_phone: project.firm_phone || undefined,
       firm_email: project.firm_email || undefined,
@@ -111,7 +105,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
       parcel_id: project.parcel_id || project.lr_number || '',
       street: project.street || undefined,
       road_class: project.road_class || undefined,
-      iskRegNo: project.isk_reg_no || profile?.isk_number || '',
+      iskRegNo: project.isk_reg_no || '',
       version: project.version || undefined,
       sheetNo: project.sheet_no || undefined,
       totalSheets: project.total_sheets || undefined,
@@ -122,6 +116,8 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
       registerNumber: project.register_number || undefined,
       firNumber: project.fir_number || undefined,
       fileReference: project.file_reference || undefined,
+      hundred: project.hundred || undefined,
+      locality: project.locality || undefined,
     },
     parcel: {
       boundaryPoints: boundaryRows.map((row: any) => ({
@@ -163,69 +159,40 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
     })),
   }
 
-  // ── Generate signed PDF ──
+  // ── Generate DXF ──
   try {
-    const signerName = profile?.full_name || project.surveyor_name || ctx.session?.user?.email || 'Unknown Surveyor'
-    const iskNumber = profile?.isk_number || project.isk_reg_no || 'Unknown ISK'
-    const firmName = profile?.firm_name || project.firm_name || ''
-
-    const result: SignedPdfResult = await generateSignedPdf(surveyPlanData, {
-      signerName,
-      iskNumber,
-      firmName,
-      signatureMethod: 'CERTIFICATE',
-      documentId: project.drawing_no || projectId,
+    const dxfContent = generateCadastralPlanDXF(surveyPlanData, {
+      sheetSize: 'A2',
+      includeSheetLayout: true,
+      includeGrid: true,
+      gridInterval: 50,
     })
-
-    // ── Store signature record in database ──
-    const { rows: sigRows } = await db.query(
-      `INSERT INTO signatures (user_id, project_id, signature_data, signer_name, isk_number)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, signed_at`,
-      [
-        ctx.userId,
-        projectId,
-        result.documentHash,
-        signerName,
-        iskNumber,
-      ],
-    )
-
-    if (sigRows.length === 0) {
-      log({
-        level: 'error',
-        message: 'Failed to insert digital signature into database',
-        metadata: { user_id: ctx.userId, project_id: projectId },
-      })
-      // Continue anyway — the PDF is still valid
-    }
 
     log({
       level: 'info',
-      message: 'Signed PDF generated successfully',
+      message: 'DXF export generated successfully',
       metadata: {
         user_id: ctx.userId,
         project_id: projectId,
-        document_hash: result.documentHash.substring(0, 16),
-        verification_token: result.verificationToken,
+        dxf_size_bytes: Buffer.byteLength(dxfContent),
       },
     })
 
-    // ── Return the signed PDF as binary ──
-    return new NextResponse(Buffer.from(result.pdfBytes), {
+    // Return the DXF as a downloadable file
+    const encoder = new TextEncoder()
+    const dxfBytes = encoder.encode(dxfContent)
+
+    return new NextResponse(dxfBytes, {
       status: 200,
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${(project.name || 'survey-plan').replace(/\s+/g, '_')}_signed.pdf"`,
-        'X-Document-Hash': result.documentHash.substring(0, 16),
-        'X-Verification-Token': result.verificationToken,
-        'X-Signed-At': result.signedAt,
+        'Content-Type': 'application/dxf',
+        'Content-Disposition': `attachment; filename="${(project.name || 'cadastral-plan').replace(/\s+/g, '_')}.dxf"`,
       },
     })
   } catch (err) {
     log({
       level: 'error',
-      message: 'Failed to generate signed PDF',
+      message: 'Failed to generate DXF export',
       metadata: {
         user_id: ctx.userId,
         project_id: projectId,
@@ -233,7 +200,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
       },
     })
     return NextResponse.json(
-      { error: 'Failed to generate signed PDF', code: 'PDF_GENERATION_FAILED' },
+      { error: 'Failed to generate DXF export', code: 'DXF_GENERATION_FAILED' },
       { status: 500 },
     )
   }
