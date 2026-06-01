@@ -3,10 +3,12 @@
 import { useState, useMemo } from 'react';
 import {
   FileUp, Plus, Trash2, Eye, Download, Printer,
-  ChevronLeft, ChevronRight, MapPinned, FileText,
-  AlertCircle, CheckCircle
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
+  MapPinned, FileText, AlertCircle, CheckCircle
 } from 'lucide-react';
 import { renderFormNo3 } from '@/lib/reports/surveyPlan/formNo3Renderer';
+import { shoelaceArea } from '@/lib/reports/surveyPlan/geometry';
+import { generateMutationPlanDXF } from '@/lib/generators/mutationPlanDXF';
 import type {
   MutationPlanData, MutationPlot, RoadCorridor,
   SurveyMonument, BearingScheduleEntry,
@@ -210,6 +212,7 @@ export default function MutationPlanGenerator() {
   const [svgOutput, setSvgOutput] = useState('');
   const [csvError, setCsvError] = useState<string | null>(null);
   const [csvSuccess, setCsvSuccess] = useState('');
+  const [bearingScheduleOpen, setBearingScheduleOpen] = useState(false);
 
   // ── Computed bearing schedule from plot boundaries ──
   const computedBearingSchedule = useMemo(() => {
@@ -258,6 +261,18 @@ export default function MutationPlanGenerator() {
     const intN = rangeN > 1000 ? 200 : rangeN > 400 ? 100 : 50;
     return { minE, maxE, minN, maxN, intervalE: intE, intervalN: intN };
   }, [schemeBoundary, plots, monuments]);
+
+  // ── Auto-computed plot areas from boundary points (Shoelace formula) ──
+  const computedPlotAreas = useMemo(() => {
+    const map = new Map<string, number>();
+    plots.forEach((plot) => {
+      if (plot.boundaryPoints.length >= 3) {
+        const areaSqm = shoelaceArea(plot.boundaryPoints);
+        map.set(plot.id, parseFloat((areaSqm / 10000).toFixed(6)));
+      }
+    });
+    return map;
+  }, [plots]);
 
   // ── Generate SVG ──
   const handleGenerate = () => {
@@ -452,6 +467,71 @@ export default function MutationPlanGenerator() {
     img.src = url;
   };
 
+  // ── DXF export (bridge from wizard data → DXF generator) ──
+  const handleDownloadDXF = () => {
+    if (plots.length === 0) return;
+    try {
+      const children = plots.map((plot) => {
+        const pts = plot.boundaryPoints;
+        const computedAreaSqm = shoelaceArea(pts);
+        return {
+          id: plot.id,
+          label: plot.id.toUpperCase(),
+          points: pts.map((p, idx) => ({ ...p, beacon: `${plot.id}.${idx + 1}` })),
+          areaSqm: plot.area_ha * 10000,
+          areaHa: plot.area_ha,
+        };
+      });
+
+      const parentBoundary = schemeBoundary.length >= 3
+        ? schemeBoundary
+        : (() => {
+            const allPts = plots.flatMap((p) => p.boundaryPoints);
+            if (allPts.length < 3) return allPts;
+            const minE = Math.min(...allPts.map((p) => p.easting));
+            const maxE = Math.max(...allPts.map((p) => p.easting));
+            const minN = Math.min(...allPts.map((p) => p.northing));
+            const maxN = Math.max(...allPts.map((p) => p.northing));
+            return [
+              { easting: minE, northing: minN },
+              { easting: maxE, northing: minN },
+              { easting: maxE, northing: maxN },
+              { easting: minE, northing: maxN },
+            ];
+          })();
+
+      const parent = {
+        id: 'PARENT',
+        label: projectInfo.name || 'Parent Parcel',
+        points: parentBoundary,
+        areaSqm: children.reduce((s, c) => s + c.areaSqm, 0),
+        areaHa: children.reduce((s, c) => s + c.areaHa, 0),
+      };
+
+      const dxfContent = generateMutationPlanDXF({
+        parent,
+        children,
+        projectTitle: projectInfo.name,
+        schemeNumber: projectInfo.rimReference || '',
+        surveyorName: projectInfo.surveyor_name || '',
+        surveyorRegistration: projectInfo.surveyor_licence || '',
+        firmName: '',
+        date: projectInfo.date || '',
+        scale: `1:${projectInfo.scale}`,
+      });
+
+      const blob = new Blob([dxfContent], { type: 'application/dxf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${projectInfo.name || 'mutation-plan'}.dxf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('DXF generation error:', err);
+    }
+  };
+
   // ── Update helpers ──
   const updatePlot = (index: number, field: keyof MutationPlot, value: any) => {
     const updated = [...plots];
@@ -471,6 +551,27 @@ export default function MutationPlanGenerator() {
     setRoads(updated);
   };
 
+  const updateRoadCenterlinePoint = (roadIdx: number, ptIdx: number, axis: 'easting' | 'northing', value: number) => {
+    const updated = [...roads];
+    (updated[roadIdx].centerline[ptIdx] as any)[axis] = value;
+    setRoads(updated);
+  };
+
+  const addRoadCenterlinePoint = (roadIdx: number) => {
+    const updated = [...roads];
+    const cl = updated[roadIdx].centerline;
+    const lastPt = cl[cl.length - 1] || { easting: 0, northing: 0 };
+    updated[roadIdx].centerline = [...cl, { easting: lastPt.easting + 50, northing: lastPt.northing }];
+    setRoads(updated);
+  };
+
+  const removeRoadCenterlinePoint = (roadIdx: number, ptIdx: number) => {
+    const updated = [...roads];
+    if (updated[roadIdx].centerline.length <= 2) return; // need at least 2 points
+    updated[roadIdx].centerline = updated[roadIdx].centerline.filter((_, i) => i !== ptIdx);
+    setRoads(updated);
+  };
+
   const updateMonument = (index: number, field: keyof SurveyMonument, value: any) => {
     const updated = [...monuments];
     (updated[index] as any)[field] = value;
@@ -478,6 +579,18 @@ export default function MutationPlanGenerator() {
   };
 
   const totalArea = plots.reduce((sum, p) => sum + p.area_ha, 0);
+
+  // ── Series breakdown for reconciliation ──
+  const seriesBreakdown = useMemo(() => {
+    const map = new Map<string, number>();
+    plots.forEach((p) => {
+      map.set(p.seriesLabel, (map.get(p.seriesLabel) || 0) + 1);
+    });
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([series, count]) => `Series ${series.toUpperCase()}: ${count} plot${count > 1 ? 's' : ''}`)
+      .join(', ');
+  }, [plots]);
 
   // ── Step navigation ──
   const canGoNext = (): boolean => {
@@ -747,13 +860,27 @@ export default function MutationPlanGenerator() {
                         </div>
                       </td>
                       <td className="py-2 px-2 text-right">
-                        <input
-                          type="number"
-                          step="0.0001"
-                          value={plot.area_ha}
-                          onChange={(e) => updatePlot(i, 'area_ha', parseFloat(e.target.value) || 0)}
-                          className="w-20 px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-sm text-white text-right"
-                        />
+                        <div className="flex items-center gap-1 justify-end">
+                          <input
+                            type="number"
+                            step="0.0001"
+                            value={plot.area_ha}
+                            onChange={(e) => updatePlot(i, 'area_ha', parseFloat(e.target.value) || 0)}
+                            className="w-20 px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-sm text-white text-right"
+                          />
+                          {computedPlotAreas.has(plot.id) && (
+                            <span
+                              title={`Computed: ${computedPlotAreas.get(plot.id)!.toFixed(4)} Ha`}
+                              className={`text-[9px] px-1 py-0.5 rounded font-mono ${
+                                Math.abs(plot.area_ha - computedPlotAreas.get(plot.id)!) < 0.0001
+                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                              }`}
+                            >
+                              {Math.abs(plot.area_ha - computedPlotAreas.get(plot.id)!) < 0.0001 ? 'auto' : `${computedPlotAreas.get(plot.id)!.toFixed(3)}`}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-2 px-2 text-center">
                         <input
@@ -863,6 +990,42 @@ export default function MutationPlanGenerator() {
                   </div>
                   <div className="text-xs text-zinc-500">
                     Centerline: {road.centerline.length} points
+                    <button
+                      onClick={() => addRoadCenterlinePoint(i)}
+                      className="ml-1 text-[var(--accent)] hover:underline"
+                    >
+                      +pt
+                    </button>
+                  </div>
+                  {/* Centerline point editing */}
+                  <div className="space-y-1">
+                    {road.centerline.map((pt, j) => (
+                      <div key={j} className="flex items-center gap-1">
+                        <span className="text-[10px] text-zinc-600 w-4">{j + 1}</span>
+                        <input
+                          type="number"
+                          value={pt.easting}
+                          onChange={(e) => updateRoadCenterlinePoint(i, j, 'easting', parseFloat(e.target.value) || 0)}
+                          className="w-24 px-1 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-xs text-white"
+                          placeholder="E"
+                        />
+                        <input
+                          type="number"
+                          value={pt.northing}
+                          onChange={(e) => updateRoadCenterlinePoint(i, j, 'northing', parseFloat(e.target.value) || 0)}
+                          className="w-24 px-1 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-xs text-white"
+                          placeholder="N"
+                        />
+                        {road.centerline.length > 2 && (
+                          <button
+                            onClick={() => removeRoadCenterlinePoint(i, j)}
+                            className="text-red-500 hover:text-red-400"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -946,6 +1109,63 @@ export default function MutationPlanGenerator() {
             )}
           </div>
 
+          {/* Bearing Schedule Preview (collapsible) */}
+          <div className="lg:col-span-2 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
+            <button
+              onClick={() => setBearingScheduleOpen(!bearingScheduleOpen)}
+              className="flex items-center justify-between w-full text-left"
+            >
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <FileText className="h-5 w-5 text-[var(--accent)]" />
+                Bearing Schedule Preview
+                <span className="text-xs text-zinc-500 font-normal">
+                  ({computedBearingSchedule.length} lines)
+                </span>
+              </h3>
+              {bearingScheduleOpen ? (
+                <ChevronUp className="h-4 w-4 text-zinc-400" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-zinc-400" />
+              )}
+            </button>
+            {bearingScheduleOpen && computedBearingSchedule.length > 0 && (
+              <div className="mt-4 overflow-x-auto max-h-72">
+                <table className="w-full text-sm min-w-[500px]">
+                  <thead className="sticky top-0 bg-zinc-900">
+                    <tr className="border-b border-zinc-700">
+                      <th className="text-left py-2 px-2 text-zinc-400 text-xs">Line</th>
+                      <th className="text-left py-2 px-2 text-zinc-400 text-xs">From</th>
+                      <th className="text-left py-2 px-2 text-zinc-400 text-xs">To</th>
+                      <th className="text-left py-2 px-2 text-zinc-400 text-xs">Bearing</th>
+                      <th className="text-right py-2 px-2 text-zinc-400 text-xs">Distance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {computedBearingSchedule.slice(0, 30).map((entry, i) => (
+                      <tr key={i} className="border-b border-zinc-800/50">
+                        <td className="py-1.5 px-2 text-xs">{entry.lineId}</td>
+                        <td className="py-1.5 px-2 text-xs">{entry.from}</td>
+                        <td className="py-1.5 px-2 text-xs">{entry.to}</td>
+                        <td className="py-1.5 px-2 text-xs font-mono">{entry.bearing_dms}</td>
+                        <td className="py-1.5 px-2 text-xs text-right">{entry.distance_m.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {computedBearingSchedule.length > 30 && (
+                  <p className="text-xs text-zinc-500 mt-2 text-center">
+                    Showing 30 of {computedBearingSchedule.length} entries. Full schedule available in Step 4.
+                  </p>
+                )}
+              </div>
+            )}
+            {bearingScheduleOpen && computedBearingSchedule.length === 0 && (
+              <p className="text-sm text-zinc-500 mt-4 text-center py-4">
+                No bearing schedule entries yet. Add plots with boundary points to generate entries.
+              </p>
+            )}
+          </div>
+
           <div className="lg:col-span-2 flex justify-between">
             <button
               onClick={prevStep}
@@ -971,19 +1191,35 @@ export default function MutationPlanGenerator() {
        * ══════════════════════════════════════════════════════════════ */}
       {step === 4 && (
         <div className="space-y-6">
-          {/* Stats bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Plots', value: plots.length },
-              { label: 'Total Area', value: `${totalArea.toFixed(4)} Ha` },
-              { label: 'Roads', value: roads.length },
-              { label: 'Monuments', value: monuments.length },
-            ].map((stat) => (
-              <div key={stat.label} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 text-center">
-                <div className="text-xs text-zinc-400 mb-1">{stat.label}</div>
-                <div className="text-xl font-bold text-[var(--accent)]">{stat.value}</div>
+          {/* ── Area Reconciliation Summary ── */}
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-emerald-400" />
+              Area Reconciliation Summary
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+              <div className="bg-zinc-800 rounded-lg p-3 text-center">
+                <div className="text-xs text-zinc-400 mb-1">Total Plots</div>
+                <div className="text-xl font-bold text-[var(--accent)]">{plots.length}</div>
               </div>
-            ))}
+              <div className="bg-zinc-800 rounded-lg p-3 text-center">
+                <div className="text-xs text-zinc-400 mb-1">Total Area</div>
+                <div className="text-xl font-bold text-[var(--accent)]">{totalArea.toFixed(4)} Ha</div>
+              </div>
+              <div className="bg-zinc-800 rounded-lg p-3 text-center">
+                <div className="text-xs text-zinc-400 mb-1">Roads</div>
+                <div className="text-xl font-bold text-[var(--accent)]">{roads.length}</div>
+              </div>
+              <div className="bg-zinc-800 rounded-lg p-3 text-center">
+                <div className="text-xs text-zinc-400 mb-1">Monuments</div>
+                <div className="text-xl font-bold text-[var(--accent)]">{monuments.length}</div>
+              </div>
+            </div>
+            {seriesBreakdown && (
+              <div className="text-sm text-zinc-400 bg-zinc-800/50 rounded-lg px-4 py-2">
+                <span className="text-zinc-500 font-medium">Plot Series:</span> {seriesBreakdown}
+              </div>
+            )}
           </div>
 
           {/* SVG Preview */}
@@ -1001,7 +1237,7 @@ export default function MutationPlanGenerator() {
           </div>
 
           {/* Export buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <button
               onClick={handleDownloadSVG}
               disabled={!svgOutput}
@@ -1017,6 +1253,14 @@ export default function MutationPlanGenerator() {
             >
               <Download className="h-5 w-5" />
               Download PNG (A1 300dpi)
+            </button>
+            <button
+              onClick={handleDownloadDXF}
+              disabled={plots.length === 0}
+              className="flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-black rounded-lg font-semibold disabled:opacity-40"
+            >
+              <Download className="h-5 w-5" />
+              Download DXF
             </button>
             <button
               onClick={() => { const w = window.open('', '_blank'); if (w) { w.document.write(svgOutput); w.document.close(); } }}
