@@ -121,7 +121,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <CountryProvider>
           <SubscriptionProvider>
             <NavBar />
-            <main id="main-content" className="min-h-screen pb-16 md:pb-0 mobile-nav-spacer max-w-full overflow-x-hidden">
+            <main id="main-content" className="min-h-screen pb-40 md:pb-0 mobile-nav-spacer max-w-full overflow-x-hidden">
               {children}
             </main>
             <Footer />

@@ -1,0 +1,52 @@
+import { NextResponse } from 'next/server'
+import { apiHandler, apiSuccess } from '@/lib/apiHandler'
+import { db } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
+
+/**
+ * POST /api/admin/announcements
+ *
+ * Create a broadcast announcement visible to selected user groups.
+ * Requires auth + super_admin or admin role.
+ *
+ * Body:
+ *   title   (string, required)
+ *   body    (string, required)
+ *   target  ('all' | 'pro' | 'free' | 'enterprise', default 'all')
+ */
+export const POST = apiHandler(
+  { auth: true, roles: ['super_admin', 'admin', 'org_admin'] },
+  async (req, ctx) => {
+    const payload = ctx.body as Record<string, unknown>
+    const title = String(payload.title || '').trim()
+    const body = String(payload.body || '').trim()
+    const target = String(payload.target || 'all')
+
+    if (!title || !body) {
+      return NextResponse.json(
+        { error: 'Title and body are required' },
+        { status: 400 },
+      )
+    }
+
+    const validTargets = ['all', 'pro', 'free', 'enterprise']
+    if (!validTargets.includes(target)) {
+      return NextResponse.json(
+        { error: 'Invalid target audience' },
+        { status: 400 },
+      )
+    }
+
+    const userId = ctx.userId
+
+    const result = await db.query(
+      `INSERT INTO announcements (title, body, target, created_by, created_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       RETURNING id, title, body, target, created_at`,
+      [title, body, target, userId],
+    )
+
+    return apiSuccess(result.rows[0])
+  },
+)

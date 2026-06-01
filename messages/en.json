@@ -143,6 +143,37 @@
     "misclosure": "Misclosure",
     "allowable": "Allowable"
   },
+  "tools": {
+    "distance": "Distance & Bearing",
+    "bearingCalc": "Bearing Calculator",
+    "area": "Area Calculator",
+    "grade": "Gradient Calculator",
+    "coordinates": "Coordinate Converter",
+    "cogo": "COGO Calculator",
+    "gnss": "GNSS Tool",
+    "twoPegTest": "Two Peg Test",
+    "curves": "Horizontal Curves",
+    "chainage": "Chainage Calculator",
+    "tacheometry": "Tacheometry",
+    "crossSections": "Cross Sections",
+    "settingOut": "Setting Out",
+    "mining": "Mining Survey",
+    "hydrographic": "Hydrographic Survey",
+    "drone": "Drone / UAV"
+  },
+  "documents": {
+    "deedPlan": "Deed Plan",
+    "surveyReport": "Survey Report Builder",
+    "beaconReference": "Beacon Certificate"
+  },
+  "resources": {
+    "datumConverter": "Datum Converter",
+    "kencorsRtk": "KenCORS RTK",
+    "knowledgeBase": "Knowledge Base"
+  },
+  "guides": {
+    "title": "Survey Guide"
+  },
   "surveyReport": {
     "title": "Survey Report",
     "subtitle": "Boundary Survey Report — Republic of Kenya",

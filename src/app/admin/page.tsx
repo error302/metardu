@@ -7,9 +7,10 @@ import Link from 'next/link'
 import {
   Users, FolderKanban, LandPlot, RadioTower,
   DollarSign, Activity, Clock, Database,
-  HardDrive, Cpu, ArrowUpRight, TrendingUp,
+  HardDrive, Cpu, TrendingUp,
   UserPlus, ShieldCheck, Settings2, FileText,
   CreditCard, Loader2, AlertCircle, ChevronRight,
+  Megaphone, Check, X,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -40,6 +41,16 @@ interface DashboardData {
     plan: string
     createdAt: string
   }[]
+  iskPendingCount: number
+  iskQueue: {
+    id: string
+    email: string
+    name: string
+    iskNumber: string
+    submittedAt: string
+  }[]
+  activeSubscriptions: { free: number; pro: number; enterprise: number }
+  submissionsThisMonth: number
   system: {
     database: {
       status: string
@@ -161,6 +172,23 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Broadcast state
+  const [announcementTitle, setAnnouncementTitle] = useState('')
+  const [announcementBody, setAnnouncementBody] = useState('')
+  const [announcementTarget, setAnnouncementTarget] = useState('all')
+  const [broadcastSending, setBroadcastSending] = useState(false)
+  const [broadcastResult, setBroadcastResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  // Subscription override state
+  const [overrideEmail, setOverrideEmail] = useState('')
+  const [overridePlan, setOverridePlan] = useState('pro')
+  const [overrideDays, setOverrideDays] = useState('30')
+  const [overrideSending, setOverrideSending] = useState(false)
+  const [overrideResult, setOverrideResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  // ISK queue processing
+  const [iskProcessing, setIskProcessing] = useState<Set<string>>(new Set())
+
   const fetchDashboard = useCallback(async () => {
     try {
       setLoading(true)
@@ -195,6 +223,90 @@ export default function AdminDashboardPage() {
       fetchDashboard()
     }
   }, [sessionStatus, fetchDashboard, router])
+
+  const handleBroadcast = async () => {
+    if (!announcementTitle || !announcementBody) return
+    setBroadcastSending(true)
+    setBroadcastResult(null)
+    try {
+      const res = await fetch('/api/admin/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: announcementTitle,
+          body: announcementBody,
+          target: announcementTarget,
+        }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setBroadcastResult({ ok: true, msg: 'Announcement sent successfully!' })
+        setAnnouncementTitle('')
+        setAnnouncementBody('')
+      } else {
+        setBroadcastResult({ ok: false, msg: json.error || 'Failed to send' })
+      }
+    } catch {
+      setBroadcastResult({ ok: false, msg: 'Network error' })
+    } finally {
+      setBroadcastSending(false)
+    }
+  }
+
+  const handleOverride = async () => {
+    if (!overrideEmail || !overridePlan) return
+    setOverrideSending(true)
+    setOverrideResult(null)
+    try {
+      const res = await fetch('/api/admin/users/override-plan', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: overrideEmail,
+          plan: overridePlan,
+          days: parseInt(overrideDays, 10) || 30,
+        }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setOverrideResult({ ok: true, msg: `Plan updated to ${overridePlan} for ${overrideDays} days` })
+        setOverrideEmail('')
+      } else {
+        setOverrideResult({ ok: false, msg: json.error || 'Failed to update' })
+      }
+    } catch {
+      setOverrideResult({ ok: false, msg: 'Network error' })
+    } finally {
+      setOverrideSending(false)
+    }
+  }
+
+  const handleIskAction = async (userId: string, approve: boolean) => {
+    setIskProcessing(prev => new Set(prev).add(userId))
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/verify-isk`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verified: approve }),
+      })
+      if (res.ok) {
+        // Remove from queue locally
+        setData(prev => prev ? {
+          ...prev,
+          iskQueue: prev.iskQueue.filter(u => u.id !== userId),
+          iskPendingCount: Math.max(0, prev.iskPendingCount - 1),
+        } : prev)
+      }
+    } catch {
+      // Silently fail — user can retry
+    } finally {
+      setIskProcessing(prev => {
+        const next = new Set(prev)
+        next.delete(userId)
+        return next
+      })
+    }
+  }
 
   // Loading state
   if (sessionStatus === 'loading' || (loading && !data)) {
@@ -295,7 +407,32 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      {/* Revenue + Recent Signups */}
+      {/* Extended Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <StatCard
+          icon={CreditCard}
+          label="Pro Subscribers"
+          value={data.activeSubscriptions?.pro ?? 0}
+          subValue={`Enterprise: ${data.activeSubscriptions?.enterprise ?? 0}`}
+          color="#a78bfa"
+        />
+        <StatCard
+          icon={FileText}
+          label="Submissions (month)"
+          value={data.submissionsThisMonth ?? 0}
+          subValue="This calendar month"
+          color="#34d399"
+        />
+        <StatCard
+          icon={ShieldCheck}
+          label="ISK Pending Verification"
+          value={data.iskPendingCount ?? 0}
+          trend={data.iskPendingCount > 0 ? 'up' : 'neutral'}
+          color="#fbbf24"
+        />
+      </div>
+
+      {/* Revenue + ISK Verification Queue */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Revenue Overview */}
         <div className="card">
@@ -332,6 +469,86 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* ISK Verification Queue */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-amber-400" />
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                ISK Verification Queue
+              </h2>
+            </div>
+            <Link href="/admin/users?role=surveyor" className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1">
+              View all <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="p-0">
+            {(data.iskQueue ?? []).length > 0 ? (
+              <div className="max-h-72 overflow-y-auto">
+                <table className="w-full min-w-[480px]">
+                  <thead>
+                    <tr className="table-header">
+                      <th className="px-4 py-2 text-left">Surveyor</th>
+                      <th className="px-4 py-2 text-left">ISK No.</th>
+                      <th className="px-4 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.iskQueue.map((user) => (
+                      <tr key={user.id} className="table-row">
+                        <td className="table-cell">
+                          <div>
+                            <p className="text-[var(--text-primary)] font-medium text-sm truncate max-w-[160px]">
+                              {user.name}
+                            </p>
+                            <p className="text-xs text-[var(--text-muted)] truncate max-w-[160px]">
+                              {user.email}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="table-cell text-sm font-mono">
+                          {user.iskNumber}
+                        </td>
+                        <td className="table-cell text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleIskAction(user.id, true)}
+                              disabled={iskProcessing.has(user.id)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                              title="Approve ISK"
+                            >
+                              {iskProcessing.has(user.id) ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleIskAction(user.id, false)}
+                              disabled={iskProcessing.has(user.id)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                              title="Reject ISK"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-5 text-center text-sm text-[var(--text-muted)]">
+                No pending ISK verifications
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Signups + Broadcast */}
+      <div className="grid lg:grid-cols-2 gap-6">
         {/* Recent Signups */}
         <div className="card">
           <div className="card-header">
@@ -398,10 +615,63 @@ export default function AdminDashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Broadcast Announcement */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-blue-400" />
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                Broadcast Announcement
+              </h2>
+            </div>
+          </div>
+          <div className="p-5 space-y-3">
+            <input
+              type="text"
+              placeholder="Announcement title..."
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 outline-none transition-all"
+              value={announcementTitle}
+              onChange={e => setAnnouncementTitle(e.target.value)}
+            />
+            <textarea
+              placeholder="Message body..."
+              rows={3}
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm resize-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 outline-none transition-all"
+              value={announcementBody}
+              onChange={e => setAnnouncementBody(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <select
+                className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none transition-all"
+                value={announcementTarget}
+                onChange={e => setAnnouncementTarget(e.target.value)}
+              >
+                <option value="all">All Users</option>
+                <option value="pro">Pro Users Only</option>
+                <option value="free">Free Users Only</option>
+                <option value="enterprise">Enterprise Only</option>
+              </select>
+              <button
+                onClick={handleBroadcast}
+                className="btn btn-primary flex items-center gap-2"
+                disabled={!announcementTitle || !announcementBody || broadcastSending}
+              >
+                {broadcastSending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Send
+              </button>
+            </div>
+            {broadcastResult && (
+              <p className={`text-xs ${broadcastResult.ok ? 'text-green-400' : 'text-red-400'}`}>
+                {broadcastResult.msg}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* System Health + Quick Actions */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      {/* System Health + Quick Actions + Subscription Override */}
+      <div className="grid lg:grid-cols-3 gap-6">
         {/* System Health */}
         <div className="card">
           <div className="card-header">
@@ -549,6 +819,60 @@ export default function AdminDashboardPage() {
             </Link>
           </div>
         </div>
+
+        {/* Subscription Override (super_admin only) */}
+        {isSuperAdmin && (
+          <div className="card">
+            <div className="card-header">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-purple-400" />
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                  Subscription Override
+                </h2>
+              </div>
+            </div>
+            <div className="p-5 space-y-3">
+              <input
+                type="email"
+                placeholder="User email..."
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 outline-none transition-all"
+                value={overrideEmail}
+                onChange={e => setOverrideEmail(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none transition-all"
+                  value={overridePlan}
+                  onChange={e => setOverridePlan(e.target.value)}
+                >
+                  <option value="free">Free</option>
+                  <option value="pro">Pro</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+                <input
+                  type="number"
+                  placeholder="Days"
+                  className="w-24 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none transition-all"
+                  value={overrideDays}
+                  onChange={e => setOverrideDays(e.target.value)}
+                />
+                <button
+                  onClick={handleOverride}
+                  className="btn btn-primary flex items-center gap-2"
+                  disabled={!overrideEmail || overrideSending}
+                >
+                  {overrideSending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Apply
+                </button>
+              </div>
+              {overrideResult && (
+                <p className={`text-xs ${overrideResult.ok ? 'text-green-400' : 'text-red-400'}`}>
+                  {overrideResult.msg}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

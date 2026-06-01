@@ -94,6 +94,44 @@ export const GET = apiHandler(
       createdAt: row.created_at,
     }))
 
+    // ── ISK Verification Queue ──
+    const iskPendingRes = await db.query(
+      `SELECT COUNT(*)::int AS count FROM users WHERE verified_isk = false AND isk_number IS NOT NULL`,
+    )
+    const iskPendingCount = iskPendingRes.rows[0]?.count ?? 0
+
+    // ── Subscription breakdown ──
+    const subCountsRes = await db.query(
+      `SELECT plan_id, COUNT(*)::int AS count FROM user_subscriptions GROUP BY plan_id`,
+    )
+    const activeSubscriptions: Record<string, number> = { free: 0, pro: 0, enterprise: 0 }
+    for (const row of subCountsRes.rows) {
+      const plan = row.plan_id || 'free'
+      activeSubscriptions[plan] = (activeSubscriptions[plan] || 0) + row.count
+    }
+
+    // ── Submissions this month ──
+    const submissionsRes = await db.query(
+      `SELECT COUNT(*)::int AS count FROM submissions WHERE created_at >= date_trunc('month', CURRENT_DATE)`,
+    )
+    const submissionsThisMonth = submissionsRes.rows[0]?.count ?? 0
+
+    // ── ISK pending users (for queue display) ──
+    const iskQueueRes = await db.query(
+      `SELECT id, email, full_name, isk_number, created_at
+       FROM users
+       WHERE verified_isk = false AND isk_number IS NOT NULL
+       ORDER BY created_at DESC
+       LIMIT 10`,
+    )
+    const iskQueue = iskQueueRes.rows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      name: row.full_name || row.email?.split('@')[0],
+      iskNumber: row.isk_number,
+      submittedAt: row.created_at,
+    }))
+
     // ── System health ──
     let dbStatus = 'healthy'
     let dbLatencyMs = 0
@@ -127,6 +165,10 @@ export const GET = apiHandler(
         byMonth: revenueByMonth,
       },
       recentSignups,
+      iskPendingCount,
+      iskQueue,
+      activeSubscriptions,
+      submissionsThisMonth,
       system: {
         database: {
           status: dbStatus,

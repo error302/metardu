@@ -177,7 +177,7 @@ export default function FieldMapPage() {
 
   /* ── Render ───────────────────────────────────────────────────── */
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-[#0a0a0f]">
+    <div className="relative w-full overflow-hidden bg-[#0a0a0f]" style={{ height: '100dvh' }}>
       {/* ═══════════════════════════════════════════════════════════ */}
       {/*  MAP — FULL BLEED (absolute, no padding)                    */}
       {/* ═══════════════════════════════════════════════════════════ */}
