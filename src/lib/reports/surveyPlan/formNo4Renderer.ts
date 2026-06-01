@@ -4,8 +4,10 @@
  * Extends base SurveyPlanRenderer with Form No. 4 specific features
  */
 
+import { createHash } from 'crypto'
 import { SurveyPlanRenderer } from './renderer'
 import type { SurveyPlanData, PlanOptions, CoordinateScheduleEntry } from './types'
+import { getRoadReserveWidth } from './types'
 import {
   DPI, PX_PER_MM, PX_PER_M,
   PAGE_WIDTH_MM, PAGE_HEIGHT_MM,
@@ -229,22 +231,30 @@ private drawLRNumbersOnParcels(): string {
   }
 
   /**
-   * Draw road annotations (Form No. 4 Rule 3)
+   * Draw road annotations for Form No. 4.
+   * Shows road reserve width annotation and truncation note using actual
+   * road class data. The base class drawRoadTruncationLines() provides
+   * the actual tick marks along road boundaries.
    */
-private drawRoadAnnotations(): string {
+  private drawRoadAnnotations(): string {
   const p = this.data.project
 
-  const minE = Math.min(...this.rotatedPoints.map(p => p.easting))
-  const maxE = Math.max(...this.rotatedPoints.map(p => p.easting))
-  const minN = Math.min(...this.rotatedPoints.map(p => p.northing))
+  const minE = Math.min(...this.rotatedPoints.map(pt => pt.easting))
+  const maxE = Math.max(...this.rotatedPoints.map(pt => pt.easting))
+  const minN = Math.min(...this.rotatedPoints.map(pt => pt.northing))
     
     const cx = this.toSvgX((minE + maxE) / 2)
     const cy = this.toSvgY(minN) + mmToPx(15)
 
     let svg = ''
+
+    // Compute actual road reserve width from project road_class
+    const roadClass = p.road_class
+    const roadWidth = roadClass ? getRoadReserveWidth(roadClass) : 0
+    const widthText = roadWidth > 0 ? `All new roads are ${roadWidth.toFixed(2)}m Wide` : 'All new roads are 12.00m Wide'
     
-    // Road width note
-    svg += `<text x="${cx}" y="${cy}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">All new roads are 12.00m Wide</text>`
+    // Road width note with actual width value
+    svg += `<text x="${cx}" y="${cy}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">${widthText}</text>`
     
     // Road truncation note
     svg += `<text x="${cx}" y="${cy + mmToPx(5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">All road truncations ±6mm</text>`
@@ -570,37 +580,27 @@ private drawFormNo4RightPanel(): string {
   /**
    * Draw print verification hash at the bottom of the plan.
    * Overrides base class to include Form No. 4 specific data (folio, register).
-   * Uses FNV-1a double-pass hash for stronger verification codes.
+   * Uses SHA-256 cryptographic hash for production-grade verification.
    */
   protected drawPrintVerification(): string {
     const d = this.formNo4Data
     const pts = this.rotatedPoints
+    const p = this.data.project
 
     // Build a verification string from key plan data (includes Form No. 4 fields)
-    const coordString = pts.map(p => `${p.easting.toFixed(4)},${p.northing.toFixed(4)}`).join('|')
+    const coordString = pts.map(pt => `${pt.easting.toFixed(4)},${pt.northing.toFixed(4)}`).join('|')
     const areaVal = this.data.parcel.area_sqm.toFixed(4)
     const lrNum = d.lrNumber || 'UNKNOWN'
     const scaleVal = this.scale
     const dateStr = d.declarationDate || new Date().toISOString().split('T')[0]
     const folio = d.folioNumber || ''
     const register = d.registerNumber || ''
+    const surveyorLicence = p.surveyor_licence || ''
+    const revisionsCount = (p.revisions || []).length
 
-    // FNV-1a double-pass hash for deterministic verification code
-    const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}|${folio}|${register}`
-    let h1 = 0x811c9dc5 // FNV offset basis
-    for (let i = 0; i < rawString.length; i++) {
-      h1 ^= rawString.charCodeAt(i)
-      h1 = Math.imul(h1, 0x01000193) // FNV prime
-      h1 = h1 >>> 0
-    }
-    let h2 = 0x811c9dc5
-    const hex1 = h1.toString(16).toUpperCase().padStart(8, '0')
-    for (let i = 0; i < hex1.length; i++) {
-      h2 ^= hex1.charCodeAt(i)
-      h2 = Math.imul(h2, 0x01000193)
-      h2 = h2 >>> 0
-    }
-    const verCode = hex1 + h2.toString(16).toUpperCase().padStart(8, '0')
+    // SHA-256 cryptographic hash for deterministic verification code
+    const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}|${folio}|${register}|${surveyorLicence}|${revisionsCount}`
+    const verCode = createHash('sha256').update(rawString).digest('hex').toUpperCase().slice(0, 16)
 
     const y = this.pageH - mmToPx(3)
     const cx = this.pageW / 2

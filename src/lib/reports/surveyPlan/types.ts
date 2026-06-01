@@ -17,6 +17,8 @@ export interface AdjacentLot {
   boundaryPoints: Array<{ easting: number; northing: number }>
   planReference?: string
   side?: 'left' | 'right' | 'top' | 'bottom'
+  /** Whether this adjacent lot represents a road reserve boundary edge */
+  roadReserveEdge?: boolean
 }
 
 export interface Building {

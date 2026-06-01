@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import type { SurveyPlanData, PlanOptions } from './types'
 import { getRoadReserveWidth } from './types'
 import { generateBearingScheduleCSV } from '../bearingScheduleCSV'
@@ -363,6 +364,10 @@ export class SurveyPlanRenderer {
     svg += `<text x="${sealX + sealW/2}" y="${sealY + sealH/2 - 1}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">SURVEYOR</text>`
     svg += `<text x="${sealX + sealW/2}" y="${sealY + sealH/2 + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">SEAL</text>`
 
+    // Signature line above surveyor credentials
+    const sigY = y - h + mmToPx(17)
+    svg += `<line x1="${x + mmToPx(1)}" y1="${sigY}" x2="${x + w - mmToPx(1)}" y2="${sigY}" stroke="${C_BLACK}" stroke-width="0.3"/>`
+
     // Surveyor credentials below stamp area
     const credY = y - h + mmToPx(19)
     if (surveyorName) {
@@ -374,6 +379,10 @@ export class SurveyPlanRenderer {
     if (iskRegNo) {
       svg += `<text x="${x + mmToPx(1)}" y="${credY + mmToPx(5)}" font-family="Share Tech Mono, Courier New" font-size="3" fill="#555">ISK Reg. ${escapeXml(iskRegNo)}</text>`
     }
+
+    // Date line below surveyor credentials
+    const dateY = credY + mmToPx(7)
+    svg += `<text x="${x + mmToPx(1)}" y="${dateY}" font-family="Share Tech Mono, Courier New" font-size="3" fill="#555">Date: ___________</text>`
 
     return svg
   }
@@ -535,7 +544,12 @@ export class SurveyPlanRenderer {
     })
     const rows = revisions.slice(0, 10)
     if (rows.length === 0) {
-      rows.push({ rev: '-', date: '-', description: 'Initial issue', by: p.surveyor_name || '' })
+      rows.push({ rev: 'A', date: new Date().toLocaleDateString('en-GB'), description: 'Initial issue', by: p.surveyor_name || '' })
+    }
+    // Column separator lines for better readability
+    for (let c = 1; c < 4; c++) {
+      const colX = leftPad + colW * c
+      svg += `<line x1="${colX}" y1="${hY}" x2="${colX}" y2="${hY + rows.length * rowH}" stroke="${C_BLACK}" stroke-width="0.15" opacity="0.25"/>`
     }
     rows.forEach((row, i) => {
       const ry = hY + rowH * (i + 1)
@@ -972,6 +986,7 @@ export class SurveyPlanRenderer {
    * Per Kenya cadastral practice, road boundaries are shown with short
    * perpendicular tick marks (truncation lines) at regular intervals along
    * the boundary edge, indicating the road reserve extent.
+   * Now includes road reserve width annotation labels.
    * Source: Survey Act Cap. 299, Form No. 3 & 4 — Road Truncation Lines
    */
   protected drawRoadTruncationLines(): string {
@@ -983,6 +998,10 @@ export class SurveyPlanRenderer {
 
     let svg = ''
     const [parcelCe, parcelCn] = centroid(parcelPts)
+
+    // Compute road reserve width from project road_class
+    const roadClass = this.data.project.road_class
+    const roadWidth = roadClass ? getRoadReserveWidth(roadClass) : 0
 
     // For each boundary segment, check if the adjacent lot is a road
     for (let segIdx = 0; segIdx < parcelPts.length; segIdx++) {
@@ -1003,8 +1022,11 @@ export class SurveyPlanRenderer {
       })
 
       // Draw truncation ticks if adjacent lot appears to be a road
-      // Detection: lot id contains road keywords, or project has road_class, or project has street name
+      // Detection: roadReserveEdge flag, lot id contains road keywords or Rd/RR prefix,
+      // project has road_class, or project has street name
       const isRoad = matchingLot && (
+        matchingLot.roadReserveEdge === true ||
+        /^Rd|^RR/i.test(matchingLot.id) ||
         /road|rd\.?|street|st\.?|reserve|lane|drive|way|avenue|ave/i.test(matchingLot.id) ||
         this.data.project.road_class ||
         this.data.project.street
@@ -1049,6 +1071,27 @@ export class SurveyPlanRenderer {
 
         svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C_BLACK}" stroke-width="0.5" opacity="0.7"/>`
       }
+
+      // Road width annotation label along the road segment
+      if (roadWidth > 0) {
+        const labelOffset = tickLength * 1.5 // Place label beyond tick ends
+        const labelE = midE + perpE * labelOffset
+        const labelN = midN + perpN * labelOffset
+        const lx = this.toSvgX(labelE)
+        const ly = this.toSvgY(labelN)
+        const widthLabel = `${roadWidth.toFixed(2)}m`
+
+        // Rotate label to align with road segment direction
+        const angleDeg = segmentAngle(segFrom.easting, segFrom.northing, segTo.easting, segTo.northing)
+        let textAngle = angleDeg
+        if (textAngle > 90 || textAngle < -90) textAngle += 180
+
+        svg += `<g transform="translate(${lx},${ly})">`
+        svg += `<g transform="rotate(${textAngle})">`
+        svg += `<rect x="${-widthLabel.length * 2.5}" y="${-4}" width="${widthLabel.length * 5}" height="8" fill="white" opacity="0.8" stroke="none"/>`
+        svg += `<text x="0" y="2" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}" opacity="0.7">${widthLabel}</text>`
+        svg += `</g></g>`
+      }
     }
 
     return svg
@@ -1056,9 +1099,10 @@ export class SurveyPlanRenderer {
 
   /**
    * Draw print verification hash at the bottom of the plan.
-   * Generates a deterministic verification code from the plan's key geometric
-   * data (coordinates, bearings, area) and displays it alongside a generation
-   * timestamp. This can be used to confirm the plan hasn't been altered.
+   * Generates a deterministic SHA-256 verification code from the plan's key
+   * data (coordinates, area, LR number, scale, date, surveyor licence, revisions)
+   * and displays it alongside a generation timestamp. This can be used to
+   * confirm the plan hasn't been altered.
    * Per Kenya survey practice, plan integrity verification is required
    * for legal admissibility under Survey Act Cap. 299, Sec. 23.
    */
@@ -1072,25 +1116,12 @@ export class SurveyPlanRenderer {
     const lrNum = p.lrNumber || p.parcel_id || p.name || 'UNKNOWN'
     const scaleVal = this.scale
     const dateStr = new Date().toISOString().split('T')[0]
+    const surveyorLicence = p.surveyor_licence || ''
+    const revisionsCount = (p.revisions || []).length
 
-    // Deterministic verification code using FNV-1a-inspired hash
-    // This is NOT cryptographic — for production, use SHA-256 from crypto module
-    const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}`
-    let h1 = 0x811c9dc5 // FNV offset basis (32-bit)
-    for (let i = 0; i < rawString.length; i++) {
-      h1 ^= rawString.charCodeAt(i)
-      h1 = Math.imul(h1, 0x01000193) // FNV prime
-      h1 = h1 >>> 0 // Ensure unsigned 32-bit
-    }
-    // Second pass for better distribution
-    let h2 = 0x811c9dc5
-    const hex1 = h1.toString(16).toUpperCase().padStart(8, '0')
-    for (let i = 0; i < hex1.length; i++) {
-      h2 ^= hex1.charCodeAt(i)
-      h2 = Math.imul(h2, 0x01000193)
-      h2 = h2 >>> 0
-    }
-    const verCode = hex1 + h2.toString(16).toUpperCase().padStart(8, '0')
+    // Deterministic verification code using SHA-256 (cryptographic hash)
+    const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}|${surveyorLicence}|${revisionsCount}`
+    const verCode = createHash('sha256').update(rawString).digest('hex').toUpperCase().slice(0, 16)
 
     const y = this.pageH - mmToPx(2)
     const cx = this.pageW / 2

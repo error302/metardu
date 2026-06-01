@@ -1,5 +1,7 @@
+import { createHash } from 'crypto';
 import { jsPDF } from 'jspdf';
 import { DeedPlanGeometry } from './deedPlanGeometry';
+import { getRoadReserveWidth } from '../reports/surveyPlan/types';
 
 interface PanelBounds {
   x: number;
@@ -40,6 +42,8 @@ export interface BoundaryPlanOptions {
   firmName?: string;
   /** Revision entries for history table */
   revisions?: RevisionEntry[];
+  /** Road classification code (e.g. 'A', 'K', 'P') for road reserve width */
+  roadClass?: string;
 }
 
 const MONUMENT_SIZE = 2.5;
@@ -115,8 +119,10 @@ function drawScaleBar(doc: jsPDF, x: number, y: number, scaleRatio: number, barL
 
 /**
  * Draw road truncation lines (perpendicular tick marks) on boundary
- * segments that abut roads. Per Kenya cadastral practice, road boundaries
- * are shown with short perpendicular tick marks at regular intervals.
+ * segments that abut roads, with road width annotation.
+ * Per Kenya cadastral practice, road boundaries are shown with short
+ * perpendicular tick marks at regular intervals. Road reserve width
+ * is shown as a text annotation along the road segment.
  * Source: Survey Act Cap. 299, Form No. 3 & 4
  */
 function drawRoadTruncationLines(
@@ -125,7 +131,8 @@ function drawRoadTruncationLines(
   worldToMm: (e: number, n: number) => [number, number],
   scaleRatio: number,
   centroidX: number,
-  centroidY: number
+  centroidY: number,
+  roadWidth?: number
 ): void {
   if (!roadSegments || roadSegments.length === 0) return;
 
@@ -170,6 +177,23 @@ function drawRoadTruncationLines(
       const endY = baseY + perpY * tickLength;
 
       doc.line(baseX, baseY, endX, endY);
+    }
+
+    // Road width annotation text next to truncation tick marks
+    if (roadWidth && roadWidth > 0) {
+      const labelOffset = tickLength + 1.5; // Place text just beyond tick ends
+      const labelX = midX + perpX * labelOffset;
+      const labelY = midY + perpY * labelOffset;
+      const widthLabel = `${roadWidth.toFixed(2)}m`;
+
+      // Rotate label to align with road segment direction
+      const angle = Math.atan2(dyMm, dxMm) * (180 / Math.PI);
+      let textAngle = -(angle > 90 || angle < -90 ? angle + 180 : angle);
+
+      doc.setFontSize(4.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100);
+      doc.text(widthLabel, labelX, labelY, { angle: textAngle, align: 'center' });
     }
   }
 }
@@ -246,6 +270,12 @@ function drawStampAndSealArea(
 
   // Surveyor credentials below stamp area
   const credY = stampY + 18.5;
+
+  // Signature line above surveyor credentials
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.3);
+  doc.line(stampX + 1, credY - 2, stampX + stampW - 1, credY - 2);
+
   doc.setFontSize(3);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0);
@@ -260,40 +290,34 @@ function drawStampAndSealArea(
   if (options.iskRegNo) {
     doc.text(`ISK Reg. ${options.iskRegNo}`, stampX + 1, credY + 5);
   }
+
+  // Date line below surveyor credentials
+  doc.setTextColor(100);
+  doc.text('Date: ___________', stampX + 1, credY + 7.5);
 }
 
 /**
  * Draw print verification text at the bottom of the boundary plan panel.
- * Uses FNV-1a double-pass hash for deterministic verification code.
+ * Uses SHA-256 cryptographic hash for production-grade verification.
  */
 function drawPrintVerification(
   doc: jsPDF,
   panel: PanelBounds,
   geom: DeedPlanGeometry,
-  scaleRatio: number
+  scaleRatio: number,
+  options?: BoundaryPlanOptions
 ): void {
   const coordString = geom.stations
     .map(s => `${s.easting.toFixed(4)},${s.northing.toFixed(4)}`)
     .join('|');
   const areaVal = geom.areaM2.toFixed(4);
   const dateStr = new Date().toISOString().split('T')[0];
+  const surveyorLicence = options?.surveyorLicence || '';
+  const revisionsCount = (options?.revisions || []).length;
 
-  // FNV-1a double-pass hash
-  const rawString = `${coordString}|${areaVal}|${scaleRatio}|${dateStr}`;
-  let h1 = 0x811c9dc5;
-  for (let i = 0; i < rawString.length; i++) {
-    h1 ^= rawString.charCodeAt(i);
-    h1 = Math.imul(h1, 0x01000193);
-    h1 = h1 >>> 0;
-  }
-  let h2 = 0x811c9dc5;
-  const hex1 = h1.toString(16).toUpperCase().padStart(8, '0');
-  for (let i = 0; i < hex1.length; i++) {
-    h2 ^= hex1.charCodeAt(i);
-    h2 = Math.imul(h2, 0x01000193);
-    h2 = h2 >>> 0;
-  }
-  const verCode = hex1 + h2.toString(16).toUpperCase().padStart(8, '0');
+  // SHA-256 cryptographic hash
+  const rawString = `${coordString}|${areaVal}|${scaleRatio}|${dateStr}|${surveyorLicence}|${revisionsCount}`;
+  const verCode = createHash('sha256').update(rawString).digest('hex').toUpperCase().slice(0, 16);
 
   const verifyX = panel.x + panel.width / 2;
   const verifyY = panel.y + panel.height - 1;
@@ -394,9 +418,11 @@ export function renderBoundaryPlan(
     doc.text(label, px + MONUMENT_SIZE + 1, py - 1);
   });
 
-  // ── Phase 2: Road truncation lines ──
+  // ── Phase 2: Road truncation lines with road width annotation ──
   if (options?.roadSegments && options.roadSegments.length > 0) {
-    drawRoadTruncationLines(doc, options.roadSegments, worldToMm, scaleRatio, centreE, centreN);
+    // Compute road reserve width from road class
+    const roadWidth = options.roadClass ? getRoadReserveWidth(options.roadClass) : undefined;
+    drawRoadTruncationLines(doc, options.roadSegments, worldToMm, scaleRatio, centreE, centreN, roadWidth);
   }
 
   drawNorthArrow(doc, panel.x + margin + 8, panel.y + panel.height - 20);
@@ -409,8 +435,8 @@ export function renderBoundaryPlan(
     drawStampAndSealArea(doc, panel, options);
   }
 
-  // ── Phase 2: Print Verification ──
-  drawPrintVerification(doc, panel, geom, scaleRatio);
+  // ── Phase 2: Print Verification (SHA-256) ──
+  drawPrintVerification(doc, panel, geom, scaleRatio, options);
 
   return scaleRatio;
 }
