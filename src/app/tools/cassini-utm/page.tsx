@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import Link from 'next/link'
 import { PageHeader } from '@/components/shared/PageHeader'
 import {
   Breadcrumb,
@@ -21,39 +20,36 @@ import {
   AlertTriangle,
   Globe,
   MapPin,
-  Info,
+  ShieldCheck,
 } from 'lucide-react'
 import {
-  KENYA_CASSINI_ORIGINS,
-  cassiniToUTM,
-  utmToCassini,
-  cassiniToGeographic,
-  getCassiniProj4String,
-  makeCassiniOrigin,
-  CLARKE_1858_A,
-  CLARKE_1858_RF,
+  KENYA_TOPO_SHEETS,
+  cassiniFeetToUTM,
+  utmToCassiniFeet,
+  verifyWithCommonPoints,
+  CLARKE_1858_A_FT,
+  CLARKE_1880_A_M,
 } from '@/lib/geo/cassini'
 import type {
-  CassiniOrigin,
-  CassiniPoint,
+  CassiniFeetPoint,
   UTMPoint,
   ConversionResult,
-  UTMOutputDatum,
-  UTMZone,
+  TopoSheetParams,
+  VerificationResult,
 } from '@/lib/geo/cassini'
 
 /* ═══════════════════════════════════════════════════════════════════════
  *  HELPERS
  * ═══════════════════════════════════════════════════════════════════════ */
 
-function toDMS(dd: number, posChar: string, negChar: string): string {
-  const dir = dd >= 0 ? posChar : negChar
-  const abs = Math.abs(dd)
-  const deg = Math.floor(abs)
-  const minFloat = (abs - deg) * 60
-  const min = Math.floor(minFloat)
-  const sec = ((minFloat - min) * 60).toFixed(2)
-  return `${deg}° ${min}' ${sec}" ${dir}`
+function r3(n: number | undefined): string {
+  if (n === undefined || isNaN(n)) return '—'
+  return n.toFixed(3)
+}
+
+function r1(n: number | undefined): string {
+  if (n === undefined || isNaN(n)) return '—'
+  return n.toFixed(1)
 }
 
 function r4(n: number | undefined): string {
@@ -61,27 +57,15 @@ function r4(n: number | undefined): string {
   return n.toFixed(4)
 }
 
-function r3(n: number | undefined): string {
-  if (n === undefined || isNaN(n)) return '—'
-  return n.toFixed(3)
-}
+/** Cassini example data for batch load (in FEET) */
+const CASSINI_BATCH_EXAMPLE = `SKP209,-130490.6,-348685.6
+149S3,22492.0,-533392.5
+SKP208,-132480.9,-514849.9`
 
-function r2(n: number | undefined): string {
-  if (n === undefined || isNaN(n)) return '—'
-  return n.toFixed(2)
-}
-
-/** Cassini example data for batch load */
-const CASSINI_BATCH_EXAMPLE = `P1,12543.2768,14321.8562
-P2,13876.4451,15102.3398
-P3,11029.8877,12899.1245
-P4,15012.2203,16045.6789`
-
-/** UTM example data for batch load */
-const UTM_BATCH_EXAMPLE = `P1,400123.4567,9876543.2100
-P2,401876.1234,9875123.4567
-P3,399234.5678,9878901.2345
-P4,402456.7890,9873456.7890`
+/** UTM example data for batch load (in METRES) */
+const UTM_BATCH_EXAMPLE = `P1,237730.756,9893875.453
+P2,284419.1,9837592.78
+P3,237160.304,9843205.245`
 
 /* ═══════════════════════════════════════════════════════════════════════
  *  MAIN COMPONENT
@@ -91,18 +75,14 @@ export default function CassiniUTMPage() {
   // ── Direction ──
   const [direction, setDirection] = useState<'cassini-to-utm' | 'utm-to-cassini'>('cassini-to-utm')
 
-  // ── Origin ──
-  const [selectedOriginId, setSelectedOriginId] = useState<string>(KENYA_CASSINI_ORIGINS[0].id)
-  const [useCustomOrigin, setUseCustomOrigin] = useState(false)
-  const [customLat0, setCustomLat0] = useState('-0.25')
-  const [customLon0, setCustomLon0] = useState('37.50')
-  const [customFE, setCustomFE] = useState('10000')
-  const [customFN, setCustomFN] = useState('10000')
-  const [proj4Open, setProj4Open] = useState(false)
-
-  // ── Output Datum ──
-  const [utmDatum, setUtmDatum] = useState<UTMOutputDatum>('arc1960')
-  const [utmZone, setUtmZone] = useState<UTMZone>(37)
+  // ── Topo Sheet Selection ──
+  const [selectedSheetId, setSelectedSheetId] = useState<string>(KENYA_TOPO_SHEETS[0].id)
+  const [useCustomParams, setUseCustomParams] = useState(false)
+  const [customP, setCustomP] = useState('0.3048')
+  const [customQ, setCustomQ] = useState('0')
+  const [customCx, setCustomCx] = useState('277474.6')
+  const [customCy, setCustomCy] = useState('10000198.4')
+  const [paramsOpen, setParamsOpen] = useState(false)
 
   // ── Input Mode ──
   const [inputMode, setInputMode] = useState<'single' | 'batch'>('single')
@@ -110,8 +90,6 @@ export default function CassiniUTMPage() {
   // ── Single Point Inputs ──
   const [singleE, setSingleE] = useState('')
   const [singleN, setSingleN] = useState('')
-  const [singleZone, setSingleZone] = useState('37')
-  const [singleHemisphere, setSingleHemisphere] = useState<'N' | 'S'>('S')
 
   // ── Batch Input ──
   const [batchText, setBatchText] = useState('')
@@ -122,20 +100,31 @@ export default function CassiniUTMPage() {
   const [batchErrors, setBatchErrors] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
 
-  // ── Derived Origin ──
-  const activeOrigin: CassiniOrigin = useMemo(() => {
-    if (useCustomOrigin) {
-      return makeCassiniOrigin({
-        lat0: parseFloat(customLat0) || 0,
-        lon0: parseFloat(customLon0) || 0,
-        fe: parseFloat(customFE) || 0,
-        fn: parseFloat(customFN) || 0,
-      })
-    }
-    return KENYA_CASSINI_ORIGINS.find(o => o.id === selectedOriginId) ?? KENYA_CASSINI_ORIGINS[0]
-  }, [useCustomOrigin, selectedOriginId, customLat0, customLon0, customFE, customFN])
+  // ── Verification ──
+  const [showVerification, setShowVerification] = useState(false)
 
-  const proj4String = useMemo(() => getCassiniProj4String(activeOrigin), [activeOrigin])
+  // ── Derived Sheet Params ──
+  const activeSheet: TopoSheetParams = useMemo(() => {
+    if (useCustomParams) {
+      return {
+        id: 'custom',
+        name: 'Custom Parameters',
+        description: 'User-defined Helmert transformation parameters.',
+        P: parseFloat(customP) || 0.3048,
+        Q: parseFloat(customQ) || 0,
+        Cx: parseFloat(customCx) || 0,
+        Cy: parseFloat(customCy) || 0,
+        commonPoints: [],
+      }
+    }
+    return KENYA_TOPO_SHEETS.find(s => s.id === selectedSheetId) ?? KENYA_TOPO_SHEETS[0]
+  }, [useCustomParams, selectedSheetId, customP, customQ, customCx, customCy])
+
+  // ── Verification Results ──
+  const verificationResults = useMemo(() => {
+    if (!showVerification || activeSheet.commonPoints.length === 0) return []
+    return verifyWithCommonPoints(activeSheet)
+  }, [showVerification, activeSheet])
 
   // ── Reset results on direction change ──
   const handleDirectionChange = useCallback((dir: 'cassini-to-utm' | 'utm-to-cassini') => {
@@ -153,20 +142,15 @@ export default function CassiniUTMPage() {
     if (isNaN(e) || isNaN(n)) return
 
     if (direction === 'cassini-to-utm') {
-      const pts: CassiniPoint[] = [{ easting: e, northing: n }]
-      const results = cassiniToUTM(pts, activeOrigin, utmDatum, utmZone)
+      const pts: CassiniFeetPoint[] = [{ easting: e, northing: n }]
+      const results = cassiniFeetToUTM(pts, activeSheet)
       setSingleResult(results[0])
     } else {
-      const z = parseInt(singleZone) || 37
-      const results = utmToCassini(
-        [{ easting: e, northing: n, zone: z, hemisphere: singleHemisphere }],
-        activeOrigin,
-        utmDatum,
-        utmZone,
-      )
+      const pts: UTMPoint[] = [{ easting: e, northing: n }]
+      const results = utmToCassiniFeet(pts, activeSheet)
       setSingleResult(results[0])
     }
-  }, [singleE, singleN, singleZone, singleHemisphere, direction, activeOrigin, utmDatum, utmZone])
+  }, [singleE, singleN, direction, activeSheet])
 
   // ── Batch Convert ──
   const handleBatchConvert = useCallback(() => {
@@ -178,47 +162,30 @@ export default function CassiniUTMPage() {
       const line = lines[i].trim()
       const parts = line.split(',').map(s => s.trim())
 
+      if (parts.length < 3) {
+        errors.push(`Line ${i + 1}: Expected "id,easting,northing" — skipped`)
+        continue
+      }
+      const id = parts[0]
+      const e = parseFloat(parts[1])
+      const n = parseFloat(parts[2])
+      if (isNaN(e) || isNaN(n)) {
+        errors.push(`Line ${i + 1} (${id}): Invalid coordinates — skipped`)
+        continue
+      }
+
       if (direction === 'cassini-to-utm') {
-        if (parts.length < 3) {
-          errors.push(`Line ${i + 1}: Expected "id,easting,northing" — skipped`)
-          continue
-        }
-        const id = parts[0]
-        const e = parseFloat(parts[1])
-        const n = parseFloat(parts[2])
-        if (isNaN(e) || isNaN(n)) {
-          errors.push(`Line ${i + 1} (${id}): Invalid coordinates — skipped`)
-          continue
-        }
-        const results = cassiniToUTM([{ id, easting: e, northing: n }], activeOrigin, utmDatum, utmZone)
+        const results = cassiniFeetToUTM([{ id, easting: e, northing: n }], activeSheet)
         validResults.push(results[0])
       } else {
-        if (parts.length < 5) {
-          errors.push(`Line ${i + 1}: Expected "id,easting,northing,zone,hemisphere" — skipped`)
-          continue
-        }
-        const id = parts[0]
-        const e = parseFloat(parts[1])
-        const n = parseFloat(parts[2])
-        const z = parseInt(parts[3])
-        const h = parts[4].toUpperCase() === 'N' ? 'N' : 'S'
-        if (isNaN(e) || isNaN(n) || isNaN(z)) {
-          errors.push(`Line ${i + 1} (${id}): Invalid coordinates — skipped`)
-          continue
-        }
-        const results = utmToCassini(
-          [{ id, easting: e, northing: n, zone: z, hemisphere: h as 'N' | 'S' }],
-          activeOrigin,
-          utmDatum,
-          utmZone,
-        )
+        const results = utmToCassiniFeet([{ id, easting: e, northing: n }], activeSheet)
         validResults.push(results[0])
       }
     }
 
     setBatchResults(validResults)
     setBatchErrors(errors)
-  }, [batchText, direction, activeOrigin, utmDatum, utmZone])
+  }, [batchText, direction, activeSheet])
 
   // ── Load Example ──
   const handleLoadExample = useCallback(() => {
@@ -235,7 +202,6 @@ export default function CassiniUTMPage() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // fallback
       const ta = document.createElement('textarea')
       ta.value = text
       document.body.appendChild(ta)
@@ -249,39 +215,40 @@ export default function CassiniUTMPage() {
 
   const handleCopySingle = useCallback(() => {
     if (!singleResult) return
+    const srcUnit = direction === 'cassini-to-utm' ? 'ft' : 'm'
+    const tgtUnit = direction === 'cassini-to-utm' ? 'm' : 'ft'
     const lines = [
-      `Cassini-Soldner ↔ UTM Conversion`,
-      `Origin: ${activeOrigin.name}`,
-      `Output Datum: ${utmDatum === 'arc1960' ? 'Arc 1960 / UTM' : 'WGS84 / UTM'} ${utmZone}${singleResult.utmZone ? (direction === 'cassini-to-utm' ? 'S' : '') : ''}`,
+      `Cassini-Soldner ↔ UTM Conversion (Helmert 4-Parameter)`,
+      `Topo Sheet: ${activeSheet.name}`,
+      `Datum: Arc 1960 / UTM Zone 37S`,
       ``,
       direction === 'cassini-to-utm'
-        ? `Source Cassini: E = ${r4(singleResult.cassiniE)} m, N = ${r4(singleResult.cassiniN)} m`
-        : `Source UTM: E = ${r4(singleResult.utmE)} m, N = ${r4(singleResult.utmN)} m`,
+        ? `Source Cassini: E = ${r1(singleResult.cassiniE)} ft, N = ${r1(singleResult.cassiniN)} ft`
+        : `Source UTM: E = ${r3(singleResult.utmE)} m, N = ${r3(singleResult.utmN)} m`,
       direction === 'cassini-to-utm'
-        ? `Result UTM: E = ${r4(singleResult.utmE)} m, N = ${r4(singleResult.utmN)} m (Zone ${utmZone}S)`
-        : `Result Cassini: E = ${r4(singleResult.cassiniE)} m, N = ${r4(singleResult.cassiniN)} m`,
-      `Geographic: Lat ${r3(singleResult.lat)}° Lon ${r3(singleResult.lon)}°`,
-      `  DMS: ${toDMS(singleResult.lat ?? 0, 'N', 'S')}, ${toDMS(singleResult.lon ?? 0, 'E', 'W')}`,
-      `Round-trip error: ${r2(singleResult.roundTripError)} mm`,
+        ? `Result UTM: E = ${r3(singleResult.utmE)} m, N = ${r3(singleResult.utmN)} m`
+        : `Result Cassini: E = ${r1(singleResult.cassiniE)} ft, N = ${r1(singleResult.cassiniN)} ft`,
+      `Conformal E: ${r1(singleResult.conformalE)} ft`,
     ]
+    if (singleResult.warning) {
+      lines.push(`Warning: ${singleResult.warning}`)
+    }
     copyToClipboard(lines.join('\n'))
-  }, [singleResult, activeOrigin, utmDatum, utmZone, direction, copyToClipboard])
+  }, [singleResult, activeSheet, direction, copyToClipboard])
 
   const handleCopyBatchCsv = useCallback(() => {
     if (batchResults.length === 0) return
-    const header = direction === 'cassini-to-utm'
-      ? 'ID,Source_E,Source_N,Target_E,Target_N,Lat,Lon,Error_mm'
-      : 'ID,Source_E,Source_N,Target_E,Target_N,Lat,Lon,Error_mm'
+    const srcUnit = direction === 'cassini-to-utm' ? 'ft' : 'm'
+    const tgtUnit = direction === 'cassini-to-utm' ? 'm' : 'ft'
+    const header = `ID,Src_E(${srcUnit}),Src_N(${srcUnit}),Tgt_E(${tgtUnit}),Tgt_N(${tgtUnit}),Conformal_E(ft)`
     const rows = batchResults.map(r =>
       [
         r.id ?? '',
-        r4(direction === 'cassini-to-utm' ? r.cassiniE : r.utmE),
-        r4(direction === 'cassini-to-utm' ? r.cassiniN : r.utmN),
-        r4(direction === 'cassini-to-utm' ? r.utmE : r.cassiniE),
-        r4(direction === 'cassini-to-utm' ? r.utmN : r.cassiniN),
-        r3(r.lat),
-        r3(r.lon),
-        r2((r.roundTripError ?? 0) * 1000),
+        direction === 'cassini-to-utm' ? r1(r.cassiniE) : r3(r.utmE),
+        direction === 'cassini-to-utm' ? r1(r.cassiniN) : r3(r.utmN),
+        direction === 'cassini-to-utm' ? r3(r.utmE) : r1(r.cassiniE),
+        direction === 'cassini-to-utm' ? r3(r.utmN) : r1(r.cassiniN),
+        r1(r.conformalE),
       ].join(',')
     )
     copyToClipboard([header, ...rows].join('\n'))
@@ -289,19 +256,17 @@ export default function CassiniUTMPage() {
 
   const handleDownloadCsv = useCallback(() => {
     if (batchResults.length === 0) return
-    const header = direction === 'cassini-to-utm'
-      ? 'ID,Source_E,Source_N,Target_E,Target_N,Lat,Lon,Error_mm'
-      : 'ID,Source_E,Source_N,Target_E,Target_N,Lat,Lon,Error_mm'
+    const srcUnit = direction === 'cassini-to-utm' ? 'ft' : 'm'
+    const tgtUnit = direction === 'cassini-to-utm' ? 'm' : 'ft'
+    const header = `ID,Src_E(${srcUnit}),Src_N(${srcUnit}),Tgt_E(${tgtUnit}),Tgt_N(${tgtUnit}),Conformal_E(ft)`
     const rows = batchResults.map(r =>
       [
         r.id ?? '',
-        r4(direction === 'cassini-to-utm' ? r.cassiniE : r.utmE),
-        r4(direction === 'cassini-to-utm' ? r.cassiniN : r.utmN),
-        r4(direction === 'cassini-to-utm' ? r.utmE : r.cassiniE),
-        r4(direction === 'cassini-to-utm' ? r.utmN : r.cassiniN),
-        r3(r.lat),
-        r3(r.lon),
-        r2((r.roundTripError ?? 0) * 1000),
+        direction === 'cassini-to-utm' ? r1(r.cassiniE) : r3(r.utmE),
+        direction === 'cassini-to-utm' ? r1(r.cassiniN) : r3(r.utmN),
+        direction === 'cassini-to-utm' ? r3(r.utmE) : r1(r.cassiniE),
+        direction === 'cassini-to-utm' ? r3(r.utmN) : r1(r.cassiniN),
+        r1(r.conformalE),
       ].join(',')
     )
     const csv = [header, ...rows].join('\n')
@@ -315,19 +280,6 @@ export default function CassiniUTMPage() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }, [batchResults, direction])
-
-  // ── Batch summary ──
-  const batchSummary = useMemo(() => {
-    if (batchResults.length === 0) return null
-    const errors = batchResults.filter(r => !r.warning)
-    const errorVals = errors.map(r => (r.roundTripError ?? 0) * 1000).filter(v => isFinite(v))
-    if (errorVals.length === 0) return null
-    return {
-      count: batchResults.length,
-      meanError: errorVals.reduce((a, b) => a + b, 0) / errorVals.length,
-      maxError: Math.max(...errorVals),
-    }
-  }, [batchResults])
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-16">
@@ -351,13 +303,23 @@ export default function CassiniUTMPage() {
       {/* ── Page Header ── */}
       <PageHeader
         title="Cassini-Soldner ↔ UTM Converter"
-        subtitle="Convert Kenya legacy Cassini-Soldner coordinates (Clarke 1858) to UTM — preset district origins or custom parameters"
-        reference="Kenya Survey Regulations 1994 | Clarke 1858 (a=6,378,351m, 1/f=294.26) | Snyder USGS PP 1395"
+        subtitle="Kenya Survey Department 4-parameter Helmert transformation — Cassini (FEET, Clarke 1858) ↔ UTM (METRES, Clarke 1880 / Arc 1960)"
+        reference="Gacoki (FIG 2018) | Arc 1960 datum | UTM Zone 37S | Cassini meridian 37°E"
       />
+
+      {/* ── Units Banner ── */}
+      <div className="mb-6 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+        <div>
+          <strong>Units:</strong> Cassini inputs are in <strong>International Feet</strong> (Clarke 1858).
+          UTM outputs are in <strong>Metres</strong> (Clarke 1880 / Arc 1960, UTM Zone 37S).
+          The P parameter (~0.3048) handles the feet→metres conversion.
+        </div>
+      </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
        *  TWO-PANEL GRID
-       * ═══════════════════════════════════════════════════════════════════ */}
+       * ═════════════════════════════════════════════════════════════════ */}
       <div className="grid md:grid-cols-2 gap-8">
 
         {/* ═════════════════════════════════════════════════════════════════
@@ -372,176 +334,186 @@ export default function CassiniUTMPage() {
               className={`btn flex-1 ${direction === 'cassini-to-utm' ? 'btn-primary' : 'btn-secondary'}`}
             >
               <ArrowRightLeft className="h-4 w-4" />
-              Cassini → UTM
+              Cassini (ft) → UTM (m)
             </button>
             <button
               onClick={() => handleDirectionChange('utm-to-cassini')}
               className={`btn flex-1 ${direction === 'utm-to-cassini' ? 'btn-primary' : 'btn-secondary'}`}
             >
               <ArrowRightLeft className="h-4 w-4" />
-              UTM → Cassini
+              UTM (m) → Cassini (ft)
             </button>
           </div>
 
-          {/* ── 2. Origin Selector Card ── */}
+          {/* ── 2. Topo Sheet Selector Card ── */}
           <div className="card">
             <div className="card-header">
               <span className="label flex items-center gap-2 text-sm font-semibold">
                 <MapPin className="h-4 w-4 text-[var(--accent)]" />
-                Cassini Origin
+                Topographic Sheet
               </span>
             </div>
             <div className="card-body space-y-4">
               {/* Dropdown */}
               <div>
-                <label className="label text-xs text-[var(--text-muted)] mb-1 block">District Origin</label>
+                <label className="label text-xs text-[var(--text-muted)] mb-1 block">Select Sheet</label>
                 <select
                   className="input"
-                  value={useCustomOrigin ? '__custom__' : selectedOriginId}
+                  value={useCustomParams ? '__custom__' : selectedSheetId}
                   onChange={e => {
                     if (e.target.value === '__custom__') {
-                      setUseCustomOrigin(true)
+                      setUseCustomParams(true)
                     } else {
-                      setUseCustomOrigin(false)
-                      setSelectedOriginId(e.target.value)
+                      setUseCustomParams(false)
+                      setSelectedSheetId(e.target.value)
                     }
                   }}
                 >
-                  {KENYA_CASSINI_ORIGINS.map(o => (
-                    <option key={o.id} value={o.id}>
-                      {o.name} — {o.description}
+                  {KENYA_TOPO_SHEETS.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} — {s.description}
                     </option>
                   ))}
-                  <option value="__custom__">Custom Origin...</option>
+                  <option value="__custom__">Custom Helmert Parameters...</option>
                 </select>
               </div>
 
-              {/* Preset: show origin params as readonly */}
-              {!useCustomOrigin && (
+              {/* Preset: show sheet params as readonly */}
+              {!useCustomParams && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label text-xs text-[var(--text-muted)]">Lat₀ (decimal degrees)</label>
-                    <input className="input font-mono text-xs opacity-75" value={activeOrigin.lat0.toFixed(6)} readOnly />
+                    <label className="label text-xs text-[var(--text-muted)]">P (scale factor)</label>
+                    <input className="input font-mono text-xs opacity-75" value={activeSheet.P} readOnly />
                   </div>
                   <div>
-                    <label className="label text-xs text-[var(--text-muted)]">Lon₀ (decimal degrees)</label>
-                    <input className="input font-mono text-xs opacity-75" value={activeOrigin.lon0.toFixed(6)} readOnly />
+                    <label className="label text-xs text-[var(--text-muted)]">Q (rotation factor)</label>
+                    <input className="input font-mono text-xs opacity-75" value={activeSheet.Q} readOnly />
                   </div>
                   <div>
-                    <label className="label text-xs text-[var(--text-muted)]">False Easting (m)</label>
-                    <input className="input font-mono text-xs opacity-75" value={activeOrigin.fe.toFixed(2)} readOnly />
+                    <label className="label text-xs text-[var(--text-muted)]">Cx (easting trans.)</label>
+                    <input className="input font-mono text-xs opacity-75" value={activeSheet.Cx} readOnly />
                   </div>
                   <div>
-                    <label className="label text-xs text-[var(--text-muted)]">False Northing (m)</label>
-                    <input className="input font-mono text-xs opacity-75" value={activeOrigin.fn.toFixed(2)} readOnly />
+                    <label className="label text-xs text-[var(--text-muted)]">Cy (northing trans.)</label>
+                    <input className="input font-mono text-xs opacity-75" value={activeSheet.Cy} readOnly />
                   </div>
                 </div>
               )}
 
               {/* Custom: editable fields */}
-              {useCustomOrigin && (
+              {useCustomParams && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label text-xs text-[var(--text-muted)]">Latitude of origin (dd)</label>
+                    <label className="label text-xs text-[var(--text-muted)]">P (scale factor)</label>
                     <input
                       className="input font-mono text-xs"
-                      value={customLat0}
-                      onChange={e => setCustomLat0(e.target.value)}
-                      placeholder="-0.25"
+                      value={customP}
+                      onChange={e => setCustomP(e.target.value)}
+                      placeholder="0.3048"
                     />
                   </div>
                   <div>
-                    <label className="label text-xs text-[var(--text-muted)]">Longitude of origin (dd)</label>
+                    <label className="label text-xs text-[var(--text-muted)]">Q (rotation factor)</label>
                     <input
                       className="input font-mono text-xs"
-                      value={customLon0}
-                      onChange={e => setCustomLon0(e.target.value)}
-                      placeholder="37.50"
+                      value={customQ}
+                      onChange={e => setCustomQ(e.target.value)}
+                      placeholder="0"
                     />
                   </div>
                   <div>
-                    <label className="label text-xs text-[var(--text-muted)]">False Easting (m)</label>
+                    <label className="label text-xs text-[var(--text-muted)]">Cx (easting translation, m)</label>
                     <input
                       className="input font-mono text-xs"
-                      value={customFE}
-                      onChange={e => setCustomFE(e.target.value)}
-                      placeholder="10000"
+                      value={customCx}
+                      onChange={e => setCustomCx(e.target.value)}
+                      placeholder="277474.6"
                     />
                   </div>
                   <div>
-                    <label className="label text-xs text-[var(--text-muted)]">False Northing (m)</label>
+                    <label className="label text-xs text-[var(--text-muted)]">Cy (northing translation, m)</label>
                     <input
                       className="input font-mono text-xs"
-                      value={customFN}
-                      onChange={e => setCustomFN(e.target.value)}
-                      placeholder="10000"
+                      value={customCy}
+                      onChange={e => setCustomCy(e.target.value)}
+                      placeholder="10000198.4"
                     />
                   </div>
                 </div>
               )}
 
-              {/* Collapsible proj4 definition */}
+              {/* Collapsible common points */}
+              {!useCustomParams && activeSheet.commonPoints.length > 0 && (
+                <div>
+                  <button
+                    onClick={() => setShowVerification(!showVerification)}
+                    className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+                  >
+                    {showVerification ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    <ShieldCheck className="h-3 w-3" />
+                    Verify common points ({activeSheet.commonPoints.length} stations)
+                  </button>
+                  {showVerification && verificationResults.length > 0 && (
+                    <div className="mt-2 max-h-48 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="sticky top-0">
+                          <tr className="table-header">
+                            <th className="table-cell text-left py-1.5 px-2">Station</th>
+                            <th className="table-cell text-right py-1.5 px-2">dE (m)</th>
+                            <th className="table-cell text-right py-1.5 px-2">dN (m)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {verificationResults.map((v) => (
+                            <tr key={v.station} className="table-row">
+                              <td className="table-cell py-1.5 px-2 font-medium">{v.station}</td>
+                              <td className={`table-cell py-1.5 px-2 text-right font-mono ${
+                                Math.abs(v.residualE) < 0.1 ? 'text-[var(--success)]' : 'text-[var(--warning)]'
+                              }`}>
+                                {v.residualE.toFixed(4)}
+                              </td>
+                              <td className={`table-cell py-1.5 px-2 text-right font-mono ${
+                                Math.abs(v.residualN) < 0.1 ? 'text-[var(--success)]' : 'text-[var(--warning)]'
+                              }`}>
+                                {v.residualN.toFixed(4)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Collapsible transformation details */}
               <div>
                 <button
-                  onClick={() => setProj4Open(!proj4Open)}
+                  onClick={() => setParamsOpen(!paramsOpen)}
                   className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
                 >
-                  {proj4Open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  proj4 CRS Definition
+                  {paramsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  Transformation details
                 </button>
-                {proj4Open && (
-                  <pre className="mt-2 p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-xs font-mono text-[var(--text-secondary)] overflow-x-auto whitespace-pre-wrap break-all">
-                    {proj4String}
+                {paramsOpen && (
+                  <pre className="mt-2 p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[10px] font-mono text-[var(--text-secondary)] overflow-x-auto whitespace-pre-wrap">
+{`Formula:
+  E_UTM  = P × E_conformal + Q × |N_cass| + Cx
+  N_UTM  = -Q × E_conformal + P × |N_cass| + Cy
+
+  E_conformal = E + E³/(6×a×b) + E⁵/(24×a²×b²)
+
+Clarke 1858 (input):  a = ${CLARKE_1858_A_FT.toLocaleString()} ft
+Clarke 1880 (output): a = ${CLARKE_1880_A_M.toLocaleString()} m
+Datum: Arc 1960 / UTM Zone 37S
+Central meridian: 39°E, Scale: 0.9996`}
                   </pre>
                 )}
               </div>
             </div>
           </div>
 
-          {/* ── 3. Output Datum Card ── */}
-          <div className="card">
-            <div className="card-header">
-              <span className="label flex items-center gap-2 text-sm font-semibold">
-                <Globe className="h-4 w-4 text-[var(--accent)]" />
-                Output Datum & Zone
-              </span>
-            </div>
-            <div className="card-body space-y-4">
-              {/* Datum radio */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setUtmDatum('arc1960')}
-                  className={`btn flex-1 text-xs ${utmDatum === 'arc1960' ? 'btn-primary' : 'btn-secondary'}`}
-                >
-                  Arc 1960 / UTM 37S (Cadastral)
-                </button>
-                <button
-                  onClick={() => setUtmDatum('wgs84')}
-                  className={`btn flex-1 text-xs ${utmDatum === 'wgs84' ? 'btn-primary' : 'btn-secondary'}`}
-                >
-                  WGS84 / UTM 37S (GPS)
-                </button>
-              </div>
-
-              {/* UTM Zone */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label text-xs text-[var(--text-muted)]">UTM Zone</label>
-                  <select className="input" value={utmZone} onChange={e => setUtmZone(parseInt(e.target.value) as UTMZone)}>
-                    <option value={36}>Zone 36</option>
-                    <option value={37}>Zone 37 (default)</option>
-                  </select>
-                </div>
-                <div className="flex items-end">
-                  <p className="text-xs text-[var(--text-muted)] pb-2.5">
-                    Kenya spans UTM zones 36 and 37, both Southern hemisphere.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── 4. Input Mode Toggle ── */}
+          {/* ── 3. Input Mode Toggle ── */}
           <div className="flex gap-2">
             <button
               onClick={() => { setInputMode('single'); setBatchResults([]); setBatchErrors([]) }}
@@ -557,65 +529,39 @@ export default function CassiniUTMPage() {
             </button>
           </div>
 
-          {/* ── 5. Single Point Input ── */}
+          {/* ── 4. Single Point Input ── */}
           {inputMode === 'single' && (
             <div className="card">
               <div className="card-header">
                 <span className="label text-sm font-semibold">
-                  {direction === 'cassini-to-utm' ? 'Cassini Coordinates' : 'UTM Coordinates'}
+                  {direction === 'cassini-to-utm' ? 'Cassini Coordinates (FEET)' : 'UTM Coordinates (METRES)'}
                 </span>
               </div>
               <div className="card-body space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label text-xs text-[var(--text-muted)]">
-                      {direction === 'cassini-to-utm' ? 'Easting (m)' : 'Easting (m)'}
+                      Easting ({direction === 'cassini-to-utm' ? 'ft' : 'm'})
                     </label>
                     <input
                       className="input font-mono"
                       value={singleE}
                       onChange={e => setSingleE(e.target.value)}
-                      placeholder={direction === 'cassini-to-utm' ? '12543.2768' : '400123.4567'}
+                      placeholder={direction === 'cassini-to-utm' ? '-130490.6' : '237730.756'}
                     />
                   </div>
                   <div>
                     <label className="label text-xs text-[var(--text-muted)]">
-                      {direction === 'cassini-to-utm' ? 'Northing (m)' : 'Northing (m)'}
+                      Northing ({direction === 'cassini-to-utm' ? 'ft' : 'm'})
                     </label>
                     <input
                       className="input font-mono"
                       value={singleN}
                       onChange={e => setSingleN(e.target.value)}
-                      placeholder={direction === 'cassini-to-utm' ? '14321.8562' : '9876543.2100'}
+                      placeholder={direction === 'cassini-to-utm' ? '-348685.6' : '9893875.453'}
                     />
                   </div>
                 </div>
-
-                {/* UTM-specific fields for UTM → Cassini */}
-                {direction === 'utm-to-cassini' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="label text-xs text-[var(--text-muted)]">Zone</label>
-                      <input
-                        className="input font-mono"
-                        value={singleZone}
-                        onChange={e => setSingleZone(e.target.value)}
-                        placeholder="37"
-                      />
-                    </div>
-                    <div>
-                      <label className="label text-xs text-[var(--text-muted)]">Hemisphere</label>
-                      <select
-                        className="input"
-                        value={singleHemisphere}
-                        onChange={e => setSingleHemisphere(e.target.value as 'N' | 'S')}
-                      >
-                        <option value="N">Northern</option>
-                        <option value="S">Southern (Kenya)</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
 
                 <button
                   onClick={handleSingleConvert}
@@ -628,11 +574,13 @@ export default function CassiniUTMPage() {
             </div>
           )}
 
-          {/* ── 6. Batch Input ── */}
+          {/* ── 5. Batch Input ── */}
           {inputMode === 'batch' && (
             <div className="card">
               <div className="card-header">
-                <span className="label text-sm font-semibold">Batch Input (CSV)</span>
+                <span className="label text-sm font-semibold">
+                  Batch Input (CSV) — {direction === 'cassini-to-utm' ? 'Cassini (ft)' : 'UTM (m)'}
+                </span>
               </div>
               <div className="card-body space-y-3">
                 <textarea
@@ -642,8 +590,8 @@ export default function CassiniUTMPage() {
                   onChange={e => setBatchText(e.target.value)}
                   placeholder={
                     direction === 'cassini-to-utm'
-                      ? 'id,easting,northing\nP1,12543.2768,14321.8562\nP2,13876.4451,15102.3398'
-                      : 'id,easting,northing,zone,hemisphere\nP1,400123.4567,9876543.2100,37,S\nP2,401876.1234,9875123.4567,37,S'
+                      ? 'id,easting_ft,northing_ft\nSKP209,-130490.6,-348685.6\n149S3,22492.0,-533392.5'
+                      : 'id,easting_m,northing_m\nP1,237730.756,9893875.453\nP2,284419.1,9837592.78'
                   }
                 />
                 <div className="flex gap-2">
@@ -696,26 +644,22 @@ export default function CassiniUTMPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
                         <p className="text-[10px] text-[var(--text-muted)] uppercase">Cassini Easting</p>
-                        <p className="font-mono text-sm text-[var(--text-primary)]">{r4(singleResult.cassiniE)} m</p>
+                        <p className="font-mono text-sm text-[var(--text-primary)]">{r1(singleResult.cassiniE)} ft</p>
                       </div>
                       <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
                         <p className="text-[10px] text-[var(--text-muted)] uppercase">Cassini Northing</p>
-                        <p className="font-mono text-sm text-[var(--text-primary)]">{r4(singleResult.cassiniN)} m</p>
+                        <p className="font-mono text-sm text-[var(--text-primary)]">{r1(singleResult.cassiniN)} ft</p>
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
                         <p className="text-[10px] text-[var(--text-muted)] uppercase">UTM Easting</p>
-                        <p className="font-mono text-sm text-[var(--text-primary)]">{r4(singleResult.utmE)} m</p>
+                        <p className="font-mono text-sm text-[var(--text-primary)]">{r3(singleResult.utmE)} m</p>
                       </div>
                       <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
                         <p className="text-[10px] text-[var(--text-muted)] uppercase">UTM Northing</p>
-                        <p className="font-mono text-sm text-[var(--text-primary)]">{r4(singleResult.utmN)} m</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
-                        <p className="text-[10px] text-[var(--text-muted)] uppercase">Zone</p>
-                        <p className="font-mono text-sm text-[var(--text-primary)]">{singleResult.utmZone ?? utmZone}S</p>
+                        <p className="font-mono text-sm text-[var(--text-primary)]">{r3(singleResult.utmN)} m</p>
                       </div>
                     </div>
                   )}
@@ -724,63 +668,52 @@ export default function CassiniUTMPage() {
                 {/* Result */}
                 <div>
                   <p className="text-xs text-[var(--text-muted)] mb-1 uppercase tracking-wider font-medium">
-                    Result ({direction === 'cassini-to-utm' ? 'UTM' : 'Cassini'})
+                    Result ({direction === 'cassini-to-utm' ? 'UTM (metres)' : 'Cassini (feet)'})
                   </p>
                   {direction === 'cassini-to-utm' ? (
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 rounded-lg bg-[var(--accent-subtle)] border border-[var(--accent)]/20">
                         <p className="text-[10px] text-[var(--accent)] uppercase">UTM Easting</p>
-                        <p className="font-mono text-sm text-[var(--text-primary)]">{r4(singleResult.utmE)} m</p>
+                        <p className="font-mono text-sm text-[var(--text-primary)]">{r3(singleResult.utmE)} m</p>
                       </div>
                       <div className="p-3 rounded-lg bg-[var(--accent-subtle)] border border-[var(--accent)]/20">
                         <p className="text-[10px] text-[var(--accent)] uppercase">UTM Northing</p>
-                        <p className="font-mono text-sm text-[var(--text-primary)]">{r4(singleResult.utmN)} m</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-[var(--accent-subtle)] border border-[var(--accent)]/20">
-                        <p className="text-[10px] text-[var(--accent)] uppercase">Zone</p>
-                        <p className="font-mono text-sm text-[var(--text-primary)]">{singleResult.utmZone ?? utmZone}S</p>
+                        <p className="font-mono text-sm text-[var(--text-primary)]">{r3(singleResult.utmN)} m</p>
                       </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 rounded-lg bg-[var(--accent-subtle)] border border-[var(--accent)]/20">
                         <p className="text-[10px] text-[var(--accent)] uppercase">Cassini Easting</p>
-                        <p className="font-mono text-sm text-[var(--text-primary)]">{r4(singleResult.cassiniE)} m</p>
+                        <p className="font-mono text-sm text-[var(--text-primary)]">{r1(singleResult.cassiniE)} ft</p>
                       </div>
                       <div className="p-3 rounded-lg bg-[var(--accent-subtle)] border border-[var(--accent)]/20">
                         <p className="text-[10px] text-[var(--accent)] uppercase">Cassini Northing</p>
-                        <p className="font-mono text-sm text-[var(--text-primary)]">{r4(singleResult.cassiniN)} m</p>
+                        <p className="font-mono text-sm text-[var(--text-primary)]">{r1(singleResult.cassiniN)} ft</p>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Geographic */}
+                {/* Intermediate: conformal correction */}
                 <div>
-                  <p className="text-xs text-[var(--text-muted)] mb-1 uppercase tracking-wider font-medium">Geographic (WGS84 approx.)</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
-                      <p className="text-[10px] text-[var(--text-muted)] uppercase">Latitude</p>
-                      <p className="font-mono text-sm text-[var(--text-primary)]">{r3(singleResult.lat)}°</p>
-                      <p className="font-mono text-[10px] text-[var(--text-muted)]">{toDMS(singleResult.lat ?? 0, 'N', 'S')}</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
-                      <p className="text-[10px] text-[var(--text-muted)] uppercase">Longitude</p>
-                      <p className="font-mono text-sm text-[var(--text-primary)]">{r3(singleResult.lon)}°</p>
-                      <p className="font-mono text-[10px] text-[var(--text-muted)]">{toDMS(singleResult.lon ?? 0, 'E', 'W')}</p>
-                    </div>
+                  <p className="text-xs text-[var(--text-muted)] mb-1 uppercase tracking-wider font-medium">Intermediate</p>
+                  <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
+                    <p className="text-[10px] text-[var(--text-muted)] uppercase">Conformal-corrected Easting</p>
+                    <p className="font-mono text-sm text-[var(--text-primary)]">{r1(singleResult.conformalE)} ft</p>
+                    <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                      Correction: {r4(singleResult.conformalE - singleResult.cassiniE)} ft from raw E
+                    </p>
                   </div>
                 </div>
 
-                {/* Round-trip error */}
-                {singleResult.roundTripError !== undefined && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
-                    <span className="text-xs text-[var(--text-muted)]">Round-trip error</span>
-                    <span className={`font-mono text-sm ${(singleResult.roundTripError * 1000) < 10 ? 'text-[var(--success)]' : 'text-[var(--warning)]'}`}>
-                      {r2(singleResult.roundTripError * 1000)} mm
-                    </span>
-                  </div>
-                )}
+                {/* Sheet info */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
+                  <span className="text-xs text-[var(--text-muted)]">Sheet: {activeSheet.name}</span>
+                  <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                    P={activeSheet.P} Q={activeSheet.Q}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -792,6 +725,9 @@ export default function CassiniUTMPage() {
                 <Globe className="h-10 w-10 text-[var(--text-muted)] mb-3" />
                 <p className="text-sm text-[var(--text-muted)]">
                   Enter coordinates and click <strong>Convert</strong> to see results
+                </p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  Cassini values in FEET (negative northing for south of origin)
                 </p>
               </div>
             </div>
@@ -821,13 +757,19 @@ export default function CassiniUTMPage() {
                     <thead className="sticky top-0 z-10">
                       <tr className="table-header">
                         <th className="table-cell text-left font-semibold py-2 px-3">ID</th>
-                        <th className="table-cell text-right font-semibold py-2 px-3">Src E</th>
-                        <th className="table-cell text-right font-semibold py-2 px-3">Src N</th>
-                        <th className="table-cell text-right font-semibold py-2 px-3">Tgt E</th>
-                        <th className="table-cell text-right font-semibold py-2 px-3">Tgt N</th>
-                        <th className="table-cell text-right font-semibold py-2 px-3">Lat</th>
-                        <th className="table-cell text-right font-semibold py-2 px-3">Lon</th>
-                        <th className="table-cell text-right font-semibold py-2 px-3">Err (mm)</th>
+                        <th className="table-cell text-right font-semibold py-2 px-3">
+                          Src E ({direction === 'cassini-to-utm' ? 'ft' : 'm'})
+                        </th>
+                        <th className="table-cell text-right font-semibold py-2 px-3">
+                          Src N ({direction === 'cassini-to-utm' ? 'ft' : 'm'})
+                        </th>
+                        <th className="table-cell text-right font-semibold py-2 px-3">
+                          Tgt E ({direction === 'cassini-to-utm' ? 'm' : 'ft'})
+                        </th>
+                        <th className="table-cell text-right font-semibold py-2 px-3">
+                          Tgt N ({direction === 'cassini-to-utm' ? 'm' : 'ft'})
+                        </th>
+                        <th className="table-cell text-right font-semibold py-2 px-3">Conf. E (ft)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -842,42 +784,30 @@ export default function CassiniUTMPage() {
                             )}
                           </td>
                           <td className="table-cell py-2 px-3 text-right font-mono">
-                            {r4(direction === 'cassini-to-utm' ? r.cassiniE : r.utmE)}
+                            {direction === 'cassini-to-utm' ? r1(r.cassiniE) : r3(r.utmE)}
                           </td>
                           <td className="table-cell py-2 px-3 text-right font-mono">
-                            {r4(direction === 'cassini-to-utm' ? r.cassiniN : r.utmN)}
+                            {direction === 'cassini-to-utm' ? r1(r.cassiniN) : r3(r.utmN)}
                           </td>
                           <td className="table-cell py-2 px-3 text-right font-mono text-[var(--accent)]">
-                            {r4(direction === 'cassini-to-utm' ? r.utmE : r.cassiniE)}
+                            {direction === 'cassini-to-utm' ? r3(r.utmE) : r1(r.cassiniE)}
                           </td>
                           <td className="table-cell py-2 px-3 text-right font-mono text-[var(--accent)]">
-                            {r4(direction === 'cassini-to-utm' ? r.utmN : r.cassiniN)}
+                            {direction === 'cassini-to-utm' ? r3(r.utmN) : r1(r.cassiniN)}
                           </td>
-                          <td className="table-cell py-2 px-3 text-right font-mono">{r3(r.lat)}</td>
-                          <td className="table-cell py-2 px-3 text-right font-mono">{r3(r.lon)}</td>
-                          <td className={`table-cell py-2 px-3 text-right font-mono ${
-                            r.roundTripError !== undefined && (r.roundTripError * 1000) < 10
-                              ? 'text-[var(--success)]'
-                              : 'text-[var(--warning)]'
-                          }`}>
-                            {r2((r.roundTripError ?? 0) * 1000)}
+                          <td className="table-cell py-2 px-3 text-right font-mono text-[var(--text-muted)]">
+                            {r1(r.conformalE)}
                           </td>
                         </tr>
                       ))}
                     </tbody>
-                    {/* Summary row */}
-                    {batchSummary && (
-                      <tfoot>
-                        <tr className="border-t border-[var(--border-color)] bg-[var(--bg-tertiary)]">
-                          <td colSpan={7} className="table-cell py-2 px-3 font-semibold text-[var(--text-muted)]">
-                            Count: {batchSummary.count}
-                          </td>
-                          <td className="table-cell py-2 px-3 text-right font-mono text-[var(--text-muted)]">
-                            Avg: {r2(batchSummary.meanError)} / Max: {r2(batchSummary.maxError)}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    )}
+                    <tfoot>
+                      <tr className="border-t border-[var(--border-color)] bg-[var(--bg-tertiary)]">
+                        <td colSpan={6} className="table-cell py-2 px-3 font-semibold text-[var(--text-muted)]">
+                          Sheet: {activeSheet.name} — {batchResults.length} points converted
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
 
@@ -893,33 +823,6 @@ export default function CassiniUTMPage() {
               </div>
             </div>
           )}
-
-          {/* ── Empty state for batch ── */}
-          {inputMode === 'batch' && batchResults.length === 0 && (
-            <div className="card">
-              <div className="card-body flex flex-col items-center justify-center py-12 text-center">
-                <Globe className="h-10 w-10 text-[var(--text-muted)] mb-3" />
-                <p className="text-sm text-[var(--text-muted)]">
-                  Paste CSV coordinates and click <strong>Convert Batch</strong> to see results
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ── 3. Info Banner (always visible) ── */}
-          <div className="card border-[var(--accent)]/20">
-            <div className="card-body">
-              <div className="flex items-start gap-3">
-                <Info className="h-4 w-4 text-[var(--accent)] shrink-0 mt-0.5" />
-                <div className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  <strong className="text-[var(--text-primary)]">Datum accuracy notice:</strong>{' '}
-                  Datum shift uses approximate Molodensky parameters (dx=-160, dy=-6, dz=-302). For
-                  cadastral-grade accuracy (&lt;0.1m), apply district-specific transformation parameters
-                  from known control points.
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
