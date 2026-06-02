@@ -2,11 +2,11 @@ import proj4 from 'proj4';
 
 const DEFINITIONS: Record<string, string> = {
   'WGS84': '+proj=longlat +datum=WGS84 +no_defs',
-  'Arc1960-UTM36S': '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
-  'Arc1960-UTM37S': '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
-  'Arc1960-UTM37N': '+proj=utm +zone=37 +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
-  'Arc1960-UTM36N': '+proj=utm +zone=36 +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
-  'Arc1960-UTM35S': '+proj=utm +zone=35 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
+  'Arc1960-UTM36S': '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
+  'Arc1960-UTM37S': '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
+  'Arc1960-UTM37N': '+proj=utm +zone=37 +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
+  'Arc1960-UTM36N': '+proj=utm +zone=36 +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
+  'Arc1960-UTM35S': '+proj=utm +zone=35 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
   'WGS84-UTM36S': '+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs',
   'WGS84-UTM37S': '+proj=utm +zone=37 +south +datum=WGS84 +units=m +no_defs',
   'WGS84-UTM37N': '+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs',

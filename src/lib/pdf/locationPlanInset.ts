@@ -19,7 +19,7 @@ import type { jsPDF as JsPDF } from 'jspdf';
 
 const WGS84 = 'EPSG:4326';
 const ARC1960_UTM37S =
-  '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs';
+  '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs +type=crs';
 
 // Register once so proj4 can resolve by name if needed elsewhere
 proj4.defs('EPSG:21037', ARC1960_UTM37S);

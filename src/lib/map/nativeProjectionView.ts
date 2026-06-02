@@ -94,7 +94,7 @@ const ARC1960_DEFS: Array<{
     zone: 36,
     hemisphere: 'S',
     proj4def:
-      '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
+      '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
     extent: KENYA_EXTENT_S,
   },
   {
@@ -104,7 +104,7 @@ const ARC1960_DEFS: Array<{
     zone: 35,
     hemisphere: 'S',
     proj4def:
-      '+proj=utm +zone=35 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
+      '+proj=utm +zone=35 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
     extent: KENYA_EXTENT_S,
   },
 ];

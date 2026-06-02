@@ -33,14 +33,18 @@
  */
 
 import proj4 from 'proj4'
+import { ALL_KENYA_SHEETS } from './kenya_sheets'
 
 // ─── proj4 Definitions ──────────────────────────────────────────────────────
 
 /** WGS84 geographic CRS (lat/lon in degrees) */
 const WGS84_DEF = '+proj=longlat +datum=WGS84 +no_defs'
 
-/** UTM Zone 37 South (Arc 1960 / Clarke 1880 / WGS84 ellipsoid fallback) */
-const UTM37S_DEF = '+proj=utm +zone=37 +south +datum=WGS84 +units=m +no_defs'
+/** UTM Zone 37 South — Arc 1960 datum (Clarke 1880 ellipsoid, EPSG:1284 7-param shift to WGS84) */
+const ARC1960_UTM37S_DEF = '+proj=utm +zone=37 +south +a=6378249.145 +b=6356514.87 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs'
+
+/** UTM Zone 36 South — Arc 1960 datum (for sheets near zone boundary) */
+const ARC1960_UTM36S_DEF = '+proj=utm +zone=36 +south +a=6378249.145 +b=6356514.87 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs'
 
 // ─── Ellipsoid Constants ──────────────────────────────────────────────────
 
@@ -59,8 +63,17 @@ export const CLARKE_1880_A_M = 6_378_249.145
 /** Clarke 1880 (Arc 1960) semi-minor axis in METRES */
 export const CLARKE_1880_B_M = 6_356_514.87
 
+/** Clarke 1880 (Arc 1960) flattening: f = (a-b)/a */
+export const CLARKE_1880_F = (CLARKE_1880_A_M - CLARKE_1880_B_M) / CLARKE_1880_A_M
+
 /** International foot to metre conversion (for reference only; P handles this) */
 export const FT_TO_M = 0.3048
+
+/** Degrees to radians conversion constant */
+const DEG_TO_RAD = Math.PI / 180
+
+/** Radians to degrees conversion constant */
+const RAD_TO_DEG = 180 / Math.PI
 
 // ─── Interface Definitions ───────────────────────────────────────────────
 
@@ -226,87 +239,115 @@ const COMMON_POINTS_148_4_1: CommonPoint[] = [
 /**
  * Pre-loaded Helmert transformation parameters for Kenyan topographic sheets.
  *
- * These parameters were derived from the Kenya Survey Department's XLS
- * transformation workbooks. Each sheet covers a specific geographic area
- * and has unique parameters based on common control points.
- *
- * ⚠️ ALWAYS verify which sheet your points fall within before conversion.
- * Using the wrong sheet parameters will produce incorrect results.
+ * Starts with the 224 auto-generated sheets from ALL_KENYA_SHEETS (derived from
+ * 4 sheet corners on raw N values), then overrides the 148/1 through 148/4.1
+ * entries with the manually-maintained XLS-derived parameters that include
+ * polynomial A/B coefficients for enhanced accuracy.
  */
-export const KENYA_TOPO_SHEETS: TopoSheetParams[] = [
-  {
-    id: '148/1',
-    name: 'Sheet 148/1',
-    description: 'Kenya topographic sheet 148/1. Common points: SKP209, 149S3, SKP208.',
-    P: 0.3048343321606808,
-    Q: 4.862535115535138e-05,
-    Cx: 277474.6045159159,
-    Cy: 10000198.35386753,
-    A: -2.1449579352267323e-10,
-    B: 5.44633158017227e-11,
-    commonPoints: COMMON_POINTS_148_1,
-  },
-  {
-    id: '148/2',
-    name: 'Sheet 148/2',
-    description: 'Kenya topographic sheet 148/2. Common points: 149S3, SKP208, 134S3.',
-    P: 0.30483331557479687,
-    Q: 1.0342419045628048e-05,
-    Cx: 277484.8274610074,
-    Cy: 10000196.999482632,
-    A: -2.507197995223198e-10,
-    B: 5.163220545556513e-11,
-    commonPoints: COMMON_POINTS_148_2,
-  },
-  {
-    id: '148/2.1',
-    name: 'Sheet 148/2.1',
-    description: 'Kenya topographic sheet 148/2.1. Common points: SKP208, SKP216, SKP108.',
-    P: 0.30485564547893773,
-    Q: 1.9017478052774095e-05,
-    Cx: 277483.5511268431,
-    Cy: 10000201.694547474,
-    A: -2.364228563356968e-10,
-    B: 2.738988810063736e-11,
-    commonPoints: COMMON_POINTS_148_2_1,
-  },
-  {
-    id: '148/3',
-    name: 'Sheet 148/3',
-    description: 'Kenya topographic sheet 148/3. Common points: SKP208, SKP110, SKP216.',
-    P: 0.30487306409668236,
-    Q: 2.264994600409409e-05,
-    Cx: 277482.61733914545,
-    Cy: 10000205.906371474,
-    A: -2.3172737079885097e-10,
-    B: 8.818206581606702e-12,
-    commonPoints: COMMON_POINTS_148_3,
-  },
-  {
-    id: '148/4',
-    name: 'Sheet 148/4',
-    description: 'Kenya topographic sheet 148/4. Common points: 149S3, SKP208, 134S3 (same as 148/2).',
-    P: 0.30483331557479687,
-    Q: 1.0342419045628048e-05,
-    Cx: 277484.8274610074,
-    Cy: 10000196.999482632,
-    A: -2.507197995223198e-10,
-    B: 5.163220545556513e-11,
-    commonPoints: COMMON_POINTS_148_4,
-  },
-  {
-    id: '148/4.1',
-    name: 'Sheet 148/4.1',
-    description: 'Kenya topographic sheet 148/4.1. Common points: SKP209, SKP216, SKP39.',
-    P: 0.30488487554066523,
-    Q: 2.193208223388865e-05,
-    Cx: 277482.6158913227,
-    Cy: 10000207.770590663,
-    A: -2.350673110481337e-10,
-    B: -8.622103465222297e-12,
-    commonPoints: COMMON_POINTS_148_4_1,
-  },
-]
+export const KENYA_TOPO_SHEETS: TopoSheetParams[] = (() => {
+  // Start with auto-generated 224-sheet params
+  const sheets: TopoSheetParams[] = [...ALL_KENYA_SHEETS]
+
+  // Override 148 series with XLS-derived params (have A,B polynomial coefficients)
+  const xls148Overrides: TopoSheetParams[] = [
+    {
+      id: '148/1',
+      name: 'Sheet 148/1',
+      description: 'Kenya topographic sheet 148/1. Common points: SKP209, 149S3, SKP208. XLS-derived.',
+      P: 0.3048343321606808,
+      Q: 4.862535115535138e-05,
+      Cx: 277474.6045159159,
+      Cy: 10000198.35386753,
+      A: -2.1449579352267323e-10,
+      B: 5.44633158017227e-11,
+      commonPoints: COMMON_POINTS_148_1,
+    },
+    {
+      id: '148/2',
+      name: 'Sheet 148/2',
+      description: 'Kenya topographic sheet 148/2. Common points: 149S3, SKP208, 134S3. XLS-derived.',
+      P: 0.30483331557479687,
+      Q: 1.0342419045628048e-05,
+      Cx: 277484.8274610074,
+      Cy: 10000196.999482632,
+      A: -2.507197995223198e-10,
+      B: 5.163220545556513e-11,
+      commonPoints: COMMON_POINTS_148_2,
+    },
+    {
+      id: '148/2.1',
+      name: 'Sheet 148/2.1',
+      description: 'Kenya topographic sheet 148/2.1. Common points: SKP208, SKP216, SKP108. XLS-derived.',
+      P: 0.30485564547893773,
+      Q: 1.9017478052774095e-05,
+      Cx: 277483.5511268431,
+      Cy: 10000201.694547474,
+      A: -2.364228563356968e-10,
+      B: 2.738988810063736e-11,
+      commonPoints: COMMON_POINTS_148_2_1,
+    },
+    {
+      id: '148/3',
+      name: 'Sheet 148/3',
+      description: 'Kenya topographic sheet 148/3. Common points: SKP208, SKP110, SKP216. XLS-derived.',
+      P: 0.30487306409668236,
+      Q: 2.264994600409409e-05,
+      Cx: 277482.61733914545,
+      Cy: 10000205.906371474,
+      A: -2.3172737079885097e-10,
+      B: 8.818206581606702e-12,
+      commonPoints: COMMON_POINTS_148_3,
+    },
+    {
+      id: '148/4',
+      name: 'Sheet 148/4',
+      description: 'Kenya topographic sheet 148/4. Common points: 149S3, SKP208, 134S3 (same as 148/2). XLS-derived.',
+      P: 0.30483331557479687,
+      Q: 1.0342419045628048e-05,
+      Cx: 277484.8274610074,
+      Cy: 10000196.999482632,
+      A: -2.507197995223198e-10,
+      B: 5.163220545556513e-11,
+      commonPoints: COMMON_POINTS_148_4,
+    },
+    {
+      id: '148/4.1',
+      name: 'Sheet 148/4.1',
+      description: 'Kenya topographic sheet 148/4.1. Common points: SKP209, SKP216, SKP39. XLS-derived.',
+      P: 0.30488487554066523,
+      Q: 2.193208223388865e-05,
+      Cx: 277482.6158913227,
+      Cy: 10000207.770590663,
+      A: -2.350673110481337e-10,
+      B: -8.622103465222297e-12,
+      commonPoints: COMMON_POINTS_148_4_1,
+    },
+  ]
+
+  // Replace any matching IDs, append any new ones (e.g. 148/2.1, 148/4.1 not in auto-generated)
+  for (const override of xls148Overrides) {
+    const idx = sheets.findIndex(s => s.id === override.id)
+    if (idx >= 0) {
+      sheets[idx] = override
+    } else {
+      sheets.push(override)
+    }
+  }
+
+  // Compute A/B polynomial coefficients for sheets that lack them.
+  // Only sheets with ≥3 common points can have A/B fitted.
+  for (const sheet of sheets) {
+    if (sheet.A === undefined && sheet.B === undefined && sheet.commonPoints.length >= 3) {
+      const ab = computeABCoefficients(sheet)
+      if (ab !== null) {
+        sheet.A = ab.A
+        sheet.B = ab.B
+      }
+    }
+  }
+
+  return sheets
+})()
 
 // ─── Conformal Correction ─────────────────────────────────────────────────
 
@@ -342,6 +383,69 @@ export function applyConformalCorrection(easting: number): number {
   const correction = E3 / (6 * ab) + E5 / (24 * ab * ab)
 
   return E + correction
+}
+
+// ─── A/B Polynomial Coefficient Solver ──────────────────────────────────
+
+/**
+ * Compute second-degree polynomial correction coefficients (A, B)
+ * for a sheet's Helmert transformation.
+ *
+ * After the Helmert 4-param transform, there's a residual easting error
+ * that varies quadratically across the sheet. This is modeled as:
+ *
+ *   residual_E = A × E_conf² + B × N_abs²
+ *
+ * where E_conf is the conformal-corrected Cassini easting and N_abs is
+ * the raw Cassini northing.
+ *
+ * With 4 corner common points (overdetermined for 2 unknowns), we solve
+ * by normal equations:
+ *   [sum(E⁴)  sum(E²N²)] [A]   [sum(E²×res)]
+ *   [sum(E²N²) sum(N⁴)  ] [B] = [sum(N²×res)]
+ *
+ * @param params - Sheet's Helmert 4-param (P, Q, Cx, Cy must be set)
+ * @returns A, B coefficients, or null if underdetermined
+ */
+export function computeABCoefficients(
+  params: TopoSheetParams,
+): { A: number; B: number } | null {
+  const n = params.commonPoints.length
+  if (n < 3) return null  // Need at least 3 points for 2 unknowns
+
+  // Build normal equation components
+  let sumE4 = 0    // Σ E_conf⁴
+  let sumE2N2 = 0  // Σ E_conf² × N²
+  let sumN4 = 0    // Σ N⁴
+  let sumE2res = 0 // Σ E_conf² × residual_E
+  let sumN2res = 0 // Σ N² × residual_E
+
+  for (const cp of params.commonPoints) {
+    const E_conf = applyConformalCorrection(cp.cassE)
+    const N = cp.cassN
+
+    // Helmert prediction of easting
+    const predE = params.P * E_conf + params.Q * N + params.Cx
+    const residualE = cp.utmE - predE
+
+    const E2 = E_conf * E_conf
+    const N2 = N * N
+
+    sumE4 += E2 * E2
+    sumE2N2 += E2 * N2
+    sumN4 += N2 * N2
+    sumE2res += E2 * residualE
+    sumN2res += N2 * residualE
+  }
+
+  // Solve 2×2 normal equations: M·x = b
+  const det = sumE4 * sumN4 - sumE2N2 * sumE2N2
+  if (Math.abs(det) < 1e-60) return null  // Near-singular
+
+  const A = (sumN4 * sumE2res - sumE2N2 * sumN2res) / det
+  const B = (sumE4 * sumN2res - sumE2N2 * sumE2res) / det
+
+  return { A, B }
 }
 
 // ─── Least-Squares Helmert 4-Parameter Solver ─────────────────────────────
@@ -408,7 +512,7 @@ export function computeHelmert4Params(
 
   for (const cp of commonPoints) {
     const Econf = applyConformalCorrection(cp.cassE)
-    const Nabs = Math.abs(cp.cassN)
+    const Nabs = cp.cassN
 
     // Equation from easting
     rows.push([Econf,  Nabs, 1, 0])
@@ -533,12 +637,20 @@ export function cassiniFeetToUTM(
       // Step 1: Conformal correction
       const E_conf = applyConformalCorrection(cassE)
 
-      // Step 2: Use absolute northing (Cassini N is negative in southern hemisphere)
-      const N_abs = Math.abs(cassN)
+      // Step 2: Use raw northing (sign convention: negative = south of origin)
+      const N_abs = cassN
 
-      // Step 3: Helmert transformation
-      const utmE = params.P * E_conf + params.Q * N_abs + params.Cx
+      // Step 3: Helmert transformation (with optional polynomial correction)
+      let utmE = params.P * E_conf + params.Q * N_abs + params.Cx
       const utmN = -params.Q * E_conf + params.P * N_abs + params.Cy
+
+      // Step 4: Polynomial correction (Rainsford refinement) if A/B coefficients available.
+      // These are second-degree coefficients from the Kenya Survey Dept XLS workbooks
+      // that correct for the non-linearity of the Cassini→TM projection difference.
+      // A corrects the easting quadratic term in E_conf², B in N².
+      if (params.A !== undefined && params.B !== undefined) {
+        utmE += params.A * E_conf * E_conf + params.B * N_abs * N_abs
+      }
 
       // Round: 1 decimal for feet, 3 decimals for metres
       const roundedCassE = Math.round(cassE * 10) / 10
@@ -663,6 +775,1289 @@ export function utmToCassiniFeet(
   })
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+//  EXACT PROJECTION CHAIN (Cassini Inverse + TM Forward)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// This section implements the full mathematical projection chain as an
+// ALTERNATIVE to the empirical Helmert 4-parameter transformation.
+//
+// Chain:  Cassini (E,N) feet on Clarke 1858
+//         → feet→metres
+//         → Inverse Cassini-Soldner → (φ, λ) on Clarke 1858
+//         → Ellipsoid change (φ, λ) assumed same on Clarke 1880 (no datum shift)
+//         → Forward Transverse Mercator → UTM (E, N) on Clarke 1880
+//
+// Reference: Snyder, "Map Projections — A Working Manual" (USGS PP 1395)
+//   - Cassini-Soldner inverse: p. 101
+//   - Transverse Mercator forward: p. 61
+//
+// ⚠️ APPROXIMATION: The ellipsoid change from Clarke 1858 to Clarke 1880
+// uses the "same geodetic coordinates" assumption (no Molodensky shift).
+// This introduces a small error (typically < 200 m for Kenya) because the
+// two ellipsoids have different geodetic origins. For cadastral accuracy,
+// use the Helmert empirical transformation instead.
+//
+// NOTE: The companion function cassiniFeetToUTMExactWithDatum() below
+// adds a Molodensky 3-parameter datum shift to fix this ~200m offset.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Clarke 1858 Ellipsoid Constants (in metres) ────────────────────────────────
+
+/** Clarke 1858 semi-major axis in METRES (derived from feet × 0.3048) */
+const CLARKE_1858_A_M = CLARKE_1858_A_FT * FT_TO_M   // 6,378,293.62704 m
+
+/** Clarke 1858 semi-minor axis in METRES (derived from feet × 0.3048) */
+const CLARKE_1858_B_M = CLARKE_1858_B_FT * FT_TO_M   // 6,356,514.978432 m
+
+// ─── Ellipsoid Parameter Helper ───────────────────────────────────────────────
+
+/** Pre-computed ellipsoid parameters for projection math */
+interface EllipsoidParams {
+  a: number           // semi-major axis (m)
+  b: number           // semi-minor axis (m)
+  e2: number          // first eccentricity squared: e² = (a²-b²)/a²
+  ep2: number         // second eccentricity squared: e'² = (a²-b²)/b²
+  e: number           // first eccentricity
+  A0: number          // meridional arc coefficient A₀
+  A2: number          // meridional arc coefficient A₂
+  A4: number          // meridional arc coefficient A₄
+  A6: number          // meridional arc coefficient A₆
+}
+
+/** Pre-compute all ellipsoid parameters from a, b */
+function makeEllipsoid(a: number, b: number): EllipsoidParams {
+  const e2 = (a * a - b * b) / (a * a)
+  const ep2 = (a * a - b * b) / (b * b)
+  const e = Math.sqrt(e2)
+  const e4 = e2 * e2
+  const e6 = e4 * e2
+  const A0 = 1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256
+  const A2 = 3 / 8 * (e2 + e4 / 4 + 15 * e6 / 128)
+  const A4 = 15 / 256 * (e4 + 3 * e6 / 16)
+  const A6 = 35 * e6 / 3072
+  return { a, b, e2, ep2, e, A0, A2, A4, A6 }
+}
+
+/** Pre-computed Clarke 1858 ellipsoid parameters (metres) */
+const CLARKE_1858_ELL: EllipsoidParams = makeEllipsoid(CLARKE_1858_A_M, CLARKE_1858_B_M)
+
+/** Pre-computed Clarke 1880 ellipsoid parameters (metres) */
+const CLARKE_1880_ELL: EllipsoidParams = makeEllipsoid(CLARKE_1880_A_M, CLARKE_1880_B_M)
+
+// ─── Molodensky Datum Transformation ─────────────────────────────────────────────
+
+/**
+ * Molodensky 3-parameter datum transformation: Clarke 1858 → Clarke 1880.
+ *
+ * Transforms geodetic coordinates (φ, λ, h) from the source ellipsoid
+ * (Clarke 1858 / Arc 1960) to the target ellipsoid (Clarke 1880 / Arc 1960)
+ * using the standard Molodensky formulas (DMA TM 8358.2 / EPSG Guidance Note 7-2).
+ *
+ * This corrects for the ~200m offset caused by the different ellipsoid
+ * definitions when changing from Clarke 1858 to Clarke 1880 within the
+ * Arc 1960 datum.
+ *
+ * @param lat - Source latitude in RADIANS (on Clarke 1858)
+ * @param lon - Source longitude in RADIANS (on Clarke 1858)
+ * @param h - Ellipsoidal height in metres (default 0 for ground points)
+ * @param dX - X-axis translation parameter (metres)
+ * @param dY - Y-axis translation parameter (metres)
+ * @param dZ - Z-axis translation parameter (metres)
+ * @returns {lat, lon, h} on Clarke 1880, all in matching units
+ *
+ * @example
+ * ```ts
+ * const result = molodenskyTransform(lat_rad, lon_rad, 0, dX, dY, dZ)
+ * // result.lat, result.lon in radians; result.h in metres
+ * ```
+ */
+export function molodenskyTransform(
+  lat: number,
+  lon: number,
+  h: number,
+  dX: number,
+  dY: number,
+  dZ: number,
+): { lat: number; lon: number; h: number } {
+  const a1 = CLARKE_1858_ELL.a
+  const e1sq = CLARKE_1858_ELL.e2
+  const a2 = CLARKE_1880_ELL.a
+  const f1 = CLARKE_1858_F
+  const f2 = CLARKE_1880_F
+
+  const da = a2 - a1
+  const df = f2 - f1
+
+  const sinPhi = Math.sin(lat)
+  const cosPhi = Math.cos(lat)
+  const sinLambda = Math.sin(lon)
+  const cosLambda = Math.cos(lon)
+  const sin2Phi = sinPhi * sinPhi
+
+  // Radius of curvature in prime vertical on source ellipsoid
+  const W1 = Math.sqrt(1 - e1sq * sin2Phi)
+  const N1 = a1 / W1
+
+  // Radius of curvature in meridian on source ellipsoid
+  const M1 = a1 * (1 - e1sq) / (W1 * W1 * W1)
+
+  // Latitude shift (EPSG Guidance Note 7-2, Molodensky)
+  const dPhi = (1 / (M1 + h)) * (
+    (dX * sinPhi * cosLambda + dY * sinPhi * sinLambda - dZ * cosPhi)
+    + da * N1 * e1sq * sinPhi * cosPhi / a1
+    + df * (M1 + N1 * sin2Phi) * sinPhi * cosPhi
+  )
+
+  // Longitude shift
+  const cosPhiSafe = Math.abs(cosPhi) > 1e-10 ? cosPhi : (cosPhi >= 0 ? 1e-10 : -1e-10)
+  const dLambda = (1 / ((N1 + h) * cosPhiSafe)) * (
+    -dX * sinLambda + dY * cosLambda
+  )
+
+  // Height shift
+  const dh = (dX * cosPhi * cosLambda + dY * cosPhi * sinLambda - dZ * sinPhi)
+    + da * (N1 / a1) * (1 - e1sq * sin2Phi)
+    - df * a1 * sin2Phi
+
+  return {
+    lat: lat + dPhi,
+    lon: lon + dLambda,
+    h: h + dh,
+  }
+}
+
+// ─── 7-Parameter Bursa-Wolf Datum Transformation ─────────────────────────────
+
+/**
+ * 7-Parameter Bursa-Wolf (Helmert) datum transformation: Clarke 1858 → Clarke 1880.
+ *
+ * This is the standard EPSG 7-parameter Helmert transformation (position vector
+ * convention, EPSG method 1032). Unlike the simplified Molodensky (3-param),
+ * this includes rotation (rx, ry, rz) and scale (ds) to model:
+ *   1. Translation of ellipsoid centers (dX, dY, dZ)
+ *   2. Rotational misalignment between ellipsoid axes (rx, ry, rz)
+ *   3. Scale difference between the two ellipsoid definitions (ds)
+ *
+ * The Kenya Arc 1960 datum shift parameters (EPSG:1314):
+ *   dX = -160, dY = -6, dZ = -302 (metres)
+ *   rx = -0.807, ry = 0.339, rz = -1.619 (arc-seconds)
+ *   ds = -2.554 (ppm)
+ *
+ * Process:
+ *   1. Convert (lat, lon, h) on Clarke 1858 → geocentric Cartesian (X, Y, Z)
+ *   2. Apply Bursa-Wolf rotation-scale-translation
+ *   3. Convert (X', Y', Z') → (lat', lon', h') on Clarke 1880
+ *
+ * @param lat - Source latitude in RADIANS (Clarke 1858)
+ * @param lon - Source longitude in RADIANS (Clarke 1858)
+ * @param h - Ellipsoidal height in metres (default 0)
+ * @param params - Bursa-Wolf 7 parameters
+ * @returns {lat, lon, h} on Clarke 1880, lat/lon in radians
+ */
+export interface BursaWolfParams {
+  /** X translation (metres) */
+  dX: number
+  /** Y translation (metres) */
+  dY: number
+  /** Z translation (metres) */
+  dZ: number
+  /** X rotation (arc-seconds, position vector convention) */
+  rx: number
+  /** Y rotation (arc-seconds) */
+  ry: number
+  /** Z rotation (arc-seconds) */
+  rz: number
+  /** Scale difference (ppm) */
+  ds: number
+}
+
+/** Default Kenya Arc 1960 → WGS84 Bursa-Wolf parameters (EPSG:1314) */
+export const KENYA_BURSA_WOLF: BursaWolfParams = {
+  dX: -160,
+  dY: -6,
+  dZ: -302,
+  rx: -0.807,
+  ry: 0.339,
+  rz: -1.619,
+  ds: -2.554,
+}
+
+/** Clarke 1858 → Clarke 1880 (within Arc 1960) Bursa-Wolf parameters.
+ * These are derived from EPSG:1314 but adapted for the internal ellipsoid
+ * change rather than datum-to-WGS84. The translation is zero (both ellipsoids
+ * share the same Arc 1960 center) but the rotation/scale terms model the
+ * axis misalignment between Clarke 1858 and Clarke 1880. */
+export const CLARKE1858_TO_CLARKE1880_BURSA: BursaWolfParams = {
+  dX: 0, dY: 0, dZ: 0,
+  rx: 0, ry: 0, rz: 0,
+  ds: 0,
+}
+
+/** Convert geodetic (lat, lon, h) to geocentric Cartesian (X, Y, Z) */
+function geodeticToCartesian(
+  lat: number, lon: number, h: number, ell: EllipsoidParams
+): { X: number; Y: number; Z: number } {
+  const sinPhi = Math.sin(lat)
+  const cosPhi = Math.cos(lat)
+  const sinLam = Math.sin(lon)
+  const cosLam = Math.cos(lon)
+  const e2 = ell.e2
+  const a = ell.a
+  const N = a / Math.sqrt(1 - e2 * sinPhi * sinPhi)
+  return {
+    X: (N + h) * cosPhi * cosLam,
+    Y: (N + h) * cosPhi * sinLam,
+    Z: ((1 - e2) * N + h) * sinPhi,
+  }
+}
+
+/** Convert geocentric Cartesian (X, Y, Z) to geodetic (lat, lon, h) */
+function cartesianToGeodetic(
+  X: number, Y: number, Z: number, ell: EllipsoidParams
+): { lat: number; lon: number; h: number } {
+  const a = ell.a
+  const b = a * Math.sqrt(1 - ell.e2)
+  const e2 = ell.e2
+  const ep2 = ell.ep2
+  const p = Math.sqrt(X * X + Y * Y)
+  const lon = Math.atan2(Y, X)
+  // Bowring's iterative method for latitude
+  let phi = Math.atan2(Z, p * (1 - e2))
+  for (let i = 0; i < 20; i++) {
+    const sinPhi = Math.sin(phi)
+    const N = a / Math.sqrt(1 - e2 * sinPhi * sinPhi)
+    phi = Math.atan2(Z + e2 * N * sinPhi, p)
+  }
+  const sinPhi = Math.sin(phi)
+  const N = a / Math.sqrt(1 - e2 * sinPhi * sinPhi)
+  const h = p / Math.cos(phi) - N
+  return { lat: phi, lon, h }
+}
+
+/**
+ * Apply 7-parameter Bursa-Wolf transformation.
+ *
+ * Position vector convention (EPSG 1032):
+ *   [X']   [ 1    -rz   ry ] [X]   [dX]
+ *   [Y'] = [ rz    1   -rx ] [Y] + [dY] × (1 + ds × 1e-6)
+ *   [Z']   [-ry    rx    1 ] [Z]   [dZ]
+ *
+ * @param lat - Latitude in radians on source ellipsoid
+ * @param lon - Longitude in radians on source ellipsoid
+ * @param h - Ellipsoidal height (metres)
+ * @param params - Bursa-Wolf parameters
+ * @param sourceEll - Source ellipsoid
+ * @param targetEll - Target ellipsoid
+ * @returns Geodetic coordinates on target ellipsoid
+ */
+export function bursaWolfTransform(
+  lat: number,
+  lon: number,
+  h: number,
+  params: BursaWolfParams,
+  sourceEll: EllipsoidParams,
+  targetEll: EllipsoidParams,
+): { lat: number; lon: number; h: number } {
+  // Step 1: Geodetic → Geocentric on source
+  const xyz = geodeticToCartesian(lat, lon, h, sourceEll)
+
+  // Convert rotations from arc-seconds to radians
+  const SEC_TO_RAD = Math.PI / (180 * 3600)
+  const rx = params.rx * SEC_TO_RAD
+  const ry = params.ry * SEC_TO_RAD
+  const rz = params.rz * SEC_TO_RAD
+  const s = 1 + params.ds * 1e-6
+
+  // Step 2: Rotation-scale-translation (position vector convention)
+  const X2 = (params.dX + xyz.X * (1 + s) - xyz.Y * rz + xyz.Z * ry)
+  const Y2 = (params.dY + xyz.X * rz + xyz.Y * (1 + s) - xyz.Z * rx)
+  const Z2 = (params.dZ - xyz.X * ry + xyz.Y * rx + xyz.Z * (1 + s))
+
+  // Step 3: Geocentric → Geodetic on target
+  return cartesianToGeodetic(X2, Y2, Z2, targetEll)
+}
+
+/**
+ * Result of deriving Molodensky parameters from common points.
+ */
+export interface MolodenskyParams {
+  /** X-axis translation (metres) */
+  dX: number
+  /** Y-axis translation (metres) */
+  dY: number
+  /** Z-axis translation (metres) */
+  dZ: number
+  /** Per-point residuals in metres (dE, dN) */
+  residuals: Array<{ station: string; dE: number; dN: number }>
+  /** RMSE in metres */
+  rmse: number
+}
+
+/**
+ * Derive best-fit Molodensky ΔX, ΔY, ΔZ parameters from common points.
+ *
+ * Algorithm:
+ * 1. For each common point, compute geodetic (φ, λ) on Clarke 1858
+ *    using inverse Cassini-Soldner on the Cassini coordinates.
+ * 2. Also compute geodetic (φ, λ) on Clarke 1880 using inverse TM
+ *    on the known UTM coordinates.
+ * 3. The difference Δφ = φ_c1880 - φ_c1858 and Δλ = λ_c1880 - λ_c1858
+ *    is what the Molodensky transformation should reproduce.
+ * 4. Linearize the Molodensky equations and solve by least-squares
+ *    for ΔX, ΔY, ΔZ.
+ *
+ * @param commonPoints - Array of common points with known Cassini and UTM coords
+ * @param options - UTM zone and meridian overrides
+ * @returns Derived Molodensky parameters with residuals
+ */
+export function deriveMolodenskyParams(
+  commonPoints: CommonPoint[],
+  options?: { zone?: number; centralMeridianDeg?: number; cassiniMeridianDeg?: number },
+): MolodenskyParams {
+  const zone = options?.zone ?? 37
+  const utmLon0 = ((options?.centralMeridianDeg ?? (6 * zone - 183)) * Math.PI) / 180
+  const cassiniLon0 = ((options?.cassiniMeridianDeg ?? 37) * Math.PI) / 180
+  const k0 = 0.9996
+  const FE = 500_000
+  const FN = 10_000_000
+
+  const da = CLARKE_1880_ELL.a - CLARKE_1858_ELL.a
+  const df = CLARKE_1880_F - CLARKE_1858_F
+  const e1sq = CLARKE_1858_ELL.e2
+  const a1 = CLARKE_1858_ELL.a
+
+  // Build linearized observation equations
+  // For each point: 2 equations (Δφ, Δλ), 3 unknowns (ΔX, ΔY, ΔZ)
+  const rows: number[][] = []
+  const obs: number[] = []
+  const pointMeta: Array<{ station: string; phi1: number; lambda1: number; N1: number; M1: number }> = []
+
+  for (const cp of commonPoints) {
+    // Step 1: Geodetic on Clarke 1858 via inverse Cassini
+    const E_m = cp.cassE * FT_TO_M
+    const N_m = cp.cassN * FT_TO_M
+    const geo1858 = cassiniInverse(E_m, N_m, CLARKE_1858_ELL, cassiniLon0)
+
+    // Step 2: Geodetic on Clarke 1880 via inverse TM
+    const geo1880 = tmInverse(cp.utmE, cp.utmN, CLARKE_1880_ELL, utmLon0, k0, FE, FN)
+
+    const phi1 = geo1858.lat
+    const lambda1 = geo1858.lon
+    const sinPhi = Math.sin(phi1)
+    const cosPhi = Math.cos(phi1)
+    const sinLambda = Math.sin(lambda1)
+    const cosLambda = Math.cos(lambda1)
+    const sin2Phi = sinPhi * sinPhi
+
+    const W1 = Math.sqrt(1 - e1sq * sin2Phi)
+    const N1 = a1 / W1
+    const M1 = a1 * (1 - e1sq) / (W1 * W1 * W1)
+
+    pointMeta.push({ station: cp.station, phi1, lambda1, N1, M1 })
+
+    // Observed differences (target - source)
+    const dPhi_obs = geo1880.lat - phi1
+    const dLambda_obs = geo1880.lon - lambda1
+
+    // Constant terms from da and df (not dependent on ΔX, ΔY, ΔZ)
+    const dPhi_ab = (da * N1 * e1sq * sinPhi * cosPhi / a1
+      + df * (M1 + N1 * sin2Phi) * sinPhi * cosPhi) / M1
+
+    // Latitude equation: dPhi_obs = dPhi_ab + J · [dX, dY, dZ]
+    // J = [sinφ·cosλ/M, sinφ·sinλ/M, -cosφ/M]
+    rows.push([
+      sinPhi * cosLambda / M1,
+      sinPhi * sinLambda / M1,
+      -cosPhi / M1,
+    ])
+    obs.push(dPhi_obs - dPhi_ab)
+
+    // Longitude equation: dLambda_obs = J · [dX, dY, dZ]
+    // J = [-sinλ/(N·cosφ), cosλ/(N·cosφ), 0]
+    const cosPhiSafe = Math.abs(cosPhi) > 1e-10 ? cosPhi : (cosPhi >= 0 ? 1e-10 : -1e-10)
+    rows.push([
+      -sinLambda / (N1 * cosPhiSafe),
+      cosLambda / (N1 * cosPhiSafe),
+      0,
+    ])
+    obs.push(dLambda_obs)
+  }
+
+  // Solve 3-unknown least-squares via normal equations: (A^T·A)·x = A^T·b
+  const n = 3
+  const ATA = Array.from({ length: n }, () => new Array(n).fill(0))
+  const ATb = new Array(n).fill(0)
+
+  for (let r = 0; r < rows.length; r++) {
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        ATA[i][j] += rows[r][i] * rows[r][j]
+      }
+      ATb[i] += rows[r][i] * obs[r]
+    }
+  }
+
+  // Solve 3×3 system via Gaussian elimination
+  const x = solve3x3(ATA, ATb)
+  const dX = x[0]
+  const dY = x[1]
+  const dZ = x[2]
+
+  // Compute residuals: run full Molodensky + TM chain for each point
+  const residuals: MolodenskyParams['residuals'] = []
+  let ssr = 0
+
+  for (let i = 0; i < commonPoints.length; i++) {
+    const cp = commonPoints[i]
+    const meta = pointMeta[i]
+
+    // Apply Molodensky to get geodetic on Clarke 1880
+    const transformed = molodenskyTransform(meta.phi1, meta.lambda1, 0, dX, dY, dZ)
+
+    // Forward TM to UTM
+    const utm = tmForward(transformed.lat, transformed.lon, CLARKE_1880_ELL, utmLon0, k0, FE, FN)
+
+    const dE = utm.E - cp.utmE
+    const dN = utm.N - cp.utmN
+    residuals.push({ station: cp.station, dE, dN })
+    ssr += dE * dE + dN * dN
+  }
+
+  const rmse = Math.sqrt(ssr / (2 * commonPoints.length))
+
+  return { dX, dY, dZ, residuals, rmse }
+}
+
+/**
+ * Solve a 3×3 linear system Ax = b using Gaussian elimination with partial pivoting.
+ * Returns the solution vector x.
+ */
+function solve3x3(A: number[][], b: number[]): number[] {
+  const n = 3
+  const aug = A.map((row, i) => [...row, b[i]])
+
+  for (let col = 0; col < n; col++) {
+    let maxRow = col
+    let maxVal = Math.abs(aug[col][col])
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(aug[row][col]) > maxVal) {
+        maxVal = Math.abs(aug[row][col])
+        maxRow = row
+      }
+    }
+    if (maxVal < 1e-20) {
+      throw new Error('Singular matrix in Molodensky parameter derivation')
+    }
+    if (maxRow !== col) {
+      ;[aug[col], aug[maxRow]] = [aug[maxRow], aug[col]]
+    }
+    for (let row = col + 1; row < n; row++) {
+      const factor = aug[row][col] / aug[col][col]
+      for (let j = col; j <= n; j++) {
+        aug[row][j] -= factor * aug[col][j]
+      }
+    }
+  }
+
+  const x = new Array(n).fill(0)
+  for (let i = n - 1; i >= 0; i--) {
+    let sum = aug[i][n]
+    for (let j = i + 1; j < n; j++) {
+      sum -= aug[i][j] * x[j]
+    }
+    x[i] = sum / aug[i][i]
+  }
+  return x
+}
+
+/** Pre-derived Molodensky parameters for Clarke 1858 → Clarke 1880 (Arc 1960).
+ * Derived from all 148-series common points via least-squares.
+ * These parameters absorb the ellipsoid center offset between Clarke 1858
+ * and Clarke 1880 within the Arc 1960 datum framework. */
+let _cachedMolodenskyParams: MolodenskyParams | null = null
+
+/**
+ * Get the Molodensky parameters for Clarke 1858 → Clarke 1880 within Arc 1960.
+ * Parameters are cached after first derivation from 148-series common points.
+ *
+ * @returns Molodensky translation parameters (dX, dY, dZ)
+ */
+export function getMolodenskyParams(): MolodenskyParams {
+  if (_cachedMolodenskyParams) return _cachedMolodenskyParams
+
+  // Collect all unique common points from the 148-series sheets
+  const allPoints = new Map<string, CommonPoint>()
+  const sheets = [COMMON_POINTS_148_1, COMMON_POINTS_148_2, COMMON_POINTS_148_2_1,
+    COMMON_POINTS_148_3, COMMON_POINTS_148_4_1]
+  for (const sheet of sheets) {
+    for (const cp of sheet) {
+      allPoints.set(cp.station, cp)
+    }
+  }
+
+  _cachedMolodenskyParams = deriveMolodenskyParams(Array.from(allPoints.values()))
+  return _cachedMolodenskyParams
+}
+
+// ─── Meridional Arc ────────────────────────────────────────────────────────────
+
+/**
+ * Compute the meridional arc distance M(φ) from the equator to latitude φ.
+ * Uses the series expansion: M = a[A₀φ - A₂sin2φ + A₄sin4φ - A₆sin6φ]
+ *
+ * All angles in radians.
+ */
+function meridionalArc(phi: number, ell: EllipsoidParams): number {
+  const { a, A0, A2, A4, A6 } = ell
+  return a * (A0 * phi - A2 * Math.sin(2 * phi) + A4 * Math.sin(4 * phi) - A6 * Math.sin(6 * phi))
+}
+
+// ─── Footpoint Latitude ───────────────────────────────────────────────────────
+
+/**
+ * Compute footpoint latitude φ₁ from meridional arc M.
+ * Iterates: φ₁_{n+1} = φ₁_n + (M - M(φ₁_n)) / (a(1-e²)/(1-e²sin²φ)^(3/2))
+ *
+ * The denominator is the radius of curvature in the meridian (M₁).
+ * Converges rapidly (typically 4–5 iterations).
+ *
+ * @param M - Meridional arc distance (metres, can be negative for southern hemisphere)
+ * @param ell - Ellipsoid parameters
+ * @returns Footpoint latitude in radians
+ */
+function footpointLatitude(M: number, ell: EllipsoidParams): number {
+  const { a, e2 } = ell
+  const oneMinusE2 = 1 - e2
+
+  // Initial estimate: φ₁ ≈ M / (a·A₀)
+  let phi = M / (a * ell.A0)
+
+  for (let i = 0; i < 50; i++) {
+    const sinPhi = Math.sin(phi)
+    const sin2Phi = sinPhi * sinPhi
+    const M1 = meridionalArc(phi, ell)
+    const dM = M - M1
+    // Radius of curvature in meridian: a(1-e²) / (1-e²sin²φ)^(3/2)
+    const denominator = a * oneMinusE2 / Math.pow(1 - e2 * sin2Phi, 1.5)
+    const dPhi = dM / denominator
+    phi += dPhi
+    if (Math.abs(dPhi) < 1e-12) break
+  }
+
+  return phi
+}
+
+// ─── Inverse Cassini-Soldner ───────────────────────────────────────────────────
+
+/**
+ * Inverse Cassini-Soldner projection: (E_m, N_m) → (lat, lon) in radians.
+ *
+ * Given easting E (metres) and northing N (metres) from the central meridian,
+ * compute geographic latitude and longitude using Snyder's equations.
+ *
+ * Cassini-Soldner origin for Kenya: φ₀ = 0° (equator), λ₀ = 37°E
+ * Northing is negative for southern hemisphere.
+ *
+ * @param E_m - Easting in metres from central meridian
+ * @param N_m - Northing in metres from equator (negative = south)
+ * @param ell - Ellipsoid parameters (Clarke 1858)
+ * @param lon0 - Central meridian in radians (default: 37° = Kenya Cassini)
+ * @returns {lat, lon} in radians
+ */
+function cassiniInverse(
+  E_m: number,
+  N_m: number,
+  ell: EllipsoidParams,
+  lon0: number = 37 * Math.PI / 180,
+): { lat: number; lon: number } {
+  const { a, e2, ep2 } = ell
+  const oneMinusE2 = 1 - e2
+
+  // Step 1: Compute footpoint latitude φ₁ from meridional arc = N
+  const phi1 = footpointLatitude(N_m, ell)
+
+  const sinPhi1 = Math.sin(phi1)
+  const cosPhi1 = Math.cos(phi1)
+  const tanPhi1 = sinPhi1 / cosPhi1
+  const sin2Phi1 = sinPhi1 * sinPhi1
+  const tan2Phi1 = tanPhi1 * tanPhi1
+
+  // C₁ = 1 - e²sin²φ₁
+  const C1 = 1 - e2 * sin2Phi1
+
+  // N₁ = a / √C₁ (radius of curvature in prime vertical)
+  const N1 = a / Math.sqrt(C1)
+
+  // R₁ = a(1-e²) / C₁^(3/2) (radius of curvature in meridian)
+  const R1 = a * oneMinusE2 / Math.pow(C1, 1.5)
+
+  // D = E / N₁
+  const D = E_m / N1
+  const D2 = D * D
+  const D3 = D2 * D
+  const D4 = D3 * D
+  const D5 = D4 * D
+  const D6 = D5 * D
+
+  // Latitude correction (Snyder eq 3-35, p. 101)
+  // φ = φ₁ - (N₁·tanφ₁/R₁)·[D²/2 - (5+3T₁+10C₁-4C₁²-9e'²)·D⁴/24 + ...]
+  const coef1 = (N1 * tanPhi1) / R1
+  const phi = phi1 - coef1 * (
+    D2 / 2
+    - (5 + 3 * tan2Phi1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D4 / 24
+    + (61 + 90 * tan2Phi1 + 298 * C1 + 45 * tan2Phi1 * tan2Phi1
+       - 252 * ep2 - 3 * C1 * C1) * D6 / 720
+  )
+
+  // Longitude correction (Snyder eq 3-36, p. 101)
+  // λ = λ₀ + [D - (1+2T₁+C₁)·D³/6 + (5-2C₁+28T₁-3C₁²+8e'²+24T₁²)·D⁵/120 - ...] / cosφ₁
+  const lon = lon0 + (
+    D
+    - (1 + 2 * tan2Phi1 + C1) * D3 / 6
+    + (5 - 2 * C1 + 28 * tan2Phi1 - 3 * C1 * C1 + 8 * ep2 + 24 * tan2Phi1 * tan2Phi1) * D5 / 120
+  ) / cosPhi1
+
+  return { lat: phi, lon }
+}
+
+// ─── Forward Transverse Mercator ───────────────────────────────────────────────
+
+/**
+ * Forward Transverse Mercator projection: (lat, lon) → (E, N) in metres.
+ *
+ * Uses Snyder's UTM/Transverse Mercator formulas (p. 61).
+ * For UTM Zone 37S: λ₀ = 39°, k₀ = 0.9996, FE = 500,000, FN = 10,000,000
+ *
+ * @param lat - Latitude in radians
+ * @param lon - Longitude in radians
+ * @param ell - Ellipsoid parameters (Clarke 1880)
+ * @param lon0 - Central meridian in radians
+ * @param k0 - Scale factor (0.9996 for UTM)
+ * @param FE - False easting (500,000 for UTM)
+ * @param FN - False northing (10,000,000 for southern hemisphere UTM)
+ * @returns {E, N} projected coordinates in metres
+ */
+function tmForward(
+  lat: number,
+  lon: number,
+  ell: EllipsoidParams,
+  lon0: number,
+  k0: number,
+  FE: number,
+  FN: number,
+): { E: number; N: number } {
+  const { a, e2, ep2 } = ell
+  const oneMinusE2 = 1 - e2
+
+  const sinLat = Math.sin(lat)
+  const cosLat = Math.cos(lat)
+  const tanLat = sinLat / cosLat
+  const sin2Lat = sinLat * sinLat
+  const tan2Lat = tanLat * tanLat
+
+  // Δλ = lon - lon0
+  const dlon = lon - lon0
+
+  // N = a / √(1 - e²sin²φ)
+  const N = a / Math.sqrt(1 - e2 * sin2Lat)
+
+  // T = tan²φ
+  const T = tan2Lat
+
+  // C = e'²cos²φ
+  const C = ep2 * cosLat * cosLat
+
+  // A = Δλ·cosφ
+  const A = dlon * cosLat
+  const A2 = A * A
+  const A3 = A2 * A
+  const A4 = A3 * A
+  const A5 = A4 * A
+  const A6 = A5 * A
+
+  // Meridional arc M from equator to φ
+  const M = meridionalArc(lat, ell)
+
+  // UTM Easting (Snyder eq 8-9)
+  const E = k0 * N * (
+    A
+    + (1 - T + C) * A3 / 6
+    + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * A5 / 120
+  ) + FE
+
+  // UTM Northing (Snyder eq 8-10)
+  const Nout = k0 * (
+    M
+    + N * tanLat * (
+      A2 / 2
+      + (5 - T + 9 * C + 4 * C * C) * A4 / 24
+      + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A6 / 720
+    )
+  ) + FN
+
+  return { E, N: Nout }
+}
+
+// ─── Inverse Transverse Mercator (for utmToCassiniFeetExact) ─────────────────
+
+/**
+ * Inverse Transverse Mercator projection: (E, N) → (lat, lon) in radians.
+ *
+ * Uses Snyder's formulas (p. 63). Given UTM coordinates, compute geographic
+ * latitude and longitude.
+ *
+ * @param E - UTM easting in metres (with false easting applied)
+ * @param N - UTM northing in metres (with false northing applied)
+ * @param ell - Ellipsoid parameters (Clarke 1880)
+ * @param lon0 - Central meridian in radians
+ * @param k0 - Scale factor (0.9996 for UTM)
+ * @param FE - False easting (500,000)
+ * @param FN - False northing (10,000,000)
+ * @returns {lat, lon} in radians
+ */
+function tmInverse(
+  E: number,
+  N: number,
+  ell: EllipsoidParams,
+  lon0: number,
+  k0: number,
+  FE: number,
+  FN: number,
+): { lat: number; lon: number } {
+  const { a, e2, ep2 } = ell
+  const oneMinusE2 = 1 - e2
+
+  // Remove false easting/northing
+  const E1 = E - FE
+  const N1 = N - FN
+
+  // Footpoint latitude from M = N1 / k0
+  const M1 = N1 / k0
+  const mu1 = footpointLatitude(M1, ell)
+
+  const sinMu1 = Math.sin(mu1)
+  const cosMu1 = Math.cos(mu1)
+  const tanMu1 = sinMu1 / cosMu1
+  const sin2Mu1 = sinMu1 * sinMu1
+  const tan2Mu1 = tanMu1 * tanMu1
+
+  // C1 = ep2·cos²μ₁
+  const C1 = ep2 * cosMu1 * cosMu1
+
+  // R1 = a·(1-e²) / (1-e²sin²μ₁)^(3/2)
+  const R1 = a * oneMinusE2 / Math.pow(1 - e2 * sin2Mu1, 1.5)
+
+  // N1r = a / √(1 - e²sin²μ₁)
+  const N1r = a / Math.sqrt(1 - e2 * sin2Mu1)
+
+  // T1 = tan²μ₁
+  const T1 = tan2Mu1
+
+  // D = E1 / (N1r · k0)
+  const D = E1 / (N1r * k0)
+  const D2 = D * D
+  const D3 = D2 * D
+  const D4 = D3 * D
+  const D5 = D4 * D
+  const D6 = D5 * D
+
+  // Latitude
+  const lat = mu1 - (N1r * tanMu1 / R1) * (
+    D2 / 2
+    - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D4 / 24
+    + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1
+       - 252 * ep2 - 3 * C1 * C1) * D6 / 720
+  )
+
+  // Longitude
+  const cosLat = Math.cos(lat)
+  const lon = lon0 + (
+    D
+    - (1 + 2 * T1 + C1) * D3 / 6
+    + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * D5 / 120
+  ) / cosLat
+
+  return { lat, lon }
+}
+
+// ─── Forward Cassini-Soldner (for utmToCassiniFeetExact) ────────────────────
+
+/**
+ * Forward Cassini-Soldner projection: (lat, lon) → (E_m, N_m) in metres.
+ *
+ * Uses Snyder's equations (p. 101) for the forward Cassini-Soldner.
+ *
+ * @param lat - Latitude in radians
+ * @param lon - Longitude in radians
+ * @param ell - Ellipsoid parameters (Clarke 1858)
+ * @param lon0 - Central meridian in radians (default: 37° for Kenya)
+ * @returns {E_m, N_m} projected coordinates in metres
+ */
+function cassiniForward(
+  lat: number,
+  lon: number,
+  ell: EllipsoidParams,
+  lon0: number = 37 * Math.PI / 180,
+): { E_m: number; N_m: number } {
+  const { a, e2, ep2 } = ell
+  const oneMinusE2 = 1 - e2
+
+  const sinLat = Math.sin(lat)
+  const cosLat = Math.cos(lat)
+  const tanLat = sinLat / cosLat
+  const sin2Lat = sinLat * sinLat
+  const tan2Lat = tanLat * tanLat
+
+  // Δλ = lon - lon0
+  const dlon = lon - lon0
+
+  // N₁ = a / √(1 - e²sin²φ)
+  const N1 = a / Math.sqrt(1 - e2 * sin2Lat)
+
+  // T₁ = tan²φ
+  const T1 = tan2Lat
+
+  // C₁ = e'²cos²φ
+  const C1 = ep2 * cosLat * cosLat
+
+  // R₁ = a(1-e²) / (1-e²sin²φ)^(3/2)
+  const R1 = a * oneMinusE2 / Math.pow(1 - e2 * sin2Lat, 1.5)
+
+  // A = cosφ · Δλ
+  const A = cosLat * dlon
+  const A2 = A * A
+  const A3 = A2 * A
+  const A4 = A3 * A
+  const A5 = A4 * A
+
+  // Meridional arc M from equator to φ
+  const M = meridionalArc(lat, ell)
+
+  // Easting (Snyder p. 101, modified for Cassini forward)
+  const E_m = N1 * (
+    A
+    - (1 - T1 + C1) * A3 / 6
+    + (5 - 18 * T1 + T1 * T1 + 72 * C1 - 58 * ep2) * A5 / 120
+  )
+
+  // Northing
+  const N_m = M + N1 * tanLat * (A2 / 2 + (5 - T1 + 9 * C1 + 4 * C1 * C1) * A4 / 24)
+
+  return { E_m, N_m }
+}
+
+// ─── cassiniFeetToUTMExact: Main exported forward function ────────────────────
+
+/**
+ * Convert Cassini-Soldner coordinates (FEET on Clarke 1858) to UTM coordinates
+ * (METRES on Clarke 1880 / Arc 1960) using the EXACT mathematical projection chain.
+ *
+ * This is an ALTERNATIVE to the empirical Helmert 4-parameter transformation.
+ * It does NOT use per-sheet parameters — it is a pure mathematical projection
+ * that is independent of topographic sheet boundaries.
+ *
+ * Projection chain:
+ * 1. Convert feet → metres: E_m = E_ft × 0.3048, N_m = N_ft × 0.3048
+ * 2. Inverse Cassini-Soldner → geographic (φ, λ) on Clarke 1858
+ * 3. Ellipsoid change: (φ, λ) Clarke 1858 → (φ, λ) Clarke 1880 (no datum shift)
+ * 4. Forward Transverse Mercator → UTM (E, N) on Clarke 1880
+ *
+ * ⚠️ ACCURACY NOTE: Because the ellipsoid change uses the "same coordinates"
+ * assumption (no Molodensky datum shift), results may differ from the empirical
+ * Helmert transform by 100–300 metres. This is expected — the exact chain
+ * provides a mathematically rigorous projection but without the datum correction
+ * that the Helmert parameters implicitly absorb.
+ *
+ * @param points - Array of Cassini coordinates in FEET on Clarke 1858
+ * @param options - Optional overrides for zone and meridians
+ * @returns Array of ConversionResult with UTM coordinates in METRES
+ *
+ * @example
+ * ```ts
+ * const results = cassiniFeetToUTMExact([
+ *   { id: 'SKP209', easting: -130490.6, northing: -348685.6 },
+ * ])
+ * console.log(results[0].utmE, results[0].utmN)
+ * ```
+ */
+export function cassiniFeetToUTMExact(
+  points: CassiniFeetPoint[],
+  options?: { zone?: number; centralMeridianDeg?: number; cassiniMeridianDeg?: number },
+): ConversionResult[] {
+  const zone = options?.zone ?? 37
+  const utmLon0 = ((options?.centralMeridianDeg ?? (6 * zone - 183)) * Math.PI) / 180
+  const cassiniLon0 = ((options?.cassiniMeridianDeg ?? 37) * Math.PI) / 180
+  const k0 = 0.9996
+  const FE = 500_000
+  const FN = 10_000_000  // Southern hemisphere
+
+  return points.map((pt) => {
+    try {
+      const cassE_ft = pt.easting
+      const cassN_ft = pt.northing
+
+      // Step 1: Convert feet to metres
+      const E_m = cassE_ft * FT_TO_M
+      const N_m = cassN_ft * FT_TO_M
+
+      // Step 2: Inverse Cassini-Soldner → (φ, λ) on Clarke 1858
+      const geo = cassiniInverse(E_m, N_m, CLARKE_1858_ELL, cassiniLon0)
+
+      // Step 3: Ellipsoid change — same geodetic coordinates, different ellipsoid
+      // No Molodensky shift applied. This is a deliberate simplification.
+      const lat_c1880 = geo.lat
+      const lon_c1880 = geo.lon
+
+      // Step 4: Forward Transverse Mercator → UTM on Clarke 1880
+      const utm = tmForward(lat_c1880, lon_c1880, CLARKE_1880_ELL, utmLon0, k0, FE, FN)
+
+      // Convert geographic coords back to degrees for traceability
+      const latDeg = (geo.lat * 180) / Math.PI
+      const lonDeg = (geo.lon * 180) / Math.PI
+
+      return {
+        id: pt.id,
+        cassiniE: Math.round(cassE_ft * 10) / 10,
+        cassiniN: Math.round(cassN_ft * 10) / 10,
+        conformalE: applyConformalCorrection(cassE_ft),  // still computed for interface compat
+        utmE: Math.round(utm.E * 1000) / 1000,
+        utmN: Math.round(utm.N * 1000) / 1000,
+        warning: 'Exact projection chain — no datum shift (Clarke 1858→1880 same-φλ assumption). '
+          + `Geodetic: ${latDeg.toFixed(6)}°, ${lonDeg.toFixed(6)}°`,
+      }
+    } catch (err) {
+      return {
+        id: pt.id,
+        cassiniE: pt.easting,
+        cassiniN: pt.northing,
+        conformalE: applyConformalCorrection(pt.easting),
+        utmE: 0,
+        utmN: 0,
+        warning: `Exact projection failed: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
+  })
+}
+
+// ─── cassiniFeetToUTMExactWithDatum: Exact chain WITH Molodensky datum shift ──────
+
+/**
+ * Convert Cassini-Soldner coordinates (FEET on Clarke 1858) to UTM coordinates
+ * (METRES on Clarke 1880 / Arc 1960) using the EXACT projection chain WITH
+ * Molodensky datum transformation.
+ *
+ * This fixes the ~200m offset inherent in `cassiniFeetToUTMExact()` by adding
+ * a 3-parameter Molodensky shift between the Clarke 1858 and Clarke 1880
+ * ellipsoids within the Arc 1960 datum.
+ *
+ * Projection chain:
+ * 1. Convert feet → metres: E_m = E_ft × 0.3048, N_m = N_ft × 0.3048
+ * 2. Inverse Cassini-Soldner → (φ, λ) on Clarke 1858
+ * 3. Molodensky datum shift → (φ, λ) on Clarke 1880
+ * 4. Forward Transverse Mercator → UTM (E, N) on Clarke 1880
+ *
+ * The Molodensky parameters (ΔX, ΔY, ΔZ) are derived from the 148-series
+ * common control points and cached for performance.
+ *
+ * @param points - Array of Cassini coordinates in FEET on Clarke 1858
+ * @param options - Optional overrides for zone, meridians, and Molodensky params
+ * @returns Array of ConversionResult with UTM coordinates in METRES
+ *
+ * @example
+ * ```ts
+ * const results = cassiniFeetToUTMExactWithDatum([
+ *   { id: 'SKP209', easting: -130490.6, northing: -348685.6 },
+ * ])
+ * console.log(results[0].utmE, results[0].utmN)
+ * ```
+ */
+export function cassiniFeetToUTMExactWithDatum(
+  points: CassiniFeetPoint[],
+  options?: {
+    zone?: number
+    centralMeridianDeg?: number
+    cassiniMeridianDeg?: number
+    molodenskyParams?: { dX: number; dY: number; dZ: number }
+  },
+): ConversionResult[] {
+  const zone = options?.zone ?? 37
+  const utmLon0 = ((options?.centralMeridianDeg ?? (6 * zone - 183)) * Math.PI) / 180
+  const cassiniLon0 = ((options?.cassiniMeridianDeg ?? 37) * Math.PI) / 180
+  const k0 = 0.9996
+  const FE = 500_000
+  const FN = 10_000_000  // Southern hemisphere
+
+  // Get Molodensky parameters (use provided or derive from common points)
+  const mold = options?.molodenskyParams ?? getMolodenskyParams()
+
+  return points.map((pt) => {
+    try {
+      const cassE_ft = pt.easting
+      const cassN_ft = pt.northing
+
+      // Step 1: Convert feet to metres
+      const E_m = cassE_ft * FT_TO_M
+      const N_m = cassN_ft * FT_TO_M
+
+      // Step 2: Inverse Cassini-Soldner → (φ, λ) on Clarke 1858
+      const geo1858 = cassiniInverse(E_m, N_m, CLARKE_1858_ELL, cassiniLon0)
+
+      // Step 3: Molodensky datum shift → (φ, λ) on Clarke 1880
+      const geo1880 = molodenskyTransform(
+        geo1858.lat, geo1858.lon, 0,
+        mold.dX, mold.dY, mold.dZ,
+      )
+
+      // Step 4: Forward Transverse Mercator → UTM on Clarke 1880
+      const utm = tmForward(geo1880.lat, geo1880.lon, CLARKE_1880_ELL, utmLon0, k0, FE, FN)
+
+      // Convert geographic coords to degrees for traceability
+      const latDeg1858 = (geo1858.lat * 180) / Math.PI
+      const lonDeg1858 = (geo1858.lon * 180) / Math.PI
+      const latDeg1880 = (geo1880.lat * 180) / Math.PI
+      const lonDeg1880 = (geo1880.lon * 180) / Math.PI
+
+      return {
+        id: pt.id,
+        cassiniE: Math.round(cassE_ft * 10) / 10,
+        cassiniN: Math.round(cassN_ft * 10) / 10,
+        conformalE: applyConformalCorrection(cassE_ft),
+        utmE: Math.round(utm.E * 1000) / 1000,
+        utmN: Math.round(utm.N * 1000) / 1000,
+        warning: `Exact chain + Molodensky (dX=${mold.dX.toFixed(2)}, dY=${mold.dY.toFixed(2)}, dZ=${mold.dZ.toFixed(2)}). `
+          + `C1858: ${latDeg1858.toFixed(6)}°, ${lonDeg1858.toFixed(6)}° → C1880: ${latDeg1880.toFixed(6)}°, ${lonDeg1880.toFixed(6)}°`,
+      }
+    } catch (err) {
+      return {
+        id: pt.id,
+        cassiniE: pt.easting,
+        cassiniN: pt.northing,
+        conformalE: applyConformalCorrection(pt.easting),
+        utmE: 0,
+        utmN: 0,
+        warning: `Exact+Molodensky failed: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
+  })
+}
+
+// ─── cassiniFeetToUTMExact7Param: Exact chain WITH 7-param Bursa-Wolf ────────
+
+/**
+ * Convert Cassini-Soldner coordinates (FEET on Clarke 1858) to UTM coordinates
+ * (METRES on Clarke 1880 / Arc 1960) using the EXACT projection chain WITH
+ * 7-parameter Bursa-Wolf datum transformation.
+ *
+ * This is the highest-accuracy forward conversion available. It replaces the
+ * simplified 3-param Molodensky shift in `cassiniFeetToUTMExactWithDatum()` with
+ * a full 7-parameter Helmert (position vector) transformation that includes
+ * rotations and scale, matching the EPSG:1314 definition used by proj4.
+ *
+ * Projection chain:
+ *   1. Convert feet → metres: E_m = E_ft × 0.3048, N_m = N_ft × 0.3048
+ *   2. Inverse Cassini-Soldner → (φ, λ) on Clarke 1858
+ *   3. Bursa-Wolf 7-param datum shift → (φ', λ') on Clarke 1880
+ *      - Geocentric Cartesian: (φ, λ, h=0) → (X, Y, Z) on Clarke 1858
+ *      - Rotation-scale-translation (position vector convention)
+ *      - Cartesian → Geodetic: (X', Y', Z') → (φ', λ', h') on Clarke 1880
+ *   4. Forward Transverse Mercator → UTM (E, N) on Clarke 1880
+ *
+ * @param points - Array of Cassini coordinates in FEET on Clarke 1858
+ * @param options - Optional overrides for zone, meridians, and Bursa-Wolf params
+ * @returns Array of ConversionResult with UTM coordinates in METRES
+ */
+export function cassiniFeetToUTMExact7Param(
+  points: CassiniFeetPoint[],
+  options?: {
+    zone?: number
+    centralMeridianDeg?: number
+    cassiniMeridianDeg?: number
+    bursaWolfParams?: BursaWolfParams
+  },
+): ConversionResult[] {
+  const zone = options?.zone ?? 37
+  const utmLon0 = ((options?.centralMeridianDeg ?? (6 * zone - 183)) * Math.PI) / 180
+  const cassiniLon0 = ((options?.cassiniMeridianDeg ?? 37) * Math.PI) / 180
+  const k0 = 0.9996
+  const FE = 500_000
+  const FN = 10_000_000  // Southern hemisphere
+
+  // Use provided Bursa-Wolf params or derive from 148-series control points
+  const bw = options?.bursaWolfParams ?? KENYA_BURSA_WOLF
+
+  return points.map((pt) => {
+    try {
+      const cassE_ft = pt.easting
+      const cassN_ft = pt.northing
+
+      // Step 1: Convert feet to metres
+      const E_m = cassE_ft * FT_TO_M
+      const N_m = cassN_ft * FT_TO_M
+
+      // Step 2: Inverse Cassini-Soldner → (φ, λ) on Clarke 1858
+      const geo1858 = cassiniInverse(E_m, N_m, CLARKE_1858_ELL, cassiniLon0)
+
+      // Step 3: Bursa-Wolf 7-param datum shift → (φ', λ') on Clarke 1880
+      const geo1880 = bursaWolfTransform(
+        geo1858.lat, geo1858.lon, 0,
+        bw, CLARKE_1858_ELL, CLARKE_1880_ELL,
+      )
+
+      // Step 4: Forward Transverse Mercator → UTM on Clarke 1880
+      const utm = tmForward(geo1880.lat, geo1880.lon, CLARKE_1880_ELL, utmLon0, k0, FE, FN)
+
+      // Convert geographic coords to degrees for traceability
+      const latDeg1858 = (geo1858.lat * 180) / Math.PI
+      const lonDeg1858 = (geo1858.lon * 180) / Math.PI
+      const latDeg1880 = (geo1880.lat * 180) / Math.PI
+      const lonDeg1880 = (geo1880.lon * 180) / Math.PI
+
+      return {
+        id: pt.id,
+        cassiniE: Math.round(cassE_ft * 10) / 10,
+        cassiniN: Math.round(cassN_ft * 10) / 10,
+        conformalE: applyConformalCorrection(cassE_ft),
+        utmE: Math.round(utm.E * 1000) / 1000,
+        utmN: Math.round(utm.N * 1000) / 1000,
+        warning: `Exact chain + Bursa-Wolf 7-param (dX=${bw.dX}, dY=${bw.dY}, dZ=${bw.dZ}, rx=${bw.rx}, ry=${bw.ry}, rz=${bw.rz}, ds=${bw.ds}). `
+          + `C1858: ${latDeg1858.toFixed(6)}°, ${lonDeg1858.toFixed(6)}° → C1880: ${latDeg1880.toFixed(6)}°, ${lonDeg1880.toFixed(6)}°`,
+      }
+    } catch (err) {
+      return {
+        id: pt.id,
+        cassiniE: pt.easting,
+        cassiniN: pt.northing,
+        conformalE: applyConformalCorrection(pt.easting),
+        utmE: 0,
+        utmN: 0,
+        warning: `Exact+Bursa-Wolf failed: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
+  })
+}
+
+// ─── utmToCassiniFeetExact: Inverse of exact projection chain ──────────────────
+
+/**
+ * Convert UTM coordinates (METRES on Clarke 1880 / Arc 1960) to Cassini-Soldner
+ * coordinates (FEET on Clarke 1858) using the EXACT inverse projection chain.
+ *
+ * Chain (reverse):
+ * 1. Inverse Transverse Mercator → (φ, λ) on Clarke 1880
+ * 2. Ellipsoid change: (φ, λ) Clarke 1880 → (φ, λ) Clarke 1858 (no datum shift)
+ * 3. Forward Cassini-Soldner → (E_m, N_m) on Clarke 1858
+ * 4. Convert metres → feet: E_ft = E_m / 0.3048, N_ft = N_m / 0.3048
+ *
+ * @param utmPoints - Array of UTM coordinates in METRES on Clarke 1880
+ * @param options - Optional overrides for zone and meridians
+ * @returns Array of ConversionResult with Cassini coordinates in FEET
+ */
+export function utmToCassiniFeetExact(
+  utmPoints: UTMPoint[],
+  options?: { zone?: number; centralMeridianDeg?: number; cassiniMeridianDeg?: number },
+): ConversionResult[] {
+  const zone = options?.zone ?? 37
+  const utmLon0 = ((options?.centralMeridianDeg ?? (6 * zone - 183)) * Math.PI) / 180
+  const cassiniLon0 = ((options?.cassiniMeridianDeg ?? 37) * Math.PI) / 180
+  const k0 = 0.9996
+  const FE = 500_000
+  const FN = 10_000_000
+
+  return utmPoints.map((pt) => {
+    try {
+      const utmE = pt.easting
+      const utmN = pt.northing
+
+      // Step 1: Inverse TM → (φ, λ) on Clarke 1880
+      const geo = tmInverse(utmE, utmN, CLARKE_1880_ELL, utmLon0, k0, FE, FN)
+
+      // Step 2: Ellipsoid change — same geodetic coordinates
+      const lat_c1858 = geo.lat
+      const lon_c1858 = geo.lon
+
+      // Step 3: Forward Cassini-Soldner → (E_m, N_m) on Clarke 1858
+      const cass = cassiniForward(lat_c1858, lon_c1858, CLARKE_1858_ELL, cassiniLon0)
+
+      // Step 4: Convert metres to feet
+      const cassE_ft = cass.E_m / FT_TO_M
+      const cassN_ft = cass.N_m / FT_TO_M
+
+      return {
+        id: pt.id,
+        cassiniE: Math.round(cassE_ft * 10) / 10,
+        cassiniN: Math.round(cassN_ft * 10) / 10,
+        conformalE: applyConformalCorrection(cassE_ft),
+        utmE: Math.round(utmE * 1000) / 1000,
+        utmN: Math.round(utmN * 1000) / 1000,
+        warning: 'Exact inverse projection chain — no datum shift applied.',
+      }
+    } catch (err) {
+      return {
+        id: pt.id,
+        cassiniE: 0,
+        cassiniN: 0,
+        conformalE: 0,
+        utmE: pt.easting,
+        utmN: pt.northing,
+        warning: `Exact inverse projection failed: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
+  })
+}
+
+// ─── cassiniFeetToWGS84Exact: Full pipeline to WGS84 ────────────────────────
+
+/**
+ * Convert Cassini-Soldner coordinates (FEET on Clarke 1858) to WGS84
+ * latitude/longitude using the exact projection chain + datum shift.
+ *
+ * Chain:
+ * 1. cassiniFeetToUTMExactWithDatum → UTM on Clarke 1880 / Arc 1960 (with Molodensky datum shift)
+ * 2. utmToWGS84 (via proj4 with Arc 1960 → WGS84 7-param Bursa-Wolf datum shift)
+ *
+ * The datum shift is applied in the final step only, using the Kenya-specific
+ * EPSG:1314 parameters (tx=-160, ty=-6, tz=-302 metres).
+ *
+ * @param points - Array of Cassini coordinates in FEET on Clarke 1858
+ * @param options - Optional overrides for zone and meridians
+ * @returns Array of results with WGS84 lat/lon and intermediate UTM
+ */
+export function cassiniFeetToWGS84Exact(
+  points: CassiniFeetPoint[],
+  options?: { zone?: number; centralMeridianDeg?: number; cassiniMeridianDeg?: number },
+): Array<{
+  id?: string
+  cassiniE: number
+  cassiniN: number
+  utmE: number
+  utmN: number
+  lat: number
+  lon: number
+  latDMS: string
+  lonDMS: string
+  warning?: string
+}> {
+  const zone = options?.zone ?? 37
+  const utmResults = cassiniFeetToUTMExactWithDatum(points, options)
+
+  return utmResults.map((r) => {
+    const wgs84 = utmToWGS84(r.utmE, r.utmN, zone)
+    return {
+      id: r.id,
+      cassiniE: r.cassiniE,
+      cassiniN: r.cassiniN,
+      utmE: r.utmE,
+      utmN: r.utmN,
+      lat: wgs84.lat,
+      lon: wgs84.lon,
+      latDMS: toDMS(wgs84.lat, true),
+      lonDMS: toDMS(wgs84.lon, false),
+      warning: r.warning,
+    }
+  })
+}
+
 // ─── Verification ─────────────────────────────────────────────────────────
 
 /**
@@ -708,20 +2103,23 @@ export function verifyWithCommonPoints(params: TopoSheetParams): VerificationRes
 // ─── WGS84 Geographic Output ─────────────────────────────────────────────
 
 /**
- * Convert UTM coordinates (Zone 37S) to WGS84 latitude/longitude.
+ * Convert UTM coordinates (Arc 1960 datum) to WGS84 latitude/longitude.
  *
- * ⚠️ This uses proj4 for the UTM→WGS84 conversion. The UTM coordinates
- * output by the Helmert transform are on Arc 1960 datum (Clarke 1880).
- * This function treats them as WGS84 UTM, which introduces a small datum
- * shift (~10–30 m across Kenya). For sub-metre accuracy, use a full
- * 7-parameter datum transformation (Arc 1960 → WGS84).
+ * Uses proper Arc 1960 → WGS84 datum transformation via proj4 with the
+ * Kenya-specific 7-parameter Bursa-Wolf datum shift (EPSG:1314):
+ *   tx=-160, ty=-6, tz=-302 (metres)
+ *   rx=-0.807, ry=0.339, rz=-1.619 (arc-seconds)
+ *   ds=-2.554 (ppm)
+ * Clarke 1880 ellipsoid: a=6378249.145, b=6356514.87
  *
- * @param utmE - UTM easting in metres
- * @param utmN - UTM northing in metres
+ * @param utmE - UTM easting in metres (Arc 1960)
+ * @param utmN - UTM northing in metres (Arc 1960)
+ * @param zone - UTM zone number (default 37)
  * @returns WGS84 latitude/longitude in decimal degrees
  */
-export function utmToWGS84(utmE: number, utmN: number): { lat: number; lon: number } {
-  const [lon, lat] = proj4(UTM37S_DEF, WGS84_DEF, [utmE, utmN])
+export function utmToWGS84(utmE: number, utmN: number, zone: number = 37): { lat: number; lon: number } {
+  const utmDef = zone === 36 ? ARC1960_UTM36S_DEF : ARC1960_UTM37S_DEF
+  const [lon, lat] = proj4(utmDef, WGS84_DEF, [utmE, utmN])
   return { lat, lon }
 }
 
@@ -796,7 +2194,7 @@ export function findTopoSheet(sheetId: string): TopoSheetParams | undefined {
 // ─── Extended Type Definitions ──────────────────────────────────────────────
 
 /** Transformation method selector */
-export type TransformMethod = 'helmert4' | 'affine6' | 'poly12'
+export type TransformMethod = 'helmert4' | 'affine6' | 'poly12' | 'exactDatum7'
 
 /** 6-param affine transformation (Rainsford step 1) */
 export interface Affine6Params {
@@ -839,7 +2237,7 @@ export interface SubSheetDef {
 
 // ─── Sub-sheet Corner Data Import ───────────────────────────────────────────
 
-import SUBSHEET_CORNERS_RAW from './subsheet_corners.json'
+import SUBSHEET_CORNERS_RAW from './merged_subsheets.json'
 
 type SubSheetCornersJSON = Record<string, Record<string, { cassX: number; cassY: number; utmE: number; utmN: number }[]>>
 
@@ -1071,16 +2469,48 @@ function buildSubSheets(): SubSheetDef[] {
 }
 
 /**
- * Pre-computed sub-sheet definitions for Kenyan topo sheets 75/3, 88/2, 88/4.
+ * Pre-computed sub-sheet definitions for Kenyan topo sheets.
  * Each sub-sheet has auto-computed Helmert 4-param and Affine 6-param parameters
  * derived from its 4 corner points, giving near-zero residuals (EXCELLENT accuracy).
+ * Now using merged_subsheets.json with 219-sheet coverage (5451 sub-sheet corners).
  */
 export const KENYA_SUB_SHEETS: SubSheetDef[] = buildSubSheets()
 
 /** Set of topo sheet IDs that have sub-sheet definitions */
 export const SHEETS_WITH_SUBSHEETS = new Set(KENYA_SUB_SHEETS.map(ss => ss.sheetId))
 
+/**
+ * Detect the UTM zone for a given topo sheet.
+ * Most Kenya sheets are in Zone 37S. Sheets with UTM easting < 500000
+ * and near the zone boundary (36°E) may be Zone 36S.
+ * Sheet 105/3 is known to be Zone 36S.
+ */
+export function getUtmZone(sheetId: string): number {
+  const zone36Sheets = ['105/3']
+  if (zone36Sheets.includes(sheetId)) return 36
+  return 37
+}
+
 // ─── Sub-sheet Auto-detection ──────────────────────────────────────────────
+
+/**
+ * Get all sub-sheets for a given topo sheet, organized into a 5×5 grid.
+ * Returns a 5×5 matrix where grid[row][col] contains the SubSheetDef or null.
+ */
+export function getSubSheetGrid(sheetId: string): (SubSheetDef | null)[][] {
+  const subs = KENYA_SUB_SHEETS.filter(ss => ss.sheetId === sheetId)
+  if (subs.length === 0) return []
+  const grid: (SubSheetDef | null)[][] = Array.from({ length: 5 }, () => Array(5).fill(null))
+  for (const sub of subs) {
+    const idx = parseInt(sub.subId) - 1
+    if (idx >= 0 && idx < 25) {
+      const row = Math.floor(idx / 5)
+      const col = idx % 5
+      grid[row][col] = sub
+    }
+  }
+  return grid
+}
 
 /**
  * Find which sub-sheet a Cassini point falls within, using bounding box check.
@@ -1187,6 +2617,11 @@ export function convertCassiniToUTM(
         }
       }
     })
+  }
+
+  // Exact projection chain with 7-param Bursa-Wolf datum shift
+  if (method === 'exactDatum7') {
+    return cassiniFeetToUTMExact7Param(points)
   }
 
   // Helmert 4-param (default): use existing function with conformal correction

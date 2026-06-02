@@ -18,7 +18,7 @@ import {
 
 jest.mock('@/lib/map/projection', () => ({
   registerProjections: jest.fn(async () => {}),
-  EPSG_21037_DEF: '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
+  EPSG_21037_DEF: '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
   SRID_21037: 'EPSG:21037',
 }))
 

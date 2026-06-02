@@ -28,15 +28,18 @@ const WGS84 = 'EPSG:4326';
  * Arc 1960 / UTM Zone 37S (EPSG:21037)
  * Uses Clarke 1880 (RGS) ellipsoid with Transverse Mercator projection.
  * The towgs84 parameters are from EPSG transformation 1165 (Arc 1960 → WGS84, Kenya).
- * Parameters: dx=-160, dy=-6, dz=-302 (3-parameter Molodensky/Bursa-Wolf)
+ * Parameters: 7-parameter Bursa-Wolf (EPSG:1314)
+ *   dx=-160, dy=-6, dz=-302 (metres)
+ *   rx=-0.807, ry=0.339, rz=-1.619 (arc-seconds)
+ *   ds=-2.554 (ppm)
  */
-const ARC1960_UTM37S = '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs';
+const ARC1960_UTM37S = '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs +type=crs';
 
 /**
  * Arc 1960 geographic (EPSG:4210)
  * Clarke 1880 (RGS) ellipsoid with datum shift parameters for Kenya.
  */
-const ARC1960_GEO = '+proj=longlat +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +no_defs +type=crs';
+const ARC1960_GEO = '+proj=longlat +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +no_defs +type=crs';
 
 // Register custom projections with proj4
 proj4.defs('EPSG:21037', ARC1960_UTM37S);

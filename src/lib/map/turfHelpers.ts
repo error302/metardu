@@ -32,7 +32,7 @@ let _proj4: any = null;
 
 /** Proj4 definition for Arc 1960 / UTM Zone 37 South. */
 const EPSG_21037_DEF =
-  '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs';
+  '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs';
 
 /**
  * Ensures turf and proj4 are loaded (once, lazily on first call).
