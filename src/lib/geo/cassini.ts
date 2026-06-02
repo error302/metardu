@@ -27,8 +27,20 @@
  *   - UTM central meridian: 39°E (Zone 37)
  *   - UTM scale factor: 0.9996, false origin: 500,000E / 10,000,000S
  *
- * This is PURE MATH — no proj4 or external projection libraries needed.
+ * This is PURE MATH — no proj4 or external projection libraries needed
+ * for the core Helmert transformation. proj4 is used only for the
+ * optional UTM→WGS84 geographic conversion.
  */
+
+import proj4 from 'proj4'
+
+// ─── proj4 Definitions ──────────────────────────────────────────────────────
+
+/** WGS84 geographic CRS (lat/lon in degrees) */
+const WGS84_DEF = '+proj=longlat +datum=WGS84 +no_defs'
+
+/** UTM Zone 37 South (Arc 1960 / Clarke 1880 / WGS84 ellipsoid fallback) */
+const UTM37S_DEF = '+proj=utm +zone=37 +south +datum=WGS84 +units=m +no_defs'
 
 // ─── Ellipsoid Constants ──────────────────────────────────────────────────
 
@@ -691,6 +703,77 @@ export function verifyWithCommonPoints(params: TopoSheetParams): VerificationRes
       residualN: Math.round((computed.utmN - cp.utmN) * 1000) / 1000,
     }
   })
+}
+
+// ─── WGS84 Geographic Output ─────────────────────────────────────────────
+
+/**
+ * Convert UTM coordinates (Zone 37S) to WGS84 latitude/longitude.
+ *
+ * ⚠️ This uses proj4 for the UTM→WGS84 conversion. The UTM coordinates
+ * output by the Helmert transform are on Arc 1960 datum (Clarke 1880).
+ * This function treats them as WGS84 UTM, which introduces a small datum
+ * shift (~10–30 m across Kenya). For sub-metre accuracy, use a full
+ * 7-parameter datum transformation (Arc 1960 → WGS84).
+ *
+ * @param utmE - UTM easting in metres
+ * @param utmN - UTM northing in metres
+ * @returns WGS84 latitude/longitude in decimal degrees
+ */
+export function utmToWGS84(utmE: number, utmN: number): { lat: number; lon: number } {
+  const [lon, lat] = proj4(UTM37S_DEF, WGS84_DEF, [utmE, utmN])
+  return { lat, lon }
+}
+
+/**
+ * Convert a decimal degree value to Degrees-Minutes-Seconds string.
+ *
+ * @param decimal - Decimal degree value (positive = N or E)
+ * @param isLat - true for latitude (N/S), false for longitude (E/W)
+ * @returns Formatted DMS string, e.g. "01° 26' 23.45" S"
+ */
+export function toDMS(decimal: number, isLat: boolean): string {
+  const abs = Math.abs(decimal)
+  const deg = Math.floor(abs)
+  const minFloat = (abs - deg) * 60
+  const min = Math.floor(minFloat)
+  const sec = ((minFloat - min) * 60).toFixed(2)
+  const dir = isLat ? (decimal >= 0 ? 'N' : 'S') : (decimal >= 0 ? 'E' : 'W')
+  return `${String(deg).padStart(2, '0')}° ${String(min).padStart(2, '0')}' ${sec.padStart(5, ' ')}" ${dir}`
+}
+
+// ─── Accuracy Estimation ──────────────────────────────────────────────────
+
+/**
+ * Estimate the residual accuracy of Helmert parameters for a sheet.
+ *
+ * Uses the common control points to compute residuals (differences between
+ * known and computed UTM coordinates), then calculates RMSE (Root Mean
+ * Square Error) as a quality metric.
+ *
+ * @param params - Topo sheet parameters with common points
+ * @returns Accuracy metrics: RMSE in metres and millimetres, plus a grade
+ *
+ * @example
+ * ```ts
+ * const sheet = KENYA_TOPO_SHEETS.find(s => s.id === '148/1')!
+ * const acc = estimateSheetAccuracy(sheet)
+ * console.log(acc.grade)  // e.g. 'EXCELLENT'
+ * console.log(acc.rmseMM) // e.g. 5.2 mm
+ * ```
+ */
+export function estimateSheetAccuracy(params: TopoSheetParams): { rmseM: number; rmseMM: number; grade: string } {
+  if (params.commonPoints.length < 2) {
+    return { rmseM: NaN, rmseMM: NaN, grade: 'UNKNOWN' }
+  }
+  const verifications = verifyWithCommonPoints(params)
+  const ssr = verifications.reduce((s, v) => s + v.residualE ** 2 + v.residualN ** 2, 0)
+  const n = verifications.length
+  const dof = n > 2 ? n - 1 : n // simple DOF
+  const rmseM = Math.sqrt(ssr / (2 * dof)) // 2 coords per point
+  const rmseMM = rmseM * 1000
+  const grade = rmseMM <= 10 ? 'EXCELLENT' : rmseMM <= 100 ? 'GOOD' : rmseMM <= 1000 ? 'MODERATE' : 'LOW'
+  return { rmseM: Math.round(rmseM * 10000) / 10000, rmseMM: Math.round(rmseMM * 10) / 10, grade }
 }
 
 // ─── Convenience: Find sheet by ID ────────────────────────────────────────

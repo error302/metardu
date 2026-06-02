@@ -21,12 +21,20 @@ import {
   Globe,
   MapPin,
   ShieldCheck,
+  Activity,
+  Settings2,
+  Calculator,
+  Crosshair,
 } from 'lucide-react'
 import {
   KENYA_TOPO_SHEETS,
   cassiniFeetToUTM,
   utmToCassiniFeet,
   verifyWithCommonPoints,
+  utmToWGS84,
+  toDMS,
+  estimateSheetAccuracy,
+  computeHelmert4Params,
   CLARKE_1858_A_FT,
   CLARKE_1880_A_M,
 } from '@/lib/geo/cassini'
@@ -36,6 +44,7 @@ import type {
   ConversionResult,
   TopoSheetParams,
   VerificationResult,
+  CommonPoint,
 } from '@/lib/geo/cassini'
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -103,6 +112,13 @@ export default function CassiniUTMPage() {
   // ── Verification ──
   const [showVerification, setShowVerification] = useState(false)
 
+  // ── Calibration ──
+  const [calibrationOpen, setCalibrationOpen] = useState(false)
+  const [calibrationCsv, setCalibrationCsv] = useState('')
+  const [calibrationResult, setCalibrationResult] = useState<TopoSheetParams | null>(null)
+  const [calibrationErrors, setCalibrationErrors] = useState<string[]>([])
+  const [calibrationResiduals, setCalibrationResiduals] = useState<VerificationResult[]>([])
+
   // ── Derived Sheet Params ──
   const activeSheet: TopoSheetParams = useMemo(() => {
     if (useCustomParams) {
@@ -119,6 +135,98 @@ export default function CassiniUTMPage() {
     }
     return KENYA_TOPO_SHEETS.find(s => s.id === selectedSheetId) ?? KENYA_TOPO_SHEETS[0]
   }, [useCustomParams, selectedSheetId, customP, customQ, customCx, customCy])
+
+  // ── Accuracy Grade ──
+  const accuracyInfo = useMemo(() => {
+    return estimateSheetAccuracy(activeSheet)
+  }, [activeSheet])
+
+  const accuracyColorClass = useMemo(() => {
+    switch (accuracyInfo.grade) {
+      case 'EXCELLENT': return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+      case 'GOOD': return 'bg-green-500/10 border-green-500/20 text-green-400'
+      case 'MODERATE': return 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+      case 'LOW': return 'bg-red-500/10 border-red-500/20 text-red-400'
+      default: return 'bg-zinc-500/10 border-zinc-500/20 text-zinc-400'
+    }
+  }, [accuracyInfo.grade])
+
+  const accuracyBadgeClass = useMemo(() => {
+    switch (accuracyInfo.grade) {
+      case 'EXCELLENT': return 'bg-emerald-500/20 text-emerald-300'
+      case 'GOOD': return 'bg-green-500/20 text-green-300'
+      case 'MODERATE': return 'bg-amber-500/20 text-amber-300'
+      case 'LOW': return 'bg-red-500/20 text-red-300'
+      default: return 'bg-zinc-500/20 text-zinc-300'
+    }
+  }, [accuracyInfo.grade])
+
+  // ── WGS84 from single result ──
+  const singleWGS84 = useMemo(() => {
+    if (!singleResult) return null
+    if (direction === 'cassini-to-utm') {
+      return utmToWGS84(singleResult.utmE, singleResult.utmN)
+    }
+    return utmToWGS84(singleResult.utmE, singleResult.utmN)
+  }, [singleResult, direction])
+
+  // ── Calibration Handler ──
+  const handleCalibrate = useCallback(() => {
+    const lines = calibrationCsv.trim().split('\n').filter(l => l.trim())
+    const points: CommonPoint[] = []
+    const errors: string[] = []
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim()
+      const parts = line.split(',').map(s => s.trim())
+      if (parts.length < 5) {
+        errors.push(`Line ${i + 1}: Expected "station,cassN_ft,cassE_ft,utmN_m,utmE_m" — skipped`)
+        continue
+      }
+      const station = parts[0]
+      const cassN = parseFloat(parts[1])
+      const cassE = parseFloat(parts[2])
+      const utmN = parseFloat(parts[3])
+      const utmE = parseFloat(parts[4])
+      if ([cassN, cassE, utmN, utmE].some(isNaN)) {
+        errors.push(`Line ${i + 1} (${station}): Invalid coordinates — skipped`)
+        continue
+      }
+      points.push({ station, cassN, cassE, utmN, utmE })
+    }
+
+    setCalibrationErrors(errors)
+    if (points.length < 2) {
+      setCalibrationResult(null)
+      setCalibrationResiduals([])
+      if (errors.length === 0) {
+        errors.push('Need at least 2 common points to compute parameters')
+      }
+      setCalibrationErrors(errors)
+      return
+    }
+
+    try {
+      const params = computeHelmert4Params(points)
+      setCalibrationResult(params as TopoSheetParams)
+      setCalibrationResiduals(verifyWithCommonPoints(params as TopoSheetParams))
+    } catch (err) {
+      setCalibrationResult(null)
+      setCalibrationResiduals([])
+      errors.push(`Computation error: ${err instanceof Error ? err.message : String(err)}`)
+      setCalibrationErrors(errors)
+    }
+  }, [calibrationCsv])
+
+  const handleUseCalibrationParams = useCallback(() => {
+    if (!calibrationResult) return
+    setCustomP(String(calibrationResult.P))
+    setCustomQ(String(calibrationResult.Q))
+    setCustomCx(String(calibrationResult.Cx))
+    setCustomCy(String(calibrationResult.Cy))
+    setUseCustomParams(true)
+    setCalibrationOpen(false)
+  }, [calibrationResult])
 
   // ── Verification Results ──
   const verificationResults = useMemo(() => {
@@ -317,6 +425,26 @@ export default function CassiniUTMPage() {
         </div>
       </div>
 
+      {/* ── Accuracy Grade Banner ── */}
+      <div className={`mb-6 p-3 rounded-lg border flex items-start gap-2 text-xs ${accuracyColorClass}`}>
+        <Activity className="h-4 w-4 shrink-0 mt-0.5" />
+        <div className="flex items-center gap-3 flex-wrap">
+          <span>
+            <strong>Sheet Accuracy:</strong>{' '}
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${accuracyBadgeClass}`}>
+              {accuracyInfo.grade}
+            </span>
+          </span>
+          {!isNaN(accuracyInfo.rmseMM) && (
+            <span className="font-mono">RMSE: {accuracyInfo.rmseMM.toFixed(1)} mm ({accuracyInfo.rmseM.toFixed(4)} m)</span>
+          )}
+          {activeSheet.commonPoints.length === 0 && (
+            <span className="text-[var(--text-muted)]">No common points available for accuracy estimation</span>
+          )}
+          <span className="text-[var(--text-muted)]">({activeSheet.commonPoints.length} control points)</span>
+        </div>
+      </div>
+
       {/* ═══════════════════════════════════════════════════════════════════
        *  TWO-PANEL GRID
        * ═════════════════════════════════════════════════════════════════ */}
@@ -485,6 +613,118 @@ export default function CassiniUTMPage() {
                   )}
                 </div>
               )}
+
+              {/* ── User Calibration Section ── */}
+              <div>
+                <button
+                  onClick={() => setCalibrationOpen(!calibrationOpen)}
+                  className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors w-full text-left"
+                >
+                  {calibrationOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  <Settings2 className="h-3 w-3" />
+                  Calibrate Custom Sheet
+                </button>
+                {calibrationOpen && (
+                  <div className="mt-3 space-y-3 p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
+                    <p className="text-[10px] text-[var(--text-muted)]">
+                      Enter common control points (CSV) to derive custom Helmert parameters via least-squares.
+                      Format: <code className="font-mono">station,cassN_ft,cassE_ft,utmN_m,utmE_m</code>
+                    </p>
+                    <textarea
+                      className="input font-mono text-xs resize-none"
+                      rows={4}
+                      value={calibrationCsv}
+                      onChange={e => setCalibrationCsv(e.target.value)}
+                      placeholder={"SKP209,-348685.6,-130490.6,9893875.453,237730.756\n149S3,-533392.5,22492.0,9837592.78,284419.1\nSKP208,-514849.9,-132480.9,9843205.245,237160.304"}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCalibrate}
+                        disabled={!calibrationCsv.trim()}
+                        className="btn btn-primary flex-1 text-xs"
+                      >
+                        <Calculator className="h-3.5 w-3.5" />
+                        Compute Parameters
+                      </button>
+                    </div>
+
+                    {/* Calibration errors */}
+                    {calibrationErrors.length > 0 && (
+                      <div className="space-y-1">
+                        {calibrationErrors.map((err, i) => (
+                          <p key={i} className="text-[10px] text-[var(--warning)]">{err}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Calibration result */}
+                    {calibrationResult && (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="p-2 rounded bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                            <p className="text-[10px] text-[var(--text-muted)]">P (scale)</p>
+                            <p className="font-mono text-xs text-[var(--accent)]">{calibrationResult.P}</p>
+                          </div>
+                          <div className="p-2 rounded bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                            <p className="text-[10px] text-[var(--text-muted)]">Q (rotation)</p>
+                            <p className="font-mono text-xs text-[var(--accent)]">{calibrationResult.Q}</p>
+                          </div>
+                          <div className="p-2 rounded bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                            <p className="text-[10px] text-[var(--text-muted)]">Cx (easting trans.)</p>
+                            <p className="font-mono text-xs text-[var(--accent)]">{calibrationResult.Cx}</p>
+                          </div>
+                          <div className="p-2 rounded bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                            <p className="text-[10px] text-[var(--text-muted)]">Cy (northing trans.)</p>
+                            <p className="font-mono text-xs text-[var(--accent)]">{calibrationResult.Cy}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleUseCalibrationParams}
+                          className="btn btn-primary w-full text-xs"
+                        >
+                          <Crosshair className="h-3.5 w-3.5" />
+                          Use These Parameters
+                        </button>
+
+                        {/* Calibration residuals */}
+                        {calibrationResiduals.length > 0 && (
+                          <div>
+                            <p className="text-[10px] text-[var(--text-muted)] font-medium mb-1 uppercase tracking-wider">Calibration Residuals</p>
+                            <div className="max-h-32 overflow-y-auto">
+                              <table className="w-full text-xs">
+                                <thead className="sticky top-0">
+                                  <tr className="table-header">
+                                    <th className="table-cell text-left py-1.5 px-2">Station</th>
+                                    <th className="table-cell text-right py-1.5 px-2">dE (m)</th>
+                                    <th className="table-cell text-right py-1.5 px-2">dN (m)</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {calibrationResiduals.map((v) => (
+                                    <tr key={v.station} className="table-row">
+                                      <td className="table-cell py-1.5 px-2 font-medium">{v.station}</td>
+                                      <td className={`table-cell py-1.5 px-2 text-right font-mono ${
+                                        Math.abs(v.residualE) < 0.1 ? 'text-[var(--success)]' : 'text-[var(--warning)]'
+                                      }`}>
+                                        {v.residualE.toFixed(4)}
+                                      </td>
+                                      <td className={`table-cell py-1.5 px-2 text-right font-mono ${
+                                        Math.abs(v.residualN) < 0.1 ? 'text-[var(--success)]' : 'text-[var(--warning)]'
+                                      }`}>
+                                        {v.residualN.toFixed(4)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Collapsible transformation details */}
               <div>
@@ -714,6 +954,33 @@ Central meridian: 39°E, Scale: 0.9996`}
                     P={activeSheet.P} Q={activeSheet.Q}
                   </span>
                 </div>
+
+                {/* WGS84 Geographic Output */}
+                {singleWGS84 && (
+                  <div>
+                    <p className="text-xs text-[var(--text-muted)] mb-1 uppercase tracking-wider font-medium">
+                      <Globe className="h-3 w-3 inline-block mr-1" />
+                      WGS84 Geographic (approximate)
+                    </p>
+                    <div className="p-3 rounded-lg bg-[var(--accent-subtle)] border border-[var(--accent)]/20 space-y-2">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-[10px] text-[var(--accent)] uppercase">Latitude</p>
+                          <p className="font-mono text-sm text-[var(--text-primary)]">{singleWGS84.lat.toFixed(8)}°</p>
+                          <p className="font-mono text-xs text-[var(--text-secondary)]">{toDMS(singleWGS84.lat, true)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-[var(--accent)] uppercase">Longitude</p>
+                          <p className="font-mono text-sm text-[var(--text-primary)]">{singleWGS84.lon.toFixed(8)}°</p>
+                          <p className="font-mono text-xs text-[var(--text-secondary)]">{toDMS(singleWGS84.lon, false)}</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-[var(--text-muted)]">
+                        ⚠️ Approximate — datum shift from Arc 1960 to WGS84 not applied (~10–30 m)
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
