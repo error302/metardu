@@ -47,6 +47,18 @@ OUTPUT_DIR = Path(
 OUTPUT_FILE = OUTPUT_DIR / "national_sheet_corners.json"
 
 CORNER_LABELS = ["NW", "NE", "SE", "SW"]
+FALSE_NORTHING = 10_000_000  # Southern hemisphere UTM false northing
+FN_THRESHOLD = 5_000_000  # If utmN < this, the 10M offset is missing
+
+
+def fix_utm_northing(utm_n: float) -> float:
+    """Apply southern hemisphere false northing if missing from source XLS.
+    The Survey of Kenya spreadsheet has inconsistent handling — some sheets
+    list UTM N without the 10M offset. This function normalizes them all.
+    """
+    if utm_n < FN_THRESHOLD:
+        return round(utm_n + FALSE_NORTHING, 4)
+    return round(utm_n, 4)
 
 
 def is_num(v: Any) -> bool:
@@ -111,7 +123,7 @@ def extract_sht_casn_to_utm(wb: xlrd.Book) -> tuple[dict[str, dict], list[str], 
             corner: dict[str, Any] = {
                 "id": CORNER_LABELS[len(corners)] if len(corners) < 4 else f"C{len(corners)+1}",
                 "utmE": round(float(utm_e), 4),
-                "utmN": round(float(utm_n), 4),
+                "utmN": fix_utm_northing(float(utm_n)),
             }
             if has_cass:
                 corner["cassE"] = round(float(cass_x), 4)
@@ -206,7 +218,7 @@ def extract_sheet_corners(wb: xlrd.Book) -> dict[str, dict]:
                     "cassE": round(float(cass_x), 4),
                     "cassN": round(float(cass_y), 4),
                     "utmE": round(float(utm_e), 4),
-                    "utmN": round(float(utm_n), 4),
+                    "utmN": fix_utm_northing(float(utm_n)),
                 })
 
     if current_key and len(corners) == 4:
@@ -253,7 +265,7 @@ def extract_utm_to_cassin(wb: xlrd.Book) -> tuple[dict[str, dict], list[str]]:
             corner: dict[str, Any] = {
                 "id": CORNER_LABELS[len(corners)] if len(corners) < 4 else f"C{len(corners)+1}",
                 "utmE": round(float(utm_e), 4),
-                "utmN": round(float(utm_n), 4),
+                "utmN": fix_utm_northing(float(utm_n)),
             }
             if has_cass:
                 corner["cassE"] = round(float(cass_x), 4)
