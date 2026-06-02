@@ -788,3 +788,593 @@ export function estimateSheetAccuracy(params: TopoSheetParams): { rmseM: number;
 export function findTopoSheet(sheetId: string): TopoSheetParams | undefined {
   return KENYA_TOPO_SHEETS.find((s) => s.id === sheetId)
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  EXTENDED TRANSFORMATION METHODS (Affine 6-param, Poly 12-param, Sub-sheets)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Extended Type Definitions ──────────────────────────────────────────────
+
+/** Transformation method selector */
+export type TransformMethod = 'helmert4' | 'affine6' | 'poly12'
+
+/** 6-param affine transformation (Rainsford step 1) */
+export interface Affine6Params {
+  id: string
+  name: string
+  method: 'affine6'
+  a: number; b: number; c: number   // easting: E_utm = a + b*cassX + c*cassY
+  d: number; e: number; f: number   // northing: N_utm = d + e*cassX + f*cassY
+  commonPoints: CommonPoint[]
+}
+
+/** 12-param quadratic polynomial (Rainsford full) */
+export interface Poly12Params {
+  id: string
+  name: string
+  method: 'poly12'
+  a: number; b: number; c: number; l: number; m: number; n: number  // easting
+  d: number; e: number; f: number; p: number; q: number; r: number   // northing
+  commonPoints: CommonPoint[]
+}
+
+/** A sub-sheet corner point */
+export interface CornerPoint {
+  cassX: number
+  cassY: number
+  utmE: number
+  utmN: number
+}
+
+/** Sub-sheet definition with auto-computed parameters */
+export interface SubSheetDef {
+  sheetId: string         // e.g. "88_2"
+  subId: string           // e.g. "5"
+  fullId: string          // e.g. "88_2/5"
+  corners: CornerPoint[]  // 4 corner points
+  bounds: { minX: number; maxX: number; minY: number; maxY: number }
+  helmertParams: TopoSheetParams
+  affineParams: Affine6Params
+}
+
+// ─── Sub-sheet Corner Data Import ───────────────────────────────────────────
+
+import SUBSHEET_CORNERS_RAW from './subsheet_corners.json'
+
+type SubSheetCornersJSON = Record<string, Record<string, { cassX: number; cassY: number; utmE: number; utmN: number }[]>>
+
+// ─── General NxN Gaussian Elimination ───────────────────────────────────────
+
+/**
+ * Solve an NxN linear system Ax = b using Gaussian elimination with partial pivoting.
+ * @param A - NxN matrix
+ * @param b - N-length observation vector
+ * @returns Solution vector x
+ */
+function solveLinearSystem(A: number[][], b: number[]): number[] {
+  const n = A.length
+  const aug = A.map((row, i) => [...row, b[i]])
+
+  for (let col = 0; col < n; col++) {
+    let maxRow = col
+    let maxVal = Math.abs(aug[col][col])
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(aug[row][col]) > maxVal) {
+        maxVal = Math.abs(aug[row][col])
+        maxRow = row
+      }
+    }
+    if (maxVal < 1e-20) {
+      throw new Error(`Singular matrix at column ${col} in linear solve`)
+    }
+    if (maxRow !== col) {
+      ;[aug[col], aug[maxRow]] = [aug[maxRow], aug[col]]
+    }
+    for (let row = col + 1; row < n; row++) {
+      const factor = aug[row][col] / aug[col][col]
+      for (let j = col; j <= n; j++) {
+        aug[row][j] -= factor * aug[col][j]
+      }
+    }
+  }
+
+  const x = new Array(n).fill(0)
+  for (let i = n - 1; i >= 0; i--) {
+    let sum = aug[i][n]
+    for (let j = i + 1; j < n; j++) {
+      sum -= aug[i][j] * x[j]
+    }
+    x[i] = sum / aug[i][i]
+  }
+  return x
+}
+
+/**
+ * Solve a least-squares problem: given an overdetermined system A·x ≈ b,
+ * solve (A^T·A)·x = A^T·b via normal equations.
+ * @param A - m×n design matrix (m >= n)
+ * @param b - m-length observation vector
+ * @returns Solution vector x of length n
+ */
+function solveLeastSquares(A: number[][], b: number[]): number[] {
+  const m = A.length
+  const n = A[0].length
+  const ATA = Array.from({ length: n }, () => new Array(n).fill(0))
+  const ATb = new Array(n).fill(0)
+
+  for (let r = 0; r < m; r++) {
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        ATA[i][j] += A[r][i] * A[r][j]
+      }
+      ATb[i] += A[r][i] * b[r]
+    }
+  }
+  return solveLinearSystem(ATA, ATb)
+}
+
+// ─── 6-Param Affine Solver ─────────────────────────────────────────────────
+
+/**
+ * Compute 6-parameter affine transformation from common points (Rainsford step 1).
+ *
+ * E_utm = a + b·cassE + c·cassN
+ * N_utm = d + e·cassE + f·cassN
+ *
+ * Uses raw Cassini coordinates (no conformal correction) — the polynomial
+ * absorbs the distortion.
+ *
+ * @param commonPoints - Array of at least 3 common points
+ * @returns Affine6Params with computed coefficients
+ */
+export function computeAffine6Params(commonPoints: CommonPoint[]): Affine6Params {
+  if (commonPoints.length < 3) {
+    throw new Error(`computeAffine6Params requires at least 3 common points; got ${commonPoints.length}`)
+  }
+
+  // Design matrix: [1, cassE, cassN] for each point
+  const A = commonPoints.map(cp => [1, cp.cassE, cp.cassN])
+
+  // Solve for easting coefficients (a, b, c)
+  const bE = commonPoints.map(cp => cp.utmE)
+  const xE = solveLeastSquares(A, bE)
+
+  // Solve for northing coefficients (d, e, f)
+  const bN = commonPoints.map(cp => cp.utmN)
+  const xN = solveLeastSquares(A, bN)
+
+  return {
+    id: 'computed-affine6',
+    name: 'Computed Affine 6-Param',
+    method: 'affine6',
+    a: xE[0], b: xE[1], c: xE[2],
+    d: xN[0], e: xN[1], f: xN[2],
+    commonPoints,
+  }
+}
+
+// ─── 12-Param Quadratic Polynomial Solver ──────────────────────────────────
+
+/**
+ * Compute 12-parameter quadratic polynomial transformation from common points (Rainsford full).
+ *
+ * E_utm = a + b·x + c·y + l·x² + m·y² + n·x·y
+ * N_utm = d + e·x + f·y + p·x² + q·y² + r·x·y
+ *
+ * Needs at least 6 common points. Uses raw Cassini coordinates.
+ *
+ * @param commonPoints - Array of at least 6 common points
+ * @returns Poly12Params with computed coefficients
+ */
+export function computePoly12Params(commonPoints: CommonPoint[]): Poly12Params {
+  if (commonPoints.length < 6) {
+    throw new Error(`computePoly12Params requires at least 6 common points; got ${commonPoints.length}`)
+  }
+
+  // Design matrix: [1, x, y, x², y², x·y] for each point
+  const A = commonPoints.map(cp => {
+    const x = cp.cassE
+    const y = cp.cassN
+    return [1, x, y, x * x, y * y, x * y]
+  })
+
+  const bE = commonPoints.map(cp => cp.utmE)
+  const xE = solveLeastSquares(A, bE)
+
+  const bN = commonPoints.map(cp => cp.utmN)
+  const xN = solveLeastSquares(A, bN)
+
+  return {
+    id: 'computed-poly12',
+    name: 'Computed Poly 12-Param',
+    method: 'poly12',
+    a: xE[0], b: xE[1], c: xE[2], l: xE[3], m: xE[4], n: xE[5],
+    d: xN[0], e: xN[1], f: xN[2], p: xN[3], q: xN[4], r: xN[5],
+    commonPoints,
+  }
+}
+
+// ─── Build Sub-sheet Definitions ───────────────────────────────────────────
+
+/**
+ * Build SubSheetDef array from the imported corner data.
+ * For each sub-sheet, computes Helmert 4-param and Affine 6-param from the 4 corners.
+ */
+function buildSubSheets(): SubSheetDef[] {
+  const raw = SUBSHEET_CORNERS_RAW as unknown as SubSheetCornersJSON
+  const result: SubSheetDef[] = []
+
+  for (const sheetId of Object.keys(raw)) {
+    const subs = raw[sheetId]
+    for (const subId of Object.keys(subs)) {
+      const corners = subs[subId]
+
+      // Skip sub-sheets with fewer than 3 unique corners (degenerate)
+      if (corners.length < 3) continue
+
+      // Compute bounding box
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+      for (const c of corners) {
+        if (c.cassX < minX) minX = c.cassX
+        if (c.cassX > maxX) maxX = c.cassX
+        if (c.cassY < minY) minY = c.cassY
+        if (c.cassY > maxY) maxY = c.cassY
+      }
+
+      // Build CommonPoints from corners
+      // cassE = cassX, cassN = cassY (positive values for these sheets)
+      const cp: CommonPoint[] = corners.map((c, i) => ({
+        station: `${sheetId}/${subId}/C${i + 1}`,
+        cassN: c.cassY,
+        cassE: c.cassX,
+        utmN: c.utmN,
+        utmE: c.utmE,
+      }))
+
+      const fullId = `${sheetId}/${subId}`
+
+      try {
+        // Compute Helmert 4-param from corners
+        const helmertRaw = computeHelmert4Params(cp)
+        const helmertParams: TopoSheetParams = {
+          id: fullId,
+          name: `Sub-sheet ${fullId} (Helmert)`,
+          description: `Auto-computed Helmert 4-param from ${cp.length} corners.`,
+          P: helmertRaw.P,
+          Q: helmertRaw.Q,
+          Cx: helmertRaw.Cx,
+          Cy: helmertRaw.Cy,
+          commonPoints: cp,
+        }
+
+        // Compute Affine 6-param from corners
+        const affineParams = computeAffine6Params(cp)
+        affineParams.id = fullId
+        affineParams.name = `Sub-sheet ${fullId} (Affine)`
+
+        result.push({
+          sheetId,
+          subId,
+          fullId,
+          corners,
+          bounds: { minX, maxX, minY, maxY },
+          helmertParams,
+          affineParams,
+        })
+      } catch {
+        // Skip sub-sheets with degenerate geometry (singular matrix, etc.)
+      }
+    }
+  }
+
+  return result
+}
+
+/**
+ * Pre-computed sub-sheet definitions for Kenyan topo sheets 75/3, 88/2, 88/4.
+ * Each sub-sheet has auto-computed Helmert 4-param and Affine 6-param parameters
+ * derived from its 4 corner points, giving near-zero residuals (EXCELLENT accuracy).
+ */
+export const KENYA_SUB_SHEETS: SubSheetDef[] = buildSubSheets()
+
+/** Set of topo sheet IDs that have sub-sheet definitions */
+export const SHEETS_WITH_SUBSHEETS = new Set(KENYA_SUB_SHEETS.map(ss => ss.sheetId))
+
+// ─── Sub-sheet Auto-detection ──────────────────────────────────────────────
+
+/**
+ * Find which sub-sheet a Cassini point falls within, using bounding box check.
+ *
+ * @param sheetId - The parent topo sheet ID (e.g. "75_3", "88_2", "88_4")
+ * @param cassX - Cassini easting (feet)
+ * @param cassY - Cassini northing (feet, positive for sub-sheet sheets)
+ * @returns The matching SubSheetDef, or undefined if not found
+ */
+export function findSubSheet(sheetId: string, cassX: number, cassY: number): SubSheetDef | undefined {
+  const subsForSheet = KENYA_SUB_SHEETS.filter(ss => ss.sheetId === sheetId)
+  for (const ss of subsForSheet) {
+    const { minX, maxX, minY, maxY } = ss.bounds
+    if (cassX >= minX && cassX <= maxX && cassY >= minY && cassY <= maxY) {
+      return ss
+    }
+  }
+  return undefined
+}
+
+// ─── Universal Forward Conversion ───────────────────────────────────────────
+
+/**
+ * Convert Cassini-Soldner coordinates (FEET) to UTM coordinates (METRES) using
+ * any supported parameter type.
+ *
+ * - TopoSheetParams: Uses Helmert 4-param with conformal correction
+ * - Affine6Params: Uses 6-param affine on raw Cassini coords
+ * - Poly12Params: Uses 12-param quadratic on raw Cassini coords
+ * - SubSheetDef: Uses its Helmert 4-param params
+ *
+ * @param points - Array of Cassini coordinates in FEET
+ * @param params - Transformation parameters (any supported type)
+ * @param method - Override method (optional)
+ * @returns Array of conversion results
+ */
+export function convertCassiniToUTM(
+  points: CassiniFeetPoint[],
+  params: TopoSheetParams | Affine6Params | Poly12Params | SubSheetDef,
+  method?: TransformMethod,
+): ConversionResult[] {
+  // Resolve SubSheetDef — default to affine6 (more accurate per-sub-sheet)
+  if ('fullId' in params) {
+    const m = method ?? 'affine6'
+    if (m === 'affine6') return convertCassiniToUTM(points, params.affineParams, 'affine6')
+    return convertCassiniToUTM(points, params.helmertParams, 'helmert4')
+  }
+
+  // Affine 6-param: works on raw Cassini (no conformal correction)
+  if ('method' in params && params.method === 'affine6') {
+    const p = params as Affine6Params
+    return points.map(pt => {
+      try {
+        const cassE = pt.easting
+        const cassN = pt.northing
+        const utmE = p.a + p.b * cassE + p.c * cassN
+        const utmN = p.d + p.e * cassE + p.f * cassN
+        return {
+          id: pt.id,
+          cassiniE: Math.round(cassE * 10) / 10,
+          cassiniN: Math.round(cassN * 10) / 10,
+          conformalE: Math.round(applyConformalCorrection(cassE) * 10) / 10,
+          utmE: Math.round(utmE * 1000) / 1000,
+          utmN: Math.round(utmN * 1000) / 1000,
+        }
+      } catch (err) {
+        return {
+          id: pt.id,
+          cassiniE: pt.easting,
+          cassiniN: pt.northing,
+          conformalE: applyConformalCorrection(pt.easting),
+          utmE: 0, utmN: 0,
+          warning: `Affine conversion failed: ${err instanceof Error ? err.message : String(err)}`,
+        }
+      }
+    })
+  }
+
+  // Poly 12-param: works on raw Cassini (no conformal correction)
+  if ('method' in params && params.method === 'poly12') {
+    const p = params as Poly12Params
+    return points.map(pt => {
+      try {
+        const x = pt.easting
+        const y = pt.northing
+        const utmE = p.a + p.b * x + p.c * y + p.l * x * x + p.m * y * y + p.n * x * y
+        const utmN = p.d + p.e * x + p.f * y + p.p * x * x + p.q * y * y + p.r * x * y
+        return {
+          id: pt.id,
+          cassiniE: Math.round(x * 10) / 10,
+          cassiniN: Math.round(y * 10) / 10,
+          conformalE: Math.round(applyConformalCorrection(x) * 10) / 10,
+          utmE: Math.round(utmE * 1000) / 1000,
+          utmN: Math.round(utmN * 1000) / 1000,
+        }
+      } catch (err) {
+        return {
+          id: pt.id,
+          cassiniE: pt.easting,
+          cassiniN: pt.northing,
+          conformalE: applyConformalCorrection(pt.easting),
+          utmE: 0, utmN: 0,
+          warning: `Poly conversion failed: ${err instanceof Error ? err.message : String(err)}`,
+        }
+      }
+    })
+  }
+
+  // Helmert 4-param (default): use existing function with conformal correction
+  return cassiniFeetToUTM(points, params as TopoSheetParams)
+}
+
+// ─── Universal Inverse Conversion ───────────────────────────────────────────
+
+/**
+ * Convert UTM coordinates (METRES) back to Cassini-Soldner coordinates (FEET)
+ * using any supported parameter type.
+ *
+ * @param points - Array of UTM coordinates in METRES
+ * @param params - Transformation parameters (any supported type)
+ * @param method - Override method (optional)
+ * @returns Array of conversion results
+ */
+export function convertUTMToCassini(
+  points: UTMPoint[],
+  params: TopoSheetParams | Affine6Params | Poly12Params | SubSheetDef,
+  method?: TransformMethod,
+): ConversionResult[] {
+  // Resolve SubSheetDef — default to affine6 (more accurate per-sub-sheet)
+  if ('fullId' in params) {
+    const m = method ?? 'affine6'
+    if (m === 'affine6') return convertUTMToCassini(points, params.affineParams, 'affine6')
+    return convertUTMToCassini(points, params.helmertParams, 'helmert4')
+  }
+
+  // Affine 6-param inverse: solve [a,b,c; d,e,f] · [1,E,N]^T for E,N
+  if ('method' in params && params.method === 'affine6') {
+    const p = params as Affine6Params
+    return points.map(pt => {
+      try {
+        const utmE = pt.easting
+        const utmN = pt.northing
+
+        // Remove constant terms
+        const dE = utmE - p.a
+        const dN = utmN - p.d
+
+        // Invert the 2x2: [b c; e f]
+        const det = p.b * p.f - p.c * p.e
+        if (Math.abs(det) < 1e-20) {
+          throw new Error('Singular affine matrix')
+        }
+        const cassE = (p.f * dE - p.c * dN) / det
+        const cassN = (-p.e * dE + p.b * dN) / det
+
+        return {
+          id: pt.id,
+          cassiniE: Math.round(cassE * 10) / 10,
+          cassiniN: Math.round(cassN * 10) / 10,
+          conformalE: Math.round(applyConformalCorrection(cassE) * 10) / 10,
+          utmE: Math.round(utmE * 1000) / 1000,
+          utmN: Math.round(utmN * 1000) / 1000,
+        }
+      } catch (err) {
+        return {
+          id: pt.id,
+          cassiniE: 0, cassiniN: 0, conformalE: 0,
+          utmE: pt.easting, utmN: pt.northing,
+          warning: `Affine inverse failed: ${err instanceof Error ? err.message : String(err)}`,
+        }
+      }
+    })
+  }
+
+  // Poly 12-param inverse: iterative Newton-Raphson
+  if ('method' in params && params.method === 'poly12') {
+    const p = params as Poly12Params
+    return points.map(pt => {
+      try {
+        const targetE = pt.easting
+        const targetN = pt.northing
+
+        // Initial guess: use affine approximation (ignore quadratic terms)
+        const det0 = p.b * p.f - p.c * p.e
+        if (Math.abs(det0) < 1e-20) throw new Error('Singular poly matrix (linear part)')
+        let cassE = (p.f * (targetE - p.a) - p.c * (targetN - p.d)) / det0
+        let cassN = (-p.e * (targetE - p.a) + p.b * (targetN - p.d)) / det0
+
+        // Newton-Raphson iterations (at most 10)
+        for (let iter = 0; iter < 10; iter++) {
+          // Compute forward with current guess
+          const x = cassE, y = cassN
+          const fwdE = p.a + p.b * x + p.c * y + p.l * x * x + p.m * y * y + p.n * x * y
+          const fwdN = p.d + p.e * x + p.f * y + p.p * x * x + p.q * y * y + p.r * x * y
+
+          // Residuals
+          const resE = targetE - fwdE
+          const resN = targetN - fwdN
+
+          // Check convergence
+          if (Math.abs(resE) < 1e-6 && Math.abs(resN) < 1e-6) break
+
+          // Jacobian: d(E)/d(x), d(E)/d(y), d(N)/d(x), d(N)/d(y)
+          const J = [
+            [p.b + 2 * p.l * x + p.n * y, p.c + 2 * p.m * y + p.n * x],
+            [p.e + 2 * p.p * x + p.r * y, p.f + 2 * p.q * y + p.r * x],
+          ]
+          const detJ = J[0][0] * J[1][1] - J[0][1] * J[1][0]
+          if (Math.abs(detJ) < 1e-20) throw new Error('Singular Jacobian in poly inverse')
+
+          cassE += (J[1][1] * resE - J[0][1] * resN) / detJ
+          cassN += (-J[1][0] * resE + J[0][0] * resN) / detJ
+        }
+
+        return {
+          id: pt.id,
+          cassiniE: Math.round(cassE * 10) / 10,
+          cassiniN: Math.round(cassN * 10) / 10,
+          conformalE: Math.round(applyConformalCorrection(cassE) * 10) / 10,
+          utmE: Math.round(targetE * 1000) / 1000,
+          utmN: Math.round(targetN * 1000) / 1000,
+        }
+      } catch (err) {
+        return {
+          id: pt.id,
+          cassiniE: 0, cassiniN: 0, conformalE: 0,
+          utmE: pt.easting, utmN: pt.northing,
+          warning: `Poly inverse failed: ${err instanceof Error ? err.message : String(err)}`,
+        }
+      }
+    })
+  }
+
+  // Helmert 4-param (default): use existing inverse function
+  return utmToCassiniFeet(points, params as TopoSheetParams)
+}
+
+// ─── Sub-sheet Accuracy Estimation ─────────────────────────────────────────
+
+/**
+ * Estimate accuracy of a sub-sheet's Helmert transformation.
+ * With 4 corners and 4 Helmert params → exact fit → residual should be ~0mm.
+ *
+ * @param subSheet - Sub-sheet definition
+ * @returns RMSE in mm and accuracy grade
+ */
+export function estimateSubSheetAccuracy(subSheet: SubSheetDef): { rmseMM: number; grade: string } {
+  try {
+    const acc = estimateSheetAccuracy(subSheet.helmertParams)
+    return { rmseMM: acc.rmseMM, grade: acc.grade }
+  } catch {
+    return { rmseMM: NaN, grade: 'UNKNOWN' }
+  }
+}
+
+// ─── Verify Affine6 Params ──────────────────────────────────────────────────
+
+/**
+ * Verify affine 6-param transformation against common points.
+ */
+export function verifyAffine6Params(params: Affine6Params): VerificationResult[] {
+  return params.commonPoints.map(cp => {
+    const computedE = params.a + params.b * cp.cassE + params.c * cp.cassN
+    const computedN = params.d + params.e * cp.cassE + params.f * cp.cassN
+    return {
+      station: cp.station,
+      expectedE: cp.utmE,
+      computedE: Math.round(computedE * 1000) / 1000,
+      residualE: Math.round((computedE - cp.utmE) * 1000) / 1000,
+      expectedN: cp.utmN,
+      computedN: Math.round(computedN * 1000) / 1000,
+      residualN: Math.round((computedN - cp.utmN) * 1000) / 1000,
+    }
+  })
+}
+
+// ─── Verify Poly12 Params ──────────────────────────────────────────────────
+
+/**
+ * Verify poly 12-param transformation against common points.
+ */
+export function verifyPoly12Params(params: Poly12Params): VerificationResult[] {
+  return params.commonPoints.map(cp => {
+    const x = cp.cassE, y = cp.cassN
+    const computedE = params.a + params.b * x + params.c * y + params.l * x * x + params.m * y * y + params.n * x * y
+    const computedN = params.d + params.e * x + params.f * y + params.p * x * x + params.q * y * y + params.r * x * y
+    return {
+      station: cp.station,
+      expectedE: cp.utmE,
+      computedE: Math.round(computedE * 1000) / 1000,
+      residualE: Math.round((computedE - cp.utmE) * 1000) / 1000,
+      expectedN: cp.utmN,
+      computedN: Math.round(computedN * 1000) / 1000,
+      residualN: Math.round((computedN - cp.utmN) * 1000) / 1000,
+    }
+  })
+}

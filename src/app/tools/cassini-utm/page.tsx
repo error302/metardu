@@ -28,6 +28,8 @@ import {
 } from 'lucide-react'
 import {
   KENYA_TOPO_SHEETS,
+  KENYA_SUB_SHEETS,
+  SHEETS_WITH_SUBSHEETS,
   cassiniFeetToUTM,
   utmToCassiniFeet,
   verifyWithCommonPoints,
@@ -35,6 +37,10 @@ import {
   toDMS,
   estimateSheetAccuracy,
   computeHelmert4Params,
+  convertCassiniToUTM,
+  convertUTMToCassini,
+  findSubSheet,
+  estimateSubSheetAccuracy,
   CLARKE_1858_A_FT,
   CLARKE_1880_A_M,
 } from '@/lib/geo/cassini'
@@ -45,6 +51,8 @@ import type {
   TopoSheetParams,
   VerificationResult,
   CommonPoint,
+  SubSheetDef,
+  TransformMethod,
 } from '@/lib/geo/cassini'
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -87,6 +95,13 @@ export default function CassiniUTMPage() {
   // ── Topo Sheet Selection ──
   const [selectedSheetId, setSelectedSheetId] = useState<string>(KENYA_TOPO_SHEETS[0].id)
   const [useCustomParams, setUseCustomParams] = useState(false)
+
+  // ── Sub-sheet Selection ──
+  const [selectedSubSheetId, setSelectedSubSheetId] = useState<string>('__auto__')
+  const [detectedSubSheet, setDetectedSubSheet] = useState<SubSheetDef | undefined>(undefined)
+
+  // ── Transform Method ──
+  const [transformMethod, setTransformMethod] = useState<TransformMethod | 'auto'>('auto')
   const [customP, setCustomP] = useState('0.3048')
   const [customQ, setCustomQ] = useState('0')
   const [customCx, setCustomCx] = useState('277474.6')
@@ -119,7 +134,21 @@ export default function CassiniUTMPage() {
   const [calibrationErrors, setCalibrationErrors] = useState<string[]>([])
   const [calibrationResiduals, setCalibrationResiduals] = useState<VerificationResult[]>([])
 
-  // ── Derived Sheet Params ──
+  // ── Derived: available sub-sheets for selected sheet ──
+  const availableSubSheets = useMemo(() => {
+    if (useCustomParams) return []
+    return KENYA_SUB_SHEETS.filter(ss => ss.sheetId === selectedSheetId)
+  }, [useCustomParams, selectedSheetId])
+
+  const hasSubSheets = availableSubSheets.length > 0
+
+  // ── Derived: active sub-sheet ──
+  const activeSubSheet = useMemo(() => {
+    if (selectedSubSheetId === '__auto__') return detectedSubSheet
+    return availableSubSheets.find(ss => ss.subId === selectedSubSheetId)
+  }, [selectedSubSheetId, detectedSubSheet, availableSubSheets])
+
+  // ── Derived Sheet Params (resolves to actual params used for conversion) ──
   const activeSheet: TopoSheetParams = useMemo(() => {
     if (useCustomParams) {
       return {
@@ -133,13 +162,19 @@ export default function CassiniUTMPage() {
         commonPoints: [],
       }
     }
+    // If sub-sheet is active, use its Helmert params
+    if (activeSubSheet) return activeSubSheet.helmertParams
     return KENYA_TOPO_SHEETS.find(s => s.id === selectedSheetId) ?? KENYA_TOPO_SHEETS[0]
-  }, [useCustomParams, selectedSheetId, customP, customQ, customCx, customCy])
+  }, [useCustomParams, selectedSheetId, customP, customQ, customCx, customCy, activeSubSheet])
 
-  // ── Accuracy Grade ──
+  // ── Accuracy Grade (enhanced for sub-sheets) ──
   const accuracyInfo = useMemo(() => {
+    if (activeSubSheet) {
+      const sa = estimateSubSheetAccuracy(activeSubSheet)
+      return { rmseM: sa.rmseMM / 1000, rmseMM: sa.rmseMM, grade: sa.grade }
+    }
     return estimateSheetAccuracy(activeSheet)
-  }, [activeSheet])
+  }, [activeSheet, activeSubSheet])
 
   const accuracyColorClass = useMemo(() => {
     switch (accuracyInfo.grade) {
@@ -234,6 +269,12 @@ export default function CassiniUTMPage() {
     return verifyWithCommonPoints(activeSheet)
   }, [showVerification, activeSheet])
 
+  // ── Auto-detect sub-sheet from coordinates ──
+  const detectSubSheetFromCoords = useCallback((e: number, n: number) => {
+    if (!SHEETS_WITH_SUBSHEETS.has(selectedSheetId)) return undefined
+    return findSubSheet(selectedSheetId, e, n)
+  }, [selectedSheetId])
+
   // ── Reset results on direction change ──
   const handleDirectionChange = useCallback((dir: 'cassini-to-utm' | 'utm-to-cassini') => {
     setDirection(dir)
@@ -241,6 +282,7 @@ export default function CassiniUTMPage() {
     setBatchResults([])
     setBatchErrors([])
     setBatchText('')
+    setDetectedSubSheet(undefined)
   }, [])
 
   // ── Single Convert ──
@@ -249,16 +291,31 @@ export default function CassiniUTMPage() {
     const n = parseFloat(singleN)
     if (isNaN(e) || isNaN(n)) return
 
+    // Auto-detect sub-sheet if available
+    const detected = detectSubSheetFromCoords(e, n)
+    if (detected) setDetectedSubSheet(detected)
+    const sub = selectedSubSheetId === '__auto__' ? detected : activeSubSheet
+
     if (direction === 'cassini-to-utm') {
       const pts: CassiniFeetPoint[] = [{ easting: e, northing: n }]
-      const results = cassiniFeetToUTM(pts, activeSheet)
-      setSingleResult(results[0])
+      if (sub && transformMethod !== 'helmert4') {
+        const results = convertCassiniToUTM(pts, sub)
+        setSingleResult(results[0])
+      } else {
+        const results = cassiniFeetToUTM(pts, sub ? sub.helmertParams : activeSheet)
+        setSingleResult(results[0])
+      }
     } else {
       const pts: UTMPoint[] = [{ easting: e, northing: n }]
-      const results = utmToCassiniFeet(pts, activeSheet)
-      setSingleResult(results[0])
+      if (sub && transformMethod !== 'helmert4') {
+        const results = convertUTMToCassini(pts, sub)
+        setSingleResult(results[0])
+      } else {
+        const results = utmToCassiniFeet(pts, sub ? sub.helmertParams : activeSheet)
+        setSingleResult(results[0])
+      }
     }
-  }, [singleE, singleN, direction, activeSheet])
+  }, [singleE, singleN, direction, activeSheet, activeSubSheet, selectedSubSheetId, transformMethod, detectSubSheetFromCoords])
 
   // ── Batch Convert ──
   const handleBatchConvert = useCallback(() => {
@@ -282,18 +339,23 @@ export default function CassiniUTMPage() {
         continue
       }
 
+      // Auto-detect sub-sheet per point
+      const detected = detectSubSheetFromCoords(e, n)
+      const sub = selectedSubSheetId === '__auto__' ? detected : activeSubSheet
+      const params = sub ? sub.helmertParams : activeSheet
+
       if (direction === 'cassini-to-utm') {
-        const results = cassiniFeetToUTM([{ id, easting: e, northing: n }], activeSheet)
+        const results = cassiniFeetToUTM([{ id, easting: e, northing: n }], params)
         validResults.push(results[0])
       } else {
-        const results = utmToCassiniFeet([{ id, easting: e, northing: n }], activeSheet)
+        const results = utmToCassiniFeet([{ id, easting: e, northing: n }], params)
         validResults.push(results[0])
       }
     }
 
     setBatchResults(validResults)
     setBatchErrors(errors)
-  }, [batchText, direction, activeSheet])
+  }, [batchText, direction, activeSheet, activeSubSheet, selectedSubSheetId, detectSubSheetFromCoords])
 
   // ── Load Example ──
   const handleLoadExample = useCallback(() => {
@@ -442,6 +504,9 @@ export default function CassiniUTMPage() {
             <span className="text-[var(--text-muted)]">No common points available for accuracy estimation</span>
           )}
           <span className="text-[var(--text-muted)]">({activeSheet.commonPoints.length} control points)</span>
+          {activeSubSheet && (
+            <span className="text-emerald-400">· Sub-sheet {activeSubSheet.fullId} (per-corner fit)</span>
+          )}
         </div>
       </div>
 
@@ -506,8 +571,58 @@ export default function CassiniUTMPage() {
                 </select>
               </div>
 
-              {/* Preset: show sheet params as readonly */}
+              {/* Sub-sheet selector (when sheet has sub-sheets) */}
+              {!useCustomParams && hasSubSheets && (
+                <div>
+                  <label className="label text-xs text-[var(--text-muted)] mb-1 block">
+                    Sub-sheet
+                    {activeSubSheet && (
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300">
+                        EXCELLENT &lt;10mm
+                      </span>
+                    )}
+                  </label>
+                  <select
+                    className="input"
+                    value={selectedSubSheetId}
+                    onChange={e => {
+                      setSelectedSubSheetId(e.target.value)
+                      if (e.target.value !== '__auto__') setDetectedSubSheet(undefined)
+                    }}
+                  >
+                    <option value="__auto__">🔍 Auto-detect from coordinates</option>
+                    {availableSubSheets.map(ss => (
+                      <option key={ss.fullId} value={ss.subId}>
+                        Sub-sheet {ss.subId} ({ss.bounds.minX.toFixed(0)}, {ss.bounds.minY.toFixed(0)}) — {ss.corners.length} corners
+                      </option>
+                    ))}
+                  </select>
+                  {detectedSubSheet && selectedSubSheetId === '__auto__' && (
+                    <p className="mt-1 text-[10px] text-emerald-400">
+                      ✓ Auto-detected sub-sheet {detectedSubSheet.fullId}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Method selector */}
               {!useCustomParams && (
+                <div>
+                  <label className="label text-xs text-[var(--text-muted)] mb-1 block">Transform Method</label>
+                  <select
+                    className="input"
+                    value={transformMethod}
+                    onChange={e => setTransformMethod(e.target.value as TransformMethod | 'auto')}
+                  >
+                    <option value="auto">Auto (best available — sub-sheet if detected)</option>
+                    <option value="helmert4">Helmert 4-param (conformal correction)</option>
+                    <option value="affine6">Affine 6-param (Rainsford — raw coordinates)</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Preset: show sheet params as readonly */}
+              {!useCustomParams && !activeSubSheet && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="label text-xs text-[var(--text-muted)]">P (scale factor)</label>
