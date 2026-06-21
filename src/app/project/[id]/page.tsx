@@ -42,7 +42,7 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Pro
     redirect(`/project/${params.id}/scheme`)
   }
 
-  const surveyType = normalizeSurveyType(project.survey_type)
+  const surveyType = normalizeSurveyType(project.survey_type as string | null | undefined)
   const workflow = getWorkflow(surveyType)
   const urlStep = parseInt(searchParams.step ?? '', 10)
   const stepIndex = Number.isFinite(urlStep) ? urlStep : 1
@@ -50,8 +50,8 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Pro
   return (
     <ProjectWorkspaceClient
       project={{
-        id: project.id,
-        name: project.name,
+        id: project.id as string,
+        name: project.name as string,
         surveyType,
         workflowStep: stepIndex,
         maxUnlocked: 1,

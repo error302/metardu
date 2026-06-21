@@ -11,12 +11,10 @@
 
 import { Pool } from 'pg'
 
-// ponytail: Phase 6 — kept T = any default for backward compat with 13 consumer
-// files that assign .data to typed variables without casting. The FilterOp union,
-// unknown params, and typed catch are the real wins. Consumer-side casts are the
-// next wave — see docs/type-hygiene-migration-recipe.md.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface QueryResult<T = any> {
+// ponytail: Phase 6 Batch 3 — flipped default to Record<string, unknown> for
+// type safety. Consumer files now cast explicitly via `as unknown as Type`.
+// This surfaces previously-hidden type assumptions (real bugs fixed in this batch).
+export interface QueryResult<T = Record<string, unknown>> {
   data: T | null
   error: { message: string; code: string; details?: string } | null
   count?: number | null
@@ -36,9 +34,8 @@ interface OrderClause {
   ascending: boolean
 }
 
-// ponytail: Phase 6 — kept T = any default (see QueryResult note above)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class QueryBuilder<T = any> {
+// ponytail: Phase 6 Batch 3 — see QueryResult note above
+export class QueryBuilder<T = Record<string, unknown>> {
   private pool: Pool
   private table: string
   private operation: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select'

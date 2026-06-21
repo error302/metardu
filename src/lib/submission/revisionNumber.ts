@@ -26,7 +26,10 @@ export async function generateSubmissionRef(
     .limit(1)
     .maybeSingle()
 
-  const revision = (existingSubmissions?.revision_number ?? -1) + 1
+  // ponytail: Phase 6 — existingSubmissions is Record<string, unknown> | null;
+  // cast revision_number to number explicitly
+  const rawRevision = existingSubmissions?.revision_number as number | undefined
+  const revision = (rawRevision ?? -1) + 1
   const paddedRev = String(revision).padStart(2, '0')
 
   // Direct SQL replaces the old dbClient.rpc('increment_submission_sequence')

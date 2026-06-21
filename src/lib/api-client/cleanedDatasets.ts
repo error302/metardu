@@ -28,7 +28,7 @@ export async function createCleanedDataset(params: {
     .single()
 
   if (error) throw error
-  return data as CleanedDataset
+  return data as unknown as CleanedDataset
 }
 
 export async function getCleanedDatasets(projectId: string) {
@@ -40,7 +40,7 @@ export async function getCleanedDatasets(projectId: string) {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data as CleanedDataset[]
+  return data as unknown as CleanedDataset[]
 }
 
 export async function getCleanedDataset(id: string) {
@@ -52,7 +52,7 @@ export async function getCleanedDataset(id: string) {
     .single()
 
   if (error) throw error
-  return data as CleanedDataset
+  return data as unknown as CleanedDataset
 }
 
 export async function deleteCleanedDataset(id: string) {

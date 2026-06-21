@@ -24,7 +24,7 @@ export async function createMineTwin(params: {
     .single()
 
   if (error) throw error
-  return data as MineTwin
+  return data as unknown as MineTwin
 }
 
 export async function getMineTwin(id: string) {
@@ -36,7 +36,7 @@ export async function getMineTwin(id: string) {
     .single()
 
   if (error) throw error
-  return data as MineTwin
+  return data as unknown as MineTwin
 }
 
 export async function getMineTwins(projectId: string) {
@@ -48,7 +48,7 @@ export async function getMineTwins(projectId: string) {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data as MineTwin[]
+  return data as unknown as MineTwin[]
 }
 
 export async function addDailyScan(twinId: string, points: SurveyPoint3D[]) {
@@ -72,5 +72,5 @@ export async function addDailyScan(twinId: string, points: SurveyPoint3D[]) {
     .single()
 
   if (error) throw error
-  return data as MineTwin
+  return data as unknown as MineTwin
 }

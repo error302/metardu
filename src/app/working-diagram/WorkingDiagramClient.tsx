@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface FieldbookEntry {
+export interface FieldbookEntry {
   row_index: number;
   station:   string | null;
   raw_data:  Record<string, unknown> | null;
@@ -11,7 +11,7 @@ interface FieldbookEntry {
   remark:    string | null;
 }
 
-interface ProjectInfo {
+export interface ProjectInfo {
   id:                   string;
   name:                 string;
   survey_type:          string;

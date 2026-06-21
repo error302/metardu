@@ -25,7 +25,7 @@ export async function createWorkflow(params: {
     .single()
 
   if (error) throw error
-  return data as Workflow
+  return data as unknown as Workflow
 }
 
 export async function getWorkflows(projectId: string) {
@@ -37,7 +37,7 @@ export async function getWorkflows(projectId: string) {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data as Workflow[]
+  return data as unknown as Workflow[]
 }
 
 export async function getWorkflow(id: string) {
@@ -49,7 +49,7 @@ export async function getWorkflow(id: string) {
     .single()
 
   if (error) throw error
-  return data as Workflow
+  return data as unknown as Workflow
 }
 
 export async function updateWorkflow(id: string, updates: Partial<Workflow>) {
@@ -62,5 +62,5 @@ export async function updateWorkflow(id: string, updates: Partial<Workflow>) {
     .single()
 
   if (error) throw error
-  return data as Workflow
+  return data as unknown as Workflow
 }

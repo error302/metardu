@@ -41,23 +41,31 @@ export default async function SubmissionPage({ params }: Props) {
     .select('*')
     .eq('project_id', params.id);
 
-  const mappedDocs: ProjectDocument[] = (existingDocs ?? []).map((doc: any) => ({
-    id: doc.id,
-    project_id: doc.project_id,
-    document_id: doc.document_id ?? doc.document_type ?? '',
-    status: doc.status ?? 'pending',
-    file_url: doc.file_url ?? doc.file_path ?? null,
-    error_message: doc.error_message ?? null,
-    generated_at: doc.generated_at ?? doc.created_at ?? null,
-    created_at: doc.created_at ?? new Date().toISOString(),
-  }));
+  const docsArray = (existingDocs as Record<string, unknown>[] | null) ?? [];
+  // ponytail: cast via unknown — the mapped shape only carries the DB-side fields
+  // (id/document_id/status/file_url/etc.) that SubmissionClient actually reads via
+  // .find(d => d.document_id === ...).status. The full ProjectDocument interface
+  // also requires `type/label/required`, but those are sourced from a separate
+  // static manifest at the client — the legacy `any` cast on `doc` hid this gap.
+  const mappedDocs = docsArray.map((doc) => ({
+    id: doc.id as string,
+    project_id: doc.project_id as string,
+    document_id: (doc.document_id ?? doc.document_type ?? '') as string,
+    status: (doc.status ?? 'pending') as string,
+    file_url: (doc.file_url ?? doc.file_path ?? null) as string | null,
+    error_message: (doc.error_message ?? null) as string | null,
+    generated_at: (doc.generated_at ?? doc.created_at ?? null) as string | null,
+    created_at: (doc.created_at ?? new Date().toISOString()) as string,
+  })) as unknown as ProjectDocument[];
+
+  const projectRow = project as Record<string, unknown>;
 
   return (
     <SubmissionClient
       project={{
-        id: project.id,
-        name: project.name,
-        survey_type: normalizeSurveyType(project.survey_type),
+        id: projectRow.id as string,
+        name: projectRow.name as string,
+        survey_type: normalizeSurveyType(projectRow.survey_type as string | null | undefined),
       }}
       existingDocs={mappedDocs}
       projectId={params.id}

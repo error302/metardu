@@ -34,7 +34,7 @@ export default async function ProjectLayout({ children, params }: Props) {
     .eq('user_id', user.id)
     .single()
 
-  const surveyType = project ? normalizeSurveyType(project.survey_type) : undefined
+  const surveyType = project ? normalizeSurveyType(project.survey_type as string | null | undefined) : undefined
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">

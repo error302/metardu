@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/api-client/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import WorkingDiagramClient from './WorkingDiagramClient';
+import WorkingDiagramClient, { type ProjectInfo, type FieldbookEntry } from './WorkingDiagramClient';
 
 interface Props {
   searchParams: { projectId?: string };
@@ -36,8 +36,8 @@ export default async function WorkingDiagramPage({ searchParams }: Props) {
 
   return (
     <WorkingDiagramClient
-      project={project}
-      entries={entries ?? []}
+      project={project as unknown as ProjectInfo}
+      entries={(entries ?? []) as unknown as FieldbookEntry[]}
       projectId={projectId}
     />
   );

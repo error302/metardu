@@ -12,6 +12,9 @@ import { generateWorkingDiagramDXF } from './generators/workingDiagram'
 import { generatePPA2Form } from './generators/ppa2Form'
 import { generateLCBConsent } from './generators/lcbConsent'
 import { generateMutationForm } from './generators/mutationForm'
+import type { PPA2Input } from './generators/ppa2Form'
+import type { LCBConsentInput } from './generators/lcbConsent'
+import type { MutationFormInput } from './generators/mutationForm'
 import { coordinateArea } from '@/lib/engine/area'
 import { angularClosureTolerance } from '@/lib/engine/traverse'
 import type { SubmissionPackage, QAGateResult, SurveySubtype } from './types'
@@ -176,15 +179,15 @@ export async function assembleSubmissionPackage(
   const firstPt = pkg.traverse.points[0]
   const workbook = await generateStatutoryWorkbook({
     project: {
-      name: project.name,
-      lrNumber: project.lr_number,
-      parcelNumber: project.parcel_number,
-      county: project.county,
-      division: project.division,
-      district: project.district,
-      locality: project.locality,
+      name: String(project.name ?? ''),
+      lrNumber: String(project.lr_number ?? ''),
+      parcelNumber: String(project.parcel_number ?? ''),
+      county: String(project.county ?? ''),
+      division: String(project.division ?? ''),
+      district: String(project.district ?? ''),
+      locality: String(project.locality ?? ''),
       surveyType: 'cadastral',
-      surveyDate: project.survey_date ?? new Date().toISOString(),
+      surveyDate: String(project.survey_date ?? new Date().toISOString()),
       scaleDenominator: 2500,
     },
     surveyor: {
@@ -257,6 +260,10 @@ export async function assembleSubmissionPackage(
   zip.file('working_diagram.dxf', workingDiagram)
 
   // Supporting documents - PPA2 (always included)
+  // ponytail: cast via unknown — the query result `project` is typed as
+  // Record<string, unknown> after the Phase 6 queryBuilder tightening, so each
+  // property access yields `unknown`. The PDF generator handles stringification
+  // at runtime; the cast preserves the legacy `any`-typed behavior.
   const ppa2Input = {
     lrNumber: project.lr_number,
     parcelNumber: project.parcel_number,
@@ -274,10 +281,11 @@ export async function assembleSubmissionPackage(
     firmName: surveyor.firmName ?? '',
     surveyDate: project.survey_date ?? new Date().toISOString(),
     referenceNumber: ref,
-  }
+  } as unknown as PPA2Input
   zip.file('supporting_docs/ppa2_form.pdf', generatePPA2Form(ppa2Input))
 
   // Supporting documents - LCB Consent (always included)
+  // ponytail: same as PPA2 above — cast via unknown to preserve legacy runtime.
   const lcbInput = {
     lrNumber: project.lr_number,
     parcelNumber: project.parcel_number,
@@ -295,11 +303,12 @@ export async function assembleSubmissionPackage(
     surveyDate: project.survey_date ?? new Date().toISOString(),
     referenceNumber: ref,
     lbcApplicationNumber: project.lbc_application_number,
-  }
+  } as unknown as LCBConsentInput
   zip.file('supporting_docs/lcb_consent.pdf', generateLCBConsent(lcbInput))
 
   // Supporting documents - Mutation Form (only for mutation subtype)
   if (project.survey_subtype === 'mutation') {
+    // ponytail: same as PPA2 above — cast via unknown to preserve legacy runtime.
     const mutationInput = {
       parentLRNumber: project.lr_number,
       parentParcelNumber: project.parcel_number,
@@ -324,7 +333,7 @@ export async function assembleSubmissionPackage(
       surveyDate: project.survey_date ?? new Date().toISOString(),
       referenceNumber: ref,
       mutationNumber: project.mutation_number,
-    }
+    } as unknown as MutationFormInput
     zip.file('supporting_docs/mutation_form.pdf', generateMutationForm(mutationInput))
   }
 

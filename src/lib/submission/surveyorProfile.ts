@@ -21,12 +21,15 @@ export async function getActiveSurveyorProfile(): Promise<SurveyorProfileSubmiss
     )
   }
 
+  // ponytail: Phase 6 — data is Record<string, unknown>; cast to expected shape
+  const profile = data as Record<string, unknown>
+
   return {
-    registrationNumber: data.isk_number ?? '',
-    iskNumber: data.isk_number ?? '',
-    verifiedIsk: data.verified_isk ?? false,
-    fullName: data.full_name ?? data.name ?? '',
-    firmName: data.firm_name ?? data.company ?? '',
-    isKMemberActive: data.verified_isk ?? true
+    registrationNumber: (profile.isk_number as string) ?? '',
+    iskNumber: (profile.isk_number as string) ?? '',
+    verifiedIsk: (profile.verified_isk as boolean) ?? false,
+    fullName: ((profile.full_name as string) ?? (profile.name as string)) ?? '',
+    firmName: ((profile.firm_name as string) ?? (profile.company as string)) ?? '',
+    isKMemberActive: (profile.verified_isk as boolean) ?? true
   }
 }

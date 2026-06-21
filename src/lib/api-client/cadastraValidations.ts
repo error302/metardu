@@ -28,7 +28,7 @@ export async function createValidation(params: {
     .single()
 
   if (error) throw error
-  return data as CadastraValidation
+  return data as unknown as CadastraValidation
 }
 
 export async function getValidations(projectId: string) {
@@ -40,7 +40,7 @@ export async function getValidations(projectId: string) {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data as CadastraValidation[]
+  return data as unknown as CadastraValidation[]
 }
 
 export async function getValidation(id: string) {
@@ -52,5 +52,5 @@ export async function getValidation(id: string) {
     .single()
 
   if (error) throw error
-  return data as CadastraValidation
+  return data as unknown as CadastraValidation
 }

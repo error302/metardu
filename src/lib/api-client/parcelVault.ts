@@ -152,7 +152,9 @@ export async function getUserVault(userId: string): Promise<ParcelVaultEntry[]> 
     .order('updated_at', { ascending: false })
 
   if (error) throw error
-  return data || []
+  // ponytail: Phase 6 — data is Record<string, unknown> | null from query builder;
+  // cast through unknown to the expected array type
+  return (data as unknown as ParcelVaultEntry[]) || []
 }
 
 export async function getVaultStats(): Promise<VaultStats> {

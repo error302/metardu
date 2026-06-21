@@ -23,8 +23,9 @@ export default async function DashboardPage() {
 
   const userIsAdmin = await checkIsAdmin()
 
-  let projects: any[] = []
-  let subscription: any = null
+  // ponytail: Phase 6 — was `any[]`; now typed via query builder default
+  let projects: Record<string, unknown>[] = []
+  let subscription: Record<string, unknown> | null = null
 
   try {
     const dbClient = await createClient()
@@ -32,22 +33,23 @@ export default async function DashboardPage() {
     if (userIsAdmin) {
       subscription = { plan_id: 'enterprise', status: 'active', trial_ends_at: null }
       const { data, error } = await dbClient.from('projects').select('*').order('created_at', { ascending: false })
-      if (!error) projects = data ?? []
+      if (!error) projects = (data as unknown as Record<string, unknown>[]) ?? []
     } else {
       const [pRes, sRes] = await Promise.all([
         dbClient.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
         dbClient.from('user_subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
       ])
-      if (!pRes.error) projects = pRes.data ?? []
-      if (!sRes.error || sRes.error?.code === 'PGRST116') subscription = sRes.data ?? null
+      if (!pRes.error) projects = (pRes.data as unknown as Record<string, unknown>[]) ?? []
+      if (!sRes.error || sRes.error?.code === 'PGRST116') subscription = (sRes.data as Record<string, unknown>) ?? null
     }
   } catch (err) {
     log({ level: 'error', message: 'Failed to load dashboard data', metadata: { error: err } })
   }
 
   const canCreateProject = userIsAdmin || subscription?.plan_id !== 'free' || projects.length < 1
-  const daysLeft = subscription?.trial_ends_at
-    ? Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - Date.now()) / 86400000))
+  const trialEndsAt = subscription?.trial_ends_at as string | null | undefined
+  const daysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000))
     : null
 
   /* ── Batch point/parcel counts (avoids N+1 queries) ─────────────── */
@@ -64,18 +66,20 @@ export default async function DashboardPage() {
 
       // Aggregate counts in JS (2 queries instead of 2N)
       const pointCounts: Record<string, number> = {}
-      for (const row of pointsRes.data ?? []) {
-        pointCounts[row.project_id] = (pointCounts[row.project_id] ?? 0) + 1
+      for (const row of (pointsRes.data as unknown as Record<string, unknown>[]) ?? []) {
+        const pid = String(row.project_id)
+        pointCounts[pid] = (pointCounts[pid] ?? 0) + 1
       }
       const parcelCounts: Record<string, number> = {}
-      for (const row of parcelsRes.data ?? []) {
-        parcelCounts[row.project_id] = (parcelCounts[row.project_id] ?? 0) + 1
+      for (const row of (parcelsRes.data as unknown as Record<string, unknown>[]) ?? []) {
+        const pid = String(row.project_id)
+        parcelCounts[pid] = (parcelCounts[pid] ?? 0) + 1
       }
 
       projectsWithCounts = projects.map(project => ({
         ...project,
-        point_count: pointCounts[project.id] ?? 0,
-        parcel_count: parcelCounts[project.id] ?? 0,
+        point_count: pointCounts[String(project.id)] ?? 0,
+        parcel_count: parcelCounts[String(project.id)] ?? 0,
       }))
     } catch {
       projectsWithCounts = projects.map(project => ({ ...project, point_count: 0, parcel_count: 0 }))
