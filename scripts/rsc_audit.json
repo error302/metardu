@@ -1,50 +1,14 @@
 {
-  "total_use_client": 390,
+  "total_use_client": 384,
   "by_dir": {
     "app": 133,
-    "components": 252,
+    "components": 246,
     "hooks": 2,
     "lib": 3
   },
   "candidates": [
     {
       "path": "components/AuthProvider.tsx",
-      "has_hooks": false,
-      "has_event_handlers": false,
-      "has_state_setter": false,
-      "has_use_effect": false,
-      "has_window_doc": false,
-      "interactive_count": 0
-    },
-    {
-      "path": "components/compute/ChainagePanel.tsx",
-      "has_hooks": false,
-      "has_event_handlers": false,
-      "has_state_setter": false,
-      "has_use_effect": false,
-      "has_window_doc": false,
-      "interactive_count": 0
-    },
-    {
-      "path": "components/compute/SettingOutPanel.tsx",
-      "has_hooks": false,
-      "has_event_handlers": false,
-      "has_state_setter": false,
-      "has_use_effect": false,
-      "has_window_doc": false,
-      "interactive_count": 0
-    },
-    {
-      "path": "components/compute/TacheometryPanel.tsx",
-      "has_hooks": false,
-      "has_event_handlers": false,
-      "has_state_setter": false,
-      "has_use_effect": false,
-      "has_window_doc": false,
-      "interactive_count": 0
-    },
-    {
-      "path": "components/compute/CrossSectionsPanel.tsx",
       "has_hooks": false,
       "has_event_handlers": false,
       "has_state_setter": false,
@@ -108,24 +72,6 @@
     },
     {
       "path": "components/ui/collapsible.tsx",
-      "has_hooks": false,
-      "has_event_handlers": false,
-      "has_state_setter": false,
-      "has_use_effect": false,
-      "has_window_doc": false,
-      "interactive_count": 0
-    },
-    {
-      "path": "components/working-diagram/NorthArrow.tsx",
-      "has_hooks": false,
-      "has_event_handlers": false,
-      "has_state_setter": false,
-      "has_use_effect": false,
-      "has_window_doc": false,
-      "interactive_count": 0
-    },
-    {
-      "path": "components/MetarduLogo.tsx",
       "has_hooks": false,
       "has_event_handlers": false,
       "has_state_setter": false,

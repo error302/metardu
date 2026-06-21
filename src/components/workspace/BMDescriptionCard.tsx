@@ -1,5 +1,3 @@
-'use client';
-
 interface BenchMark {
   bmNo: string;
   description: string;
