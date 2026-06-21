@@ -21,7 +21,7 @@ interface AdjustedLeg {
   correctedDep?: number
 }
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { projectId, entries, adjustedLegs, fileName, relativePrecision } = ctx.body as {
     projectId?: string
     entries?: CommitEntry[]

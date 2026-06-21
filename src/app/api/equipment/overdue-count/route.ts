@@ -4,7 +4,7 @@ import db from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const result = await db.query(
     `SELECT last_calibration_date, interval_days FROM equipment WHERE user_id = $1`,
     [ctx.userId]

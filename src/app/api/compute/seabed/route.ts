@@ -12,7 +12,7 @@ const SeabedRequestSchema = z.object({
 })
 
 export const POST = apiHandler(
-  { auth: true, schema: SeabedRequestSchema, audit: 'compute_seabed' },
+  { auth: true, schema: SeabedRequestSchema, audit: 'compute_seabed' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const data = ctx.body as z.infer<typeof SeabedRequestSchema>
 
@@ -34,7 +34,7 @@ export const POST = apiHandler(
 )
 
 export const GET = apiHandler(
-  { auth: true },
+  { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
   async () => {
     return NextResponse.json(apiSuccess({
       endpoint: '/api/compute/seabed',

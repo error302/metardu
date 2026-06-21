@@ -3,12 +3,12 @@ import { apiHandler } from '@/lib/apiHandler'
 import { getOpenPeerReviews, submitPeerReview } from '@/lib/community'
 import { awardCPDPoints } from '@/lib/cpd'
 
-export const GET = apiHandler({ auth: true }, async () => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async () => {
   const reviews = await getOpenPeerReviews()
   return NextResponse.json({ reviews })
 })
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { requestId, verdict, comments } = ctx.body as {
     requestId?: string
     verdict?: string

@@ -18,7 +18,7 @@ const assignRoleSchema = z.object({
  * Body: { role: Role }
  */
 export const PUT = apiHandler(
-  { auth: true, schema: assignRoleSchema },
+  { auth: true, schema: assignRoleSchema , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const callerId = ctx.userId;
     const targetUserId = ctx.params.userId;

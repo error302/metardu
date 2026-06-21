@@ -5,7 +5,7 @@ import { generatePdf } from '@/lib/pdf/generatePdf'
 import { generateDocx } from '@/lib/docx/generateDocx'
 import { getTemplateSections } from '@/lib/docx/templates'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { reportId, format } = ctx.body as { reportId?: string; format?: 'pdf' | 'docx' }
 
   if (!reportId) {

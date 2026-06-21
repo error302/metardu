@@ -5,7 +5,7 @@ import type { CrossSectionData } from '@/lib/compute/crossSectionPdf'
 
 export const dynamic = 'force-dynamic'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as { data?: unknown } | null
   const data = body?.data
 

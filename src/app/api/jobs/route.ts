@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 
-export const GET = apiHandler({ auth: false }, async (request, ctx) => {
+export const GET = apiHandler({ auth: false, rateLimit: { max: 20, windowMs: 60000 } }, async (request, ctx) => {
   const { searchParams } = new URL(request.url)
   const jobType = searchParams.get('jobType') ?? undefined
   const county = searchParams.get('county') ?? undefined
@@ -45,7 +45,7 @@ export const GET = apiHandler({ auth: false }, async (request, ctx) => {
   return NextResponse.json({ jobs })
 })
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as Record<string, unknown>
   const id = crypto.randomUUID()
   const budget = body.budget as { amount?: number; type?: string } | undefined

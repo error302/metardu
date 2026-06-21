@@ -9,7 +9,7 @@ const insertSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 })
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { rows } = await db.query(
     `SELECT id, action as event_type, details as description, details as metadata, created_at
      FROM audit_logs
@@ -21,7 +21,7 @@ export const GET = apiHandler({ auth: true }, async (req, ctx) => {
   return NextResponse.json({ logs: rows })
 })
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const parsed = insertSchema.safeParse(ctx.body)
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 })

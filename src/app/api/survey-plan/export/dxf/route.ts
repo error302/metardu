@@ -17,7 +17,7 @@ import { log } from '@/lib/logger'
 import { generateCadastralPlanDXF } from '@/lib/export/cadastralPlanDXF'
 import type { SurveyPlanData } from '@/lib/reports/surveyPlan/types'
 
-export const GET = apiHandler({ auth: true }, async (req: NextRequest, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req: NextRequest, ctx) => {
   const url = new URL(req.url)
   const projectId = url.searchParams.get('projectId')
   if (!projectId) {

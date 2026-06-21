@@ -5,7 +5,7 @@ import { apiHandler } from '@/lib/apiHandler'
 export const dynamic = 'force-dynamic'
 
 export const GET = apiHandler(
-  { auth: true, audit: 'batch_generated' },
+  { auth: true, audit: 'batch_generated' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { searchParams } = new URL(req.url)
     const projectId = searchParams.get('project_id')

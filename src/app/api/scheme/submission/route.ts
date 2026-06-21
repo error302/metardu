@@ -20,7 +20,7 @@ function bearingStr(dE: number, dN: number): string {
   return `${String(D).padStart(3, '0')}°${String(M).padStart(2, '0')}'${S.toFixed(1)}"`
 }
 
-export const GET = apiHandler({ auth: true }, async (request, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const projectId = request.nextUrl.searchParams.get('project_id')
   if (!projectId) return NextResponse.json({ error: 'project_id is required' }, { status: 400 })
 

@@ -41,7 +41,7 @@ function rowToListing(row: Record<string, unknown>) {
 
 // ── GET ────────────────────────────────────────────────────────────────────
 
-export const GET = apiHandler({ auth: false }, async (req, ctx) => {
+export const GET = apiHandler({ auth: false, rateLimit: { max: 20, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
 
   const { rows } = await db.query(
@@ -107,7 +107,7 @@ export const PATCH = apiHandler({ auth: true, optimisticLock: true }, async (req
 
 // ── DELETE ─────────────────────────────────────────────────────────────────
 
-export const DELETE = apiHandler({ auth: true }, async (req, ctx) => {
+export const DELETE = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
 
   // Verify ownership

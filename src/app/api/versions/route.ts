@@ -16,7 +16,7 @@ const ListVersionsSchema = z.object({
   offset: z.coerce.number().int().min(0).optional().default(0),
 })
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { searchParams } = new URL(req.url)
   const entityType = searchParams.get('entity_type')
   const entityId = searchParams.get('entity_id')

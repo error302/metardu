@@ -4,7 +4,7 @@ import { db, setRlsContext } from '@/lib/db'
 
 // POST: Save intersection points (horizontal alignment) for an alignment
 // Replaces all existing IPs for the alignment with the new set
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { alignment_id, ips } = ctx.body as {
     alignment_id: string
     ips: {
@@ -57,7 +57,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
 })
 
 // PUT: Update a single IP's computed results
-export const PUT = apiHandler({ auth: true }, async (req, ctx) => {
+export const PUT = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const {
     id,
     deflection_angle,

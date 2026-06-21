@@ -4,7 +4,7 @@ import db from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
   const body = ctx.body as Record<string, unknown>
 
@@ -33,7 +33,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
   return NextResponse.json({ ok: true })
 })
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
 
   const res = await db.query(

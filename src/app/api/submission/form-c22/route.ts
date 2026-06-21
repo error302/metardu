@@ -15,7 +15,7 @@ import type { FormC22Input } from '@/lib/generators/formC22'
  * Fetches project metadata + traverse results from the DB, assembles
  * a FormC22Input, and streams the generated PDF back as a download.
  */
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as {
     projectId?: string
     format?: string

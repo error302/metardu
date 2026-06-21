@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('project_id')
   if (!projectId) {

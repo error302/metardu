@@ -61,7 +61,7 @@ export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ct
   })
 })
 
-export const GET = apiHandler({ auth: true }, async (request, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const filePath = request.nextUrl.searchParams.get('path')
   if (!filePath) return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 })
 
@@ -113,7 +113,7 @@ export const GET = apiHandler({ auth: true }, async (request, ctx) => {
   }
 })
 
-export const DELETE = apiHandler({ auth: true }, async (request, ctx) => {
+export const DELETE = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const filePath = request.nextUrl.searchParams.get('path')
   if (!filePath) return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 })
 

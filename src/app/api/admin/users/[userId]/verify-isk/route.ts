@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
  *   verified  (boolean, required) — true to approve, false to reject
  */
 export const PATCH = apiHandler(
-  { auth: true, roles: ['super_admin', 'admin', 'org_admin'] },
+  { auth: true, roles: ['super_admin', 'admin', 'org_admin'] , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const userId = ctx.params?.userId
     if (!userId) {

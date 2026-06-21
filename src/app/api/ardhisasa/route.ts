@@ -4,7 +4,7 @@ import { createArdhisasaClient, isArdhisasaConfigured, getArdhisasaStatus } from
 
 export const dynamic = 'force-dynamic'
 
-export const GET = apiHandler({ auth: true }, async (request, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const { searchParams } = new URL(request.url)
   const action = searchParams.get('action')
 
@@ -55,7 +55,7 @@ export const GET = apiHandler({ auth: true }, async (request, ctx) => {
   return NextResponse.json({ error: 'Unknown action. Use: status, configured, counties, plan-types, requirements' }, { status: 400 })
 })
 
-export const POST = apiHandler({ auth: true }, async (request, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   if (!isArdhisasaConfigured()) {
     return NextResponse.json({ error: 'ARDHISASA integration not configured. Set ARDHISASA_API_KEY, ARDHISASA_CLIENT_ID, and ARDHISASA_CLIENT_SECRET environment variables.' }, { status: 400 })
   }

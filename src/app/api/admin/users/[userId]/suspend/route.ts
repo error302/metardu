@@ -16,7 +16,7 @@ const suspendSchema = z.object({
  * Requires auth + admin role.
  */
 export const POST = apiHandler(
-  { auth: true, roles: ['super_admin', 'admin', 'org_admin'], schema: suspendSchema },
+  { auth: true, roles: ['super_admin', 'admin', 'org_admin'], schema: suspendSchema , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { userId } = ctx.params
     const { reason } = ctx.body as z.infer<typeof suspendSchema>
@@ -62,7 +62,7 @@ export const POST = apiHandler(
  * Requires auth + admin role.
  */
 export const DELETE = apiHandler(
-  { auth: true, roles: ['super_admin', 'admin', 'org_admin'] },
+  { auth: true, roles: ['super_admin', 'admin', 'org_admin'] , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { userId } = ctx.params
 

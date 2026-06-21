@@ -6,7 +6,7 @@ import { AssignSurveyorSchema } from '@/lib/validation/apiSchemas'
 export const dynamic = 'force-dynamic'
 
 export const POST = apiHandler(
-  { auth: true, schema: AssignSurveyorSchema, audit: 'block_assigned' },
+  { auth: true, schema: AssignSurveyorSchema, audit: 'block_assigned' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { project_id, block_id, assigned_to } = ctx.body as any
 
@@ -48,7 +48,7 @@ export const POST = apiHandler(
 )
 
 export const DELETE = apiHandler(
-  { auth: true, audit: 'block_unassigned' },
+  { auth: true, audit: 'block_unassigned' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { searchParams } = new URL(req.url)
     const blockId = searchParams.get('block_id')

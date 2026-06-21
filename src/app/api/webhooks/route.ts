@@ -4,7 +4,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 import { WEBHOOK_SECRET_PREFIX } from '@/lib/webhooks/types'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { url, events, name } = ctx.body as { url?: string; events?: unknown[]; name?: string }
 
   if (!url || !events || !Array.isArray(events) || events.length === 0) {
@@ -44,7 +44,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
   })
 })
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { rows } = await db.query(
     'SELECT * FROM webhooks WHERE user_id = $1 ORDER BY created_at DESC',
     [ctx.userId]

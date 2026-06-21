@@ -38,7 +38,7 @@ const saveTraverseSchema = z.object({
 })
 
 export const POST = apiHandler(
-  { auth: true, schema: saveTraverseSchema, audit: 'traverse_saved' },
+  { auth: true, schema: saveTraverseSchema, audit: 'traverse_saved' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { parcel_id, observations, ...config } = ctx.body as z.infer<typeof saveTraverseSchema>
 
@@ -215,7 +215,7 @@ export const POST = apiHandler(
 )
 
 export const GET = apiHandler(
-  { auth: true },
+  { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { searchParams } = new URL(req.url)
     const parcelId = searchParams.get('parcel_id')

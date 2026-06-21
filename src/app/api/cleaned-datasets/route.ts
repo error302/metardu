@@ -13,7 +13,7 @@ const cleanedDatasetSchema = z.object({
 })
 
 export const POST = apiHandler(
-  { auth: true, schema: cleanedDatasetSchema, audit: 'cleaned_dataset_saved' },
+  { auth: true, schema: cleanedDatasetSchema, audit: 'cleaned_dataset_saved' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const data = ctx.body as z.infer<typeof cleanedDatasetSchema>
     const userId = ctx.userId

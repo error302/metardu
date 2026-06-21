@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
  * GET /api/scheme/team?project_id=X
  * Returns all surveyors assigned to blocks in a project, plus the project owner.
  */
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('project_id')
 

@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
  * database, and returns a downloadable ZIP containing ESRI Shapefile packages
  * (.shp, .shx, .dbf, .prj, .cpg) for beacons, boundaries, and parcels.
  */
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as { projectId?: string }
   if (!body.projectId) {
     return NextResponse.json({ error: 'Missing projectId' }, { status: 400 })
@@ -126,7 +126,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
  *
  * Returns endpoint metadata.
  */
-export const GET = apiHandler({ auth: false }, async () => {
+export const GET = apiHandler({ auth: false, rateLimit: { max: 20, windowMs: 60000 } }, async () => {
   return NextResponse.json({
     endpoint: '/api/compute/export/shapefile',
     method: 'POST',

@@ -3,7 +3,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import Drawing from 'dxf-writer'
 import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { points, title, projectId } = ctx.body as {
     points: any[]
     title?: string

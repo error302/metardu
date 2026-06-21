@@ -8,7 +8,7 @@ const AssembleRequestSchema = z.object({
 })
 
 export const POST = apiHandler(
-  { auth: true, schema: AssembleRequestSchema, audit: 'submission_assembled' },
+  { auth: true, schema: AssembleRequestSchema, audit: 'submission_assembled' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { projectId } = ctx.body as z.infer<typeof AssembleRequestSchema>
 

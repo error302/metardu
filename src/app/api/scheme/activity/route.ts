@@ -23,7 +23,7 @@ const logActivitySchema = z.object({
 })
 
 export const POST = apiHandler(
-  { auth: true, schema: logActivitySchema },
+  { auth: true, schema: logActivitySchema , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { project_id, action, entity_type, entity_id, details } = ctx.body as z.infer<typeof logActivitySchema>
 
@@ -47,7 +47,7 @@ export const POST = apiHandler(
 )
 
 export const GET = apiHandler(
-  { auth: true },
+  { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { searchParams } = new URL(req.url)
     const projectId = searchParams.get('project_id')

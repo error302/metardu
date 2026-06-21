@@ -6,7 +6,7 @@ import { UpdateParcelSchema } from '@/lib/validation/apiSchemas'
 export const dynamic = 'force-dynamic'
 
 export const PATCH = apiHandler(
-  { auth: true, schema: UpdateParcelSchema, optimisticLock: true, audit: 'parcel_updated' },
+  { auth: true, schema: UpdateParcelSchema, optimisticLock: true, audit: 'parcel_updated' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const parcelId = ctx.params.id
     const validated = ctx.body as Record<string, unknown> & {
@@ -79,7 +79,7 @@ export const PATCH = apiHandler(
 )
 
 export const DELETE = apiHandler(
-  { auth: true, audit: 'parcel_deleted' },
+  { auth: true, audit: 'parcel_deleted' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const parcelId = ctx.params.id
 

@@ -12,7 +12,7 @@ import {
 } from '@/lib/db/optimization'
 import redisCache from '@/lib/cache/redis'
 
-export const POST = apiHandler({ auth: true, roles: ['super_admin', 'org_admin'] }, async (request, ctx) => {
+export const POST = apiHandler({ auth: true, roles: ['super_admin', 'org_admin'], rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const { action } = ctx.body as { action?: string }
 
   switch (action) {
@@ -94,7 +94,7 @@ async function runFullOptimization(): Promise<NextResponse> {
 }
 
 // GET endpoint for status — admin-only to avoid information disclosure
-export const GET = apiHandler({ auth: true, roles: ['super_admin', 'org_admin'] }, async () => {
+export const GET = apiHandler({ auth: true, roles: ['super_admin', 'org_admin'], rateLimit: { max: 60, windowMs: 60000 } }, async () => {
   return NextResponse.json({
     status: 'available',
     endpoints: [

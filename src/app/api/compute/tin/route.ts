@@ -17,7 +17,7 @@ const TINRequestSchema = z.object({
 })
 
 export const POST = apiHandler(
-  { auth: true, schema: TINRequestSchema, audit: 'compute_tin' },
+  { auth: true, schema: TINRequestSchema, audit: 'compute_tin' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const data = ctx.body as z.infer<typeof TINRequestSchema>
 
@@ -43,7 +43,7 @@ export const POST = apiHandler(
 )
 
 export const GET = apiHandler(
-  { auth: true },
+  { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
   async () => {
     return NextResponse.json(apiSuccess({
       endpoint: '/api/compute/tin',

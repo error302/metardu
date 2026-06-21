@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 
-export const POST = apiHandler({ auth: true }, async (request, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const { type, projectId, outputFormat, inputData } = ctx.body as {
     type?: string
     projectId?: string

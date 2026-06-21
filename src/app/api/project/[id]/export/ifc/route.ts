@@ -17,7 +17,7 @@ import type { IFCExportOptions, IFCParcel, IFCControlPoint, IFCTraverseLine, IFC
  *   Content-Type:        application/x-step
  *   Content-Disposition: attachment; filename="<project>_export.ifc"
  */
-export const GET = apiHandler({ auth: true }, async (_req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (_req, ctx) => {
   const { id } = ctx.params;
 
   // ── Fetch project row ──────────────────────────────────────────────────

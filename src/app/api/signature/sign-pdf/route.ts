@@ -39,7 +39,7 @@ function isSignatureMethod(value: string): value is SignatureMethod {
 // POST handler — uses rawBody: true since we parse multipart form data
 // ---------------------------------------------------------------------------
 
-export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ctx) => {
+export const POST = apiHandler({ auth: true, rawBody: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   // Parse multipart form data
   const formData = await request.formData();
 

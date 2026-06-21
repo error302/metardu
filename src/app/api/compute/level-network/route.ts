@@ -44,7 +44,7 @@ const LevelNetworkRequestSchema = z.object({
 })
 
 export const POST = apiHandler(
-  { auth: true, schema: LevelNetworkRequestSchema, audit: 'compute_level_network' },
+  { auth: true, schema: LevelNetworkRequestSchema, audit: 'compute_level_network' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const data = ctx.body as z.infer<typeof LevelNetworkRequestSchema>
 

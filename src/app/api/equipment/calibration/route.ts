@@ -3,7 +3,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 import type { CreateCalibrationRecordRequest } from '@/types/equipment'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { equipmentId, date, certNumber, lab, technician, result, findings, corrections, nextDueDate, documentPath } =
     ctx.body as { equipmentId: string } & CreateCalibrationRecordRequest
 

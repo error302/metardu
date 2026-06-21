@@ -10,7 +10,7 @@ const createSubmissionSchema = z.object({
   notes: z.string().optional(),
 })
 
-export const GET = apiHandler({ auth: true }, async (request, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const projectId = request.nextUrl.searchParams.get('project_id')
 
   if (!projectId) {
@@ -29,7 +29,7 @@ export const GET = apiHandler({ auth: true }, async (request, ctx) => {
   return NextResponse.json({ data: rows })
 })
 
-export const POST = apiHandler({ auth: true }, async (request, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const parsed = createSubmissionSchema.safeParse(ctx.body)
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 })

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
 
   const { rows } = await db.query(
@@ -35,7 +35,7 @@ export const GET = apiHandler({ auth: true }, async (req, ctx) => {
  * 3. Execute: DELETE FROM projects WHERE id = $1 AND user_id = $2
  *    → CASCADE propagates to every child row
  */
-export const DELETE = apiHandler({ auth: true }, async (req, ctx) => {
+export const DELETE = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
 
   // ── Verify project exists and belongs to the authenticated user ──

@@ -42,7 +42,7 @@ const DEFAULT_CONFIG = {
 // GET – fetch current user's white-label config (or defaults)
 // ---------------------------------------------------------------------------
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { rows } = await db.query(
     'SELECT * FROM white_label_configs WHERE user_id = $1',
     [ctx.userId]
@@ -59,7 +59,7 @@ export const GET = apiHandler({ auth: true }, async (req, ctx) => {
 // PUT – upsert config fields (JSON body, no file upload)
 // ---------------------------------------------------------------------------
 
-export const PUT = apiHandler({ auth: true }, async (req, ctx) => {
+export const PUT = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as Record<string, unknown>
 
   const enabled = Boolean(body.enabled)

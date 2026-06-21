@@ -4,7 +4,7 @@ import { findNearestCORS } from '@/lib/geo/cors'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = apiHandler({ auth: true }, async (request, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const { searchParams } = new URL(request.url)
   const lat = parseFloat(searchParams.get('lat') ?? '')
   const lng = parseFloat(searchParams.get('lng') ?? '')

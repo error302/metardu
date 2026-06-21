@@ -18,7 +18,7 @@ import { log } from '@/lib/logger'
 import { generateSignedPdf, type SignedPdfResult } from '@/lib/reports/surveyPlan/signedPdfExport'
 import type { SurveyPlanData } from '@/lib/reports/surveyPlan/types'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { projectId } = (ctx.body as { projectId?: string }) || {}
   if (!projectId) {
     return NextResponse.json(

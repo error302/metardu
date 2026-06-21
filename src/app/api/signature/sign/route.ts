@@ -4,7 +4,7 @@ import db from '@/lib/db'
 import { hashDocument, generateVerificationToken } from '@/lib/compute/digitalSignature'
 import type { SignDocumentRequest } from '@/types/signature'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { documentId, documentType, content, method, signatureData } = ctx.body as SignDocumentRequest
 
   if (!documentId || !documentType || !content || !method) {

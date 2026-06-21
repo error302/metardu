@@ -3,7 +3,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 import { transformCoordinates, TransformInput } from '@/lib/geo/transform'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as TransformInput & { projectId?: string }
 
   if (!body.points?.length || !body.fromCRS || !body.toCRS) {

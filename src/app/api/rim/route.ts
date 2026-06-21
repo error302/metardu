@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic'
 // GET — List RIM sections for a project
 // ────────────────────────────────────────────────────────────
 
-export const GET = apiHandler({ auth: true }, async (request, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const projectId = request.nextUrl.searchParams.get('projectId')
   if (!projectId) {
     return NextResponse.json(apiError('projectId is required'), { status: 400 })
@@ -46,7 +46,7 @@ export const GET = apiHandler({ auth: true }, async (request, ctx) => {
 // POST — Create section / add parcel / add beacon / generate PDF
 // ────────────────────────────────────────────────────────────
 
-export const POST = apiHandler({ auth: true }, async (request, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   // Ensure tables exist
   await createRimTables()
 
@@ -212,7 +212,7 @@ export const POST = apiHandler({ auth: true }, async (request, ctx) => {
 // PUT — Update RIM section
 // ────────────────────────────────────────────────────────────
 
-export const PUT = apiHandler({ auth: true }, async (request, ctx) => {
+export const PUT = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const body = ctx.body as Record<string, unknown>
   const { action, id, data } = body
 
@@ -272,7 +272,7 @@ export const PUT = apiHandler({ auth: true }, async (request, ctx) => {
 // DELETE — Remove RIM section and all related data
 // ────────────────────────────────────────────────────────────
 
-export const DELETE = apiHandler({ auth: true }, async (request, ctx) => {
+export const DELETE = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const rimSectionId = request.nextUrl.searchParams.get('rimSectionId')
   if (!rimSectionId) {
     return NextResponse.json(apiError('rimSectionId is required'), { status: 400 })

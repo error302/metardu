@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  *   startDate (ISO string), endDate (ISO string),
  *   limit (number, default 10000, max 10000)
  */
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const callerId = ctx.userId;
 
   // Check permission

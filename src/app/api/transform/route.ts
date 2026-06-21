@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { transformCoordinates, type CoordSystem } from '@/lib/geo/transform'
 
-export const POST = apiHandler({ auth: true }, async (request, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const { coordinates, fromCRS, toCRS } = ctx.body as {
     coordinates?: Array<{ id: string; x: number; y: number; z?: number }>
     fromCRS?: string

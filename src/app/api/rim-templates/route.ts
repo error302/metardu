@@ -4,7 +4,7 @@ import { RIM_TEMPLATES, getTemplatesByCategory, searchTemplates, getTemplateCate
 
 export const dynamic = 'force-dynamic'
 
-export const GET = apiHandler({ auth: true }, async (request, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const { searchParams } = new URL(request.url)
   const category = searchParams.get('category')
   const search = searchParams.get('search')
@@ -38,7 +38,7 @@ export const GET = apiHandler({ auth: true }, async (request, ctx) => {
   return NextResponse.json({ success: true, data: templates })
 })
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { templateId, customizations } = ctx.body as { templateId?: string; customizations?: Record<string, unknown> }
 
   if (!templateId) {

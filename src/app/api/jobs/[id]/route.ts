@@ -4,7 +4,7 @@ import db from '@/lib/db'
 import { getJobById, applyToJob, awardJob, completeJob } from '@/lib/community'
 import { awardCPDPoints } from '@/lib/cpd'
 
-export const GET = apiHandler({ auth: false }, async (request, ctx) => {
+export const GET = apiHandler({ auth: false, rateLimit: { max: 20, windowMs: 60000 } }, async (request, ctx) => {
   const { id } = ctx.params
   const job = await getJobById(id)
   if (!job) {
@@ -19,7 +19,7 @@ export const GET = apiHandler({ auth: false }, async (request, ctx) => {
   return NextResponse.json({ job, applications: applicationsResult.rows })
 })
 
-export const POST = apiHandler({ auth: true }, async (request, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const jobId = ctx.params.id
   const body = ctx.body as { action?: string; application?: unknown; surveyorId?: string }
 

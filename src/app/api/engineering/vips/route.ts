@@ -3,7 +3,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { db, setRlsContext } from '@/lib/db'
 
 // POST: Save vertical intersection points for an alignment (upsert by chainage)
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { alignment_id, vips } = ctx.body as {
     alignment_id: string
     vips: {

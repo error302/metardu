@@ -12,7 +12,7 @@ const mpesa = new MpesaService({
   environment: (process.env.MPESA_ENV as 'sandbox' | 'production') || 'sandbox'
 })
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { amount, phoneNumber, purpose, referenceId, currency = 'KES' } = ctx.body as {
     amount?: number
     phoneNumber?: string

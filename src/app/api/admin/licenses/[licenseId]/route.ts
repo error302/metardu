@@ -27,7 +27,7 @@ const updateLicenseSchema = z.object({
 })
 
 export const GET = apiHandler(
-  { auth: true, roles: ['super_admin', 'admin'] },
+  { auth: true, roles: ['super_admin', 'admin'] , rateLimit: { max: 60, windowMs: 60000 } },
   async (_req, ctx) => {
     const { licenseId } = ctx.params
 
@@ -44,7 +44,7 @@ export const GET = apiHandler(
 )
 
 export const PUT = apiHandler(
-  { auth: true, roles: ['super_admin'], schema: updateLicenseSchema },
+  { auth: true, roles: ['super_admin'], schema: updateLicenseSchema , rateLimit: { max: 60, windowMs: 60000 } },
   async (_req, ctx) => {
     const { licenseId } = ctx.params
     const body = ctx.body as z.infer<typeof updateLicenseSchema>
@@ -125,7 +125,7 @@ export const PUT = apiHandler(
 )
 
 export const DELETE = apiHandler(
-  { auth: true, roles: ['super_admin'] },
+  { auth: true, roles: ['super_admin'] , rateLimit: { max: 60, windowMs: 60000 } },
   async (_req, ctx) => {
     const { licenseId } = ctx.params
 

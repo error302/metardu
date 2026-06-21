@@ -25,7 +25,7 @@ const createLicenseSchema = z.object({
 })
 
 export const GET = apiHandler(
-  { auth: true, roles: ['super_admin', 'admin'] },
+  { auth: true, roles: ['super_admin', 'admin'] , rateLimit: { max: 60, windowMs: 60000 } },
   async (req) => {
     const url = new URL(req.url)
     const page = parseInt(url.searchParams.get('page') ?? '1', 10)
@@ -43,7 +43,7 @@ export const GET = apiHandler(
 )
 
 export const POST = apiHandler(
-  { auth: true, roles: ['super_admin'], schema: createLicenseSchema },
+  { auth: true, roles: ['super_admin'], schema: createLicenseSchema , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const body = ctx.body as z.infer<typeof createLicenseSchema>
 

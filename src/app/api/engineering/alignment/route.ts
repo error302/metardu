@@ -3,7 +3,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 
 // POST: Save full road alignment for a project (upsert on project_id)
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as {
     project_id: string
     road_name: string
@@ -73,7 +73,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
 })
 
 // GET: Retrieve alignment for a project including IPs, VIPs, and stations
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('project_id')
 

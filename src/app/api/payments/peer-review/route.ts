@@ -5,7 +5,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { apiSuccess, apiError } from '@/lib/api/response'
 import { log } from '@/lib/logger'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { reviewRequestId } = ctx.body as { reviewRequestId?: string }
   if (!reviewRequestId) {
     return NextResponse.json(apiError('Missing reviewRequestId'), { status: 400 })

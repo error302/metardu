@@ -29,7 +29,7 @@ export const dynamic = 'force-dynamic';
  * Returns metadata for all available Community Land Act forms.
  * No authentication required for listing.
  */
-export const GET = apiHandler({ auth: false }, async () => {
+export const GET = apiHandler({ auth: false, rateLimit: { max: 20, windowMs: 60000 } }, async () => {
   return NextResponse.json({
     forms: CLA_FORMS.map((f) => ({
       formNumber: f.formNumber,

@@ -5,7 +5,7 @@ import { generateFormNo4DXF } from '@/lib/submission/generators/formNo4'
 import { generateFormNo4PDF } from '@/lib/submission/generators/formNo4PDF'
 import type { SubmissionPackage } from '@/lib/submission/types'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { submissionId, format } = ctx.body as { submissionId?: string; format?: string }
 
   if (!submissionId) {

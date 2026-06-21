@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as {
     jobType: string
     projectId?: string
@@ -46,7 +46,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
   return NextResponse.json({ success: true, job: rows[0] })
 })
 
-export const GET = apiHandler({ auth: true }, async (req) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req) => {
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status')
 

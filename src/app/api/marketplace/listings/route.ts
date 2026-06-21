@@ -42,7 +42,7 @@ function rowToListing(row: Record<string, unknown>) {
 
 // ── GET ────────────────────────────────────────────────────────────────────
 
-export const GET = apiHandler({ auth: false }, async (req) => {
+export const GET = apiHandler({ auth: false, rateLimit: { max: 20, windowMs: 60000 } }, async (req) => {
   const { searchParams } = new URL(req.url)
   const type = searchParams.get('type') ?? undefined
   const category = searchParams.get('category') ?? undefined
@@ -87,7 +87,7 @@ export const GET = apiHandler({ auth: false }, async (req) => {
 
 // ── POST ───────────────────────────────────────────────────────────────────
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as Record<string, unknown>
 
   // Required fields

@@ -66,7 +66,7 @@ export const POST = apiHandler({ auth: true, schema: createProjectSchema }, asyn
   return NextResponse.json({ data: project }, { status: 201 })
 })
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const result = await db.query(
     `SELECT id, name, survey_type, location, utm_zone, hemisphere, project_type,
             client_name, surveyor_name, country, datum, created_at

@@ -3,7 +3,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 import type { EngineeringSubtype } from '@/lib/engine/engineering'
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('projectId')
 
@@ -23,7 +23,7 @@ export const GET = apiHandler({ auth: true }, async (req, ctx) => {
   return NextResponse.json({ data: rows[0] })
 })
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { projectId, subtype, data } = ctx.body as {
     projectId: string
     subtype: EngineeringSubtype

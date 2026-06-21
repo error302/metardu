@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic'
  * 5. Call generateTraverseDXF() to produce the DXF string
  * 6. Return as a downloadable DXF response
  */
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as { projectId?: string }
   const { projectId } = body
 
@@ -220,7 +220,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
  *
  * Returns endpoint metadata.
  */
-export const GET = apiHandler({ auth: false }, async () => {
+export const GET = apiHandler({ auth: false, rateLimit: { max: 20, windowMs: 60000 } }, async () => {
   return NextResponse.json({
     endpoint: '/api/compute/export/traverse-dxf',
     method: 'POST',

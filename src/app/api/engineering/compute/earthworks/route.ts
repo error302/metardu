@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { crossSectionCutFill, prismoidalVolume } from '@/lib/engine/engineering'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { crossSections, designElevations } = ctx.body as {
     crossSections: { chainage: number; levels: Array<{ offset: number; elevation: number }> }[]
     designElevations: number[]

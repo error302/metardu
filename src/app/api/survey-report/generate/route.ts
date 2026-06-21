@@ -7,7 +7,7 @@ import { riseAndFall } from '@/lib/engine/leveling'
 import { buildSubmissionNumber, normaliseRegistrationNo, validateSubmissionNumber } from '@/lib/submission/format'
 import type { SurveyReportInput, SectionContent, ControlPoint, LevellingRun } from '@/types/surveyReport'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { projectId, input } = ctx.body as { projectId?: string; input?: Partial<SurveyReportInput> }
 
   if (!projectId) {

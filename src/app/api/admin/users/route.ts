@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic'
  *   status  (string, 'active' | 'suspended')
  */
 export const GET = apiHandler(
-  { auth: true, roles: ['super_admin', 'admin', 'org_admin'] },
+  { auth: true, roles: ['super_admin', 'admin', 'org_admin'] , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { searchParams } = new URL(req.url)
 

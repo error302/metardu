@@ -20,7 +20,7 @@ const assignSeatSchema = z.object({
 })
 
 export const GET = apiHandler(
-  { auth: true, roles: ['super_admin', 'admin'] },
+  { auth: true, roles: ['super_admin', 'admin'] , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { licenseId } = ctx.params
     const url = new URL(req.url)
@@ -38,7 +38,7 @@ export const GET = apiHandler(
 )
 
 export const POST = apiHandler(
-  { auth: true, roles: ['super_admin'], schema: assignSeatSchema },
+  { auth: true, roles: ['super_admin'], schema: assignSeatSchema , rateLimit: { max: 60, windowMs: 60000 } },
   async (_req, ctx) => {
     const { licenseId } = ctx.params
     const body = ctx.body as z.infer<typeof assignSeatSchema>
@@ -57,7 +57,7 @@ export const POST = apiHandler(
 )
 
 export const DELETE = apiHandler(
-  { auth: true, roles: ['super_admin'] },
+  { auth: true, roles: ['super_admin'] , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const url = new URL(req.url)
     const seatId = url.searchParams.get('seatId')

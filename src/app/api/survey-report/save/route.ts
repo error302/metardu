@@ -3,7 +3,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { createSurveyReport, saveSurveyReport } from '@/lib/api-client/surveyReports'
 import type { SurveyReportInput, SectionContent } from '@/types/surveyReport'
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const {
     reportId,
     projectId,

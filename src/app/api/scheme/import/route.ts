@@ -5,7 +5,7 @@ import { apiHandler } from '@/lib/apiHandler'
 export const dynamic = 'force-dynamic'
 
 export const POST = apiHandler(
-  { auth: true, rawBody: true, audit: 'csv_import' },
+  { auth: true, rawBody: true, audit: 'csv_import' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const formData = await req.formData()
     const projectId = formData.get('project_id')

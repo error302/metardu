@@ -6,7 +6,7 @@ import { CreateParcelSchema } from '@/lib/validation/apiSchemas'
 export const dynamic = 'force-dynamic'
 
 export const POST = apiHandler(
-  { auth: true, schema: CreateParcelSchema, audit: 'parcel_created' },
+  { auth: true, schema: CreateParcelSchema, audit: 'parcel_created' , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { block_id, parcel_number, lr_number_proposed, area_ha, notes } = ctx.body as {
       block_id: string; parcel_number: string; lr_number_proposed?: string;
@@ -47,7 +47,7 @@ export const POST = apiHandler(
 )
 
 export const GET = apiHandler(
-  { auth: true },
+  { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { searchParams } = new URL(req.url)
     const blockId = searchParams.get('block_id')

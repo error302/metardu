@@ -126,7 +126,7 @@ export const POST = apiHandler(
 // GET — endpoint metadata
 // ---------------------------------------------------------------------------
 
-export const GET = apiHandler({ auth: true }, async () => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async () => {
   return NextResponse.json({
     endpoint: '/api/compute/export/c22-dxf',
     description: 'Generate a DXF from traverse computation data with BOUNDARY, CONTROL_POINTS, TRAVERSE, and TEXT layers.',

@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 
 // ── GET ────────────────────────────────────────────────────────────────────
 
-export const GET = apiHandler({ auth: true }, async (req, ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { searchParams } = new URL(req.url)
   const listingId = searchParams.get('listingId')
 
@@ -53,7 +53,7 @@ export const GET = apiHandler({ auth: true }, async (req, ctx) => {
 
 // ── POST ───────────────────────────────────────────────────────────────────
 
-export const POST = apiHandler({ auth: true }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as Record<string, unknown>
 
   const listingId = String(body.listingId ?? '')
