@@ -1,51 +1,45 @@
-'use client';
+// ponytail: Phase 5 Batch 3 — converted from 'use client' + useEffect + createClient()
+// (legacy Supabase proxy) to a server component with direct db.query().
+// Eliminates the client-side fetch roundtrip; data is in the initial HTML.
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/api-client/client'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { db, setCurrentUserId } from '@/lib/db'
+import Link from 'next/link'
 
 interface AuditLog {
   id: string
   user_id: string
   action: string
-  project_id?: string
-  point_id?: string
-  details: any
-  ip_address: string
-  user_agent: string
+  table_name: string | null
+  record_id: string | null
+  details: unknown
+  ip_address: string | null
   created_at: string
-  projects?: { name: string } | null
 }
 
-export default function AuditLogsPage() {
-  const [logs, setLogs] = useState<AuditLog[]>([])
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
+export default async function AuditLogsPage() {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        Please <Link href="/login" className="text-[var(--accent)] underline">log in</Link> to view audit logs.
+      </div>
+    )
+  }
 
-  useEffect(() => {
-    const dbClient = createClient()
-    dbClient.auth.getSession().then(({ data }) => {
-      const user = data.session?.user
-      setUser(user)
-      if (user) {
-        dbClient
-          .from('audit_logs')
-          .select('*, projects:project_id(name)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(100)
-          .then(({ data }) => {
-            setLogs(data || [])
-            setLoading(false)
-          })
-      } else {
-        setLoading(false)
-      }
-    })
-  }, [])
+  setCurrentUserId(String(session.user.id))
 
-  if (loading) return <div className="max-w-6xl mx-auto px-4 py-8">Loading audit logs...</div>
-
-  if (!user) return <div className="max-w-6xl mx-auto px-4 py-8">Please log in to view audit logs.</div>
+  // ponytail: db.query isn't generic — cast the result
+  const { rows } = await db.query(
+    `SELECT id, user_id, action, table_name, record_id, details, ip_address, created_at
+     FROM audit_logs
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT 100`,
+    [session.user.id],
+  )
+  const logs = rows as AuditLog[]
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -59,19 +53,19 @@ export default function AuditLogsPage() {
               <tr>
                 <th>Time</th>
                 <th>Action</th>
-                <th>Project</th>
+                <th>Table</th>
                 <th>Details</th>
                 <th>IP</th>
               </tr>
             </thead>
             <tbody>
-              {logs.map((log: any) => (
+              {logs.map((log) => (
                 <tr key={log.id}>
                   <td>{new Date(log.created_at).toLocaleString()}</td>
                   <td>{log.action}</td>
-                  <td>{(log as any).projects?.name || log.project_id || '—'}</td>
+                  <td>{log.table_name || '—'}</td>
                   <td className="max-w-md"><pre className="text-xs">{JSON.stringify(log.details, null, 2)}</pre></td>
-                  <td>{log.ip_address}</td>
+                  <td>{log.ip_address || '—'}</td>
                 </tr>
               ))}
             </tbody>
