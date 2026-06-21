@@ -25,6 +25,15 @@ type FieldbookType = 'leveling' | 'traverse' | 'control' | 'hydrographic' | 'min
 
 type SaveStatus = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; when: string } | { kind: 'error'; message: string }
 
+type SavedFieldbook = {
+  id: string
+  type: FieldbookType
+  name: string
+  updated_at?: string
+  created_at?: string
+  data: Record<string, unknown>
+}
+
 type LevelRow = { id: string; station: string; bs: string; is: string; fs: string; remarks: string }
 type TravRow = {
   id: string
@@ -180,8 +189,8 @@ export default function DigitalFieldBookPage() {
       
       setPlanStep('Packaging results...')
       setPlanResult({ success: true, downloadUrl: data.downloadUrl })
-    } catch (err: any) {
-      setPlanResult({ success: false, error: err.message })
+    } catch (err: unknown) {
+      setPlanResult({ success: false, error: err instanceof Error ? err.message : String(err) })
     } finally {
       setPlanGenerating(false)
       setPlanStep('')
@@ -203,7 +212,7 @@ export default function DigitalFieldBookPage() {
     setControlSetups((prev) =>
       prev.map((s) => {
         if (s.id !== activeControlSetupId) return s
-        const station = typeof next === 'function' ? (next as any)(s.station) : next
+        const station = typeof next === 'function' ? next(s.station) : next
         return { ...s, station }
       })
     )
@@ -212,7 +221,7 @@ export default function DigitalFieldBookPage() {
     setControlSetups((prev) =>
       prev.map((s) => {
         if (s.id !== activeControlSetupId) return s
-        const rows = typeof next === 'function' ? (next as any)(s.rows) : next
+        const rows = typeof next === 'function' ? next(s.rows) : next
         return { ...s, rows }
       })
     )
@@ -228,7 +237,7 @@ export default function DigitalFieldBookPage() {
   ])
 
   const panelRef = useRef<HTMLDivElement>(null)
-  const [savedFieldbooks, setSavedFieldbooks] = useState<Array<{ id: string; type: FieldbookType; name: string; updated_at?: string; created_at?: string; data: any }>>([])
+  const [savedFieldbooks, setSavedFieldbooks] = useState<SavedFieldbook[]>([])
 
   useEffect(() => {
     let isMounted = true
@@ -237,7 +246,7 @@ export default function DigitalFieldBookPage() {
         const session = await dbClient.auth.getSession()
         if (!session.data.session?.user) return
         const { data, error } = await dbClient.from('projects').select('id, name').order('created_at', { ascending: false })
-        if (!error && data && isMounted) setProjects(data as any)
+        if (!error && data && isMounted) setProjects(data as { id: string; name: string }[])
       } catch {}
     })()
     return () => {
@@ -264,8 +273,8 @@ export default function DigitalFieldBookPage() {
         if (!error && data && isMounted) {
           setSavedFieldbooks((prev) => {
             const byId = new Map(prev.map((x) => [x.id, x]))
-            for (const row of data as any[]) byId.set(row.id, row)
-            return Array.from(byId.values()).sort((a: any, b: any) => String(b.updated_at ?? b.created_at ?? '').localeCompare(String(a.updated_at ?? a.created_at ?? '')))
+            for (const row of data as SavedFieldbook[]) byId.set(row.id, row)
+            return Array.from(byId.values()).sort((a, b) => String(b.updated_at ?? b.created_at ?? '').localeCompare(String(a.updated_at ?? a.created_at ?? '')))
           })
         }
       } catch {}
@@ -457,37 +466,41 @@ export default function DigitalFieldBookPage() {
     setSyncStatus(null)
   }
 
-  function loadFieldbook(entry: any) {
+  function loadFieldbook(entry: SavedFieldbook) {
     setFieldbookId(entry.id)
     setName(entry.name || '')
-    const data = entry.data || {}
+    const data: Record<string, unknown> = entry.data || {}
+
+    // Hydrate a station object from unknown saved data, with per-field defaults.
+    const controlStationFrom = (val: unknown) => {
+      const s = (val ?? {}) as { name?: string; e?: string; n?: string; z?: string }
+      return { name: String(s.name ?? 'STN'), e: String(s.e ?? ''), n: String(s.n ?? ''), z: String(s.z ?? '') }
+    }
 
     if (entry.type === 'leveling') {
-      setLevelMethod(data.method || 'rise_and_fall')
+      setLevelMethod(data.method === 'height_of_collimation' ? 'height_of_collimation' : 'rise_and_fall')
       setOpeningRL(String(data.openingRL ?? openingRL))
       setClosingRL(data.closingRL !== undefined && data.closingRL !== null ? String(data.closingRL) : '')
       setDistanceKm(String(data.distanceKm ?? distanceKm))
-      setLevelRows((data.rows ?? levelRows).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })))
+      const rowsSource = Array.isArray(data.rows) ? (data.rows as LevelRow[]) : levelRows
+      setLevelRows(rowsSource.map((r) => ({ ...r, id: r.id || crypto.randomUUID() })))
     } else if (entry.type === 'traverse') {
-      setTravMode(data.mode || 'closed')
+      const mode = data.mode === 'open' ? 'open' : data.mode === 'link' ? 'link' : 'closed'
+      setTravMode(mode)
       setStartStation(String(data.startStation ?? startStation))
       setStartE(String(data.startE ?? startE))
       setStartN(String(data.startN ?? startN))
       setCloseE(String(data.closeE ?? ''))
       setCloseN(String(data.closeN ?? ''))
-      setTravRows((data.rows ?? travRows).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })))
+      const rowsSource = Array.isArray(data.rows) ? (data.rows as TravRow[]) : travRows
+      setTravRows(rowsSource.map((r) => ({ ...r, id: r.id || crypto.randomUUID() })))
     } else if (entry.type === 'control') {
-      const setupsRaw = Array.isArray(data.setups) ? data.setups : null
+      const setupsRaw = Array.isArray(data.setups) ? (data.setups as ControlSetup[]) : null
       if (setupsRaw && setupsRaw.length > 0) {
-        const setups: ControlSetup[] = setupsRaw.map((s: any) => ({
+        const setups: ControlSetup[] = setupsRaw.map((s) => ({
           id: String(s.id || crypto.randomUUID()),
-          station: {
-            name: String(s.station?.name ?? 'STN'),
-            e: String(s.station?.e ?? ''),
-            n: String(s.station?.n ?? ''),
-            z: String(s.station?.z ?? ''),
-          },
-          rows: (s.rows ?? []).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })),
+          station: controlStationFrom(s.station),
+          rows: (s.rows ?? []).map((r) => ({ ...r, id: r.id || crypto.randomUUID() })),
         }))
         setControlSetups(setups)
         const preferred = String(data.activeSetupId ?? setups[0].id)
@@ -495,30 +508,29 @@ export default function DigitalFieldBookPage() {
       } else {
         // Backward compatibility: older payloads stored a single station + rows.
         const id = crypto.randomUUID()
+        const rowsSource = Array.isArray(data.rows) ? (data.rows as ControlRow[]) : []
         setControlSetups([
           {
             id,
-            station: {
-              name: String(data.station?.name ?? 'STN'),
-              e: String(data.station?.e ?? ''),
-              n: String(data.station?.n ?? ''),
-              z: String(data.station?.z ?? ''),
-            },
-            rows: (data.rows ?? []).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })),
+            station: controlStationFrom(data.station),
+            rows: rowsSource.map((r) => ({ ...r, id: r.id || crypto.randomUUID() })),
           },
         ])
         setActiveControlSetupId(id)
       }
     } else if (entry.type === 'hydrographic') {
-      setHydroRows((data.rows ?? hydroRows).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })))
+      const rowsSource = Array.isArray(data.rows) ? (data.rows as HydroRow[]) : hydroRows
+      setHydroRows(rowsSource.map((r) => ({ ...r, id: r.id || crypto.randomUUID() })))
     } else if (entry.type === 'mining') {
+      const s = (data.station ?? {}) as { name?: string; e?: string; n?: string; z?: string }
       setMiningStation({
-        name: String(data.station?.name ?? miningStation.name),
-        e: String(data.station?.e ?? miningStation.e),
-        n: String(data.station?.n ?? miningStation.n),
-        z: String(data.station?.z ?? miningStation.z),
+        name: String(s.name ?? miningStation.name),
+        e: String(s.e ?? miningStation.e),
+        n: String(s.n ?? miningStation.n),
+        z: String(s.z ?? miningStation.z),
       })
-      setMiningRows((data.rows ?? miningRows).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() })))
+      const rowsSource = Array.isArray(data.rows) ? (data.rows as MiningRow[]) : miningRows
+      setMiningRows(rowsSource.map((r) => ({ ...r, id: r.id || crypto.randomUUID() })))
     }
 
     panelRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
@@ -580,8 +592,8 @@ export default function DigitalFieldBookPage() {
 
       setFieldbookId(id)
       setSaveStatus({ kind: 'saved', when: now })
-    } catch (e: any) {
-      setSaveStatus({ kind: 'error', message: e?.message || 'Save failed.' })
+    } catch (e: unknown) {
+      setSaveStatus({ kind: 'error', message: e instanceof Error ? e.message : 'Save failed.' })
     }
   }
 
@@ -591,7 +603,7 @@ export default function DigitalFieldBookPage() {
   }
 
    async function exportCSV() {
-     let rows: any[] = []
+     let rows: Array<Record<string, string>> = []
      if (type === 'leveling') {
        rows = levelRows.map((r) => ({ Station: r.station, BS: r.bs, IS: r.is, FS: r.fs, Remarks: r.remarks }))
      } else if (type === 'traverse') {
@@ -645,7 +657,7 @@ export default function DigitalFieldBookPage() {
         styles: { fontSize: 8 },
       })
     } else if (type === 'hydrographic') {
-      autoTable(doc, { startY: 32, head: [['Sounding', 'Easting', 'Northing', 'Depth', 'Tide', 'Corrected', 'Remarks']], body: hydroComputed.ok ? hydroComputed.rows.map((r: any) => [r.soundingId, r.easting, r.northing, r.depth, r.tide, r.corrected ?? '', r.remarks]) : [], styles: { fontSize: 8 } })
+      autoTable(doc, { startY: 32, head: [['Sounding', 'Easting', 'Northing', 'Depth', 'Tide', 'Corrected', 'Remarks']], body: hydroComputed.ok ? hydroComputed.rows.map((r) => [r.soundingId, r.easting, r.northing, r.depth, r.tide, r.corrected ?? '', r.remarks]) : [], styles: { fontSize: 8 } })
     } else if (type === 'control') {
       let y = 32
       for (const setup of controlSetups) {
@@ -703,7 +715,7 @@ export default function DigitalFieldBookPage() {
           styles: { fontSize: 8 },
         })
 
-        const lastY = (doc as any).lastAutoTable?.finalY
+        const lastY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY
         y = (typeof lastY === 'number' ? lastY : y) + 8
         if (y > 270) {
           doc.addPage()
@@ -711,7 +723,7 @@ export default function DigitalFieldBookPage() {
         }
       }
     } else {
-      autoTable(doc, { startY: 32, head: [['Point', 'Bearing', 'V.Ang', 'Slope', 'Easting', 'Northing', 'RL', 'Remarks']], body: miningComputed.ok ? miningComputed.rows.map((r: any) => [r.pointId, r.bearingNum !== null && r.bearingNum !== undefined ? bearingToString(r.bearingNum) : r.bearing, r.verticalAngle, r.slopeDistance, r.computed ? r.computed.easting : '', r.computed ? r.computed.northing : '', r.computed ? r.computed.elevation : '', r.remarks]) : [], styles: { fontSize: 8 } })
+      autoTable(doc, { startY: 32, head: [['Point', 'Bearing', 'V.Ang', 'Slope', 'Easting', 'Northing', 'RL', 'Remarks']], body: miningComputed.ok ? miningComputed.rows.map((r) => [r.pointId, r.bearingNum !== null && r.bearingNum !== undefined ? bearingToString(r.bearingNum) : r.bearing, r.verticalAngle, r.slopeDistance, r.computed ? r.computed.easting : '', r.computed ? r.computed.northing : '', r.computed ? r.computed.elevation : '', r.remarks]) : [], styles: { fontSize: 8 } })
     }
 
     downloadBlob(`metardu-fieldbook-${type}.pdf`, doc.output('blob'))
@@ -881,9 +893,9 @@ export default function DigitalFieldBookPage() {
               setClosingRL={setClosingRL}
               setDistanceKm={setDistanceKm}
               setLevelMethod={setLevelMethod}
-              levelRows={levelRows as any}
-              setLevelRows={setLevelRows as any}
-              computed={levelingComputed as any}
+              levelRows={levelRows}
+              setLevelRows={setLevelRows}
+              computed={levelingComputed}
             />
           )}
 
@@ -902,9 +914,9 @@ export default function DigitalFieldBookPage() {
               setStartN={setStartN}
               setCloseE={setCloseE}
               setCloseN={setCloseN}
-              travRows={travRows as any}
-              setTravRows={setTravRows as any}
-              computed={traverseComputed as any}
+              travRows={travRows}
+              setTravRows={setTravRows}
+              computed={traverseComputed}
             />
           )}
 
@@ -1007,16 +1019,16 @@ export default function DigitalFieldBookPage() {
               <ControlBook
                 t={t}
                 station={controlStation}
-                setStation={setControlStation as any}
-                rows={controlRows as any}
-                setRows={setControlRows as any}
-                computed={controlComputed as any}
+                setStation={setControlStation}
+                rows={controlRows}
+                setRows={setControlRows}
+                computed={controlComputed}
               />
             </div>
           )}
-          {type === 'hydrographic' && <HydroBook t={t} rows={hydroRows as any} setRows={setHydroRows as any} computed={hydroComputed as any} />}
+          {type === 'hydrographic' && <HydroBook t={t} rows={hydroRows} setRows={setHydroRows} computed={hydroComputed} />}
           {type === 'mining' && (
-            <MiningBook t={t} station={miningStation} setStation={setMiningStation as any} rows={miningRows as any} setRows={setMiningRows as any} computed={miningComputed as any} />
+            <MiningBook t={t} station={miningStation} setStation={setMiningStation} rows={miningRows} setRows={setMiningRows} computed={miningComputed} />
           )}
 
 

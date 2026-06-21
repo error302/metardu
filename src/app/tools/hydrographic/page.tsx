@@ -33,6 +33,58 @@ interface ChartDatumParams {
   mhws: string;
 }
 
+interface TidalPoint {
+  time: number;
+  level: number;
+}
+
+interface CorrectedSounding {
+  line: string;
+  fixNo: string;
+  time: string;
+  rawDepth: number;
+  tideHeight: number;
+  correctedDepth: number;
+}
+
+interface TidalCorrectionResults {
+  readings: TidalPoint[];
+  soundings: CorrectedSounding[];
+}
+
+interface CrossSectionPoint {
+  distance: number;
+  depth: number;
+}
+
+interface Trapezoid {
+  fromDist: number;
+  toDist: number;
+  fromDepth: number;
+  toDepth: number;
+  dx: number;
+  avgDepth: number;
+  area: number;
+}
+
+interface CrossSectionResults {
+  measurements: CrossSectionPoint[];
+  trapezoids: Trapezoid[];
+  area: number;
+  wettedPerimeter: number;
+  hydraulicRadius: number;
+}
+
+interface SeabedResult {
+  depth_min: number;
+  depth_max: number;
+  depth_mean: number;
+  volume: number;
+  area: number;
+}
+
+type HydrographicTab = 'tidal' | 'datum' | 'sounding' | 'crossSection';
+
 function formatNumber(n: number, decimals: number = 4): string {
   return n.toFixed(decimals);
 }
@@ -49,7 +101,7 @@ function linearInterpolate(x: number, x1: number, y1: number, x2: number, y2: nu
 }
 
 export default function HydrographicSurveyPage() {
-  const [activeTab, setActiveTab] = useState<'tidal' | 'datum' | 'sounding' | 'crossSection'>('tidal');
+  const [activeTab, setActiveTab] = useState<HydrographicTab>('tidal');
 
   const [tideReadings, setTideReadings] = useState<TideReading[]>([
     { id: 1, time: '08:00', level: '1.200' },
@@ -62,7 +114,7 @@ export default function HydrographicSurveyPage() {
     { id: 1, line: 'L1', fixNo: '001', time: '09:30', easting: '484520', northing: '9863100', rawDepth: '8.450', tideHeight: '' },
   ]);
 
-  const [tidalCorrectionResults, setTidalCorrectionResults] = useState<any>(null);
+  const [tidalCorrectionResults, setTidalCorrectionResults] = useState<TidalCorrectionResults | null>(null);
 
   const [chartDatumParams, setChartDatumParams] = useState<ChartDatumParams>({
     msl: '0.000',
@@ -82,7 +134,7 @@ export default function HydrographicSurveyPage() {
   };
 
   const updateTideReading = (id: number, field: keyof TideReading, value: string) => {
-    setTideReadings(tideReadings.map((t: any) => t.id === id ? { ...t, [field]: value } : t));
+    setTideReadings(tideReadings.map((t) => t.id === id ? { ...t, [field]: value } : t));
   };
 
   const addSoundingRecord = () => {
@@ -101,18 +153,18 @@ export default function HydrographicSurveyPage() {
   };
 
   const updateSoundingRecord = (id: number, field: keyof SoundingRecord, value: string) => {
-    setSoundingRecords(soundingRecords.map((s: any) => s.id === id ? { ...s, [field]: value } : s));
+    setSoundingRecords(soundingRecords.map((s) => s.id === id ? { ...s, [field]: value } : s));
   };
 
   const calculateTidalCorrection = () => {
     const sortedReadings = tideReadings
-      .map((t: any) => ({ time: parseTimeToHours(t.time), level: parseFloat(t.level) }))
-      .filter((t: any) => !isNaN(t.time) && !isNaN(t.level))
-      .sort((a: any, b: any) => a.time - b.time);
+      .map((t) => ({ time: parseTimeToHours(t.time), level: parseFloat(t.level) }))
+      .filter((t) => !isNaN(t.time) && !isNaN(t.level))
+      .sort((a, b) => a.time - b.time);
 
     if (sortedReadings.length < 2) return;
 
-    const results = soundingRecords.map((s: any) => {
+    const results = soundingRecords.map((s): CorrectedSounding | null => {
       const soundingTime = parseTimeToHours(s.time);
       const rawDepth = parseFloat(s.rawDepth);
       if (isNaN(soundingTime) || isNaN(rawDepth)) return null;
@@ -139,7 +191,7 @@ export default function HydrographicSurveyPage() {
         tideHeight,
         correctedDepth,
       };
-    }).filter(Boolean);
+    }).filter((r): r is CorrectedSounding => r !== null);
 
     setTidalCorrectionResults({ readings: sortedReadings, soundings: results });
   };
@@ -154,8 +206,8 @@ export default function HydrographicSurveyPage() {
     { id: 7, distanceFromBank: '30.0', depth: '0.0' },
   ]);
 
-  const [crossSectionResults, setCrossSectionResults] = useState<any>(null);
-  const [seabedResults, setSeabedResults] = useState<any>(null);
+  const [crossSectionResults, setCrossSectionResults] = useState<CrossSectionResults | null>(null);
+  const [seabedResults, setSeabedResults] = useState<SeabedResult | null>(null);
   const [seabedLoading, setSeabedLoading] = useState(false);
 
   const addCrossSectionMeasurement = () => {
@@ -169,20 +221,20 @@ export default function HydrographicSurveyPage() {
   };
 
   const updateCrossSectionMeasurement = (id: number, field: keyof CrossSectionMeasurement, value: string) => {
-    setCrossSectionMeasurements(crossSectionMeasurements.map((m: any) => m.id === id ? { ...m, [field]: value } : m));
+    setCrossSectionMeasurements(crossSectionMeasurements.map((m) => m.id === id ? { ...m, [field]: value } : m));
   };
 
   const calculateCrossSection = () => {
     const measurements = crossSectionMeasurements
-      .map((m: any) => ({ distance: parseFloat(m.distanceFromBank), depth: parseFloat(m.depth) }))
-      .filter((m: any) => !isNaN(m.distance) && !isNaN(m.depth))
-      .sort((a: any, b: any) => a.distance - b.distance);
+      .map((m) => ({ distance: parseFloat(m.distanceFromBank), depth: parseFloat(m.depth) }))
+      .filter((m) => !isNaN(m.distance) && !isNaN(m.depth))
+      .sort((a, b) => a.distance - b.distance);
 
     if (measurements.length < 2) return;
 
     let area = 0;
     let wettedPerimeter = 0;
-    const trapezoids: any[] = [];
+    const trapezoids: Trapezoid[] = [];
 
     for (let i = 1; i < measurements.length; i++) {
       const d1 = measurements[i - 1].distance;
@@ -214,8 +266,8 @@ export default function HydrographicSurveyPage() {
 
   const analyzeSeabed = async () => {
     const points = soundingRecords
-      .filter((r: any) => r.easting && r.northing && r.rawDepth)
-      .map((r: any) => ({
+      .filter((r) => r.easting && r.northing && r.rawDepth)
+      .map((r) => ({
         easting: parseFloat(r.easting),
         northing: parseFloat(r.northing),
         depth: parseFloat(r.rawDepth),
@@ -228,11 +280,11 @@ export default function HydrographicSurveyPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ points }),
       })
-      const data = await res.json()
-      if (res.ok) setSeabedResults(data)
+      const data: unknown = await res.json()
+      if (res.ok) setSeabedResults(data as SeabedResult)
     } catch {
       // fallback: compute locally
-      const depths = points.map((p: any) => p.depth)
+      const depths = points.map((p) => p.depth)
       setSeabedResults({
         depth_min: Math.min(...depths),
         depth_max: Math.max(...depths),
@@ -274,15 +326,15 @@ export default function HydrographicSurveyPage() {
       <PageHeader title="🌊 Hydrographic Survey Tools" subtitle="Bathymetry, tidal corrections, and chart datum conversions" />
 
       <div className="flex gap-2 mb-6 flex-wrap">
-        {[
+        {([
           { id: 'tidal', label: 'Tidal Correction' },
           { id: 'datum', label: 'Chart Datum' },
           { id: 'sounding', label: 'Sounding Records' },
           { id: 'crossSection', label: 'River Cross Section' },
-        ].map((tab: any) => (
+        ] as { id: HydrographicTab; label: string }[]).map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
               activeTab === tab.id 
                 ? 'bg-[var(--accent)] text-white' 
@@ -312,7 +364,7 @@ export default function HydrographicSurveyPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tideReadings.map((t: any) => (
+                  {tideReadings.map((t) => (
                     <tr key={t.id}>
                       <td><input className="input w-24" value={t.time} onChange={e => updateTideReading(t.id, 'time', e.target.value)} placeholder="HH:MM" /></td>
                       <td><input className="input w-32" value={t.level} onChange={e => updateTideReading(t.id, 'level', e.target.value)} placeholder="m" /></td>
@@ -346,7 +398,7 @@ export default function HydrographicSurveyPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {soundingRecords.map((s: any) => (
+                  {soundingRecords.map((s) => (
                     <tr key={s.id}>
                       <td><input className="input w-20" value={s.line} onChange={e => updateSoundingRecord(s.id, 'line', e.target.value)} /></td>
                       <td><input className="input w-20" value={s.fixNo} onChange={e => updateSoundingRecord(s.id, 'fixNo', e.target.value)} /></td>
@@ -383,7 +435,7 @@ export default function HydrographicSurveyPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {tidalCorrectionResults.soundings.map((s: any, i: number) => (
+                    {tidalCorrectionResults.soundings.map((s, i) => (
                       <tr key={i}>
                         <td>{s.line}</td>
                         <td>{s.fixNo}</td>
@@ -561,7 +613,7 @@ export default function HydrographicSurveyPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {soundingRecords.map((s: any) => (
+                  {soundingRecords.map((s) => (
                     <tr key={s.id}>
                       <td><input className="input w-16" value={s.line} onChange={e => updateSoundingRecord(s.id, 'line', e.target.value)} /></td>
                       <td><input className="input w-16" value={s.fixNo} onChange={e => updateSoundingRecord(s.id, 'fixNo', e.target.value)} /></td>
@@ -602,7 +654,7 @@ export default function HydrographicSurveyPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {crossSectionMeasurements.map((m: any) => (
+                  {crossSectionMeasurements.map((m) => (
                     <tr key={m.id}>
                       <td><input className="input w-32" value={m.distanceFromBank} onChange={e => updateCrossSectionMeasurement(m.id, 'distanceFromBank', e.target.value)} /></td>
                       <td><input className="input w-32" value={m.depth} onChange={e => updateCrossSectionMeasurement(m.id, 'depth', e.target.value)} /></td>
@@ -634,9 +686,9 @@ export default function HydrographicSurveyPage() {
               
               <div className="mb-6">
                 <svg viewBox="0 0 500 200" className="w-full h-48 bg-[var(--bg-tertiary)] rounded">
-                  {crossSectionResults.measurements.map((m: any, i: number) => {
-                    const maxDist = Math.max(...crossSectionResults.measurements.map((x: any) => x.distance));
-                    const maxDepth = Math.max(...crossSectionResults.measurements.map((x: any) => x.depth));
+                  {crossSectionResults.measurements.map((m, i) => {
+                    const maxDist = Math.max(...crossSectionResults.measurements.map((x) => x.distance));
+                    const maxDepth = Math.max(...crossSectionResults.measurements.map((x) => x.depth));
                     const x = 50 + (m.distance / maxDist) * 400;
                     const y = 20 + (m.depth / maxDepth) * 160;
                     return (
