@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { z } from 'zod';
 
 import { SurveyType } from '@/types/project';
 import dynamic from 'next/dynamic';
@@ -7,6 +8,16 @@ import { useRouter } from 'next/navigation';
 import { FileText, Map, Download, Loader2, Sparkles } from 'lucide-react';
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile';
 import { useState } from 'react';
+import { apiPost, ApiError } from '@/lib/api/client';
+
+// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+
+const surveyReportGenerateSchema = z.object({
+  id: z.union([z.string(), z.number()]).optional(),
+  sections: z.any().optional(),
+  completeness: z.any().optional(),
+  input: z.any().optional(),
+}).passthrough();
 
 const DynamicFieldBook = dynamic(() => import('./DynamicFieldBook'), { ssr: false });
 const GenerateReportModal = dynamic(() => import('./GenerateReportModal'), { ssr: false });
@@ -134,32 +145,34 @@ function ReviewStepPanel({ surveyType, projectId }: { surveyType: SurveyType; pr
   const handleSurveyReport = async () => {
     setLoading('report');
     try {
-      const response = await fetch('/api/survey-report/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.id) {
-          const downloadRes = await fetch('/api/survey-report/export', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reportId: data.id, format: 'pdf' }),
-          });
-          if (downloadRes.ok) {
-            const blob = await downloadRes.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `survey_report_${projectId}.pdf`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }
+      const data = await apiPost(
+        '/api/survey-report/generate',
+        surveyReportGenerateSchema,
+        { projectId },
+      );
+      if (data.id) {
+        // ponytail: binary download bypasses typed client (PDF response, not JSON)
+        const downloadRes = await fetch('/api/survey-report/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reportId: data.id, format: 'pdf' }),
+        });
+        if (downloadRes.ok) {
+          const blob = await downloadRes.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `survey_report_${projectId}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
         }
       }
     } catch (err) {
-      console.error('Survey report error:', err);
+      if (err instanceof ApiError) {
+        console.error('Survey report error:', err.message);
+      } else {
+        console.error('Survey report error:', err);
+      }
     } finally {
       setLoading(null);
     }
@@ -168,6 +181,7 @@ function ReviewStepPanel({ surveyType, projectId }: { surveyType: SurveyType; pr
   const handleDXFExport = async () => {
     setLoading('dxf');
     try {
+      // ponytail: binary download bypasses typed client (DXF response, not JSON)
       const response = await fetch(`/api/submission/form-no-4?projectId=${projectId}&format=dxf`);
       if (response.ok) {
         const blob = await response.blob();

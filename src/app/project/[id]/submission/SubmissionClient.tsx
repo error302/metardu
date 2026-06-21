@@ -1,12 +1,38 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { z } from 'zod';
 import { createClient } from '@/lib/api-client/client';
+import { apiGet, apiPost, apiInvalidate, ApiError } from '@/lib/api/client';
 import { DocumentStatus, ProjectDocument } from '@/types/submission';
 import { getDocumentsForSurveyType } from '@/lib/submission/submissionDocuments';
 import { SurveyType } from '@/types/project';
 import { SupportingDocUpload } from '@/components/submission/SupportingDocUpload';
 import { FormNo4Preview } from '@/components/drawing/FormNo4Preview';
+
+// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+
+const previewSchema = z.object({
+  submissionRef: z.string().optional(),
+  projectId: z.string().optional(),
+  surveyor: z.any().optional(),
+  subtype: z.string().optional(),
+  parcel: z.any().optional(),
+  traverse: z.any().optional(),
+  supportingDocs: z.array(z.any()).optional(),
+  generatedAt: z.string().optional(),
+  revision: z.number().optional(),
+}).passthrough();
+
+const generateResponseSchema = z.object({
+  success: z.boolean().optional(),
+  fileUrl: z.string().optional(),
+  downloadUrl: z.string().optional(),
+}).passthrough();
+
+const packageResponseSchema = z.object({
+  downloadUrl: z.string().optional(),
+}).passthrough();
 
 interface Props {
   project: { id: string; name: string; survey_type: string };
@@ -79,13 +105,19 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
   useEffect(() => {
     async function loadPreview() {
       try {
-        const res = await fetch(`/api/submission/preview?projectId=${projectId}`);
-        if (res.ok) {
-          const pkg = await res.json();
-          setPreviewPkg(pkg);
-        }
+        const pkg = await apiGet(
+          `/api/submission/preview?projectId=${projectId}`,
+          previewSchema,
+          { ttlMs: 0 },
+        );
+        setPreviewPkg(pkg as unknown as SubmissionPackage);
       } catch (err) {
-        console.error('Failed to load preview:', err);
+        // Preview is best-effort; surface non-auth errors to console only
+        if (err instanceof ApiError && err.isUnauthorized) {
+          console.error('Preview load: unauthorized');
+        } else {
+          console.error('Failed to load preview:', err);
+        }
       }
     }
     loadPreview();
@@ -106,34 +138,29 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
         [docId]: { ...prev[docId], progress: 30 },
       }));
 
-      const response = await fetch('/api/submission/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost(
+        '/api/submission/generate',
+        generateResponseSchema,
+        {
           projectId: project.id,
           documentId: docId,
           documentType: doc.id,
           format: doc.format,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Generation failed');
-      }
+        },
+      );
 
       setDocStates((prev) => ({
         ...prev,
         [docId]: { ...prev[docId], progress: 70 },
       }));
 
-      const result = await response.json();
+      const downloadUrl = result.downloadUrl ?? result.fileUrl;
 
       await dbClient.from('submission_documents').upsert({
         project_id: project.id,
         document_id: docId,
         status: 'ready',
-        file_url: result.downloadUrl,
+        file_url: downloadUrl,
         generated_at: new Date().toISOString(),
       }, { onConflict: 'project_id,document_id' });
 
@@ -143,12 +170,18 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
           ...prev[docId],
           status: 'ready',
           progress: 100,
-          fileUrl: result.downloadUrl,
+          fileUrl: downloadUrl,
           generatedAt: new Date().toISOString(),
         },
       }));
+
+      apiInvalidate(`/api/submission/preview?projectId=${project.id}`);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorMessage = err instanceof ApiError
+        ? err.message
+        : err instanceof Error
+          ? err.message
+          : 'Unknown error';
       setDocStates((prev) => ({
         ...prev,
         [docId]: {
@@ -359,14 +392,21 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
           <div className="mt-4 flex gap-3">
             <button
               onClick={async () => {
-                const response = await fetch('/api/submission/package', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ projectId: project.id }),
-                });
-                if (response.ok) {
-                  const result = await response.json();
-                  window.open(result.downloadUrl, '_blank');
+                try {
+                  const result = await apiPost(
+                    '/api/submission/package',
+                    packageResponseSchema,
+                    { projectId: project.id },
+                  );
+                  if (result.downloadUrl) {
+                    window.open(result.downloadUrl, '_blank');
+                  }
+                } catch (err) {
+                  if (err instanceof ApiError) {
+                    console.error('Package download failed:', err.message);
+                  } else {
+                    console.error('Package download failed:', err);
+                  }
                 }
               }}
               className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition"
@@ -398,6 +438,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
           onClick={async () => {
             setAssembling(true);
             try {
+              // ponytail: binary download bypasses typed client (ZIP response with custom headers, not JSON)
               const res = await fetch('/api/submission/assemble', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

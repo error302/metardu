@@ -3,10 +3,33 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { z } from 'zod'
 import {
   ArrowLeft, Plus, Trash2, Edit3, Check, X, LayoutGrid,
   AlertCircle, Loader2, ChevronRight
 } from 'lucide-react'
+import { apiGet, apiPost, apiPatch, apiDelete, apiInvalidate, ApiError } from '@/lib/api/client'
+
+// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+
+const blockRowSchema = z.object({
+  id: z.union([z.number(), z.string()]),
+  project_id: z.union([z.number(), z.string()]),
+  block_number: z.string(),
+  block_name: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  parcel_count: z.union([z.number(), z.string()]).optional(),
+  completed_count: z.union([z.number(), z.string()]).optional(),
+  created_at: z.string().optional(),
+}).passthrough()
+
+const blocksListSchema = z.object({
+  data: z.array(blockRowSchema).optional().default([]),
+}).passthrough()
+
+const blockMutationSchema = z.object({
+  data: z.any().optional(),
+}).passthrough()
 
 interface BlockRow {
   id: number
@@ -42,12 +65,18 @@ export default function BlocksPage() {
   const fetchBlocks = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch(`/api/scheme/blocks?project_id=${projectId}`)
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to load blocks')
-      setBlocks(json.data || [])
-    } catch (err: any) {
-      setError(err.message)
+      const json = await apiGet(
+        `/api/scheme/blocks?project_id=${projectId}`,
+        blocksListSchema,
+        { ttlMs: 0 },
+      )
+      setBlocks((json.data ?? []) as unknown as BlockRow[])
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError((err as Error).message)
+      }
     } finally {
       setLoading(false)
     }
@@ -62,22 +91,25 @@ export default function BlocksPage() {
     setError('')
 
     try {
-      const res = await fetch('/api/scheme/blocks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await apiPost(
+        '/api/scheme/blocks',
+        blockMutationSchema,
+        {
           project_id: parseInt(projectId),
           ...newBlock,
-        }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to create block')
+        },
+      )
 
+      apiInvalidate(`/api/scheme/blocks?project_id=${projectId}`)
       setNewBlock({ block_number: '', block_name: '', description: '' })
       setShowCreate(false)
       void fetchBlocks()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError((err as Error).message)
+      }
     } finally {
       setCreating(false)
     }
@@ -90,18 +122,21 @@ export default function BlocksPage() {
     setError('')
 
     try {
-      const res = await fetch(`/api/scheme/blocks/${editingId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to update block')
+      await apiPatch(
+        `/api/scheme/blocks/${editingId}`,
+        blockMutationSchema,
+        editForm,
+      )
 
+      apiInvalidate(`/api/scheme/blocks?project_id=${projectId}`)
       setEditingId(null)
       void fetchBlocks()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError((err as Error).message)
+      }
     } finally {
       setUpdating(false)
     }
@@ -112,12 +147,15 @@ export default function BlocksPage() {
     setDeleting(blockId)
 
     try {
-      const res = await fetch(`/api/scheme/blocks/${blockId}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to delete block')
+      await apiDelete(`/api/scheme/blocks/${blockId}`)
+      apiInvalidate(`/api/scheme/blocks?project_id=${projectId}`)
       void fetchBlocks()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError((err as Error).message)
+      }
     } finally {
       setDeleting(null)
     }

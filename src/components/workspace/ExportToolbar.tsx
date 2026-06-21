@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { z } from 'zod'
 import { Loader2, FileText, Download, MapPin, Activity } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -8,6 +9,48 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip'
+import { apiPost, ApiError } from '@/lib/api/client'
+
+// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+
+const traverseLegSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  bearing: z.number(),
+  distance: z.number(),
+  adjEasting: z.number(),
+  adjNorthing: z.number(),
+  rawDeltaE: z.number().optional(),
+  rawDeltaN: z.number().optional(),
+  correctionE: z.number().optional(),
+  correctionN: z.number().optional(),
+}).passthrough()
+
+const traverseResultSchema = z.object({
+  legs: z.array(traverseLegSchema),
+  closingErrorE: z.number(),
+  closingErrorN: z.number(),
+  linearError: z.number(),
+  precisionRatio: z.number(),
+  adjustedAreaM2: z.number(),
+  adjustedAreaHa: z.number(),
+  angularMisclosureSec: z.number().optional(),
+  angularToleranceSec: z.number().optional(),
+  linearMisclosureM: z.number().optional(),
+  perimeterM: z.number().optional(),
+}).passthrough()
+
+const dxfExportSchema = z.object({
+  kind: z.string(),
+  filename: z.string(),
+  dxf: z.string(),
+}).passthrough()
+
+const geojsonExportSchema = z.object({
+  kind: z.string(),
+  filename: z.string(),
+  geojson: z.any(),
+}).passthrough()
 
 // ---------------------------------------------------------------------------
 // Props
@@ -94,29 +137,27 @@ export default function ExportToolbar({
       setAdjustLoading(true)
       clearError()
 
-      const res = await fetch('/api/compute/traverse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost(
+        '/api/compute/traverse',
+        traverseResultSchema,
+        {
           task: 'adjust',
           method: 'bowditch',
           surveyType,
           startPoint: { name: 'ST1', easting: 0, northing: 0 },
           legs: [], // caller should provide legs via project data
           closingPoint: { easting: 0, northing: 0 },
-        }),
-      })
+        },
+      )
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || 'Adjustment failed')
-      }
-
-      const result = await res.json()
-      setTraverseResult(result)
+      setTraverseResult(result as unknown as TraverseResult)
       onAdjustmentComplete?.(result)
-    } catch (err: any) {
-      setError(err.message || 'Adjustment failed')
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message || 'Adjustment failed')
+      } else {
+        setError((err as Error).message || 'Adjustment failed')
+      }
     } finally {
       setAdjustLoading(false)
     }
@@ -133,6 +174,7 @@ export default function ExportToolbar({
 
       const legs = traverseResult?.legs || []
 
+      // ponytail: binary download bypasses typed client (PDF response, not JSON)
       const res = await fetch('/api/submission/form-c22', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -171,8 +213,12 @@ export default function ExportToolbar({
       const blob = await res.blob()
       const filename = lrNumber || 'draft'
       downloadBlob(blob, `Form_C22_${filename}.pdf`)
-    } catch (err: any) {
-      setError(err.message || 'Failed to download Form C22')
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message || 'Failed to download Form C22')
+      } else {
+        setError((err as Error).message || 'Failed to download Form C22')
+      }
     } finally {
       setFormC22Loading(false)
     }
@@ -195,10 +241,10 @@ export default function ExportToolbar({
         is_control: i === 0,
       }))
 
-      const res = await fetch('/api/compute/export/dxf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const data = await apiPost(
+        '/api/compute/export/dxf',
+        dxfExportSchema,
+        {
           projectName,
           points,
           traverseLegs: legs.map((l) => ({
@@ -207,19 +253,17 @@ export default function ExportToolbar({
             bearing: l.bearing,
             distance: l.distance,
           })),
-        }),
-      })
+        },
+      )
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || 'DXF export failed')
-      }
-
-      const data = await res.json()
       const blob = new Blob([data.dxf], { type: 'application/dxf' })
       downloadBlob(blob, data.filename)
-    } catch (err: any) {
-      setError(err.message || 'DXF export failed')
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message || 'DXF export failed')
+      } else {
+        setError((err as Error).message || 'DXF export failed')
+      }
     } finally {
       setDxfLoading(false)
     }
@@ -242,27 +286,25 @@ export default function ExportToolbar({
         is_control: i === 0,
       }))
 
-      const res = await fetch('/api/compute/export/geojson', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const data = await apiPost(
+        '/api/compute/export/geojson',
+        geojsonExportSchema,
+        {
           projectName,
           points,
-        }),
-      })
+        },
+      )
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || 'GeoJSON export failed')
-      }
-
-      const data = await res.json()
       const blob = new Blob([JSON.stringify(data.geojson, null, 2)], {
         type: 'application/geo+json',
       })
       downloadBlob(blob, data.filename)
-    } catch (err: any) {
-      setError(err.message || 'GeoJSON export failed')
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message || 'GeoJSON export failed')
+      } else {
+        setError((err as Error).message || 'GeoJSON export failed')
+      }
     } finally {
       setGeojsonLoading(false)
     }
