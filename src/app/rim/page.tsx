@@ -30,6 +30,36 @@ import {
   CheckCircle2,
   Copy,
 } from 'lucide-react';
+import { z } from 'zod';
+import { apiGet, apiPost, apiPut, apiDelete, apiInvalidate, ApiError } from '@/lib/api/client';
+
+// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+
+const authSessionSchema = z.object({
+  user: z.any().optional(),
+  expires: z.string().optional(),
+}).passthrough()
+
+const projectsListSchema = z.object({
+  data: z.array(z.any()),
+}).passthrough()
+
+const rimListSchema = z.object({
+  data: z.array(z.any()),
+}).passthrough()
+
+const rimTemplatesListSchema = z.object({
+  data: z.any(),
+}).passthrough()
+
+// Most /api/rim mutations return { data: <created-or-updated-row> }
+const rimMutationSchema = z.object({
+  data: z.any(),
+}).passthrough()
+
+const rimTemplateApplySchema = z.object({
+  data: z.any(),
+}).passthrough()
 
 // ────────────────────────────────────────────────────────────────
 // Types
@@ -340,20 +370,19 @@ export default function RimEditorPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/auth/session');
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.user) {
-            setIsAuthenticated(true);
-          } else {
-            router.push('/login');
-            return;
-          }
+        const data = await apiGet('/api/auth/session', authSessionSchema, { ttlMs: 0 })
+        if (data?.user) {
+          setIsAuthenticated(true);
         } else {
           router.push('/login');
           return;
         }
-      } catch {
+      } catch (err) {
+        if (err instanceof ApiError && err.isUnauthorized) {
+          router.push('/login');
+          return;
+        }
+        // Other errors (server hiccup, etc.) — also bail to login
         router.push('/login');
         return;
       }
@@ -372,12 +401,10 @@ export default function RimEditorPage() {
     (async () => {
       try {
         setProjectsLoading(true);
-        const res = await fetch('/api/projects');
-        if (!res.ok) throw new Error('Failed to load projects');
-        const data = await res.json();
+        const data = await apiGet('/api/projects', projectsListSchema, { ttlMs: 30_000 })
         setProjects(data.data || []);
       } catch (err) {
-        showToast('Failed to load projects', 'error');
+        showToast(err instanceof ApiError ? err.message : 'Failed to load projects', 'error');
       } finally {
         setProjectsLoading(false);
       }
@@ -392,12 +419,10 @@ export default function RimEditorPage() {
     }
     try {
       setSectionsLoading(true);
-      const res = await fetch(`/api/rim?projectId=${projectId}`);
-      if (!res.ok) throw new Error('Failed to load RIM sections');
-      const data = await res.json();
+      const data = await apiGet(`/api/rim?projectId=${projectId}`, rimListSchema, { ttlMs: 0 })
       setSections(data.data || []);
-    } catch {
-      showToast('Failed to load RIM sections', 'error');
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to load RIM sections', 'error');
     } finally {
       setSectionsLoading(false);
     }
@@ -411,12 +436,10 @@ export default function RimEditorPage() {
   const loadTemplates = useCallback(async () => {
     try {
       setTemplatesLoading(true);
-      const res = await fetch('/api/rim-templates');
-      if (!res.ok) throw new Error('Failed to load templates');
-      const data = await res.json();
+      const data = await apiGet('/api/rim-templates', rimTemplatesListSchema, { ttlMs: 300_000 })
       setTemplates(data.data || []);
-    } catch {
-      showToast('Failed to load templates', 'error');
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to load templates', 'error');
     } finally {
       setTemplatesLoading(false);
     }
@@ -434,10 +457,10 @@ export default function RimEditorPage() {
   const handleCreateSection = async () => {
     if (!selectedProjectId) return;
     try {
-      const res = await fetch('/api/rim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost(
+        '/api/rim',
+        rimMutationSchema,
+        {
           action: 'create_section',
           data: {
             project_id: selectedProjectId,
@@ -449,19 +472,15 @@ export default function RimEditorPage() {
             datum: 'Arc 1960',
             projection: 'UTM Zone 37S',
           },
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Failed to create section');
-      }
-      const data = await res.json();
-      const newSection = data.data;
+        },
+      );
+      apiInvalidate(`/api/rim?projectId=${selectedProjectId}`)
+      const newSection = result.data;
       showToast('RIM section created', 'success');
       await loadSections(selectedProjectId);
       handleSelectSection(newSection);
     } catch (err: any) {
-      showToast(err.message || 'Failed to create section', 'error');
+      showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to create section'), 'error');
     }
   };
 
@@ -470,20 +489,18 @@ export default function RimEditorPage() {
     if (!selectedProjectId) return;
     try {
       // Get template data from the API
-      const tplRes = await fetch('/api/rim-templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId, customizations: {} }),
-      });
-      if (!tplRes.ok) throw new Error('Failed to apply template');
-      const tplData = await tplRes.json();
+      const tplData = await apiPost(
+        '/api/rim-templates',
+        rimTemplateApplySchema,
+        { templateId, customizations: {} },
+      );
       const tpl = tplData.data;
 
       // Create the section with template defaults
-      const res = await fetch('/api/rim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost(
+        '/api/rim',
+        rimMutationSchema,
+        {
           action: 'create_section',
           data: {
             project_id: selectedProjectId,
@@ -495,19 +512,17 @@ export default function RimEditorPage() {
             datum: tpl.defaults?.datum || 'Arc 1960',
             projection: tpl.defaults?.projection || 'UTM Zone 37S',
           },
-        }),
-      });
-      if (!res.ok) throw new Error('Failed to create section');
-      const data = await res.json();
-      const newSection = data.data;
+        },
+      );
+      const newSection = result.data;
 
       // Add sample parcels
       if (tpl.sampleParcels?.length) {
         for (const p of tpl.sampleParcels) {
-          await fetch('/api/rim', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          await apiPost(
+            '/api/rim',
+            rimMutationSchema,
+            {
               action: 'add_parcel',
               data: {
                 rimSectionId: newSection.id,
@@ -517,18 +532,18 @@ export default function RimEditorPage() {
                 owner_name: p.ownerName || '',
                 beacon_count: 0,
               },
-            }),
-          });
+            },
+          );
         }
       }
 
       // Add sample beacons
       if (tpl.sampleBeacons?.length) {
         for (const b of tpl.sampleBeacons) {
-          await fetch('/api/rim', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          await apiPost(
+            '/api/rim',
+            rimMutationSchema,
+            {
               action: 'add_beacon',
               data: {
                 rimSectionId: newSection.id,
@@ -539,17 +554,18 @@ export default function RimEditorPage() {
                 type: b.type || 'Pillar',
                 survey_status: 'Original',
               },
-            }),
-          });
+            },
+          );
         }
       }
 
+      apiInvalidate(`/api/rim?projectId=${selectedProjectId}`)
       setShowTemplates(false);
       showToast('RIM section created from template', 'success');
       await loadSections(selectedProjectId);
       handleSelectSection(newSection);
     } catch (err: any) {
-      showToast(err.message || 'Failed to create from template', 'error');
+      showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to create from template'), 'error');
     }
   };
 
@@ -590,10 +606,10 @@ export default function RimEditorPage() {
     if (!activeSection) return;
     try {
       setSectionSaving(true);
-      const res = await fetch('/api/rim', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPut(
+        '/api/rim',
+        rimMutationSchema,
+        {
           action: 'update_section',
           id: activeSection.id,
           data: {
@@ -608,18 +624,14 @@ export default function RimEditorPage() {
             status: sectionForm.status || 'draft',
             notes: sectionForm.notes || '',
           },
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Failed to update section');
-      }
-      const data = await res.json();
-      setActiveSection(data.data);
+        },
+      );
+      apiInvalidate(`/api/rim?projectId=${selectedProjectId}`)
+      setActiveSection(result.data);
       showToast('Section updated', 'success');
       await loadSections(selectedProjectId);
     } catch (err: any) {
-      showToast(err.message || 'Failed to update section', 'error');
+      showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to update section'), 'error');
     } finally {
       setSectionSaving(false);
     }
@@ -635,13 +647,8 @@ export default function RimEditorPage() {
       onConfirm: async () => {
         setConfirmDialog((prev) => ({ ...prev, open: false }));
         try {
-          const res = await fetch(`/api/rim?rimSectionId=${section.id}`, {
-            method: 'DELETE',
-          });
-          if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error?.message || 'Failed to delete section');
-          }
+          await apiDelete(`/api/rim?rimSectionId=${section.id}`);
+          apiInvalidate(`/api/rim?projectId=${selectedProjectId}`)
           showToast('Section deleted', 'success');
           if (activeSection?.id === section.id) {
             setActiveSection(null);
@@ -650,7 +657,7 @@ export default function RimEditorPage() {
           }
           await loadSections(selectedProjectId);
         } catch (err: any) {
-          showToast(err.message || 'Failed to delete section', 'error');
+          showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to delete section'), 'error');
         }
       },
     });
@@ -663,10 +670,10 @@ export default function RimEditorPage() {
       return;
     }
     try {
-      const res = await fetch('/api/rim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost(
+        '/api/rim',
+        rimMutationSchema,
+        {
           action: 'add_parcel',
           data: {
             rimSectionId: activeSection.id,
@@ -676,20 +683,16 @@ export default function RimEditorPage() {
             owner_name: newParcel.owner_name.trim(),
             beacon_count: parseInt(newParcel.beacon_count) || 0,
           },
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Failed to add parcel');
-      }
-      const data = await res.json();
-      setParcels((prev) => [...prev, data.data]);
+        },
+      );
+      apiInvalidate(`/api/rim?projectId=${selectedProjectId}`)
+      setParcels((prev) => [...prev, result.data]);
       setNewParcel({ parcel_number: '', area: '', land_use: '', owner_name: '', beacon_count: '' });
       setShowAddParcel(false);
       showToast('Parcel added', 'success');
       await loadSections(selectedProjectId);
     } catch (err: any) {
-      showToast(err.message || 'Failed to add parcel', 'error');
+      showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to add parcel'), 'error');
     }
   };
 
@@ -700,10 +703,10 @@ export default function RimEditorPage() {
       return;
     }
     try {
-      const res = await fetch('/api/rim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost(
+        '/api/rim',
+        rimMutationSchema,
+        {
           action: 'add_beacon',
           data: {
             rimSectionId: activeSection.id,
@@ -714,14 +717,10 @@ export default function RimEditorPage() {
             type: newBeacon.type,
             survey_status: newBeacon.survey_status,
           },
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Failed to add beacon');
-      }
-      const data = await res.json();
-      setBeacons((prev) => [...prev, data.data]);
+        },
+      );
+      apiInvalidate(`/api/rim?projectId=${selectedProjectId}`)
+      setBeacons((prev) => [...prev, result.data]);
       setNewBeacon({
         beacon_number: '',
         easting: '',
@@ -734,7 +733,7 @@ export default function RimEditorPage() {
       showToast('Beacon added', 'success');
       await loadSections(selectedProjectId);
     } catch (err: any) {
-      showToast(err.message || 'Failed to add beacon', 'error');
+      showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to add beacon'), 'error');
     }
   };
 
@@ -743,6 +742,7 @@ export default function RimEditorPage() {
     if (!activeSection) return;
     try {
       setPdfGenerating(true);
+      // ponytail: binary download bypasses typed client
       const res = await fetch('/api/rim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

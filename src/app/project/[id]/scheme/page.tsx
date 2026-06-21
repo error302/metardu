@@ -7,9 +7,47 @@ import {
   ArrowLeft, Plus, LayoutGrid, MapPin, FileText,
   AlertCircle, CheckCircle2, Clock, BarChart3, Download, FolderArchive, Package, Map, Users
 } from 'lucide-react'
+import { z } from 'zod'
+import { apiGet, ApiError } from '@/lib/api/client'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 import type { SchemeDetails, Block, ParcelStatus } from '@/types/scheme'
 import { SCHEME_STATUS_LABELS, PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS } from '@/types/scheme'
+
+// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+
+// /api/project/:id may return { data: project } | { project } | bare project
+const projectRowSchema = z.object({
+  id: z.union([z.number(), z.string()]),
+  name: z.string(),
+  survey_type: z.string().optional().default(''),
+  location: z.string().optional().default(''),
+  project_type: z.string().optional().default(''),
+  utm_zone: z.union([z.number(), z.string()]).optional().default(37),
+  hemisphere: z.string().optional().default('S'),
+}).passthrough()
+
+const projectEnvelopeSchema = z.union([
+  z.object({ data: projectRowSchema }).passthrough(),
+  z.object({ project: projectRowSchema }).passthrough(),
+  projectRowSchema,
+])
+
+const blocksResponseSchema = z.object({
+  data: z.array(z.any()),
+}).passthrough()
+
+const parcelsResponseSchema = z.object({
+  data: z.array(z.any()),
+}).passthrough()
+
+const traverseSummarySchema = z.object({
+  data: z.array(z.any()),
+  summary: z.object({
+    total: z.union([z.number(), z.string()]),
+    passed: z.union([z.number(), z.string()]),
+    failed: z.union([z.number(), z.string()]),
+  }).passthrough(),
+}).passthrough()
 
 interface ProjectRow {
   id: number
@@ -44,34 +82,40 @@ export default function SchemeWorkspacePage() {
     try {
       setLoading(true)
 
-      // Fetch project via /api/projects or direct query
-      const projectRes = await fetch(`/api/project/${projectId}`)
+      // Fetch project via /api/project/:id (accepts 3 envelope shapes)
       let proj: ProjectRow | null = null
-      if (projectRes.ok) {
-        const pj = await projectRes.json()
-        proj = pj.data || pj.project || pj
+      try {
+        const pj = await apiGet(`/api/project/${projectId}`, projectEnvelopeSchema, { ttlMs: 30_000 })
+        proj = ('data' in pj ? pj.data : 'project' in pj ? pj.project : pj) as ProjectRow
+      } catch (err) {
+        // 404 / not-ok → fall through to the blocks-existence fallback below
+        if (err instanceof ApiError && !err.isNotFound && !err.isUnauthorized) {
+          // unexpected error — surface it, but keep trying the fallback so the page can still load
+          console.error('[scheme] project fetch failed:', err.message)
+        }
       }
+
       if (!proj) {
-        // Fallback: check the project type from scheme_details existence
-        const schemeRes = await fetch(`/api/scheme/blocks?project_id=${projectId}`)
-        if (!schemeRes.ok) throw new Error('Failed to load project')
+        // Fallback: probe blocks endpoint — if it returns ok, treat projectId as a scheme project
+        try {
+          await apiGet(`/api/scheme/blocks?project_id=${projectId}`, blocksResponseSchema, { ttlMs: 0 })
+        } catch {
+          throw new Error('Failed to load project')
+        }
         setProject({ id: parseInt(projectId), name: 'Scheme Project', survey_type: '', location: '', project_type: 'scheme', utm_zone: 37, hemisphere: 'S' } as ProjectRow)
       } else {
         setProject(proj)
       }
 
       // Fetch blocks with counts via API
-      const blocksRes = await fetch(`/api/scheme/blocks?project_id=${projectId}`)
-      if (!blocksRes.ok) throw new Error('Failed to load blocks')
-      const blocksJson = await blocksRes.json()
+      const blocksJson = await apiGet(`/api/scheme/blocks?project_id=${projectId}`, blocksResponseSchema, { ttlMs: 30_000 })
       const blks = (blocksJson.data || []) as BlockWithCounts[]
       setBlocks(blks)
 
       // Fetch all parcels across all blocks for status counts
       if (blks.length > 0) {
-        const allParcelsRes = await fetch(`/api/scheme/parcels?project_id=${projectId}`)
-        if (allParcelsRes.ok) {
-          const parcelsJson = await allParcelsRes.json()
+        try {
+          const parcelsJson = await apiGet(`/api/scheme/parcels?project_id=${projectId}`, parcelsResponseSchema, { ttlMs: 30_000 })
           const parcels = parcelsJson.data || []
 
           const counts: Record<ParcelStatus, number> = {
@@ -81,13 +125,15 @@ export default function SchemeWorkspacePage() {
             counts[p.status as ParcelStatus] = (counts[p.status as ParcelStatus] || 0) + 1
           }
           setParcelCounts(counts)
+        } catch {
+          // Non-fatal — counts just stay zeroed
         }
       }
 
       // Fetch scheme details (if the API existed — for now we load via blocks endpoint context)
       // The scheme details are loaded when the project was created
     } catch (err: any) {
-      setError(err.message || 'Failed to load scheme data')
+      setError(err instanceof ApiError ? err.message : (err.message || 'Failed to load scheme data'))
     } finally {
       setLoading(false)
     }
@@ -99,10 +145,8 @@ export default function SchemeWorkspacePage() {
   useEffect(() => {
     if (!project?.id) return
 
-    fetch(`/api/scheme/traverse/summary?project_id=${project.id}`)
-      .then(res => res.json())
+    apiGet(`/api/scheme/traverse/summary?project_id=${project.id}`, traverseSummarySchema, { ttlMs: 0 })
       .then(result => {
-        if (!result.data) return
         const { data, summary } = result
 
         // Update stat cards

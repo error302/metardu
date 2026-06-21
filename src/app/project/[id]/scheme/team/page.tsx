@@ -5,6 +5,60 @@ import { useParams } from 'next/navigation'
 import {
   Users, ArrowLeft, Loader2, XCircle, UserPlus
 } from 'lucide-react'
+import { z } from 'zod'
+import { apiGet, apiPost, apiDelete, apiInvalidate, ApiError } from '@/lib/api/client'
+
+// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+
+const blockStatsSchema = z.object({
+  total_parcels: z.number(),
+  approved: z.number(),
+  in_progress: z.number(),
+  pending: z.number(),
+}).passthrough()
+
+const teamMemberSchema = z.object({
+  user: z.object({
+    id: z.union([z.string(), z.number()]),
+    email: z.string(),
+    full_name: z.string(),
+    role: z.string(),
+  }).passthrough(),
+  blocks: z.array(z.object({
+    block_id: z.union([z.string(), z.number()]),
+    block_number: z.string(),
+    block_name: z.string().nullable(),
+    assigned_at: z.string(),
+    stats: blockStatsSchema,
+  }).passthrough()),
+}).passthrough()
+
+const unassignedBlockSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  block_number: z.string(),
+  block_name: z.string().nullable(),
+  stats: blockStatsSchema,
+}).passthrough()
+
+const teamResponseSchema = z.object({
+  data: z.object({
+    owner: z.any().nullable(),
+    team: z.array(teamMemberSchema),
+    unassigned_blocks: z.array(unassignedBlockSchema),
+  }).passthrough(),
+}).passthrough()
+
+const statusResponseSchema = z.object({
+  data: z.object({
+    current_status: z.string(),
+  }).passthrough(),
+}).passthrough()
+
+const activityResponseSchema = z.object({
+  data: z.array(z.any()),
+}).passthrough()
+
+const assignMutationSchema = z.object({ ok: z.boolean().optional() }).passthrough()
 
 interface TeamMember {
   user: { id: string; email: string; full_name: string; role: string }
@@ -35,33 +89,51 @@ export default function TeamPage() {
   const [assigning, setAssigning] = useState<string | null>(null)
   const [activityLog, setActivityLog] = useState<any[]>([])
   const [showActivity, setShowActivity] = useState(false)
+  const [fetchError, setFetchError] = useState('')
 
   const fetchTeam = useCallback(async () => {
     try {
-      const res = await fetch(`/api/scheme/team?project_id=${projectId}`)
-      const data = await res.json()
-      if (data.data) {
-        setOwner(data.data.owner)
-        setTeam(data.data.team)
-        setUnassignedBlocks(data.data.unassigned_blocks)
+      const result = await apiGet(
+        `/api/scheme/team?project_id=${projectId}`,
+        teamResponseSchema,
+        { ttlMs: 0 },
+      )
+      setOwner(result.data.owner)
+      setTeam(result.data.team as unknown as TeamMember[])
+      setUnassignedBlocks(result.data.unassigned_blocks as unknown as UnassignedBlock[])
+    } catch (err) {
+      if (err instanceof ApiError && err.isUnauthorized) {
+        setFetchError('You must be signed in to view this team.')
+      } else {
+        setFetchError(err instanceof Error ? err.message : 'Failed to load team')
       }
-    } catch {}
+    }
   }, [projectId])
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch(`/api/scheme/status?project_id=${projectId}`)
-      const data = await res.json()
-      if (data.data) setSchemeStatus(data.data.current_status)
-    } catch {}
+      const result = await apiGet(
+        `/api/scheme/status?project_id=${projectId}`,
+        statusResponseSchema,
+        { ttlMs: 0 },
+      )
+      setSchemeStatus(result.data.current_status)
+    } catch {
+      // Non-fatal — status badge just stays empty
+    }
   }, [projectId])
 
   const fetchActivity = useCallback(async () => {
     try {
-      const res = await fetch(`/api/scheme/activity?project_id=${projectId}`)
-      const data = await res.json()
-      if (data.data) setActivityLog(data.data.slice(0, 20))
-    } catch {}
+      const result = await apiGet(
+        `/api/scheme/activity?project_id=${projectId}`,
+        activityResponseSchema,
+        { ttlMs: 0 },
+      )
+      setActivityLog(result.data.slice(0, 20))
+    } catch {
+      // Non-fatal — activity log just stays empty
+    }
   }, [projectId])
 
   useEffect(() => {
@@ -72,16 +144,18 @@ export default function TeamPage() {
   const handleAssign = async (blockId: string, surveyorId: string) => {
     setAssigning(blockId)
     try {
-      const res = await fetch('/api/scheme/assign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: projectId, block_id: blockId, assigned_to: surveyorId }),
-      })
-      if (res.ok) {
-        await fetchTeam()
-        await fetchActivity()
-      }
-    } catch {} finally {
+      await apiPost(
+        '/api/scheme/assign',
+        assignMutationSchema,
+        { project_id: projectId, block_id: blockId, assigned_to: surveyorId },
+      )
+      apiInvalidate(`/api/scheme/team?project_id=${projectId}`)
+      apiInvalidate(`/api/scheme/activity?project_id=${projectId}`)
+      await fetchTeam()
+      await fetchActivity()
+    } catch (err) {
+      setFetchError(err instanceof ApiError ? err.message : 'Failed to assign block')
+    } finally {
       setAssigning(null)
     }
   }
@@ -89,14 +163,14 @@ export default function TeamPage() {
   const handleUnassign = async (blockId: string) => {
     setAssigning(blockId)
     try {
-      const res = await fetch(`/api/scheme/assign?block_id=${blockId}`, {
-        method: 'DELETE',
-      })
-      if (res.ok) {
-        await fetchTeam()
-        await fetchActivity()
-      }
-    } catch {} finally {
+      await apiDelete(`/api/scheme/assign?block_id=${blockId}`)
+      apiInvalidate(`/api/scheme/team?project_id=${projectId}`)
+      apiInvalidate(`/api/scheme/activity?project_id=${projectId}`)
+      await fetchTeam()
+      await fetchActivity()
+    } catch (err) {
+      setFetchError(err instanceof ApiError ? err.message : 'Failed to unassign block')
+    } finally {
       setAssigning(null)
     }
   }
@@ -153,6 +227,17 @@ export default function TeamPage() {
             </button>
           </div>
         </div>
+
+        {/* Error Banner */}
+        {fetchError && (
+          <div className="mb-6 p-3.5 bg-red-900/20 border border-red-500/30 rounded-lg text-sm text-red-400 flex items-center gap-2">
+            <XCircle className="w-5 h-5 shrink-0" />
+            {fetchError}
+            <button onClick={() => setFetchError('')} className="ml-auto text-red-400/70 hover:text-red-300">
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Activity Log */}
         {showActivity && (

@@ -4,12 +4,45 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/api-client/client'
+import { z } from 'zod'
+import { apiGet, apiPost, ApiError } from '@/lib/api/client'
 import type { EngineeringData, EngineeringMode, EngineeringStandard, RoadDesignData, DrainageData, StationData, IntersectionPoint, VerticalIP, CrossSectionTemplate, StepStatus, Manhole, PipeRun } from '@/types/engineering'
 import { KRDM2017, KeRRA, getDesignSpeedRange, getCarriagewayWidth, getShoulderWidth } from '@/lib/standards/engineering'
 import type { SurveyorProfileSubmission } from '@/lib/api-client/community'
 import { MANNING_N } from '@/lib/engineering/drainageDesign'
 import CrossSectionRenderer from '@/components/engineering/CrossSectionRenderer'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
+
+// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+
+// GET /api/engineering/alignment returns { data: <alignment row or null> }.
+// Use z.union([schema, z.null()]) instead of .nullable() so we keep .passthrough() on the inner object.
+const alignmentRowSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  road_name: z.string().nullable().optional(),
+  start_chainage: z.union([z.number(), z.string(), z.null()]).optional(),
+  datum: z.string().nullable().optional(),
+  coordinate_system: z.string().nullable().optional(),
+  design_speed: z.union([z.number(), z.string(), z.null()]).optional(),
+  road_class: z.string().nullable().optional(),
+  standard: z.string().nullable().optional(),
+  cross_section_template: z.any().optional(),
+  ips: z.array(z.any()).optional(),
+  vips: z.array(z.any()).optional(),
+  stations: z.array(z.any()).optional(),
+}).passthrough()
+
+const alignmentResponseSchema = z.object({
+  data: z.union([alignmentRowSchema, z.null()]),
+}).passthrough()
+
+// POST /api/engineering/alignment returns { data: { id, ... } }
+const alignmentMutationSchema = z.object({
+  data: alignmentRowSchema,
+}).passthrough()
+
+// The three sub-resource POSTs return various shapes — accept any object payload.
+const subResourceMutationSchema = z.record(z.any())
 
 /* ── Lazy-loaded engineering panels (only one step visible at a time) ─── */
 const HorizontalCurvePanel = dynamic(() => import('@/components/engineering/HorizontalCurvePanel').then(m => ({ default: m.HorizontalCurvePanel })), {
@@ -1831,13 +1864,12 @@ export default function EngineeringWorkspacePage() {
   const loadEngineeringData = useCallback(async (projectId: string) => {
     setLoadingEngineering(true)
     try {
-      const res = await fetch(`/api/engineering/alignment?project_id=${projectId}`)
-      if (!res.ok) {
-        console.error('[loadEngineeringData] API error:', res.status)
-        return
-      }
-      const json = await res.json()
-      const dbData = json.data
+      const result = await apiGet(
+        `/api/engineering/alignment?project_id=${projectId}`,
+        alignmentResponseSchema,
+        { ttlMs: 0 },
+      )
+      const dbData = result.data
 
       if (!dbData) {
         // No alignment row yet — nothing to hydrate
@@ -1846,7 +1878,7 @@ export default function EngineeringWorkspacePage() {
       }
 
       // Store the alignment ID for subsequent saves (IPs, VIPs, stations)
-      setAlignmentId(dbData.id)
+      setAlignmentId(String(dbData.id))
 
       // Map DB column names → TypeScript shape
       const crossSectionTemplate: CrossSectionTemplate | undefined = dbData.cross_section_template
@@ -1922,6 +1954,11 @@ export default function EngineeringWorkspacePage() {
         }
       })
     } catch (err) {
+      if (err instanceof ApiError && err.isNotFound) {
+        // No alignment row yet — nothing to hydrate
+        setLoadingEngineering(false)
+        return
+      }
       console.error('[loadEngineeringData] Error:', err)
     } finally {
       setLoadingEngineering(false)
@@ -2031,10 +2068,10 @@ export default function EngineeringWorkspacePage() {
           }
         : {}
 
-      const alignRes = await fetch('/api/engineering/alignment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const alignResult = await apiPost(
+        '/api/engineering/alignment',
+        alignmentMutationSchema,
+        {
           project_id: project.id,
           road_name: road.roadName || 'Unnamed Road',
           start_chainage: road.startChainage ?? 0,
@@ -2044,20 +2081,18 @@ export default function EngineeringWorkspacePage() {
           road_class: road.roadClass || 'C',
           standard: road.standard || 'KRDM2017',
           cross_section_template: templateForDb,
-        }),
-      })
-      if (!alignRes.ok) throw new Error('Failed to save alignment header')
-      const alignJson = await alignRes.json()
-      const aId = alignJson.data?.id
+        },
+      )
+      const aId = alignResult.data?.id
       if (!aId) throw new Error('No alignment ID returned')
-      setAlignmentId(aId)
+      setAlignmentId(String(aId))
 
       // Step 2: Save IPs (if any)
       if (road.ips && road.ips.length > 0) {
-        const ipsRes = await fetch('/api/engineering/ips', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        await apiPost(
+          '/api/engineering/ips',
+          subResourceMutationSchema,
+          {
             alignment_id: aId,
             ips: road.ips.map(ip => ({
               name: ip.name,
@@ -2065,42 +2100,39 @@ export default function EngineeringWorkspacePage() {
               northing: ip.northing,
               radius: ip.radius,
             })),
-          }),
-        })
-        if (!ipsRes.ok) throw new Error('Failed to save intersection points')
+          },
+        )
       }
 
       // Step 3: Save VIPs (if any)
       if (road.vips && road.vips.length > 0) {
-        const vipsRes = await fetch('/api/engineering/vips', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        await apiPost(
+          '/api/engineering/vips',
+          subResourceMutationSchema,
+          {
             alignment_id: aId,
             vips: road.vips.map(v => ({
               chainage: v.chainage,
               reduced_level: v.reducedLevel,
               k_value: v.kValue ?? null,
             })),
-          }),
-        })
-        if (!vipsRes.ok) throw new Error('Failed to save vertical intersection points')
+          },
+        )
       }
 
       // Step 4: Save stations (if any)
       if (road.stations && road.stations.length > 0) {
-        const stationsRes = await fetch('/api/engineering/stations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        await apiPost(
+          '/api/engineering/stations',
+          subResourceMutationSchema,
+          {
             alignment_id: aId,
             stations: road.stations.map(s => ({
               chainage: s.chainage,
               ground_level: s.groundLevel,
             })),
-          }),
-        })
-        if (!stationsRes.ok) throw new Error('Failed to save stations')
+          },
+        )
       }
 
       return true

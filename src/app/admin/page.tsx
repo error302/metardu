@@ -12,6 +12,28 @@ import {
   CreditCard, Loader2, AlertCircle, ChevronRight,
   Megaphone, Check, X,
 } from 'lucide-react'
+import { z } from 'zod'
+import { apiGet, apiPost, apiPatch, ApiError } from '@/lib/api/client'
+
+// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+
+// Dashboard payload is large and may grow; accept any object shape and cast to DashboardData.
+const dashboardResponseSchema = z.record(z.any())
+
+const announcementMutationSchema = z.object({
+  ok: z.boolean().optional(),
+  id: z.union([z.string(), z.number()]).optional(),
+}).passthrough()
+
+const overridePlanMutationSchema = z.object({
+  ok: z.boolean().optional(),
+  plan: z.string().optional(),
+}).passthrough()
+
+const verifyIskMutationSchema = z.object({
+  ok: z.boolean().optional(),
+  verified: z.boolean().optional(),
+}).passthrough()
 
 // ---------------------------------------------------------------------------
 // Types
@@ -193,22 +215,22 @@ export default function AdminDashboardPage() {
     try {
       setLoading(true)
       setError(null)
-      const res = await fetch('/api/admin/dashboard')
-      if (res.status === 401) {
-        router.push('/login')
-        return
-      }
-      if (res.status === 403) {
-        router.push('/dashboard')
-        return
-      }
-      if (!res.ok) {
-        throw new Error(`Failed to fetch dashboard data (${res.status})`)
-      }
-      const json = await res.json()
-      setData(json)
+      const json = await apiGet('/api/admin/dashboard', dashboardResponseSchema, { ttlMs: 0 })
+      setData(json as unknown as DashboardData)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard')
+      if (err instanceof ApiError) {
+        if (err.isUnauthorized) {
+          router.push('/login')
+          return
+        }
+        if (err.isForbidden) {
+          router.push('/dashboard')
+          return
+        }
+        setError(err.message)
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard')
+      }
     } finally {
       setLoading(false)
     }
@@ -229,25 +251,21 @@ export default function AdminDashboardPage() {
     setBroadcastSending(true)
     setBroadcastResult(null)
     try {
-      const res = await fetch('/api/admin/announcements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await apiPost(
+        '/api/admin/announcements',
+        announcementMutationSchema,
+        {
           title: announcementTitle,
           body: announcementBody,
           target: announcementTarget,
-        }),
-      })
-      const json = await res.json()
-      if (res.ok) {
-        setBroadcastResult({ ok: true, msg: 'Announcement sent successfully!' })
-        setAnnouncementTitle('')
-        setAnnouncementBody('')
-      } else {
-        setBroadcastResult({ ok: false, msg: json.error || 'Failed to send' })
-      }
-    } catch {
-      setBroadcastResult({ ok: false, msg: 'Network error' })
+        },
+      )
+      setBroadcastResult({ ok: true, msg: 'Announcement sent successfully!' })
+      setAnnouncementTitle('')
+      setAnnouncementBody('')
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Network error'
+      setBroadcastResult({ ok: false, msg })
     } finally {
       setBroadcastSending(false)
     }
@@ -258,24 +276,20 @@ export default function AdminDashboardPage() {
     setOverrideSending(true)
     setOverrideResult(null)
     try {
-      const res = await fetch('/api/admin/users/override-plan', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await apiPatch(
+        '/api/admin/users/override-plan',
+        overridePlanMutationSchema,
+        {
           email: overrideEmail,
           plan: overridePlan,
           days: parseInt(overrideDays, 10) || 30,
-        }),
-      })
-      const json = await res.json()
-      if (res.ok) {
-        setOverrideResult({ ok: true, msg: `Plan updated to ${overridePlan} for ${overrideDays} days` })
-        setOverrideEmail('')
-      } else {
-        setOverrideResult({ ok: false, msg: json.error || 'Failed to update' })
-      }
-    } catch {
-      setOverrideResult({ ok: false, msg: 'Network error' })
+        },
+      )
+      setOverrideResult({ ok: true, msg: `Plan updated to ${overridePlan} for ${overrideDays} days` })
+      setOverrideEmail('')
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Network error'
+      setOverrideResult({ ok: false, msg })
     } finally {
       setOverrideSending(false)
     }
@@ -284,21 +298,21 @@ export default function AdminDashboardPage() {
   const handleIskAction = async (userId: string, approve: boolean) => {
     setIskProcessing(prev => new Set(prev).add(userId))
     try {
-      const res = await fetch(`/api/admin/users/${userId}/verify-isk`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verified: approve }),
-      })
-      if (res.ok) {
-        // Remove from queue locally
-        setData(prev => prev ? {
-          ...prev,
-          iskQueue: prev.iskQueue.filter(u => u.id !== userId),
-          iskPendingCount: Math.max(0, prev.iskPendingCount - 1),
-        } : prev)
-      }
-    } catch {
-      // Silently fail — user can retry
+      await apiPatch(
+        `/api/admin/users/${userId}/verify-isk`,
+        verifyIskMutationSchema,
+        { verified: approve },
+      )
+      // Remove from queue locally
+      setData(prev => prev ? {
+        ...prev,
+        iskQueue: prev.iskQueue.filter(u => u.id !== userId),
+        iskPendingCount: Math.max(0, prev.iskPendingCount - 1),
+      } : prev)
+    } catch (err) {
+      // ponytail: surface the failure so the admin knows to retry — previously this was a silent swallow
+      const msg = err instanceof ApiError ? err.message : 'Failed to update ISK status'
+      setError(msg)
     } finally {
       setIskProcessing(prev => {
         const next = new Set(prev)

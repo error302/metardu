@@ -7,9 +7,25 @@ import {
   ArrowLeft, Plus, Trash2, Edit3, Check, X, FileText,
   AlertCircle, Loader2, Download
 } from 'lucide-react'
+import { z } from 'zod'
+import { apiGet, apiPost, apiPatch, apiDelete, apiInvalidate, ApiError } from '@/lib/api/client'
 import { PARCEL_STATUS_LABELS, PARCEL_STATUS_COLORS, type ParcelStatus } from '@/types/scheme'
 import TraverseComputePanel from '@/components/scheme/TraverseComputePanel'
 import CsvImportPanel from '@/components/scheme/CsvImportPanel'
+
+// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+
+const blocksListResponseSchema = z.object({
+  data: z.array(z.any()),
+}).passthrough()
+
+const parcelsResponseSchema = z.object({
+  data: z.array(z.any()),
+}).passthrough()
+
+const parcelMutationResponseSchema = z.object({
+  data: z.any().optional(),
+}).passthrough()
 
 interface ParcelRow {
   id: number
@@ -64,22 +80,17 @@ export default function BlockDetailPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      const [blockRes, parcelsRes] = await Promise.all([
-        fetch(`/api/scheme/blocks?project_id=${projectId}`),
-        fetch(`/api/scheme/parcels?block_id=${blockId}`),
+      const [blocksJson, parcelJson] = await Promise.all([
+        apiGet(`/api/scheme/blocks?project_id=${projectId}`, blocksListResponseSchema, { ttlMs: 30_000 }),
+        apiGet(`/api/scheme/parcels?block_id=${blockId}`, parcelsResponseSchema, { ttlMs: 0 }),
       ])
 
-      const blockJson = await blockRes.json()
-      if (blockRes.ok && blockJson.data) {
-        const found = blockJson.data.find((b: any) => b.id === parseInt(blockId))
-        if (found) setBlock(found)
-      }
+      const found = blocksJson.data.find((b: any) => String(b.id) === String(blockId))
+      if (found) setBlock(found)
 
-      const parcelJson = await parcelsRes.json()
-      if (!parcelsRes.ok) throw new Error(parcelJson.error || 'Failed to load parcels')
       setParcels(parcelJson.data || [])
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to load block data')
     } finally {
       setLoading(false)
     }
@@ -93,25 +104,24 @@ export default function BlockDetailPage() {
     setCreating(true)
     setError('')
     try {
-      const res = await fetch('/api/scheme/parcels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await apiPost(
+        '/api/scheme/parcels',
+        parcelMutationResponseSchema,
+        {
           project_id: parseInt(projectId),
           block_id: parseInt(blockId),
           parcel_number: newParcel.parcel_number,
           lr_number_proposed: newParcel.lr_number_proposed || null,
           area_ha: newParcel.area_ha ? parseFloat(newParcel.area_ha) : null,
           notes: newParcel.notes || null,
-        }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to create parcel')
+        },
+      )
+      apiInvalidate(`/api/scheme/parcels?block_id=${blockId}`)
       setNewParcel({ parcel_number: '', lr_number_proposed: '', area_ha: '', notes: '' })
       setShowCreateParcel(false)
       void fetchData()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to create parcel')
     } finally {
       setCreating(false)
     }
@@ -123,23 +133,22 @@ export default function BlockDetailPage() {
     setUpdating(true)
     setError('')
     try {
-      const res = await fetch(`/api/scheme/parcels/${editingId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await apiPatch(
+        `/api/scheme/parcels/${editingId}`,
+        parcelMutationResponseSchema,
+        {
           ...editForm,
           lr_number_proposed: editForm.lr_number_proposed || null,
           lr_number_confirmed: editForm.lr_number_confirmed || null,
           area_ha: editForm.area_ha ? parseFloat(editForm.area_ha) : null,
           notes: editForm.notes || null,
-        }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to update parcel')
+        },
+      )
+      apiInvalidate(`/api/scheme/parcels?block_id=${blockId}`)
       setEditingId(null)
       void fetchData()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to update parcel')
     } finally {
       setUpdating(false)
     }
@@ -149,12 +158,11 @@ export default function BlockDetailPage() {
     if (!confirm(`Delete Parcel "${parcelNumber}"? This cannot be undone.`)) return
     setDeleting(parcelId)
     try {
-      const res = await fetch(`/api/scheme/parcels/${parcelId}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to delete parcel')
+      await apiDelete(`/api/scheme/parcels/${parcelId}`)
+      apiInvalidate(`/api/scheme/parcels?block_id=${blockId}`)
       void fetchData()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to delete parcel')
     } finally {
       setDeleting(null)
     }
