@@ -11,6 +11,14 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { createClient, type BrowserSession } from '@/lib/api-client/client';
+import { z } from 'zod';
+import { apiPost, ApiError } from '@/lib/api/client';
+
+// ─── API response schemas (Zod) ────────────────────────────────────────────
+const formC22JsonResponseSchema = z.object({
+  success: z.boolean().optional(),
+  metadata: z.object({}).passthrough().optional(),
+}).passthrough()
 
 // ---------------------------------------------------------------------------
 // Types
@@ -152,40 +160,44 @@ export default function FormC22Generator({ projectId }: Props) {
     setSuccess(false);
     setMetadata(null);
 
+    const requestBody = {
+      projectId,
+      county,
+      division,
+      district,
+      locality,
+      surveyType,
+      revision,
+      parcelNumber: '',
+      referenceNumber,
+    };
+
     try {
-      const response = await fetch(
-        `/api/submission/form-c22${format === 'json' ? '?format=json' : ''}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectId,
-            county,
-            division,
-            district,
-            locality,
-            surveyType,
-            revision,
-            parcelNumber: '',
-            referenceNumber,
-          }),
+      if (format === 'json') {
+        const json = await apiPost(
+          '/api/submission/form-c22?format=json',
+          formC22JsonResponseSchema,
+          requestBody,
+        );
+        if (json.metadata) {
+          setMetadata(json.metadata as unknown as C22Metadata);
         }
-      );
+        return;
+      }
+
+      // PDF binary — auto-download
+      // ponytail: binary download bypasses typed client
+      const response = await fetch('/api/submission/form-c22', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
 
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
         throw new Error(errBody.error || `Request failed (${response.status})`);
       }
 
-      if (format === 'json') {
-        const json = await response.json();
-        if (json.metadata) {
-          setMetadata(json.metadata as C22Metadata);
-        }
-        return;
-      }
-
-      // PDF binary — auto-download
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -204,30 +216,25 @@ export default function FormC22Generator({ projectId }: Props) {
       setSuccess(true);
 
       // Also fetch metadata for the summary panel
-      const metaRes = await fetch('/api/submission/form-c22?format=json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          county,
-          division,
-          district,
-          locality,
-          surveyType,
-          revision,
-          parcelNumber: '',
-          referenceNumber,
-        }),
-      });
-      if (metaRes.ok) {
-        const metaJson = await metaRes.json();
+      try {
+        const metaJson = await apiPost(
+          '/api/submission/form-c22?format=json',
+          formC22JsonResponseSchema,
+          requestBody,
+        );
         if (metaJson.metadata) {
-          setMetadata(metaJson.metadata as C22Metadata);
+          setMetadata(metaJson.metadata as unknown as C22Metadata);
         }
+      } catch {
+        // Best-effort — PDF already downloaded successfully
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? (err as Error).message : 'Failed to generate Form C22';
-      setError(msg);
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        const msg = err instanceof Error ? (err as Error).message : 'Failed to generate Form C22';
+        setError(msg);
+      }
     } finally {
       setGenerating(false);
     }

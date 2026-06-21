@@ -5,6 +5,21 @@ import {
   Plus, Trash2, Save, Loader2, CheckCircle2, AlertCircle,
   X, ChevronDown, ChevronUp
 } from 'lucide-react'
+import { z } from 'zod'
+import { apiGet, apiPost, ApiError } from '@/lib/api/client'
+
+// ─── API response schemas (Zod) ────────────────────────────────────────────
+const traverseGetResponseSchema = z.object({
+  data: z.object({
+    traverse: z.object({}).passthrough().nullable().optional(),
+    observations: z.array(z.object({}).passthrough()).optional(),
+    coordinates: z.array(z.object({}).passthrough()).optional(),
+  }).nullable().optional(),
+}).passthrough()
+
+const traversePostResponseSchema = z.object({
+  data: z.object({}).passthrough(),
+}).passthrough()
 
 interface ObservationRow {
   station: string
@@ -86,32 +101,38 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
   useEffect(() => {
     const loadSaved = async () => {
       try {
-        const res = await fetch(`/api/scheme/traverse?parcel_id=${parcelId}`)
-        const json = await res.json()
-        if (res.ok && json.data) {
-          const { traverse, observations: savedObs } = json.data
+        const json = await apiGet(
+          `/api/scheme/traverse?parcel_id=${parcelId}`,
+          traverseGetResponseSchema,
+          { ttlMs: 0 },
+        )
+        if (json.data) {
+          const { traverse, observations: savedObs } = json.data as {
+            traverse: Record<string, unknown> | null
+            observations?: Array<Record<string, unknown>>
+          }
 
           setConfig({
-            opening_station: traverse.opening_station || 'T1',
-            closing_station: traverse.closing_station || '',
-            opening_easting: String(traverse.opening_easting || ''),
-            opening_northing: String(traverse.opening_northing || ''),
-            opening_rl: traverse.opening_rl ? String(traverse.opening_rl) : '',
-            closing_easting: traverse.closing_easting ? String(traverse.closing_easting) : '',
-            closing_northing: traverse.closing_northing ? String(traverse.closing_northing) : '',
+            opening_station: (traverse?.opening_station as string) || 'T1',
+            closing_station: (traverse?.closing_station as string) || '',
+            opening_easting: String(traverse?.opening_easting || ''),
+            opening_northing: String(traverse?.opening_northing || ''),
+            opening_rl: traverse?.opening_rl ? String(traverse.opening_rl) : '',
+            closing_easting: traverse?.closing_easting ? String(traverse.closing_easting) : '',
+            closing_northing: traverse?.closing_northing ? String(traverse.closing_northing) : '',
             bs_bearing_deg: '', bs_bearing_min: '', bs_bearing_sec: '',
-            is_closed: traverse.is_closed || false,
+            is_closed: (traverse?.is_closed as boolean) || false,
           })
 
           if (savedObs && savedObs.length > 0) {
-            setObservations(savedObs.map((o: any) => ({
-              station: o.station, bs: o.bs || '', fs: o.fs || '',
-              hcl_deg: o.hcl_deg || 0, hcl_min: o.hcl_min || 0, hcl_sec: o.hcl_sec || 0,
-              hcr_deg: o.hcr_deg || 0, hcr_min: o.hcr_min || 0, hcr_sec: o.hcr_sec || 0,
+            setObservations(savedObs.map((o) => ({
+              station: o.station as string, bs: (o.bs as string) || '', fs: (o.fs as string) || '',
+              hcl_deg: (o.hcl_deg as number) || 0, hcl_min: (o.hcl_min as number) || 0, hcl_sec: (o.hcl_sec as number) || 0,
+              hcr_deg: (o.hcr_deg as number) || 0, hcr_min: (o.hcr_min as number) || 0, hcr_sec: (o.hcr_sec as number) || 0,
               slope_dist: o.slope_dist ? String(o.slope_dist) : '',
-              va_deg: o.va_deg || 0, va_min: o.va_min || 0, va_sec: o.va_sec || 0,
+              va_deg: (o.va_deg as number) || 0, va_min: (o.va_min as number) || 0, va_sec: (o.va_sec as number) || 0,
               ih: o.ih ? String(o.ih) : '1.500', th: o.th ? String(o.th) : '1.500',
-              remarks: o.remarks || '',
+              remarks: (o.remarks as string) || '',
             })))
           }
         }
@@ -152,7 +173,7 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
     setLoading(true); setError(''); setResult(null)
 
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         parcel_id: parcelId,
         opening_station: config.opening_station,
         closing_station: config.is_closed ? config.closing_station : undefined,
@@ -172,17 +193,14 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
         })),
       }
 
-      const res = await fetch('/api/scheme/traverse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Computation failed')
-      setResult(json.data)
+      const json = await apiPost('/api/scheme/traverse', traversePostResponseSchema, payload)
+      setResult(json.data as unknown as TraverseResult)
     } catch (err: unknown) {
-      setError((err as Error).message)
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError((err as Error).message)
+      }
     } finally {
       setLoading(false)
     }

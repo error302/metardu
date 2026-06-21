@@ -5,6 +5,8 @@ import { createClient } from '@/lib/api-client/client'
 import { sanitizeHtml } from '@/lib/security/sanitize'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 import { buildSubmissionNumber, normaliseRegistrationNo, validateSubmissionNumber } from '@/lib/submission/format'
+import { z } from 'zod'
+import { apiPost, ApiError } from '@/lib/api/client'
 // import { PHASE13_DEMO_PROJECTS } from '@/lib/standards/rdm11'
 import type { 
   SurveyReportInput, 
@@ -48,6 +50,19 @@ const DEFAULT_SCOPE_ITEMS = [
   'Survey report per RDM 1.1 Table 5.4'
 ]
 
+// ─── API response schemas (Zod) ────────────────────────────────────────────
+const generateReportResponseSchema = z.object({
+  sections: z.array(z.object({}).passthrough()),
+  completeness: z.object({}).passthrough(),
+  input: z.object({}).passthrough(),
+}).passthrough()
+
+const saveReportResponseSchema = z.object({
+  id: z.string().optional(),
+  saved: z.boolean().optional(),
+  created: z.boolean().optional(),
+}).passthrough()
+
 export default function SurveyReportBuilder({ projectId, existingReportId }: SurveyReportBuilderProps) {
   const [activeSection, setActiveSection] = useState<ReportSection>('TITLE_PAGE')
   const [reportInput, setReportInput] = useState<Partial<SurveyReportInput>>({})
@@ -69,23 +84,21 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
     setIsGenerating(true)
     setError(null)
     try {
-      const response = await fetch('/api/survey-report/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, input })
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to generate report')
-      }
-      
-      const data = await response.json()
-      setReportInput(data.input)
-      setGeneratedSections(data.sections)
-      setCompleteness(data.completeness)
+      const data = await apiPost(
+        '/api/survey-report/generate',
+        generateReportResponseSchema,
+        { projectId, input }
+      )
+      setReportInput(data.input as Partial<SurveyReportInput>)
+      setGeneratedSections(data.sections as unknown as SectionContent[])
+      setCompleteness(data.completeness as unknown as ReportCompletenessResult)
       setIsDirty(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Generation failed')
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError(err instanceof Error ? err.message : 'Generation failed')
+      }
     } finally {
       setIsGenerating(false)
     }
@@ -135,29 +148,27 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
     
     setIsSaving(true)
     try {
-      const response = await fetch('/api/survey-report/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const data = await apiPost(
+        '/api/survey-report/save',
+        saveReportResponseSchema,
+        {
           reportId: reportId || undefined,
           projectId,
           input: reportInput,
           sections: generatedSections,
           completeness: completeness.overallPercent
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to save report')
-      }
-      
-      const data = await response.json()
+        }
+      )
       if (data.id) {
         setReportId(data.id)
       }
       setIsDirty(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError(err instanceof Error ? err.message : 'Save failed')
+      }
     } finally {
       setIsSaving(false)
     }
@@ -206,6 +217,7 @@ Firm: ___________________________    Stamp: _______________`
     }
     
     try {
+      // ponytail: binary download bypasses typed client
       const response = await fetch('/api/survey-report/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -4,6 +4,18 @@ import { useState, useCallback } from 'react'
 import { adjustNetwork, Station, Observation, AdjustmentResult } from '@/lib/survey/networkAdjustment'
 import { generateNetworkDXF } from '@/lib/survey/networkAdjustmentDXF'
 import { ErrorEllipseCanvas } from './ErrorEllipseCanvas'
+import { z } from 'zod'
+import { apiGet, apiPost, ApiError } from '@/lib/api/client'
+
+// ─── API response schemas (Zod) ────────────────────────────────────────────
+const traverseImportResponseSchema = z.object({
+  coordinates: z.array(z.object({}).passthrough()).optional(),
+  legs: z.array(z.object({}).passthrough()).optional(),
+}).passthrough()
+
+const networkAdjustmentSaveResponseSchema = z.object({
+  ok: z.boolean().optional(),
+}).passthrough()
 
 interface Props {
   projectId: string
@@ -31,15 +43,13 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
   const handleImportFromTraverse = useCallback(async () => {
     try {
       setImportStatus('Loading traverse data...')
-      const res = await fetch(`/api/project/${projectId}/traverse`)
-      if (!res.ok) {
-        setImportStatus('')
-        setError('No traverse data found for this project. Run a traverse computation first.')
-        return
-      }
-      const data = await res.json()
-      const coords = data.coordinates || []
-      const legs = data.legs || []
+      const data = await apiGet(
+        `/api/project/${projectId}/traverse`,
+        traverseImportResponseSchema,
+        { ttlMs: 0 },
+      )
+      const coords = (data.coordinates as unknown as Array<Record<string, unknown>>) || []
+      const legs = (data.legs as unknown as Array<Record<string, unknown>>) || []
 
       if (coords.length < 2) {
         setImportStatus('')
@@ -48,27 +58,27 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
       }
 
       // Convert traverse stations → LSQ stations
-      const newStations: Station[] = coords.map((c: any, i: number) => ({
+      const newStations: Station[] = coords.map((c, i: number) => ({
         id: `trv-${c.station}`,
-        name: c.station,
-        easting: c.easting,
-        northing: c.northing,
-        elevation: c.rl ?? 0,
+        name: c.station as string,
+        easting: c.easting as number,
+        northing: c.northing as number,
+        elevation: (c.rl as number) ?? 0,
         isFixed: i === 0 || i === coords.length - 1, // first and last are fixed
       }))
 
       // Convert traverse legs → LSQ observations
-      const newObs: Observation[] = legs.map((leg: any) => {
+      const newObs: Observation[] = legs.map((leg) => {
         const fromStn = newStations.find((s: Station) => s.name === leg.from)
         const toStn = newStations.find((s: Station) => s.name === leg.to)
         if (!fromStn || !toStn) return null
         return {
           from: fromStn.id,
           to: toStn.id,
-          deltaE: leg.adjDep ?? leg.departure ?? 0,
-          deltaN: leg.adjLat ?? leg.latitude ?? 0,
+          deltaE: (leg.adjDep as number) ?? (leg.departure as number) ?? 0,
+          deltaN: (leg.adjLat as number) ?? (leg.latitude as number) ?? 0,
           deltaH: 0,
-          stdDevE: 0.005 + (leg.hd ?? 100) * 0.00001, stdDevN: 0.005 + (leg.hd ?? 100) * 0.00001, stdDevH: (0.005 + (leg.hd ?? 100) * 0.00001) * 2, // 5mm + 10ppm
+          stdDevE: 0.005 + (leg.hd as number ?? 100) * 0.00001, stdDevN: 0.005 + (leg.hd as number ?? 100) * 0.00001, stdDevH: (0.005 + (leg.hd as number ?? 100) * 0.00001) * 2, // 5mm + 10ppm
         }
       }).filter(Boolean) as Observation[]
 
@@ -79,7 +89,14 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
       setImportStatus(`Imported ${newStations.length} stations and ${newObs.length} observations from traverse.`)
       setTimeout(() => setImportStatus(''), 4000)
     } catch (err: unknown) {
-      setError((err as Error).message ?? 'Failed to import traverse data.')
+      if (err instanceof ApiError) {
+        // 404 / not-found → no traverse data yet; anything else → surface message
+        setError(err.isNotFound
+          ? 'No traverse data found for this project. Run a traverse computation first.'
+          : err.message)
+      } else {
+        setError((err as Error).message ?? 'Failed to import traverse data.')
+      }
       setImportStatus('')
     }
   }, [projectId])
@@ -198,10 +215,10 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
   const saveResult = async (res: AdjustmentResult) => {
     setSaving(true)
     try {
-      await fetch(`/api/project/${projectId}/network-adjustment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await apiPost(
+        `/api/project/${projectId}/network-adjustment`,
+        networkAdjustmentSaveResponseSchema,
+        {
           stations,
           observations,
           adjusted_stations: res.adjustedStations,
@@ -212,8 +229,8 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
             passed_tolerance: res.passedTolerance,
           },
           status: res.passedTolerance ? 'adjusted' : 'failed',
-        }),
-      })
+        },
+      )
     } catch {
       // non-fatal
     } finally {

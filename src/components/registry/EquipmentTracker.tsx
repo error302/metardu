@@ -3,6 +3,18 @@
 import { useState, useEffect } from 'react'
 import { Plus, AlertTriangle, Check, X, Upload, Calendar } from 'lucide-react'
 import type { Equipment, EquipmentType, CalibrationRecord, CreateEquipmentRequest, CreateCalibrationRecordRequest } from '@/types/equipment'
+import { z } from 'zod'
+import { apiGet, apiPost, apiInvalidate, ApiError } from '@/lib/api/client'
+
+// ─── API response schemas (Zod) ────────────────────────────────────────────
+const equipmentListResponseSchema = z.object({
+  equipment: z.array(z.object({}).passthrough()),
+}).passthrough()
+
+const equipmentMutationResponseSchema = z.object({
+  equipmentId: z.string().optional(),
+  recordId: z.string().optional(),
+}).passthrough()
 
 const EQUIPMENT_TYPES: { value: EquipmentType; label: string }[] = [
   { value: 'TOTAL_STATION', label: 'Total Station' },
@@ -44,11 +56,14 @@ export default function EquipmentTracker() {
 
   const fetchEquipment = async () => {
     try {
-      const res = await fetch('/api/equipment/list')
-      const data = await res.json()
-      setEquipment(data.equipment || [])
+      const data = await apiGet('/api/equipment/list', equipmentListResponseSchema, { ttlMs: 0 })
+      setEquipment((data.equipment as unknown as Equipment[]) || [])
     } catch (error) {
-      console.error('Failed to fetch equipment:', error)
+      if (error instanceof ApiError) {
+        console.error('Failed to fetch equipment:', error.message)
+      } else {
+        console.error('Failed to fetch equipment:', error)
+      }
     }
     setLoading(false)
   }
@@ -293,14 +308,15 @@ function AddEquipmentModal({ onClose, onAdd }: { onClose: () => void; onAdd: () 
   const handleSubmit = async () => {
     setLoading(true)
     try {
-      await fetch('/api/equipment/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      })
+      await apiPost('/api/equipment/add', equipmentMutationResponseSchema, form)
+      apiInvalidate('/api/equipment/list')
       onAdd()
     } catch (error) {
-      console.error('Failed to add equipment:', error)
+      if (error instanceof ApiError) {
+        console.error('Failed to add equipment:', error.message)
+      } else {
+        console.error('Failed to add equipment:', error)
+      }
     }
     setLoading(false)
   }
@@ -431,14 +447,15 @@ function AddCalibrationModal({
   const handleSubmit = async () => {
     setLoading(true)
     try {
-      await fetch('/api/equipment/calibration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ equipmentId, ...form })
-      })
+      await apiPost('/api/equipment/calibration', equipmentMutationResponseSchema, { equipmentId, ...form })
+      apiInvalidate('/api/equipment/list')
       onAdd()
     } catch (error) {
-      console.error('Failed to add calibration:', error)
+      if (error instanceof ApiError) {
+        console.error('Failed to add calibration:', error.message)
+      } else {
+        console.error('Failed to add calibration:', error)
+      }
     }
     setLoading(false)
   }
