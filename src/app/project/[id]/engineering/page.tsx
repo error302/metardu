@@ -441,7 +441,7 @@ function Step1Setup({
             onChange={e => setRoadClass(e.target.value)}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
           >
-            {ROAD_CLASSES.map((c: any) => (
+            {ROAD_CLASSES.map((c) => (
               <option key={c} value={c}>Class {c} {standard === 'KRDM2017' ? '- ' + (c === 'A' ? 'Major Arterial' : c === 'D' ? 'Minor Collector' : '') : ''}</option>
             ))}
           </select>
@@ -2240,7 +2240,7 @@ export default function EngineeringWorkspacePage() {
   }
 
   const steps = getEngineeringSteps(project.engineering_data || null)
-  const currentStep = steps.find((s: any) => s.id === activeStep) || steps[0]
+  const currentStep = steps.find((s) => s.id === activeStep) || steps[0]
   const mode = project.engineering_data?.mode || 'road'
 
   // Quick Compute Panel Mode

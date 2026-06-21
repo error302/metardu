@@ -485,8 +485,8 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         p.setSaveMsg(`Saved ${features.length} feature(s) to new project`)
       }
       setTimeout(() => p.setSaveMsg(''), 4000)
-    } catch (err: any) {
-      p.setSaveMsg(`Error: ${err?.message || 'Save failed'}`)
+    } catch (err: unknown) {
+      p.setSaveMsg(`Error: ${err instanceof Error ? err.message : 'Save failed'}`)
       setTimeout(() => p.setSaveMsg(''), 4000)
     }
   }, [])
