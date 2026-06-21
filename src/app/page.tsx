@@ -1,6 +1,3 @@
-'use client';
-
-import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import {
@@ -15,6 +12,7 @@ import {
   CounterAnimation,
   TypewriterText,
 } from '@/components/ui/MotionComponents'
+import { AnimatedOrbs, ConnectingLine } from './_components/LandingAnimations'
 
 /* ────────────────────────────────────────────────────────────── */
 /*  Inline SVG Icons (no react-icons / lucide-react)              */
@@ -377,24 +375,7 @@ function HeroSection() {
           }}
         />
         {/* Animated gradient orbs */}
-        <motion.div
-          className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full opacity-20 blur-[120px]"
-          style={{ background: 'radial-gradient(circle, rgba(232,132,26,0.15), transparent 70%)' }}
-          animate={{
-            x: [0, 40, -20, 0],
-            y: [0, -30, 20, 0],
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full opacity-15 blur-[100px]"
-          style={{ background: 'radial-gradient(circle, rgba(232,132,26,0.12), transparent 70%)' }}
-          animate={{
-            x: [0, -30, 20, 0],
-            y: [0, 20, -40, 0],
-          }}
-          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-        />
+        <AnimatedOrbs />
       </div>
 
       {/* Grid pattern overlay */}
@@ -642,14 +623,7 @@ function HowItWorks() {
         <div className="grid md:grid-cols-3 gap-8 md:gap-12 relative">
           {/* Connecting line */}
           <div className="hidden md:block absolute top-16 left-[20%] right-[20%] h-px">
-            <motion.div
-              className="h-full bg-gradient-to-r from-[var(--accent)]/0 via-[var(--accent)]/30 to-[var(--accent)]/0"
-              initial={{ scaleX: 0 }}
-              whileInView={{ scaleX: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1, delay: 0.5 }}
-              style={{ transformOrigin: 'left' }}
-            />
+            <ConnectingLine />
           </div>
 
           {HOW_IT_WORKS_STEPS.map((step, i) => (
