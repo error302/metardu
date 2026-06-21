@@ -3,6 +3,15 @@ import { useState, useEffect, use } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { generateContours, SpotHeight, ContourLine } from '@/lib/engine/contours'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
+import { apiPost, ApiError } from '@/lib/api/client'
+import { z } from 'zod'
+
+// ponytail: response schemas — Phase 4 wave 4
+const computeResponseSchema = z.object({
+  contours: z.any().optional(),
+  fallback: z.boolean().optional(),
+  dxf: z.string().optional(),
+}).passthrough()
 
 type EngineMode = 'python' | 'typescript' | null
 
@@ -47,22 +56,16 @@ export default function ContoursPage({ params }: { params: Promise<{ id: string 
 
     // Try Python engine first (Delaunay triangulation — much better quality)
     try {
-      const res = await fetch('/api/compute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          task: 'contours',
-          payload: {
-            points: points.map((p: any) => ({ x: p.easting, y: p.northing, z: p.elevation })),
-            interval,
-            base_elevation: Math.min(...points.map((p: any) => p.elevation)),
-          }
-        })
+      const data = await apiPost('/api/compute', computeResponseSchema, {
+        task: 'contours',
+        payload: {
+          points: points.map((p) => ({ x: p.easting, y: p.northing, z: p.elevation })),
+          interval,
+          base_elevation: Math.min(...points.map((p) => p.elevation)),
+        },
       })
 
-      const data = await res.json()
-
-      if (res.ok && data.contours && !data.fallback) {
+      if (data.contours && !data.fallback) {
         // Convert Python response format → ContourLine[]
         const converted: ContourLine[] = (data.contours as ContourSegment[]).flatMap(c =>
           c.segments.map((seg: any) => ({
@@ -238,23 +241,18 @@ function ContourMap({ points, contours }: { points: SpotHeight[]; contours: Cont
   const majorInterval = (elev: number) => elev % 5 === 0
 
   const handleExportDXF = async () => {
-    const res = await fetch('/api/compute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        task: 'export_dxf',
-        payload: {
-          projectName: 'Contour Export',
-          points: points.map((p: any) => ({ name: p.name, easting: p.easting, northing: p.northing })),
-        }
-      })
+    const data = await apiPost('/api/compute', computeResponseSchema, {
+      task: 'export_dxf',
+      payload: {
+        projectName: 'Contour Export',
+        points: points.map((p) => ({ name: p.name, easting: p.easting, northing: p.northing })),
+      },
     })
-    const data = await res.json()
     if (data.dxf) {
       const blob = new Blob([data.dxf], { type: 'text/plain' })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = data.filename || 'contours.dxf'
+      a.download = ((data as Record<string, unknown>).filename as string) || 'contours.dxf'
       a.click()
     }
   }

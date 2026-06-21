@@ -107,6 +107,7 @@ export default function TopoPage() {
   }
 
   async function exportDXF() {
+    // ponytail: binary download bypasses typed client
     const response = await fetch('/api/topo/export/dxf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -144,6 +145,7 @@ export default function TopoPage() {
   }
 
   async function exportShapefile() {
+    // ponytail: binary download bypasses typed client
     const response = await fetch('/api/topo/export/shapefile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
