@@ -42,8 +42,8 @@ export async function getOpenJobs(filters?: {
   if (filters?.maxBudget) query = query.lte('budget_amount', filters.maxBudget)
 
   const result = await query
-  if ((result as any).error) throw (result as any).error
-  return (result as any).data || []
+  if (result.error) throw result.error
+  return (result.data as unknown as SurveyJob[]) || []
 }
 
 export async function getJobById(id: string): Promise<SurveyJob | null> {
@@ -53,8 +53,8 @@ export async function getJobById(id: string): Promise<SurveyJob | null> {
     .select('*')
     .eq('id', id)
     .single()
-  if ((result as any).error) return null
-  return (result as any).data
+  if (result.error) return null
+  return result.data as unknown as SurveyJob
 }
 
 export async function createJob(job: Partial<SurveyJob>, userId: string): Promise<string> {
@@ -79,8 +79,8 @@ export async function createJob(job: Partial<SurveyJob>, userId: string): Promis
     .select()
     .single()
 
-  if ((result as any).error) throw (result as any).error
-  return (result as any).data.id
+  if (result.error) throw result.error
+  return String(result.data?.id ?? '')
 }
 
 export async function applyToJob(jobId: string, application: Partial<JobApplication>, userId: string): Promise<void> {
@@ -128,8 +128,8 @@ export async function getSurveyorProfile(userId: string): Promise<SurveyorProfil
     .select('*')
     .eq('user_id', userId)
     .single()
-  if ((result as any).error) return null
-  return (result as any).data
+  if (result.error) return null
+  return result.data as unknown as SurveyorProfileJob
 }
 
 export async function createOrUpdateProfile(userId: string, profile: Partial<SurveyorProfile>): Promise<void> {
@@ -163,8 +163,8 @@ export async function getSurveyors(filters?: {
   if (filters?.county) query = query.eq('county', filters.county)
 
   const result = await query
-  if ((result as any).error) throw (result as any).error
-  return (result as any).data || []
+  if (result.error) throw result.error
+  return (result.data as unknown as SurveyorProfileJob[]) || []
 }
 
 // Peer Reviews
@@ -176,15 +176,15 @@ export async function getOpenPeerReviews(): Promise<PeerReviewRequest[]> {
     .eq('status', 'OPEN')
     .order('created_at', { ascending: false })
 
-  if ((result as any).error) throw (result as any).error
-  return (result as any).data || []
+  if (result.error) throw result.error
+  return (result.data as unknown as PeerReviewRequest[]) || []
 }
 
 export async function submitPeerReview(
   requestId: string,
   reviewerId: string,
   verdict: string,
-  comments: any[]
+  comments: Record<string, unknown>[]
 ): Promise<void> {
   const dbClient = await createClient()
   const result = await dbClient
@@ -199,12 +199,12 @@ export async function submitPeerReview(
     .select()
     .single()
 
-  const reviewer = (result as any).data
+  const reviewer = result.data
   if (reviewer && comments.length > 0) {
     await dbClient
       .from('review_comments')
       .insert(
-        comments.map((c: any) => ({
+        comments.map((c) => ({
           reviewer_id_fk: reviewer.id,
           section: c.section,
           severity: c.severity,
@@ -230,13 +230,13 @@ export async function getCommunityStats(): Promise<CommunityStats> {
     dbClient.from('cpd_records').select('points', { count: 'exact', head: false })
   ])
 
-  const cpdData = (cpd as any).data || []
-  const totalCPD = cpdData.reduce((sum: number, r: any) => sum + (r.points || 0), 0)
+  const cpdData = (cpd.data as unknown as Record<string, unknown>[]) || []
+  const totalCPD = cpdData.reduce((sum: number, r: Record<string, unknown>) => sum + ((r.points as number) || 0), 0)
 
   return {
-    totalSurveyors: (surveyors as any).count || 0,
-    totalJobsPosted: (jobs as any).count || 0,
-    totalReviewsCompleted: (reviews as any).count || 0,
+    totalSurveyors: surveyors.count || 0,
+    totalJobsPosted: jobs.count || 0,
+    totalReviewsCompleted: reviews.count || 0,
     totalCPDPointsAwarded: totalCPD
   }
 }

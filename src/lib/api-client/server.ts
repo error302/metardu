@@ -12,25 +12,27 @@ import { getPool } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+// ponytail: Phase 6 — auth/storage/rpc return types use `unknown` (deprecated stubs).
+// from() returns QueryBuilder which defaults to Record<string, unknown> for type safety.
 export interface DbClient {
   from(table: string): QueryBuilder
   auth: {
-    getUser(): Promise<{ data: { user: any | null }; error: { message: string } | null }>
-    getSession(): Promise<{ data: { session: any | null }; error: { message: string } | null }>
-    exchangeCodeForSession(code: string): Promise<{ data: { session: any | null }; error: null }>
+    getUser(): Promise<{ data: { user: { id?: unknown; email?: unknown; name?: unknown } | null }; error: { message: string } | null }>
+    getSession(): Promise<{ data: { session: unknown | null }; error: { message: string } | null }>
+    exchangeCodeForSession(code: string): Promise<{ data: { session: unknown | null }; error: null }>
   }
-  channel(name: string): any
-  removeChannel(channel: any): Promise<void>
+  channel(name: string): unknown
+  removeChannel(channel: unknown): Promise<void>
   storage: {
     from(bucket: string): {
-      upload(path: string, file: any, opts?: any): Promise<{ data: any; error: any }>
+      upload(path: string, file: unknown, opts?: unknown): Promise<{ data: unknown; error: unknown }>
       getPublicUrl(path: string): { data: { publicUrl: string } }
-      createSignedUrl(path: string, expiresIn: number): Promise<{ data: { signedUrl: string } | null; error: any }>
-      download(path: string): Promise<{ data: any; error: any }>
-      remove(paths: string[]): Promise<{ data: any; error: any }>
+      createSignedUrl(path: string, expiresIn: number): Promise<{ data: { signedUrl: string } | null; error: unknown }>
+      download(path: string): Promise<{ data: unknown; error: unknown }>
+      remove(paths: string[]): Promise<{ data: unknown; error: unknown }>
     }
   }
-  rpc(fn: string, args?: any): Promise<{ data: any; error: any }>
+  rpc(fn: string, args?: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>
 }
 
 export async function createClient(): Promise<DbClient> {
@@ -61,22 +63,19 @@ export async function createClient(): Promise<DbClient> {
         return { data: { session }, error: null }
       },
       async exchangeCodeForSession(_code: string) {
-        // No-op — auth code exchange handled by NextAuth
         return { data: { session: null }, error: null }
       },
     },
-    // Realtime stubs — use @/lib/realtime for polling-based realtime
     channel(_name: string) {
       return {
-        on(..._args: any[]) { return this },
+        on(..._args: unknown[]) { return this },
         subscribe() { return this },
         track() { return Promise.resolve() },
         untrack() { return Promise.resolve() },
         presenceState() { return {} },
       }
     },
-    async removeChannel(_channel: any) {},
-    // Storage stubs — use /api/storage endpoint (GCS-backed) instead
+    async removeChannel(_channel: unknown) {},
     storage: {
       from(_bucket: string) {
         return {
@@ -88,7 +87,7 @@ export async function createClient(): Promise<DbClient> {
         }
       }
     },
-    rpc: async (fn: string, _args?: any) => {
+    rpc: async (fn: string, _args?: Record<string, unknown>) => {
       console.warn(`[db/server] rpc(${fn}) called but not implemented.`)
       return { data: null, error: { message: 'RPC not implemented' } }
     }

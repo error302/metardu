@@ -12,7 +12,7 @@ export default async function ProfileSettingsPage() {
   const { data: profile } = await dbClient
     .from('profiles')
     .select('full_name, isk_number, firm_name, phone, email')
-    .eq('id', session.user.id)
+    .eq('id', (session as { user?: { id?: string; email?: string; name?: string } } | null)?.user?.id as string)
     .single();
 
   return (
@@ -21,7 +21,7 @@ export default async function ProfileSettingsPage() {
       <p className="text-sm text-gray-500 mb-6">
         Your name and ISK number appear on generated Deed Plans and survey certificates.
       </p>
-      <ProfileForm initialData={profile ?? {}} userId={session.user.id} />
+      <ProfileForm initialData={profile ?? {}} userId={(session as { user?: { id?: string; email?: string; name?: string } } | null)?.user?.id as string} />
     </div>
   );
 }

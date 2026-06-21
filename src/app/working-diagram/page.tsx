@@ -23,7 +23,7 @@ export default async function WorkingDiagramPage({ searchParams }: Props) {
       registration_district, utm_zone, hemisphere, datum
     `)
     .eq('id', projectId)
-    .eq('user_id', session.user.id)
+    .eq('user_id', (session as { user?: { id?: string } } | null)?.user?.id as string)
     .single();
 
   if (!project) redirect('/projects');

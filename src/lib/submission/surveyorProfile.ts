@@ -5,8 +5,9 @@ export async function getActiveSurveyorProfile(): Promise<SurveyorProfileSubmiss
   const dbClient = await createClient()
 
   const { data: { session }, error: authError } = await dbClient.auth.getSession()
-  if (authError || !session?.user) throw new Error('Not authenticated')
-  const user = session.user
+  const sessUser = (session as { user?: { id?: string; email?: string; name?: string } } | null)?.user
+  if (authError || !sessUser) throw new Error("Not authenticated")
+  const user = sessUser as { id: string; email?: string; name?: string }
 
   const { data, error } = await dbClient
     .from('surveyor_profiles')
