@@ -25,7 +25,7 @@ FALSE_NORTHING = 10_000_000
 THRESHOLD = 5_000_000  # If utmN < this, it's missing the false northing
 
 JSON_PATH = Path(
-    "/home/z/my-project/metardu-repo/src/lib/geo/national_sheet_corners.json"
+    "Path(__file__).resolve().parent.parent / "data" / "cassini" / "national_sheet_corners.json""
 )
 
 

@@ -16,7 +16,7 @@
  * Run:  npx tsx scripts/validate_false_northing_fix.ts
  */
 
-import nationalSheetCornersData from '../src/lib/geo/national_sheet_corners.json'
+import nationalSheetCornersData from '../data/cassini/national_sheet_corners.json'
 import {
   computeHelmert4Params,
   computeABCoefficients,

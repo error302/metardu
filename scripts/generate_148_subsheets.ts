@@ -20,7 +20,7 @@
 import {
   cassiniFeetToUTMExactWithDatum,
 } from '../src/lib/geo/cassini'
-import SUBSHEET_CORNERS_RAW from '../src/lib/geo/merged_subsheets.json'
+import SUBSHEET_CORNERS_RAW from '../data/cassini/merged_subsheets.json'
 
 interface CornerPoint {
   cassX: number
@@ -265,7 +265,7 @@ async function main() {
   }
 
   // ── Write output JSON ──
-  const outputPath = 'src/lib/geo/synthetic_148_subsheets.json'
+  const outputPath = 'data/cassini/synthetic_148_subsheets.json'
   const fs = await import('fs')
   fs.writeFileSync(
     outputPath,

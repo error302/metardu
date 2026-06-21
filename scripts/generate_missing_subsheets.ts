@@ -105,7 +105,7 @@ for (const sheetId of missingSheets) {
 }
 
 // Merge into merged_subsheets.json
-const mergedPath = path.join(__dirname, '../src/lib/geo/merged_subsheets.json')
+const mergedPath = path.join(__dirname, '../data/cassini/merged_subsheets.json')
 const merged = JSON.parse(fs.readFileSync(mergedPath, 'utf-8'))
 
 let addedCount = 0

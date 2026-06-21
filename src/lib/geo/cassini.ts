@@ -2237,7 +2237,8 @@ export interface SubSheetDef {
 
 // ─── Sub-sheet Corner Data Import ───────────────────────────────────────────
 
-import SUBSHEET_CORNERS_RAW from './merged_subsheets.json'
+// ponytail: moved to data/cassini/ to keep src/ lean (was 388k LOC of JSON in src/lib/geo/)
+import SUBSHEET_CORNERS_RAW from '../../../data/cassini/merged_subsheets.json'
 
 type SubSheetCornersJSON = Record<string, Record<string, { cassX: number; cassY: number; utmE: number; utmN: number }[]>>
 

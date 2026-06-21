@@ -13,7 +13,8 @@
  * Extracted: 2026-06-02
  */
 
-import nationalSheetCornersData from './national_sheet_corners.json'
+// ponytail: moved to data/cassini/ to keep src/ lean (was 388k LOC of JSON in src/lib/geo/)
+import nationalSheetCornersData from '../../../data/cassini/national_sheet_corners.json'
 import type { TopoSheetParams, CommonPoint } from './cassini'
 import { computeHelmert4Params, estimateSheetAccuracy, computeABCoefficients } from './cassini'
 
