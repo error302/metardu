@@ -1,8 +1,7 @@
 'use client';
 
 import { Download } from 'lucide-react'
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
+// ponytail: lazy-load jspdf to keep ~400KB out of the initial client bundle
 import type { ValidationResult } from '@/types/cadastra'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 
@@ -13,7 +12,12 @@ interface ValidationReportProps {
 
 export default function ValidationReport({ result, projectId }: ValidationReportProps) {
   const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Cadastral Validation Report' })
-  const generatePDF = () => {
+  const generatePDF = async () => {
+    const [{ jsPDF }, autoTableModule] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ])
+    const autoTable = autoTableModule.default
     const doc = new jsPDF()
     
     doc.setFontSize(18)

@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { FileJson, FileSpreadsheet, FileText, Save, Loader2 } from 'lucide-react'
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
+// ponytail: lazy-load jspdf to keep ~400KB out of the initial client bundle
 import type { CleanDataResponse } from '@/types/fieldguard'
 import { createClient } from '@/lib/api-client/client'
 
@@ -66,7 +65,12 @@ export default function CleanedExport({ cleanedData, projectId }: CleanedExportP
     URL.revokeObjectURL(url)
   }
   
-  const exportPDF = () => {
+  const exportPDF = async () => {
+    const [{ jsPDF }, autoTableModule] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ])
+    const autoTable = autoTableModule.default
     const doc = new jsPDF()
     
     doc.setFontSize(18)
