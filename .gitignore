@@ -172,3 +172,8 @@ create_test_user.js
 Dockerfile.bak*
 sample_data.json
 debug.log
+
+# Cassini source workbooks — large binary data, regenerated via npm run cassini:rebuild
+# Keep the data/cassini-source/ committed for reproducibility (small ~200KB total)
+# but ignore any scratch outputs from the extractor
+data/cassini-source/_scratch/
