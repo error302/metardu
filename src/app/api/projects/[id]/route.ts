@@ -117,7 +117,7 @@ export async function DELETE(
     return NextResponse.json(
       {
         error: (error as Error).message || 'Failed to delete project',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        details: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined,
       },
       { status: 500 }
     )
