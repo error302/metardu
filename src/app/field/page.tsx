@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/api-client/client'
+import dynamic from 'next/dynamic'
+// ponytail: lazy-load instrument connection panel (heavy component with Web Serial API)
+const InstrumentConnectionPanel = dynamic(() => import('@/components/InstrumentConnectionPanel').then(m => ({ default: m.InstrumentConnectionPanel })), {
+  ssr: false,
+  loading: () => <div className='text-xs text-gray-500'>Loading instrument panel...</div>,
+})
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
@@ -299,6 +305,17 @@ export default function FieldPage() {
           </div>
         </div>
       </header>
+      {/* Instrument Connection Panel */}
+      <div className="p-3 border-b border-[var(--border-color)]">
+        <InstrumentConnectionPanel onImportPoints={(points) => {
+          // Auto-add imported points to the field book
+          setBatchParseResults(prev => [...prev, ...points.map(p => ({
+            name: p.id || `P${Date.now()}`,
+            easting: String(p.easting),
+            northing: String(p.northing),
+          }))])
+        }} />
+      </div>
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto p-3 pb-20">
