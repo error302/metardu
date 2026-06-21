@@ -1,5 +1,3 @@
-'use client';
-
 export function TacheometryPanel() {
   return (
     <div className="p-4">

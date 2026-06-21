@@ -1,5 +1,3 @@
-'use client';
-
 export function CrossSectionsPanel() {
   return (
     <div className="p-4">

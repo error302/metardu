@@ -1,5 +1,3 @@
-'use client';
-
 export function ChainagePanel() {
   return (
     <div className="p-4">
