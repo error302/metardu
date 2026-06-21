@@ -44,7 +44,7 @@ export default function NLIMSLookup({ initialParcel = '', onParcelVerified }: NL
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col md:flex-row flex-wrap gap-4">
         <div className="flex-1">
           <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">
             Parcel Number

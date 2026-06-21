@@ -21,7 +21,7 @@ export default function WorkspaceShell({
   return (
     <div className="min-h-[calc(100vh-4rem)] flex flex-col bg-[var(--bg-primary)] overflow-x-clip">
       {/* Main 3-column area */}
-      <div className="flex-1 flex flex-col md:flex-row min-h-0 p-1 sm:p-2 gap-1 sm:gap-2">
+      <div className="flex-1 flex flex-col md:flex-row flex-wrap min-h-0 p-1 sm:p-2 gap-1 sm:gap-2">
 
         {/* Left sidebar — collapsible (hidden on mobile) */}
         <aside

@@ -126,7 +126,7 @@ export default function GenerateReportModal({ isOpen, onClose, surveyType, proje
           </button>
         </div>
 
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        <div className="flex flex-col md:flex-row flex-wrap flex-1 overflow-hidden">
           {/* Left Panel: Controls */}
           <div className="w-full md:w-1/3 p-5 border-r border-gray-100 bg-white flex flex-col gap-4 overflow-y-auto">
             <div>

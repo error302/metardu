@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   MousePointer2, Move, Type, Ruler, Compass, Download,
-  Undo2, Redo2, Trash2, Plus, Minus, RotateCw, Lock, Unlock
+  Undo2, Redo2, Trash2, Plus, Minus, RotateCw, Lock, Unlock, X
 } from 'lucide-react'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -352,7 +352,7 @@ export default function CADEditor({
         )}
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Canvas */}
         <div className="flex-1 overflow-auto bg-gray-950 relative">
           <svg
@@ -495,77 +495,107 @@ export default function CADEditor({
           </svg>
         </div>
 
-        {/* Properties Panel */}
-        <div className="w-64 bg-gray-800 border-l border-gray-700 p-3 overflow-y-auto text-sm">
-          {selectedBeacon ? (
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase">Beacon Properties</h3>
-              <div>
-                <label className="text-xs text-gray-500">Label</label>
-                <Input
-                  value={selectedBeacon.label}
-                  onChange={(e) => updateBeaconLabel(selectedBeacon.id, e.target.value)}
-                  className="h-7 text-xs mt-1"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Easting (UTM)</label>
-                <Input value={selectedBeacon.easting?.toFixed(3) ?? '—'} disabled className="h-7 text-xs mt-1 font-mono" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Northing (UTM)</label>
-                <Input value={selectedBeacon.northing?.toFixed(3) ?? '—'} disabled className="h-7 text-xs mt-1 font-mono" />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toggleBeaconLock(selectedBeacon.id)}
-                className="w-full text-xs"
-              >
-                {selectedBeacon.locked ? <Unlock className="w-3 h-3 mr-1" /> : <Lock className="w-3 h-3 mr-1" />}
-                {selectedBeacon.locked ? 'Unlock' : 'Lock'}
-              </Button>
-            </div>
-          ) : selectedAnnotation ? (
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase">Text Annotation</h3>
-              <div>
-                <label className="text-xs text-gray-500">Text</label>
-                <Input
-                  value={selectedAnnotation.text ?? ''}
-                  onChange={(e) => updateAnnotationText(selectedAnnotation.id, e.target.value)}
-                  className="h-7 text-xs mt-1"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase">CAD Editor</h3>
-              <p className="text-xs text-gray-500">
-                Click a tool above, then click on the plan to interact.
-              </p>
-              <div className="space-y-1 text-xs text-gray-400">
-                <p><b>Select</b> — click and drag items</p>
-                <p><b>Pan</b> — drag to move the view</p>
-                <p><b>Add Text</b> — click to place annotation</p>
-                <p><b>Double-click text</b> — edit annotation</p>
-                <p><b>Delete key</b> — remove selected item</p>
-              </div>
-              <div className="pt-3 border-t border-gray-700">
-                <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">Plan Info</h4>
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p>Beacons: {doc.beacons.length}</p>
-                  <p>Boundaries: {doc.boundaries.length}</p>
-                  <p>Annotations: {doc.annotations.length}</p>
-                  <p>Size: {doc.width} × {doc.height}px</p>
-                </div>
-              </div>
-            </div>
-          )}
+        {/* Properties Panel — sidebar on desktop, bottom sheet on mobile */}
+        {/* Desktop sidebar */}
+        <div className="hidden md:block w-64 bg-gray-800 border-l border-gray-700 p-3 overflow-y-auto text-sm">
+          {renderPropertiesPanel()}
         </div>
+
+        {/* Mobile bottom sheet */}
+        {selected && (
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-3 max-h-[50vh] overflow-y-auto text-sm z-50"
+               style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase">
+                {selectedBeacon ? 'Beacon' : selectedAnnotation ? 'Text' : 'Properties'}
+              </h3>
+              <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {renderPropertiesPanel()}
+          </div>
+        )}
       </div>
     </div>
   )
+
+  // ─── Properties panel renderer (shared between desktop sidebar + mobile bottom sheet) ───
+  function renderPropertiesPanel() {
+    if (selectedBeacon) {
+      return (
+        <div className="space-y-3">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase">Beacon Properties</h3>
+          <div>
+            <label className="text-xs text-gray-500">Label</label>
+            <Input
+              value={selectedBeacon.label}
+              onChange={(e) => updateBeaconLabel(selectedBeacon.id, e.target.value)}
+              className="h-7 text-xs mt-1"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Easting (UTM)</label>
+            <Input value={selectedBeacon.easting?.toFixed(3) ?? '—'} disabled className="h-7 text-xs mt-1 font-mono" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Northing (UTM)</label>
+            <Input value={selectedBeacon.northing?.toFixed(3) ?? '—'} disabled className="h-7 text-xs mt-1 font-mono" />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => toggleBeaconLock(selectedBeacon.id)}
+            className="w-full text-xs"
+          >
+            {selectedBeacon.locked ? <Unlock className="w-3 h-3 mr-1" /> : <Lock className="w-3 h-3 mr-1" />}
+            {selectedBeacon.locked ? 'Unlock' : 'Lock'}
+          </Button>
+        </div>
+      )
+    }
+
+    if (selectedAnnotation) {
+      return (
+        <div className="space-y-3">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase">Text Annotation</h3>
+          <div>
+            <label className="text-xs text-gray-500">Text</label>
+            <Input
+              value={selectedAnnotation.text ?? ''}
+              onChange={(e) => updateAnnotationText(selectedAnnotation.id, e.target.value)}
+              className="h-7 text-xs mt-1"
+            />
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-3">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase">CAD Editor</h3>
+        <p className="text-xs text-gray-500">
+          Click a tool above, then click on the plan to interact.
+        </p>
+        <div className="space-y-1 text-xs text-gray-400">
+          <p><b>Select</b> — click and drag items</p>
+          <p><b>Pan</b> — drag to move the view</p>
+          <p><b>Add Text</b> — click to place annotation</p>
+          <p><b>Double-click text</b> — edit annotation</p>
+          <p><b>Delete</b> — remove selected item</p>
+        </div>
+        <div className="pt-3 border-t border-gray-700">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">Plan Info</h4>
+          <div className="text-xs text-gray-500 space-y-1">
+            <p>Beacons: {doc.beacons.length}</p>
+            <p>Boundaries: {doc.boundaries.length}</p>
+            <p>Annotations: {doc.annotations.length}</p>
+            <p>Size: {doc.width} × {doc.height}px</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 }
 
 // ─── Helper Components ─────────────────────────────────────────────────────

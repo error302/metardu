@@ -108,7 +108,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             This section encountered an unexpected error. Try again or navigate to a different page.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
             <button
               onClick={this.handleRetry}
               className="btn btn-primary"

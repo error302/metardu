@@ -75,7 +75,7 @@ export default function RimEditorPage() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row flex-wrap sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">RIM Editor</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">

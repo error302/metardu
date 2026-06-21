@@ -13,7 +13,7 @@ export default function SubscriptionCancelPage() {
         <p className="text-[var(--text-secondary)] mb-8">
           No charge was made. Your current plan is unchanged. You can upgrade whenever you're ready.
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
           <Link href="/pricing" className="btn btn-primary">View plans</Link>
           <Link href="/dashboard" className="btn btn-secondary">Go to dashboard</Link>
         </div>

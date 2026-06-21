@@ -428,7 +428,37 @@ export default function SchemeWorkspacePage() {
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-3">
+              {blocks.map((block) => {
+                const progress = block.parcel_count > 0
+                  ? Math.round((block.completed_count / block.parcel_count) * 100)
+                  : 0
+                return (
+                  <div key={block.id} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-mono text-[var(--accent)] text-sm font-bold">{block.block_number}</span>
+                      <span className="text-xs text-[var(--text-muted)]">{block.parcel_count} parcels</span>
+                    </div>
+                    <div className="text-sm text-[var(--text-primary)] mb-2">{block.block_name || '—'}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${progress}%` }} />
+                      </div>
+                      <span className="text-xs text-[var(--text-muted)] tabular-nums">{progress}%</span>
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <Link href={`/project/${projectId}/scheme/blocks/${block.id}`} className="text-xs text-[var(--accent)] hover:underline">Open →</Link>
+                      <Link href={`/project/${projectId}/scheme/blocks`} className="text-xs text-[var(--text-muted)] hover:underline">All blocks</Link>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-[var(--text-muted)] border-b border-[var(--border-color)]">
@@ -475,6 +505,7 @@ export default function SchemeWorkspacePage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </main>

@@ -18,7 +18,7 @@ export default function NotFound() {
           This page doesn't exist or has been moved. Check the URL or navigate back to a known page.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
           <Link href="/" className="btn btn-primary">
             Go home
           </Link>

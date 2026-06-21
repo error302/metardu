@@ -436,7 +436,7 @@ function HeroSection() {
         </FadeUp>
 
         <FadeUp delay={0.4}>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+          <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4 mb-16">
             <GlowButton>
               <Link href="/register" className="flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-black font-bold rounded-xl text-base hover:brightness-110 transition-all">
                 Get Started Free

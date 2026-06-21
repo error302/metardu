@@ -239,7 +239,7 @@ export function OCRImportPanel({ onParsed, onPreview }: OCRImportPanelProps) {
 
             {/* Language selector + Import button */}
             {state.phase === 'idle' && (
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                 <div className="flex-1">
                   <label className="label text-xs">OCR Language</label>
                   <select
@@ -269,7 +269,7 @@ export function OCRImportPanel({ onParsed, onPreview }: OCRImportPanelProps) {
 
             {/* Done state */}
             {state.phase === 'done' && (
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                 <div className="flex items-center gap-2 p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-sm">
                   <CheckCircle2 className="w-4 h-4 text-green-400" />
                   <span className="text-green-300">

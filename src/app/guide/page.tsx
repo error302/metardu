@@ -185,7 +185,7 @@ export default function GuidePage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <section className="mb-10">
-          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div className="mb-4 flex flex-col gap-2 md:flex-row flex-wrap md:items-end md:justify-between">
             <div>
               <h2 className="text-xl font-semibold">New user start path</h2>
               <p className="text-sm text-[var(--text-secondary)]">Use these in order the first time you try Metardu.</p>

@@ -327,7 +327,7 @@ export default function FormC22Generator({ projectId }: Props) {
 
       {/* Generate button */}
       <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 space-y-3">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
           <button
             onClick={() => handleGenerate('pdf')}
             disabled={generating}
