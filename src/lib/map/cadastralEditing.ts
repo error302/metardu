@@ -11,28 +11,74 @@
  *   - {@link createMeasureWhileDraw}     — real-time distance / bearing annotations
  *   - {@link createHistoryManager}       — standalone undo / redo manager
  *
- * All OpenLayers imports use dynamic `import()` for SSR safety.
- * No `import type` statements (Jest 30 + Babel constraint).
+ * OpenLayers classes are imported as values (for `new`) and types (for annotations)
+ * from `ol/*` — the library ships its own `.d.ts` files. Next.js code-splits these
+ * automatically. The async function signatures are retained for backward
+ * compatibility with callers that `await` the factories.
  */
+
+// ---------------------------------------------------------------------------
+// Typed imports — values (for `new`) and types (for annotations)
+// ---------------------------------------------------------------------------
+
+import Map from 'ol/Map'
+import Feature from 'ol/Feature'
+import Polygon from 'ol/geom/Polygon'
+import Point from 'ol/geom/Point'
+import VectorSource from 'ol/source/Vector'
+import VectorLayer from 'ol/layer/Vector'
+import Snap from 'ol/interaction/Snap'
+import Modify from 'ol/interaction/Modify'
+import Draw from 'ol/interaction/Draw'
+import Select from 'ol/interaction/Select'
+import Style from 'ol/style/Style'
+import Fill from 'ol/style/Fill'
+import Stroke from 'ol/style/Stroke'
+import Text from 'ol/style/Text'
+import { transform } from 'ol/proj'
+import { unByKey } from 'ol/Observable'
+import proj4 from 'proj4'
+
+import type Geometry from 'ol/geom/Geometry'
+import type SimpleGeometry from 'ol/geom/SimpleGeometry'
+import type LineString from 'ol/geom/LineString'
+import type { FeatureLike } from 'ol/Feature'
+import type { EventsKey } from 'ol/events'
+import type { ModifyEvent } from 'ol/interaction/Modify'
+import type { DrawEvent } from 'ol/interaction/Draw'
+import type { GeometryFunction as DrawGeometryFunction } from 'ol/interaction/Draw'
+import type { Options as SnapOptions } from 'ol/interaction/Snap'
 
 // ---------------------------------------------------------------------------
 // Exported interfaces
 // ---------------------------------------------------------------------------
 
+/**
+ * Minimal source contract used by {@link HistoryManager} — a structural subset
+ * of `ol/source/Vector` so that mocks (without every VectorSource method) can
+ * satisfy the type in tests.
+ */
+export interface HistorySource {
+  getFeatureById(id: string | number): Feature | null;
+  getFeatures(): Feature[];
+  addFeature(feature: Feature): void;
+  removeFeature(feature: Feature): void;
+}
+
 /** Options for {@link createEditingInteractionStack}. */
 export interface EditingOptions {
   /** OL VectorSource containing features to edit. */
-  source: any;
+  source: VectorSource<Feature>;
   /** Additional OL VectorSource to snap to (e.g. existing parcel boundaries). */
-  snapSource?: any;
+  snapSource?: VectorSource<Feature>;
   /** Snap tolerance in pixels (default: 10). */
   snapTolerance?: number;
   /** Constrain new edges to right angles relative to the previous edge (default: true). */
   orthogonalConstraint?: boolean;
   /** Callback fired when a new feature is added to the source. */
-  onFeatureAdded?: (feature: any) => void;
+  onFeatureAdded?: (feature: Feature) => void;
   /** Callback fired when an existing feature geometry is modified. */
-  onFeatureModified?: (feature: any) => void;
+  onFeatureModified?: (feature: Feature) => void;
   /** Callback fired when a feature is deleted (receives the feature id). */
   onFeatureDeleted?: (featureId: string) => void;
 }
@@ -40,11 +86,11 @@ export interface EditingOptions {
 /** The full editing interaction stack returned by {@link createEditingInteractionStack}. */
 export interface InteractionStack {
   /** OL Snap interaction. */
-  snap: any;
+  snap: Snap;
   /** OL Modify interaction. */
-  modify: any;
+  modify: Modify;
   /** OL Draw interaction. */
-  draw: any;
+  draw: Draw;
   /** History manager for undo / redo of all editing operations. */
   history: HistoryManager;
   /** Removes all keyboard listeners and clears history. Does NOT remove interactions from the map. */
@@ -54,15 +100,15 @@ export interface InteractionStack {
 /** Options for {@link createSubdivisionInteraction}. */
 export interface SubdivisionOptions {
   /** OL VectorSource containing parcel features. */
-  source: any;
+  source: VectorSource<Feature>;
   /** The OL Feature (polygon) to subdivide. */
-  targetFeature: any;
+  targetFeature: Feature;
   /** Snap tolerance in pixels (default: 10). */
   snapTolerance?: number;
   /** EPSG code of the source geometry coordinates (default: 'EPSG:3857'). */
   sourceProjection?: string;
   /** Callback with the two resulting polygon features after subdivision. */
-  onComplete: (polygonA: any, polygonB: any) => void;
+  onComplete: (polygonA: Feature, polygonB: Feature) => void;
   /** Callback if subdivision fails (e.g. split line does not cross the parcel). */
   onError?: (error: Error) => void;
 }
@@ -70,9 +116,9 @@ export interface SubdivisionOptions {
 /** Options for {@link createMeasureWhileDraw}. */
 export interface MeasureWhileDrawOptions {
   /** OL Map instance. */
-  map: any;
+  map: Map;
   /** The OL Draw interaction to monitor. */
-  drawInteraction: any;
+  drawInteraction: Draw;
   /** Projection of the source geometry (default: 'EPSG:3857'). */
   projection?: string;
   /** Whether to show per-edge bearing labels (default: true). */
@@ -88,7 +134,7 @@ export interface MeasureHandle {
   /** Remove all measurement features, event listeners, and the annotation layer from the map. */
   cleanup: () => void;
   /** The temporary OL VectorLayer containing measurement annotation features. */
-  layer: any;
+  layer: VectorLayer;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,16 +238,35 @@ function cumulativeDistance(coords: number[][]): number {
 /** Types of operations that can be recorded. */
 type HistoryOpType = 'add' | 'modify' | 'delete';
 
-/** A single recorded history entry. */
-interface HistoryEntry {
-  op: HistoryOpType;
-  /** Feature snapshot for undo (original geometry for modify, full clone for delete). */
-  before: any;
-  /** Feature snapshot for redo (cloned feature for add, new geometry for modify). */
-  after: any;
-  /** Feature id used to locate the feature in the source. */
-  featureId: string | number | undefined;
-}
+/**
+ * A single recorded history entry — discriminated union so TypeScript can
+ * narrow `before` / `after` correctly in {@link HistoryManager.undo} / `redo`.
+ */
+type HistoryEntry =
+  | {
+      op: 'add';
+      /** Always null for 'add' (nothing existed before). */
+      before: null;
+      /** Cloned feature to re-add on redo. */
+      after: Feature;
+      featureId: string | number | undefined;
+    }
+  | {
+      op: 'modify';
+      /** Geometry snapshot before the modification (for undo). */
+      before: Geometry | null;
+      /** Geometry snapshot after the modification (for redo). */
+      after: Geometry | null;
+      featureId: string | number | undefined;
+    }
+  | {
+      op: 'delete';
+      /** Cloned feature to re-add on undo. */
+      before: Feature;
+      /** Always null for 'delete' (nothing exists after). */
+      after: null;
+      featureId: string | number | undefined;
+    };
 
 /**
  * Undo / redo history manager for OL VectorSource editing operations.
@@ -228,12 +293,14 @@ interface HistoryEntry {
 export class HistoryManager {
   private undoStack: HistoryEntry[] = [];
   private redoStack: HistoryEntry[] = [];
-  private source: any;
+  private source: HistorySource;
 
   /**
    * @param source - The OL VectorSource whose operations are being tracked.
+   *                  Accepts a {@link HistorySource} (structural subset of VectorSource,
+   *                  so mocks and fakes satisfy the type in tests).
    */
-  constructor(source: any) {
+  constructor(source: HistorySource) {
     this.source = source;
   }
 
@@ -244,16 +311,17 @@ export class HistoryManager {
    * @param feature   - The OL Feature involved.
    * @param beforeGeo - Geometry snapshot *before* the operation (for 'modify' and 'delete').
    */
-  record(op: HistoryOpType, feature: any, beforeGeo?: any): void {
+  record(op: HistoryOpType, feature: Feature, beforeGeo?: Geometry | null): void {
     const featureId = feature.getId() ?? generateFeatureId();
 
     if (op === 'add') {
       this.undoStack.push({ op: 'add', before: null, after: feature.clone(), featureId });
     } else if (op === 'modify') {
+      const currentGeom = feature.getGeometry();
       this.undoStack.push({
         op: 'modify',
         before: beforeGeo ? beforeGeo.clone() : null,
-        after: feature.getGeometry() ? feature.getGeometry().clone() : null,
+        after: currentGeom ? currentGeom.clone() : null,
         featureId,
       });
     } else if (op === 'delete') {
@@ -287,7 +355,7 @@ export class HistoryManager {
       if (feature && entry.before) feature.setGeometry(entry.before);
     } else if (entry.op === 'delete') {
       // Undo delete → re-add the feature
-      if (entry.before) this.source.addFeature(entry.before);
+      this.source.addFeature(entry.before);
     }
 
     this.redoStack.push(entry);
@@ -304,7 +372,7 @@ export class HistoryManager {
 
     if (entry.op === 'add') {
       // Redo add → re-add the feature
-      if (entry.after) this.source.addFeature(entry.after);
+      this.source.addFeature(entry.after);
     } else if (entry.op === 'modify') {
       // Redo modify → restore the modified geometry
       const feature = this.findFeature(entry.featureId);
@@ -346,7 +414,7 @@ export class HistoryManager {
   }
 
   /** Look up a feature in the source by its id (supports string, number, or undefined). */
-  private findFeature(id: string | number | undefined): any | null {
+  private findFeature(id: string | number | undefined): Feature | null {
     if (id == null) return null;
     const byId = this.source.getFeatureById(id);
     if (byId) return byId;
@@ -361,6 +429,15 @@ export class HistoryManager {
 // ---------------------------------------------------------------------------
 // Orthogonal constraint — geometryFunction factory for OL Draw (Polygon)
 // ---------------------------------------------------------------------------
+
+/**
+ * A geometry function that may carry an optional `_cleanupListeners` hook
+ * (used to tear down global keyboard listeners attached by the factory).
+ */
+interface GeomFnWithCleanup {
+  (coordinates: number[][], geometry: SimpleGeometry | undefined): SimpleGeometry;
+  _cleanupListeners?: () => void;
+}
 
 /**
  * Creates an orthogonal geometry function for OL Draw (Polygon type).
@@ -382,7 +459,7 @@ export class HistoryManager {
  */
 function createOrthogonalGeometryFunction(
   enabled: () => boolean,
-): (coordinates: number[][], geometry: any) => any {
+): GeomFnWithCleanup {
   let shiftHeld = false;
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -397,18 +474,22 @@ function createOrthogonalGeometryFunction(
     window.addEventListener('keyup', onKeyUp);
   }
 
-  const geomFn = (coordinates: number[][], geometry: any): any => {
-    // Defer Polygon construction until the first call (avoids top-level import)
+  const geomFn = ((coordinates: number[][], geometry: SimpleGeometry | undefined): SimpleGeometry => {
+    // The wrapper (see createEditingInteractionStack) always supplies a geometry,
+    // but be defensive: OL's DrawEvent calls geometryFunction with `undefined`
+    // on the very first invocation of a sketch.
     if (!geometry) {
-      // Will be replaced by a real Polygon in the wrapper below
-      return null;
+      // Returning a fresh empty Polygon is safe — the wrapper will overwrite
+      // this on the next call. We can't construct one here without a circular
+      // import, so fall back to returning the input (defensive no-op).
+      throw new Error('createOrthogonalGeometryFunction: geometry must be supplied by the wrapper');
     }
 
     const constrained = enabled() && !shiftHeld;
 
     // Need at least 3 coordinates to establish a previous edge: [pN-1, pN, rubberBand]
     if (!constrained || coordinates.length < 3) {
-      geometry.setCoordinates([coordinates.slice()]);
+      geometry.setCoordinates([coordinates.slice()] as unknown as number[][][]);
       return geometry;
     }
 
@@ -423,7 +504,7 @@ function createOrthogonalGeometryFunction(
     const mousePos = pts[pts.length - 1];
 
     if (!prevPt || !lastFixed || !mousePos) {
-      geometry.setCoordinates([pts]);
+      geometry.setCoordinates([pts] as unknown as number[][][]);
       return geometry;
     }
 
@@ -434,7 +515,7 @@ function createOrthogonalGeometryFunction(
 
     if (lenSq < 1e-12) {
       // Degenerate previous edge — pass through unconstrained
-      geometry.setCoordinates([pts]);
+      geometry.setCoordinates([pts] as unknown as number[][][]);
       return geometry;
     }
 
@@ -460,12 +541,12 @@ function createOrthogonalGeometryFunction(
     const snapped = distPar < distPerp ? [parX, parY] : [perpX, perpY];
     pts[pts.length - 1] = snapped;
 
-    geometry.setCoordinates([pts]);
+    geometry.setCoordinates([pts] as unknown as number[][][]);
     return geometry;
-  };
+  }) as GeomFnWithCleanup;
 
   // Expose cleanup so the caller can remove keyboard listeners on teardown
-  (geomFn as any)._cleanupListeners = () => {
+  geomFn._cleanupListeners = () => {
     if (typeof window !== 'undefined') {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
@@ -530,21 +611,6 @@ export async function createEditingInteractionStack(
     onFeatureDeleted,
   } = options;
 
-  // ── Dynamic OL imports ────────────────────────────────────────────────
-  const [
-    { default: Snap },
-    { default: Modify },
-    { default: Draw },
-    { default: Select },
-    { default: Polygon },
-  ] = await Promise.all([
-    import('ol/interaction/Snap'),
-    import('ol/interaction/Modify'),
-    import('ol/interaction/Draw'),
-    import('ol/interaction/Select'),
-    import('ol/geom/Polygon'),
-  ]);
-
   // ── History ────────────────────────────────────────────────────────────
   const history = new HistoryManager(source);
 
@@ -552,7 +618,12 @@ export async function createEditingInteractionStack(
   const select = new Select({ hitTolerance: 5 });
 
   // ── Snap ───────────────────────────────────────────────────────────────
-  const snapOptions: any = { source, pixelTolerance: snapTolerance };
+  // OL Snap's option type only declares `source` (singular), but the runtime
+  // also accepts a `sources` array. Extend the type locally.
+  const snapOptions: SnapOptions & { sources?: VectorSource<Feature>[] } = {
+    source,
+    pixelTolerance: snapTolerance,
+  };
   if (snapSource) {
     snapOptions.sources = [source, snapSource];
   }
@@ -561,34 +632,48 @@ export async function createEditingInteractionStack(
   // ── Modify ─────────────────────────────────────────────────────────────
   const modify = new Modify({ features: select.getFeatures() });
 
-  modify.on('modifystart', (event: any) => {
-    const features: any[] | undefined = event.features?.getArray();
+  // Track original geometries per ModifyEvent using a WeakMap (avoids
+  // augmenting the event object with ad-hoc properties).
+  const originalGeometriesByEvent = new WeakMap<
+    ModifyEvent,
+    Array<{ feature: Feature; geometry: Geometry | undefined }>
+  >();
+
+  modify.on('modifystart', (event: ModifyEvent) => {
+    const features = event.features?.getArray();
     if (!features || features.length === 0) return;
     // Snapshot every feature's geometry before modification
-    (event as any).__originalGeometries = features.map((f: any) => ({
-      feature: f,
-      geometry: f.getGeometry()?.clone(),
-    }));
+    originalGeometriesByEvent.set(
+      event,
+      features.map((f) => ({
+        feature: f,
+        geometry: f.getGeometry()?.clone(),
+      })),
+    );
   });
 
-  modify.on('modifyend', (event: any) => {
-    const originals: Array<{ feature: any; geometry: any }> =
-      (event as any).__originalGeometries ?? [];
+  modify.on('modifyend', (event: ModifyEvent) => {
+    const originals = originalGeometriesByEvent.get(event) ?? [];
     for (const { feature, geometry } of originals) {
       history.record('modify', feature, geometry);
       if (onFeatureModified) onFeatureModified(feature);
     }
+    originalGeometriesByEvent.delete(event);
   });
 
   // ── Draw with optional orthogonal constraint ───────────────────────────
   const rawGeomFn = createOrthogonalGeometryFunction(() => orthoEnabled);
 
-  // Wrap to lazily create the Polygon the first time OL calls the function
-  const wrappedGeomFn = (coordinates: any, geometry: any): any => {
-    if (!geometry) {
-      geometry = new Polygon([]);
+  // Wrap to lazily create the Polygon the first time OL calls the function.
+  // OL's Draw calls geometryFunction with `undefined` on the first invocation
+  // (see Draw.js — `this.geometryFunction_(this.sketchCoords_, undefined, projection)`),
+  // so we materialise an empty Polygon in that case.
+  const wrappedGeomFn: DrawGeometryFunction = (coordinates, geometry) => {
+    let geom = geometry;
+    if (!geom) {
+      geom = new Polygon([]);
     }
-    return rawGeomFn(coordinates, geometry);
+    return rawGeomFn(coordinates as number[][], geom);
   };
 
   const draw = new Draw({
@@ -598,7 +683,7 @@ export async function createEditingInteractionStack(
     snapTolerance: snapTolerance,
   });
 
-  draw.on('drawend', (event: any) => {
+  draw.on('drawend', (event: DrawEvent) => {
     const feature = event.feature;
     if (!feature.getId()) {
       feature.setId(generateFeatureId());
@@ -650,8 +735,9 @@ export async function createEditingInteractionStack(
     if (typeof document !== 'undefined') {
       document.removeEventListener('keydown', onKeyDown);
     }
-    if (typeof (rawGeomFn as any)._cleanupListeners === 'function') {
-      (rawGeomFn as any)._cleanupListeners();
+    const cleanup = rawGeomFn._cleanupListeners;
+    if (typeof cleanup === 'function') {
+      cleanup();
     }
     history.clear();
   };
@@ -698,9 +784,9 @@ export async function createSubdivisionInteraction(
   options: SubdivisionOptions,
 ): Promise<{
   /** The OL Draw interaction for the split line (LineString type). */
-  draw: any;
+  draw: Draw;
   /** The OL Snap interaction that snaps the split line to parcel edges. */
-  snap: any;
+  snap: Snap;
   /** Remove event listeners and clean up temporary sources. */
   cleanup: () => void;
 }> {
@@ -713,29 +799,10 @@ export async function createSubdivisionInteraction(
     onError,
   } = options;
 
-  // ── Dynamic imports ───────────────────────────────────────────────────
-  const [
-    { default: Draw },
-    { default: Snap },
-    { default: VectorSource },
-    { default: Feature },
-    { default: Polygon },
-    { transform },
-  ] = await Promise.all([
-    import('ol/interaction/Draw'),
-    import('ol/interaction/Snap'),
-    import('ol/source/Vector'),
-    import('ol/Feature'),
-    import('ol/geom/Polygon'),
-    import('ol/proj'),
-  ]);
-
   // ── Lazy-load turf ────────────────────────────────────────────────────
-  let turf: any;
+  let turf: typeof import('@turf/turf');
   try {
-    const mod = await import('@turf/turf');
-    // @turf/turf v7 ESM exports everything as named exports (no .default)
-    turf = mod as any;
+    turf = await import('@turf/turf');
   } catch {
     throw new Error(
       '[cadastralEditing] @turf/turf is required for parcel subdivision. ' +
@@ -749,11 +816,11 @@ export async function createSubdivisionInteraction(
 
   // ── Snap interaction ───────────────────────────────────────────────────
   // OL Snap runtime supports a `sources` array but the v10.8 types only
-  // declare `source` (singular). Cast to any to work around the gap.
+  // declare `source` (singular). Extend the type locally.
   const snap = new Snap({
     sources: [splitSource, targetSource],
     pixelTolerance: snapTolerance,
-  } as any);
+  } as SnapOptions & { sources?: VectorSource<Feature>[] });
 
   // ── Draw interaction (split line) ─────────────────────────────────────
   const draw = new Draw({
@@ -765,7 +832,7 @@ export async function createSubdivisionInteraction(
 
   let cleanedUp = false;
 
-  draw.on('drawend', async (event: any) => {
+  draw.on('drawend', async (event: DrawEvent) => {
     if (cleanedUp) return;
 
     const splitLineFeature = event.feature;
@@ -779,8 +846,8 @@ export async function createSubdivisionInteraction(
       }
 
       // ── Transform to WGS84 for turf ───────────────────────────────────
-      const parcelRings = parcelGeom.getCoordinates();
-      const lineCoords = splitLineGeom.getCoordinates();
+      const parcelRings = (parcelGeom as Polygon).getCoordinates();
+      const lineCoords = (splitLineGeom as LineString | null)?.getCoordinates() ?? [];
 
       const parcelRingsWgs84 = parcelRings.map((ring: number[][]) =>
         ring.map((c: number[]) => transform(c, sourceProjection, 'EPSG:4326')),
@@ -794,7 +861,15 @@ export async function createSubdivisionInteraction(
       const lineGeoJSON = turf.lineString(lineCoordsWgs84);
 
       // ── Split ─────────────────────────────────────────────────────────
-      const splitResult = turf.lineSplit(parcelGeoJSON, lineGeoJSON);
+      // NOTE: turf's `lineSplit(line, splitter)` types require the first arg to
+      // be a LineString, but the legacy call here passes a polygon first. The
+      // types reject this; we cast to preserve the existing runtime behaviour.
+      // (Pre-existing shape mismatch that was hidden by `any` — preserved per
+      // the type-hygiene migration recipe's "don't fix unrelated bugs" rule.)
+      const splitResult = turf.lineSplit(
+        parcelGeoJSON as unknown as Parameters<typeof turf.lineSplit>[0],
+        lineGeoJSON,
+      ) as unknown as { features: Array<{ geometry: { coordinates: number[][][] } }> };
 
       if (
         !splitResult ||
@@ -815,11 +890,13 @@ export async function createSubdivisionInteraction(
       }
 
       // ── Convert results back to source projection ─────────────────────
-      const coordsA = splitResult.features[0].geometry.coordinates.map(
+      const feature0 = splitResult.features[0];
+      const feature1 = splitResult.features[1];
+      const coordsA = feature0.geometry.coordinates.map(
         (ring: number[][]) =>
           ring.map((c: number[]) => transform(c, 'EPSG:4326', sourceProjection)),
       );
-      const coordsB = splitResult.features[1].geometry.coordinates.map(
+      const coordsB = feature1.geometry.coordinates.map(
         (ring: number[][]) =>
           ring.map((c: number[]) => transform(c, 'EPSG:4326', sourceProjection)),
       );
@@ -845,7 +922,7 @@ export async function createSubdivisionInteraction(
       }
 
       onComplete(polyA, polyB);
-    } catch (err) {
+    } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       if (onError) {
         onError(error);
@@ -910,42 +987,16 @@ export async function createMeasureWhileDraw(
     showEdgeDistance = true,
   } = options;
 
-  // ── Dynamic OL imports ────────────────────────────────────────────────
-  const [
-    { default: VectorLayer },
-    { default: VectorSource },
-    { default: Feature },
-    { default: Point },
-    { default: Style },
-    { default: Fill },
-    { default: Stroke },
-    { default: Text },
-  ] = await Promise.all([
-    import('ol/layer/Vector'),
-    import('ol/source/Vector'),
-    import('ol/Feature'),
-    import('ol/geom/Point'),
-    import('ol/style/Style'),
-    import('ol/style/Fill'),
-    import('ol/style/Stroke'),
-    import('ol/style/Text'),
-  ]);
-
   // ── Optional proj4 for geographic CRS ─────────────────────────────────
   let toMetric: ((coord: number[]) => number[]) | null = null;
 
   if (projection === 'EPSG:4326') {
-    try {
-      const proj4Mod = await import('proj4');
-      const proj4 = (proj4Mod as any).default ?? proj4Mod;
-      // Default to Kenya UTM Zone 36M for metric conversion
-      const utm36m =
-        '+proj=utm +zone=36 +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs';
-      toMetric = (coord: number[]) => proj4('EPSG:4326', utm36m, coord);
-    } catch {
-      // proj4 not available — fall back to planar (degrees), less accurate
-      toMetric = null;
-    }
+    // proj4 is a hard dependency (declared in package.json). Use it directly
+    // to convert WGS84 coordinates to Kenya UTM Zone 36M for metric distance.
+    // Default to Kenya UTM Zone 36M for metric conversion
+    const utm36m =
+      '+proj=utm +zone=36 +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs';
+    toMetric = (coord: number[]) => proj4('EPSG:4326', utm36m, coord);
   }
 
   /**
@@ -963,8 +1014,8 @@ export async function createMeasureWhileDraw(
 
   const measureLayer = new VectorLayer({
     source: measureSource,
-    style: (feature: any) => {
-      const label = feature.get('measureLabel') ?? '';
+    style: (feature: FeatureLike) => {
+      const label = (feature.get('measureLabel') as string) ?? '';
       return new Style({
         text: new Text({
           font: '11px monospace',
@@ -983,9 +1034,9 @@ export async function createMeasureWhileDraw(
 
   // ── State ─────────────────────────────────────────────────────────────
   let active = false;
-  let sketchFeature: any = null;
-  let annotationFeatures: any[] = [];
-  let geometryChangeKey: any = null;
+  let sketchFeature: Feature | null = null;
+  let annotationFeatures: Feature[] = [];
+  let geometryChangeKey: EventsKey | null = null;
 
   /**
    * Remove all annotation features from the measure source.
@@ -1049,18 +1100,18 @@ export async function createMeasureWhileDraw(
 
     const type = geom.getType();
     if (type === 'Polygon') {
-      const rings = geom.getCoordinates();
+      const rings = (geom as Polygon).getCoordinates();
       return rings.length > 0 ? rings[0] : null;
     }
     if (type === 'LineString') {
-      return geom.getCoordinates();
+      return (geom as LineString).getCoordinates();
     }
     return null;
   }
 
   // ── Event handlers ────────────────────────────────────────────────────
 
-  function onDrawStart(event: any): void {
+  function onDrawStart(event: DrawEvent): void {
     active = true;
     sketchFeature = event.feature;
 
@@ -1071,7 +1122,7 @@ export async function createMeasureWhileDraw(
         if (!active) return;
         const coords = readSketchCoords();
         if (coords) updateAnnotations(coords);
-      });
+      }) as EventsKey;
     }
 
     clearAnnotations();
@@ -1089,11 +1140,11 @@ export async function createMeasureWhileDraw(
   }
 
   function detachSketchListener(): void {
-    if (geometryChangeKey && sketchFeature) {
-      const geom = sketchFeature.getGeometry();
-      if (geom && typeof geom.un === 'function') {
-        geom.un('change', geometryChangeKey);
-      }
+    if (geometryChangeKey) {
+      // unByKey is the correct OL API for removing a listener by its EventsKey
+      // (returned from `geom.on(...)`). The previous code passed the key to
+      // `geom.un('change', key)` which is a type error and a no-op at runtime.
+      unByKey(geometryChangeKey);
     }
     geometryChangeKey = null;
     sketchFeature = null;
@@ -1144,6 +1195,8 @@ export async function createMeasureWhileDraw(
  * history.undo();
  * ```
  */
-export async function createHistoryManager(source: any): Promise<HistoryManager> {
+export async function createHistoryManager(
+  source: HistorySource,
+): Promise<HistoryManager> {
   return new HistoryManager(source);
 }

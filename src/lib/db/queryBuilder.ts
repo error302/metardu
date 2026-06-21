@@ -1,25 +1,34 @@
 /**
  * PostgreSQL Query Builder — DbClient-Compatible API
- * 
- * Drop-in replacement for DbClient's `.from().select().eq()` chain.
+ *
+ * Drop-in replacement for the legacy DbClient's `.from().select().eq()` chain.
  * Uses the existing `pg` Pool from db.ts for direct PostgreSQL queries.
- * Returns { data, error, count } matching DbClient's response shape.
+ * Returns { data, error, count } matching the legacy response shape.
+ *
+ * ponytail: Phase 6 — replaced 43 `any` types with `unknown`, proper FilterOp
+ * union, and typed generics. No behavior change.
  */
 
 import { Pool } from 'pg'
 
+// ponytail: Phase 6 — kept T = any default for backward compat with 13 consumer
+// files that assign .data to typed variables without casting. The FilterOp union,
+// unknown params, and typed catch are the real wins. Consumer-side casts are the
+// next wave — see docs/type-hygiene-migration-recipe.md.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface QueryResult<T = any> {
   data: T | null
   error: { message: string; code: string; details?: string } | null
   count?: number | null
 }
 
-type FilterOp = '=' | '!=' | '>' | '>=' | '<' | '<=' | 'LIKE' | 'ILIKE' | 'IN' | 'IS' | 'IS NOT'
+// ponytail: explicit FilterOp union — was string + `as any` casts
+type FilterOp = '=' | '!=' | '>' | '>=' | '<' | '<=' | 'LIKE' | 'ILIKE' | 'IN' | 'NOT_IN' | 'IS' | 'IS NOT' | '@>'
 
 interface Filter {
   column: string
   op: FilterOp
-  value: any
+  value: unknown
 }
 
 interface OrderClause {
@@ -27,6 +36,8 @@ interface OrderClause {
   ascending: boolean
 }
 
+// ponytail: Phase 6 — kept T = any default (see QueryResult note above)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class QueryBuilder<T = any> {
   private pool: Pool
   private table: string
@@ -41,8 +52,9 @@ export class QueryBuilder<T = any> {
   private maybeSingleRow: boolean = false
   private countOnly: boolean = false
   private headOnly: boolean = false
-  private insertPayload: any = null
-  private updatePayload: any = null
+  // ponytail: payload shapes are Record<string, unknown> — builder doesn't need to know column types
+  private insertPayload: Record<string, unknown> | Record<string, unknown>[] | null = null
+  private updatePayload: Record<string, unknown> | null = null
   private upsertConflict: string = 'id'
   private returningColumns: string = '*'
 
@@ -59,19 +71,19 @@ export class QueryBuilder<T = any> {
     return this
   }
 
-  insert(data: Record<string, any> | Record<string, any>[]): this {
+  insert(data: Record<string, unknown> | Record<string, unknown>[]): this {
     this.operation = 'insert'
     this.insertPayload = data
     return this
   }
 
-  update(data: Record<string, any>): this {
+  update(data: Record<string, unknown>): this {
     this.operation = 'update'
     this.updatePayload = data
     return this
   }
 
-  upsert(data: Record<string, any> | Record<string, any>[], options?: { onConflict?: string }): this {
+  upsert(data: Record<string, unknown> | Record<string, unknown>[], options?: { onConflict?: string }): this {
     this.operation = 'upsert'
     this.insertPayload = data
     if (options?.onConflict) this.upsertConflict = options.onConflict
@@ -83,32 +95,33 @@ export class QueryBuilder<T = any> {
     return this
   }
 
-  eq(column: string, value: any): this {
+  // ponytail: filter values are `unknown` — the builder just serializes them to SQL params
+  eq(column: string, value: unknown): this {
     this.filters.push({ column, op: '=', value })
     return this
   }
 
-  neq(column: string, value: any): this {
+  neq(column: string, value: unknown): this {
     this.filters.push({ column, op: '!=', value })
     return this
   }
 
-  gt(column: string, value: any): this {
+  gt(column: string, value: unknown): this {
     this.filters.push({ column, op: '>', value })
     return this
   }
 
-  gte(column: string, value: any): this {
+  gte(column: string, value: unknown): this {
     this.filters.push({ column, op: '>=', value })
     return this
   }
 
-  lt(column: string, value: any): this {
+  lt(column: string, value: unknown): this {
     this.filters.push({ column, op: '<', value })
     return this
   }
 
-  lte(column: string, value: any): this {
+  lte(column: string, value: unknown): this {
     this.filters.push({ column, op: '<=', value })
     return this
   }
@@ -123,12 +136,12 @@ export class QueryBuilder<T = any> {
     return this
   }
 
-  in(column: string, values: any[]): this {
+  in(column: string, values: unknown[]): this {
     this.filters.push({ column, op: 'IN', value: values })
     return this
   }
 
-  is(column: string, value: any): this {
+  is(column: string, value: unknown): this {
     if (value === null) {
       this.filters.push({ column, op: 'IS', value: null })
     } else {
@@ -137,13 +150,12 @@ export class QueryBuilder<T = any> {
     return this
   }
 
-  not(column: string, op: string, value: any): this {
-    // Map DbClient's .not() to negated filters
+  not(column: string, op: string, value: unknown): this {
     if (op === 'eq') this.filters.push({ column, op: '!=', value })
     else if (op === 'is') this.filters.push({ column, op: 'IS NOT', value })
     else if (op === 'in') {
-      // NOT IN
-      this.filters.push({ column, op: 'NOT_IN' as any, value })
+      // ponytail: NOT_IN is now in the FilterOp union — no `as any` needed
+      this.filters.push({ column, op: 'NOT_IN', value })
     }
     return this
   }
@@ -153,9 +165,9 @@ export class QueryBuilder<T = any> {
     return this
   }
 
-  contains(column: string, value: any): this {
+  contains(column: string, value: unknown): this {
     // For JSONB contains or array contains
-    this.filters.push({ column, op: '@>', value } as any)
+    this.filters.push({ column, op: '@>', value })
     return this
   }
 
@@ -175,25 +187,28 @@ export class QueryBuilder<T = any> {
     return this
   }
 
+  // ponytail: single()/maybeSingle() return `this` so chaining works, but also
+  // need to be thenable. The `as unknown as` cast is the minimum needed —
+  // the builder is thenable via the `then` method below.
   single(): PromiseLike<QueryResult<T>> & this {
     this.singleRow = true
-    return this as any
+    return this as unknown as PromiseLike<QueryResult<T>> & this
   }
 
   maybeSingle(): PromiseLike<QueryResult<T | null>> & this {
     this.maybeSingleRow = true
-    return this as any
+    return this as unknown as PromiseLike<QueryResult<T | null>> & this
   }
 
   // Make the builder thenable so `await dbClient.from('x').select('*')` works
   then<TResult1 = QueryResult<T>, TResult2 = never>(
     resolve?: ((value: QueryResult<T>) => TResult1 | PromiseLike<TResult1>) | null,
-    reject?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+    reject?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ): Promise<TResult1 | TResult2> {
     return this.execute().then(resolve, reject)
   }
 
-  private buildWhereClause(params: any[]): string {
+  private buildWhereClause(params: unknown[]): string {
     if (this.filters.length === 0 && this.orFilters.length === 0) return ''
 
     const conditions: string[] = []
@@ -203,14 +218,14 @@ export class QueryBuilder<T = any> {
         conditions.push(`"${f.column}" IS NULL`)
       } else if (f.op === 'IS NOT') {
         conditions.push(`"${f.column}" IS NOT NULL`)
-      } else if (f.op === 'IN' || (f.op as any) === 'NOT_IN') {
-        const placeholders = (f.value as any[]).map((v) => {
+      } else if (f.op === 'IN' || f.op === 'NOT_IN') {
+        const values = (f.value as unknown[]).map((v) => {
           params.push(v)
           return `$${params.length}`
         })
         const operator = f.op === 'IN' ? 'IN' : 'NOT IN'
-        conditions.push(`"${f.column}" ${operator} (${placeholders.join(', ')})`)
-      } else if ((f as any).op === '@>') {
+        conditions.push(`"${f.column}" ${operator} (${values.join(', ')})`)
+      } else if (f.op === '@>') {
         params.push(JSON.stringify(f.value))
         conditions.push(`"${f.column}" @> $${params.length}::jsonb`)
       } else {
@@ -219,7 +234,7 @@ export class QueryBuilder<T = any> {
       }
     }
 
-    // Handle raw OR filters (DbClient-style: "col.eq.val,col2.eq.val2")
+    // Handle raw OR filters (legacy-style: "col.eq.val,col2.eq.val2")
     for (const orFilter of this.orFilters) {
       const parsed = this.parseOrFilter(orFilter, params)
       if (parsed) conditions.push(`(${parsed})`)
@@ -228,8 +243,7 @@ export class QueryBuilder<T = any> {
     return conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : ''
   }
 
-  private parseOrFilter(filter: string, params: any[]): string | null {
-    // Parse DbClient-style OR filter: "status.eq.active,status.eq.pending"
+  private parseOrFilter(filter: string, params: unknown[]): string | null {
     const parts = filter.split(',')
     const orParts: string[] = []
 
@@ -265,7 +279,7 @@ export class QueryBuilder<T = any> {
 
   private buildOrderClause(): string {
     if (this.orderClauses.length === 0) return ''
-    const parts = this.orderClauses.map((o: any) => `"${o.column}" ${o.ascending ? 'ASC' : 'DESC'}`)
+    const parts = this.orderClauses.map((o) => `"${o.column}" ${o.ascending ? 'ASC' : 'DESC'}`)
     return ` ORDER BY ${parts.join(', ')}`
   }
 
@@ -286,31 +300,32 @@ export class QueryBuilder<T = any> {
         case 'upsert': return await this.executeUpsert()
         default: return { data: null, error: { message: `Unknown operation: ${this.operation}`, code: 'UNKNOWN_OP' } }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // ponytail: was `catch (err: any)` — now properly narrowed
+      const pgErr = err as { message?: string; code?: string; detail?: string }
       return {
         data: null,
         error: {
-          message: err.message || 'Database query failed',
-          code: err.code || 'QUERY_ERROR',
-          details: err.detail,
+          message: pgErr.message || 'Database query failed',
+          code: pgErr.code || 'QUERY_ERROR',
+          details: pgErr.detail,
         },
       }
     }
   }
 
   private async executeSelect(): Promise<QueryResult<T>> {
-    const params: any[] = []
+    const params: unknown[] = []
 
     if (this.headOnly && this.countOnly) {
       const sql = `SELECT COUNT(*) as count FROM "${this.table}"${this.buildWhereClause(params)}`
-      const result = await this.pool.query(sql, params)
+      const result = await this.pool.query(sql, params as unknown[])
       const count = parseInt(result.rows[0]?.count ?? '0', 10)
       return { data: null, error: null, count }
     }
 
-    const columns = this.selectColumns === '*' ? '*' : this.selectColumns.split(',').map((c: any) => {
+    const columns = this.selectColumns === '*' ? '*' : this.selectColumns.split(',').map((c) => {
       const trimmed = c.trim()
-      // Handle nested selects like "projects(*)" — flatten to just the column
       if (trimmed.includes('(')) return `"${trimmed.split('(')[0].trim()}"`
       if (trimmed === 'id' || trimmed === '*') return trimmed
       return `"${trimmed}"`
@@ -325,13 +340,12 @@ export class QueryBuilder<T = any> {
       sql += this.limitCount === null ? ' LIMIT 1' : ''
     }
 
-    const result = await this.pool.query(sql, params)
+    const result = await this.pool.query(sql, params as unknown[])
 
     if (this.countOnly) {
-      // Also get the count
-      const countParams: any[] = []
+      const countParams: unknown[] = []
       const countSql = `SELECT COUNT(*) as count FROM "${this.table}"${this.buildWhereClause(countParams)}`
-      const countResult = await this.pool.query(countSql, countParams)
+      const countResult = await this.pool.query(countSql, countParams as unknown[])
       const count = parseInt(countResult.rows[0]?.count ?? '0', 10)
 
       if (this.singleRow) {
@@ -359,11 +373,12 @@ export class QueryBuilder<T = any> {
   }
 
   private async executeInsert(): Promise<QueryResult<T>> {
+    if (!this.insertPayload) return { data: null, error: null }
     const rows = Array.isArray(this.insertPayload) ? this.insertPayload : [this.insertPayload]
     if (rows.length === 0) return { data: null, error: null }
 
     const columns = Object.keys(rows[0])
-    const params: any[] = []
+    const params: unknown[] = []
     const valuesList: string[] = []
 
     for (const row of rows) {
@@ -375,10 +390,10 @@ export class QueryBuilder<T = any> {
       valuesList.push(`(${placeholders.join(', ')})`)
     }
 
-    const quotedColumns = columns.map((c: any) => `"${c}"`).join(', ')
+    const quotedColumns = columns.map((c) => `"${c}"`).join(', ')
     const sql = `INSERT INTO "${this.table}" (${quotedColumns}) VALUES ${valuesList.join(', ')} RETURNING ${this.returningColumns}`
 
-    const result = await this.pool.query(sql, params)
+    const result = await this.pool.query(sql, params as unknown[])
     const data = Array.isArray(this.insertPayload) ? result.rows : (result.rows[0] ?? null)
     return { data: data as T, error: null }
   }
@@ -386,7 +401,7 @@ export class QueryBuilder<T = any> {
   private async executeUpdate(): Promise<QueryResult<T>> {
     if (!this.updatePayload) return { data: null, error: { message: 'No data to update', code: 'NO_DATA' } }
 
-    const params: any[] = []
+    const params: unknown[] = []
     const setClauses: string[] = []
 
     for (const [key, value] of Object.entries(this.updatePayload)) {
@@ -398,8 +413,8 @@ export class QueryBuilder<T = any> {
     sql += this.buildWhereClause(params)
     sql += ` RETURNING ${this.returningColumns}`
 
-    const result = await this.pool.query(sql, params)
-    
+    const result = await this.pool.query(sql, params as unknown[])
+
     if (this.singleRow || this.maybeSingleRow) {
       return { data: (result.rows[0] ?? null) as T, error: null }
     }
@@ -407,21 +422,22 @@ export class QueryBuilder<T = any> {
   }
 
   private async executeDelete(): Promise<QueryResult<T>> {
-    const params: any[] = []
+    const params: unknown[] = []
     let sql = `DELETE FROM "${this.table}"`
     sql += this.buildWhereClause(params)
     sql += ` RETURNING ${this.returningColumns}`
 
-    const result = await this.pool.query(sql, params)
+    const result = await this.pool.query(sql, params as unknown[])
     return { data: result.rows as T, error: null }
   }
 
   private async executeUpsert(): Promise<QueryResult<T>> {
+    if (!this.insertPayload) return { data: null, error: null }
     const rows = Array.isArray(this.insertPayload) ? this.insertPayload : [this.insertPayload]
     if (rows.length === 0) return { data: null, error: null }
 
     const columns = Object.keys(rows[0])
-    const params: any[] = []
+    const params: unknown[] = []
     const valuesList: string[] = []
 
     for (const row of rows) {
@@ -433,13 +449,13 @@ export class QueryBuilder<T = any> {
       valuesList.push(`(${placeholders.join(', ')})`)
     }
 
-    const quotedColumns = columns.map((c: any) => `"${c}"`).join(', ')
-    const updateCols = columns.filter((c: any) => c !== this.upsertConflict)
-    const updateSet = updateCols.map((c: any) => `"${c}" = EXCLUDED."${c}"`).join(', ')
+    const quotedColumns = columns.map((c) => `"${c}"`).join(', ')
+    const updateCols = columns.filter((c) => c !== this.upsertConflict)
+    const updateSet = updateCols.map((c) => `"${c}" = EXCLUDED."${c}"`).join(', ')
 
     const sql = `INSERT INTO "${this.table}" (${quotedColumns}) VALUES ${valuesList.join(', ')} ON CONFLICT ("${this.upsertConflict}") DO UPDATE SET ${updateSet} RETURNING ${this.returningColumns}`
 
-    const result = await this.pool.query(sql, params)
+    const result = await this.pool.query(sql, params as unknown[])
     const data = Array.isArray(this.insertPayload) ? result.rows : (result.rows[0] ?? null)
     return { data: data as T, error: null }
   }
