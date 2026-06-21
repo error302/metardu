@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import type { PlanId } from '@/lib/subscription/catalog'
 import type { CurrencyCode } from '@/lib/subscription/catalog'
 
@@ -54,7 +54,7 @@ export default function BillingPage() {
 
   const loadData = useCallback(async () => {
     const { data: { session } } = await dbClient.auth.getSession()
-    const user = session?.user ?? null
+    const user = (session as BrowserSession | null)?.user ?? null
     setUser(user)
 
     if (user) {

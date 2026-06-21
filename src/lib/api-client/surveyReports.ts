@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import type {
   SurveyReportInput,
   SectionContent,
@@ -28,7 +28,7 @@ export async function createSurveyReport(
 ): Promise<string> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await dbClient
@@ -48,7 +48,7 @@ export async function createSurveyReport(
     .single()
 
   if (error) throw error
-  return data.id
+  return (data as { id: string }).id
 }
 
 export async function saveSurveyReport(
@@ -59,7 +59,7 @@ export async function saveSurveyReport(
 ): Promise<void> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { error } = await dbClient
@@ -81,7 +81,7 @@ export async function getSurveyReportsByProject(
 ): Promise<SurveyReportSummary[]> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await dbClient
@@ -93,7 +93,8 @@ export async function getSurveyReportsByProject(
 
   if (error) throw error
 
-  return (data || []).map((row: any) => ({
+  const rows = ((data ?? null) as unknown as SurveyReportDbRow[] | null) ?? []
+  return rows.map((row) => ({
     id: row.id,
     reportNumber: row.report_number,
     reportTitle: row.report_title,
@@ -110,7 +111,7 @@ export async function getSurveyReportById(
 ): Promise<(SurveyReportInput & { sections: SectionContent[]; completeness: number; status: string; reportNumber: string; reportTitle: string; revision: string }) | null> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await dbClient
@@ -125,7 +126,7 @@ export async function getSurveyReportById(
     throw error
   }
 
-  const row = data as SurveyReportDbRow
+  const row = data as unknown as SurveyReportDbRow
   return {
     ...row.input_data,
     sections: row.sections,
@@ -143,7 +144,7 @@ export async function updateReportStatus(
 ): Promise<void> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { error } = await dbClient
@@ -158,7 +159,7 @@ export async function updateReportStatus(
 export async function deleteSurveyReport(id: string): Promise<void> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { error } = await dbClient

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import {
   getCPDRequirements,
   getUserActivities,
@@ -25,7 +25,7 @@ export default function CPDPage() {
     const loadUser = async () => {
       const dbClient = createClient()
       const { data: { session } } = await dbClient.auth.getSession()
-      const user = session?.user
+      const user = (session as BrowserSession | null)?.user
       const uid = user?.id ?? null
       setUserId(uid)
       setRequirements(getCPDRequirements(country))

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import type { BathymetricSurvey, SoundingPoint, ContourLine, Hazard } from '@/types/bathymetry'
 
 export interface CreateSurveyInput {
@@ -12,7 +12,7 @@ export interface CreateSurveyInput {
 export async function createSurvey(params: CreateSurveyInput): Promise<BathymetricSurvey> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await dbClient
@@ -29,7 +29,7 @@ export async function createSurvey(params: CreateSurveyInput): Promise<Bathymetr
     .single()
 
   if (error) throw error
-  return data as BathymetricSurvey
+  return data as unknown as BathymetricSurvey
 }
 
 export async function getSurveys(projectId: string): Promise<BathymetricSurvey[]> {
@@ -41,7 +41,7 @@ export async function getSurveys(projectId: string): Promise<BathymetricSurvey[]
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data as BathymetricSurvey[]
+  return data as unknown as BathymetricSurvey[]
 }
 
 export async function getSurvey(id: string): Promise<BathymetricSurvey | null> {
@@ -53,7 +53,7 @@ export async function getSurvey(id: string): Promise<BathymetricSurvey | null> {
     .single()
 
   if (error) throw error
-  return data as BathymetricSurvey | null
+  return data as unknown as BathymetricSurvey | null
 }
 
 export async function updateSurvey(id: string, updates: Partial<BathymetricSurvey>): Promise<BathymetricSurvey> {
@@ -66,7 +66,7 @@ export async function updateSurvey(id: string, updates: Partial<BathymetricSurve
     .single()
 
   if (error) throw error
-  return data as BathymetricSurvey
+  return data as unknown as BathymetricSurvey
 }
 
 export async function deleteSurvey(id: string): Promise<void> {

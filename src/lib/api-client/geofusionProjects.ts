@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import type { GeoFusionProject, FusionLayer, FusionAlignment } from '@/types/geofusion'
 
 export async function createGeoFusionProject(params: {
@@ -11,7 +11,7 @@ export async function createGeoFusionProject(params: {
 }) {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await dbClient
@@ -29,7 +29,7 @@ export async function createGeoFusionProject(params: {
     .single()
   
   if (error) throw error
-  return data as GeoFusionProject
+  return data as unknown as GeoFusionProject
 }
 
 export async function getGeoFusionProjects(projectId: string) {
@@ -41,7 +41,7 @@ export async function getGeoFusionProjects(projectId: string) {
     .order('created_at', { ascending: false })
   
   if (error) throw error
-  return data as GeoFusionProject[]
+  return data as unknown as GeoFusionProject[]
 }
 
 export async function getGeoFusionProject(id: string) {
@@ -53,7 +53,7 @@ export async function getGeoFusionProject(id: string) {
     .single()
   
   if (error) throw error
-  return data as GeoFusionProject
+  return data as unknown as GeoFusionProject
 }
 
 export async function updateGeoFusionProject(id: string, updates: Partial<GeoFusionProject>) {
@@ -66,7 +66,7 @@ export async function updateGeoFusionProject(id: string, updates: Partial<GeoFus
     .single()
   
   if (error) throw error
-  return data as GeoFusionProject
+  return data as unknown as GeoFusionProject
 }
 
 export async function createFusionLayer(params: {
@@ -94,7 +94,7 @@ export async function createFusionLayer(params: {
     .single()
   
   if (error) throw error
-  return data as FusionLayer
+  return data as unknown as FusionLayer
 }
 
 export async function getFusionLayers(geofusionProjectId: string) {
@@ -106,7 +106,7 @@ export async function getFusionLayers(geofusionProjectId: string) {
     .order('z_index', { ascending: true })
   
   if (error) throw error
-  return data as FusionLayer[]
+  return data as unknown as FusionLayer[]
 }
 
 export async function updateFusionLayer(id: string, updates: Partial<FusionLayer>) {
@@ -119,7 +119,7 @@ export async function updateFusionLayer(id: string, updates: Partial<FusionLayer
     .single()
   
   if (error) throw error
-  return data as FusionLayer
+  return data as unknown as FusionLayer
 }
 
 export async function deleteFusionLayer(id: string) {
@@ -155,7 +155,7 @@ export async function createFusionAlignment(params: {
     .single()
   
   if (error) throw error
-  return data as FusionAlignment
+  return data as unknown as FusionAlignment
 }
 
 export async function getFusionAlignments(geofusionProjectId: string) {
@@ -167,7 +167,7 @@ export async function getFusionAlignments(geofusionProjectId: string) {
     .order('created_at', { ascending: false })
   
   if (error) throw error
-  return data as FusionAlignment[]
+  return data as unknown as FusionAlignment[]
 }
 
 export async function updateAlignmentStatus(id: string, status: string, accuracy_score?: number) {
@@ -184,5 +184,5 @@ export async function updateAlignmentStatus(id: string, status: string, accuracy
     .single()
   
   if (error) throw error
-  return data as FusionAlignment
+  return data as unknown as FusionAlignment
 }

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import type { SafetyIncident, SafetyReport } from '@/types/safety'
 
 export async function createIncident(params: {
@@ -11,7 +11,7 @@ export async function createIncident(params: {
 }) {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await dbClient
@@ -29,7 +29,7 @@ export async function createIncident(params: {
     .single()
   
   if (error) throw error
-  return data as SafetyIncident
+  return data as unknown as SafetyIncident
 }
 
 export async function getIncidents(projectId: string) {
@@ -41,7 +41,7 @@ export async function getIncidents(projectId: string) {
     .order('created_at', { ascending: false })
   
   if (error) throw error
-  return data as SafetyIncident[]
+  return data as unknown as SafetyIncident[]
 }
 
 export async function updateIncidentStatus(id: string, status: string) {
@@ -54,5 +54,5 @@ export async function updateIncidentStatus(id: string, status: string) {
     .single()
   
   if (error) throw error
-  return data as SafetyIncident
+  return data as unknown as SafetyIncident
 }

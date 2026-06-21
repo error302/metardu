@@ -56,7 +56,7 @@ export default function ProfilePage() {
           specializations: data.specializations || []
         })
       } else {
-        setProfile(prev => ({ ...prev, id: user.id }))
+        setProfile(prev => ({ ...prev, id: user.id ?? "" }))
       }
       setLoading(false)
     }

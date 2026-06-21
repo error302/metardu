@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react'
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import {
   type FeedbackCategory,
   buildFeedbackPayload,
@@ -65,7 +65,7 @@ export default function FeedbackWidget() {
       try {
         const dbClient = createClient()
         const { data: { session } } = await dbClient.auth.getSession()
-        const user = session?.user
+        const user = (session as BrowserSession | null)?.user
 
         await dbClient.from('feedback').insert({
           type,

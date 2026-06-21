@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import type { DeedPlanInput, DeedPlanOutput, DeedPlanDocument } from '@/types/deedPlan'
 
 export async function saveDeedPlan(
@@ -8,7 +8,7 @@ export async function saveDeedPlan(
 ): Promise<DeedPlanDocument> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await dbClient
@@ -32,7 +32,7 @@ export async function saveDeedPlan(
     .single()
 
   if (error) throw error
-  return data as DeedPlanDocument
+  return data as unknown as DeedPlanDocument
 }
 
 export async function getDeedPlansByProject(projectId: string): Promise<DeedPlanDocument[]> {
@@ -44,7 +44,7 @@ export async function getDeedPlansByProject(projectId: string): Promise<DeedPlan
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data as DeedPlanDocument[]
+  return data as unknown as DeedPlanDocument[]
 }
 
 export async function getDeedPlanById(id: string): Promise<DeedPlanDocument | null> {
@@ -56,7 +56,7 @@ export async function getDeedPlanById(id: string): Promise<DeedPlanDocument | nu
     .single()
 
   if (error) throw error
-  return data as DeedPlanDocument
+  return data as unknown as DeedPlanDocument
 }
 
 export async function updateDeedPlanStatus(
@@ -72,5 +72,5 @@ export async function updateDeedPlanStatus(
     .single()
 
   if (error) throw error
-  return data as DeedPlanDocument
+  return data as unknown as DeedPlanDocument
 }

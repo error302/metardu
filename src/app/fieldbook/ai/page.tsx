@@ -36,9 +36,9 @@ export default function FieldBookAIPage() {
     const loadProjects = async () => {
       const dbClient = createClient()
       const { data: { session } } = await dbClient.auth.getSession()
-      const user = session?.user
+      const user = (session as Record<string, unknown>)?.user
       if (user) {
-        const { data } = await dbClient.from('projects').select('id, name').eq('user_id', user.id)
+        const { data } = await dbClient.from('projects').select('id, name').eq('user_id', (user as Record<string, unknown>).id as string)
         if (data) setProjects(data)
       }
     }

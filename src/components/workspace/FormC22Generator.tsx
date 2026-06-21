@@ -10,7 +10,7 @@ import {
   Info,
   RefreshCw,
 } from 'lucide-react';
-import { createClient } from '@/lib/api-client/client';
+import { createClient, type BrowserSession } from '@/lib/api-client/client';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -94,7 +94,8 @@ export default function FormC22Generator({ projectId }: Props) {
 
         // Also fetch surveyor profile
         const { data: sData } = await dbClient.auth.getSession();
-        const userId = sData?.session?.user?.id;
+        const session = sData?.session as BrowserSession | null | undefined;
+        const userId = session?.user?.id;
 
         let surveyorNameVal = '';
         let iskNumberVal = '';
@@ -112,7 +113,7 @@ export default function FormC22Generator({ projectId }: Props) {
             firmNameVal = (spData as Record<string, unknown>).firm_name as string || '';
           }
 
-          surveyorNameVal = sData?.session?.user?.user_metadata?.full_name || '';
+          surveyorNameVal = session?.user?.user_metadata?.full_name || '';
         }
 
         const enriched: ProjectData = {

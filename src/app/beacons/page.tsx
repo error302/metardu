@@ -110,8 +110,8 @@ export default function BeaconsPage() {
       dbClient.from('projects').select('id, name, location, survey_type, created_at')
     ])
 
-    if (beaconsRes.data) setBeacons(beaconsRes.data)
-    if (projectsRes.data) setProjects(projectsRes.data)
+    if (beaconsRes.data) setBeacons(beaconsRes.data as unknown as Beacon[])
+    if (projectsRes.data) setProjects(projectsRes.data as unknown as Project[])
     setLoading(false)
   }, [dbClient])
 

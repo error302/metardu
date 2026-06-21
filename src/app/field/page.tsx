@@ -79,7 +79,7 @@ export default function FieldPage() {
       .select('id, name, survey_type')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-    if (data) setProjects(data)
+    if (data) setProjects(data as unknown as any[])
   }, [dbClient])
 
   const fetchProjectPoints = useCallback(async (projectId: string) => {
@@ -89,21 +89,21 @@ export default function FieldPage() {
       .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
-    if (data) setPoints(data)
+    if (data) setPoints(data as unknown as any[])
   }, [dbClient])
 
   // Auth check
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await dbClient.auth.getSession()
-      const user = session?.user
+      const user = (session as Record<string, unknown>)?.user
       if (!user) {
         window.location.replace('/login?next=%2Ffield')
         return
       }
       setUser(user)
       setLoading(false)
-      fetchProjects(user.id)
+      fetchProjects((user as Record<string, unknown>).id as string)
       fetchProjectPoints(selectedProject)
     }
     checkAuth()
@@ -117,7 +117,7 @@ export default function FieldPage() {
         setUser(null)
         window.location.replace('/login?next=%2Ffield')
       } else {
-        setUser(session.user)
+        setUser((session as Record<string, unknown>).user)
       }
     })
     return () => subscription.unsubscribe()

@@ -244,7 +244,8 @@ export default function DigitalFieldBookPage() {
     ;(async () => {
       try {
         const session = await dbClient.auth.getSession()
-        if (!session.data.session?.user) return
+        const sessUser = (session.data.session as Record<string, unknown> | null)?.user
+        if (!sessUser) return
         const { data, error } = await dbClient.from('projects').select('id, name').order('created_at', { ascending: false })
         if (!error && data && isMounted) setProjects(data as { id: string; name: string }[])
       } catch {}
@@ -273,7 +274,7 @@ export default function DigitalFieldBookPage() {
         if (!error && data && isMounted) {
           setSavedFieldbooks((prev) => {
             const byId = new Map(prev.map((x) => [x.id, x]))
-            for (const row of data as SavedFieldbook[]) byId.set(row.id, row)
+            for (const row of data as unknown as SavedFieldbook[]) byId.set(row.id, row)
             return Array.from(byId.values()).sort((a, b) => String(b.updated_at ?? b.created_at ?? '').localeCompare(String(a.updated_at ?? a.created_at ?? '')))
           })
         }
@@ -556,7 +557,8 @@ export default function DigitalFieldBookPage() {
     const now = niceNow()
 
     const session = await dbClient.auth.getSession()
-    const userId = session.data.session?.user?.id
+    const sessData = session.data.session as Record<string, unknown> | null
+    const userId = sessData?.user ? (sessData.user as Record<string, unknown>).id : undefined
     if (!userId) {
       setSaveStatus({ kind: 'error', message: 'You must be signed in to save.' })
       return

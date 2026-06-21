@@ -38,7 +38,7 @@ class DatabaseOptimizer {
   }
 
   // Bulk insert with batching
-  async bulkInsert<T>(
+  async bulkInsert<T extends Record<string, unknown>>(
     table: string,
     records: T[],
     batchSize = 100

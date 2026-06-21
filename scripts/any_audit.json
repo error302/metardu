@@ -1,5 +1,5 @@
 {
-  "total": 1745,
+  "total": 1688,
   "files": [
     {
       "path": "lib/api-client/client.ts",
@@ -10,16 +10,6 @@
       "path": "app/api/db/route.ts",
       "any_count": 29,
       "lines": 245
-    },
-    {
-      "path": "app/tools/hydrographic/page.tsx",
-      "any_count": 29,
-      "lines": 689
-    },
-    {
-      "path": "components/TraverseModal.tsx",
-      "any_count": 28,
-      "lines": 1308
     },
     {
       "path": "lib/country/standards.ts",

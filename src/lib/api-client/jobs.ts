@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 
 export interface MetarduJob {
   id: string
@@ -32,7 +32,7 @@ export type CreateJobInput = Omit<MetarduJob, 'id' | 'created_at' | 'updated_at'
 export async function getUserJobs(): Promise<MetarduJob[]> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) return []
 
   const { data, error } = await dbClient
@@ -42,13 +42,13 @@ export async function getUserJobs(): Promise<MetarduJob[]> {
     .order('scheduled_date', { ascending: true })
 
   if (error) throw error
-  return data || []
+  return (data ?? null) as unknown as MetarduJob[]
 }
 
 export async function createJob(job: CreateJobInput): Promise<MetarduJob> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await dbClient
@@ -58,7 +58,7 @@ export async function createJob(job: CreateJobInput): Promise<MetarduJob> {
     .single()
 
   if (error) throw error
-  return data
+  return data as unknown as MetarduJob
 }
 
 export async function getJob(id: string): Promise<MetarduJob | null> {
@@ -70,7 +70,7 @@ export async function getJob(id: string): Promise<MetarduJob | null> {
     .single()
 
   if (error) throw error
-  return data || null
+  return (data ?? null) as unknown as MetarduJob | null
 }
 
 export async function updateJob(id: string, updates: Partial<MetarduJob>): Promise<MetarduJob> {
@@ -83,7 +83,7 @@ export async function updateJob(id: string, updates: Partial<MetarduJob>): Promi
     .single()
 
   if (error) throw error
-  return data
+  return data as unknown as MetarduJob
 }
 
 export async function deleteJob(id: string): Promise<void> {
@@ -105,7 +105,7 @@ export async function getEquipmentByType(survey_type: string): Promise<string[]>
     .single()
 
   if (error || !data) return []
-  return data.equipment || []
+  return (data.equipment as string[] | undefined) || []
 }
 
 export async function getChecklistByType(survey_type: string): Promise<string[]> {
@@ -117,5 +117,5 @@ export async function getChecklistByType(survey_type: string): Promise<string[]>
     .single()
 
   if (error || !data) return []
-  return data.tasks || []
+  return (data.tasks as string[] | undefined) || []
 }

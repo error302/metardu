@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/api-client/client';
+import { createClient, type BrowserSession } from '@/lib/api-client/client';
 import { coordinateArea } from '@/lib/engine/area';
 import { distanceBearing } from '@/lib/engine/distance';
 
@@ -122,7 +122,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
     setSaving(true);
     try {
       const { data: { session } } = await dbClient.auth.getSession();
-      const user = session?.user;
+      const user = (session as BrowserSession | null)?.user;
 
       const { data, error } = await dbClient.from('parcels').insert({
         project_id: projectId,

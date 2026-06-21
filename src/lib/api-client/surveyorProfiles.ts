@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import type { SurveyorDocumentProfile } from '@/types/submission'
 
 interface SurveyorProfileRow {
@@ -68,7 +68,7 @@ export function detailsRecordToSurveyorProfile(
 export async function getOwnSurveyorDocumentProfile(): Promise<SurveyorDocumentProfile> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
 
   if (!user) {
     throw new Error('Not authenticated')
@@ -84,13 +84,13 @@ export async function getOwnSurveyorDocumentProfile(): Promise<SurveyorDocumentP
     throw error
   }
 
-  return normalizeDocumentProfile(user.id, user.email, (data as SurveyorProfileRow | null) ?? null)
+  return normalizeDocumentProfile(user.id as string, user.email, (data as unknown as SurveyorProfileRow | null) ?? null)
 }
 
 export async function saveOwnSurveyorDocumentProfile(profile: SurveyorDocumentProfile): Promise<SurveyorDocumentProfile> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
 
   if (!user) {
     throw new Error('Not authenticated')
@@ -119,5 +119,5 @@ export async function saveOwnSurveyorDocumentProfile(profile: SurveyorDocumentPr
     throw error
   }
 
-  return normalizeDocumentProfile(user.id, user.email, data as SurveyorProfileRow)
+  return normalizeDocumentProfile(user.id as string, user.email, data as unknown as SurveyorProfileRow)
 }

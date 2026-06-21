@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import {
   JobSchedule, JobScheduleWithAlerts, SchedulePriority, ScheduleStatus,
   getSchedules, createSchedule, updateSchedule, deleteSchedule,
@@ -301,8 +301,9 @@ export default function SchedulePage() {
   // Get user on mount
   useEffect(() => {
     createClient().auth.getSession().then(({ data }) => {
-      if (data?.session?.user?.id) {
-        setUserId(data.session.user.id)
+      const session = data?.session as BrowserSession | null | undefined
+      if (session?.user?.id) {
+        setUserId(session.user.id)
       }
       setAuthLoading(false)
     }).catch(() => setAuthLoading(false))

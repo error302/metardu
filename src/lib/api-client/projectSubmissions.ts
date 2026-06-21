@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import type { ProjectSubmissionRecord, SubmissionPackageStatus } from '@/types/submission'
 
 interface ProjectSubmissionRow {
@@ -42,7 +42,7 @@ function mapSubmissionRow(row: ProjectSubmissionRow): ProjectSubmissionRecord {
 export async function getOrCreateProjectSubmission(projectId: string): Promise<ProjectSubmissionRecord> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
 
   if (!user) {
     throw new Error('Not authenticated')
@@ -62,7 +62,7 @@ export async function getOrCreateProjectSubmission(projectId: string): Promise<P
   }
 
   if (existing) {
-    return mapSubmissionRow(existing as ProjectSubmissionRow)
+    return mapSubmissionRow(existing as unknown as ProjectSubmissionRow)
   }
 
   const { data, error } = await dbClient
@@ -86,7 +86,7 @@ export async function getOrCreateProjectSubmission(projectId: string): Promise<P
     throw error
   }
 
-  return mapSubmissionRow(data as ProjectSubmissionRow)
+  return mapSubmissionRow(data as unknown as ProjectSubmissionRow)
 }
 
 export async function updateProjectSubmission(
@@ -105,7 +105,7 @@ export async function updateProjectSubmission(
 ): Promise<ProjectSubmissionRecord> {
   const dbClient = createClient()
   const { data: { session } } = await dbClient.auth.getSession()
-  const user = session?.user ?? null
+  const user = (session as BrowserSession | null)?.user ?? null
 
   if (!user) {
     throw new Error('Not authenticated')
@@ -139,5 +139,5 @@ export async function updateProjectSubmission(
     throw error
   }
 
-  return mapSubmissionRow(data as ProjectSubmissionRow)
+  return mapSubmissionRow(data as unknown as ProjectSubmissionRow)
 }

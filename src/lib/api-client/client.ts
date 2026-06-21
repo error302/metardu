@@ -1,6 +1,9 @@
 /**
- * Client-side database client
- * Routes data queries through /api/db proxy → VM PostgreSQL.
+ * Legacy DB proxy client (browser-side).
+ * Routes data queries through /api/db proxy → self-hosted PostgreSQL.
+ * Mimics the shape of a Supabase-style client (.from().select().eq()) but does
+ * NOT use Supabase — it posts the query to /api/db which talks to PostgreSQL.
+ *
  * @deprecated Auth methods on this client are migration artifacts from Supabase.
  * Use `useSession()` from 'next-auth/react' for client components,
  * or `getServerSession(authOptions)` for server components instead.
@@ -8,41 +11,75 @@
  * Storage methods should use /api/storage endpoint instead.
  */
 
-interface QueryResult<T = any> {
+// ponytail: Phase 6 Batch 5 — auth/storage/rpc return types moved to `unknown`
+// (deprecated stubs). FilterOp union, unknown params, typed catch applied.
+// Generic default kept as `any` for backward compat with ~30 consumer files —
+// consumer-side casts are the next wave.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface QueryResult<T = any> {
   data: T | null
   error: { message: string; code: string; details?: string } | null
   count?: number | null
 }
 
+// ponytail: minimal session shape returned by the deprecated auth.getSession() /
+// auth.getUser() stubs. Exported so consumers can narrow the `unknown` return
+// via `session as BrowserSession | null`. Real session access should go
+// through `useSession()` (client) / `getServerSession()` (server).
+export interface BrowserSession {
+  user?: {
+    id?: string
+    email?: string
+    name?: string
+    user_metadata?: { full_name?: string }
+  }
+}
+
+// ponytail: minimal channel surface returned by the deprecated channel() stub.
+// Realtime is handled by @/lib/realtime; this exists only for legacy callers.
+interface LegacyRealtimeChannel {
+  on(...args: unknown[]): this
+  subscribe(): this
+  track(): Promise<void>
+  untrack(): Promise<void>
+  presenceState(): Record<string, unknown>
+}
+
+// ponytail: auth methods are deprecated migration artifacts; return types use
+// `unknown` because consumers should not depend on their shape (use
+// `useSession()` / `getServerSession()` instead).
 export interface BrowserClient {
   from(table: string): ClientQueryBuilder
   auth: {
-    getUser(): Promise<{ data: { user: { id: any; email: any; user_metadata: { full_name: any } } | null }; error: any }>
-    getSession(): Promise<{ data: { session: any | null }; error: any }>
-    signUp(params: any): Promise<{ data: { user: any | null }; error: any }>
+    getUser(): Promise<{ data: { user: { id: unknown; email: unknown; user_metadata: { full_name: unknown } } | null }; error: unknown }>
+    getSession(): Promise<{ data: { session: BrowserSession | null }; error: unknown }>
+    signUp(params: unknown): Promise<{ data: { user: unknown | null }; error: unknown }>
     signOut(): Promise<void>
-    updateUser(params: any): Promise<{ data: { user: any | null }; error: any }>
-    exchangeCodeForSession(code: string): Promise<{ data: { session: any | null }; error: any }>
-    onAuthStateChange(callback: (event: string, session: any) => void): { data: { subscription: { unsubscribe(): void } } }
+    updateUser(params: unknown): Promise<{ data: { user: unknown | null }; error: unknown }>
+    exchangeCodeForSession(code: string): Promise<{ data: { session: unknown | null }; error: unknown }>
+    onAuthStateChange(callback: (event: string, session: unknown) => void): { data: { subscription: { unsubscribe(): void } } }
   }
   storage: {
     from(bucket: string): {
-      upload(path: string, file: any, opts?: any): Promise<{ data: any; error: any }>
+      upload(path: string, file: unknown, opts?: unknown): Promise<{ data: unknown; error: unknown }>
       getPublicUrl(path: string): { data: { publicUrl: string } }
-      createSignedUrl(path: string, expiresIn: number): Promise<{ data: { signedUrl: string } | null; error: any }>
-      download(path: string): Promise<{ data: any; error: any }>
-      remove(paths: string[]): Promise<{ data: any; error: any }>
+      createSignedUrl(path: string, expiresIn: number): Promise<{ data: { signedUrl: string } | null; error: unknown }>
+      download(path: string): Promise<{ data: unknown; error: unknown }>
+      remove(paths: string[]): Promise<{ data: unknown; error: unknown }>
     }
   }
-  rpc(fn: string, args?: any): Promise<{ data: any; error: any }>
-  channel(name: string): any
-  removeChannel(channel: any): Promise<void>
+  rpc(fn: string, args?: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>
+  channel(name: string): LegacyRealtimeChannel
+  removeChannel(channel: unknown): Promise<void>
 }
 
 
-type FilterEntry = { column: string; op: string; value: any }
+// ponytail: explicit FilterOp union — was string + `as any` casts.
+type FilterOp = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'ilike' | 'in' | 'is' | 'not' | 'contains'
+type FilterEntry = { column: string; op: FilterOp; value: unknown }
 type OrderEntry = { column: string; ascending: boolean }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 class ClientQueryBuilder<T = any> {
   private table: string
   private operation: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select'
@@ -56,7 +93,9 @@ class ClientQueryBuilder<T = any> {
   private maybeSingleRow: boolean = false
   private countMode: boolean = false
   private headMode: boolean = false
-  private payload: any = null
+  // ponytail: payload shapes are Record<string, unknown> (or array thereof for
+  // bulk insert/upsert) — builder doesn't need to know column types
+  private payload: Record<string, unknown> | Record<string, unknown>[] | null = null
 
   constructor(table: string) {
     this.table = table
@@ -70,24 +109,24 @@ class ClientQueryBuilder<T = any> {
     return this
   }
 
-  insert(data: any): this { this.operation = 'insert'; this.payload = data; return this }
-  update(data: any): this { this.operation = 'update'; this.payload = data; return this }
-  upsert(data: any, _options?: any): this { this.operation = 'upsert'; this.payload = data; return this }
+  insert(data: Record<string, unknown> | Record<string, unknown>[]): this { this.operation = 'insert'; this.payload = data; return this }
+  update(data: Record<string, unknown>): this { this.operation = 'update'; this.payload = data; return this }
+  upsert(data: Record<string, unknown> | Record<string, unknown>[], _options?: unknown): this { this.operation = 'upsert'; this.payload = data; return this }
   delete(): this { this.operation = 'delete'; return this }
 
-  eq(column: string, value: any): this { this.filters.push({ column, op: 'eq', value }); return this }
-  neq(column: string, value: any): this { this.filters.push({ column, op: 'neq', value }); return this }
-  gt(column: string, value: any): this { this.filters.push({ column, op: 'gt', value }); return this }
-  gte(column: string, value: any): this { this.filters.push({ column, op: 'gte', value }); return this }
-  lt(column: string, value: any): this { this.filters.push({ column, op: 'lt', value }); return this }
-  lte(column: string, value: any): this { this.filters.push({ column, op: 'lte', value }); return this }
+  eq(column: string, value: unknown): this { this.filters.push({ column, op: 'eq', value }); return this }
+  neq(column: string, value: unknown): this { this.filters.push({ column, op: 'neq', value }); return this }
+  gt(column: string, value: unknown): this { this.filters.push({ column, op: 'gt', value }); return this }
+  gte(column: string, value: unknown): this { this.filters.push({ column, op: 'gte', value }); return this }
+  lt(column: string, value: unknown): this { this.filters.push({ column, op: 'lt', value }); return this }
+  lte(column: string, value: unknown): this { this.filters.push({ column, op: 'lte', value }); return this }
   like(column: string, pattern: string): this { this.filters.push({ column, op: 'like', value: pattern }); return this }
   ilike(column: string, pattern: string): this { this.filters.push({ column, op: 'ilike', value: pattern }); return this }
-  in(column: string, values: any[]): this { this.filters.push({ column, op: 'in', value: values }); return this }
-  is(column: string, value: any): this { this.filters.push({ column, op: 'is', value }); return this }
-  not(column: string, op: string, value: any): this { this.filters.push({ column, op: `not_${op}`, value }); return this }
+  in(column: string, values: unknown[]): this { this.filters.push({ column, op: 'in', value: values }); return this }
+  is(column: string, value: unknown): this { this.filters.push({ column, op: 'is', value }); return this }
+  not(column: string, op: string, value: unknown): this { this.filters.push({ column, op: `not_${op}` as FilterOp, value }); return this }
   or(filter: string): this { this.orFilterStr.push(filter); return this }
-  contains(column: string, value: any): this { this.filters.push({ column, op: 'contains', value }); return this }
+  contains(column: string, value: unknown): this { this.filters.push({ column, op: 'contains', value }); return this }
 
   order(column: string, options?: { ascending?: boolean }): this {
     this.orderClauses.push({ column, ascending: options?.ascending ?? true })
@@ -102,19 +141,22 @@ class ClientQueryBuilder<T = any> {
     return this
   }
 
+  // ponytail: single()/maybeSingle() return `this` so chaining works, but also
+  // need to be thenable. The `as unknown as` cast is the minimum needed —
+  // the builder is thenable via the `then` method below.
   single(): PromiseLike<QueryResult<T>> & this {
     this.singleRow = true
-    return this as any
+    return this as unknown as PromiseLike<QueryResult<T>> & this
   }
 
   maybeSingle(): PromiseLike<QueryResult<T | null>> & this {
     this.maybeSingleRow = true
-    return this as any
+    return this as unknown as PromiseLike<QueryResult<T | null>> & this
   }
 
   then<TResult1 = QueryResult<T>, TResult2 = never>(
     resolve?: ((value: QueryResult<T>) => TResult1 | PromiseLike<TResult1>) | null,
-    reject?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+    reject?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
   ): Promise<TResult1 | TResult2> {
     return this.execute().then(resolve, reject)
   }
@@ -146,9 +188,11 @@ class ClientQueryBuilder<T = any> {
         return { data: null, error: { message: err.error || 'Query failed', code: String(res.status) } }
       }
 
-      return await res.json()
-    } catch (err: any) {
-      return { data: null, error: { message: err.message || 'Network error', code: 'FETCH_ERROR' } }
+      return await res.json() as QueryResult<T>
+    } catch (err: unknown) {
+      // ponytail: was `catch (err: any)` — now properly narrowed
+      const fetchErr = err as { message?: string }
+      return { data: null, error: { message: fetchErr.message || 'Network error', code: 'FETCH_ERROR' } }
     }
   }
 }
@@ -203,7 +247,7 @@ export function createClient(): BrowserClient {
           return { data: { session: null }, error: { message: 'Session fetch failed' } }
         }
       },
-      async signUp(_params: any) {
+      async signUp(_params: unknown) {
         return { data: { user: null }, error: { message: 'Use /api/auth/register instead' } }
       },
       async signOut() {
@@ -211,7 +255,7 @@ export function createClient(): BrowserClient {
           await fetch('/api/auth/signout', { method: 'POST' })
         } catch {}
       },
-      async updateUser(_params: any) {
+      async updateUser(_params: unknown) {
         const params = _params as { password?: string } | undefined
         if (!params?.password) {
           return { data: { user: null }, error: { message: 'Only password updates are supported.' } }
@@ -234,7 +278,7 @@ export function createClient(): BrowserClient {
       async exchangeCodeForSession(_code: string) {
         return { data: { session: null }, error: null }
       },
-      onAuthStateChange(callback: (event: string, session: any) => void) {
+      onAuthStateChange(callback: (event: string, session: unknown) => void) {
         let lastSession: string | null = null
         const interval = setInterval(async () => {
           try {
@@ -259,14 +303,14 @@ export function createClient(): BrowserClient {
     },
     channel(_name: string) {
       return {
-        on(..._args: any[]) { return this },
+        on(..._args: unknown[]) { return this },
         subscribe() { return this },
         track() { return Promise.resolve() },
         untrack() { return Promise.resolve() },
         presenceState() { return {} },
       }
     },
-    async removeChannel(_channel: any) {},
+    async removeChannel(_channel: unknown) {},
     // Storage stubs — use /api/storage endpoint (GCS-backed) instead
     storage: {
       from(_bucket: string) {
@@ -279,7 +323,7 @@ export function createClient(): BrowserClient {
         }
       }
     },
-    rpc: async (fn: string, _args?: any) => {
+    rpc: async (fn: string, _args?: Record<string, unknown>) => {
       console.warn(`[db/client] rpc(${fn}) called but not implemented.`)
       return { data: null, error: { message: 'RPC not implemented' } }
     }
@@ -291,7 +335,7 @@ export async function testConnection() {
     const client = createClient()
     const { data, error } = await client.from('projects').select('id').limit(1)
     return { data, error }
-  } catch (err: any) {
+  } catch (err: unknown) {
     return { data: null, error: err }
   }
 }

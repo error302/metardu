@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react'
-import { createClient } from '@/lib/api-client/client'
+import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import Link from 'next/link'
 
 export default function SubmitBeaconPage() {
@@ -29,7 +29,7 @@ export default function SubmitBeaconPage() {
 
     try {
       const { data: { session } } = await dbClient.auth.getSession()
-      const user = session?.user
+      const user = (session as BrowserSession | null)?.user
       
       const { error: insertError } = await dbClient.from('public_beacons').insert({
         name: form.name,
