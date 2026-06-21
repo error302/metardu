@@ -48,8 +48,8 @@ export default function SubmitBeaconPage() {
       if (insertError) throw insertError
 
       setSuccess(true)
-    } catch (err: any) {
-      setError(err.message || 'Failed to submit beacon')
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to submit beacon')
     }
 
     setLoading(false)

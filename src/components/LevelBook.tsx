@@ -60,8 +60,8 @@ export default function LevelBook({ projectId }: LevelBookProps) {
       })
       setResult(res)
       setActiveTab('compute')
-    } catch (err: any) {
-      setError(err.message || 'Computation failed')
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Computation failed')
     }
   }
 

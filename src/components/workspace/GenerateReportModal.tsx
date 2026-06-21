@@ -90,8 +90,8 @@ export default function GenerateReportModal({ isOpen, onClose, surveyType, proje
       } else {
         setResult(JSON.stringify(finalContent, null, 2));
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to generate the report. Please try again.');
+    } catch (err: unknown) {
+      setError(((err as Error)?.message) || 'Failed to generate the report. Please try again.');
     } finally {
       setLoading(false);
     }

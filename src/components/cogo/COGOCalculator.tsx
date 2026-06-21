@@ -147,7 +147,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         e2: parseFloat(invE2), n2: parseFloat(invN2),
         label1: invL1, label2: invL2,
       }))
-    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
+    } catch (e: unknown) { setError((e instanceof Error ? (e as Error).message : String(e))) }
   }
 
   const handlePolar = () => {
@@ -160,7 +160,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         bearingDeg: b.deg, bearingMin: b.min, bearingSec: b.sec,
         distance: parseFloat(polD),
       }))
-    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
+    } catch (e: unknown) { setError((e instanceof Error ? (e as Error).message : String(e))) }
   }
 
   const handleIntersection = () => {
@@ -174,7 +174,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         bearingDeg1: b1.deg, bearingMin1: b1.min, bearingSec1: b1.sec,
         bearingDeg2: b2.deg, bearingMin2: b2.min, bearingSec2: b2.sec,
       }))
-    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
+    } catch (e: unknown) { setError((e instanceof Error ? (e as Error).message : String(e))) }
   }
 
   const handleResection = () => {
@@ -189,7 +189,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         alphaDeg: a.deg, alphaMin: a.min, alphaSec: a.sec,
         betaDeg: b.deg, betaMin: b.min, betaSec: b.sec,
       }))
-    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
+    } catch (e: unknown) { setError((e instanceof Error ? (e as Error).message : String(e))) }
   }
 
   const handleArea = () => {
@@ -203,7 +203,7 @@ export default function COGOCalculator({ compact = false }: Props) {
     if (points.length < 3) { setError('At least 3 points required'); return }
     try {
       setAreaResult(areaComputation({ points }))
-    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
+    } catch (e: unknown) { setError((e instanceof Error ? (e as Error).message : String(e))) }
   }
 
   const handleJoin = () => {
@@ -217,7 +217,7 @@ export default function COGOCalculator({ compact = false }: Props) {
     if (points.length < 2) { setError('At least 2 points required'); return }
     try {
       setJoinResult(joinComputation({ points }))
-    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
+    } catch (e: unknown) { setError((e instanceof Error ? (e as Error).message : String(e))) }
   }
 
   const handleDistDist = () => {
@@ -229,7 +229,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         e2: parseFloat(ddE2), n2: parseFloat(ddN2),
         distance1: parseFloat(ddD1), distance2: parseFloat(ddD2),
       }))
-    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
+    } catch (e: unknown) { setError((e instanceof Error ? (e as Error).message : String(e))) }
   }
 
   const handleBearingDist = () => {
@@ -243,7 +243,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         bearingDeg: b.deg, bearingMin: b.min, bearingSec: b.sec,
         distance: parseFloat(bdDist),
       }))
-    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
+    } catch (e: unknown) { setError((e instanceof Error ? (e as Error).message : String(e))) }
   }
 
   const handleArcBoundary = () => {
@@ -256,7 +256,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         radius: parseFloat(arcR),
         isClockwise: arcCW,
       }))
-    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
+    } catch (e: unknown) { setError((e instanceof Error ? (e as Error).message : String(e))) }
   }
 
   const clearAll = () => {

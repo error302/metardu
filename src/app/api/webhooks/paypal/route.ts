@@ -288,8 +288,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ received: true })
-  } catch (error: any) {
-    console.error('[PayPal Webhook] Error:', error.message)
+  } catch (error: unknown) {
+    console.error('[PayPal Webhook] Error:', (error as Error).message)
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
   }
 }

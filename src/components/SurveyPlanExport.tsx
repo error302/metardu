@@ -109,9 +109,9 @@ export default function SurveyPlanExport({ data, options, projectId, plan = 'fre
       const date = new Date().toISOString().slice(0, 10)
       const filename = `${data.project.name.replace(/\s+/g, '_')}_Signed_Plan_${date}.pdf`
       pdf.save(filename)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Signing error:', err)
-      alert(err.message || 'Failed to sign and export PDF. Please try again.')
+      alert((err as Error).message || 'Failed to sign and export PDF. Please try again.')
     } finally {
       setSigning(false)
     }

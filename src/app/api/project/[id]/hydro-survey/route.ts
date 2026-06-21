@@ -37,9 +37,9 @@ export async function POST(
     )
 
     return NextResponse.json({ ok: true })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[API/hydro-survey] POST error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }
 
@@ -57,8 +57,8 @@ export async function GET(
     )
 
     return NextResponse.json({ data: res.rows[0] ?? null })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[API/hydro-survey] GET error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }

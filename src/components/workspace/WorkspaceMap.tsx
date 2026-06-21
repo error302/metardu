@@ -38,7 +38,7 @@ class MapEB extends Component<{ children: React.ReactNode }, { err: Error | null
             </svg>
           </div>
           <p className="text-sm text-red-400 mb-1">Map failed to load</p>
-          <p className="text-[11px] text-gray-500">{this.state.err.message}</p>
+          <p className="text-[11px] text-gray-500">{(this.state.err as Error)?.message}</p>
           <button onClick={() => this.setState({ err: null })}
             className="mt-3 px-4 py-1.5 text-xs bg-[#E8841A] hover:bg-[#E8841A]/80 text-white rounded transition-colors">
             Retry
@@ -301,7 +301,7 @@ export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMap
         ;(map as any)._wsMeta = { projectName };
 
         if (!cancelled) setReady(true);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[WorkspaceMap] init failed:', err);
       }
     }

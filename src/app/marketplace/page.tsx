@@ -347,8 +347,8 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
     setSubmitting(true)
     try {
       onSave(postListing({ ...form, price: Number(form.price), verified }))
-    } catch (e: any) {
-      setErr(e.message || 'Failed to save. Try removing some photos.')
+    } catch (e: unknown) {
+      setErr((e as Error).message || 'Failed to save. Try removing some photos.')
       setSubmitting(false)
     }
   }

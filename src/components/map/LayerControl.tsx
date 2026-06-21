@@ -247,8 +247,8 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
       setTileLayerVisibility((prev) => ({ ...prev, [id]: true }));
       setCustomUrl('');
       setCustomLabel('');
-    } catch (err: any) {
-      setCustomError(err?.message || 'Failed to add layer');
+    } catch (err: unknown) {
+      setCustomError(((err as Error)?.message) || 'Failed to add layer');
     } finally {
       setIsAdding(false);
     }
@@ -273,8 +273,8 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
       setWmsUrl('');
       setWmsLayerName('');
       setWmsLabel('');
-    } catch (err: any) {
-      setWmsError(err?.message || 'Failed to add WMS layer');
+    } catch (err: unknown) {
+      setWmsError(((err as Error)?.message) || 'Failed to add WMS layer');
     } finally {
       setIsAddingWms(false);
     }

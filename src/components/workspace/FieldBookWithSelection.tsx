@@ -153,7 +153,7 @@ export default function FieldBookWithSelection({
       } catch (err: unknown) {
         if (!cancelled) {
           const msg =
-            err instanceof Error ? err.message : 'Unknown error';
+            err instanceof Error ? (err as Error).message : 'Unknown error';
           setError(msg);
           addLog({
             phase: 'input',

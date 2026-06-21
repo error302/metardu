@@ -71,7 +71,7 @@ function PostModal({ onSave, onClose }: { onSave: (r: ReviewRequest) => void; on
         setErr(data.error || 'Failed to start payment')
       }
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'Failed to post request')
+      setErr(e instanceof Error ? (e as Error).message : 'Failed to post request')
     }
   }
 
@@ -169,7 +169,7 @@ function ReviewDetail({ request, onClose, onRefresh }: {
       setSent(true)
       onRefresh()
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'Failed to post review')
+      setErr(e instanceof Error ? (e as Error).message : 'Failed to post review')
     }
   }
 

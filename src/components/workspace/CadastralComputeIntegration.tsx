@@ -74,8 +74,8 @@ export default function CadastralComputeIntegration({ projectId }: { projectId: 
           setError(compErr.message || 'Failed to compute traverse from field book data. Ensure distances and bearings are entered correctly.');
         }
 
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError((err as Error).message);
       } finally {
         setLoading(false);
       }

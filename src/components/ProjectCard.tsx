@@ -203,8 +203,8 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
         // router.refresh() alone is unreliable for Server Component data
         window.location.href = window.location.pathname
       }
-    } catch (err: any) {
-      setDeleteError(err.message || 'Failed to delete project — check your connection and try again')
+    } catch (err: unknown) {
+      setDeleteError((err as Error).message || 'Failed to delete project — check your connection and try again')
       setIsDeleting(false)
     }
   }, [project.id])

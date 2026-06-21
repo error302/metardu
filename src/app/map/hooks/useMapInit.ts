@@ -465,7 +465,7 @@ export function useMapInit(params: UseMapInitParams) {
         if (!cancelled) setMapReady(true)
       } catch (err: unknown) {
         console.error('Map initialization failed:', err)
-        if (!cancelled) setInitError(err instanceof Error ? err.message : 'Map failed to load')
+        if (!cancelled) setInitError(err instanceof Error ? (err as Error).message : 'Map failed to load')
       }
     }
 

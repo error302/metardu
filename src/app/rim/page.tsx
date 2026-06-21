@@ -404,7 +404,7 @@ export default function RimEditorPage() {
         const data = await apiGet('/api/projects', projectsListSchema, { ttlMs: 30_000 })
         setProjects(data.data || []);
       } catch (err) {
-        showToast(err instanceof ApiError ? err.message : 'Failed to load projects', 'error');
+        showToast(err instanceof ApiError ? (err as Error).message : 'Failed to load projects', 'error');
       } finally {
         setProjectsLoading(false);
       }
@@ -422,7 +422,7 @@ export default function RimEditorPage() {
       const data = await apiGet(`/api/rim?projectId=${projectId}`, rimListSchema, { ttlMs: 0 })
       setSections(data.data || []);
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to load RIM sections', 'error');
+      showToast(err instanceof ApiError ? (err as Error).message : 'Failed to load RIM sections', 'error');
     } finally {
       setSectionsLoading(false);
     }
@@ -439,7 +439,7 @@ export default function RimEditorPage() {
       const data = await apiGet('/api/rim-templates', rimTemplatesListSchema, { ttlMs: 300_000 })
       setTemplates(data.data || []);
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to load templates', 'error');
+      showToast(err instanceof ApiError ? (err as Error).message : 'Failed to load templates', 'error');
     } finally {
       setTemplatesLoading(false);
     }
@@ -479,8 +479,8 @@ export default function RimEditorPage() {
       showToast('RIM section created', 'success');
       await loadSections(selectedProjectId);
       handleSelectSection(newSection);
-    } catch (err: any) {
-      showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to create section'), 'error');
+    } catch (err: unknown) {
+      showToast(err instanceof ApiError ? (err as Error).message : ((err as Error).message || 'Failed to create section'), 'error');
     }
   };
 
@@ -564,8 +564,8 @@ export default function RimEditorPage() {
       showToast('RIM section created from template', 'success');
       await loadSections(selectedProjectId);
       handleSelectSection(newSection);
-    } catch (err: any) {
-      showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to create from template'), 'error');
+    } catch (err: unknown) {
+      showToast(err instanceof ApiError ? (err as Error).message : ((err as Error).message || 'Failed to create from template'), 'error');
     }
   };
 
@@ -630,8 +630,8 @@ export default function RimEditorPage() {
       setActiveSection(result.data);
       showToast('Section updated', 'success');
       await loadSections(selectedProjectId);
-    } catch (err: any) {
-      showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to update section'), 'error');
+    } catch (err: unknown) {
+      showToast(err instanceof ApiError ? (err as Error).message : ((err as Error).message || 'Failed to update section'), 'error');
     } finally {
       setSectionSaving(false);
     }
@@ -656,8 +656,8 @@ export default function RimEditorPage() {
             setBeacons([]);
           }
           await loadSections(selectedProjectId);
-        } catch (err: any) {
-          showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to delete section'), 'error');
+        } catch (err: unknown) {
+          showToast(err instanceof ApiError ? (err as Error).message : ((err as Error).message || 'Failed to delete section'), 'error');
         }
       },
     });
@@ -691,8 +691,8 @@ export default function RimEditorPage() {
       setShowAddParcel(false);
       showToast('Parcel added', 'success');
       await loadSections(selectedProjectId);
-    } catch (err: any) {
-      showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to add parcel'), 'error');
+    } catch (err: unknown) {
+      showToast(err instanceof ApiError ? (err as Error).message : ((err as Error).message || 'Failed to add parcel'), 'error');
     }
   };
 
@@ -732,8 +732,8 @@ export default function RimEditorPage() {
       setShowAddBeacon(false);
       showToast('Beacon added', 'success');
       await loadSections(selectedProjectId);
-    } catch (err: any) {
-      showToast(err instanceof ApiError ? err.message : (err.message || 'Failed to add beacon'), 'error');
+    } catch (err: unknown) {
+      showToast(err instanceof ApiError ? (err as Error).message : ((err as Error).message || 'Failed to add beacon'), 'error');
     }
   };
 
@@ -767,8 +767,8 @@ export default function RimEditorPage() {
       a.remove();
       URL.revokeObjectURL(url);
       showToast('PDF generated and downloaded', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Failed to generate PDF', 'error');
+    } catch (err: unknown) {
+      showToast((err as Error).message || 'Failed to generate PDF', 'error');
     } finally {
       setPdfGenerating(false);
     }

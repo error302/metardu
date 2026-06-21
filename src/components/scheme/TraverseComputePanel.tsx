@@ -181,8 +181,8 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Computation failed')
       setResult(json.data)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError((err as Error).message)
     } finally {
       setLoading(false)
     }

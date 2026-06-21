@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 })
     }
     event = JSON.parse(payload)
-  } catch (err: any) {
-    console.error('Stripe webhook verification failed:', err.message)
+  } catch (err: unknown) {
+    console.error('Stripe webhook verification failed:', (err as Error).message)
     return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 })
   }
 

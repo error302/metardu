@@ -37,7 +37,7 @@ export default function CoordinateTransformer({ projectId }: { projectId?: strin
       if (!res.ok) throw new Error(data.error);
       setResults(data.points);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? (err as Error).message : 'Unknown error');
     } finally {
       setLoading(false);
     }

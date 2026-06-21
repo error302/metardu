@@ -27,7 +27,7 @@ export default function VerticalCurveCalculator() {
     try {
       setResult(verticalCurve(input))
     } catch (e: unknown) {
-      alert((e instanceof Error ? e.message : String(e)))
+      alert((e instanceof Error ? (e as Error).message : String(e)))
     }
   }
 

@@ -255,7 +255,7 @@ export default function DrawingExportToolbar({
     setLoading('dxf')
     try {
       await exportDXF(projectName, points, legs)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('DXF export failed:', err)
     } finally {
       setLoading(null)
@@ -266,7 +266,7 @@ export default function DrawingExportToolbar({
     setLoading('geojson')
     try {
       exportGeoJSON(projectName, points, utmZone, hemisphere)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('GeoJSON export failed:', err)
     } finally {
       setLoading(null)
@@ -277,7 +277,7 @@ export default function DrawingExportToolbar({
     setLoading('pdf')
     try {
       await exportPDF(projectName, points)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('PDF export failed:', err)
     } finally {
       setLoading(null)
@@ -290,7 +290,7 @@ export default function DrawingExportToolbar({
       await copyCoordinates(points)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Copy failed:', err)
     } finally {
       setLoading(null)

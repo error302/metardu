@@ -133,8 +133,8 @@ export function adjustLevelNetwork(
   let x: number[]
   try {
     x = solveLinearSystem(N, t)
-  } catch (err: any) {
-    throw new Error('Failed to solve normal equations: ' + (err.message || err))
+  } catch (err: unknown) {
+    throw new Error('Failed to solve normal equations: ' + ((err as Error).message || err))
   }
 
   // ── Update heights ────────────────────────────────────────────

@@ -94,8 +94,8 @@ function CheckoutContent() {
       }
 
       setError('Unexpected payment response.')
-    } catch (e: any) {
-      setError(e?.message ?? 'Payment failed.')
+    } catch (e: unknown) {
+      setError(((e as Error)?.message) ?? 'Payment failed.')
     } finally {
       setProcessing(false)
     }
@@ -322,8 +322,8 @@ function CheckoutContent() {
                   }
                   if (r.status === 'failed') setError('Payment failed. Please try again.')
                   if (r.status === 'pending') setError('Still pending. If you have paid, wait a moment then try again.')
-                } catch (e: any) {
-                  setError(e?.message ?? 'Failed to verify payment.')
+                } catch (e: unknown) {
+                  setError(((e as Error)?.message) ?? 'Failed to verify payment.')
                 } finally {
                   setProcessing(false)
                 }

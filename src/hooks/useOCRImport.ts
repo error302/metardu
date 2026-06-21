@@ -123,11 +123,11 @@ export function useOCRImport() {
           rows: parsed.rows,
         };
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       setState((prev) => ({
         ...prev,
         phase: 'error',
-        error: err?.message || 'OCR processing failed',
+        error: ((err as Error)?.message) || 'OCR processing failed',
       }));
     }
   }, [state.file]);

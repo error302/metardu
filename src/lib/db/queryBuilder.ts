@@ -298,7 +298,7 @@ export class QueryBuilder<T = Record<string, unknown>> {
         default: return { data: null, error: { message: `Unknown operation: ${this.operation}`, code: 'UNKNOWN_OP' } }
       }
     } catch (err: unknown) {
-      // ponytail: was `catch (err: any)` — now properly narrowed
+      // ponytail: was `catch (err: unknown)` — now properly narrowed
       const pgErr = err as { message?: string; code?: string; detail?: string }
       return {
         data: null,

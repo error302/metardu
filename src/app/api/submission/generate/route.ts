@@ -46,7 +46,7 @@ export const POST = apiHandler({ auth: true }, async (req, ctx) => {
 
     return NextResponse.json({ success: true, fileUrl: result.fileUrl })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
+    const message = err instanceof Error ? (err as Error).message : 'Unknown error'
 
     await db.query(
       `INSERT INTO submission_documents (project_id, document_id, document_type, status, error_message)

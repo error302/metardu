@@ -282,8 +282,8 @@ export function HydroPanel({ projectId, projectData }: Props) {
         } else {
           setSoundings(parsed)
         }
-      } catch (err: any) {
-        setCsvError(err.message)
+      } catch (err: unknown) {
+        setCsvError((err as Error).message)
       }
     }
     reader.readAsText(file)
@@ -305,8 +305,8 @@ export function HydroPanel({ projectId, projectData }: Props) {
         } else {
           setTideObs(parsed)
         }
-      } catch (err: any) {
-        setCsvError(err.message)
+      } catch (err: unknown) {
+        setCsvError((err as Error).message)
       }
     }
     reader.readAsText(file)
@@ -326,8 +326,8 @@ export function HydroPanel({ projectId, projectData }: Props) {
         e: s.x, n: s.y, z: s.reducedDepthM, label: s.reducedDepthM.toFixed(2)
       })))
       saveToDatabase(result, null)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError((err as Error).message)
     }
   }
 
@@ -354,8 +354,8 @@ export function HydroPanel({ projectId, projectData }: Props) {
       })
       setContours(lines)
       saveToDatabase(reduced, grid)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError((err as Error).message)
     }
   }
 
@@ -380,8 +380,8 @@ export function HydroPanel({ projectId, projectData }: Props) {
       a.download = `fair-sheet-${projectId}.dxf`
       a.click()
       URL.revokeObjectURL(url)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError((err as Error).message)
     }
   }
 
@@ -429,8 +429,8 @@ export function HydroPanel({ projectId, projectData }: Props) {
       a.download = `report-of-survey-${projectId}.txt`
       a.click()
       URL.revokeObjectURL(url)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError((err as Error).message)
     }
   }
 

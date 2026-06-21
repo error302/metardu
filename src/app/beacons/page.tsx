@@ -318,7 +318,7 @@ export default function BeaconsPage() {
       setImportBeacon(null)
       setImportProject('')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const msg = err instanceof Error ? (err as Error).message : String(err)
       setImportMsg({text:'Error: '+msg, ok:false}); setTimeout(()=>setImportMsg(null),4000)
     }
     

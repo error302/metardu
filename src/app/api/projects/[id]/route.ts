@@ -82,15 +82,15 @@ export async function DELETE(
             [id]
           )
           deletedTables.push(table)
-        } catch (err: any) {
+        } catch (err: unknown) {
           // Table might not exist — skip it gracefully
-          const msg = (err?.message || '').toLowerCase()
+          const msg = (((err as Error)?.message) || '').toLowerCase()
           if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('not exist')) {
             skippedTables.push(table)
           } else {
             // Log but continue — don't abort the entire transaction for one table
-            console.warn(`[DELETE /api/projects/${id}] Failed to delete from ${table}:`, err.message)
-            errors.push(`${table}: ${err.message}`)
+            console.warn(`[DELETE /api/projects/${id}] Failed to delete from ${table}:`, (err as Error).message)
+            errors.push(`${table}: ${(err as Error).message}`)
           }
         }
       }
@@ -112,11 +112,11 @@ export async function DELETE(
       skipped: skippedTables,
       ...(errors.length > 0 && { warnings: errors }),
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DELETE /api/projects] Error:', error)
     return NextResponse.json(
       {
-        error: error.message || 'Failed to delete project',
+        error: (error as Error).message || 'Failed to delete project',
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }

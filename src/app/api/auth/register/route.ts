@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       user: { id: user.id, email: user.email, name: user.full_name },
     })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
+    const message = err instanceof Error ? (err as Error).message : 'Unknown error'
     console.error('[register] Error:', message)
     return NextResponse.json(
       { error: 'Registration failed. Please try again.' },

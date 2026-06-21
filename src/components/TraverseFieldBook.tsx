@@ -191,8 +191,8 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
       })
       setResult(res)
       setActiveTab('compute')
-    } catch (err: any) {
-      setError(err.message || 'Computation failed')
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Computation failed')
     }
   }
 

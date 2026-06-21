@@ -155,8 +155,8 @@ export default function TraverseCalculator() {
         setAzmResult(null)
       }
 
-    } catch (err: any) {
-      setCalcError(err?.message || 'Calculation failed. Check your inputs.')
+    } catch (err: unknown) {
+      setCalcError(((err as Error)?.message) || 'Calculation failed. Check your inputs.')
       setResult(null); setSteps(null)
     } finally {
       setCalculating(false)

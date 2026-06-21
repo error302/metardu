@@ -619,7 +619,7 @@ export default function TraverseModal({
 
       setStep('results')
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err)
+      const message = err instanceof Error ? (err as Error).message : String(err)
       setError(message || 'Calculation failed')
     }
 
@@ -721,7 +721,7 @@ export default function TraverseModal({
         handleClose()
       }, 1500)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err)
+      const message = err instanceof Error ? (err as Error).message : String(err)
       setSaveMessage({ type: 'error', text: `Error: ${message}` })
       setLoading(false)
     }

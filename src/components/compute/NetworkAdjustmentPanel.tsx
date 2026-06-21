@@ -78,8 +78,8 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
       setError(null)
       setImportStatus(`Imported ${newStations.length} stations and ${newObs.length} observations from traverse.`)
       setTimeout(() => setImportStatus(''), 4000)
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to import traverse data.')
+    } catch (err: unknown) {
+      setError((err as Error).message ?? 'Failed to import traverse data.')
       setImportStatus('')
     }
   }, [projectId])
@@ -142,8 +142,8 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
           `${parsed.statistics.faceLeftCount} FL / ${parsed.statistics.faceRightCount} FR`
         )
         setTimeout(() => setImportStatus(''), 6000)
-      } catch (err: any) {
-        setError(err.message ?? 'Failed to parse GSI file.')
+      } catch (err: unknown) {
+        setError((err as Error).message ?? 'Failed to parse GSI file.')
         setImportStatus('')
       }
     }
@@ -190,8 +190,8 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
       const res = adjustNetwork(stations, observations)
       setResult(res)
       saveResult(res)
-    } catch (err: any) {
-      setError(err.message ?? 'Adjustment failed.')
+    } catch (err: unknown) {
+      setError((err as Error).message ?? 'Adjustment failed.')
     }
   }
 

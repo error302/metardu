@@ -129,8 +129,8 @@ export default function NewProjectPage() {
       } else {
         router.push(`/project/${project.id}`)
       }
-    } catch (err: any) {
-      setError(err.message || 'Network error — please try again')
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Network error — please try again')
       setLoading(false)
     }
   }

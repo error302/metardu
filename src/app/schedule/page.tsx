@@ -77,7 +77,7 @@ function ScheduleFormModal({
     setError('')
     setSaving(true)
     try { await onSave(form) }
-    catch (err: any) { setError(err.message || 'Failed to save') }
+    catch (err: unknown) { setError((err as Error).message || 'Failed to save') }
     finally { setSaving(false) }
   }
 

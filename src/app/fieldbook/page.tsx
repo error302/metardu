@@ -190,7 +190,7 @@ export default function DigitalFieldBookPage() {
       setPlanStep('Packaging results...')
       setPlanResult({ success: true, downloadUrl: data.downloadUrl })
     } catch (err: unknown) {
-      setPlanResult({ success: false, error: err instanceof Error ? err.message : String(err) })
+      setPlanResult({ success: false, error: err instanceof Error ? (err as Error).message : String(err) })
     } finally {
       setPlanGenerating(false)
       setPlanStep('')
@@ -595,7 +595,7 @@ export default function DigitalFieldBookPage() {
       setFieldbookId(id)
       setSaveStatus({ kind: 'saved', when: now })
     } catch (e: unknown) {
-      setSaveStatus({ kind: 'error', message: e instanceof Error ? e.message : 'Save failed.' })
+      setSaveStatus({ kind: 'error', message: e instanceof Error ? (e as Error).message : 'Save failed.' })
     }
   }
 

@@ -48,8 +48,8 @@ export default function DataCleaner({ projectId }: { projectId: string }) {
     try {
       const result = await cleanSurveyData(rawPoints, dataType)
       setCleanedData(result)
-    } catch (err: any) {
-      setError(err.message || 'Failed to clean data')
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to clean data')
     } finally {
       setLoading(false)
     }

@@ -135,7 +135,7 @@ export default function FormC22Generator({ projectId }: Props) {
         setFirmName(firmNameVal);
         setReferenceNumber(enriched.ref_no || '');
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to load project data';
+        const msg = err instanceof Error ? (err as Error).message : 'Failed to load project data';
         setError(msg);
       } finally {
         setLoadingProject(false);
@@ -226,7 +226,7 @@ export default function FormC22Generator({ projectId }: Props) {
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to generate Form C22';
+      const msg = err instanceof Error ? (err as Error).message : 'Failed to generate Form C22';
       setError(msg);
     } finally {
       setGenerating(false);

@@ -84,9 +84,9 @@ export default function SubscriptionSuccessPage({
 
         setStatus('failed')
         setMessage('Payment not completed.')
-      } catch (e: any) {
+      } catch (e: unknown) {
         setStatus('failed')
-        setMessage(e?.message ?? 'Verification failed.')
+        setMessage(((e as Error)?.message) ?? 'Verification failed.')
       }
     }
 

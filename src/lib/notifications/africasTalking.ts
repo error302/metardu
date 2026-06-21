@@ -126,7 +126,7 @@ export async function sendSMS(to: string, message: string): Promise<Notification
 
     return { success: false, error: JSON.stringify(data) }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error'
+    const msg = err instanceof Error ? (err as Error).message : 'Unknown error'
     console.error('[Notification] SMS send failed:', msg)
     return { success: false, error: msg }
   }
@@ -172,7 +172,7 @@ export async function sendWhatsApp(to: string, message: string): Promise<Notific
 
     return { success: false, error: JSON.stringify(data) }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error'
+    const msg = err instanceof Error ? (err as Error).message : 'Unknown error'
     console.error('[Notification] WhatsApp send failed:', msg)
     return { success: false, error: msg }
   }

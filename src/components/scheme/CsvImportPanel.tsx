@@ -49,8 +49,8 @@ export default function CsvImportPanel({ projectId, blockId, blockName, onImport
       if (json.data.created > 0 && onImportComplete) {
         onImportComplete()
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError((err as Error).message)
     } finally {
       setLoading(false)
     }

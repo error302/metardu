@@ -35,8 +35,8 @@ export function TidalReductionPanel() {
     if (soundings.length === 0 || tideObs.length === 0) return null
     try {
       return reduceSoundings(soundings, tideObs)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError((e as Error).message)
       return null
     }
   }, [soundings, tideObs])
@@ -94,8 +94,8 @@ export function TidalReductionPanel() {
         return
       }
       setActiveTab('reduce')
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError((e as Error).message)
     }
   }, [soundings, tideObs])
 

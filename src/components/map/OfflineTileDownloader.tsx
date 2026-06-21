@@ -230,9 +230,9 @@ export function OfflineTileDownloader({
         setProgress(result)
         setDownloadState('complete')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err?.name !== 'AbortError') {
-        setErrorMsg(err.message ?? 'Download failed')
+        setErrorMsg((err as Error).message ?? 'Download failed')
         setDownloadState('error')
       }
     }

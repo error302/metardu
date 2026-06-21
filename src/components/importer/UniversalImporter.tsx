@@ -40,7 +40,7 @@ export default function UniversalImporter({ projectId, onImportComplete }: Props
         setStep('idle');
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? (err as Error).message : 'Unknown error');
       setStep('idle');
     }
   }, []);
@@ -80,7 +80,7 @@ export default function UniversalImporter({ projectId, onImportComplete }: Props
       setStep('done');
       onImportComplete(data.imported);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Commit failed');
+      setError(err instanceof Error ? (err as Error).message : 'Commit failed');
       setStep('preview');
     }
   };

@@ -62,8 +62,8 @@ export default function AreaCalculator() {
         setSteps(out.steps);
         setSolutionTitle(out.solution.title);
       }
-    } catch (err: any) {
-      setCalcError(err.message || 'An error occurred during calculation.');
+    } catch (err: unknown) {
+      setCalcError((err as Error).message || 'An error occurred during calculation.');
       setSteps(null);
     }
   };

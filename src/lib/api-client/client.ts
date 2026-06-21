@@ -190,7 +190,7 @@ class ClientQueryBuilder<T = any> {
 
       return await res.json() as QueryResult<T>
     } catch (err: unknown) {
-      // ponytail: was `catch (err: any)` — now properly narrowed
+      // ponytail: was `catch (err: unknown)` — now properly narrowed
       const fetchErr = err as { message?: string }
       return { data: null, error: { message: fetchErr.message || 'Network error', code: 'FETCH_ERROR' } }
     }

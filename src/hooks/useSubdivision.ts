@@ -172,8 +172,8 @@ export function useSubdivision({
 
       // Add subdivision layer to map
       addSubdivisionLayerRef.current(subResult)
-    } catch (err: any) {
-      setError(err.message || 'Subdivision computation failed.')
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Subdivision computation failed.')
       setResult(null)
     } finally {
       setIsComputing(false)

@@ -115,11 +115,11 @@ export async function callPythonCompute<T>(
     }
 
     return { ok: true, value: json as T }
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e?.name === 'AbortError') {
       return { ok: false, status: 503, error: `Python compute service unavailable (timeout after ${timeoutMs}ms).`, fallback: true }
     }
-    return { ok: false, status: 503, error: 'Python compute service unavailable.', fallback: true, details: e?.message }
+    return { ok: false, status: 503, error: 'Python compute service unavailable.', fallback: true, details: ((e as Error)?.message) }
   } finally {
     clearTimeout(timeoutId)
   }

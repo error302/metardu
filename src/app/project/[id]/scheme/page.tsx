@@ -91,7 +91,7 @@ export default function SchemeWorkspacePage() {
         // 404 / not-ok → fall through to the blocks-existence fallback below
         if (err instanceof ApiError && !err.isNotFound && !err.isUnauthorized) {
           // unexpected error — surface it, but keep trying the fallback so the page can still load
-          console.error('[scheme] project fetch failed:', err.message)
+          console.error('[scheme] project fetch failed:', (err as Error).message)
         }
       }
 
@@ -132,8 +132,8 @@ export default function SchemeWorkspacePage() {
 
       // Fetch scheme details (if the API existed — for now we load via blocks endpoint context)
       // The scheme details are loaded when the project was created
-    } catch (err: any) {
-      setError(err instanceof ApiError ? err.message : (err.message || 'Failed to load scheme data'))
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? (err as Error).message : ((err as Error).message || 'Failed to load scheme data'))
     } finally {
       setLoading(false)
     }

@@ -499,7 +499,7 @@ export function leastSquaresAdjustment(
         chiSquare: 0,
         degreesOfFreedom: 0,
         passed: false,
-        error: (e instanceof Error ? e.message : String(e)),
+        error: (e instanceof Error ? (e as Error).message : String(e)),
       }
     }
 

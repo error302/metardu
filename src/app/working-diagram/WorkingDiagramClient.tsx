@@ -257,7 +257,7 @@ export default function WorkingDiagramClient({ project, entries, projectId }: Pr
       if (!res.ok) throw new Error(json.error ?? 'Generation failed');
       setPdfUrl(json.fileUrl);
     } catch (err: unknown) {
-      setPdfError(err instanceof Error ? err.message : 'Unknown error');
+      setPdfError(err instanceof Error ? (err as Error).message : 'Unknown error');
     } finally {
       setGenerating(false);
     }

@@ -158,8 +158,8 @@ export function adjustNetwork(
   let x: number[]
   try {
     x = solveLinearSystem(N, t)
-  } catch (err: any) {
-    throw new Error('Failed to solve network equations: ' + err.message)
+  } catch (err: unknown) {
+    throw new Error('Failed to solve network equations: ' + (err as Error).message)
   }
 
   free.forEach((s, i) => {

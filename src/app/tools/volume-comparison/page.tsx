@@ -488,8 +488,8 @@ export default function VolumeComparisonPage() {
       }
 
       hasComputed.current = true;
-    } catch (err: any) {
-      setComputeErrors([err.message || 'An unknown error occurred during computation.']);
+    } catch (err: unknown) {
+      setComputeErrors([(err as Error).message || 'An unknown error occurred during computation.']);
     } finally {
       setComputing(false);
     }

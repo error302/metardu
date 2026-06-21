@@ -284,7 +284,7 @@ export default function SlopeAnalysisPanel({ projectId }: SlopeAnalysisPanelProp
         : analyzeSlopeFromPoints(filteredPoints, parseFloat(gridRes));
       setSlopeResult(res);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Slope analysis failed.');
+      setError(err instanceof Error ? (err as Error).message : 'Slope analysis failed.');
     } finally {
       setAnalyzing(false);
     }
@@ -310,7 +310,7 @@ export default function SlopeAnalysisPanel({ projectId }: SlopeAnalysisPanelProp
         : computeCutFillDatum(filteredPoints, datum, parseFloat(gridRes));
       setCutFillResult(res);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Cut/fill analysis failed.');
+      setError(err instanceof Error ? (err as Error).message : 'Cut/fill analysis failed.');
     } finally {
       setCutFillLoading(false);
     }

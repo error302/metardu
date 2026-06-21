@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, callsRemaining: usage.remaining })}\n\n`))
               controller.close()
             } catch (err: unknown) {
-              const message = err instanceof Error ? err.message : 'Streaming failed'
+              const message = err instanceof Error ? (err as Error).message : 'Streaming failed'
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`))
               controller.close()
             }
@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   } catch (error: unknown) {
     // Never expose API keys or internal details in error responses
-    const message = error instanceof Error ? error.message : 'AI service error'
+    const message = error instanceof Error ? (error as Error).message : 'AI service error'
     console.error('[ai/chat] Error:', message)
 
     // Map common NVIDIA errors to user-friendly messages

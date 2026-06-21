@@ -486,7 +486,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       }
       setTimeout(() => p.setSaveMsg(''), 4000)
     } catch (err: unknown) {
-      p.setSaveMsg(`Error: ${err instanceof Error ? err.message : 'Save failed'}`)
+      p.setSaveMsg(`Error: ${err instanceof Error ? (err as Error).message : 'Save failed'}`)
       setTimeout(() => p.setSaveMsg(''), 4000)
     }
   }, [])

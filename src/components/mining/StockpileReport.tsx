@@ -40,8 +40,8 @@ export function StockpileReport() {
         return null
       }
       return computeStockpileVolume(points, baseElevation, bulkDensity)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError((e as Error).message)
       return null
     }
   }, [csvInput, baseElevation, bulkDensity, activeTab])
@@ -56,8 +56,8 @@ export function StockpileReport() {
         return null
       }
       return computeGridVolume(points, designLevel, gridSize)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError((e as Error).message)
       return null
     }
   }, [csvInput, designLevel, gridSize, activeTab])

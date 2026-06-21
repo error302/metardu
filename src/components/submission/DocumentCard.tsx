@@ -55,7 +55,7 @@ export default function DocumentCard({ doc, projectId, existing, onStatusChange 
 
       onStatusChange(doc.id, 'ready', data.fileUrl);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = err instanceof Error ? (err as Error).message : 'Unknown error';
       setLocalError(message);
       onStatusChange(doc.id, 'error');
     } finally {
