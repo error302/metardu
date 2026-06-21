@@ -176,7 +176,7 @@ function invertMatrix(A: number[][]) {
   const inv = zeros(n, n)
   for (let col = 0; col < n; col++) {
     const e = I.map((row: any) => row[col])
-    const x = gaussianSolve(A.map((r: any) => [...r]), [...e])
+    const x = gaussianSolve(A.map((r) => [...r]), [...e])
     for (let i = 0; i < n; i++) inv[i][col] = x[i]
   }
   return inv
@@ -292,7 +292,7 @@ export function leastSquaresAdjustment(
     lsqWarnings.push('Only 1 fixed control point provided. Per Survey Regulations Reg. 60(2)(c) and Reg. 67, cadastral traverses must close between two previously fixed stations. A single fixed point creates a swinging traverse — prohibited for cadastral surveys.')
   }
 
-  const hasAtLeastOneBearing = observations.some((o: any) => typeof o.bearing === 'number')
+  const hasAtLeastOneBearing = observations.some((o) => typeof o.bearing === 'number')
   if (!hasAtLeastOneBearing && fixedPoints.length < 2) {
     return {
       ok: false,
@@ -310,7 +310,7 @@ export function leastSquaresAdjustment(
   unknownPoints.forEach((p, i) => unknownIndex.set(p.name, i))
 
   const fixed = new Map<string, Point>()
-  fixedPoints.forEach((p: any) => fixed.set(p.name, { easting: p.easting, northing: p.northing }))
+  fixedPoints.forEach((p) => fixed.set(p.name, { easting: p.easting, northing: p.northing }))
 
   const x: number[] = new Array(unknownPoints.length * 2)
   for (let i = 0; i < unknownPoints.length; i++) {
@@ -326,7 +326,7 @@ export function leastSquaresAdjustment(
     return { easting: x[2 * idx], northing: x[2 * idx + 1] }
   }
 
-  const activeObservations = observations.filter((o: any) => o.distance !== undefined || o.bearing !== undefined)
+  const activeObservations = observations.filter((o) => o.distance !== undefined || o.bearing !== undefined)
   const m = activeObservations.length
   const n = unknownPoints.length * 2
   if (m <= n) {
@@ -489,8 +489,8 @@ export function leastSquaresAdjustment(
 
     let dx: number[]
     try {
-      dx = gaussianSolve(Nmat.map((r: any) => [...r]), u)
-    } catch (e: any) {
+      dx = gaussianSolve(Nmat.map((r) => [...r]), u)
+    } catch (e: unknown) {
       return {
         ok: false,
         adjustedPoints: [],
@@ -499,7 +499,7 @@ export function leastSquaresAdjustment(
         chiSquare: 0,
         degreesOfFreedom: 0,
         passed: false,
-        error: e?.message ?? String(e),
+        error: (e instanceof Error ? e.message : String(e)),
       }
     }
 
@@ -789,7 +789,7 @@ export function adjustNetwork(input: LSAdjustmentInput): LSAdjustmentResult {
   }
 
   // Classify observations into active set
-  const active = input.observations.filter((o: any) => {
+  const active = input.observations.filter((o) => {
     if (o.type === 'angle') return o.occupied && o.backsight && o.foresight && typeof o.angle === 'number'
     if (o.type === 'slope_distance') return o.from && o.to && typeof o.slopeDistance === 'number'
     if (o.type === 'zenith_angle') return o.from && o.to && typeof o.zenithAngle === 'number'
@@ -852,7 +852,7 @@ export function adjustNetwork(input: LSAdjustmentInput): LSAdjustmentResult {
 
     let dx: number[]
     try {
-      dx = gaussianSolve(Nmat.map((r: any) => [...r]), u)
+      dx = gaussianSolve(Nmat.map((r) => [...r]), u)
     } catch {
       return failResult('Normal matrix singular or ill-conditioned')
     }

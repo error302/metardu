@@ -593,7 +593,7 @@ export default function ProcessPage() {
                       className="flex-1 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)]"
                     >
                       <option value="">Select a project...</option>
-                      {projects.map((p: any) => (
+                      {projects.map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>

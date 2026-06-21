@@ -147,7 +147,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         e2: parseFloat(invE2), n2: parseFloat(invN2),
         label1: invL1, label2: invL2,
       }))
-    } catch (e: any) { setError(e.message) }
+    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
   }
 
   const handlePolar = () => {
@@ -160,7 +160,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         bearingDeg: b.deg, bearingMin: b.min, bearingSec: b.sec,
         distance: parseFloat(polD),
       }))
-    } catch (e: any) { setError(e.message) }
+    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
   }
 
   const handleIntersection = () => {
@@ -174,7 +174,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         bearingDeg1: b1.deg, bearingMin1: b1.min, bearingSec1: b1.sec,
         bearingDeg2: b2.deg, bearingMin2: b2.min, bearingSec2: b2.sec,
       }))
-    } catch (e: any) { setError(e.message) }
+    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
   }
 
   const handleResection = () => {
@@ -189,12 +189,12 @@ export default function COGOCalculator({ compact = false }: Props) {
         alphaDeg: a.deg, alphaMin: a.min, alphaSec: a.sec,
         betaDeg: b.deg, betaMin: b.min, betaSec: b.sec,
       }))
-    } catch (e: any) { setError(e.message) }
+    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
   }
 
   const handleArea = () => {
     setError('')
-    const lines = areaText.trim().split('\n').filter((l: any) => l.trim())
+    const lines = areaText.trim().split('\n').filter((l) => l.trim())
     const points = lines.map((line: any) => {
       const parts = line.split(/[,\t]+/)
       if (parts.length < 3) return null
@@ -203,12 +203,12 @@ export default function COGOCalculator({ compact = false }: Props) {
     if (points.length < 3) { setError('At least 3 points required'); return }
     try {
       setAreaResult(areaComputation({ points }))
-    } catch (e: any) { setError(e.message) }
+    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
   }
 
   const handleJoin = () => {
     setError('')
-    const lines = joinText.trim().split('\n').filter((l: any) => l.trim())
+    const lines = joinText.trim().split('\n').filter((l) => l.trim())
     const points = lines.map((line: any) => {
       const parts = line.split(/[,\t]+/)
       if (parts.length < 3) return null
@@ -217,7 +217,7 @@ export default function COGOCalculator({ compact = false }: Props) {
     if (points.length < 2) { setError('At least 2 points required'); return }
     try {
       setJoinResult(joinComputation({ points }))
-    } catch (e: any) { setError(e.message) }
+    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
   }
 
   const handleDistDist = () => {
@@ -229,7 +229,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         e2: parseFloat(ddE2), n2: parseFloat(ddN2),
         distance1: parseFloat(ddD1), distance2: parseFloat(ddD2),
       }))
-    } catch (e: any) { setError(e.message) }
+    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
   }
 
   const handleBearingDist = () => {
@@ -243,7 +243,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         bearingDeg: b.deg, bearingMin: b.min, bearingSec: b.sec,
         distance: parseFloat(bdDist),
       }))
-    } catch (e: any) { setError(e.message) }
+    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
   }
 
   const handleArcBoundary = () => {
@@ -256,7 +256,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         radius: parseFloat(arcR),
         isClockwise: arcCW,
       }))
-    } catch (e: any) { setError(e.message) }
+    } catch (e: unknown) { setError((e instanceof Error ? e.message : String(e))) }
   }
 
   const clearAll = () => {
@@ -275,7 +275,7 @@ export default function COGOCalculator({ compact = false }: Props) {
       doc.setFontSize(16)
       doc.text('METARDU — COGO Computation Report', 14, 14)
       doc.setFontSize(10)
-      doc.text(`Computation Type: ${TABS.find((t: any) => t.id === activeTab)?.label || activeTab}`, 14, 22)
+      doc.text(`Computation Type: ${TABS.find((t) => t.id === activeTab)?.label || activeTab}`, 14, 22)
       doc.setFontSize(8)
       doc.text(`Generated: ${new Date().toLocaleString()} | Survey Act Cap. 299 | RDM 1.1 (2025)`, 14, 28)
       doc.setDrawColor(150)
@@ -362,7 +362,7 @@ export default function COGOCalculator({ compact = false }: Props) {
         autoTable(doc, {
           startY: 34,
           head: [['From', 'To', 'Delta E (m)', 'Delta N (m)', 'Distance (m)', 'WCB', 'Back Bearing']],
-          body: joinResult.rows.map((r: any) => [r.from, r.to, r.deltaE.toFixed(4), r.deltaN.toFixed(4), r.distance.toFixed(4), r.wcbDMS, r.backBearingDMS]),
+          body: joinResult.rows.map((r) => [r.from, r.to, r.deltaE.toFixed(4), r.deltaN.toFixed(4), r.distance.toFixed(4), r.wcbDMS, r.backBearingDMS]),
           styles: { fontSize: 8 },
           headStyles: { fillColor: [34, 197, 94] },
         })
@@ -380,7 +380,7 @@ export default function COGOCalculator({ compact = false }: Props) {
       doc.setTextColor(0)
 
       const date = new Date().toISOString().slice(0, 10)
-      const tabName = TABS.find((t: any) => t.id === activeTab)?.label.replace(/[^a-zA-Z]/g, '_') || activeTab
+      const tabName = TABS.find((t) => t.id === activeTab)?.label.replace(/[^a-zA-Z]/g, '_') || activeTab
       doc.save(`METARDU_COGO_${tabName}_${date}.pdf`)
     } catch (err) {
       console.error('PDF export error:', err)
