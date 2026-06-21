@@ -98,11 +98,11 @@ export async function saveObservationOffline(observation: OfflineObservation): P
   const { getDB, queueOperation } = await import('./syncQueue')
   const db = await getDB()
   // Store in traverse_obs as the closest v2 equivalent
-  await db.put('traverse_obs', observation)
+  await db.put('traverse_obs', observation as unknown as Record<string, unknown>)
   await queueOperation({
     type: 'INSERT',
     table: 'observations',
-    data: observation,
+    data: observation as unknown as Record<string, unknown>,
     timestamp: new Date().toISOString(),
     projectId: observation.project_id,
     priority: 'normal',
@@ -116,7 +116,7 @@ export async function getObservationsOffline(projectId: string): Promise<Offline
   const { getDB } = await import('./syncQueue')
   const db = await getDB()
   const all = await db.getAllFromIndex('traverse_obs', 'by-project', projectId)
-  return (all as OfflineObservation[]).sort(
+  return (all as unknown as OfflineObservation[]).sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   )
 }
@@ -128,7 +128,7 @@ export async function getUnsyncedObservations(projectId: string): Promise<Offlin
   const { getDB } = await import('./syncQueue')
   const db = await getDB()
   const all = await db.getAllFromIndex('traverse_obs', 'by-project', projectId)
-  return (all as OfflineObservation[]).filter(o => !o.synced)
+  return (all as unknown as OfflineObservation[]).filter(o => !o.synced)
 }
 
 /**

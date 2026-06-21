@@ -61,19 +61,19 @@ export default function EarthworksCalculator() {
       centrelineRL: parseFloat(row.clRL) || 0,
       formationRL: parseFloat(row.formRL) || 0,
       leftShots: row.leftShots
-        .filter((s: any) => s.off && s.rl)
-        .map((s: any) => ({ offset: -(parseFloat(s.off) || 0), rl: parseFloat(s.rl) || 0 }))
+        .filter((s) => s.off && s.rl)
+        .map((s) => ({ offset: -(parseFloat(s.off) || 0), rl: parseFloat(s.rl) || 0 }))
         .sort((a: any, b: any) => a.offset - b.offset),
       rightShots: row.rightShots
-        .filter((s: any) => s.off && s.rl)
-        .map((s: any) => ({ offset: parseFloat(s.off) || 0, rl: parseFloat(s.rl) || 0 }))
+        .filter((s) => s.off && s.rl)
+        .map((s) => ({ offset: parseFloat(s.off) || 0, rl: parseFloat(s.rl) || 0 }))
         .sort((a: any, b: any) => a.offset - b.offset),
     }
   }
 
   function compute() {
     const inputs = sections.map(toInput).sort((a: any, b: any) => a.chainage - b.chainage)
-    const computed = inputs.map((s: any) => computeCrossSection(s, template))
+    const computed = inputs.map((s) => computeCrossSection(s, template))
     const ew = computeEarthwork(computed, parseFloat(shrinkage) || 0.85)
     setComputedSections(computed)
     setEarthworkResult(ew)
@@ -98,15 +98,15 @@ export default function EarthworksCalculator() {
   }
 
   function removeRow(id: string) {
-    setSections(prev => prev.filter((r: any) => r.id !== id))
+    setSections(prev => prev.filter((r) => r.id !== id))
   }
 
   function updateRow(id: string, field: keyof SectionRow, value: unknown) {
-    setSections(prev => prev.map((r: any) => r.id === id ? { ...r, [field]: value } : r))
+    setSections(prev => prev.map((r) => r.id === id ? { ...r, [field]: value } : r))
   }
 
   function updateShot(id: string, side: 'left' | 'right', idx: number, field: 'off' | 'rl', value: string) {
-    setSections(prev => prev.map((r: any) => {
+    setSections(prev => prev.map((r) => {
       if (r.id !== id) return r
       const shots = [...r[(side + 'Shots') as 'leftShots' | 'rightShots']]
       shots[idx] = { ...shots[idx], [field]: value }
@@ -124,7 +124,7 @@ export default function EarthworksCalculator() {
         const text = ev.target?.result as string
         const parsed = parseEarthworkCSV(text)
         if (parsed.length === 0) { setCsvError('No valid sections found in CSV'); return }
-          const rows: SectionRow[] = parsed.map((s: any) => {
+          const rows: SectionRow[] = parsed.map((s) => {
             const km = Math.floor(s.chainage / 1000)
             const m = s.chainage % 1000
             return {
@@ -133,8 +133,8 @@ export default function EarthworksCalculator() {
               chainageM: m.toFixed(3),
               clRL: s.centrelineRL.toFixed(3),
               formRL: s.formationRL.toFixed(3),
-              leftShots: s.leftShots.map((sh: any) => ({ off: Math.abs(sh.offset).toFixed(3), rl: sh.rl.toFixed(3) })),
-              rightShots: s.rightShots.map((sh: any) => ({ off: sh.offset.toFixed(3), rl: sh.rl.toFixed(3) })),
+              leftShots: s.leftShots.map((sh) => ({ off: Math.abs(sh.offset).toFixed(3), rl: sh.rl.toFixed(3) })),
+              rightShots: s.rightShots.map((sh) => ({ off: sh.offset.toFixed(3), rl: sh.rl.toFixed(3) })),
             }
           })
         setSections(rows)
@@ -232,19 +232,19 @@ export default function EarthworksCalculator() {
             </tr>
           </thead>
           <tbody>
-            {sections.map((row: any) => (
+            {sections.map((row) => (
               <tr key={row.id} className="hover:bg-[var(--bg-tertiary)]/30">
                 <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.chainageKm} onChange={e => updateRow(row.id, 'chainageKm', e.target.value)} type="number" min="0" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
                 <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.chainageM} onChange={e => updateRow(row.id, 'chainageM', e.target.value)} type="number" min="0" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
                 <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.clRL} onChange={e => updateRow(row.id, 'clRL', e.target.value)} type="number" step="0.001" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
                 <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.formRL} onChange={e => updateRow(row.id, 'formRL', e.target.value)} type="number" step="0.001" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
-                {[0, 1, 2, 3].map((i: any) => (
+                {[0, 1, 2, 3].map((i) => (
                   <Fragment key={'ls' + i}>
                     <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.leftShots[i]?.off || ''} onChange={e => updateShot(row.id, 'left', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="Off" /></td>
                     <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.leftShots[i]?.rl || ''} onChange={e => updateShot(row.id, 'left', i, 'rl', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="RL" /></td>
                   </Fragment>
                 ))}
-                {[0, 1, 2, 3].map((i: any) => (
+                {[0, 1, 2, 3].map((i) => (
                   <Fragment key={'rs' + i}>
                     <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.rightShots[i]?.off || ''} onChange={e => updateShot(row.id, 'right', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="Off" /></td>
                     <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.rightShots[i]?.rl || ''} onChange={e => updateShot(row.id, 'right', i, 'rl', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="RL" /></td>

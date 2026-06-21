@@ -21,6 +21,35 @@ import { getPool } from '@/lib/db'
 import { QueryBuilder } from '@/lib/db/queryBuilder'
 import { env } from '@/lib/env'
 
+// ponytail: Phase 6 Batch 7 — typed request body for /api/db proxy.
+// Browser client posts this shape; server-side narrowing guards each field.
+interface DbFilter {
+  op: string
+  column: string
+  value: unknown
+}
+
+interface DbOrderClause {
+  column: string
+  ascending: boolean
+}
+
+interface DbRequestBody {
+  table?: string
+  operation?: string
+  columns?: string
+  filters?: DbFilter[]
+  orFilters?: string[]
+  order?: DbOrderClause[]
+  limit?: number
+  offset?: number
+  single?: boolean
+  maybeSingle?: boolean
+  count?: string
+  head?: boolean
+  payload?: Record<string, unknown> | Record<string, unknown>[]
+}
+
 // Tables that can be queried without authentication
 const PUBLIC_TABLES = new Set([
   'benchmarks', 'survey_standards', 'countries', 'professional_bodies',
@@ -98,7 +127,7 @@ function isAdmin(email: string | null | undefined): boolean {
 // (public tables don't need auth). We handle auth manually inside the handler
 // and set RLS context ourselves when a session is found.
 export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 60000 } }, async (request, ctx) => {
-  const body = ctx.body as Record<string, unknown>
+  const body = ctx.body as DbRequestBody
   const { table, operation, columns, filters, orFilters, order, limit, offset, single, maybeSingle, count, head, payload } = body
 
   // ─── Table validation ─────────────────────────────────────────
@@ -158,9 +187,9 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
 
   // Apply operation
   if (operation === 'select') {
-    qb = qb.select((columns as string) || '*', { count: count ? 'exact' : undefined, head: head as boolean | undefined }) as any
+    qb = qb.select((columns as string) || '*', { count: count ? 'exact' : undefined, head: head as boolean | undefined })
   } else if (operation === 'insert') {
-    const insertPayload = payload as Record<string, any> | Record<string, any>[]
+    const insertPayload = payload as Record<string, unknown> | Record<string, unknown>[]
     // For user-scoped tables, inject user_id into the payload
     if (USER_SCOPED_TABLES.has(table as string) && userId) {
       if (Array.isArray(insertPayload)) {
@@ -169,13 +198,13 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
         insertPayload.user_id = userId
       }
     }
-    qb = qb.insert(insertPayload) as any
+    qb = qb.insert(insertPayload)
   } else if (operation === 'update') {
-    qb = qb.update(payload as Record<string, any>) as any
+    qb = qb.update(payload as Record<string, unknown>)
   } else if (operation === 'delete') {
-    qb = qb.delete() as any
+    qb = qb.delete()
   } else if (operation === 'upsert') {
-    const upsertPayload = payload as Record<string, any> | Record<string, any>[]
+    const upsertPayload = payload as Record<string, unknown> | Record<string, unknown>[]
     if (USER_SCOPED_TABLES.has(table as string) && userId) {
       if (Array.isArray(upsertPayload)) {
         for (const row of upsertPayload) { row.user_id = userId }
@@ -183,33 +212,33 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
         upsertPayload.user_id = userId
       }
     }
-    qb = qb.upsert(upsertPayload) as any
+    qb = qb.upsert(upsertPayload)
   }
 
   // ─── User-scoped row-level security ──────────────────────────
   if (USER_SCOPED_TABLES.has(table as string) && userId) {
-    qb = qb.eq('user_id', userId) as any
+    qb = qb.eq('user_id', userId)
   }
 
   // Apply filters
-  const filterArr = filters as { op: string; column: string; value: unknown }[] | undefined
+  const filterArr = filters as DbFilter[] | undefined
   if (Array.isArray(filterArr)) {
     for (const f of filterArr) {
       const method = f.op
       // Prevent client from overriding user_id filter on scoped tables
       if (USER_SCOPED_TABLES.has(table as string) && f.column === 'user_id') continue
 
-      if (method === 'eq') qb = qb.eq(f.column, f.value) as any
-      else if (method === 'neq') qb = qb.neq(f.column, f.value) as any
-      else if (method === 'gt') qb = qb.gt(f.column, f.value) as any
-      else if (method === 'gte') qb = qb.gte(f.column, f.value) as any
-      else if (method === 'lt') qb = qb.lt(f.column, f.value) as any
-      else if (method === 'lte') qb = qb.lte(f.column, f.value) as any
-      else if (method === 'like') qb = qb.like(f.column, f.value as string) as any
-      else if (method === 'ilike') qb = qb.ilike(f.column, f.value as string) as any
-      else if (method === 'in') qb = qb.in(f.column, f.value as any[]) as any
-      else if (method === 'is') qb = qb.is(f.column, f.value) as any
-      else if (method === 'contains') qb = qb.contains(f.column, f.value) as any
+      if (method === 'eq') qb = qb.eq(f.column, f.value)
+      else if (method === 'neq') qb = qb.neq(f.column, f.value)
+      else if (method === 'gt') qb = qb.gt(f.column, f.value)
+      else if (method === 'gte') qb = qb.gte(f.column, f.value)
+      else if (method === 'lt') qb = qb.lt(f.column, f.value)
+      else if (method === 'lte') qb = qb.lte(f.column, f.value)
+      else if (method === 'like') qb = qb.like(f.column, f.value as string)
+      else if (method === 'ilike') qb = qb.ilike(f.column, f.value as string)
+      else if (method === 'in') qb = qb.in(f.column, f.value as unknown[])
+      else if (method === 'is') qb = qb.is(f.column, f.value)
+      else if (method === 'contains') qb = qb.contains(f.column, f.value)
     }
   }
 
@@ -217,27 +246,27 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
   const orFilterArr = orFilters as string[] | undefined
   if (Array.isArray(orFilterArr)) {
     for (const of_ of orFilterArr) {
-      qb = qb.or(of_) as any
+      qb = qb.or(of_)
     }
   }
 
   // Apply order
-  const orderArr = order as { column: string; ascending: boolean }[] | undefined
+  const orderArr = order as DbOrderClause[] | undefined
   if (Array.isArray(orderArr)) {
     for (const o of orderArr) {
-      qb = qb.order(o.column, { ascending: o.ascending }) as any
+      qb = qb.order(o.column, { ascending: o.ascending })
     }
   }
 
   // Apply limit/offset
-  if (limit != null) qb = qb.limit(limit as number) as any
+  if (limit != null) qb = qb.limit(limit as number)
   if (offset != null) {
-    qb = (qb as any).range(offset as number, (offset as number) + ((limit as number) ?? 50) - 1)
+    qb = qb.range(offset as number, (offset as number) + ((limit as number) ?? 50) - 1)
   }
 
   // Apply single/maybeSingle
-  if (single) qb = qb.single() as any
-  else if (maybeSingle) qb = qb.maybeSingle() as any
+  if (single) qb = qb.single()
+  else if (maybeSingle) qb = qb.maybeSingle()
 
   // Execute
   const result = await qb

@@ -1,11 +1,6 @@
 {
-  "total": 1688,
+  "total": 1589,
   "files": [
-    {
-      "path": "lib/api-client/client.ts",
-      "any_count": 58,
-      "lines": 297
-    },
     {
       "path": "app/api/db/route.ts",
       "any_count": 29,
@@ -22,11 +17,6 @@
       "lines": 380
     },
     {
-      "path": "lib/api-client/community.ts",
-      "any_count": 24,
-      "lines": 242
-    },
-    {
       "path": "app/peer-review/page.tsx",
       "any_count": 23,
       "lines": 487
@@ -35,11 +25,6 @@
       "path": "app/map/hooks/useMapInit.ts",
       "any_count": 21,
       "lines": 484
-    },
-    {
-      "path": "lib/api-client/server.ts",
-      "any_count": 20,
-      "lines": 95
     },
     {
       "path": "app/project/[id]/profiles/page.tsx",
@@ -82,6 +67,11 @@
       "lines": 944
     },
     {
+      "path": "app/field/page.tsx",
+      "any_count": 17,
+      "lines": 687
+    },
+    {
       "path": "components/cogo/COGOCalculator.tsx",
       "any_count": 17,
       "lines": 875
@@ -110,11 +100,6 @@
       "path": "lib/parsers/totalStation.ts",
       "any_count": 15,
       "lines": 272
-    },
-    {
-      "path": "app/field/page.tsx",
-      "any_count": 15,
-      "lines": 687
     },
     {
       "path": "lib/api-client/cpd.ts",
@@ -147,19 +132,14 @@
       "lines": 347
     },
     {
-      "path": "hooks/useSubdivision.ts",
-      "any_count": 12,
-      "lines": 465
-    },
-    {
       "path": "workers/WorkerBridge.ts",
       "any_count": 12,
       "lines": 294
     },
     {
-      "path": "app/api/survey-report/export/route.ts",
+      "path": "hooks/useSubdivision.ts",
       "any_count": 12,
-      "lines": 88
+      "lines": 465
     },
     {
       "path": "lib/marketplace/jobMarketplace.ts",
@@ -170,6 +150,11 @@
       "path": "lib/api-client/parcelVault.ts",
       "any_count": 12,
       "lines": 186
+    },
+    {
+      "path": "app/api/survey-report/export/route.ts",
+      "any_count": 12,
+      "lines": 88
     },
     {
       "path": "components/SurveyReport.tsx",
@@ -212,6 +197,11 @@
       "lines": 77
     },
     {
+      "path": "lib/parcel/parcelValidation.ts",
+      "any_count": 10,
+      "lines": 272
+    },
+    {
       "path": "app/api/scheme/map/route.ts",
       "any_count": 10,
       "lines": 161
@@ -220,11 +210,6 @@
       "path": "app/api/compute/traverse/route.ts",
       "any_count": 10,
       "lines": 136
-    },
-    {
-      "path": "lib/parcel/parcelValidation.ts",
-      "any_count": 10,
-      "lines": 272
     },
     {
       "path": "components/ParcelBuilderModal.tsx",
@@ -237,6 +222,11 @@
       "lines": 235
     },
     {
+      "path": "lib/engine/leveling-standards.ts",
+      "any_count": 9,
+      "lines": 329
+    },
+    {
       "path": "lib/integrations/nlims.ts",
       "any_count": 9,
       "lines": 131
@@ -245,11 +235,6 @@
       "path": "lib/enterprise/governmentLicensing.ts",
       "any_count": 9,
       "lines": 297
-    },
-    {
-      "path": "lib/engine/leveling-standards.ts",
-      "any_count": 9,
-      "lines": 329
     },
     {
       "path": "app/notifications/page.tsx",
@@ -262,6 +247,46 @@
       "lines": 494
     },
     {
+      "path": "lib/integrations/nlis.ts",
+      "any_count": 8,
+      "lines": 129
+    },
+    {
+      "path": "lib/integrations/tanzania.ts",
+      "any_count": 8,
+      "lines": 111
+    },
+    {
+      "path": "lib/workflows/workflowEngine.ts",
+      "any_count": 8,
+      "lines": 476
+    },
+    {
+      "path": "lib/submission/assembleSubmission.ts",
+      "any_count": 8,
+      "lines": 412
+    },
+    {
+      "path": "lib/map/vectorTileFactory.ts",
+      "any_count": 8,
+      "lines": 358
+    },
+    {
+      "path": "lib/export/exportProject.ts",
+      "any_count": 8,
+      "lines": 139
+    },
+    {
+      "path": "lib/online/benchmarks.ts",
+      "any_count": 8,
+      "lines": 301
+    },
+    {
+      "path": "lib/realtime/index.ts",
+      "any_count": 8,
+      "lines": 277
+    },
+    {
       "path": "app/api/compute/route.ts",
       "any_count": 8,
       "lines": 211
@@ -272,59 +297,19 @@
       "lines": 103
     },
     {
-      "path": "lib/realtime/index.ts",
-      "any_count": 8,
-      "lines": 277
-    },
-    {
-      "path": "lib/map/vectorTileFactory.ts",
-      "any_count": 8,
-      "lines": 358
-    },
-    {
-      "path": "lib/online/benchmarks.ts",
-      "any_count": 8,
-      "lines": 301
-    },
-    {
-      "path": "lib/integrations/tanzania.ts",
-      "any_count": 8,
-      "lines": 111
-    },
-    {
-      "path": "lib/integrations/nlis.ts",
-      "any_count": 8,
-      "lines": 129
-    },
-    {
-      "path": "lib/submission/assembleSubmission.ts",
-      "any_count": 8,
-      "lines": 412
-    },
-    {
-      "path": "lib/workflows/workflowEngine.ts",
-      "any_count": 8,
-      "lines": 476
-    },
-    {
-      "path": "lib/export/exportProject.ts",
-      "any_count": 8,
-      "lines": 139
-    },
-    {
       "path": "components/RegistryIndexMap.tsx",
       "any_count": 8,
       "lines": 639
     },
     {
-      "path": "app/rim/page.tsx",
-      "any_count": 8,
-      "lines": 1810
-    },
-    {
       "path": "app/import/page.tsx",
       "any_count": 8,
       "lines": 317
+    },
+    {
+      "path": "app/rim/page.tsx",
+      "any_count": 8,
+      "lines": 1810
     },
     {
       "path": "app/tools/borrow-pit-volume/page.tsx",
@@ -337,9 +322,9 @@
       "lines": 649
     },
     {
-      "path": "app/map/hooks/useMapBasemaps.ts",
+      "path": "lib/integrations/equipment.ts",
       "any_count": 7,
-      "lines": 93
+      "lines": 156
     },
     {
       "path": "lib/map/turfHelpers.ts",
@@ -347,9 +332,9 @@
       "lines": 402
     },
     {
-      "path": "lib/integrations/equipment.ts",
+      "path": "lib/export/gcpExport.ts",
       "any_count": 7,
-      "lines": 156
+      "lines": 127
     },
     {
       "path": "lib/mobile/offlineStorage.ts",
@@ -357,9 +342,9 @@
       "lines": 376
     },
     {
-      "path": "lib/export/gcpExport.ts",
+      "path": "app/map/hooks/useMapBasemaps.ts",
       "any_count": 7,
-      "lines": 127
+      "lines": 93
     },
     {
       "path": "app/field/map/page.tsx",
@@ -367,19 +352,9 @@
       "lines": 579
     },
     {
-      "path": "app/project/[id]/documents/page.tsx",
-      "any_count": 7,
-      "lines": 843
-    },
-    {
       "path": "app/tools/curves/page.tsx",
       "any_count": 7,
       "lines": 399
-    },
-    {
-      "path": "app/tools/leveling/page.tsx",
-      "any_count": 7,
-      "lines": 349
     },
     {
       "path": "app/tools/area/page.tsx",
@@ -387,9 +362,24 @@
       "lines": 147
     },
     {
+      "path": "app/tools/leveling/page.tsx",
+      "any_count": 7,
+      "lines": 349
+    },
+    {
       "path": "app/tools/gnss/page.tsx",
       "any_count": 7,
       "lines": 284
+    },
+    {
+      "path": "app/project/[id]/documents/page.tsx",
+      "any_count": 7,
+      "lines": 843
+    },
+    {
+      "path": "components/compute/HydroPanel.tsx",
+      "any_count": 7,
+      "lines": 785
     },
     {
       "path": "components/online/GNSSProcessor.tsx",
@@ -397,9 +387,34 @@
       "lines": 240
     },
     {
-      "path": "components/compute/HydroPanel.tsx",
-      "any_count": 7,
-      "lines": 785
+      "path": "lib/integrations/kencors.ts",
+      "any_count": 6,
+      "lines": 150
+    },
+    {
+      "path": "lib/marketplace/aiPlanChecker.ts",
+      "any_count": 6,
+      "lines": 259
+    },
+    {
+      "path": "lib/parsers/parseDXF.ts",
+      "any_count": 6,
+      "lines": 301
+    },
+    {
+      "path": "lib/compute/deedPlanRenderer.ts",
+      "any_count": 6,
+      "lines": 519
+    },
+    {
+      "path": "lib/compute/planChecker.ts",
+      "any_count": 6,
+      "lines": 570
+    },
+    {
+      "path": "lib/working-diagram/traverse.ts",
+      "any_count": 6,
+      "lines": 82
     },
     {
       "path": "app/api/sign-plan/route.ts",
@@ -417,36 +432,6 @@
       "lines": 303
     },
     {
-      "path": "lib/marketplace/aiPlanChecker.ts",
-      "any_count": 6,
-      "lines": 259
-    },
-    {
-      "path": "lib/integrations/kencors.ts",
-      "any_count": 6,
-      "lines": 150
-    },
-    {
-      "path": "lib/working-diagram/traverse.ts",
-      "any_count": 6,
-      "lines": 82
-    },
-    {
-      "path": "lib/compute/planChecker.ts",
-      "any_count": 6,
-      "lines": 570
-    },
-    {
-      "path": "lib/compute/deedPlanRenderer.ts",
-      "any_count": 6,
-      "lines": 519
-    },
-    {
-      "path": "lib/parsers/parseDXF.ts",
-      "any_count": 6,
-      "lines": 301
-    },
-    {
       "path": "app/parcel/page.tsx",
       "any_count": 6,
       "lines": 240
@@ -462,34 +447,9 @@
       "lines": 179
     },
     {
-      "path": "app/api/scheme/forms/route.ts",
-      "any_count": 5,
-      "lines": 194
-    },
-    {
-      "path": "app/api/scheme/export/geojson/route.ts",
-      "any_count": 5,
-      "lines": 94
-    },
-    {
-      "path": "app/api/engineering/export/profile-dxf/route.ts",
-      "any_count": 5,
-      "lines": 74
-    },
-    {
-      "path": "lib/rim/rimPdfGenerator.ts",
-      "any_count": 5,
-      "lines": 434
-    },
-    {
       "path": "lib/offline/fieldbooks.ts",
       "any_count": 5,
       "lines": 19
-    },
-    {
-      "path": "lib/api-client/geofusionProjects.ts",
-      "any_count": 5,
-      "lines": 188
     },
     {
       "path": "lib/engineering/compute.ts",
@@ -497,14 +457,24 @@
       "lines": 639
     },
     {
-      "path": "lib/export/generateShapefile.ts",
+      "path": "lib/rim/rimPdfGenerator.ts",
       "any_count": 5,
-      "lines": 118
+      "lines": 434
     },
     {
       "path": "lib/reports/solutionToPdf.ts",
       "any_count": 5,
       "lines": 108
+    },
+    {
+      "path": "lib/parsers/csvSurveyInterpreter.ts",
+      "any_count": 5,
+      "lines": 152
+    },
+    {
+      "path": "lib/export/generateShapefile.ts",
+      "any_count": 5,
+      "lines": 118
     },
     {
       "path": "lib/topo/contourGenerator.ts",
@@ -517,9 +487,9 @@
       "lines": 121
     },
     {
-      "path": "lib/parsers/csvSurveyInterpreter.ts",
+      "path": "lib/api-client/geofusionProjects.ts",
       "any_count": 5,
-      "lines": 152
+      "lines": 188
     },
     {
       "path": "lib/importers/parsers/traverse-csv.ts",
@@ -527,9 +497,24 @@
       "lines": 58
     },
     {
+      "path": "app/api/engineering/export/profile-dxf/route.ts",
+      "any_count": 5,
+      "lines": 74
+    },
+    {
+      "path": "app/api/scheme/forms/route.ts",
+      "any_count": 5,
+      "lines": 194
+    },
+    {
+      "path": "app/api/scheme/export/geojson/route.ts",
+      "any_count": 5,
+      "lines": 94
+    },
+    {
       "path": "app/schedule/page.tsx",
       "any_count": 5,
-      "lines": 575
+      "lines": 576
     },
     {
       "path": "app/project/new/page.tsx",
@@ -537,24 +522,9 @@
       "lines": 360
     },
     {
-      "path": "components/geofusion/DataIntegrator.tsx",
-      "any_count": 5,
-      "lines": 192
-    },
-    {
-      "path": "components/geofusion/LayerManager.tsx",
-      "any_count": 5,
-      "lines": 249
-    },
-    {
       "path": "components/shared/ParcelNumberInput.tsx",
       "any_count": 5,
       "lines": 244
-    },
-    {
-      "path": "components/drawing/DrawingExportToolbar.tsx",
-      "any_count": 5,
-      "lines": 370
     },
     {
       "path": "components/fieldguard/CleanedExport.tsx",
@@ -562,24 +532,24 @@
       "lines": 169
     },
     {
+      "path": "components/drawing/DrawingExportToolbar.tsx",
+      "any_count": 5,
+      "lines": 370
+    },
+    {
+      "path": "components/geofusion/LayerManager.tsx",
+      "any_count": 5,
+      "lines": 249
+    },
+    {
+      "path": "components/geofusion/DataIntegrator.tsx",
+      "any_count": 5,
+      "lines": 192
+    },
+    {
       "path": "types/geofusion.ts",
       "any_count": 4,
       "lines": 110
-    },
-    {
-      "path": "app/api/scheme/traverse/summary/route.ts",
-      "any_count": 4,
-      "lines": 87
-    },
-    {
-      "path": "app/api/compute/leveling/route.ts",
-      "any_count": 4,
-      "lines": 66
-    },
-    {
-      "path": "lib/plan/topographicPlanRenderer.ts",
-      "any_count": 4,
-      "lines": 396
     },
     {
       "path": "lib/engine/traverseToLSQ.ts",
@@ -602,9 +572,9 @@
       "lines": 280
     },
     {
-      "path": "lib/importers/parsers/pix4d.ts",
+      "path": "lib/plan/topographicPlanRenderer.ts",
       "any_count": 4,
-      "lines": 65
+      "lines": 396
     },
     {
       "path": "lib/reports/surveyPlan/geometry.ts",
@@ -612,14 +582,24 @@
       "lines": 243
     },
     {
+      "path": "lib/importers/parsers/pix4d.ts",
+      "any_count": 4,
+      "lines": 65
+    },
+    {
+      "path": "app/api/scheme/traverse/summary/route.ts",
+      "any_count": 4,
+      "lines": 87
+    },
+    {
+      "path": "app/api/compute/leveling/route.ts",
+      "any_count": 4,
+      "lines": 66
+    },
+    {
       "path": "app/cpd/page.tsx",
       "any_count": 4,
       "lines": 188
-    },
-    {
-      "path": "app/geofusion/page.tsx",
-      "any_count": 4,
-      "lines": 209
     },
     {
       "path": "app/profile/page.tsx",
@@ -627,9 +607,9 @@
       "lines": 290
     },
     {
-      "path": "app/tools/gis-export/page.tsx",
+      "path": "app/geofusion/page.tsx",
       "any_count": 4,
-      "lines": 291
+      "lines": 209
     },
     {
       "path": "app/tools/chainage/page.tsx",
@@ -637,19 +617,9 @@
       "lines": 228
     },
     {
-      "path": "components/map/SurveyMap.tsx",
+      "path": "app/tools/gis-export/page.tsx",
       "any_count": 4,
-      "lines": 397
-    },
-    {
-      "path": "components/scheme/TraverseComputePanel.tsx",
-      "any_count": 4,
-      "lines": 405
-    },
-    {
-      "path": "components/online/CoordinateTransformer.tsx",
-      "any_count": 4,
-      "lines": 279
+      "lines": 291
     },
     {
       "path": "components/workspace/CadastralComputeIntegration.tsx",
@@ -657,9 +627,24 @@
       "lines": 169
     },
     {
-      "path": "components/ui/multi-type-ripple-buttons.tsx",
+      "path": "components/scheme/TraverseComputePanel.tsx",
       "any_count": 4,
-      "lines": 270
+      "lines": 405
+    },
+    {
+      "path": "components/fieldguard/DataCleaner.tsx",
+      "any_count": 4,
+      "lines": 118
+    },
+    {
+      "path": "components/map/SurveyMap.tsx",
+      "any_count": 4,
+      "lines": 397
+    },
+    {
+      "path": "components/online/CoordinateTransformer.tsx",
+      "any_count": 4,
+      "lines": 279
     },
     {
       "path": "components/ui/MotionComponents.tsx",
@@ -667,9 +652,14 @@
       "lines": 426
     },
     {
-      "path": "components/fieldguard/DataCleaner.tsx",
+      "path": "components/ui/multi-type-ripple-buttons.tsx",
       "any_count": 4,
-      "lines": 118
+      "lines": 270
+    },
+    {
+      "path": "workers/compute.worker.ts",
+      "any_count": 3,
+      "lines": 468
     },
     {
       "path": "hooks/useFieldBook.ts",
@@ -682,9 +672,94 @@
       "lines": 275
     },
     {
-      "path": "workers/compute.worker.ts",
+      "path": "lib/data/boundaryLaw.ts",
       "any_count": 3,
-      "lines": 468
+      "lines": 598
+    },
+    {
+      "path": "lib/data/kenyaSurveyStandards.ts",
+      "any_count": 3,
+      "lines": 133
+    },
+    {
+      "path": "lib/data/easementLaw.ts",
+      "any_count": 3,
+      "lines": 405
+    },
+    {
+      "path": "lib/engine/gnss.ts",
+      "any_count": 3,
+      "lines": 364
+    },
+    {
+      "path": "lib/parcel/parcelSearch.ts",
+      "any_count": 3,
+      "lines": 233
+    },
+    {
+      "path": "lib/offline/storage.ts",
+      "any_count": 3,
+      "lines": 179
+    },
+    {
+      "path": "lib/computations/traverseEngine.ts",
+      "any_count": 3,
+      "lines": 507
+    },
+    {
+      "path": "lib/marketplace/cpdCertificates.ts",
+      "any_count": 3,
+      "lines": 199
+    },
+    {
+      "path": "lib/field/geopdf.ts",
+      "any_count": 3,
+      "lines": 76
+    },
+    {
+      "path": "lib/docx/generateDocx.ts",
+      "any_count": 3,
+      "lines": 243
+    },
+    {
+      "path": "lib/parsers/parseBOQ.ts",
+      "any_count": 3,
+      "lines": 140
+    },
+    {
+      "path": "lib/api/response.ts",
+      "any_count": 3,
+      "lines": 27
+    },
+    {
+      "path": "lib/fieldplan/index.ts",
+      "any_count": 3,
+      "lines": 230
+    },
+    {
+      "path": "lib/legal/dpa2019.ts",
+      "any_count": 3,
+      "lines": 333
+    },
+    {
+      "path": "lib/gnss/bluetooth.ts",
+      "any_count": 3,
+      "lines": 238
+    },
+    {
+      "path": "lib/mobile/syncService.ts",
+      "any_count": 3,
+      "lines": 199
+    },
+    {
+      "path": "lib/ocr/levelBookOCR.ts",
+      "any_count": 3,
+      "lines": 198
+    },
+    {
+      "path": "lib/import/totalStation/parseJobXML.ts",
+      "any_count": 3,
+      "lines": 67
     },
     {
       "path": "app/api/ardhisasa/route.ts",
@@ -692,14 +767,14 @@
       "lines": 91
     },
     {
-      "path": "app/api/scheme/export/dxf/route.ts",
-      "any_count": 3,
-      "lines": 134
-    },
-    {
       "path": "app/api/survey-report/generate/route.ts",
       "any_count": 3,
       "lines": 142
+    },
+    {
+      "path": "app/api/scheme/export/dxf/route.ts",
+      "any_count": 3,
+      "lines": 134
     },
     {
       "path": "app/api/gnss/process/route.ts",
@@ -712,104 +787,9 @@
       "lines": 80
     },
     {
-      "path": "lib/marketplace/cpdCertificates.ts",
-      "any_count": 3,
-      "lines": 199
-    },
-    {
-      "path": "lib/legal/dpa2019.ts",
-      "any_count": 3,
-      "lines": 333
-    },
-    {
-      "path": "lib/computations/traverseEngine.ts",
-      "any_count": 3,
-      "lines": 507
-    },
-    {
-      "path": "lib/offline/storage.ts",
-      "any_count": 3,
-      "lines": 179
-    },
-    {
-      "path": "lib/parcel/parcelSearch.ts",
-      "any_count": 3,
-      "lines": 233
-    },
-    {
-      "path": "lib/mobile/syncService.ts",
-      "any_count": 3,
-      "lines": 199
-    },
-    {
-      "path": "lib/field/geopdf.ts",
-      "any_count": 3,
-      "lines": 76
-    },
-    {
-      "path": "lib/api/response.ts",
-      "any_count": 3,
-      "lines": 27
-    },
-    {
-      "path": "lib/ocr/levelBookOCR.ts",
-      "any_count": 3,
-      "lines": 198
-    },
-    {
-      "path": "lib/engine/gnss.ts",
-      "any_count": 3,
-      "lines": 364
-    },
-    {
-      "path": "lib/data/easementLaw.ts",
-      "any_count": 3,
-      "lines": 405
-    },
-    {
-      "path": "lib/data/boundaryLaw.ts",
-      "any_count": 3,
-      "lines": 598
-    },
-    {
-      "path": "lib/data/kenyaSurveyStandards.ts",
-      "any_count": 3,
-      "lines": 133
-    },
-    {
-      "path": "lib/gnss/bluetooth.ts",
-      "any_count": 3,
-      "lines": 238
-    },
-    {
-      "path": "lib/fieldplan/index.ts",
-      "any_count": 3,
-      "lines": 230
-    },
-    {
-      "path": "lib/parsers/parseBOQ.ts",
-      "any_count": 3,
-      "lines": 140
-    },
-    {
-      "path": "lib/docx/generateDocx.ts",
-      "any_count": 3,
-      "lines": 243
-    },
-    {
-      "path": "lib/import/totalStation/parseJobXML.ts",
-      "any_count": 3,
-      "lines": 67
-    },
-    {
       "path": "components/SurveyPlanExport.tsx",
       "any_count": 3,
       "lines": 143
-    },
-    {
-      "path": "app/marketplace/page.tsx",
-      "any_count": 3,
-      "lines": 880
     },
     {
       "path": "app/automator/page.tsx",
@@ -817,9 +797,14 @@
       "lines": 86
     },
     {
-      "path": "app/map/components/MapToolbar.tsx",
+      "path": "app/marketplace/page.tsx",
       "any_count": 3,
-      "lines": 477
+      "lines": 880
+    },
+    {
+      "path": "app/tools/beacon-reference/page.tsx",
+      "any_count": 3,
+      "lines": 130
     },
     {
       "path": "app/project/[id]/scheme/page.tsx",
@@ -832,19 +817,9 @@
       "lines": 415
     },
     {
-      "path": "app/tools/beacon-reference/page.tsx",
+      "path": "app/map/components/MapToolbar.tsx",
       "any_count": 3,
-      "lines": 130
-    },
-    {
-      "path": "components/cadastra/ValidationReport.tsx",
-      "any_count": 3,
-      "lines": 88
-    },
-    {
-      "path": "components/earthworks/CrossSectionDrawing.tsx",
-      "any_count": 3,
-      "lines": 111
+      "lines": 477
     },
     {
       "path": "components/workspace/WorkspaceMap.tsx",
@@ -862,19 +837,199 @@
       "lines": 269
     },
     {
+      "path": "components/earthworks/CrossSectionDrawing.tsx",
+      "any_count": 3,
+      "lines": 111
+    },
+    {
+      "path": "components/cadastra/ValidationReport.tsx",
+      "any_count": 3,
+      "lines": 88
+    },
+    {
       "path": "hooks/useMapHistory.ts",
       "any_count": 2,
       "lines": 116
     },
     {
-      "path": "app/map/hooks/useMapState.ts",
+      "path": "lib/data/disputeProcedures.ts",
       "any_count": 2,
-      "lines": 64
+      "lines": 265
     },
     {
-      "path": "app/api/cla-forms/route.ts",
+      "path": "lib/data/kenyaLocalities.ts",
       "any_count": 2,
-      "lines": 102
+      "lines": 309
+    },
+    {
+      "path": "lib/data/usSurveyStandards.ts",
+      "any_count": 2,
+      "lines": 174
+    },
+    {
+      "path": "lib/engine/parser.ts",
+      "any_count": 2,
+      "lines": 81
+    },
+    {
+      "path": "lib/engine/volume.ts",
+      "any_count": 2,
+      "lines": 265
+    },
+    {
+      "path": "lib/engine/curves.ts",
+      "any_count": 2,
+      "lines": 221
+    },
+    {
+      "path": "lib/offline/sync.ts",
+      "any_count": 2,
+      "lines": 159
+    },
+    {
+      "path": "lib/generators/orthophotoPlan.ts",
+      "any_count": 2,
+      "lines": 648
+    },
+    {
+      "path": "lib/computations/cogoEngine.ts",
+      "any_count": 2,
+      "lines": 1040
+    },
+    {
+      "path": "lib/integrations/digitalSignature.ts",
+      "any_count": 2,
+      "lines": 122
+    },
+    {
+      "path": "lib/integrations/southAfrica.ts",
+      "any_count": 2,
+      "lines": 71
+    },
+    {
+      "path": "lib/integrations/ghana.ts",
+      "any_count": 2,
+      "lines": 67
+    },
+    {
+      "path": "lib/integrations/nigeria.ts",
+      "any_count": 2,
+      "lines": 70
+    },
+    {
+      "path": "lib/marketplace/peerReview.ts",
+      "any_count": 2,
+      "lines": 153
+    },
+    {
+      "path": "lib/reports/coordinateConverter.ts",
+      "any_count": 2,
+      "lines": 89
+    },
+    {
+      "path": "lib/parsers/parsePDF.ts",
+      "any_count": 2,
+      "lines": 180
+    },
+    {
+      "path": "lib/webhooks/dispatcher.ts",
+      "any_count": 2,
+      "lines": 110
+    },
+    {
+      "path": "lib/serial/instrumentCommands.ts",
+      "any_count": 2,
+      "lines": 741
+    },
+    {
+      "path": "lib/validation/toleranceEngine.ts",
+      "any_count": 2,
+      "lines": 250
+    },
+    {
+      "path": "lib/export/generateDXF.ts",
+      "any_count": 2,
+      "lines": 125
+    },
+    {
+      "path": "lib/export/civilHandoff.ts",
+      "any_count": 2,
+      "lines": 164
+    },
+    {
+      "path": "lib/export/shapefile.ts",
+      "any_count": 2,
+      "lines": 400
+    },
+    {
+      "path": "lib/compute/geofusion.ts",
+      "any_count": 2,
+      "lines": 204
+    },
+    {
+      "path": "lib/compute/pythonService.ts",
+      "any_count": 2,
+      "lines": 126
+    },
+    {
+      "path": "lib/performance/monitor.ts",
+      "any_count": 2,
+      "lines": 287
+    },
+    {
+      "path": "lib/enterprise/insurance.ts",
+      "any_count": 2,
+      "lines": 157
+    },
+    {
+      "path": "lib/enterprise/universityApi.ts",
+      "any_count": 2,
+      "lines": 233
+    },
+    {
+      "path": "lib/api-client/cadastraValidations.ts",
+      "any_count": 2,
+      "lines": 56
+    },
+    {
+      "path": "lib/api-client/client.ts",
+      "any_count": 2,
+      "lines": 341
+    },
+    {
+      "path": "lib/geo/cors.ts",
+      "any_count": 2,
+      "lines": 50
+    },
+    {
+      "path": "lib/survey/networkAdjustment.ts",
+      "any_count": 2,
+      "lines": 335
+    },
+    {
+      "path": "lib/security/sanitize.ts",
+      "any_count": 2,
+      "lines": 94
+    },
+    {
+      "path": "lib/security/errors.ts",
+      "any_count": 2,
+      "lines": 49
+    },
+    {
+      "path": "lib/plan/surveySymbols.ts",
+      "any_count": 2,
+      "lines": 326
+    },
+    {
+      "path": "lib/engine/solution/wrappers/volume.ts",
+      "any_count": 2,
+      "lines": 162
+    },
+    {
+      "path": "lib/survey/digitalLevel/levelNetworkAdjustment.ts",
+      "any_count": 2,
+      "lines": 471
     },
     {
       "path": "app/api/health/route.ts",
@@ -882,19 +1037,19 @@
       "lines": 153
     },
     {
-      "path": "app/api/projects/[id]/route.ts",
-      "any_count": 2,
-      "lines": 125
-    },
-    {
-      "path": "app/api/scheme/rim/route.ts",
-      "any_count": 2,
-      "lines": 216
-    },
-    {
-      "path": "app/api/scheme/parcels/[id]/route.ts",
+      "path": "app/api/cla-forms/route.ts",
       "any_count": 2,
       "lines": 102
+    },
+    {
+      "path": "app/api/usv/mission/route.ts",
+      "any_count": 2,
+      "lines": 39
+    },
+    {
+      "path": "app/api/engineering/ips/route.ts",
+      "any_count": 2,
+      "lines": 231
     },
     {
       "path": "app/api/automator/report/route.ts",
@@ -907,19 +1062,29 @@
       "lines": 37
     },
     {
-      "path": "app/api/geofusion/align/route.ts",
+      "path": "app/api/projects/[id]/route.ts",
       "any_count": 2,
-      "lines": 71
+      "lines": 125
     },
     {
-      "path": "app/api/project/[id]/hydro-survey/route.ts",
+      "path": "app/api/ai/clean-data/route.ts",
       "any_count": 2,
-      "lines": 64
+      "lines": 94
     },
     {
-      "path": "app/api/usv/mission/route.ts",
+      "path": "app/api/ai/cadastra-validate/route.ts",
       "any_count": 2,
-      "lines": 39
+      "lines": 82
+    },
+    {
+      "path": "app/api/scheme/rim/route.ts",
+      "any_count": 2,
+      "lines": 216
+    },
+    {
+      "path": "app/api/scheme/parcels/[id]/route.ts",
+      "any_count": 2,
+      "lines": 102
     },
     {
       "path": "app/api/submission/preview/route.ts",
@@ -927,14 +1092,9 @@
       "lines": 95
     },
     {
-      "path": "app/api/engineering/ips/route.ts",
+      "path": "app/api/project/[id]/hydro-survey/route.ts",
       "any_count": 2,
-      "lines": 231
-    },
-    {
-      "path": "app/api/coordinates/batch/route.ts",
-      "any_count": 2,
-      "lines": 93
+      "lines": 64
     },
     {
       "path": "app/api/webhooks/stripe/route.ts",
@@ -957,204 +1117,19 @@
       "lines": 132
     },
     {
-      "path": "app/api/ai/cadastra-validate/route.ts",
-      "any_count": 2,
-      "lines": 82
-    },
-    {
-      "path": "app/api/ai/clean-data/route.ts",
-      "any_count": 2,
-      "lines": 94
-    },
-    {
-      "path": "lib/marketplace/peerReview.ts",
-      "any_count": 2,
-      "lines": 153
-    },
-    {
-      "path": "lib/security/sanitize.ts",
-      "any_count": 2,
-      "lines": 94
-    },
-    {
-      "path": "lib/security/errors.ts",
-      "any_count": 2,
-      "lines": 49
-    },
-    {
-      "path": "lib/computations/cogoEngine.ts",
-      "any_count": 2,
-      "lines": 1040
-    },
-    {
-      "path": "lib/plan/surveySymbols.ts",
-      "any_count": 2,
-      "lines": 326
-    },
-    {
-      "path": "lib/integrations/nigeria.ts",
-      "any_count": 2,
-      "lines": 70
-    },
-    {
-      "path": "lib/integrations/southAfrica.ts",
+      "path": "app/api/geofusion/align/route.ts",
       "any_count": 2,
       "lines": 71
     },
     {
-      "path": "lib/integrations/digitalSignature.ts",
+      "path": "app/api/coordinates/batch/route.ts",
       "any_count": 2,
-      "lines": 122
+      "lines": 93
     },
     {
-      "path": "lib/integrations/ghana.ts",
+      "path": "app/map/hooks/useMapState.ts",
       "any_count": 2,
-      "lines": 67
-    },
-    {
-      "path": "lib/offline/sync.ts",
-      "any_count": 2,
-      "lines": 159
-    },
-    {
-      "path": "lib/api-client/cadastraValidations.ts",
-      "any_count": 2,
-      "lines": 56
-    },
-    {
-      "path": "lib/enterprise/insurance.ts",
-      "any_count": 2,
-      "lines": 157
-    },
-    {
-      "path": "lib/enterprise/universityApi.ts",
-      "any_count": 2,
-      "lines": 233
-    },
-    {
-      "path": "lib/engine/curves.ts",
-      "any_count": 2,
-      "lines": 221
-    },
-    {
-      "path": "lib/engine/parser.ts",
-      "any_count": 2,
-      "lines": 81
-    },
-    {
-      "path": "lib/engine/volume.ts",
-      "any_count": 2,
-      "lines": 265
-    },
-    {
-      "path": "lib/survey/networkAdjustment.ts",
-      "any_count": 2,
-      "lines": 335
-    },
-    {
-      "path": "lib/performance/monitor.ts",
-      "any_count": 2,
-      "lines": 287
-    },
-    {
-      "path": "lib/data/usSurveyStandards.ts",
-      "any_count": 2,
-      "lines": 174
-    },
-    {
-      "path": "lib/data/kenyaLocalities.ts",
-      "any_count": 2,
-      "lines": 309
-    },
-    {
-      "path": "lib/data/disputeProcedures.ts",
-      "any_count": 2,
-      "lines": 265
-    },
-    {
-      "path": "lib/export/shapefile.ts",
-      "any_count": 2,
-      "lines": 400
-    },
-    {
-      "path": "lib/export/generateDXF.ts",
-      "any_count": 2,
-      "lines": 125
-    },
-    {
-      "path": "lib/export/civilHandoff.ts",
-      "any_count": 2,
-      "lines": 164
-    },
-    {
-      "path": "lib/serial/instrumentCommands.ts",
-      "any_count": 2,
-      "lines": 741
-    },
-    {
-      "path": "lib/webhooks/dispatcher.ts",
-      "any_count": 2,
-      "lines": 110
-    },
-    {
-      "path": "lib/generators/orthophotoPlan.ts",
-      "any_count": 2,
-      "lines": 648
-    },
-    {
-      "path": "lib/validation/toleranceEngine.ts",
-      "any_count": 2,
-      "lines": 250
-    },
-    {
-      "path": "lib/reports/coordinateConverter.ts",
-      "any_count": 2,
-      "lines": 89
-    },
-    {
-      "path": "lib/compute/pythonService.ts",
-      "any_count": 2,
-      "lines": 126
-    },
-    {
-      "path": "lib/compute/geofusion.ts",
-      "any_count": 2,
-      "lines": 204
-    },
-    {
-      "path": "lib/parsers/parsePDF.ts",
-      "any_count": 2,
-      "lines": 180
-    },
-    {
-      "path": "lib/geo/cors.ts",
-      "any_count": 2,
-      "lines": 50
-    },
-    {
-      "path": "lib/engine/solution/wrappers/volume.ts",
-      "any_count": 2,
-      "lines": 162
-    },
-    {
-      "path": "lib/survey/digitalLevel/levelNetworkAdjustment.ts",
-      "any_count": 2,
-      "lines": 471
-    },
-    {
-      "path": "components/ComplianceChecklistModal.tsx",
-      "any_count": 2,
-      "lines": 198
-    },
-    {
-      "path": "components/ParcelAreaModal.tsx",
-      "any_count": 2,
-      "lines": 149
-    },
-    {
-      "path": "components/CSVUploadModal.tsx",
-      "any_count": 2,
-      "lines": 238
+      "lines": 64
     },
     {
       "path": "components/ProjectCard.tsx",
@@ -1162,9 +1137,9 @@
       "lines": 381
     },
     {
-      "path": "components/InstrumentConnectionPanel.tsx",
+      "path": "components/ParcelAreaModal.tsx",
       "any_count": 2,
-      "lines": 419
+      "lines": 149
     },
     {
       "path": "components/NavBar.tsx",
@@ -1172,9 +1147,9 @@
       "lines": 595
     },
     {
-      "path": "components/LevelBook.tsx",
+      "path": "components/InstrumentConnectionPanel.tsx",
       "any_count": 2,
-      "lines": 345
+      "lines": 419
     },
     {
       "path": "components/AddPointModal.tsx",
@@ -1182,9 +1157,19 @@
       "lines": 341
     },
     {
-      "path": "app/minetwin/page.tsx",
+      "path": "components/ComplianceChecklistModal.tsx",
       "any_count": 2,
-      "lines": 92
+      "lines": 198
+    },
+    {
+      "path": "components/LevelBook.tsx",
+      "any_count": 2,
+      "lines": 345
+    },
+    {
+      "path": "components/CSVUploadModal.tsx",
+      "any_count": 2,
+      "lines": 238
     },
     {
       "path": "app/checkout/page.tsx",
@@ -1192,14 +1177,19 @@
       "lines": 363
     },
     {
+      "path": "app/minetwin/page.tsx",
+      "any_count": 2,
+      "lines": 92
+    },
+    {
       "path": "app/community/page.tsx",
       "any_count": 2,
       "lines": 175
     },
     {
-      "path": "app/beacons/submit/page.tsx",
+      "path": "app/verify/[token]/page.tsx",
       "any_count": 2,
-      "lines": 256
+      "lines": 164
     },
     {
       "path": "app/account/billing/page.tsx",
@@ -1207,14 +1197,14 @@
       "lines": 292
     },
     {
-      "path": "app/fieldbook/ai/page.tsx",
+      "path": "app/docs/privacy/page.tsx",
       "any_count": 2,
-      "lines": 407
+      "lines": 99
     },
     {
-      "path": "app/verify/[token]/page.tsx",
+      "path": "app/beacons/submit/page.tsx",
       "any_count": 2,
-      "lines": 164
+      "lines": 256
     },
     {
       "path": "app/tools/survey-regulations/page.tsx",
@@ -1227,9 +1217,34 @@
       "lines": 1266
     },
     {
-      "path": "app/docs/privacy/page.tsx",
+      "path": "app/fieldbook/ai/page.tsx",
       "any_count": 2,
-      "lines": 99
+      "lines": 407
+    },
+    {
+      "path": "components/usv/MissionPlanner.tsx",
+      "any_count": 2,
+      "lines": 115
+    },
+    {
+      "path": "components/app/AppUpdateBanner.tsx",
+      "any_count": 2,
+      "lines": 126
+    },
+    {
+      "path": "components/mining/StockpileReport.tsx",
+      "any_count": 2,
+      "lines": 421
+    },
+    {
+      "path": "components/workspace/LongitudinalSection.tsx",
+      "any_count": 2,
+      "lines": 86
+    },
+    {
+      "path": "components/importer/UniversalImporter.tsx",
+      "any_count": 2,
+      "lines": 157
     },
     {
       "path": "components/fieldbook/LevelingBook.tsx",
@@ -1237,14 +1252,14 @@
       "lines": 133
     },
     {
-      "path": "components/cadastra/BoundaryUploader.tsx",
+      "path": "components/setting-out/SettingOutTable.tsx",
       "any_count": 2,
-      "lines": 76
+      "lines": 72
     },
     {
-      "path": "components/importer/UniversalImporter.tsx",
+      "path": "components/setting-out/ChainageOffsetTable.tsx",
       "any_count": 2,
-      "lines": 157
+      "lines": 52
     },
     {
       "path": "components/earthworks/MassHaulDiagram.tsx",
@@ -1257,29 +1272,24 @@
       "lines": 121
     },
     {
-      "path": "components/app/AppUpdateBanner.tsx",
+      "path": "components/cadastra/BoundaryUploader.tsx",
       "any_count": 2,
-      "lines": 126
+      "lines": 76
     },
     {
-      "path": "components/workspace/LongitudinalSection.tsx",
+      "path": "components/geo/CoordinateTransformer.tsx",
       "any_count": 2,
-      "lines": 86
-    },
-    {
-      "path": "components/usv/MissionPlanner.tsx",
-      "any_count": 2,
-      "lines": 115
-    },
-    {
-      "path": "components/ui/Skeleton.tsx",
-      "any_count": 2,
-      "lines": 69
+      "lines": 129
     },
     {
       "path": "components/ui/UTMZonePicker.tsx",
       "any_count": 2,
       "lines": 122
+    },
+    {
+      "path": "components/ui/Skeleton.tsx",
+      "any_count": 2,
+      "lines": 69
     },
     {
       "path": "components/working-diagram/RoadBoundarySelector.tsx",
@@ -1292,34 +1302,9 @@
       "lines": 128
     },
     {
-      "path": "components/setting-out/ChainageOffsetTable.tsx",
-      "any_count": 2,
-      "lines": 52
-    },
-    {
-      "path": "components/setting-out/SettingOutTable.tsx",
-      "any_count": 2,
-      "lines": 72
-    },
-    {
       "path": "components/hydrographic/TidalReductionPanel.tsx",
       "any_count": 2,
       "lines": 454
-    },
-    {
-      "path": "components/mining/StockpileReport.tsx",
-      "any_count": 2,
-      "lines": 421
-    },
-    {
-      "path": "components/geo/CoordinateTransformer.tsx",
-      "any_count": 2,
-      "lines": 129
-    },
-    {
-      "path": "hooks/useOCRImport.ts",
-      "any_count": 1,
-      "lines": 237
     },
     {
       "path": "types/minetwin.ts",
@@ -1327,39 +1312,189 @@
       "lines": 71
     },
     {
+      "path": "hooks/useOCRImport.ts",
+      "any_count": 1,
+      "lines": 237
+    },
+    {
+      "path": "lib/engine/geometry.ts",
+      "any_count": 1,
+      "lines": 111
+    },
+    {
+      "path": "lib/engine/levelNetworkAdjust.ts",
+      "any_count": 1,
+      "lines": 270
+    },
+    {
+      "path": "lib/engine/datums.ts",
+      "any_count": 1,
+      "lines": 375
+    },
+    {
+      "path": "lib/pdf/generatePdf.ts",
+      "any_count": 1,
+      "lines": 230
+    },
+    {
+      "path": "lib/auth/requireAuth.ts",
+      "any_count": 1,
+      "lines": 85
+    },
+    {
+      "path": "lib/generators/settingOutDxf.ts",
+      "any_count": 1,
+      "lines": 123
+    },
+    {
+      "path": "lib/generators/boundaryShapefile.ts",
+      "any_count": 1,
+      "lines": 61
+    },
+    {
+      "path": "lib/i18n/shared.ts",
+      "any_count": 1,
+      "lines": 46
+    },
+    {
+      "path": "lib/parsers/parse3D.ts",
+      "any_count": 1,
+      "lines": 208
+    },
+    {
+      "path": "lib/parsers/surveyDetector.ts",
+      "any_count": 1,
+      "lines": 37
+    },
+    {
+      "path": "lib/hydro/bathymetricDXF.ts",
+      "any_count": 1,
+      "lines": 110
+    },
+    {
+      "path": "lib/map/deedPlanExport.ts",
+      "any_count": 1,
+      "lines": 843
+    },
+    {
+      "path": "lib/serial/protocolParsers.ts",
+      "any_count": 1,
+      "lines": 782
+    },
+    {
+      "path": "lib/export/generateLandXML.ts",
+      "any_count": 1,
+      "lines": 94
+    },
+    {
+      "path": "lib/export/generateGeoJSON.ts",
+      "any_count": 1,
+      "lines": 69
+    },
+    {
+      "path": "lib/analytics/events.ts",
+      "any_count": 1,
+      "lines": 65
+    },
+    {
+      "path": "lib/enterprise/cloudRendering.ts",
+      "any_count": 1,
+      "lines": 153
+    },
+    {
+      "path": "lib/enterprise/index.ts",
+      "any_count": 1,
+      "lines": 243
+    },
+    {
+      "path": "lib/api-client/mineTwins.ts",
+      "any_count": 1,
+      "lines": 76
+    },
+    {
+      "path": "lib/api-client/safetyIncidents.ts",
+      "any_count": 1,
+      "lines": 58
+    },
+    {
+      "path": "lib/print/droneReportPrint.ts",
+      "any_count": 1,
+      "lines": 185
+    },
+    {
+      "path": "lib/print/settingOutSchedule.ts",
+      "any_count": 1,
+      "lines": 199
+    },
+    {
+      "path": "lib/survey/networkAdjustmentDXF.ts",
+      "any_count": 1,
+      "lines": 71
+    },
+    {
+      "path": "lib/importers/ifcParser.ts",
+      "any_count": 1,
+      "lines": 1261
+    },
+    {
+      "path": "lib/cache/apiCache.ts",
+      "any_count": 1,
+      "lines": 98
+    },
+    {
+      "path": "lib/cache/redis.ts",
+      "any_count": 1,
+      "lines": 174
+    },
+    {
+      "path": "lib/engine/solution/solutionBuilder.ts",
+      "any_count": 1,
+      "lines": 111
+    },
+    {
+      "path": "lib/engine/solution/wrappers/leveling.ts",
+      "any_count": 1,
+      "lines": 77
+    },
+    {
+      "path": "lib/docx/templates/index.ts",
+      "any_count": 1,
+      "lines": 539
+    },
+    {
+      "path": "lib/reports/surveyPlan/renderer.ts",
+      "any_count": 1,
+      "lines": 1377
+    },
+    {
+      "path": "lib/reports/surveyPlan/types.ts",
+      "any_count": 1,
+      "lines": 188
+    },
+    {
+      "path": "lib/legal/claForms/index.ts",
+      "any_count": 1,
+      "lines": 45
+    },
+    {
+      "path": "lib/legal/claForms/claForm5.ts",
+      "any_count": 1,
+      "lines": 325
+    },
+    {
+      "path": "lib/survey/digitalLevel/digitalLevelImport.ts",
+      "any_count": 1,
+      "lines": 250
+    },
+    {
+      "path": "lib/importers/parsers/rinex.ts",
+      "any_count": 1,
+      "lines": 688
+    },
+    {
       "path": "app/api/validate-geometry/route.ts",
       "any_count": 1,
       "lines": 103
-    },
-    {
-      "path": "app/api/scheme/batch/route.ts",
-      "any_count": 1,
-      "lines": 172
-    },
-    {
-      "path": "app/api/scheme/assign/route.ts",
-      "any_count": 1,
-      "lines": 74
-    },
-    {
-      "path": "app/api/scheme/forms/form-no-4/route.ts",
-      "any_count": 1,
-      "lines": 161
-    },
-    {
-      "path": "app/api/scheme/submission/readiness/route.ts",
-      "any_count": 1,
-      "lines": 125
-    },
-    {
-      "path": "app/api/scheme/submission/checklist/route.ts",
-      "any_count": 1,
-      "lines": 112
-    },
-    {
-      "path": "app/api/scheme/blocks/[id]/route.ts",
-      "any_count": 1,
-      "lines": 93
     },
     {
       "path": "app/api/auth/update-password/route.ts",
@@ -1367,12 +1502,27 @@
       "lines": 63
     },
     {
-      "path": "app/api/python/hydro/route.ts",
+      "path": "app/api/engineering/stations/route.ts",
+      "any_count": 1,
+      "lines": 66
+    },
+    {
+      "path": "app/api/engineering/vips/route.ts",
+      "any_count": 1,
+      "lines": 51
+    },
+    {
+      "path": "app/api/engineering/earthworks/route.ts",
+      "any_count": 1,
+      "lines": 75
+    },
+    {
+      "path": "app/api/python/contours/route.ts",
       "any_count": 1,
       "lines": 28
     },
     {
-      "path": "app/api/python/volume/route.ts",
+      "path": "app/api/python/hydro/route.ts",
       "any_count": 1,
       "lines": 28
     },
@@ -1382,12 +1532,12 @@
       "lines": 28
     },
     {
-      "path": "app/api/python/terrain/route.ts",
+      "path": "app/api/python/volume/route.ts",
       "any_count": 1,
       "lines": 28
     },
     {
-      "path": "app/api/python/contours/route.ts",
+      "path": "app/api/python/terrain/route.ts",
       "any_count": 1,
       "lines": 28
     },
@@ -1402,19 +1552,34 @@
       "lines": 28
     },
     {
-      "path": "app/api/admin/optimize/route.ts",
+      "path": "app/api/scheme/batch/route.ts",
       "any_count": 1,
-      "lines": 107
+      "lines": 172
     },
     {
-      "path": "app/api/project/[id]/mining-volume/route.ts",
+      "path": "app/api/scheme/assign/route.ts",
       "any_count": 1,
-      "lines": 80
+      "lines": 74
     },
     {
-      "path": "app/api/jobs/[id]/route.ts",
+      "path": "app/api/scheme/blocks/[id]/route.ts",
       "any_count": 1,
-      "lines": 52
+      "lines": 93
+    },
+    {
+      "path": "app/api/scheme/forms/form-no-4/route.ts",
+      "any_count": 1,
+      "lines": 161
+    },
+    {
+      "path": "app/api/scheme/submission/checklist/route.ts",
+      "any_count": 1,
+      "lines": 112
+    },
+    {
+      "path": "app/api/scheme/submission/readiness/route.ts",
+      "any_count": 1,
+      "lines": 125
     },
     {
       "path": "app/api/tools/statutory-workbook/route.ts",
@@ -1422,24 +1587,9 @@
       "lines": 120
     },
     {
-      "path": "app/api/engineering/earthworks/route.ts",
+      "path": "app/api/project/[id]/mining-volume/route.ts",
       "any_count": 1,
-      "lines": 75
-    },
-    {
-      "path": "app/api/engineering/vips/route.ts",
-      "any_count": 1,
-      "lines": 51
-    },
-    {
-      "path": "app/api/engineering/stations/route.ts",
-      "any_count": 1,
-      "lines": 66
-    },
-    {
-      "path": "app/api/coordinates/transform/route.ts",
-      "any_count": 1,
-      "lines": 33
+      "lines": 80
     },
     {
       "path": "app/api/topo/export/dxf/route.ts",
@@ -1447,199 +1597,29 @@
       "lines": 65
     },
     {
+      "path": "app/api/jobs/[id]/route.ts",
+      "any_count": 1,
+      "lines": 52
+    },
+    {
       "path": "app/api/compute/raster-analysis/route.ts",
       "any_count": 1,
       "lines": 61
     },
     {
-      "path": "lib/map/deedPlanExport.ts",
+      "path": "app/api/admin/optimize/route.ts",
       "any_count": 1,
-      "lines": 843
+      "lines": 107
     },
     {
-      "path": "lib/hydro/bathymetricDXF.ts",
+      "path": "app/api/coordinates/transform/route.ts",
       "any_count": 1,
-      "lines": 110
-    },
-    {
-      "path": "lib/i18n/shared.ts",
-      "any_count": 1,
-      "lines": 46
-    },
-    {
-      "path": "lib/auth/requireAuth.ts",
-      "any_count": 1,
-      "lines": 85
-    },
-    {
-      "path": "lib/api-client/surveyReports.ts",
-      "any_count": 1,
-      "lines": 171
-    },
-    {
-      "path": "lib/api-client/safetyIncidents.ts",
-      "any_count": 1,
-      "lines": 58
-    },
-    {
-      "path": "lib/api-client/mineTwins.ts",
-      "any_count": 1,
-      "lines": 76
-    },
-    {
-      "path": "lib/enterprise/index.ts",
-      "any_count": 1,
-      "lines": 243
-    },
-    {
-      "path": "lib/enterprise/cloudRendering.ts",
-      "any_count": 1,
-      "lines": 153
-    },
-    {
-      "path": "lib/analytics/events.ts",
-      "any_count": 1,
-      "lines": 65
-    },
-    {
-      "path": "lib/pdf/generatePdf.ts",
-      "any_count": 1,
-      "lines": 230
-    },
-    {
-      "path": "lib/cache/redis.ts",
-      "any_count": 1,
-      "lines": 174
-    },
-    {
-      "path": "lib/cache/apiCache.ts",
-      "any_count": 1,
-      "lines": 98
-    },
-    {
-      "path": "lib/engine/levelNetworkAdjust.ts",
-      "any_count": 1,
-      "lines": 270
-    },
-    {
-      "path": "lib/engine/datums.ts",
-      "any_count": 1,
-      "lines": 375
-    },
-    {
-      "path": "lib/engine/geometry.ts",
-      "any_count": 1,
-      "lines": 111
-    },
-    {
-      "path": "lib/survey/networkAdjustmentDXF.ts",
-      "any_count": 1,
-      "lines": 71
-    },
-    {
-      "path": "lib/print/settingOutSchedule.ts",
-      "any_count": 1,
-      "lines": 199
-    },
-    {
-      "path": "lib/print/droneReportPrint.ts",
-      "any_count": 1,
-      "lines": 185
-    },
-    {
-      "path": "lib/importers/ifcParser.ts",
-      "any_count": 1,
-      "lines": 1261
-    },
-    {
-      "path": "lib/export/generateLandXML.ts",
-      "any_count": 1,
-      "lines": 94
-    },
-    {
-      "path": "lib/export/generateGeoJSON.ts",
-      "any_count": 1,
-      "lines": 69
-    },
-    {
-      "path": "lib/serial/protocolParsers.ts",
-      "any_count": 1,
-      "lines": 782
-    },
-    {
-      "path": "lib/generators/boundaryShapefile.ts",
-      "any_count": 1,
-      "lines": 61
-    },
-    {
-      "path": "lib/generators/settingOutDxf.ts",
-      "any_count": 1,
-      "lines": 123
-    },
-    {
-      "path": "lib/parsers/surveyDetector.ts",
-      "any_count": 1,
-      "lines": 37
-    },
-    {
-      "path": "lib/parsers/parse3D.ts",
-      "any_count": 1,
-      "lines": 208
-    },
-    {
-      "path": "lib/legal/claForms/index.ts",
-      "any_count": 1,
-      "lines": 45
-    },
-    {
-      "path": "lib/legal/claForms/claForm5.ts",
-      "any_count": 1,
-      "lines": 325
-    },
-    {
-      "path": "lib/engine/solution/solutionBuilder.ts",
-      "any_count": 1,
-      "lines": 111
-    },
-    {
-      "path": "lib/engine/solution/wrappers/leveling.ts",
-      "any_count": 1,
-      "lines": 77
-    },
-    {
-      "path": "lib/survey/digitalLevel/digitalLevelImport.ts",
-      "any_count": 1,
-      "lines": 250
-    },
-    {
-      "path": "lib/importers/parsers/rinex.ts",
-      "any_count": 1,
-      "lines": 688
-    },
-    {
-      "path": "lib/reports/surveyPlan/types.ts",
-      "any_count": 1,
-      "lines": 188
-    },
-    {
-      "path": "lib/reports/surveyPlan/renderer.ts",
-      "any_count": 1,
-      "lines": 1377
-    },
-    {
-      "path": "lib/docx/templates/index.ts",
-      "any_count": 1,
-      "lines": 539
+      "lines": 33
     },
     {
       "path": "app/opengraph-image.tsx",
       "any_count": 1,
       "lines": 122
-    },
-    {
-      "path": "components/GeometryValidationPanel.tsx",
-      "any_count": 1,
-      "lines": 126
     },
     {
       "path": "components/MobileNav.tsx",
@@ -1652,34 +1632,24 @@
       "lines": 72
     },
     {
-      "path": "app/registry/page.tsx",
+      "path": "components/GeometryValidationPanel.tsx",
       "any_count": 1,
-      "lines": 69
+      "lines": 126
     },
     {
-      "path": "app/instruments/page.tsx",
+      "path": "lib/perf/lazyComponents.tsx",
       "any_count": 1,
-      "lines": 139
-    },
-    {
-      "path": "app/dashboard/page.tsx",
-      "any_count": 1,
-      "lines": 187
-    },
-    {
-      "path": "app/admin/layout.tsx",
-      "any_count": 1,
-      "lines": 182
-    },
-    {
-      "path": "app/kencors/page.tsx",
-      "any_count": 1,
-      "lines": 396
+      "lines": 120
     },
     {
       "path": "app/guide/page.tsx",
       "any_count": 1,
       "lines": 309
+    },
+    {
+      "path": "app/kencors/page.tsx",
+      "any_count": 1,
+      "lines": 396
     },
     {
       "path": "app/land-law/page.tsx",
@@ -1692,24 +1662,59 @@
       "lines": 177
     },
     {
+      "path": "app/dashboard/page.tsx",
+      "any_count": 1,
+      "lines": 187
+    },
+    {
+      "path": "app/registry/page.tsx",
+      "any_count": 1,
+      "lines": 69
+    },
+    {
+      "path": "app/admin/layout.tsx",
+      "any_count": 1,
+      "lines": 182
+    },
+    {
+      "path": "app/instruments/page.tsx",
+      "any_count": 1,
+      "lines": 139
+    },
+    {
+      "path": "app/docs/first-plan/page.tsx",
+      "any_count": 1,
+      "lines": 129
+    },
+    {
       "path": "app/subscription/success/page.tsx",
       "any_count": 1,
       "lines": 153
     },
     {
-      "path": "app/map/components/MapOverlays.tsx",
+      "path": "app/tools/road-design/page.tsx",
       "any_count": 1,
-      "lines": 131
+      "lines": 70
     },
     {
-      "path": "app/project/[id]/map/page.tsx",
+      "path": "app/tools/volume-comparison/page.tsx",
       "any_count": 1,
-      "lines": 232
+      "lines": 1236
+    },
+    {
+      "path": "app/tools/survey-report-builder/page.tsx",
+      "any_count": 1,
+      "lines": 164
     },
     {
       "path": "app/project/[id]/settings/page.tsx",
       "any_count": 1,
       "lines": 431
+    },
+    {
+      "path": "app/project/[id]/map/page.tsx",
+      "any_count": 1,
+      "lines": 232
     },
     {
       "path": "app/project/[id]/topo/page.tsx",
@@ -1722,79 +1727,9 @@
       "lines": 514
     },
     {
-      "path": "app/tools/volume-comparison/page.tsx",
+      "path": "app/map/components/MapOverlays.tsx",
       "any_count": 1,
-      "lines": 1236
-    },
-    {
-      "path": "app/tools/road-design/page.tsx",
-      "any_count": 1,
-      "lines": 70
-    },
-    {
-      "path": "app/tools/survey-report-builder/page.tsx",
-      "any_count": 1,
-      "lines": 164
-    },
-    {
-      "path": "app/docs/first-plan/page.tsx",
-      "any_count": 1,
-      "lines": 129
-    },
-    {
-      "path": "lib/perf/lazyComponents.tsx",
-      "any_count": 1,
-      "lines": 120
-    },
-    {
-      "path": "components/registry/EquipmentTracker.tsx",
-      "any_count": 1,
-      "lines": 535
-    },
-    {
-      "path": "components/fieldbook/HydroBook.tsx",
-      "any_count": 1,
-      "lines": 67
-    },
-    {
-      "path": "components/fieldbook/MiningBook.tsx",
-      "any_count": 1,
-      "lines": 93
-    },
-    {
-      "path": "components/fieldbook/ControlBook.tsx",
-      "any_count": 1,
-      "lines": 125
-    },
-    {
-      "path": "components/map/OfflineTileDownloader.tsx",
-      "any_count": 1,
-      "lines": 583
-    },
-    {
-      "path": "components/scheme/CsvImportPanel.tsx",
-      "any_count": 1,
-      "lines": 206
-    },
-    {
-      "path": "components/minetwin/ConvergencePanel.tsx",
-      "any_count": 1,
-      "lines": 54
-    },
-    {
-      "path": "components/minetwin/MineViewer3D.tsx",
-      "any_count": 1,
-      "lines": 94
-    },
-    {
-      "path": "components/earthworks/EarthworkQuantitiesTable.tsx",
-      "any_count": 1,
-      "lines": 129
-    },
-    {
-      "path": "components/road-design/VerticalCurveCalculator.tsx",
-      "any_count": 1,
-      "lines": 155
+      "lines": 131
     },
     {
       "path": "components/road-design/HorizontalCurveCalculator.tsx",
@@ -1807,6 +1742,16 @@
       "lines": 190
     },
     {
+      "path": "components/road-design/VerticalCurveCalculator.tsx",
+      "any_count": 1,
+      "lines": 155
+    },
+    {
+      "path": "components/workspace/GenerateReportModal.tsx",
+      "any_count": 1,
+      "lines": 219
+    },
+    {
       "path": "components/workspace/ExportToolbar.tsx",
       "any_count": 1,
       "lines": 433
@@ -1817,9 +1762,74 @@
       "lines": 390
     },
     {
-      "path": "components/workspace/GenerateReportModal.tsx",
+      "path": "components/landlaw/AdversePossessionCalc.tsx",
       "any_count": 1,
-      "lines": 219
+      "lines": 275
+    },
+    {
+      "path": "components/landlaw/EasementGuide.tsx",
+      "any_count": 1,
+      "lines": 188
+    },
+    {
+      "path": "components/shared/ProfessionalDisclaimer.tsx",
+      "any_count": 1,
+      "lines": 37
+    },
+    {
+      "path": "components/deedplan/DeedPlanGenerator.tsx",
+      "any_count": 1,
+      "lines": 747
+    },
+    {
+      "path": "components/scheme/CsvImportPanel.tsx",
+      "any_count": 1,
+      "lines": 206
+    },
+    {
+      "path": "components/fieldbook/HydroBook.tsx",
+      "any_count": 1,
+      "lines": 67
+    },
+    {
+      "path": "components/fieldbook/ControlBook.tsx",
+      "any_count": 1,
+      "lines": 125
+    },
+    {
+      "path": "components/fieldbook/MiningBook.tsx",
+      "any_count": 1,
+      "lines": 93
+    },
+    {
+      "path": "components/map/OfflineTileDownloader.tsx",
+      "any_count": 1,
+      "lines": 583
+    },
+    {
+      "path": "components/setting-out/StakeOutSheet.tsx",
+      "any_count": 1,
+      "lines": 138
+    },
+    {
+      "path": "components/registry/EquipmentTracker.tsx",
+      "any_count": 1,
+      "lines": 535
+    },
+    {
+      "path": "components/earthworks/EarthworkQuantitiesTable.tsx",
+      "any_count": 1,
+      "lines": 129
+    },
+    {
+      "path": "components/minetwin/ConvergencePanel.tsx",
+      "any_count": 1,
+      "lines": 54
+    },
+    {
+      "path": "components/minetwin/MineViewer3D.tsx",
+      "any_count": 1,
+      "lines": 94
     },
     {
       "path": "components/working-diagram/DiagramTitleBlock.tsx",
@@ -1830,31 +1840,6 @@
       "path": "components/working-diagram/LegacyUnitBadge.tsx",
       "any_count": 1,
       "lines": 78
-    },
-    {
-      "path": "components/shared/ProfessionalDisclaimer.tsx",
-      "any_count": 1,
-      "lines": 37
-    },
-    {
-      "path": "components/setting-out/StakeOutSheet.tsx",
-      "any_count": 1,
-      "lines": 138
-    },
-    {
-      "path": "components/deedplan/DeedPlanGenerator.tsx",
-      "any_count": 1,
-      "lines": 747
-    },
-    {
-      "path": "components/landlaw/AdversePossessionCalc.tsx",
-      "any_count": 1,
-      "lines": 275
-    },
-    {
-      "path": "components/landlaw/EasementGuide.tsx",
-      "any_count": 1,
-      "lines": 188
     }
   ]
 }

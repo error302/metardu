@@ -35,12 +35,12 @@ interface UseMapInitParams {
   mouseCoordThrottleRef: React.MutableRefObject<number>
   searchParams: URLSearchParams
   pushHistory: () => void
-  drawSourceRef: React.MutableRefObject<any>
-  drawLayerRef: React.MutableRefObject<any>
-  measureSourceRef: React.MutableRefObject<any>
-  measureLayerRef: React.MutableRefObject<any>
-  selectInteractionRef: React.MutableRefObject<any>
-  mapInstance: React.MutableRefObject<any>
+  drawSourceRef: React.MutableRefObject<unknown>
+  drawLayerRef: React.MutableRefObject<unknown>
+  measureSourceRef: React.MutableRefObject<unknown>
+  measureLayerRef: React.MutableRefObject<unknown>
+  selectInteractionRef: React.MutableRefObject<unknown>
+  mapInstance: React.MutableRefObject<unknown>
   popupRef: React.MutableRefObject<HTMLDivElement | null>
   createBasemaps: (olModules: any) => Record<string, any>
   onPopupRender: (popupElement: HTMLDivElement, data: any, hidePopup: () => void) => void
@@ -265,7 +265,10 @@ export function useMapInit(params: UseMapInitParams) {
           popupElement.className = 'hidden'
           popupElement.replaceChildren()
           setSelectedFeature(null)
-          selectInteractionRef.current?.getFeatures()?.clear()
+          // ponytail: selectInteractionRef.current is unknown (was any); cast minimally
+          const si = selectInteractionRef.current as { getFeatures?: () => { clear?: () => void } } | null
+          const features = si?.getFeatures?.()
+          features?.clear?.()
         }
 
         // ── Create the map ──
@@ -460,9 +463,9 @@ export function useMapInit(params: UseMapInitParams) {
         ;(map as any)._cleanup = { geolocation, snap, dragAndDrop }
 
         if (!cancelled) setMapReady(true)
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Map initialization failed:', err)
-        if (!cancelled) setInitError(err?.message || 'Map failed to load')
+        if (!cancelled) setInitError(err instanceof Error ? err.message : 'Map failed to load')
       }
     }
 
@@ -479,6 +482,6 @@ export function useMapInit(params: UseMapInitParams) {
         mapInstance.current = null
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [])
 }

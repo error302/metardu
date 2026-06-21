@@ -5,6 +5,38 @@ const DB_VERSION = 3
 const MAX_RETRIES = 3
 const SYNC_INTERVAL = 30000 // 30 seconds
 
+// ponytail: Phase 6 Batch 7 — typed minimal DB client interface for the
+// offline sync queue. Mirrors the legacy DB proxy client surface (see
+// src/lib/api-client/client.ts). The queue only uses .from()/.select()/.insert()
+// .update()/.delete()/.eq()/.single(), so a structural interface is enough.
+// Fields are required (but nullable) to match the QueryResult shape exactly,
+// and `single()` returns PromiseLike (not Promise) so that the legacy
+// ClientQueryBuilder — whose single() returns PromiseLike<...> & this — is
+// structurally assignable.
+interface SyncDbResult {
+  data: Record<string, unknown> | null
+  error: { message: string; code: string; details?: string } | null
+  count?: number | null
+}
+
+interface SyncDbQuery {
+  select(columns?: string, options?: { count?: string; head?: boolean }): SyncDbQuery
+  insert(data: Record<string, unknown> | Record<string, unknown>[]): SyncDbQuery
+  update(data: Record<string, unknown>): SyncDbQuery
+  delete(): SyncDbQuery
+  eq(column: string, value: unknown): SyncDbQuery
+  single(): PromiseLike<SyncDbResult>
+  // ponytail: thenable — `await dbClient.from(t).insert(d)` resolves to SyncDbResult
+  then<TResult1 = SyncDbResult, TResult2 = never>(
+    resolve?: ((v: SyncDbResult) => TResult1 | PromiseLike<TResult1>) | null,
+    reject?: ((e: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ): Promise<TResult1 | TResult2>
+}
+
+interface SyncDbClient {
+  from(table: string): SyncDbQuery
+}
+
 interface METARDUDB extends DBSchema {
   sync_queue: {
     key: number
@@ -13,26 +45,26 @@ interface METARDUDB extends DBSchema {
   }
   projects: {
     key: string
-    value: any
+    value: Record<string, unknown>
   }
   survey_points: {
     key: string
-    value: any
+    value: Record<string, unknown>
     indexes: { 'by-project': string }
   }
   traverse_obs: {
     key: string
-    value: any
+    value: Record<string, unknown>
     indexes: { 'by-project': string }
   }
   leveling_obs: {
     key: string
-    value: any
+    value: Record<string, unknown>
     indexes: { 'by-project': string }
   }
   fieldbooks: {
     key: string
-    value: any
+    value: Record<string, unknown>
   }
   conflicts: {
     key: number
@@ -89,7 +121,7 @@ export interface SyncOperation {
   id?: number
   type: 'INSERT' | 'UPDATE' | 'DELETE'
   table: string
-  data: Record<string, any>
+  data: Record<string, unknown>
   timestamp: string
   projectId: string
   retries: number
@@ -99,7 +131,7 @@ export interface SyncOperation {
 export interface ConflictRecord {
   id?: number
   localOp: SyncOperation
-  remoteData: any
+  remoteData: Record<string, unknown> | null
   resolved: boolean
   resolution?: 'local' | 'remote' | 'merged'
   createdAt: string
@@ -119,9 +151,9 @@ export async function queueOperation(op: Omit<SyncOperation, 'id' | 'retries'>):
 export async function getPendingOperations(projectId?: string): Promise<SyncOperation[]> {
   const db = await getDB()
   let operations = await db.getAll('sync_queue')
-  
+
   if (projectId) {
-    operations = operations.filter((op: any) => op.projectId === projectId)
+    operations = operations.filter((op) => op.projectId === projectId)
   }
   
   // Sort by priority (high first) then by timestamp
@@ -146,7 +178,7 @@ async function sleep(ms: number): Promise<void> {
 
 // Enhanced sync with conflict resolution
 export async function syncPendingOperations(
-  dbClient: any, 
+  dbClient: SyncDbClient,
   options: { onConflict?: (conflict: ConflictRecord) => Promise<'local' | 'remote' | 'merged'> } = {}
 ): Promise<{ synced: number; failed: number; conflicts: number }> {
   const pending = await getPendingOperations()
@@ -161,37 +193,37 @@ export async function syncPendingOperations(
 
       // Check for conflicts using timestamp
       const timestamp = op.data.updated_at || op.timestamp
-      const existing = await checkRemoteVersion(dbClient, op.table, op.data.id, timestamp)
+      const existing = await checkRemoteVersion(dbClient, op.table, String(op.data.id), String(timestamp))
 
       if (existing.hasConflict && options.onConflict) {
         const conflict: ConflictRecord = {
           localOp: op,
-          remoteData: existing.data,
+          remoteData: existing.data ?? null,
           resolved: false,
           createdAt: new Date().toISOString()
         }
-        
+
         const resolution = await options.onConflict(conflict)
-        
+
         if (resolution === 'local') {
           // Force local - delete remote and re-insert
           await forceLocalUpdate(dbClient, op)
         } else if (resolution === 'merged') {
           // Use merged data
-          await applyMergedUpdate(dbClient, op, existing.data)
+          await applyMergedUpdate(dbClient, op, existing.data ?? null)
         } else {
           // Keep remote - skip local
           if (op.id) await removeSyncedOperation(op.id)
           results.synced++
           continue
         }
-        
+
         results.conflicts++
       }
 
       // Attempt sync
       const success = await attemptSync(dbClient, op)
-      
+
       if (success) {
         if (op.id) await removeSyncedOperation(op.id)
         results.synced++
@@ -202,38 +234,41 @@ export async function syncPendingOperations(
         await db.put('sync_queue', op)
         results.failed++
       }
-      
-    } catch (e) {
+
+    } catch {
       results.failed++
     }
   }
-  
+
   return results
 }
 
-async function checkRemoteVersion(dbClient: any, table: string, id: string, localTimestamp: string) {
+async function checkRemoteVersion(dbClient: SyncDbClient, table: string, id: string, localTimestamp: string): Promise<{ hasConflict: boolean; data: Record<string, unknown> | null }> {
   try {
-    const { data, error } = await dbClient
+    const result = await dbClient
       .from(table)
       .select('id, updated_at')
       .eq('id', id)
       .single()
-    
+
+    const data = result.data ?? null
+    const error = result.error
     if (error || !data) return { hasConflict: false, data: null }
-    
-    const remoteTime = new Date(data.updated_at || 0).getTime()
+
+    const remoteUpdatedAt = data.updated_at
+    const remoteTime = new Date((remoteUpdatedAt as string | number) || 0).getTime()
     const localTime = new Date(localTimestamp).getTime()
-    
-    return { 
-      hasConflict: remoteTime > localTime, 
-      data 
+
+    return {
+      hasConflict: remoteTime > localTime,
+      data
     }
   } catch {
     return { hasConflict: false, data: null }
   }
 }
 
-async function attemptSync(dbClient: any, op: SyncOperation): Promise<boolean> {
+async function attemptSync(dbClient: SyncDbClient, op: SyncOperation): Promise<boolean> {
   try {
     if (op.type === 'INSERT') {
       const { error } = await dbClient.from(op.table).insert(op.data)
@@ -253,24 +288,24 @@ async function attemptSync(dbClient: any, op: SyncOperation): Promise<boolean> {
   }
 }
 
-async function forceLocalUpdate(dbClient: any, op: SyncOperation): Promise<void> {
+async function forceLocalUpdate(dbClient: SyncDbClient, op: SyncOperation): Promise<void> {
   // Delete remote and re-insert with local data
   await dbClient.from(op.table).delete().eq('id', op.data.id)
   await dbClient.from(op.table).insert(op.data)
 }
 
-async function applyMergedUpdate(dbClient: any, op: SyncOperation, remoteData: any): Promise<void> {
+async function applyMergedUpdate(dbClient: SyncDbClient, op: SyncOperation, remoteData: Record<string, unknown> | null): Promise<void> {
   // Merge: take remote created_at but local updated values
-  const merged = { ...remoteData, ...op.data }
+  const merged = { ...(remoteData ?? {}), ...op.data }
   await dbClient.from(op.table).update(merged).eq('id', op.data.id)
 }
 
 // Background sync service
 let syncInterval: ReturnType<typeof setInterval> | null = null
 
-export function startBackgroundSync(dbClient: any, options?: { interval?: number; onConflict?: (conflict: ConflictRecord) => Promise<'local' | 'remote' | 'merged'> }) {
+export function startBackgroundSync(dbClient: SyncDbClient, options?: { interval?: number; onConflict?: (conflict: ConflictRecord) => Promise<'local' | 'remote' | 'merged'> }) {
   if (syncInterval) return
-  
+
   const interval = options?.interval || SYNC_INTERVAL
   
   syncInterval = setInterval(async () => {
@@ -295,48 +330,48 @@ export function stopBackgroundSync() {
 }
 
 // Offline data storage helpers
-export async function saveProjectOffline(project: any): Promise<void> {
+export async function saveProjectOffline(project: Record<string, unknown>): Promise<void> {
   const db = await getDB()
   await db.put('projects', project)
 }
 
-export async function getOfflineProjects(): Promise<any[]> {
+export async function getOfflineProjects(): Promise<Record<string, unknown>[]> {
   const db = await getDB()
   return db.getAll('projects')
 }
 
-export async function savePointsOffline(points: any[]): Promise<void> {
+export async function savePointsOffline(points: Record<string, unknown>[]): Promise<void> {
   const db = await getDB()
   const tx = db.transaction('survey_points', 'readwrite')
   await Promise.all([
-    ...points.map((p: any) => tx.store.put(p)),
+    ...points.map((p) => tx.store.put(p)),
     tx.done
   ])
 }
 
-export async function getOfflinePoints(projectId: string): Promise<any[]> {
+export async function getOfflinePoints(projectId: string): Promise<Record<string, unknown>[]> {
   const db = await getDB()
   return db.getAllFromIndex('survey_points', 'by-project', projectId)
 }
 
 // Traverse observations offline
-export async function saveTraverseOffline(traverse: any): Promise<void> {
+export async function saveTraverseOffline(traverse: Record<string, unknown>): Promise<void> {
   const db = await getDB()
   await db.put('traverse_obs', traverse)
 }
 
-export async function getOfflineTraverses(projectId: string): Promise<any[]> {
+export async function getOfflineTraverses(projectId: string): Promise<Record<string, unknown>[]> {
   const db = await getDB()
   return db.getAllFromIndex('traverse_obs', 'by-project', projectId)
 }
 
-// Leveling observations offline  
-export async function saveLevelingOffline(leveling: any): Promise<void> {
+// Leveling observations offline
+export async function saveLevelingOffline(leveling: Record<string, unknown>): Promise<void> {
   const db = await getDB()
   await db.put('leveling_obs', leveling)
 }
 
-export async function getOfflineLevelings(projectId: string): Promise<any[]> {
+export async function getOfflineLevelings(projectId: string): Promise<Record<string, unknown>[]> {
   const db = await getDB()
   return db.getAllFromIndex('leveling_obs', 'by-project', projectId)
 }
