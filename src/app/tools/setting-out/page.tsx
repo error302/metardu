@@ -1,5 +1,3 @@
-'use client';
-
 import { PageHeader } from '@/components/shared/PageHeader'
 import SettingOutCalculator from '@/components/setting-out/SettingOutCalculator'
 

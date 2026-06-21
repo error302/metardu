@@ -1,5 +1,3 @@
-'use client';
-
 import { PageHeader } from '@/components/shared/PageHeader'
 import CrossSectionInput from '@/components/earthworks/CrossSectionInput'
 import { RDM_DETAIL_TOLERANCES } from '@/lib/standards/rdm11'

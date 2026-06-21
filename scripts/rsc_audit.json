@@ -1,0 +1,3647 @@
+{
+  "total_use_client": 398,
+  "by_dir": {
+    "app": 141,
+    "hooks": 2,
+    "components": 252,
+    "lib": 3
+  },
+  "candidates": [
+    {
+      "path": "components/AuthProvider.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/compute/ChainagePanel.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/compute/SettingOutPanel.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/compute/TacheometryPanel.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/compute/CrossSectionsPanel.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/aspect-ratio.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/tools/cogo/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/tools/setting-out/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/map/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/sonner.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/label.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/separator.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/progress.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/toaster.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/collapsible.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/working-diagram/NorthArrow.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/MetarduLogo.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/map/components/MapNotifications.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/avatar.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/switch.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/checkbox.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/workspace/BMDescriptionCard.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/radio-group.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/tools/cross-sections/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/hover-card.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/toggle.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/hydrolive/VolumeDelta.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/enterprise/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/popover.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/minetwin/VolumePanel.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/scroll-area.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/SubscriptionBadge.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/hydrolive/HazardAlert.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/tooltip.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/tabs.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/resizable.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/SubscriptionStatus.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/accordion.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/minetwin/ConvergencePanel.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/working-diagram/DiagramTitleBlock.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/setting-out/ChainageOffsetTable.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/workspace/CollimationReport.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/table.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/map/components/MapStatusBar.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/jobs/JobCard.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/project/ProjectTabs.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/shared/TrustSignals.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/PricingCard.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/alert-dialog.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/dialog.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/cadastra/ComparisonPanel.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/compute/GeodeticComputePanel.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/SolutionRenderer.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/sheet.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/drawer.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/setting-out/SettingOutTable.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/usv/TelemetryDashboard.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/command.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/toast.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/SolutionStepsRenderer.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/earthworks/CrossSectionDrawing.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/minescan/SafetyDashboard.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/tools/beacon-reference/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/select.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/earthworks/MassHaulDiagram.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/earthworks/EarthworkQuantitiesTable.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/context-menu.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/dropdown-menu.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/menubar.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/working-diagram/DiagramCanvas.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/tools/us-survey-reference/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/tools/survey-regulations/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/map/PremiumIcons.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    },
+    {
+      "path": "app/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 0
+    }
+  ],
+  "maybe_candidates": [
+    {
+      "path": "components/workspace/WorkingDiagramLauncher.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/ErrorBoundary.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 1
+    },
+    {
+      "path": "app/map/components/MapLoadingOverlay.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/shared/ProfessionalDisclaimer.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/ui/toggle-group.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/ui/slider.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/DepartureWarning.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/working-diagram/RoadBoundarySelector.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/ui/input-otp.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/working-diagram/LegacyUnitBadge.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "app/tools/detail-tolerances/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/importer/ImportPreviewTable.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/ui/form.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/ui/UTMZonePicker.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/working-diagram/SubAreaPanel.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/drawing/FormNo4Preview.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "app/reports/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 0
+    },
+    {
+      "path": "components/compute/ErrorEllipseCanvas.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/ComplianceChecklistModal.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "app/tools/earthworks/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/ui/chart.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/workspace/EnhancedSplitLayout.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/engineering/LongSectionRenderer.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    },
+    {
+      "path": "components/engineering/CrossSectionRenderer.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 1
+    }
+  ],
+  "not_candidates": [
+    {
+      "path": "app/global-error.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/error.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "hooks/usePrint.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "hooks/useWorkspaceBridge.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/ParcelBuilderModal.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/SurveyReport.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/PhotoUploader.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/CalculatorErrorBoundary.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/SurveyPlanExport.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/TraverseModal.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/ShapefileExport.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/GeometryValidationPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/PerformanceDashboard.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/UploadZone.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/ParcelAreaModal.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/CSVUploadModal.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/SurveyPlanViewer.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/MobileNav.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/KeyboardShortcuts.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/TraverseFieldBook.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/FeedbackWidget.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/BeaconCertificateBuilder.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/RegistryIndexMap.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/ProjectCard.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/PythonEngineStatus.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/StatutoryWorkbookBuilder.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/BillableDocumentsBuilder.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/NavBar.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/LevelBook.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/AddPointModal.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/marketplace/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/registry/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/beacons/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/account/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/fieldbook/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/fieldbook/error.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/map/MapGlobalStyles.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/map/MapErrorBoundary.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/map/MapClient.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/map/error.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/audit-logs/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/cadastra/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/rim/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/automator/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/schedule/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/minescan/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/minetwin/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/digital-signature/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/online/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/dashboard/error.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/offline/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/cpd/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/parcel/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/admin/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/admin/layout.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/geofusion/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/analytics/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/checkout/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/field/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/process/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/process/error.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/kencors/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/login/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/usv/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/guide/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/profile/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/land-law/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/jobs/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/working-diagram/WorkingDiagramClient.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/tools/error.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/community/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/import/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/hydrolive/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/pricing/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/peer-review/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/notifications/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/register/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/white-label/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/parsers/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/ai-plan-checker/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/equipment/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/subscription/success/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/beacons/submit/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/account/billing/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/fieldbook/ai/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/map/components/MapCoordSearch.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/map/components/MapOverlays.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/map/components/MapToolbar.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/settings/profile/ProfileForm.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/auth/reset-password/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/admin/users/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/admin/payments/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/mobile/field/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/field/projects/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/field/map/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/field/collect/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/field/gnss/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/field/walk/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/project/new/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/project/[id]/error.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/project/[id]/ProjectWorkspaceClient.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/project/[id]/map/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/project/[id]/profiles/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/project/[id]/settings/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/project/[id]/scheme/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/project/[id]/submission/SubmissionClient.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/project/[id]/engineering/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/project/[id]/documents/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/project/[id]/topo/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/project/[id]/contours/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/project/[id]/scheme/map/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/project/[id]/scheme/team/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/project/[id]/scheme/blocks/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/project/[id]/scheme/blocks/[blockId]/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/guide/[type]/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/jobs/new/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/jobs/[id]/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/traverse/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/two-peg-test/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/gis-export/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/tools/volume-comparison/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/cassini-utm/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/sight-distance/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/road-design/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/tools/stockpile-volume/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/contour-generator/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/curves/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/gcp-validation/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/distance/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/drone/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/leveling/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/height-of-object/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/borrow-pit-volume/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/area/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/grade/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/superelevation/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/orthophoto-viewer/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/tools/hydrographic/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/bearing/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/coordinates/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/mobilisation-report/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/tools/mining/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/control-marks-register/page.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "app/tools/gnss/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/tacheometry/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/pipe-gradient/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/civil-export/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/tools/gcp-export/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/tools/chainage/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/gnss-baseline/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/survey-report-builder/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "app/tools/point-cloud-import/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "app/tools/missing-line/page.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "lib/subscription/subscriptionContext.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "lib/i18n/LanguageContext.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "lib/country/context.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/registry/EquipmentTracker.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/registry/NLIMSLookup.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/fieldbook/TraverseBook.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/fieldbook/OCRResultTable.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/fieldbook/QuickAddModal.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/fieldbook/HydroBook.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/fieldbook/FieldBookMobile.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/fieldbook/LevelingBook.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/fieldbook/OCRImportPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/fieldbook/MiningBook.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/fieldbook/ControlBook.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/organisms/WorkspaceShell.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/map/SurveyMap.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/map/VertexEditToolbar.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/map/MeasurementTool.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/map/SheetLayout.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/map/LayerControl.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/map/OfflineTileManager.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/map/OfflineTileDownloader.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/scheme/CsvImportPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/scheme/TraverseComputePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/feedback/ChangelogPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/cadastra/BoundaryUploader.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/cadastra/ValidationReport.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/automator/WorkflowCanvas.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/minescan/CameraFeed.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/minescan/RiskAnalyzer.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/surveyreport/SurveyReportBuilder.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/importer/UniversalImporter.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/importer/GenericCSVMapper.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/minetwin/MineViewer3D.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/earthworks/CrossSectionInput.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/road-design/VerticalCurveCalculator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/road-design/SuperelevationCalculator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/road-design/HorizontalCurveCalculator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/road-design/SightDistanceChecker.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/online/CoordinateTransformer.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/online/GNSSProcessor.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/online/ImageryViewer.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/dashboard/DashboardSearch.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/app/OfflineIndicator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/app/AppUpdateBanner.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/workspace/CadastralComputeIntegration.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/workspace/WorkflowStepper.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": false,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/workspace/ExportToolbar.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/workspace/ComputationLog.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/workspace/LongitudinalSection.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/workspace/WorkflowStepPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/workspace/DynamicFieldBook.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/workspace/FieldBookWithSelection.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/workspace/GenerateReportModal.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/workspace/FormC22Generator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/workspace/WorkspaceMap.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/workspace/SplitWorkspaceLayout.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/geofusion/CrossAnalyzer.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/geofusion/DataIntegrator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/geofusion/LayerManager.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/field/PushToTraverse.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/field/GeoPDFImport.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/field/MapViewer.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/mutationplan/MutationPlanGenerator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/usv/MissionPlanner.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/ui/NotificationToast.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/ui/OnboardingModal.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/ui/sidebar.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/ui/calendar.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/ui/ErrorBoundary.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/ui/grid-feature-cards.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/ui/carousel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/ui/MotionComponents.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/jobs/JobForm.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/working-diagram/WorkingDiagramClient.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/shared/PrintMetaPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/shared/SignatureCapture.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/shared/OnboardingWrapper.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/shared/ConnectivityIndicator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/shared/OnboardingChecklist.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/shared/ParcelNumberInput.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/shared/BeaconPicker.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/submission/DocumentCard.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/submission/SupportingDocUpload.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/drawing/CoordinateCanvas.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/drawing/DrawingExportToolbar.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/drawing/LongitudinalSection.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/drawing/TopoCanvas.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/drawing/CrossSection.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/fieldguard/CleanedExport.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/fieldguard/DataCleaner.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/fieldguard/AnomalyHeatmap.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/RoadCompletionCertificatePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/engineering/SuperelevationPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/RoadReservePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/DrainageDesignPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/PavementDesignPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/CrossSectionSeries.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/PileGridPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/MachineControlExportPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/SlopeAnalysisPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/HorizontalCurvePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/VolumesPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/ProgressMonitorPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/AsBuiltSurveyPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/hydrolive/BathymetryMap.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/subdivision/SubdivisionPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/setting-out/StakeOutSheet.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/setting-out/SettingOutCalculator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/deedplan/DeedPlanGenerator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/hydrographic/TidalReductionPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/landlaw/DisputeGuide.tsx",
+      "has_hooks": false,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/landlaw/AIPlanChecker.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/landlaw/AdversePossessionCalc.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/landlaw/BoundaryLawSearch.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/landlaw/EasementGuide.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/metardu/Header.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/layout/ProjectionInit.tsx",
+      "has_hooks": true,
+      "has_event_handlers": false,
+      "has_state_setter": false,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 2
+    },
+    {
+      "path": "components/layout/QuickCompute.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/layout/AppShell.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/mining/StockpileReport.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/mining/MiningVolumePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/topo/FeatureCodeBrowser.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/topo/TopoDrawingComposer.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/gnss/GNSSObservationLogBuilder.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/gnss/CoordinateDisplay.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/gnss/GNSSLogBuilder.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/gnss/GNSSConnectionPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": false,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/compute/DroneComputePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/compute/EngineeringComputePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/compute/TopoComputePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/compute/ConstructionComputePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/compute/LevellingComputePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/compute/HydroPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": true,
+      "has_window_doc": true,
+      "interactive_count": 4
+    },
+    {
+      "path": "components/compute/NetworkAdjustmentPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": true,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/compute/MiningComputePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/compute/MonitoringComputePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/geo/CoordinateTransformer.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/cogo/COGOCalculator.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/panels/RoadPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/panels/PipelinePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/panels/DamPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/panels/RailwayPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/panels/TunnelPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/panels/BuildingPanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    },
+    {
+      "path": "components/engineering/panels/BridgePanel.tsx",
+      "has_hooks": true,
+      "has_event_handlers": true,
+      "has_state_setter": true,
+      "has_use_effect": false,
+      "has_window_doc": false,
+      "interactive_count": 3
+    }
+  ],
+  "no_use_client_pages": [
+    "app/projects/page.tsx",
+    "app/instruments/page.tsx",
+    "app/dashboard/page.tsx",
+    "app/working-diagram/page.tsx",
+    "app/university/page.tsx",
+    "app/fieldguard/page.tsx",
+    "app/deed-plan/page.tsx",
+    "app/docs/page.tsx",
+    "app/organization/page.tsx",
+    "app/documents/page.tsx",
+    "app/api-docs/page.tsx",
+    "app/subscription/cancel/page.tsx",
+    "app/projects/new/page.tsx",
+    "app/settings/profile/page.tsx",
+    "app/dashboard/working-diagram/page.tsx",
+    "app/project/[id]/page.tsx",
+    "app/project/[id]/workspace/page.tsx",
+    "app/project/[id]/generate-plan/page.tsx",
+    "app/project/[id]/submission/page.tsx",
+    "app/verify/[token]/page.tsx",
+    "app/tools/topo-drawing/page.tsx",
+    "app/tools/traverse-field-book/page.tsx",
+    "app/tools/beacon-certificate/page.tsx",
+    "app/tools/pile-grid/page.tsx",
+    "app/tools/progress-monitor/page.tsx",
+    "app/tools/land-law/page.tsx",
+    "app/tools/machine-control/page.tsx",
+    "app/tools/billable-documents/page.tsx",
+    "app/tools/survey-plan-demo/page.tsx",
+    "app/tools/statutory-workbook/page.tsx",
+    "app/tools/mutation-plan/page.tsx",
+    "app/tools/level-book/page.tsx",
+    "app/tools/slope-analysis/page.tsx",
+    "app/tools/gnss-observation-log/page.tsx",
+    "app/docs/csv-import/page.tsx",
+    "app/docs/data-protection/page.tsx",
+    "app/docs/rdm-accuracy/page.tsx",
+    "app/docs/cookies/page.tsx",
+    "app/docs/traverse-field-book/page.tsx",
+    "app/docs/manuals/page.tsx",
+    "app/docs/privacy/page.tsx",
+    "app/docs/faq/page.tsx",
+    "app/docs/terms/page.tsx",
+    "app/docs/first-plan/page.tsx",
+    "app/docs/level-book/page.tsx",
+    "app/docs/quick-start/page.tsx",
+    "app/docs/refund/page.tsx",
+    "app/docs/survey-act/page.tsx"
+  ]
+}

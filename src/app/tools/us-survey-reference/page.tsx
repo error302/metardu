@@ -1,5 +1,3 @@
-'use client';
-
 import {
   LEGAL_DESCRIPTION_TYPES,
   CADASTRAL_SURVEY_STEPS,
