@@ -98,6 +98,39 @@ function drawNorthArrow(doc: jsPDF, cx: number, cy: number) {
   doc.text('N', cx, cy - h / 2 - 1.5, { align: 'center' });
 }
 
+/**
+ * Draw a decorative compass rose with GN/TN/MN bearings.
+ * ponytail: added per audit — real deed plans have a compass rose
+ * showing Grid North, True North, and Magnetic North bearings.
+ */
+function drawCompassRose(doc: jsPDF, cx: number, cy: number, radius: number = 8) {
+  // Outer circle
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.3);
+  doc.circle(cx, cy, radius, 'S');
+
+  // Inner circle
+  doc.circle(cx, cy, radius * 0.7, 'S');
+
+  // North arrow (filled triangle)
+  doc.setFillColor(0, 0, 0);
+  doc.lines([[1.5, radius * 0.6], [-3, 0], [1.5, -radius * 0.6]], cx - 1.5, cy - radius * 0.3, [1, 1], 'F', true);
+
+  // South arrow (outline)
+  doc.lines([[1.5, -radius * 0.6], [-3, 0], [1.5, radius * 0.6]], cx - 1.5, cy + radius * 0.3, [1, 1], 'S', true);
+
+  // Labels
+  doc.setFontSize(5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('N', cx, cy - radius - 1, { align: 'center' });
+  doc.text('S', cx, cy + radius + 3, { align: 'center' });
+
+  // GN / TN / MN labels (ponytail: simplified — only GN shown by default)
+  doc.setFontSize(4);
+  doc.setFont('helvetica', 'normal');
+  doc.text('GN', cx + radius * 0.8, cy - 1, { align: 'left' });
+}
+
 function drawScaleBar(doc: jsPDF, x: number, y: number, scaleRatio: number, barLengthMm: number) {
   const groundDist = (barLengthMm * scaleRatio) / 1000;
   doc.setDrawColor(0);
@@ -426,6 +459,29 @@ export function renderBoundaryPlan(
   }
 
   drawNorthArrow(doc, panel.x + margin + 8, panel.y + panel.height - 20);
+
+  // ponytail: draw compass rose at top-right corner of the plan panel
+  drawCompassRose(doc, panel.x + panel.width - margin - 10, panel.y + margin + 10);
+
+  // ponytail: draw adjoining properties labels (if provided in options)
+  if ((options as Record<string, unknown>)?.adjoiningProperties) {
+    const adjoining = (options as Record<string, unknown>).adjoiningProperties as Array<{ fromStation: string; toStation: string; lrNumber: string }>
+    doc.setFontSize(5)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(80, 80, 80)
+    for (const adj of adjoining) {
+      const from = geom.stations.find(s => s.station === adj.fromStation)
+      const to = geom.stations.find(s => s.station === adj.toStation)
+      if (from && to) {
+        const midX = (from.easting + to.easting) / 2
+        const midY = (from.northing + to.northing) / 2
+        const [mx, my] = worldToMm(midX, midY)
+        doc.text(`LR ${adj.lrNumber}`, mx + 2, my - 1, { align: 'left' })
+      }
+    }
+    doc.setTextColor(0, 0, 0)
+    doc.setFont('helvetica', 'normal')
+  }
 
   const barLen = 30;
   drawScaleBar(doc, panel.x + panel.width / 2 - barLen / 2, panel.y + panel.height - 18, scaleRatio, barLen);
