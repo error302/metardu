@@ -4,12 +4,20 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { z } from 'zod'
+import { apiGet, apiPost, ApiError } from '@/lib/api/client'
 
 import { useLanguage, languages } from '@/lib/i18n/LanguageContext'
 import MetarduLogo from '@/components/MetarduLogo'
 import SubscriptionBadge from '@/components/SubscriptionBadge'
 import type { PlanId } from '@/lib/subscription/catalog'
 import { APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isNavItemActive } from '@/lib/navigation-shell'
+
+// ── Schemas ────────────────────────────────────────────────────────────────
+const subscriptionResponseSchema = z.object({
+  plan: z.string().optional(),
+}).passthrough()
+const signoutMutationSchema = z.object({}).passthrough()
 
 /* ── Search index: all navigable pages for Ctrl+K ────────────────── */
 const searchablePages = [
@@ -234,14 +242,16 @@ export default function NavBar() {
     const fetchPlan = async () => {
       if (user?.id) {
         try {
-          const res = await fetch('/api/subscription', { cache: 'no-store', credentials: 'same-origin' })
-          if (res.ok) {
-            const data = await res.json()
-            setUserPlan(data.plan as PlanId)
-          } else {
-            setUserPlan('free')
+          const data = await apiGet(
+            '/api/subscription',
+            subscriptionResponseSchema,
+            { ttlMs: 0 },
+          )
+          setUserPlan((data.plan as PlanId) ?? 'free')
+        } catch (err) {
+          if (err instanceof ApiError) {
+            // subscription fetch failed — fall back to free
           }
-        } catch {
           setUserPlan('free')
         }
       } else {
@@ -275,7 +285,14 @@ export default function NavBar() {
     try {
       await signOut({ redirect: false })
     } catch {
-      await fetch('/api/auth/signout', { method: 'POST' })
+      try {
+        // ponytail: best-effort fallback signout — silent on error
+        await apiPost('/api/auth/signout', signoutMutationSchema, {})
+      } catch (err) {
+        if (err instanceof ApiError) {
+          // ignore — best-effort signout
+        }
+      }
     }
     window.location.href = '/'
   }

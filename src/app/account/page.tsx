@@ -2,6 +2,17 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/api-client/client'
+import { z } from 'zod'
+import { apiGet, apiPost, ApiError } from '@/lib/api/client'
+
+// ── Schemas ────────────────────────────────────────────────────────────────
+const subscriptionResponseSchema = z.object({
+  plan: z.string().optional(),
+  status: z.string().optional(),
+  trialEndsAt: z.string().optional(),
+  periodEnd: z.string().optional(),
+}).passthrough()
+const updatePasswordMutationSchema = z.object({}).passthrough()
 
 interface Subscription {
   plan_id: string
@@ -25,18 +36,21 @@ export default function AccountPage() {
     if (!user?.id) return
     async function loadSubscription() {
       try {
-        const res = await fetch('/api/subscription', { cache: 'no-store', credentials: 'same-origin' })
-        if (res.ok) {
-          const data = await res.json()
-          setSubscription({
-            plan_id: data.plan || 'free',
-            status: data.status || 'active',
-            trial_ends_at: data.trialEndsAt || '',
-            current_period_end: data.periodEnd || new Date(Date.now() + 30 * 86400000).toISOString(),
-          })
+        const data = await apiGet(
+          '/api/subscription',
+          subscriptionResponseSchema,
+          { ttlMs: 0 },
+        )
+        setSubscription({
+          plan_id: data.plan || 'free',
+          status: data.status || 'active',
+          trial_ends_at: data.trialEndsAt || '',
+          current_period_end: data.periodEnd || new Date(Date.now() + 30 * 86400000).toISOString(),
+        })
+      } catch (err) {
+        if (err instanceof ApiError) {
+          // Subscription fetch failed — keep default
         }
-      } catch {
-        // Subscription fetch failed — keep default
       }
     }
     loadSubscription()
@@ -47,19 +61,18 @@ export default function AccountPage() {
     setSaving(true)
     setMessage('')
     try {
-      const res = await fetch('/api/auth/update-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPassword }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setMessage('Error: ' + (json.error || 'Password update failed'))
+      await apiPost(
+        '/api/auth/update-password',
+        updatePasswordMutationSchema,
+        { password: newPassword },
+      )
+      setMessage('Password updated successfully!')
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setMessage('Error: ' + err.message)
       } else {
-        setMessage('Password updated successfully!')
+        setMessage('Error: Password update failed')
       }
-    } catch {
-      setMessage('Error: Password update failed')
     } finally {
       setSaving(false)
     }

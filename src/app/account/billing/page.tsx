@@ -4,6 +4,24 @@ import Link from 'next/link'
 import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import type { PlanId } from '@/lib/subscription/catalog'
 import type { CurrencyCode } from '@/lib/subscription/catalog'
+import { z } from 'zod'
+import { apiGet, apiPost, ApiError } from '@/lib/api/client'
+
+// ---------------------------------------------------------------------------
+// Schemas
+// ---------------------------------------------------------------------------
+
+const subscriptionResponseSchema = z.object({
+  plan: z.string().optional(),
+  status: z.string().optional(),
+  paymentMethod: z.string().optional(),
+  currency: z.string().optional(),
+  periodStart: z.string().optional(),
+  periodEnd: z.string().optional(),
+  trialEndsAt: z.string().nullable().optional(),
+}).passthrough()
+
+const paymentMutationSchema = z.object({}).passthrough()
 
 interface PaymentRecord {
   id: string
@@ -58,10 +76,18 @@ export default function BillingPage() {
     setUser(user)
 
     if (user) {
-      const [subRes, { data: pay }] = await Promise.all([
-        fetch('/api/subscription', { cache: 'no-store', credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null),
-        dbClient.from('payment_history').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
-      ])
+      const subPromise = apiGet(
+        '/api/subscription',
+        subscriptionResponseSchema,
+        { ttlMs: 0 },
+      ).catch(() => null)
+      const payPromise = dbClient
+        .from('payment_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      const [subRes, { data: pay }] = await Promise.all([subPromise, payPromise])
       // Map API response to SubscriptionRecord format
       if (subRes) {
         setSubscription({
@@ -90,18 +116,20 @@ export default function BillingPage() {
 
     const provider = subscription?.payment_method || 'stripe'
 
-    const res = await fetch('/api/payments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, action: 'cancel-subscription' }),
-    })
-
-    if (res.ok) {
+    try {
+      await apiPost(
+        '/api/payments',
+        paymentMutationSchema,
+        { provider, action: 'cancel-subscription' },
+      )
       setMessage('Subscription cancelled. You retain access until the end of your billing period.')
       await loadData()
-    } else {
-      const data = await res.json()
-      setMessage(`Error: ${data.error || 'Failed to cancel'}`)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setMessage(`Error: ${err.message}`)
+      } else {
+        setMessage('Error: Failed to cancel')
+      }
     }
     setCancelling(false)
   }
@@ -112,18 +140,20 @@ export default function BillingPage() {
 
     const provider = subscription?.payment_method || 'stripe'
 
-    const res = await fetch('/api/payments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, action: 'reactivate-subscription' }),
-    })
-
-    if (res.ok) {
+    try {
+      await apiPost(
+        '/api/payments',
+        paymentMutationSchema,
+        { provider, action: 'reactivate-subscription' },
+      )
       setMessage('Subscription reactivated.')
       await loadData()
-    } else {
-      const data = await res.json()
-      setMessage(`Error: ${data.error || 'Failed to reactivate'}`)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setMessage(`Error: ${err.message}`)
+      } else {
+        setMessage('Error: Failed to reactivate')
+      }
     }
     setCancelling(false)
   }

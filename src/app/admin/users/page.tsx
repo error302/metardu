@@ -8,6 +8,38 @@ import {
   ChevronLeft, ChevronRight, ShieldCheck, Ban,
   CheckCircle2, X, RefreshCw,
 } from 'lucide-react'
+import { z } from 'zod'
+import { apiGet, apiPost, apiPut, apiDelete, ApiError } from '@/lib/api/client'
+
+// ---------------------------------------------------------------------------
+// Schemas
+// ---------------------------------------------------------------------------
+
+const usersResponseSchema = z.object({
+  users: z.array(z.object({
+    id: z.string(),
+    email: z.string(),
+    fullName: z.string(),
+    role: z.string(),
+    verifiedIsk: z.boolean(),
+    isSuspended: z.boolean(),
+    suspensionReason: z.string().nullable(),
+    plan: z.string(),
+    subscriptionStatus: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }).passthrough()),
+  pagination: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    totalPages: z.number(),
+    hasMore: z.boolean(),
+  }).passthrough(),
+}).passthrough()
+
+const roleMutationSchema = z.object({}).passthrough()
+const suspendMutationSchema = z.object({}).passthrough()
 
 // ---------------------------------------------------------------------------
 // Types
@@ -106,19 +138,19 @@ function RoleAssignModal({
     setSubmitting(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/users/${user.id}/role`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: selectedRole }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to assign role')
-      }
+      await apiPut(
+        `/api/admin/users/${user.id}/role`,
+        roleMutationSchema,
+        { role: selectedRole },
+      )
       onAssigned()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to assign role')
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to assign role')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -225,19 +257,23 @@ function SuspendModal({
     setSubmitting(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/users/${user.id}/suspend`, {
-        method: isSuspend ? 'POST' : 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: isSuspend ? JSON.stringify({ reason }) : undefined,
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Action failed')
+      if (isSuspend) {
+        await apiPost(
+          `/api/admin/users/${user.id}/suspend`,
+          suspendMutationSchema,
+          { reason },
+        )
+      } else {
+        await apiDelete(`/api/admin/users/${user.id}/suspend`)
       }
       onAction()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action failed')
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError(err instanceof Error ? err.message : 'Action failed')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -362,22 +398,27 @@ export default function AdminUsersPage() {
         if (roleFilter) params.set('role', roleFilter)
         if (statusFilter) params.set('status', statusFilter)
 
-        const res = await fetch(`/api/admin/users?${params}`)
-        if (res.status === 401) {
-          router.push('/login')
-          return
-        }
-        if (res.status === 403) {
-          router.push('/dashboard')
-          return
-        }
-        if (!res.ok) throw new Error('Failed to fetch users')
-
-        const data: UsersResponse = await res.json()
-        setUsers(data.users)
-        setPagination(data.pagination)
+        const data = await apiGet(
+          `/api/admin/users?${params}`,
+          usersResponseSchema,
+          { ttlMs: 0 },
+        )
+        setUsers(data.users as unknown as UserRecord[])
+        setPagination(data.pagination as unknown as Pagination)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load users')
+        if (err instanceof ApiError) {
+          if (err.isUnauthorized) {
+            router.push('/login')
+            return
+          }
+          if (err.isForbidden) {
+            router.push('/dashboard')
+            return
+          }
+          setError(err.message)
+        } else {
+          setError(err instanceof Error ? err.message : 'Failed to load users')
+        }
       } finally {
         setLoading(false)
       }

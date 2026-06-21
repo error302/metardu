@@ -1,6 +1,31 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { z } from 'zod'
+import { apiGet, apiPost, apiPut, ApiError } from '@/lib/api/client'
+
+// ---------------------------------------------------------------------------
+// Schemas
+// ---------------------------------------------------------------------------
+
+const whiteLabelConfigSchema = z.object({
+  enabled: z.boolean(),
+  organizationName: z.string(),
+  logoUrl: z.string().nullable(),
+  faviconUrl: z.string().nullable(),
+  primaryColor: z.string(),
+  customCss: z.string().nullable(),
+  customDomain: z.string().nullable(),
+  emailFooter: z.string().nullable(),
+}).passthrough()
+
+const whiteLabelResponseSchema = z.object({
+  data: whiteLabelConfigSchema.nullable().optional(),
+}).passthrough()
+
+const uploadResponseSchema = z.object({
+  data: z.object({ url: z.string() }).passthrough(),
+}).passthrough()
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,16 +89,22 @@ export default function WhiteLabelPage() {
   // ---------------------------------------------------------------------------
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch('/api/white-label')
-      if (!res.ok) throw new Error('Failed to load')
-      const json = await res.json()
-      const data: WhiteLabelConfig = json.data ?? DEFAULT
+      const json = await apiGet(
+        '/api/white-label',
+        whiteLabelResponseSchema,
+        { ttlMs: 0 },
+      )
+      const data: WhiteLabelConfig = (json.data as unknown as WhiteLabelConfig) ?? DEFAULT
       setConfig(data)
       setInitialConfig(data)
       setLogoPreview(data.logoUrl)
       setFaviconPreview(data.faviconUrl)
-    } catch {
-      showToast('error', 'Failed to load white-label config')
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showToast('error', err.message || 'Failed to load white-label config')
+      } else {
+        showToast('error', 'Failed to load white-label config')
+      }
     } finally {
       setLoading(false)
     }
@@ -97,19 +128,21 @@ export default function WhiteLabelPage() {
   async function handleSave() {
     setSaving(true)
     try {
-      const res = await fetch('/api/white-label', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      })
-      if (!res.ok) throw new Error('Save failed')
-      const json = await res.json()
-      const saved = json.data as WhiteLabelConfig
+      const json = await apiPut(
+        '/api/white-label',
+        whiteLabelResponseSchema,
+        config,
+      )
+      const saved = (json.data as unknown as WhiteLabelConfig) ?? config
       setConfig(saved)
       setInitialConfig(saved)
       showToast('success', 'White-label configuration saved')
-    } catch {
-      showToast('error', 'Failed to save configuration')
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showToast('error', err.message || 'Failed to save configuration')
+      } else {
+        showToast('error', 'Failed to save configuration')
+      }
     } finally {
       setSaving(false)
     }
@@ -131,15 +164,21 @@ export default function WhiteLabelPage() {
       formData.append('file', file)
       formData.append('type', type)
 
-      const res = await fetch('/api/white-label', { method: 'POST', body: formData })
-      if (!res.ok) throw new Error('Upload failed')
-      const json = await res.json()
+      const json = await apiPost(
+        '/api/white-label',
+        uploadResponseSchema,
+        formData,
+      )
       const url: string = json.data.url
       setPreview(url)
       setConfigField(url)
       showToast('success', `${type === 'logo' ? 'Logo' : 'Favicon'} uploaded`)
-    } catch {
-      showToast('error', `Failed to upload ${type}`)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showToast('error', err.message || `Failed to upload ${type}`)
+      } else {
+        showToast('error', `Failed to upload ${type}`)
+      }
     } finally {
       setUploading(false)
     }
