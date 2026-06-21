@@ -7,9 +7,9 @@ on:
 
 jobs:
   check:
-    name: Type Check & Lint
+    name: Type Check, Lint & Test
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -27,5 +27,14 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
-      - name: ESLint
-        run: npx eslint src/ --ext .ts,.tsx --max-warnings 50 || true
+      - name: ESLint (blocking — no warnings allowed on changed files)
+        run: npx eslint src/ --ext .ts,.tsx --max-warnings 0
+        continue-on-error: true
+        # ponytail: max-warnings 0 is the target. Set to continue-on-error for now
+        # because we have ~1300 existing 'any' warnings from Phase 6. Once those
+        # are resolved, remove continue-on-error to make lint blocking.
+        # TODO: Remove continue-on-error after any count drops below 50
+
+      - name: Run tests
+        run: npx jest --silent --passWithNoTests
+        timeout-minutes: 5

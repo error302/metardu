@@ -2,7 +2,7 @@
 # METARDU CI Pipeline
 #
 # Triggers on push / PR to main.
-# Jobs: typecheck → lint → security audit.
+# Jobs: typecheck → lint → test → security audit.
 # Build is done on the VM during deploy — not here (saves CI minutes).
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -43,7 +43,24 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
-      - run: npx eslint src/ --ext .ts,.tsx --max-warnings 50 || true
+      # ponytail: max-warnings 0 is the target. Continue-on-error for now
+      # because we have ~1300 existing 'any' warnings. Remove once resolved.
+      # TODO: Remove continue-on-error after any count drops below 50
+      - run: npx eslint src/ --ext .ts,.tsx --max-warnings 0
+        continue-on-error: true
+
+  test:
+    name: Jest Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --legacy-peer-deps
+      - run: npx jest --silent --passWithNoTests
 
   security:
     name: Security Audit
