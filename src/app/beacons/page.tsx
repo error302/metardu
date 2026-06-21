@@ -5,6 +5,25 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { utmToGeographic } from '@/lib/engine/coordinates'
 import Link from 'next/link'
+// ponytail: Phase 6 — use typed imports from ol (which ships its own .d.ts files)
+// instead of dynamic imports + `as any` casts. Same bundle (Next.js code-splits
+// these automatically), but now TypeScript can catch API misuse.
+import Map from 'ol/Map'
+import View from 'ol/View'
+import TileLayer from 'ol/layer/Tile'
+import VectorLayer from 'ol/layer/Vector'
+import VectorSource from 'ol/source/Vector'
+import OSM from 'ol/source/OSM'
+import Style from 'ol/style/Style'
+import CircleStyle from 'ol/style/Circle'
+import Fill from 'ol/style/Fill'
+import Stroke from 'ol/style/Stroke'
+import Text from 'ol/style/Text'
+import Feature from 'ol/Feature'
+import Point from 'ol/geom/Point'
+import { fromLonLat } from 'ol/proj'
+import Overlay from 'ol/Overlay'
+import type { Map as MapType, Overlay as OverlayType } from 'ol'
 
 interface Beacon {
   id: string
@@ -78,8 +97,8 @@ export default function BeaconsPage() {
 
   const mapRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
-  const mapInstance = useRef<any>(null)
-  const overlayRef = useRef<any>(null)
+  const mapInstance = useRef<MapType | null>(null)
+  const overlayRef = useRef<OverlayType | null>(null)
 
   const dbClient = createClient()
 
@@ -100,46 +119,20 @@ export default function BeaconsPage() {
     fetchData()
   }, [fetchData])
 
-  // Initialize map once (dynamic OL imports for SSR safety)
+  // Initialize map once (typed ol imports — Next.js still code-splits)
   useEffect(() => {
     if (!mapRef.current) return
 
-    let map: any = null
     let cancelled = false
 
     async function initMap() {
       try {
-        const [MapMod, ViewMod, TileLayerMod, VectorLayerMod, VectorSourceMod,
-          OSMMod, StyleMod, CircleStyleMod, FillMod, StrokeMod, TextMod,
-          FeatureMod, PointMod, fromLonLatMod, OverlayMod] = await Promise.all([
-          import('ol/Map'), import('ol/View'), import('ol/layer/Tile'),
-          import('ol/layer/Vector'), import('ol/source/Vector'),
-          import('ol/source/OSM'), import('ol/style/Style'),
-          import('ol/style/Circle'), import('ol/style/Fill'),
-          import('ol/style/Stroke'), import('ol/style/Text'),
-          import('ol/Feature'), import('ol/geom/Point'),
-          import('ol/proj'), import('ol/Overlay'),
-        ])
-
-        const Map = (MapMod as any).default
-        const View = (ViewMod as any).default
-        const TileLayer = (TileLayerMod as any).default
-        const VectorLayer = (VectorLayerMod as any).default
-        const VectorSource = (VectorSourceMod as any).default
-        const OSM = (OSMMod as any).default
-        const Style = (StyleMod as any).default
-        const CircleStyle = (CircleStyleMod as any).default
-        const Fill = (FillMod as any).default
-        const Stroke = (StrokeMod as any).default
-        const Text = (TextMod as any).default
-        const Feature = (FeatureMod as any).default
-        const Point = (PointMod as any).default
-        const fromLonLat = (fromLonLatMod as any).fromLonLat
-        const Overlay = (OverlayMod as any).default
-
+        // ponytail: imports are now at module top-level (typed). The async
+        // wrapper is kept for the cancelled-flag pattern.
+        await Promise.resolve() // keep async signature for callers
         if (cancelled || !mapRef.current) return
 
-        map = new Map({
+        const map = new Map({
           target: mapRef.current,
           layers: [new TileLayer({ source: new OSM() })],
           view: new View({
@@ -160,18 +153,22 @@ export default function BeaconsPage() {
         mapInstance.current = map
 
         // Click handler for popup
-        map.on('click', (evt: any) => {
+        // ponytail: use a structural type for evt; cast handler when
+        // registering with map.on() so TS doesn't complain about the
+        // ol MapBrowserEvent<UIEvent> signature mismatch.
+        const handleClick = (evt: { pixel: [number, number]; coordinate: [number, number] }) => {
           const overlay = overlayRef.current
           if (!overlay || !popupRef.current) return
 
-          const feature = map.forEachFeatureAtPixel(evt.pixel, (f: any) => f)
+          const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f as Feature)
           if (feature && feature.get('popupHtml')) {
-            popupRef.current.innerHTML = feature.get('popupHtml')
+            popupRef.current.innerHTML = feature.get('popupHtml') as string
             overlay.setPosition(evt.coordinate)
           } else {
             overlay.setPosition(undefined)
           }
-        })
+        }
+        map.on('click', handleClick as (e: unknown) => void)
       } catch (err) {
         console.error('Beacons map init failed:', err)
       }
@@ -181,55 +178,28 @@ export default function BeaconsPage() {
 
     return () => {
       cancelled = true
-      if (map) map.setTarget(undefined)
+      if (mapInstance.current) mapInstance.current.setTarget(undefined)
       overlayRef.current = null
     }
   }, [])
-
-
 
   // Update map features when data changes
   useEffect(() => {
     const map = mapInstance.current
     if (!map || loading) return
 
-    // Dynamic imports for SSR safety
-    let vectorSource: any = null
-    let VectorLayer: any = null
-    let VectorSourceClass: any = null
-    let Feature: any = null
-    let Point: any = null
-    let Style: any = null
-    let CircleStyle: any = null
-    let Fill: any = null
-    let Stroke: any = null
-    let Text: any = null
-    let fromLonLat: any = null
+    let cancelled = false
 
     async function updateFeatures() {
       try {
-        const mods = await Promise.all([
-          import('ol/source/Vector'), import('ol/layer/Vector'),
-          import('ol/Feature'), import('ol/geom/Point'),
-          import('ol/style/Style'), import('ol/style/Circle'),
-          import('ol/style/Fill'), import('ol/style/Stroke'),
-          import('ol/style/Text'), import('ol/proj'),
-        ])
-        VectorSourceClass = (mods[0] as any).default
-        VectorLayer = (mods[1] as any).default
-        Feature = (mods[2] as any).default
-        Point = (mods[3] as any).default
-        Style = (mods[4] as any).default
-        CircleStyle = (mods[5] as any).default
-        Fill = (mods[6] as any).default
-        Stroke = (mods[7] as any).default
-        Text = (mods[8] as any).default
-        fromLonLat = (mods[9] as any).fromLonLat
+        // ponytail: re-assert map is non-null inside async closure (TS can't
+        // track the outer null check across the async boundary)
+        if (!map || cancelled) return
 
-        vectorSource = new VectorSourceClass()
+        const vectorSource = new VectorSource()
 
         if (view === 'beacons') {
-      const filteredBeacons = beacons.filter((b: any) => {
+      const filteredBeacons = beacons.filter((b) => {
         if (filter !== 'all' && b.beacon_type !== filter) return false
         if (search && !b.name.toLowerCase().includes(search.toLowerCase()) &&
             !b.authority?.toLowerCase().includes(search.toLowerCase())) return false
@@ -269,7 +239,10 @@ export default function BeaconsPage() {
       // Pan to Kenya/East Africa if beacons exist
       if (filteredBeacons.length > 0) {
         const extent = vectorSource.getExtent()
-        map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 10 })
+        // ponytail: getExtent() can return an empty extent if no features; guard
+        if (extent && (extent[2] - extent[0] > 0 || extent[3] - extent[1] > 0)) {
+          map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 10 })
+        }
       }
     } else if (view === 'activity') {
       const surveyProjects = projects.filter((p) => p.survey_type)
@@ -301,7 +274,7 @@ export default function BeaconsPage() {
     }
 
         // Remove old vector layers, add new one
-        const existing = map.getLayers().getArray().find((l: any) => l instanceof VectorLayer)
+        const existing = map.getLayers().getArray().find((l) => l instanceof VectorLayer)
         if (existing) map.removeLayer(existing)
         map.addLayer(new VectorLayer({ source: vectorSource }))
 
@@ -317,6 +290,9 @@ export default function BeaconsPage() {
 
     updateFeatures()
 
+    return () => {
+      cancelled = true
+    }
   }, [view, beacons, projects, filter, search, loading])
 
   const handleImport = async () => {
@@ -341,8 +317,9 @@ export default function BeaconsPage() {
       setImportMsg({text:'Beacon imported successfully!', ok:true}); setTimeout(()=>setImportMsg(null),3000)
       setImportBeacon(null)
       setImportProject('')
-    } catch (err: any) {
-      setImportMsg({text:'Error: '+err.message, ok:false}); setTimeout(()=>setImportMsg(null),4000)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setImportMsg({text:'Error: '+msg, ok:false}); setTimeout(()=>setImportMsg(null),4000)
     }
     
     setImportLoading(false)
@@ -387,7 +364,7 @@ export default function BeaconsPage() {
                 className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)]"
               />
               <div className="flex gap-2">
-                {['all', 'trig', 'control', 'boundary', 'benchmark'].map((f: any) => (
+                {['all', 'trig', 'control', 'boundary', 'benchmark'].map((f) => (
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
@@ -440,7 +417,7 @@ export default function BeaconsPage() {
                 className="w-full px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
               >
                 <option value="">Choose project...</option>
-                {projects.map((p: any) => (
+                {projects.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>

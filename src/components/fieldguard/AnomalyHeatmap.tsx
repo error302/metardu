@@ -2,6 +2,24 @@
 
 import { useEffect, useRef } from 'react'
 import type { CleanedPoint, Anomaly } from '@/types/fieldguard'
+// ponytail: Phase 6 — use typed imports from ol (which ships its own .d.ts files)
+// instead of dynamic imports + `as any` casts. Same bundle (Next.js code-splits
+// these automatically), but now TypeScript can catch API misuse.
+import Map from 'ol/Map'
+import View from 'ol/View'
+import TileLayer from 'ol/layer/Tile'
+import VectorLayer from 'ol/layer/Vector'
+import VectorSource from 'ol/source/Vector'
+import OSM from 'ol/source/OSM'
+import Style from 'ol/style/Style'
+import CircleStyle from 'ol/style/Circle'
+import Fill from 'ol/style/Fill'
+import Stroke from 'ol/style/Stroke'
+import Feature from 'ol/Feature'
+import Point from 'ol/geom/Point'
+import { fromLonLat } from 'ol/proj'
+import Overlay from 'ol/Overlay'
+import type { Map as MapType, Overlay as OverlayType } from 'ol'
 
 interface AnomalyHeatmapProps {
   points: CleanedPoint[]
@@ -11,8 +29,8 @@ interface AnomalyHeatmapProps {
 export default function AnomalyHeatmap({ points, anomalies }: AnomalyHeatmapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
-  const mapInstance = useRef<any>(null)
-  const overlayRef = useRef<any>(null)
+  const mapInstance = useRef<MapType | null>(null)
+  const overlayRef = useRef<OverlayType | null>(null)
 
   useEffect(() => {
     if (!mapRef.current) return
@@ -27,34 +45,9 @@ export default function AnomalyHeatmap({ points, anomalies }: AnomalyHeatmapProp
 
     async function initMap() {
       try {
-        const [
-          MapMod, ViewMod, TileLayerMod, VectorLayerMod, VectorSourceMod,
-          OSMMod, StyleMod, CircleStyleMod, FillMod, StrokeMod,
-          FeatureMod, PointMod, fromLonLatMod, OverlayMod,
-        ] = await Promise.all([
-          import('ol/Map'), import('ol/View'), import('ol/layer/Tile'),
-          import('ol/layer/Vector'), import('ol/source/Vector'),
-          import('ol/source/OSM'), import('ol/style/Style'),
-          import('ol/style/Circle'), import('ol/style/Fill'),
-          import('ol/style/Stroke'), import('ol/Feature'),
-          import('ol/geom/Point'), import('ol/proj'), import('ol/Overlay'),
-        ])
-
-        const Map = (MapMod as any).default
-        const View = (ViewMod as any).default
-        const TileLayer = (TileLayerMod as any).default
-        const VectorLayer = (VectorLayerMod as any).default
-        const VectorSource = (VectorSourceMod as any).default
-        const OSM = (OSMMod as any).default
-        const Style = (StyleMod as any).default
-        const CircleStyle = (CircleStyleMod as any).default
-        const Fill = (FillMod as any).default
-        const Stroke = (StrokeMod as any).default
-        const Feature = (FeatureMod as any).default
-        const Point = (PointMod as any).default
-        const fromLonLat = (fromLonLatMod as any).fromLonLat
-        const Overlay = (OverlayMod as any).default
-
+        // ponytail: imports are now at module top-level (typed). The async
+        // wrapper is kept for the cancelled-flag pattern.
+        await Promise.resolve()  // keep async signature for callers
         if (cancelled || !mapRef.current) return
 
         const map = new Map({
@@ -96,27 +89,9 @@ export default function AnomalyHeatmap({ points, anomalies }: AnomalyHeatmapProp
 
     async function updateFeatures() {
       try {
-        const [
-          VectorLayerMod, VectorSourceMod, StyleMod, CircleStyleMod,
-          FillMod, StrokeMod, FeatureMod, PointMod, fromLonLatMod,
-        ] = await Promise.all([
-          import('ol/layer/Vector'), import('ol/source/Vector'),
-          import('ol/style/Style'), import('ol/style/Circle'),
-          import('ol/style/Fill'), import('ol/style/Stroke'),
-          import('ol/Feature'), import('ol/geom/Point'), import('ol/proj'),
-        ])
-
-        const VectorLayer = (VectorLayerMod as any).default
-        const VectorSource = (VectorSourceMod as any).default
-        const Style = (StyleMod as any).default
-        const CircleStyle = (CircleStyleMod as any).default
-        const Fill = (FillMod as any).default
-        const Stroke = (StrokeMod as any).default
-        const Feature = (FeatureMod as any).default
-        const Point = (PointMod as any).default
-        const fromLonLat = (fromLonLatMod as any).fromLonLat
-
-        if (cancelled) return
+        // ponytail: re-assert map is non-null inside async closure (TS can't
+        // track the outer null check across the async boundary)
+        if (!map || cancelled) return
 
         const anomalyIds = new Set(anomalies.map((a) => a.point_id))
 
@@ -151,33 +126,37 @@ export default function AnomalyHeatmap({ points, anomalies }: AnomalyHeatmapProp
         const vectorSource = new VectorSource({ features })
 
         // Remove old vector layers, add new one
-        const existing = map.getLayers().getArray().find((l: any) => l instanceof VectorLayer)
+        const existing = map.getLayers().getArray().find((l) => l instanceof VectorLayer)
         if (existing) map.removeLayer(existing)
 
         map.addLayer(new VectorLayer({ source: vectorSource }))
 
         // Fit to features
         const extent = vectorSource.getExtent()
-        map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 18 })
+        // ponytail: getExtent() can return an empty extent if no features; guard against null
+        if (extent && (extent[2] - extent[0] > 0 || extent[3] - extent[1] > 0)) {
+          map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 18 })
+        }
 
         // Click handler for popup
-        const handleClick = (evt: any) => {
+        // ponytail: use the typed MapBrowserEvent from ol
+        const handleClick = (evt: { pixel: [number, number]; coordinate: [number, number] }) => {
           const overlay = overlayRef.current
           if (!overlay || !popupRef.current) return
 
-          const feature = map.forEachFeatureAtPixel(evt.pixel, (f: any) => f)
+          const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f as Feature)
           if (feature && feature.get('popupText')) {
-            popupRef.current.innerHTML = feature.get('popupText')
+            popupRef.current.innerHTML = feature.get('popupText') as string
             overlay.setPosition(evt.coordinate)
           } else {
             overlay.setPosition(undefined)
           }
         }
 
-        map.on('click', handleClick)
+        map.on('click', handleClick as (e: unknown) => void)
 
         return () => {
-          map.un('click', handleClick)
+          map.un('click', handleClick as (e: unknown) => void)
         }
       } catch (err) {
         console.error('AnomalyHeatmap feature update failed:', err)
