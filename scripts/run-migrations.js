@@ -156,6 +156,7 @@ async function main() {
   const args = process.argv.slice(2)
   const dryRun = args.includes('--dry-run')
   const showStatus = args.includes('--status')
+  const rollbackTarget = args.includes('--rollback') ? args[args.indexOf('--rollback') + 1] : null
 
   const client = getClient()
 
@@ -167,6 +168,60 @@ async function main() {
 
     const allMigrations = getMigrationFiles()
     const applied = await getAppliedMigrations(client)
+
+    // --- --rollback <filename> ----------------------------------------------
+    if (rollbackTarget) {
+      // Find the migration file
+      const migration = allMigrations.find(m =>
+        m.filename === rollbackTarget || m.filename.startsWith(rollbackTarget)
+      )
+
+      if (!migration) {
+        console.error(`Migration not found: ${rollbackTarget}`)
+        console.error('Available migrations:')
+        for (const m of allMigrations) console.error(`  ${m.filename}`)
+        process.exit(1)
+      }
+
+      if (!applied.has(migration.filename)) {
+        console.error(`Migration not applied: ${migration.filename}`)
+        process.exit(1)
+      }
+
+      // Extract DOWN section from the SQL file
+      const sql = fs.readFileSync(migration.filepath, 'utf8')
+      const downMatch = sql.match(/-- DOWN:.*?\n([\s\S]*?)(?:-- ═|$)/i)
+
+      if (!downMatch || !downMatch[1].trim()) {
+        console.error(`No DOWN section found in ${migration.filename}`)
+        console.error('Add a -- DOWN: section with rollback SQL to enable rollback.')
+        process.exit(1)
+      }
+
+      const downSql = downMatch[1].trim()
+
+      if (dryRun) {
+        console.log(`  [DRY RUN] Would rollback: ${migration.filename}`)
+        console.log(`  DOWN SQL:\n${downSql}`)
+        return
+      }
+
+      console.log(`  Rolling back: ${migration.filename} …`)
+
+      try {
+        await client.query('BEGIN')
+        await client.query(downSql)
+        await client.query('DELETE FROM schema_migrations WHERE filename = $1', [migration.filename])
+        await client.query('COMMIT')
+        console.log(`  ✓ Rolled back: ${migration.filename}`)
+      } catch (err) {
+        await client.query('ROLLBACK')
+        console.error(`  ✗ FAILED to rollback: ${migration.filename}`)
+        console.error(`    Error: ${err.message}`)
+        throw err
+      }
+      return
+    }
 
     // --- --status -----------------------------------------------------------
     if (showStatus) {

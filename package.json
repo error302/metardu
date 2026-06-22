@@ -35,7 +35,9 @@
     "postinstall": "node scripts/patch-cssnano.js",
     "cassini:rebuild": "python3 scripts/cassini-tooling/extract_all_v2.py && npx tsx scripts/validate_national_sheets.ts",
     "cassini:validate": "npx tsx scripts/validate_national_sheets.ts",
-    "cassini:benchmark": "npx tsx scripts/benchmark_cassini.ts"
+    "cassini:benchmark": "npx tsx scripts/benchmark_cassini.ts",
+    "migrate:create": "node scripts/migrate-create.js",
+    "migrate:rollback": "node scripts/run-migrations.js --rollback"
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^8.1.3",
