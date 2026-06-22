@@ -32,7 +32,7 @@ jest.mock('ol/layer/Vector', () => {
 
 jest.mock('ol/source/Vector', () => {
   const S = class VectorSource {
-    features: any[]
+    features: unknown[]
     constructor(opts?: any) { this.features = opts?.features ?? [] }
     getFeatures() { return this.features }
     addFeature(f: any) { this.features.push(f) }

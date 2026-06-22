@@ -120,7 +120,7 @@ export default function FieldBookWithSelection({
 
         if (data && data.length > 0) {
           const loaded = data.map((r: Record<string, any>) => {
-            const raw = (r.raw_data ?? {}) as Record<string, unknown>;
+            const raw = (r.raw_data ?? {}) as Record<string, any>;
             const row: FieldBookRow = {} as FieldBookRow;
             for (const [k, v] of Object.entries(raw)) {
               row[k] = v as string | number | null;

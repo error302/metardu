@@ -274,7 +274,7 @@ If no valid coordinates found, return empty arrays.`
 export async function generateReportSection(options: {
   sectionType: string
   surveyType: string
-  projectData: Record<string, any>
+  projectData: Record<string, unknown>
   customInstructions?: string
   onToken?: (token: string) => void
 }): Promise<string> {
@@ -321,8 +321,8 @@ Write in professional surveyor language, suitable for submission to regulatory a
  */
 export async function validateSurveyResults(options: {
   surveyType: string
-  measured: Record<string, any>
-  expected?: Record<string, any>
+  measured: Record<string, unknown>
+  expected?: Record<string, unknown>
   tolerances?: Record<string, number>
 }): Promise<{
   aiAssessment: 'likely_pass' | 'likely_fail' | 'needs_review'

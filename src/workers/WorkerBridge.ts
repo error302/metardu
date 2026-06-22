@@ -149,7 +149,7 @@ class WorkerBridge {
    * @returns Parsed points array
    */
   async parseCSVPoints(csvText: string, delimiter = ',') {
-    return this.send<{ points: any[]; count: number }>(
+    return this.send<{ points: unknown[]; count: number }>(
       'PARSE_CSV_POINTS',
       { csvText, delimiter }
     )
@@ -159,7 +159,7 @@ class WorkerBridge {
    * Parse a CSV file containing field observations
    */
   async parseCSVObservations(csvText: string, delimiter = ',') {
-    return this.send<{ observations: any[]; count: number }>(
+    return this.send<{ observations: unknown[]; count: number }>(
       'PARSE_CSV_OBSERVATIONS',
       { csvText, delimiter }
     )
@@ -169,7 +169,7 @@ class WorkerBridge {
    * Parse a CSV file containing leveling data
    */
   async parseCSVLeveling(csvText: string, delimiter = ',') {
-    return this.send<{ readings: any[]; count: number }>(
+    return this.send<{ readings: unknown[]; count: number }>(
       'PARSE_CSV_LEVELING',
       { csvText, delimiter }
     )
@@ -183,7 +183,7 @@ class WorkerBridge {
     toEpsg: number
     coordinates: Array<{ lat: number; lng: number } | { northing: number; easting: number }>
   }) {
-    return this.send<{ coordinates: any[]; count: number }>(
+    return this.send<{ coordinates: unknown[]; count: number }>(
       'TRANSFORM_COORDINATES',
       params,
       120000 // Longer timeout for bulk transforms
@@ -232,7 +232,7 @@ class WorkerBridge {
     endCoordinates?: { northing: number; easting: number }
   }) {
     return this.send<{
-      adjustedLegs: any[]
+      adjustedLegs: unknown[]
       misclosure: {
         linear: number
         angular: number
@@ -262,8 +262,8 @@ class WorkerBridge {
   /**
    * Validate a field book entry
    */
-  async validateFieldBook(entries: any[]) {
-    return this.send<{ errors: any[]; warnings: any[] }>(
+  async validateFieldBook(entries: unknown[]) {
+    return this.send<{ errors: unknown[]; warnings: unknown[] }>(
       'VALIDATE_FIELD_BOOK',
       { entries }
     )

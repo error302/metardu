@@ -26,7 +26,7 @@ export interface FusionLayer {
   layer_type: 'raster' | 'vector' | 'point_cloud' | 'mesh'
   source_data: LayerSourceData
   geometry_type?: 'point' | 'line' | 'polygon' | 'multi'
-  properties: Record<string, any>
+  properties: Record<string, unknown>
   style_config: LayerStyle
   visibility: boolean
   opacity: number

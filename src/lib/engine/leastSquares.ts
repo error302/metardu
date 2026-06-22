@@ -811,7 +811,7 @@ export function adjustNetwork(input: LSAdjustmentInput): LSAdjustmentResult {
   let finalW: number[] = new Array(m).fill(0)
   let finalP: number[] = new Array(m).fill(0)
   let finalLabels: string[] = new Array(m).fill('')
-  let finalObsList: any[] = []
+  let finalObsList: unknown[] = []
 
   for (let iter = 0; iter < maxIter; iter++) {
     const A = zeros(m, nUnknowns)

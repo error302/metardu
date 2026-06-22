@@ -326,7 +326,7 @@ export class InstrumentSerialConnection {
   async sendInstrumentCommand(
     brand: 'leica' | 'topcon' | 'trimble' | 'sokkia',
     commandType: string,
-    ...args: any[]
+    ...args: unknown[]
   ): Promise<void> {
     // Dynamic import to avoid circular dependency
     const { getInstrumentCommand } = await import('./instrumentCommands')

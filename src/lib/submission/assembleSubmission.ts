@@ -30,8 +30,8 @@ interface ProjectData {
   area_m2: number
   perimeter_m: number
   subtype: SurveySubtype
-  survey_points: any[]
-  supporting_documents: any[]
+  survey_points: unknown[]
+  supporting_documents: unknown[]
   angular_misclosure: number
   linear_misclosure: number
   precision_ratio: string

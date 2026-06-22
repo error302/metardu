@@ -8,8 +8,8 @@ export async function createValidation(params: {
   user_id: string
   boundary_data: BoundaryPolygon
   score: number
-  overlaps: any[]
-  gaps: any[]
+  overlaps: unknown[]
+  gaps: unknown[]
   report_url?: string
 }) {
   const dbClient = await createClient()

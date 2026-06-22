@@ -18,7 +18,7 @@ import {
 
 type MockVectorTileLayer = {
   opts: any
-  _props: Record<string, any>
+  _props: Record<string, unknown>
 }
 
 function asMockLayer(layer: unknown): MockVectorTileLayer {
@@ -32,7 +32,7 @@ function asMockLayer(layer: unknown): MockVectorTileLayer {
 jest.mock('ol/layer/VectorTile', () => {
   const MockVectorTileLayer = class MockVectorTileLayer {
     opts: any
-    _props: Record<string, any>
+    _props: Record<string, unknown>
     constructor(opts?: any) {
       this.opts = opts
       this._props = {}

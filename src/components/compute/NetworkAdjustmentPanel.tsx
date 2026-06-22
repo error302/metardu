@@ -19,7 +19,7 @@ const networkAdjustmentSaveResponseSchema = z.object({
 
 interface Props {
   projectId: string
-  projectData: Record<string, any>
+  projectData: Record<string, unknown>
   surveyorProfile?: { fullName: string; registrationNumber: string; firmName: string } | null
 }
 

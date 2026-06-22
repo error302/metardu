@@ -7,10 +7,10 @@
 export interface ApiResponse<T> {
   data: T | null
   error: string | null
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 }
 
-export function apiSuccess<T>(data: T, meta?: Record<string, any>): ApiResponse<T> {
+export function apiSuccess<T>(data: T, meta?: Record<string, unknown>): ApiResponse<T> {
   return {
     data,
     error: null,
@@ -18,7 +18,7 @@ export function apiSuccess<T>(data: T, meta?: Record<string, any>): ApiResponse<
   }
 }
 
-export function apiError(error: string, meta?: Record<string, any>): ApiResponse<null> {
+export function apiError(error: string, meta?: Record<string, unknown>): ApiResponse<null> {
   return {
     data: null,
     error,

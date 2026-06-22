@@ -44,7 +44,7 @@ export interface IFCHeader {
 export interface IFCEntity {
   id: number
   type: string
-  args: any[]
+  args: unknown[]
   raw: string
 }
 
@@ -807,7 +807,7 @@ export function extractProjectMetadata(model: IFCModel): IFCProjectInfo {
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
 
-function getArgValue(args: any[], index: number): any {
+function getArgValue(args: unknown[], index: number): any {
   if (index < 0 || index >= args.length) return null
   const val = args[index]
   return val === null || val === undefined ? null : val

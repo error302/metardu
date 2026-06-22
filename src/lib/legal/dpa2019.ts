@@ -259,7 +259,7 @@ export async function hasConsent(
  * Export all personal data for a user (DPA 2019 Section 25)
  * Returns a structured JSON object with all data linked to the user
  */
-export async function exportUserData(userId: string): Promise<Record<string, any>> {
+export async function exportUserData(userId: string): Promise<Record<string, unknown>> {
   const [profile, projects, payments, consents, dsars] = await Promise.all([
     db.query('SELECT * FROM surveyor_profiles WHERE user_id = $1', [userId]),
     db.query('SELECT id, name, created_at, updated_at FROM projects WHERE user_id = $1', [userId]),

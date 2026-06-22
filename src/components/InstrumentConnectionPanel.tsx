@@ -83,7 +83,7 @@ export function InstrumentConnectionPanel({
   }
 
   // Send a brand-specific instrument command
-  const sendCommand = useCallback(async (commandType: string, ...args: any[]) => {
+  const sendCommand = useCallback(async (commandType: string, ...args: unknown[]) => {
     const brand = getBrandFromPresetKey(selectedPreset)
     try {
       const { getInstrumentCommand } = await import('@/lib/serial/instrumentCommands')

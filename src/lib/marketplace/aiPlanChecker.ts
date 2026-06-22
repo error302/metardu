@@ -11,7 +11,7 @@ export interface PlanCheckInput {
   points: { name: string; easting: number; northing: number; elevation?: number }[]
   boundaries?: { from: string; to: string }[]
   controlPoints?: string[]
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface PlanIssue {

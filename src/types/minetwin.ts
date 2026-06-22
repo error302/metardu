@@ -48,7 +48,7 @@ export interface MineTwin {
   volumes: VolumeCalculation | null
   convergence: ConvergencePoint[]
   daily_scans: SurveyPoint3D[][]
-  safety_reports: any[]
+  safety_reports: unknown[]
   created_at: string
   updated_at: string
 }

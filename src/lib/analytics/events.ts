@@ -12,7 +12,7 @@ export type EventType =
 
 export async function trackEvent(
   event: EventType,
-  properties?: Record<string, any>
+  properties?: Record<string, unknown>
 ) {
   try {
     if (process.env.NODE_ENV !== 'production') return

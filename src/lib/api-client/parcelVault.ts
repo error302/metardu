@@ -12,7 +12,7 @@ export interface ParcelVaultEntry {
   area_sqm: number | null
   title_deed_number: string | null
   owner_type: string | null
-  encumbrances: any[]
+  encumbrances: unknown[]
   status: string | null
   certificate_date: string
   expires_at: string

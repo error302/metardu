@@ -23,9 +23,9 @@ export interface METARDUProjectExport {
   }
   control_points: SurveyPoint[]
   survey_points: SurveyPoint[]
-  traverses: any[]
-  parcels: any[]
-  alignments: any[]
+  traverses: unknown[]
+  parcels: unknown[]
+  alignments: unknown[]
 }
 
 export async function exportProject(

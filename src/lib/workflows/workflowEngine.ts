@@ -17,7 +17,7 @@ export type SurveyType = 'traverse' | 'leveling' | 'radiation' | 'coordinates' |
 export interface SurveyDataset {
   surveyType: SurveyType
   observations: SurveyObservation[]
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
 }
 
 export interface SurveyObservation {

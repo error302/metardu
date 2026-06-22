@@ -121,7 +121,7 @@ class DatabaseOptimizer {
   }
 
   // Optimized count query
-  async fastCount(table: string, filter?: Record<string, any>): Promise<number> {
+  async fastCount(table: string, filter?: Record<string, unknown>): Promise<number> {
     const cacheKey = `count:${table}:${JSON.stringify(filter || {})}`
     
     return redisCache.getOrSet(
