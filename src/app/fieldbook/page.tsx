@@ -19,6 +19,25 @@ import { TraverseBook } from '@/components/fieldbook/TraverseBook'
 import { ControlBook } from '@/components/fieldbook/ControlBook'
 import { HydroBook } from '@/components/fieldbook/HydroBook'
 import { MiningBook } from '@/components/fieldbook/MiningBook'
+import { MobileFieldbookShell } from '@/components/fieldbook/MobileFieldbookShell'
+
+/** useIsMobile — SSR-safe media-query hook (lg breakpoint = 1024px). */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(max-width: 1023px)')
+    const onChange = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches)
+    onChange(mq)
+    if (mq.addEventListener) mq.addEventListener('change', onChange as (e: MediaQueryListEvent) => void)
+    else mq.addListener(onChange as (e: MediaQueryListEvent) => void)
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', onChange as (e: MediaQueryListEvent) => void)
+      else mq.removeListener(onChange as (e: MediaQueryListEvent) => void)
+    }
+  }, [])
+  return isMobile
+}
 
 
 type FieldbookType = 'leveling' | 'traverse' | 'control' | 'hydrographic' | 'mining'
@@ -109,6 +128,8 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 export default function DigitalFieldBookPage() {
   const { t } = useLanguage()
   const dbClient = createClient()
+  const isMobile = useIsMobile()
+  const [online, setOnline] = useState(true)
 
   const [type, setType] = useState<FieldbookType>('leveling')
   const [projectId, setProjectId] = useState('')
@@ -117,6 +138,20 @@ export default function DigitalFieldBookPage() {
   useEffect(() => {
     const pid = new URLSearchParams(window.location.search).get('project')
     if (pid) setProjectId(pid)
+  }, [])
+
+  useEffect(() => {
+    setOnline(isOnline())
+    const handleOnline = () => setOnline(true)
+    const handleOffline = () => setOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    const cleanup = setupOnlineListener(handleOnline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      cleanup()
+    }
   }, [])
 
   const [name, setName] = useState('')
@@ -729,6 +764,150 @@ export default function DigitalFieldBookPage() {
     }
 
     downloadBlob(`metardu-fieldbook-${type}.pdf`, doc.output('blob'))
+  }
+
+  // ─── Build a "rows" array compatible with MobileFieldbookShell ─────────
+  // Each row is a string-keyed record so the mobile cards can render any
+  // survey type with a single component.
+  const mobileRows: Array<{ id: string; [key: string]: string }> = (() => {
+    if (type === 'leveling') {
+      return levelRows.map((r) => ({
+        id: r.id,
+        station: r.station,
+        bs: r.bs,
+        is: r.is,
+        fs: r.fs,
+        remarks: r.remarks,
+      }))
+    }
+    if (type === 'traverse') {
+      return travRows.map((r) => ({
+        id: r.id,
+        station: r.station,
+        bearing: r.bearing,
+        slopeDist: r.slopeDist,
+        vaDeg: `${r.vaDeg}°${r.vaMin}'${r.vaSec}"`,
+        ih: r.ih,
+        th: r.th,
+        remarks: r.remarks,
+      }))
+    }
+    if (type === 'control') {
+      return controlRows.map((r) => ({
+        id: r.id,
+        pointId: r.pointId,
+        bearing: r.bearing,
+        verticalAngle: r.verticalAngle,
+        slopeDistance: r.slopeDistance,
+        instrumentHeight: r.instrumentHeight,
+        targetHeight: r.targetHeight,
+        remarks: r.remarks,
+      }))
+    }
+    if (type === 'hydrographic') {
+      return hydroRows.map((r) => ({
+        id: r.id,
+        soundingId: r.soundingId,
+        easting: r.easting,
+        northing: r.northing,
+        depth: r.depth,
+        tide: r.tide,
+        remarks: r.remarks,
+      }))
+    }
+    return miningRows.map((r) => ({
+      id: r.id,
+      pointId: r.pointId,
+      bearing: r.bearing,
+      verticalAngle: r.verticalAngle,
+      slopeDistance: r.slopeDistance,
+      remarks: r.remarks,
+    }))
+  })()
+
+  /** Add a row produced by the mobile universal form to the active survey state. */
+  function handleMobileAddRow(row: Record<string, string>) {
+    const id = crypto.randomUUID()
+    if (type === 'leveling') {
+      setLevelRows((p) => [...p, {
+        id,
+        station: row.station ?? '',
+        bs: row.bs ?? '',
+        is: row.is ?? '',
+        fs: row.fs ?? '',
+        remarks: row.remarks ?? '',
+      }])
+    } else if (type === 'traverse') {
+      setTravRows((p) => [...p, {
+        id,
+        station: row.station ?? '',
+        bearing: row.bearing ?? '',
+        hclDeg: '', hclMin: '', hclSec: '',
+        hcrDeg: '', hcrMin: '', hcrSec: '',
+        slopeDist: row.slopeDist ?? '',
+        vaDeg: row.vaDeg ?? '', vaMin: '', vaSec: '',
+        ih: row.ih ?? '1.5', th: row.th ?? '1.5',
+        remarks: row.remarks ?? '',
+      }])
+    } else if (type === 'control') {
+      setControlRows((p) => [...p, {
+        id,
+        pointId: row.pointId ?? '',
+        instrumentHeight: row.instrumentHeight ?? '1.5',
+        targetHeight: row.targetHeight ?? '1.5',
+        bearing: row.bearing ?? '',
+        verticalAngle: row.verticalAngle ?? '90',
+        slopeDistance: row.slopeDistance ?? '',
+        remarks: row.remarks ?? '',
+      }])
+    } else if (type === 'hydrographic') {
+      setHydroRows((p) => [...p, {
+        id,
+        soundingId: row.soundingId ?? '',
+        easting: row.easting ?? '',
+        northing: row.northing ?? '',
+        depth: row.depth ?? '',
+        tide: row.tide ?? '',
+        remarks: row.remarks ?? '',
+      }])
+    } else {
+      setMiningRows((p) => [...p, {
+        id,
+        pointId: row.pointId ?? '',
+        bearing: row.bearing ?? '',
+        verticalAngle: row.verticalAngle ?? '90',
+        slopeDistance: row.slopeDistance ?? '',
+        remarks: row.remarks ?? '',
+      }])
+    }
+    // Auto-save so the surveyor doesn't lose data if app is killed
+    handleSave()
+  }
+
+  function handleMobileRemoveRow(id: string) {
+    if (type === 'leveling') setLevelRows((p) => p.filter((r) => r.id !== id))
+    else if (type === 'traverse') setTravRows((p) => p.filter((r) => r.id !== id))
+    else if (type === 'control') setControlRows((p) => p.filter((r) => r.id !== id))
+    else if (type === 'hydrographic') setHydroRows((p) => p.filter((r) => r.id !== id))
+    else setMiningRows((p) => p.filter((r) => r.id !== id))
+  }
+
+  // ─── Mobile rendering: card-based shell with universal quick-add ─────
+  if (isMobile) {
+    return (
+      <MobileFieldbookShell
+        surveyType={type}
+        onSurveyTypeChange={(t) => resetForType(t)}
+        rows={mobileRows}
+        onAddRow={handleMobileAddRow}
+        onRemoveRow={handleMobileRemoveRow}
+        online={online}
+        lastSaved={saveStatus.kind === 'saved' ? saveStatus.when : null}
+        unsyncedCount={savedFieldbooks.filter((fb) => !fb.updated_at).length}
+        onSync={handleSyncNow}
+        stationName={type === 'control' ? controlStation.name : type === 'mining' ? miningStation.name : undefined}
+      />
+    )
   }
 
   return (

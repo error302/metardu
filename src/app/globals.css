@@ -468,13 +468,37 @@ main, section, header, footer, nav, article, aside {
     animation: text-reveal 0.8s ease forwards;
   }
 
+  /* Marquee animation — used by the homepage logos strip */
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+  }
+
   /* Hide scrollbar but allow scrolling (for category tabs etc.) */
-  .scrollbar-none {
+  .scrollbar-none,
+  .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  .scrollbar-none::-webkit-scrollbar {
+  .scrollbar-none::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Line clamp 2 — utility used by mobile fieldbook cards */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Extra-small breakpoint (below sm) */
+  @media (min-width: 400px) {
+    .xs\:inline { display: inline; }
   }
 
   /* Mobile-safe container — constrains children to viewport */
