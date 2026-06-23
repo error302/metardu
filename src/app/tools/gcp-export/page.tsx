@@ -5,6 +5,7 @@ import { createClient } from '@/lib/api-client/client'
 import { exportGCPs, GCP_FORMATS, GCPFormat, GCPPoint } from '@/lib/export/gcpExport'
 import { PageHeader } from '@/components/shared/PageHeader'
 import Link from 'next/link'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ function download(content: string, filename: string) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function GCPExportPage() {
+  const { t } = useLanguage()
   const [projects, setProjects] = useState<{ id: string; name: string; utm_zone: number; hemisphere: string }[]>([])
   const [selectedProject, setSelectedProject] = useState('')
   const [points, setPoints] = useState<GCPPoint[]>([])
@@ -98,8 +100,8 @@ export default function GCPExportPage() {
 
         {/* Header */}
         <PageHeader
-          title="GCP export for drone software"
-          subtitle="Export ground control points in formats compatible with Pix4D, DroneDeploy, Agisoft Metashape, OpenDroneMap and QGIS/ArcGIS."
+          title={t('tools.gcpExport')}
+          subtitle={t('tools.gcpExportDesc')}
         />
 
         {/* What is a GCP? — for context */}

@@ -7,6 +7,7 @@ import { generateLandXML } from '@/lib/export/generateLandXML'
 import { utmToGeographic } from '@/lib/engine/coordinates'
 import { PageHeader } from '@/components/shared/PageHeader'
 import Link from 'next/link'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 function download(content: string, filename: string, mime = 'text/plain') {
   const a = document.createElement('a')
@@ -70,6 +71,7 @@ ${placemarks}
 }
 
 export default function GISExportPage() {
+  const { t } = useLanguage()
   const [projects, setProjects]   = useState<any[]>([])
   const [projectId, setProjectId] = useState('')
   const [points, setPoints]       = useState<any[]>([])
@@ -185,8 +187,8 @@ export default function GISExportPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         <PageHeader
-          title="GIS data package"
-          subtitle="Export survey data in every GIS format — GeoJSON, KML, LandXML, CSV with CRS declaration. All files are properly georeferenced with the correct coordinate system declared."
+          title={t('tools.gisExport')}
+          subtitle={t('tools.gisExportDesc')}
         />
 
         {/* Project selector */}

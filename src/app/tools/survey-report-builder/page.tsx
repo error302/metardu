@@ -7,6 +7,7 @@ import { createClient } from '@/lib/api-client/client'
 import SurveyReportBuilder from '@/components/surveyreport/SurveyReportBuilder'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Project {
   id: string
@@ -19,6 +20,7 @@ function SurveyReportBuilderContent() {
   const projectId = params.get('projectId') || ''
   const reportId = params.get('reportId') || undefined
   const { data: session, status: sessionStatus } = useSession()
+  const { t } = useLanguage()
 
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
@@ -89,8 +91,8 @@ function SurveyReportBuilderContent() {
             </MobileDesktopNotice>
           </div>
           <PageHeader
-            title="Survey Report Builder"
-            subtitle="Select a project to create a new RDM 1.1 Table 5.4 compliant survey report."
+            title={t('tools.surveyReportBuilder')}
+            subtitle={t('tools.surveyReportBuilderDesc')}
           />
           
           {projects.length === 0 ? (
@@ -152,6 +154,7 @@ function SurveyReportBuilderContent() {
 }
 
 export default function SurveyReportBuilderPage() {
+  const { t } = useLanguage()
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">

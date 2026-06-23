@@ -5,8 +5,10 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { heightOfObjectSolved } from '@/lib/engine/solution/wrappers/heightOfObject'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function HeightOfObjectCalculator() {
+  const { t } = useLanguage()
   const [inputs, setInputs] = useState({
     distance: '',
     angleTop:  { d: '', m: '', s: '' },
@@ -39,8 +41,8 @@ export default function HeightOfObjectCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Height of Object"
-        subtitle="Trigonometric height from horizontal distance and vertical angles to top and base"
+        title={t('tools.heightOfObject')}
+        subtitle={t('tools.heightOfObjectDesc')}
         reference="Survey Regulations 1994 | Survey Act Cap 299 | RDM 1.1 (2025)"
       />
 

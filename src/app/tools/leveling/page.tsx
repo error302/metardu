@@ -11,6 +11,7 @@ import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { levelingSolved } from '@/lib/engine/solution/wrappers/leveling'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Reading {
   id: number;
@@ -20,6 +21,7 @@ interface Reading {
 }
 
 export default function LevelingCalculator() {
+  const { t } = useLanguage()
   const [bm, setBm] = useState('100.0000');
   const [closingBm, setClosingBm] = useState('');
   const [distanceKm, setDistanceKm] = useState('1');
@@ -111,8 +113,8 @@ export default function LevelingCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Levelling Calculator"
-        subtitle="Quick differential levelling — Rise &amp; Fall or Height of Plane of Collimation (HPC) reduction"
+        title={t('tools.leveling')}
+        subtitle={t('tools.levelingDesc')}
         reference="RDM 1.1 (2025) Table 5.1 | Survey Act Cap 299 | Survey Regulations 1994"
       />
 
@@ -197,15 +199,15 @@ export default function LevelingCalculator() {
           </table>
         </div>
         <div className="p-4">
-          <button onClick={addReading} className="btn btn-secondary">+ Add Reading</button>
+          <button onClick={addReading} className="btn btn-secondary">{t('toolUI.addReading')}</button>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-3 mb-6">
         <button onClick={calculate} disabled={calculating} className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
           {calculating ? (
-            <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Calculating…</>
-          ) : 'Calculate'}
+            <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>{t('toolUI.calculating')}</>
+          ) : t('toolUI.calculate')}
         </button>
         {result && (
           <>
@@ -235,7 +237,7 @@ export default function LevelingCalculator() {
               }}
               className="btn btn-secondary inline-flex items-center gap-2"
             >
-              <Download className="w-4 h-4" /> Download PDF
+              <Download className="w-4 h-4" /> {t('toolUI.exportPdf')}
             </button>
             <button
               onClick={() => {
@@ -252,7 +254,7 @@ export default function LevelingCalculator() {
               }}
               className="btn btn-secondary inline-flex items-center gap-2"
             >
-              <Download className="w-4 h-4" /> Download CSV
+              <Download className="w-4 h-4" /> {t('toolUI.exportCsv')}
             </button>
           </>
         )}
@@ -271,7 +273,7 @@ export default function LevelingCalculator() {
                   onClick={copyResults}
                   className="text-xs text-[var(--accent)] hover:text-[var(--accent-dim)] transition-colors"
                 >
-                  {copied ? '✓ Copied' : 'Copy'}
+                  {copied ? t('toolUI.copied') : 'Copy'}
                 </button>
               </div>
             </div>

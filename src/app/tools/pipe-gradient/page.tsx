@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DRAINAGE_STANDARDS } from '@/lib/standards/engineering'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function PipeGradientPage() {
+  const { t } = useLanguage()
   const [invertIn, setInvertIn] = useState(100.0)
   const [invertOut, setInvertOut] = useState(99.5)
   const [length, setLength] = useState(50)
@@ -20,8 +22,8 @@ export default function PipeGradientPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Pipe Gradient Check"
-        subtitle="Verify pipe gradient and calculate velocity/capacity using Manning's Equation"
+        title={t('tools.pipeGradient')}
+        subtitle={t('tools.pipeGradientDesc')}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

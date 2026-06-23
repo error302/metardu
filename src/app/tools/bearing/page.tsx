@@ -5,8 +5,10 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer';
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder';
 import { bearingSolvedFromCoords, backBearingSolved } from '@/lib/engine/solution/wrappers/bearing';
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function BearingCalculator() {
+  const { t } = useLanguage()
   const [mode, setMode] = useState<'coords' | 'forward'>('coords');
   const [p1, setP1] = useState({ n: '', e: '' });
   const [p2, setP2] = useState({ n: '', e: '' });
@@ -31,8 +33,8 @@ export default function BearingCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Bearing Calculator"
-        subtitle="WCB (Whole Circle Bearing) and Quadrant Bearing from coordinates or back bearing"
+        title={t('tools.bearingCalc')}
+        subtitle={t('tools.bearingCalcDesc')}
         reference="Survey Regulations 1994 | Survey Act Cap 299 | WCB in degrees 0–360°"
       />
 
@@ -86,7 +88,7 @@ export default function BearingCalculator() {
             </div>
           )}
 
-          <button onClick={calculate} className="btn btn-primary w-full">Calculate</button>
+          <button onClick={calculate} className="btn btn-primary w-full">{t('toolUI.calculate')}</button>
         </div>
 
         {steps ? <SolutionStepsRenderer title={solutionTitle} steps={steps} /> : null}

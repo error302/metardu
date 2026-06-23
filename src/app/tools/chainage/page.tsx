@@ -5,6 +5,7 @@ import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { chainageTableSolved, computeChainageTable, reverseChainageSolved } from '@/lib/engine/solution/wrappers/chainage'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface AlignmentPoint {
   id: string;
@@ -22,6 +23,7 @@ interface ChainageResult {
 }
 
 export default function ChainageCalculator() {
+  const { t } = useLanguage()
   const [startStation, setStartStation] = useState({ easting: '', northing: '' });
   const [startChainage, setStartChainage] = useState('0');
   const [alignmentPoints, setAlignmentPoints] = useState<AlignmentPoint[]>([
@@ -101,8 +103,8 @@ export default function ChainageCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Chainage Calculator"
-        subtitle="Calculate chainage along an alignment (road/pipeline surveys)"
+        title={t('tools.chainage')}
+        subtitle={t('tools.chainageDesc')}
       />
 
       <div className="grid md:grid-cols-2 gap-8">
@@ -128,7 +130,7 @@ export default function ChainageCalculator() {
           <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold text-[var(--text-primary)]">Alignment Points</h3>
-              <button onClick={addPoint} className="text-sm px-3 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded hover:bg-[var(--border-hover)]">+ Add Point</button>
+              <button onClick={addPoint} className="text-sm px-3 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded hover:bg-[var(--border-hover)]">{t('toolUI.addPoint')}</button>
             </div>
             <div className="space-y-3">
               {alignmentPoints.map((point, idx) => (

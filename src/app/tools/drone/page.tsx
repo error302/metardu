@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { printDroneReport, type DroneReportInput } from '@/lib/print/droneReportPrint';
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel';
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface GCPPoint {
   id: number;
@@ -49,6 +50,7 @@ function calculateRMSE(errors: number[]): number {
 }
 
 export default function DroneSurveyPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<'planning' | 'settingout' | 'accuracy' | 'report'>('planning');
   const [printMeta, setPrintMeta] = useState<PrintMeta>(defaultPrintMeta);
   const [flightParams, setFlightParams] = useState({ height: '', gsd: '', overlapFront: '', overlapSide: '' });
@@ -205,8 +207,8 @@ export default function DroneSurveyPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="🚁 Drone/UAV Survey Tools"
-        subtitle="GCP planning, accuracy verification, and survey reports"
+        title={t('tools.drone')}
+        subtitle={t('tools.droneDesc')}
       />
 
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -451,7 +453,7 @@ export default function DroneSurveyPage() {
               </table>
             </div>
             <div className="p-4 flex gap-4">
-              <button onClick={addAccuracyPoint} className="btn btn-secondary">+ Add Point</button>
+              <button onClick={addAccuracyPoint} className="btn btn-secondary">{t('toolUI.addPoint')}</button>
               <button onClick={calculateAccuracy} className="btn btn-primary">Calculate Accuracy</button>
             </div>
           </div>

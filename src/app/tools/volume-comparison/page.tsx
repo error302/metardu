@@ -15,6 +15,7 @@ import {
   type SurfaceVolumeGridInput,
   type SurfaceVolumeGridResult,
 } from '@/lib/engine/volume';
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ─── Type conversions ────────────────────────────────────────────────────────
 
@@ -297,6 +298,7 @@ function idwInterp(points: SurfacePoint[], x: number, y: number, power: number, 
 type TabId = 'surveyA' | 'surveyB' | 'analysis' | 'export';
 
 export default function VolumeComparisonPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<TabId>('surveyA');
 
   // Survey A state
@@ -1196,8 +1198,8 @@ export default function VolumeComparisonPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Volume Comparison"
-        subtitle="Surface-to-surface cut/fill analysis between two surveys | TIN interpolation & IDW grid methods"
+        title={t('tools.volumeComparison')}
+        subtitle={t('tools.volumeComparisonDesc')}
       />
 
       {/* Tab bar */}

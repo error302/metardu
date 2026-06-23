@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import VerticalCurveCalculator from '@/components/road-design/VerticalCurveCalculator'
 import SuperelevationCalculator from '@/components/road-design/SuperelevationCalculator'
 import SightDistanceChecker from '@/components/road-design/SightDistanceChecker'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 type Tab = 'horizontal' | 'vertical' | 'superelevation' | 'sight'
 
@@ -17,13 +18,14 @@ const TABS: Array<{ id: Tab; label: string; desc: string }> = [
 ]
 
 export default function RoadDesignPage() {
+  const { t } = useLanguage()
   const [tab, setTab] = useState<Tab>('horizontal')
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Road Design"
-        subtitle="RDM 1.3 (Kenya, August 2023) | Kenya Roads Act Cap 403 | All computations shown with full derivation"
+        title={t('tools.roadDesign')}
+        subtitle={t('tools.roadDesignDesc')}
       />
 
       <div className="flex gap-1 border-b border-[var(--border-color)] mb-6 overflow-x-auto">

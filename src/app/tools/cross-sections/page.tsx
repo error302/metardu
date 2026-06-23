@@ -1,13 +1,17 @@
+'use client';
+
 import { PageHeader } from '@/components/shared/PageHeader'
 import CrossSectionInput from '@/components/earthworks/CrossSectionInput'
 import { RDM_DETAIL_TOLERANCES } from '@/lib/standards/rdm11'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function CrossSectionsPage() {
+  const { t } = useLanguage()
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Cross Sections"
-        subtitle="Cross section analysis for earthworks and volume calculations | End Area Method | Prismoidal Formula | RDM 1.1 (2025)"
+        title={t('tools.crossSections')}
+        subtitle={t('tools.crossSectionsDesc')}
       />
       <div className="mb-6 card">
         <div className="card-header">

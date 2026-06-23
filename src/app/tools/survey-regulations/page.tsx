@@ -1,3 +1,5 @@
+'use client';
+
 import {
   TRAVERSE_ACCURACY_STANDARDS,
   LEVELING_ACCURACY_STANDARDS,
@@ -9,12 +11,14 @@ import {
   PERMITTED_ERRORS
 } from '@/lib/data/kenyaSurveyStandards'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function SurveyRegulationsPage() {
+  const { t } = useLanguage()
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div>
-        <PageHeader title="Kenya Survey Standards Reference" subtitle="Permitted errors, datums, UTM zones, traverse and levelling accuracy standards, and survey marks" reference="Survey Regulations 1994 (L.N. 168)  |  Survey Act Cap 299  |  RDM 1.1 (2025)" />
+        <PageHeader title={t('tools.surveyRegulations')} subtitle={t('tools.surveyRegulationsDesc')} reference="Survey Regulations 1994 (L.N. 168)  |  Survey Act Cap 299  |  RDM 1.1 (2025)" />
 
         {/* Measurement Units */}
         <section className="mb-8">

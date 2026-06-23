@@ -5,8 +5,10 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { distanceBearingSolvedFromCoords } from '@/lib/engine/solution/wrappers/distance'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function MissingLineCalculator() {
+  const { t } = useLanguage()
   const [pointA, setPointA] = useState({ e: '', n: '' });
   const [pointB, setPointB] = useState({ e: '', n: '' });
   const [steps, setSteps] = useState<SolutionStep[] | null>(null);
@@ -26,8 +28,8 @@ export default function MissingLineCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Missing Line Measurement"
-        subtitle="Compute WCB and horizontal distance between two known points"
+        title={t('tools.missingLine')}
+        subtitle={t('tools.missingLineDesc')}
         reference="Survey Regulations 1994 | Survey Act Cap 299 | WCB (Whole Circle Bearing)"
       />
 

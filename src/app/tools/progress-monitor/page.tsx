@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Download, BarChart3, Clock, CheckCircle2, AlertTriangle, PlayCircle } from 'lucide-react'
 import ProgressMonitorPanel from '@/components/engineering/ProgressMonitorPanel'
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ── Project Phases for Survey Workflow ──────────────────────────────────────
 
@@ -116,6 +117,7 @@ const STATUS_CONFIG: Record<PhaseProgress['status'], { icon: React.ReactNode; co
 }
 
 export default function ProgressMonitorPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<'overview' | 'inspections'>('overview')
   const phases = DEMO_PHASES
   const timeline = DEMO_TIMELINE
@@ -138,8 +140,8 @@ export default function ProgressMonitorPage() {
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Construction Progress Monitor</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">Track survey project progress against programme milestones — KENHA Supervision Manual, RDM 1.3 §10</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">{t('tools.progressMonitor')}</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">{t('tools.progressMonitorDesc')}</p>
         </div>
         <div className="flex gap-2">
           <button

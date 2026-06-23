@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface GridPoint {
   id: number
@@ -12,6 +13,7 @@ interface GridPoint {
 }
 
 export default function BorrowPitVolumePage() {
+  const { t } = useLanguage()
   const [gridSize, setGridSize] = useState(10)
   const [designElevation, setDesignElevation] = useState(100)
   const [points, setPoints] = useState<GridPoint[]>([
@@ -91,8 +93,8 @@ export default function BorrowPitVolumePage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Borrow Pit Volume Calculator"
-        subtitle="Calculate earthwork volumes using the grid method (average height)"
+        title={t('tools.borrowPitVolume')}
+        subtitle={t('tools.borrowPitVolumeDesc')}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -185,7 +187,7 @@ export default function BorrowPitVolumePage() {
             onClick={addPoint}
             className="btn btn-secondary"
           >
-            + Add Point
+            {t('toolUI.addPoint')}
           </button>
         </div>
 

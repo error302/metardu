@@ -7,8 +7,10 @@ import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { tacheometrySolved } from '@/lib/engine/solution/wrappers/tacheometry'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function TacheometryCalculator() {
+  const { t } = useLanguage()
   const [inputs, setInputs] = useState({
     hi: '',           // instrument height above ground (h.i.)
     upper: '',        // upper staff reading
@@ -54,8 +56,8 @@ export default function TacheometryCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Tacheometry"
-        subtitle="Horizontal distance and elevation from staff intercept and vertical angle (stadia method)"
+        title={t('tools.tacheometry')}
+        subtitle={t('tools.tacheometryDesc')}
         reference="Survey Regulations 1994 | RDM 1.1 (2025) Section 5.6 | Survey Act Cap 299"
       />
 
@@ -104,7 +106,7 @@ export default function TacheometryCalculator() {
               </div>
             </div>
             {calcError && <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">{calcError}</div>}
-            <button onClick={calculate} className="btn btn-primary w-full">Calculate</button>
+            <button onClick={calculate} className="btn btn-primary w-full">{t('toolUI.calculate')}</button>
             {steps && (
               <div className="flex gap-2 mt-2">
                 <button
@@ -127,7 +129,7 @@ export default function TacheometryCalculator() {
                   }}
                   className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
                 >
-                  <Download className="w-4 h-4" /> Download PDF
+                  <Download className="w-4 h-4" /> {t('toolUI.exportPdf')}
                 </button>
                 <button
                   onClick={() => {
@@ -148,7 +150,7 @@ export default function TacheometryCalculator() {
                   }}
                   className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
                 >
-                  <Download className="w-4 h-4" /> Download CSV
+                  <Download className="w-4 h-4" /> {t('toolUI.exportCsv')}
                 </button>
               </div>
             )}

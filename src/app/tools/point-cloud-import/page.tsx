@@ -17,6 +17,7 @@ import {
   type TINTriangle,
 } from '@/lib/compute/tin';
 import { parsePly } from '@/lib/importers/parsers/ply';
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -246,6 +247,7 @@ function downloadCSV(filename: string, csvString: string) {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function PointCloudImportPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<TabId>('import');
 
   // Import state
@@ -614,8 +616,8 @@ export default function PointCloudImportPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Point Cloud Import"
-        subtitle="Import XYZ/CSV/PLY point clouds, analyze slopes, and compute volumes"
+        title={t('tools.pointCloudImport')}
+        subtitle={t('tools.pointCloudImportDesc')}
       />
 
       {/* Tab bar */}

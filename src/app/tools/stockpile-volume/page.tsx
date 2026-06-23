@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface SurfacePoint {
   id: number
@@ -17,6 +18,7 @@ interface VolumeResult {
 }
 
 export default function StockpileVolumePage() {
+  const { t } = useLanguage()
   const [shape, setShape] = useState<'ellipse' | 'rectangle'>('ellipse')
   const [length, setLength] = useState(50)
   const [width, setWidth] = useState(30)
@@ -83,8 +85,8 @@ export default function StockpileVolumePage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Stockpile Volume Calculator"
-        subtitle="Estimate volume of stockpiles using geometric methods"
+        title={t('tools.stockpileVolume')}
+        subtitle={t('tools.stockpileVolumeDesc')}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

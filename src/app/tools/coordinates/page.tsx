@@ -7,8 +7,10 @@ import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { dmsToDecimalSolved, geographicToUtmSolved, utmToGeographicSolved, decimalToDmsSolved } from '@/lib/engine/solution/wrappers/coordinates'
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function CoordinatesCalculator() {
+  const { t } = useLanguage()
   const [tab, setTab] = useState<'utm-to-geo' | 'geo-to-utm' | 'dms-dec'>('utm-to-geo');
   const [utm, setUtm] = useState({ e: '', n: '', z: '', h: 'S' });
   const [geo, setGeo] = useState({ lat: '40.7128', lon: '-74.0060' });
@@ -46,8 +48,8 @@ export default function CoordinatesCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Coordinate Conversion"
-        subtitle="WGS84 ↔ UTM coordinate conversions — SRID 21037 (Arc 1960 / UTM Zone 37S) for Kenya surveys"
+        title={t('tools.coordinates')}
+        subtitle={t('tools.coordinatesDesc')}
         reference="Survey Regulations 1994 | Survey Act Cap 299 | Kenya UTM Zones 36S / 37S"
       />
 
@@ -133,7 +135,7 @@ export default function CoordinatesCalculator() {
                 }}
                 className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
               >
-                <Download className="w-4 h-4" /> Download PDF
+                <Download className="w-4 h-4" /> {t('toolUI.exportPdf')}
               </button>
               <button
                 onClick={() => {
@@ -151,7 +153,7 @@ export default function CoordinatesCalculator() {
                 }}
                 className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
               >
-                <Download className="w-4 h-4" /> Download CSV
+                <Download className="w-4 h-4" /> {t('toolUI.exportCsv')}
               </button>
             </div>
           )}

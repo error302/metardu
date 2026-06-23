@@ -8,6 +8,7 @@ import SolutionStepsRenderer from '@/components/SolutionStepsRenderer';
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder';
 import { coordinateAreaSolution, offsetAreaSolution } from '@/lib/engine/solution/wrappers/area';
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers';
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface PointInput {
   id: number;
@@ -16,6 +17,7 @@ interface PointInput {
 }
 
 export default function AreaCalculator() {
+  const { t } = useLanguage()
   const [points, setPoints] = useState<PointInput[]>([
     { id: 1, n: '5000', e: '3000' },
     { id: 2, n: '5234.5678', e: '3156.7890' },
@@ -73,8 +75,8 @@ export default function AreaCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Area Calculator"
-        subtitle="Coordinate / Trapezoidal / Simpson's area computation (Shoelace formula)"
+        title={t('tools.area')}
+        subtitle={t('tools.areaDesc')}
         reference="Survey Regulations 1994 | Survey Act Cap 299 | RDM 1.1 (2025)"
       />
 
@@ -119,7 +121,7 @@ export default function AreaCalculator() {
                     ))}
                   </tbody>
                 </table>
-                <button onClick={addPoint} className="btn btn-secondary w-full mt-4">+ Add Point</button>
+                <button onClick={addPoint} className="btn btn-secondary w-full mt-4">{t('toolUI.addPoint')}</button>
               </div>
             </div>
           ) : (
@@ -158,7 +160,7 @@ export default function AreaCalculator() {
                 }}
                 className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
               >
-                <Download className="w-4 h-4" /> Download PDF
+                <Download className="w-4 h-4" /> {t('toolUI.exportPdf')}
               </button>
               <button
                 onClick={() => {
@@ -178,7 +180,7 @@ export default function AreaCalculator() {
                 }}
                 className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
               >
-                <Download className="w-4 h-4" /> Download CSV
+                <Download className="w-4 h-4" /> {t('toolUI.exportCsv')}
               </button>
             </div>
           )}

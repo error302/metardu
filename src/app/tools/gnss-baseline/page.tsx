@@ -9,8 +9,10 @@ import {
   GNSSBaselineFile,
   BaselineResult
 } from '@/lib/online/gnssBaseline'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function GNSSBaselinePage() {
+  const { t } = useLanguage()
   const [file, setFile] = useState<GNSSBaselineFile | null>(null)
   const [baseCoords, setBaseCoords] = useState({ easting: 0, northing: 0, elevation: 0 })
   const [result, setResult] = useState<BaselineResult | null>(null)
@@ -58,7 +60,7 @@ export default function GNSSBaselinePage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <PageHeader title="GNSS Baseline Processing" subtitle="Upload RINEX or proprietary GNSS baseline files for processing" />
+        <PageHeader title={t('tools.gnssBaseline')} subtitle={t('tools.gnssBaselineDesc')} />
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-4">

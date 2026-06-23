@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Upload,
   MapPin,
@@ -277,6 +278,7 @@ function downloadFile(content: string, filename: string, mime = 'text/plain') {
  * ══════════════════════════════════════════════════════════════════════ */
 
 export default function OrthophotoViewerPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<'upload' | 'trace' | 'export'>('upload');
 
   // Map state
@@ -719,8 +721,8 @@ export default function OrthophotoViewerPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="GeoTIFF / Orthophoto Viewer"
-        subtitle="Upload drone orthophotos, trace parcel boundaries, and export as DXF, KML, GeoJSON, or CSV"
+        title={t('tools.orthophotoViewer')}
+        subtitle={t('tools.orthophotoViewerDesc')}
       />
 
       {/* ── TABS ── */}

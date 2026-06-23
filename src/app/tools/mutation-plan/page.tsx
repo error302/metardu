@@ -1,7 +1,11 @@
+'use client';
+
 import MutationPlanGenerator from '@/components/mutationplan/MutationPlanGenerator'
 import { MapPinned } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function MutationPlanPage() {
+  const { t } = useLanguage()
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center gap-3 mb-2">
@@ -9,9 +13,9 @@ export default function MutationPlanPage() {
           <MapPinned className="h-6 w-6 text-amber-500" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Mutation Survey Plan (Form No. 3)</h1>
+          <h1 className="text-2xl font-bold">{t('tools.mutationPlan')}</h1>
           <p className="text-sm text-zinc-400">
-            Kenya Survey Regulations 1994 — Subdivision scheme plan for Director of Surveys submission
+            {t('tools.mutationPlanDesc')}
           </p>
         </div>
       </div>

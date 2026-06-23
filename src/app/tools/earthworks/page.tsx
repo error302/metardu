@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import CrossSectionInput from '@/components/earthworks/CrossSectionInput'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 /**
  * Earthworks Calculator — extends Cross Sections with:
@@ -49,6 +50,7 @@ function computeVolumes(sections: { station: string; cutArea: number; fillArea: 
 }
 
 export default function EarthworksPage() {
+  const { t } = useLanguage()
   // Example data for mass haul demonstration
   const exampleSections = useMemo(() => [
     { station: '0+000', cutArea: 0, fillArea: 45, distance: 20 },
@@ -85,8 +87,8 @@ export default function EarthworksPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Earthworks Calculator"
-        subtitle="Cut &amp; fill analysis with mass haul diagram | End Area + Prismoidal Methods | Ghilani &amp; Wolf Ch.26 | Merritt Civil Engineering Handbook Sec.21"
+        title={t('tools.earthworks')}
+        subtitle={t('tools.earthworksDesc')}
       />
 
       {/* Earthworks-specific summary panel */}

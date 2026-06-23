@@ -1,3 +1,5 @@
+'use client';
+
 import {
   LEGAL_DESCRIPTION_TYPES,
   CADASTRAL_SURVEY_STEPS,
@@ -9,14 +11,16 @@ import {
   LAND_STATUS_TYPES
 } from '@/lib/data/usSurveyStandards'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function USSurveyReferencePage() {
+  const { t } = useLanguage()
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] p-8">
       <div className="max-w-7xl mx-auto">
         <PageHeader
-          title="US Survey Standards Reference"
-          subtitle="Based on US Fish & Wildlife Service Land Survey Handbook (May 2015) · BLM Manual of Surveying Instructions"
+          title={t('tools.usSurveyReference')}
+          subtitle={t('tools.usSurveyReferenceDesc')}
         />
 
         {/* Legal Description Types */}

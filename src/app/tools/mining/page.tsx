@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { cutFillVolumeFromSignedSections, volumeFromSections } from '@/lib/engine/volume';
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface InclinedLeg {
   id: number;
@@ -61,6 +62,7 @@ function formatNumber(n: number, decimals: number = 4): string {
 }
 
 export default function MiningSurveyPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<'traverse' | 'volume' | 'subsidence' | 'blast'>('traverse');
   
   const [legs, setLegs] = useState<InclinedLeg[]>([
@@ -283,8 +285,8 @@ export default function MiningSurveyPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="⛏ Mining Survey Tools"
-        subtitle="Underground survey, volume calculations, and blast hole layout"
+        title={t('tools.mining')}
+        subtitle={t('tools.miningDesc')}
       />
 
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -593,7 +595,7 @@ export default function MiningSurveyPage() {
               </table>
             </div>
             <div className="p-4 flex gap-4">
-              <button onClick={addSubsidencePoint} className="btn btn-secondary">+ Add Point</button>
+              <button onClick={addSubsidencePoint} className="btn btn-secondary">{t('toolUI.addPoint')}</button>
               <button onClick={calculateSubsidence} className="btn btn-primary">Calculate Movement</button>
             </div>
           </div>

@@ -3,8 +3,10 @@
 import { PageHeader } from '@/components/shared/PageHeader'
 import { buildPrintDocument, openPrint } from '@/lib/print/buildPrintDocument'
 import { RDM_DETAIL_TOLERANCES } from '@/lib/standards/rdm11'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function DetailTolerancesPage() {
+  const { t } = useLanguage()
   const handlePrint = () => {
     const rows = RDM_DETAIL_TOLERANCES.map(t => `
       <tr>
@@ -39,8 +41,8 @@ export default function DetailTolerancesPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Detailed Survey Tolerances"
-        subtitle="RDM 1.1 Table 5.2 field tolerance display for detailed topographic survey pickup."
+        title={t('tools.detailTolerances')}
+        subtitle={t('tools.detailTolerancesDesc')}
         reference="RDM 1.1 (2025) Table 5.2 | Structures, pavements, and general topographic detail"
         badge="Table 5.2"
       />

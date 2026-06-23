@@ -7,8 +7,10 @@ import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { twoPegTestSolved } from '@/lib/engine/solution/wrappers/twoPegTest'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function TwoPegTestCalculator() {
+  const { t } = useLanguage()
   const [inputs, setInputs] = useState({
     a1: '',  // Staff at A from position 1
     b1: '',  // Staff at B from position 1
@@ -35,8 +37,8 @@ export default function TwoPegTestCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Two Peg Test"
-        subtitle="Determine levelling instrument collimation error from two instrument positions"
+        title={t('tools.twoPegTest')}
+        subtitle={t('tools.twoPegTestDesc')}
         reference="Survey Regulations 1994 | Survey Act Cap 299 | RDM 1.1 (2025)"
       />
 
@@ -90,7 +92,7 @@ export default function TwoPegTestCalculator() {
                   }}
                   className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
                 >
-                  <Download className="w-4 h-4" /> Download PDF
+                  <Download className="w-4 h-4" /> {t('toolUI.exportPdf')}
                 </button>
                 <button
                   onClick={() => {
@@ -108,7 +110,7 @@ export default function TwoPegTestCalculator() {
                   }}
                   className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
                 >
-                  <Download className="w-4 h-4" /> Download CSV
+                  <Download className="w-4 h-4" /> {t('toolUI.exportCsv')}
                 </button>
               </div>
             )}

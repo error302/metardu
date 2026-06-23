@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
 import { buildPrintDocument, openPrint } from '@/lib/print/buildPrintDocument'
 import { CONTROL_MARK_REGISTER_COLUMNS } from '@/lib/standards/rdm11'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface MarkRow {
   id: string
@@ -50,6 +51,7 @@ function esc(value: string) {
 }
 
 export default function ControlMarksRegisterPage() {
+  const { t } = useLanguage()
   const [meta, setMeta] = useState<PrintMeta>(defaultPrintMeta)
   const [rows, setRows] = useState<MarkRow[]>([blankRow()])
 
@@ -95,8 +97,8 @@ export default function ControlMarksRegisterPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Survey Control Marks Register"
-        subtitle="Control mark register with coordinates, condition, descriptions, and recovery notes for formal survey submissions."
+        title={t('tools.controlMarksRegister')}
+        subtitle={t('tools.controlMarksRegisterDesc')}
         reference="RDM 1.1 (2025) Section 5.6.3 | Survey Regulations 1994 | Survey Act Cap 299"
         badge="RDM 5.6.3"
       />

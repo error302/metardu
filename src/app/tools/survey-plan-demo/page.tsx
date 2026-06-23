@@ -1,7 +1,10 @@
+'use client';
+
 import SurveyPlanViewer from '@/components/SurveyPlanViewer'
 import GeometryValidationPanel from '@/components/GeometryValidationPanel'
 import { PageHeader } from '@/components/shared/PageHeader'
 import type { SurveyPlanData } from '@/lib/reports/surveyPlan/types'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const demoData: SurveyPlanData = {
   project: {
@@ -57,17 +60,14 @@ const demoData: SurveyPlanData = {
 }
 
 
-export const metadata = {
-  title: 'Survey Plan CAD Demo — METARDU'
-}
-
 export default function SurveyPlanDemoPage() {
+  const { t } = useLanguage()
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white px-6 py-4 shadow-sm border-b border-gray-200 flex justify-between items-center">
         <PageHeader
-          title="Survey Plan CAD Generator"
-          subtitle="Live preview of the professional Boundary Identification Plan renderer."
+          title={t('tools.surveyPlanDemo')}
+          subtitle={t('tools.surveyPlanDemoDesc')}
         />
         <a href="/tools" className="text-sm font-semibold text-blue-600 hover:underline flex-shrink-0">
           ← Back to Tools

@@ -5,8 +5,10 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer';
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder';
 import { distanceBearingSolvedFromCoords, slopeReductionSolved } from '@/lib/engine/solution/wrappers/distance';
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function DistanceCalculator() {
+  const { t } = useLanguage()
   const [mode, setMode] = useState<'coords' | 'slope'>('coords');
   const [p1, setP1] = useState({ n: '', e: '' });
   const [p2, setP2] = useState({ n: '', e: '' });
@@ -33,8 +35,8 @@ export default function DistanceCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Distance & Bearing Calculator"
-        subtitle="WCB and horizontal distance from coordinates, or slope distance reduction"
+        title={t('tools.distance')}
+        subtitle={t('tools.distanceDesc')}
         reference="Survey Regulations 1994 | Survey Act Cap 299 | WCB (Whole Circle Bearing)"
       />
 
@@ -91,7 +93,7 @@ export default function DistanceCalculator() {
             </div>
           )}
 
-          <button onClick={calculate} className="btn btn-primary w-full">Calculate</button>
+          <button onClick={calculate} className="btn btn-primary w-full">{t('toolUI.calculate')}</button>
         </div>
 
         {steps ? <SolutionStepsRenderer title={solutionTitle} steps={steps} /> : null}

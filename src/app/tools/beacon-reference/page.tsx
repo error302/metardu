@@ -1,7 +1,10 @@
+'use client';
+
 import type { BeaconType, BeaconStatus } from '@/types/deedPlan'
 import { BEACON_DEFINITIONS, getBeaconSymbolSVG, BEACON_CATEGORIES, BEACON_IMAGES } from '@/lib/compute/beaconSymbols'
 import Image from 'next/image'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const STATUSES: BeaconStatus[] = ['FOUND', 'SET', 'DESTROYED', 'NOT_FOUND']
 
@@ -19,10 +22,11 @@ const CATEGORIES: CategoryGroup[] = [
 ]
 
 export default function BeaconReferencePage() {
+  const { t } = useLanguage()
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] p-8">
       <div className="max-w-7xl mx-auto">
-        <PageHeader title="Survey Mark Reference" subtitle="Kenya Survey Regulations 1994 — Beacon Symbol Library" />
+        <PageHeader title={t('tools.beaconReference')} subtitle={t('tools.beaconReferenceDesc')} />
 
         {CATEGORIES.map((category: any) => (
           <div key={category.title} className="mb-10">

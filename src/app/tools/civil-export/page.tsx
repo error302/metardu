@@ -5,6 +5,7 @@ import { createClient } from '@/lib/api-client/client'
 import { exportCivil, CIVIL_FORMATS, CivilFormat, CivilPoint } from '@/lib/export/civilHandoff'
 import { PageHeader } from '@/components/shared/PageHeader'
 import Link from 'next/link'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 function download(content: string, filename: string) {
   const a = document.createElement('a')
@@ -13,6 +14,7 @@ function download(content: string, filename: string) {
 }
 
 export default function CivilExportPage() {
+  const { t } = useLanguage()
   const [projects, setProjects]   = useState<any[]>([])
   const [projectId, setProjectId] = useState('')
   const [allPoints, setAllPoints] = useState<CivilPoint[]>([])
@@ -71,8 +73,8 @@ export default function CivilExportPage() {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <PageHeader
-          title="Civil engineering data export"
-          subtitle="Export survey points in formats compatible with AutoCAD Civil 3D, 12d Model, QGIS, ArcGIS, and CloudCompare."
+          title={t('tools.civilExport')}
+          subtitle={t('tools.civilExportDesc')}
         />
 
         <div className="grid lg:grid-cols-2 gap-6">

@@ -9,12 +9,14 @@ import { GcpTab } from './GcpTab';
 import { ResidualsTab } from './ResidualsTab';
 import { ResultsTab } from './ResultsTab';
 import { ReportTab } from './ReportTab';
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 /* ══════════════════════════════════════════════════════════════════════
  *  MAIN COMPONENT
  * ══════════════════════════════════════════════════════════════════════ */
 
 export default function GCPValidationPage() {
+  const { t } = useLanguage()
   const v = useGCPValidation();
   const {
     activeTab,
@@ -71,8 +73,8 @@ export default function GCPValidationPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="📍 GCP Residual Validation"
-        subtitle="Compare photogrammetry software residuals against known GCP coordinates and validate against Kenya ISK accuracy standards"
+        title={t('tools.gcpValidation')}
+        subtitle={t('tools.gcpValidationDesc')}
         reference="ISK Survey Standards | Kenya Accuracy Classes I/II/III | Agisoft Metashape / Pix4D"
         badge="GCP VALIDATION"
       />

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface TideReading {
   id: number;
@@ -101,6 +102,7 @@ function linearInterpolate(x: number, x1: number, y1: number, x2: number, y2: nu
 }
 
 export default function HydrographicSurveyPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<HydrographicTab>('tidal');
 
   const [tideReadings, setTideReadings] = useState<TideReading[]>([
@@ -323,7 +325,7 @@ export default function HydrographicSurveyPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <PageHeader title="🌊 Hydrographic Survey Tools" subtitle="Bathymetry, tidal corrections, and chart datum conversions" />
+      <PageHeader title={t('tools.hydrographic')} subtitle={t('tools.hydrographicDesc')} />
 
       <div className="flex gap-2 mb-6 flex-wrap">
         {([
@@ -374,7 +376,7 @@ export default function HydrographicSurveyPage() {
               </table>
             </div>
             <div className="p-4 flex gap-4">
-              <button onClick={addTideReading} className="btn btn-secondary">+ Add Reading</button>
+              <button onClick={addTideReading} className="btn btn-secondary">{t('toolUI.addReading')}</button>
             </div>
           </div>
 
@@ -664,7 +666,7 @@ export default function HydrographicSurveyPage() {
               </table>
             </div>
             <div className="p-4 flex gap-4">
-              <button onClick={addCrossSectionMeasurement} className="btn btn-secondary">+ Add Point</button>
+              <button onClick={addCrossSectionMeasurement} className="btn btn-secondary">{t('toolUI.addPoint')}</button>
               <button onClick={calculateCrossSection} className="btn btn-primary">Calculate Section</button>
               <button
                 onClick={analyzeSeabed}

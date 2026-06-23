@@ -5,8 +5,10 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { gradeSolved } from '@/lib/engine/solution/wrappers/grade'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function GradeCalculator() {
+  const { t } = useLanguage()
   const [elev1, setElev1] = useState('');
   const [elev2, setElev2] = useState('');
   const [distance, setDistance] = useState('');
@@ -26,8 +28,8 @@ export default function GradeCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Gradient Calculator"
-        subtitle="Gradient percentage, ratio, and slope angle between two reduced levels"
+        title={t('tools.grade')}
+        subtitle={t('tools.gradeDesc')}
         reference="Survey Regulations 1994 | RDM 1.1 (2025) | Survey Act Cap 299"
       />
 

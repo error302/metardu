@@ -29,10 +29,12 @@ import { ImportTab } from './ImportTab';
 import { SettingsTab } from './SettingsTab';
 import { MapTab, type SvgElements } from './MapTab';
 import { ExportTab } from './ExportTab';
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ContourGeneratorPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<TabId>('import');
 
   // Tab 1: Import state
@@ -267,10 +269,9 @@ export default function ContourGeneratorPage() {
           <Mountain className="h-6 w-6 text-emerald-500" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Contour Generator</h1>
+          <h1 className="text-2xl font-bold">{t('tools.contourGenerator')}</h1>
           <p className="text-sm text-zinc-400">
-            Generate topographic contour lines from point cloud data using Delaunay TIN triangulation.
-            Supports CSV, TXT, XYZ import and DXF, SVG, CSV, GeoJSON export. Referenced from Ghilani &amp; Wolf &sect;17, USACE EM 1110-1-1005.
+            {t('tools.contourGeneratorDesc')}
           </p>
         </div>
       </div>

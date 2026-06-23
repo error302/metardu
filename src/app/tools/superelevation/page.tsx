@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function SuperelevationPage() {
+  const { t } = useLanguage()
   const [designSpeed, setDesignSpeed] = useState(60)
   const [radius, setRadius] = useState(200)
 
@@ -14,8 +16,8 @@ export default function SuperelevationPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Superelevation Calculator"
-        subtitle="Calculate required superelevation rate per KRDM/KeRRA | Formula: e = V²/127R"
+        title={t('tools.superelevation')}
+        subtitle={t('tools.superelevationDesc')}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

@@ -7,10 +7,12 @@ import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { compoundCurveSolved, reverseCurveSolved, simpleCurveSolved } from '@/lib/engine/solution/wrappers/curves'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 type CurveType = 'simple' | 'compound' | 'reverse' | 'vertical';
 
 export default function CurvesCalculator() {
+  const { t } = useLanguage()
   const [curveType, setCurveType] = useState<CurveType>('simple');
   const [input, setInput] = useState({
     radius: '300',
@@ -178,8 +180,8 @@ export default function CurvesCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Curve Calculator"
-        subtitle="Horizontal and vertical curve calculations"
+        title={t('tools.curves')}
+        subtitle={t('tools.curvesDesc')}
         reference="RDM 1.1 (2025) Geometric Design | Kenya Highway Design Manual"
       />
 
@@ -274,7 +276,7 @@ export default function CurvesCalculator() {
             <button
               onClick={curveType === 'vertical' ? calcVertical : calculate}
               className="w-full px-6 py-4 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-bold rounded-lg">
-              {curveType === 'vertical' ? 'Calculate Vertical Curve' : 'Calculate'}
+              {curveType === 'vertical' ? 'Calculate Vertical Curve' : t('toolUI.calculate')}
             </button>
             {(result || vResult) && (
               <div className="flex gap-2">
@@ -315,7 +317,7 @@ export default function CurvesCalculator() {
                   }}
                   className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
                 >
-                  <Download className="w-4 h-4" /> Download PDF
+                  <Download className="w-4 h-4" /> {t('toolUI.exportPdf')}
                 </button>
                 <button
                   onClick={() => {
@@ -335,7 +337,7 @@ export default function CurvesCalculator() {
                   }}
                   className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
                 >
-                  <Download className="w-4 h-4" /> Download CSV
+                  <Download className="w-4 h-4" /> {t('toolUI.exportCsv')}
                 </button>
               </div>
             )}

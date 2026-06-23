@@ -15,12 +15,14 @@ import { useCassiniUtmState } from './useCassiniUtmState'
 import { SubSheetCornerBanner } from './SubSheetInspector'
 import { InputForm } from './InputForm'
 import { ResultPanel } from './ResultPanel'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 /* ═══════════════════════════════════════════════════════════════════════
  *  MAIN COMPONENT
  * ═══════════════════════════════════════════════════════════════════════ */
 
 export default function CassiniUTMPage() {
+  const { t } = useLanguage()
   const s = useCassiniUtmState()
   const {
     direction,
@@ -113,8 +115,8 @@ export default function CassiniUTMPage() {
 
       {/* ── Page Header ── */}
       <PageHeader
-        title="Cassini-Soldner ↔ UTM Converter"
-        subtitle="Kenya Survey Department 4-parameter Helmert transformation — Cassini (FEET, Clarke 1858) ↔ UTM (METRES, Clarke 1880 / Arc 1960)"
+        title={t('tools.cassiniUtm')}
+        subtitle={t('tools.cassiniUtmDesc')}
         reference="Gacoki (FIG 2018) | Arc 1960 datum | UTM Zone 37S | Cassini meridian 37°E"
       />
 

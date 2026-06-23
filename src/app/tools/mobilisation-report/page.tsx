@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
 import { buildPrintDocument, openPrint } from '@/lib/print/buildPrintDocument'
 import { MOBILISATION_SECTIONS } from '@/lib/standards/rdm11'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 type SectionKey = 'introduction' | 'healthSafety' | 'personnel' | 'equipment' | 'calibration' | 'fieldForms' | 'miscellaneous'
 
@@ -37,6 +38,7 @@ function esc(value: string) {
 }
 
 export default function MobilisationReportPage() {
+  const { t } = useLanguage()
   const [meta, setMeta] = useState<PrintMeta>(defaultPrintMeta)
   const [report, setReport] = useState<Record<SectionKey, string>>(EMPTY_REPORT)
 
@@ -65,8 +67,8 @@ export default function MobilisationReportPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title="Mobilisation Report"
-        subtitle="Official mobilisation report template covering RDM 1.1 Table 5.3 sections before field deployment."
+        title={t('tools.mobilisationReport')}
+        subtitle={t('tools.mobilisationReportDesc')}
         reference="RDM 1.1 (2025) Table 5.3 | Survey Regulations 1994 | SRVY2025-1"
         badge="Table 5.3"
       />
