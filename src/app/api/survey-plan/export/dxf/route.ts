@@ -15,7 +15,77 @@ import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 import { log } from '@/lib/logger'
 import { generateCadastralPlanDXF } from '@/lib/export/cadastralPlanDXF'
-import type { SurveyPlanData } from '@/lib/reports/surveyPlan/types'
+import type { SurveyPlanData, MonumentType, FenceOffset, AdjacentLot, ControlPoint } from '@/lib/reports/surveyPlan/types'
+
+// ─── DB Row Interfaces ───────────────────────────────────────────────────────
+
+interface BoundaryPointRow {
+  name: string
+  easting: string | number
+  northing: string | number
+  elevation: string | number | null
+  monument_type: string | null
+  beacon_description: string | null
+}
+
+interface AdjacentLotRow {
+  id: string
+  boundary_points: string | Record<string, unknown>[]
+  plan_reference: string | null
+}
+
+interface FenceOffsetRow {
+  segment_index: string | number
+  type: string | null
+  offset_metres: string | number
+  callout_text: string | null
+}
+
+interface BuildingRow {
+  easting: string | number
+  northing: string | number
+  width_m: string | number
+  height_m: string | number
+  rotation_deg: string | number
+  label: string | null
+}
+
+interface ProjectRow {
+  name: string | null
+  location: string | null
+  municipality: string | null
+  utm_zone: number | null
+  hemisphere: string | null
+  datum: string | null
+  client_name: string | null
+  surveyor_name: string | null
+  surveyor_licence: string | null
+  firm_name: string | null
+  firm_address: string | null
+  firm_phone: string | null
+  firm_email: string | null
+  drawing_no: string | null
+  reference: string | null
+  plan_title: string | null
+  area_sqm: string | number | null
+  area_ha: string | number | null
+  parcel_id: string | null
+  street: string | null
+  road_class: string | null
+  isk_reg_no: string | null
+  version: string | null
+  sheet_no: number | null
+  total_sheets: number | null
+  north_rotation_deg: number | null
+  lr_number: string | null
+  plot_parcel_number: string | null
+  folio_number: string | null
+  register_number: string | null
+  fir_number: string | null
+  file_reference: string | null
+  hundred: string | null
+  locality: string | null
+}
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req: NextRequest, ctx) => {
   const url = new URL(req.url)
@@ -88,8 +158,8 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
       location: project.location || '',
       municipality: project.municipality || undefined,
       utm_zone: project.utm_zone || 37,
-      hemisphere: project.hemisphere || 'S',
-      datum: project.datum || 'ARC1960',
+      hemisphere: (project.hemisphere || 'S') as 'N' | 'S',
+      datum: (project.datum || 'ARC1960') as 'ARC1960' | 'WGS84' | 'WGS84Geographic',
       client_name: project.client_name || undefined,
       surveyor_name: project.surveyor_name || '',
       surveyor_licence: project.surveyor_licence || '',
@@ -100,15 +170,15 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
       drawing_no: project.drawing_no || undefined,
       reference: project.reference || undefined,
       plan_title: project.plan_title || undefined,
-      area_sqm: project.area_sqm || undefined,
-      area_ha: project.area_ha || undefined,
+      area_sqm: project.area_sqm ? Number(project.area_sqm) : undefined,
+      area_ha: project.area_ha ? Number(project.area_ha) : undefined,
       parcel_id: project.parcel_id || project.lr_number || '',
       street: project.street || undefined,
       road_class: project.road_class || undefined,
       iskRegNo: project.isk_reg_no || '',
       version: project.version || undefined,
-      sheetNo: project.sheet_no || undefined,
-      totalSheets: project.total_sheets || undefined,
+      sheetNo: project.sheet_no != null ? String(project.sheet_no) : undefined,
+      totalSheets: project.total_sheets != null ? String(project.total_sheets) : undefined,
       northRotationDeg: project.north_rotation_deg || undefined,
       lrNumber: project.lr_number || undefined,
       plotParcelNumber: project.plot_parcel_number || undefined,
@@ -120,41 +190,41 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
       locality: project.locality || undefined,
     },
     parcel: {
-      boundaryPoints: boundaryRows.map((row: any) => ({
+      boundaryPoints: boundaryRows.map((row) => ({
         name: row.name,
-        easting: parseFloat(row.easting),
-        northing: parseFloat(row.northing),
+        easting: parseFloat(String(row.easting)),
+        northing: parseFloat(String(row.northing)),
       })),
-      area_sqm: parseFloat(project.area_sqm) || 0,
+      area_sqm: parseFloat(String(project.area_sqm)) || 0,
       perimeter_m: computePerimeter(boundaryRows),
     },
-    controlPoints: boundaryRows.map((row: any) => ({
+    controlPoints: boundaryRows.map((row): ControlPoint => ({
       name: row.name,
-      easting: parseFloat(row.easting),
-      northing: parseFloat(row.northing),
-      elevation: row.elevation ? parseFloat(row.elevation) : undefined,
-      monumentType: row.monument_type || 'found',
+      easting: parseFloat(String(row.easting)),
+      northing: parseFloat(String(row.northing)),
+      elevation: row.elevation ? parseFloat(String(row.elevation)) : undefined,
+      monumentType: (row.monument_type || 'found') as MonumentType,
       beaconDescription: row.beacon_description || undefined,
     })),
-    adjacentLots: adjacentRows.map((row: any) => ({
+    adjacentLots: adjacentRows.map((row): AdjacentLot => ({
       id: row.id,
-      boundaryPoints: typeof row.boundary_points === 'string'
+      boundaryPoints: (typeof row.boundary_points === 'string'
         ? JSON.parse(row.boundary_points)
-        : row.boundary_points || [],
+        : row.boundary_points || []) as AdjacentLot['boundaryPoints'],
       planReference: row.plan_reference || undefined,
     })),
-    fenceOffsets: fenceRows.map((row: any) => ({
-      segmentIndex: parseInt(row.segment_index, 10),
-      type: row.type || 'fence_on_boundary',
-      offsetMetres: parseFloat(row.offset_metres) || 0,
+    fenceOffsets: fenceRows.map((row): FenceOffset => ({
+      segmentIndex: parseInt(String(row.segment_index), 10),
+      type: (row.type || 'fence_on_boundary') as FenceOffset['type'],
+      offsetMetres: parseFloat(String(row.offset_metres)) || 0,
       calloutText: row.callout_text || undefined,
     })),
-    buildings: buildingRows.map((row: any) => ({
-      easting: parseFloat(row.easting),
-      northing: parseFloat(row.northing),
-      width_m: parseFloat(row.width_m) || 10,
-      height_m: parseFloat(row.height_m) || 8,
-      rotation_deg: parseFloat(row.rotation_deg) || 0,
+    buildings: buildingRows.map((row) => ({
+      easting: parseFloat(String(row.easting)),
+      northing: parseFloat(String(row.northing)),
+      width_m: parseFloat(String(row.width_m)) || 10,
+      height_m: parseFloat(String(row.height_m)) || 8,
+      rotation_deg: parseFloat(String(row.rotation_deg)) || 0,
       label: row.label || undefined,
     })),
   }
@@ -210,13 +280,18 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 // Helpers
 // ---------------------------------------------------------------------------
 
-function computePerimeter(points: any[]): number {
+interface PointWithCoords {
+  easting: string | number
+  northing: string | number
+}
+
+function computePerimeter(points: PointWithCoords[]): number {
   let perimeter = 0
   for (let i = 0; i < points.length; i++) {
     const from = points[i]
     const to = points[(i + 1) % points.length]
-    const dx = parseFloat(to.easting) - parseFloat(from.easting)
-    const dy = parseFloat(to.northing) - parseFloat(from.northing)
+    const dx = parseFloat(String(to.easting)) - parseFloat(String(from.easting))
+    const dy = parseFloat(String(to.northing)) - parseFloat(String(from.northing))
     perimeter += Math.sqrt(dx * dx + dy * dy)
   }
   return perimeter

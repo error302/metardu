@@ -8,6 +8,7 @@ import { computePlanGeometry } from '@/lib/engine/planGeometry';
 import { createAnnotationLayer } from '@/lib/map/annotations';
 import { MeasurementTool } from './MeasurementTool';
 import { VertexEditToolbar } from './VertexEditToolbar';
+import MapAccessibility from './MapAccessibility';
 import { useVertexEditing } from '@/hooks/useVertexEditing';
 import { LayerControl } from './LayerControl';
 import { exportMapPDF } from '@/lib/export/exportMapPDF';
@@ -302,7 +303,7 @@ export default function SurveyMap({
   }, [showSheetLayout, mapContainerId]);
 
   return (
-    <div id={mapContainerId} className="flex flex-col h-full">
+    <div id={mapContainerId} className="flex flex-col h-full" role="application" aria-label="Cadastral survey map">
       <div className="flex items-center gap-2 px-3 py-2 bg-white border-b border-gray-200 text-sm">
         <button
           onClick={fitToParcel}
@@ -341,6 +342,9 @@ export default function SurveyMap({
 
       <div className="relative flex-1">
         <div ref={mapRef} className="w-full h-full" />
+
+        {/* Screen reader live region for map state changes */}
+        <MapAccessibility mapReady={mapReady} schemeDataLoaded={mapReady && adjustedStations.length > 0} />
 
         <div className="absolute top-3 right-3 z-10 flex flex-col gap-3 items-end">
           {enableEditing && (

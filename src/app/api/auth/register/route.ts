@@ -15,7 +15,8 @@ import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  fullName: z.string().min(1, 'Full name is required'),
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  iskNumber: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {

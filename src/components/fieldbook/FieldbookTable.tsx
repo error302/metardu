@@ -260,9 +260,20 @@ export function FieldbookTable({
   }, [observations]);
 
   return (
-    <div className={`flex flex-col gap-3 ${className ?? ''}`}>
+    <div
+      className={`flex flex-col gap-3 ${className ?? ''}`}
+      role="table"
+      aria-label="Fieldbook observations table"
+      aria-rowcount={activeObservations.length}
+      aria-colcount={columns.length + (selectedRows.size > 0 ? 1 : 0)}
+    >
+      {/* Screen reader live region for row count updates */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {activeObservations.length} observations displayed
+      </div>
+
       {/* Summary bar */}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)]">
+      <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)]" role="row">
         <div className="flex items-center gap-1.5">
           <FileSpreadsheet className="h-4 w-4 text-[var(--accent)]" />
           <span className="font-medium text-[var(--text-primary)]">
@@ -298,6 +309,7 @@ export function FieldbookTable({
         onRowClick={onRowClick}
         rowKey={(row) => row.id}
         emptyMessage="No observations recorded yet"
+        aria-label="Observation data rows"
       />
 
       {/* Bulk action toolbar (appears when rows are selected) */}

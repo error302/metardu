@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from "react"
+import AppErrorBoundary from '@/components/shared/AppErrorBoundary'
 
 export default function GlobalError({
   error,
@@ -10,34 +11,18 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error("Global error:", error)
-    // Report to Sentry if configured
-    try {
-      const Sentry = require('@sentry/nextjs')
-      if (Sentry.captureException) Sentry.captureException(error)
-    } catch {
-      // Sentry not configured — console.error is sufficient
-    }
+    // Report via dynamic import (not require) to avoid bundling issues
+    import('@/lib/monitoring/sentry').then(({ captureError }) => {
+      captureError(error, { context: 'global-error' })
+    }).catch(() => {
+      console.error('[global-error]', error.message, error.digest ? `ref=${error.digest}` : '')
+    })
   }, [error])
 
   return (
     <html lang="en">
-      <body style={{ background: "#0a0a0f", color: "#e5e5e5", fontFamily: "system-ui, sans-serif" }}>
-        <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", padding: "2rem", textAlign: "center" }}>
-          <div>
-            <h1 style={{ color: "#E8841A", fontSize: "2rem", fontWeight: "700", marginBottom: "0.5rem" }}>METARDU</h1>
-            <h2 style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>Something went wrong</h2>
-            <p style={{ color: "#a3a3a3", marginBottom: "1.5rem", fontSize: "0.9rem" }}>
-              {error.message || "An unexpected error occurred."}
-            </p>
-            <button
-              onClick={reset}
-              style={{ background: "#E8841A", color: "#000", border: "none", padding: "0.75rem 2rem", borderRadius: "6px", fontWeight: "600", cursor: "pointer" }}
-            >
-              Try again
-            </button>
-          </div>
-        </div>
+      <body style={{ background: "var(--bg-primary, #0a0a0f)", color: "var(--text-primary, #e5e5e5)", fontFamily: "system-ui, sans-serif" }}>
+        <AppErrorBoundary error={error} reset={reset} context="METARDU encountered a critical error" />
       </body>
     </html>
   )

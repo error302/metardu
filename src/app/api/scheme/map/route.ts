@@ -1,14 +1,62 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+// ─── Zod Schemas ──────────────────────────────────────────────────────────────
+
+const SchemeMapQuerySchema = z.object({
+  project_id: z.string().uuid({ message: 'project_id must be a valid UUID' }),
+})
+
+// ─── DB Row Interfaces ───────────────────────────────────────────────────────
+
+interface ParcelRow {
+  parcel_id: string
+  parcel_number: string
+  lr_number_proposed: string | null
+  area_ha: number | null
+  parcel_status: string
+  block_id: string
+  block_number: string
+  station_name: string | null
+  easting: number | string | null
+  northing: number | string | null
+  elevation: number | string | null
+}
+
+interface BlockRow {
+  id: string
+  block_number: string
+  block_name: string
+  description: string | null
+}
+
+interface CoordinateEntry {
+  station: string
+  easting: number
+  northing: number
+  elevation: number | null
+}
+
+interface GeoJSONFeature {
+  type: 'Feature'
+  properties: Record<string, unknown>
+  geometry: {
+    type: string
+    coordinates: number[] | number[][] | number[][][]
+  }
+}
+
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, _ctx) => {
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('project_id')
-  if (!projectId) {
-    return NextResponse.json({ error: 'project_id is required' }, { status: 400 })
+
+  const queryParsed = SchemeMapQuerySchema.safeParse({ project_id: projectId })
+  if (!queryParsed.success) {
+    return NextResponse.json({ error: 'Invalid project_id', details: queryParsed.error.issues }, { status: 400 })
   }
 
   // Get all blocks for the project
@@ -35,27 +83,30 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   )
 
   // Group parcels by block, group coordinates by parcel
-  const parcelMap = new Map<string, any[]>()
-  parcels.forEach((row: any) => {
+  const parcelMap = new Map<string, CoordinateEntry[]>()
+  parcels.forEach((row) => {
     if (!parcelMap.has(row.parcel_id)) {
       parcelMap.set(row.parcel_id, [])
     }
     if (row.easting !== null && row.northing !== null) {
-      parcelMap.get(row.parcel_id)!.push({
-        station: row.station_name,
-        easting: Number(row.easting),
-        northing: Number(row.northing),
-        elevation: row.elevation ? Number(row.elevation) : null,
-      })
+      const existing = parcelMap.get(row.parcel_id)
+      if (existing) {
+        existing.push({
+          station: row.station_name || '',
+          easting: Number(row.easting),
+          northing: Number(row.northing),
+          elevation: row.elevation ? Number(row.elevation) : null,
+        })
+      }
     }
   })
 
   // Build GeoJSON features for parcels
-  const features: any[] = []
+  const features: GeoJSONFeature[] = []
 
   // Add parcel boundary polygons (from traverse coordinates)
   const seenParcels = new Set<string>()
-  parcels.forEach((row: any) => {
+  parcels.forEach((row) => {
     if (seenParcels.has(row.parcel_id)) return
     seenParcels.add(row.parcel_id)
 
@@ -103,24 +154,25 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   })
 
   // Add block centroids
-  const blockParcelMap = new Map<string, any[]>()
-  parcels.forEach((row: any) => {
+  const blockParcelMap = new Map<string, ParcelRow[]>()
+  parcels.forEach((row) => {
     if (!blockParcelMap.has(row.block_id)) blockParcelMap.set(row.block_id, [])
-    blockParcelMap.get(row.block_id)!.push(row)
+    const blockList = blockParcelMap.get(row.block_id)
+    if (blockList) blockList.push(row)
   })
 
-  blocks.forEach((block: any) => {
+  blocks.forEach((block) => {
     const blockParcels = blockParcelMap.get(block.id) || []
     if (blockParcels.length > 0) {
       const allCoords = blockParcels
-        .filter((r: any) => r.easting !== null)
-        .map((r: any) => [Number(r.easting), Number(r.northing)])
+        .filter((r) => r.easting !== null)
+        .map((r) => [Number(r.easting), Number(r.northing)])
 
       if (allCoords.length > 0) {
         const centroid = allCoords.reduce(
-          (acc: number[], c: number[]) => [acc[0] + c[0], acc[1] + c[1]],
+          (acc, c) => [acc[0] + c[0], acc[1] + c[1]],
           [0, 0]
-        ).map((sum: number) => sum / allCoords.length)
+        ).map((sum) => sum / allCoords.length)
 
         features.push({
           type: 'Feature',
@@ -129,7 +181,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
             block_id: block.id,
             block_number: block.block_number,
             block_name: block.block_name,
-            parcel_count: new Set(blockParcels.map((r: any) => r.parcel_id)).size,
+            parcel_count: new Set(blockParcels.map((r) => r.parcel_id)).size,
           },
           geometry: {
             type: 'Point',
@@ -143,10 +195,10 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   // Calculate bounds
   const allEasting = features
     .filter(f => f.geometry.type === 'Polygon')
-    .flatMap(f => f.geometry.coordinates[0].map((c: number[]) => c[0]))
+    .flatMap(f => (f.geometry.coordinates as number[][][])[0].map((c) => c[0]))
   const allNorthing = features
     .filter(f => f.geometry.type === 'Polygon')
-    .flatMap(f => f.geometry.coordinates[0].map((c: number[]) => c[1]))
+    .flatMap(f => (f.geometry.coordinates as number[][][])[0].map((c) => c[1]))
 
   const bounds = (allEasting.length > 0 && allNorthing.length > 0)
     ? [Math.min(...allEasting), Math.min(...allNorthing), Math.max(...allEasting), Math.max(...allNorthing)]

@@ -1,8 +1,33 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiHandler } from '@/lib/apiHandler'
 
 export const dynamic = 'force-dynamic'
+
+// ─── DB Row Interfaces ───────────────────────────────────────────────────────
+
+interface ParcelRow {
+  id: string
+  parcel_number: string
+  lr_number_proposed: string | null
+  area_ha: string | number | null
+  status: string
+  block_number: string
+  block_name: string | null
+}
+
+interface TraverseRow {
+  id: string
+  accuracy_order: string | null
+  total_perimeter: string | number | null
+  computed_area_ha: string | number | null
+}
+
+interface CoordRow {
+  station: string
+  easting: string | number
+  northing: string | number
+}
 
 export const GET = apiHandler(
   { auth: true, audit: 'batch_generated' , rateLimit: { max: 60, windowMs: 60000 } },
@@ -39,6 +64,7 @@ export const GET = apiHandler(
 
     const { jsPDF } = await import('jspdf')
     const { renderBoundaryPlan } = await import('@/lib/generators/deedPlanRenderer')
+    type DeedPlanGeometry = import('@/lib/generators/deedPlanGeometry').DeedPlanGeometry
 
     const pdfBuffers: Array<{ filename: string; buffer: Buffer }> = []
 
@@ -60,34 +86,53 @@ export const GET = apiHandler(
         )
         if (coordsResult.rows.length < 3) continue
 
-        const stations = coordsResult.rows.map((c: any) => ({
-          station: c.station, easting: parseFloat(c.easting), northing: parseFloat(c.northing),
+        const stations = coordsResult.rows.map((c) => ({
+          station: c.station, easting: parseFloat(String(c.easting)), northing: parseFloat(String(c.northing)),
           beaconNo: c.station, monument: 'psc found',
         }))
 
-        const bearingSchedule: Array<{ bearing: string; distance: string }> = []
+        // Build bearing schedule matching DeedPlanGeometry.BearingLeg format
+        const bearingSchedule: Array<{ from: string; to: string; bearing: string; distance: string }> = []
         for (let i = 0; i < stations.length; i++) {
           const from = stations[i]
           const to = stations[(i + 1) % stations.length]
           const dE = to.easting - from.easting
           const dN = to.northing - from.northing
           const dist = Math.sqrt(dE * dE + dN * dN)
-          let wcbDeg = (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360
+          const wcbDeg = (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360
           const wcbD = Math.floor(wcbDeg)
           const wcbM = Math.floor((wcbDeg - wcbD) * 60)
           const wcbS = ((wcbDeg - wcbD) * 60 - wcbM) * 60
           bearingSchedule.push({
+            from: from.station,
+            to: to.station,
             bearing: `${String(wcbD).padStart(3, '0')}\u00B0${String(wcbM).padStart(2, '0')}'${wcbS.toFixed(1)}"`,
             distance: dist.toFixed(3),
           })
         }
 
-        const geom = {
-          stations, bearingSchedule,
-          minE: Math.min(...stations.map((s: any) => s.easting)),
-          maxE: Math.max(...stations.map((s: any) => s.easting)),
-          minN: Math.min(...stations.map((s: any) => s.northing)),
-          maxN: Math.max(...stations.map((s: any) => s.northing)),
+        // Construct DeedPlanGeometry-compatible object
+        const minE = Math.min(...stations.map((s) => s.easting))
+        const maxE = Math.max(...stations.map((s) => s.easting))
+        const minN = Math.min(...stations.map((s) => s.northing))
+        const maxN = Math.max(...stations.map((s) => s.northing))
+        const areaHa = parcel.area_ha ? parseFloat(String(parcel.area_ha)) : (traverse.computed_area_ha ? parseFloat(String(traverse.computed_area_ha)) : 0)
+        const areaM2 = areaHa * 10000
+
+        const geom: DeedPlanGeometry = {
+          stations,
+          bearingSchedule,
+          areaM2,
+          areaHa,
+          areaAcres: areaHa * 2.47105,
+          misclosureMm: 0,
+          precisionRatio: '1:0',
+          closureStatus: 'UNVERIFIED' as const,
+          minE,
+          maxE,
+          minN,
+          maxN,
+          coordinateSource: 'computed' as const,
         }
 
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
@@ -100,7 +145,7 @@ export const GET = apiHandler(
         doc.setFontSize(9)
         doc.text('FORM NO. 4 \u2014 DEED PLAN', pageW / 2, 15, { align: 'center' })
 
-        renderBoundaryPlan(doc, geom as any, { x: 10, y: 20, width: pageW - 20, height: pageH - 75 })
+        renderBoundaryPlan(doc, geom, { x: 10, y: 20, width: pageW - 20, height: pageH - 75 })
 
         const tableY = pageH - 52
         doc.setDrawColor(0)
@@ -108,9 +153,9 @@ export const GET = apiHandler(
         doc.rect(10, tableY, pageW - 20, 48)
 
         const areaStr = parcel.area_ha
-          ? `${parseFloat(parcel.area_ha).toFixed(4)} Ha`
+          ? `${parseFloat(String(parcel.area_ha)).toFixed(4)} Ha`
           : traverse.computed_area_ha
-            ? `${parseFloat(traverse.computed_area_ha).toFixed(4)} Ha`
+            ? `${parseFloat(String(traverse.computed_area_ha)).toFixed(4)} Ha`
             : '\u2014'
 
         const infoPairs = [
@@ -119,7 +164,7 @@ export const GET = apiHandler(
           ['AREA:', areaStr],
           ['BLOCK:', `${parcel.block_number} \u2014 ${parcel.block_name || 'N/A'}`],
           ['ACCURACY:', traverse.accuracy_order || '\u2014'],
-          ['PERIMETER:', traverse.total_perimeter ? `${parseFloat(traverse.total_perimeter).toFixed(3)} m` : '\u2014'],
+          ['PERIMETER:', traverse.total_perimeter ? `${parseFloat(String(traverse.total_perimeter)).toFixed(3)} m` : '\u2014'],
         ]
 
         const curY = tableY + 5
@@ -134,7 +179,7 @@ export const GET = apiHandler(
         }
 
         const pdfBuf = Buffer.from(doc.output('arraybuffer'))
-        const safeLR = (parcel.lr_number_proposed || parcel.parcel_number).replace(/[\/\\]/g, '-')
+        const safeLR = (parcel.lr_number_proposed || parcel.parcel_number).replace(/[/\\]/g, '-')
         pdfBuffers.push({ filename: `Block${parcel.block_number}_${safeLR}_DeedPlan.pdf`, buffer: pdfBuf })
       } catch (err) {
         console.error(`Failed to generate deed plan for parcel ${parcel.id}:`, err)

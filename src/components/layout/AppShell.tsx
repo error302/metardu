@@ -17,6 +17,7 @@ import FieldModeToggle from '@/components/shared/FieldModeToggle'
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import { CountryProvider } from '@/lib/country'
 import { SubscriptionProvider } from '@/lib/subscription/subscriptionContext'
+import SkipToContent from '@/components/shared/SkipToContent'
 import dynamic from 'next/dynamic'
 
 const NotificationToast = dynamic(
@@ -71,6 +72,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   if (fullScreen) {
     return (
       <>
+        <SkipToContent />
         <AppUpdateBanner />
         <OfflineIndicator />
         <PWAInstallBanner />
@@ -98,6 +100,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   if (admin) {
     return (
       <>
+        <SkipToContent />
         <AppUpdateBanner />
         <OfflineIndicator />
         <PWAInstallBanner />
@@ -124,6 +127,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // Default: full app shell
   return (
     <>
+      <SkipToContent />
       <AppUpdateBanner />
       <OfflineIndicator />
       <PWAInstallBanner />

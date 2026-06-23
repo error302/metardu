@@ -46,10 +46,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Copy migration files and runner for startup migration
+# Copy migration files and unified runner for startup migration
 COPY --from=builder /app/src/lib/db/migrations ./migrations
-COPY --from=builder /app/scripts/migrate.js ./migrate.js
-COPY --from=builder /app/scripts/run-migrations.sh ./scripts/run-migrations.sh
+COPY --from=builder /app/scripts/migrate-unified.mjs ./migrate-unified.mjs
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
 # Worker output directory
@@ -59,7 +58,7 @@ RUN mkdir -p /app/download/worker-output && chown -R nextjs:nodejs /app/download
 RUN apk add --no-cache postgresql-client
 
 # Ensure entrypoint is executable
-RUN chmod +x ./docker-entrypoint.sh ./scripts/run-migrations.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \

@@ -48,6 +48,8 @@ export interface VirtualizedTableProps<T> {
   /** Custom empty-state message */
   emptyMessage?: string;
   className?: string;
+  /** Accessible label for the table */
+  'aria-label'?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -190,6 +192,7 @@ function VirtualizedTableInner<T>(props: VirtualizedTableProps<T>) {
     rowKey,
     emptyMessage = 'No data to display',
     className,
+    'aria-label': ariaLabel,
   } = props;
 
   const listRef = useRef<List>(null);
@@ -293,6 +296,7 @@ function VirtualizedTableInner<T>(props: VirtualizedTableProps<T>) {
                 minWidth: col.width,
                 textAlign: col.align ?? 'left',
               }}
+              role="cell"
             >
               {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '—')}
             </div>
@@ -338,6 +342,10 @@ function VirtualizedTableInner<T>(props: VirtualizedTableProps<T>) {
       ref={containerRef}
       className={`rounded-lg border border-[var(--border-color)] overflow-hidden ${className ?? ''}`}
       style={{ background: 'var(--bg-primary)' }}
+      role="table"
+      aria-label={ariaLabel}
+      aria-rowcount={rows.length + 1}
+      aria-colcount={columns.length + (selectable ? 1 : 0)}
     >
       {/* Sticky header */}
       {headerSticky && (
@@ -348,9 +356,10 @@ function VirtualizedTableInner<T>(props: VirtualizedTableProps<T>) {
             background: 'var(--bg-secondary)',
             minWidth: needsHorizontalScroll ? totalWidth : undefined,
           }}
+          role="row"
         >
           {selectable && (
-            <div className="flex items-center justify-center shrink-0" style={{ width: 48 }}>
+            <div className="flex items-center justify-center shrink-0" style={{ width: 48 }} role="columnheader">
               <Checkbox
                 checked={allSelected ? true : someSelected ? 'indeterminate' : false}
                 onCheckedChange={toggleAll}
@@ -367,6 +376,8 @@ function VirtualizedTableInner<T>(props: VirtualizedTableProps<T>) {
                 minWidth: col.width,
                 textAlign: col.align ?? 'left',
               }}
+              role="columnheader"
+              aria-sort={col.sortable ? 'none' : undefined}
             >
               {col.header}
             </div>

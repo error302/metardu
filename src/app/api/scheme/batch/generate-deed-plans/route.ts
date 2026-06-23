@@ -57,7 +57,7 @@ export const POST = apiHandler(
     for (let i = 0; i < parcelsResult.rows.length; i += CHUNK_SIZE) {
       const chunk = parcelsResult.rows.slice(i, i + CHUNK_SIZE)
       const results = await Promise.allSettled(
-        chunk.map(async (parcel: { block_number: string; parcel_number: string }) => {
+        chunk.map(async (parcel) => {
           // ponytail: generateDeedPlan takes projectId and generates the full plan.
           // For per-parcel plans, we'd need a parcel-scoped variant.
           // For now, generate from the parent project — the deed plan includes
@@ -86,7 +86,7 @@ export const POST = apiHandler(
       totalParcels: parcelsResult.rows.length,
       generated,
       errors,
-      parcels: parcelsResult.rows.map((p: { parcel_number: string; block_number: string; lr_number_proposed: string | null; area_ha: number | null; status: string }) => ({
+      parcels: parcelsResult.rows.map((p) => ({
         parcelNumber: p.parcel_number,
         block: p.block_number,
         lrNumber: p.lr_number_proposed,

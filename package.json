@@ -11,9 +11,9 @@
     "start:standalone": "node .next/standalone/server.js",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "migrate": "node scripts/run-migrations.js",
-    "migrate:status": "node scripts/run-migrations.js --status",
-    "migrate:dry-run": "node scripts/run-migrations.js --dry-run",
+    "migrate": "node scripts/migrate-unified.mjs",
+    "migrate:status": "node scripts/migrate-unified.mjs --status",
+    "migrate:dry-run": "node scripts/migrate-unified.mjs --dry-run",
     "test": "jest",
     "simulation": "npx ts-node scripts/survey-simulation/simulationAgent.ts",
     "simulation:build": "npx tsc scripts/survey-simulation/*.ts --outDir scripts/survey-simulation/dist && node scripts/survey-simulation/dist/simulationAgent.js",
@@ -37,7 +37,8 @@
     "cassini:validate": "npx tsx scripts/validate_national_sheets.ts",
     "cassini:benchmark": "npx tsx scripts/benchmark_cassini.ts",
     "migrate:create": "node scripts/migrate-create.js",
-    "migrate:rollback": "node scripts/run-migrations.js --rollback"
+    "migrate:rollback": "node scripts/migrate-unified.mjs --rollback",
+    "migrate:force": "node scripts/migrate-unified.mjs --force"
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^8.1.3",

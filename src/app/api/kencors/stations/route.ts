@@ -1,5 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import type { KenCORSStation } from '@/types/kencors'
+
+// ─── Zod Schemas ──────────────────────────────────────────────────────────────
+
+const KenCORSQuerySchema = z.object({
+  bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional(),
+  status: z.enum(['ONLINE', 'DEGRADED', 'OFFLINE']).optional(),
+  county: z.string().max(100).optional(),
+})
 
 const DEFAULT_STATIONS: KenCORSStation[] = [
   {
@@ -102,9 +111,35 @@ const DEFAULT_STATIONS: KenCORSStation[] = [
   }
 ]
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Parse and validate query parameters
+    const { searchParams } = new URL(request.url)
+    const queryParams: Record<string, unknown> = {}
+
+    const bboxParam = searchParams.get('bbox')
+    if (bboxParam) {
+      try {
+        queryParams.bbox = JSON.parse(bboxParam)
+      } catch {
+        return NextResponse.json({ error: 'Invalid bbox parameter — must be JSON array of 4 numbers' }, { status: 400 })
+      }
+    }
+    const statusParam = searchParams.get('status')
+    if (statusParam) queryParams.status = statusParam
+    const countyParam = searchParams.get('county')
+    if (countyParam) queryParams.county = countyParam
+
+    const parsed = KenCORSQuerySchema.safeParse(queryParams)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid query parameters', details: parsed.error.issues }, { status: 400 })
+    }
+
+    const { bbox, status, county } = parsed.data
+
     const apiKey = process.env.KENCORS_API_KEY
+
+    let stations: KenCORSStation[] = DEFAULT_STATIONS
 
     if (apiKey) {
       try {
@@ -115,15 +150,34 @@ export async function GET() {
         })
 
         if (response.ok) {
-          const data = await response.json()
-          return NextResponse.json({ stations: data })
+          const data: unknown = await response.json()
+          if (Array.isArray(data)) {
+            stations = data as KenCORSStation[]
+          }
         }
       } catch (apiError) {
         console.error('KenCORS API error:', apiError)
       }
     }
 
-    return NextResponse.json({ stations: DEFAULT_STATIONS })
+    // Apply filters
+    if (bbox) {
+      const [minLon, minLat, maxLon, maxLat] = bbox
+      stations = stations.filter(s =>
+        s.longitude >= minLon && s.longitude <= maxLon &&
+        s.latitude >= minLat && s.latitude <= maxLat
+      )
+    }
+
+    if (status) {
+      stations = stations.filter(s => s.status === status)
+    }
+
+    if (county) {
+      stations = stations.filter(s => s.county.toLowerCase() === county.toLowerCase())
+    }
+
+    return NextResponse.json({ stations })
 
   } catch (error) {
     console.error('KenCORS stations error:', error)

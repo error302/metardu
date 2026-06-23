@@ -5,21 +5,37 @@ import { setCurrentUserId } from '@/lib/db'
 import db from '@/lib/db'
 import { callPythonCompute } from '@/lib/compute/pythonService'
 import type { ValidateRequest, ValidateResponse } from '@/types/cadastra'
+import { z } from 'zod'
+
+// ─── Zod Schemas ──────────────────────────────────────────────────────────────
+
+/** Schema for AI-assisted cadastral validation — validates data + type fields */
+const _AiValidateSchema = z.object({
+  data: z.record(z.unknown()),
+  type: z.enum(['parcel', 'traverse', 'leveling']),
+})
+
+const ValidateBodySchema = z.object({
+  boundary: z.object({
+    points: z.array(z.record(z.unknown())).min(3),
+  }),
+}).passthrough()
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
   }
-  const userId = (session.user as any).id
+  const userId = (session.user as { id?: string }).id
   if (userId) setCurrentUserId(String(userId))
 
   try {
-    const body: ValidateRequest = await request.json()
-    
-    if (!body.boundary || !body.boundary.points || body.boundary.points.length < 3) {
-      return NextResponse.json({ error: 'Invalid boundary - need at least 3 points' }, { status: 400 })
+    const rawBody = await request.json()
+    const parsed = ValidateBodySchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', details: parsed.error.issues }, { status: 400 })
     }
+    const body: ValidateRequest = rawBody
     
     const result = await callPythonCompute<ValidateResponse>(
       '/cadastra-validate',
@@ -44,7 +60,7 @@ export async function GET(request: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
   }
-  const userId = (session.user as any).id
+  const userId = (session.user as { id?: string }).id
   if (userId) setCurrentUserId(String(userId))
 
   const { searchParams } = new URL(request.url)

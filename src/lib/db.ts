@@ -25,12 +25,17 @@ function getCurrentUserId(): string | undefined {
 }
 
 function getPoolConfig() {
+  const base = {
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+    statement_timeout: 30000, // 30s — prevents runaway queries
+  }
+
   if (env.DATABASE_URL) {
     return {
       connectionString: env.DATABASE_URL,
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
+      ...base,
     }
   }
 
@@ -41,9 +46,7 @@ function getPoolConfig() {
       database: env.DB_NAME,
       user: env.DB_USER,
       password: env.DB_PASSWORD,
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
+      ...base,
     }
   }
 
@@ -52,6 +55,9 @@ function getPoolConfig() {
 
 /** UUID validation regex for RLS context safety */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Slow query threshold in milliseconds */
+const SLOW_QUERY_THRESHOLD_MS = 5000
 
 /** Get the singleton Pool instance (lazy-initialized) */
 export function getPool(): Pool {
@@ -62,6 +68,11 @@ export function getPool(): Pool {
     // by scripts/migrate.js which runs in docker-entrypoint.sh before the
     // server starts. Running ALTER TABLE on every pool creation takes an
     // ACCESS EXCLUSIVE lock on the table, blocking all reads/writes.
+
+    // Pool-level error listener — prevents unhandled errors from crashing the process
+    pool.on('error', (err) => {
+      console.error('[db] Unexpected pool error:', err)
+    })
   }
   return pool
 }
@@ -91,6 +102,7 @@ export async function setRlsContext(client: PoolClient | Pool) {
 export const db = {
   query: async (text: string, params?: unknown[]): Promise<QueryResult> => {
     const client = await getPool().connect()
+    const start = Date.now()
     try {
       const userId = getCurrentUserId()
       if (userId) {
@@ -100,7 +112,12 @@ export const db = {
         }
         await client.query(`SET LOCAL request.user_id = '${userId}'`)
       }
-      return await client.query(text, params)
+      const result = await client.query(text, params)
+      const elapsed = Date.now() - start
+      if (elapsed > SLOW_QUERY_THRESHOLD_MS) {
+        console.warn(`[db] Slow query (${elapsed}ms):`, text.slice(0, 200))
+      }
+      return result
     } finally {
       client.release()
     }
@@ -141,6 +158,42 @@ export const db = {
   },
 
   getClient: async (): Promise<PoolClient> => getPool().connect(),
+
+  /**
+   * Health check — runs SELECT 1 with a 2-second timeout.
+   * Returns true if the database is reachable, false otherwise.
+   */
+  isHealthy: async (): Promise<boolean> => {
+    try {
+      const p = getPool()
+      const client = await p.connect()
+      try {
+        await client.query('SELECT 1')
+        return true
+      } finally {
+        client.release()
+      }
+    } catch (err) {
+      console.error('[db] Health check failed:', err)
+      return false
+    }
+  },
+
+  /**
+   * Pool metrics — returns connection pool statistics.
+   * Useful for monitoring and diagnostics.
+   */
+  getPoolMetrics: (): { totalCount: number; idleCount: number; waitingCount: number } => {
+    const p = pool
+    if (!p) {
+      return { totalCount: 0, idleCount: 0, waitingCount: 0 }
+    }
+    return {
+      totalCount: p.totalCount,
+      idleCount: p.idleCount,
+      waitingCount: p.waitingCount,
+    }
+  },
 }
 
 export default db

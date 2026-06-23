@@ -6,6 +6,20 @@ import db from '@/lib/db'
 import { callPythonCompute } from '@/lib/compute/pythonService'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 import type { CleanDataRequest, CleanDataResponse } from '@/types/fieldguard'
+import { z } from 'zod'
+
+// ─── Zod Schemas ──────────────────────────────────────────────────────────────
+
+/** Schema for AI data cleaning — validates observation arrays + optional rules */
+const _AiCleanDataSchema = z.object({
+  observations: z.array(z.record(z.unknown())).min(1).max(10000),
+  rules: z.array(z.string()).optional(),
+})
+
+const CleanDataBodySchema = z.object({
+  points: z.array(z.record(z.unknown())).min(1),
+  data_type: z.enum(['gnss', 'totalstation', 'lidar']),
+}).passthrough()
 
 export async function POST(request: NextRequest) {
   // Rate limit: 10 requests per 60 seconds (AI compute)
@@ -19,19 +33,16 @@ export async function POST(request: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
   }
-  const userId = (session.user as any).id
+  const userId = (session.user as { id?: string }).id
   if (userId) setCurrentUserId(String(userId))
 
   try {
-    const body: CleanDataRequest = await request.json()
-    
-    if (!body.points || body.points.length === 0) {
-      return NextResponse.json({ error: 'No points provided' }, { status: 400 })
+    const rawBody = await request.json()
+    const parsed = CleanDataBodySchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', details: parsed.error.issues }, { status: 400 })
     }
-    
-    if (!body.data_type || !['gnss', 'totalstation', 'lidar'].includes(body.data_type)) {
-      return NextResponse.json({ error: 'Invalid data_type' }, { status: 400 })
-    }
+    const body: CleanDataRequest = rawBody
     
     const result = await callPythonCompute<CleanDataResponse>(
       '/clean-data',
@@ -56,7 +67,7 @@ export async function GET(request: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
   }
-  const userId = (session.user as any).id
+  const userId = (session.user as { id?: string }).id
   if (userId) setCurrentUserId(String(userId))
 
   const { searchParams } = new URL(request.url)

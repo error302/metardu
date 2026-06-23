@@ -41,18 +41,73 @@ const TIER_LIMITS: Record<string, number> = {
 // Admin emails get unlimited AI calls
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
 
+// ─── Zod Schemas ──────────────────────────────────────────────────────────────
+
+/** Top-level chat message validation — limits prompt size to prevent injection / abuse */
+const AiChatSchema = z.object({
+  message: z.string().max(4000),
+  context: z.string().max(10000).optional(),
+  projectId: z.string().uuid().optional(),
+})
+
+/** Per-action data validation schemas — match service function signatures */
+const SurveyQADataSchema = z.object({
+  surveyType: z.string().max(100),
+  coordinates: z.array(z.object({ point: z.string(), easting: z.number(), northing: z.number(), elevation: z.number().optional() })).optional(),
+  distances: z.array(z.object({ from: z.string(), to: z.string(), distance: z.number(), bearing: z.string().optional() })).optional(),
+  area: z.number().optional(),
+  boundary: z.array(z.record(z.unknown())).max(5000).optional(),
+  observations: z.array(z.record(z.unknown())).max(10000).optional(),
+})
+
+const ExtractCoordsDataSchema = z.object({
+  text: z.string().max(50000),
+})
+
+const GenerateSectionDataSchema = z.object({
+  sectionType: z.string().max(100),
+  surveyType: z.string().max(100),
+  projectData: z.record(z.unknown()),
+  customInstructions: z.string().max(5000).optional(),
+})
+
+const ValidateResultsDataSchema = z.object({
+  surveyType: z.string().max(100),
+  measured: z.record(z.unknown()),
+  expected: z.record(z.unknown()).optional(),
+  tolerances: z.record(z.number()).optional(),
+})
+
+const InterpretPhotoDataSchema = z.object({
+  imageBase64: z.string().max(10_000_000),
+  mimeType: z.string().max(100),
+  surveyTypeHint: z.string().max(100).optional(),
+})
+
+const ChatOptionsSchema = z.object({
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().int().min(1).max(4096).optional(),
+  model: z.string().max(200).optional(),
+})
+
 // ─── Request schema ───────────────────────────────────────────────────────────
+// data uses z.record(z.unknown()) at the top level for type compatibility,
+// then is validated per-action with the specific schemas above.
 
 const requestSchema = z.object({
   action: z.enum(['chat', 'survey-qa', 'extract-coords', 'generate-section', 'validate-results', 'interpret-field-photo']),
   messages: z.array(z.object({
     role: z.enum(['system', 'user', 'assistant']),
-    content: z.string(),
+    content: z.string().max(4000),
   })).optional(),
-  data: z.any().optional(),
-  options: z.any().optional(),
+  data: z.record(z.unknown()).optional(),
+  options: z.record(z.unknown()).optional(),
   /** If true, response is streamed via SSE (only for generate-section) */
   stream: z.boolean().optional(),
+  /** Top-level chat fields (alternative to messages array) */
+  message: AiChatSchema.shape.message.optional(),
+  context: AiChatSchema.shape.context.optional(),
+  projectId: AiChatSchema.shape.projectId.optional(),
 })
 
 // ─── AI usage tracking ────────────────────────────────────────────────────────
@@ -78,7 +133,9 @@ async function decrementAiCalls(userId: string, email?: string): Promise<{ remai
       return { remaining: 0, limit: TIER_LIMITS.free }
     }
 
-    const { ai_calls_remaining, tier } = profile.rows[0]
+    const row = profile.rows[0]
+    const ai_calls_remaining = row?.ai_calls_remaining as number | null
+    const tier = (row?.tier as string) || 'free'
     const limit = TIER_LIMITS[tier] || TIER_LIMITS.free
 
     const currentRemaining = ai_calls_remaining ?? limit
@@ -155,28 +212,41 @@ export async function POST(request: NextRequest) {
 
     const { action, messages, data, options, stream: useStream } = parsed.data
 
-    // 5. Route to action
+    // 5. Route to action (per-action validation using specific schemas)
     if (action === 'chat') {
       if (!messages?.length) {
         return NextResponse.json({ error: 'Messages required' }, { status: 400 })
       }
-      const response = await chat({ messages, ...options })
+      const validatedOpts = ChatOptionsSchema.safeParse(options ?? {})
+      const chatOpts = validatedOpts.success ? validatedOpts.data : {}
+      const response = await chat({ messages, ...chatOpts })
       return NextResponse.json({ response, callsRemaining: usage.remaining })
     }
 
     if (action === 'survey-qa') {
-      const result = await checkSurveyDataQA(data)
+      const validated = SurveyQADataSchema.safeParse(data ?? {})
+      if (!validated.success) {
+        return NextResponse.json({ error: 'Invalid survey-qa data', details: validated.error.issues }, { status: 400 })
+      }
+      const result = await checkSurveyDataQA(validated.data)
       return NextResponse.json({ result, callsRemaining: usage.remaining })
     }
 
     if (action === 'extract-coords') {
-      const text = data?.text || ''
-      const result = await extractCoordinates(text)
+      const validated = ExtractCoordsDataSchema.safeParse(data ?? {})
+      if (!validated.success) {
+        return NextResponse.json({ error: 'Invalid extract-coords data', details: validated.error.issues }, { status: 400 })
+      }
+      const result = await extractCoordinates(validated.data.text)
       return NextResponse.json({ ...result, callsRemaining: usage.remaining })
     }
 
     if (action === 'generate-section') {
-      const { sectionType, surveyType, projectData, customInstructions } = data || {}
+      const validated = GenerateSectionDataSchema.safeParse(data ?? {})
+      if (!validated.success) {
+        return NextResponse.json({ error: 'Invalid generate-section data', details: validated.error.issues }, { status: 400 })
+      }
+      const { sectionType, surveyType, projectData, customInstructions } = validated.data
 
       // Streaming response via SSE
       if (useStream) {
@@ -184,7 +254,7 @@ export async function POST(request: NextRequest) {
         const stream = new ReadableStream({
           async start(controller) {
             try {
-              const fullText = await generateReportSection({
+              await generateReportSection({
                 sectionType,
                 surveyType,
                 projectData,
@@ -197,8 +267,8 @@ export async function POST(request: NextRequest) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, callsRemaining: usage.remaining })}\n\n`))
               controller.close()
             } catch (err: unknown) {
-              const message = err instanceof Error ? (err as Error).message : 'Streaming failed'
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`))
+              const msg = err instanceof Error ? err.message : 'Streaming failed'
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`))
               controller.close()
             }
           },
@@ -224,7 +294,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'validate-results') {
-      const { surveyType, measured, expected, tolerances } = data || {}
+      const validated = ValidateResultsDataSchema.safeParse(data ?? {})
+      if (!validated.success) {
+        return NextResponse.json({ error: 'Invalid validate-results data', details: validated.error.issues }, { status: 400 })
+      }
+      const { surveyType, measured, expected, tolerances } = validated.data
       const result = await validateSurveyResults({ surveyType, measured, expected, tolerances })
       return NextResponse.json({
         ...result,
@@ -235,10 +309,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'interpret-field-photo') {
-      const { imageBase64, mimeType, surveyTypeHint } = data || {}
-      if (!imageBase64 || !mimeType) {
-        return NextResponse.json({ error: 'imageBase64 and mimeType are required' }, { status: 400 })
+      const validated = InterpretPhotoDataSchema.safeParse(data ?? {})
+      if (!validated.success) {
+        return NextResponse.json({ error: 'Invalid interpret-field-photo data', details: validated.error.issues }, { status: 400 })
       }
+      const { imageBase64, mimeType, surveyTypeHint } = validated.data
       const result = await interpretFieldPhoto({ imageBase64, mimeType, surveyTypeHint })
       return NextResponse.json({
         ...result,
