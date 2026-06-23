@@ -166,8 +166,8 @@ export class CapacitorBLEGNSS {
       throw new Error('Capacitor Bluetooth LE not available');
     }
 
-    await BleClient.connect(deviceId, (disconnectedDevice) => {
-      if (disconnectedDevice.deviceId === this.deviceId) {
+    await BleClient.connect(deviceId, (disconnectedDeviceId: string) => {
+      if (disconnectedDeviceId === this.deviceId) {
         this.deviceId = null;
         this.notifyConnection(false, 'Device disconnected');
       }
@@ -222,13 +222,15 @@ export class CapacitorBLEGNSS {
 
     const encoder = new TextEncoder();
     const data = encoder.encode(command + '\r\n');
+    // Capacitor BLE write expects DataView, not Uint8Array
+    const dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
 
     try {
       await BleClient.write(
         this.deviceId,
         NUS_SERVICE_UUID,
         NUS_RX_CHAR_UUID,
-        data,
+        dataView,
       );
     } catch (err) {
       console.warn('BLE command send failed:', err);

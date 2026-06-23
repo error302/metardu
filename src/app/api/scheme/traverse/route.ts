@@ -1,45 +1,13 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiHandler, ValidationError, NotFoundError } from '@/lib/api/handler'
-import { z } from 'zod'
+import { CreateTraverseObservationSchema } from '@/lib/validation/apiSchemas'
 
 export const dynamic = 'force-dynamic'
 
-const saveTraverseSchema = z.object({
-  parcel_id: z.number().int().positive(),
-  opening_station: z.string().min(1),
-  closing_station: z.string().optional(),
-  opening_easting: z.number(),
-  opening_northing: z.number(),
-  opening_rl: z.number().optional(),
-  closing_easting: z.number().optional(),
-  closing_northing: z.number().optional(),
-  backsight_bearing_deg: z.number().optional(),
-  backsight_bearing_min: z.number().optional(),
-  backsight_bearing_sec: z.number().optional(),
-  observations: z.array(z.object({
-    station: z.string().min(1),
-    bs: z.string().min(1),
-    fs: z.string().min(1),
-    hcl_deg: z.number().default(0),
-    hcl_min: z.number().default(0),
-    hcl_sec: z.number().default(0),
-    hcr_deg: z.number().default(0),
-    hcr_min: z.number().default(0),
-    hcr_sec: z.number().default(0),
-    slope_dist: z.number().optional(),
-    va_deg: z.number().default(0),
-    va_min: z.number().default(0),
-    va_sec: z.number().default(0),
-    ih: z.number().default(0),
-    th: z.number().default(0),
-    remarks: z.string().optional(),
-  })).min(1, 'At least one observation is required'),
-})
-
 export const POST = apiHandler({
   requireAuth: true,
-  schema: saveTraverseSchema,
+  schema: CreateTraverseObservationSchema,
   audit: 'traverse_saved',
   rateLimit: { max: 60, windowMs: 60000 },
   handler: async (ctx) => {

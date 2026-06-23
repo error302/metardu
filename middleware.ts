@@ -169,6 +169,10 @@ export async function middleware(request: NextRequest) {
   // Generate per-request nonce and set CSP headers
   const nonce = generateNonce()
   const cspHeaders = getCspHeaders(nonce)
+
+  // Override Permissions-Policy to allow camera (for BeaconPhotoCapture)
+  // and microphone (for VoiceDictationButton) from our own origin
+  response.headers.set('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(self)')
   for (const [key, value] of Object.entries(cspHeaders)) {
     response.headers.set(key, value)
   }

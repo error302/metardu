@@ -1,20 +1,21 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 import { transformCoordinates, TransformInput } from '@/lib/geo/transform'
+import { GeoTransformSchema } from '@/lib/validation/apiSchemas'
 
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const body = ctx.body as TransformInput & { projectId?: string }
+export const POST = apiHandler({ auth: true, schema: GeoTransformSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const body = ctx.body as z.infer<typeof GeoTransformSchema>
 
-  if (!body.points?.length || !body.fromCRS || !body.toCRS) {
-    return NextResponse.json({ error: 'Missing points, fromCRS, or toCRS' }, { status: 400 })
+  const transformInput: TransformInput & { projectId?: string } = {
+    fromCRS: body.fromCRS,
+    toCRS: body.toCRS,
+    points: body.points.map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z })),
+    projectId: (body as any).projectId,
   }
 
-  if (body.points.length > 5000) {
-    return NextResponse.json({ error: 'Maximum 5000 points per request' }, { status: 400 })
-  }
-
-  const result = transformCoordinates(body)
+  const result = transformCoordinates(transformInput)
 
   await db.query(
     `INSERT INTO online_service_logs (
@@ -22,7 +23,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     ) VALUES ($1, $2, $3, $4, $5)`,
     [
       ctx.userId,
-      body.projectId ?? null,
+      (body as any).projectId ?? null,
       'coordinate-transform',
       `${body.points.length} points, ${body.fromCRS} → ${body.toCRS}`,
       'success',

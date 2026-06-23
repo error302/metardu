@@ -13,6 +13,7 @@ import { AppUpdateBanner } from '@/components/app/AppUpdateBanner'
 import { OfflineIndicator } from '@/components/app/OfflineIndicator'
 import { PWAInstallBanner } from '@/components/app/PWAInstallBanner'
 import { ProjectionInit } from '@/components/layout/ProjectionInit'
+import FieldModeToggle from '@/components/shared/FieldModeToggle'
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import { CountryProvider } from '@/lib/country'
 import { SubscriptionProvider } from '@/lib/subscription/subscriptionContext'
@@ -66,7 +67,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     />
   )
 
-  // Full-screen routes (field map): no chrome at all
+  // Full-screen routes (field map): no chrome at all, but field mode toggle is always available
   if (fullScreen) {
     return (
       <>
@@ -80,6 +81,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <main id="main-content" className="overflow-hidden">
                 {children}
               </main>
+              <div className="fixed bottom-6 right-6 z-50">
+                <FieldModeToggle />
+              </div>
               <KeyboardShortcuts />
               <NotificationToast />
               {onboardingModal}
@@ -104,6 +108,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden">
                 {children}
               </main>
+              <div className="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
+                <FieldModeToggle />
+              </div>
               <KeyboardShortcuts />
               <NotificationToast />
               {onboardingModal}
@@ -133,6 +140,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <KeyboardShortcuts />
             <QuickCompute />
             <MobileNav />
+            <div className="fixed bottom-24 right-4 z-50 md:bottom-8 md:right-8">
+              <FieldModeToggle />
+            </div>
             <NotificationToast />
             {onboardingModal}
           </SubscriptionProvider>

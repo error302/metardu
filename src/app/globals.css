@@ -94,6 +94,291 @@ html {
 }
 
 /* ========================================================================
+   1b. FIELD MODE – Sunlight-readable high-contrast overrides
+   ======================================================================== */
+html.field-mode {
+  /* --- Base palette (high-contrast for direct sunlight) --------------- */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F5F5F5;
+  --bg-tertiary: #EBEBEB;
+  --bg-card: #FFFFFF;
+  --border-color: #000000;
+  --border-hover: #333333;
+
+  /* --- Typography (pure black for maximum contrast) ------------------- */
+  --text-primary: #000000;
+  --text-secondary: #1A1A1A;
+  --text-muted: #4A4A4A;
+
+  /* --- Accent (bright orange — visible in sunlight) ------------------- */
+  --accent: #FF6B00;
+  --accent-dim: #CC5500;
+  --accent-subtle: rgba(255, 107, 0, 0.15);
+
+  /* --- Semantic (darker shades for outdoor readability) --------------- */
+  --success: #006600;
+  --warning: #CC6600;
+  --error: #CC0000;
+  --primary-blue: #0a3a6c;
+
+  /* --- Gradient (simplified for flat readability) --------------------- */
+  --accent-gradient: linear-gradient(135deg, #FF6B00 0%, #CC5500 100%);
+
+  /* --- Glassmorphism (disable — solid backgrounds for sunlight) ------- */
+  --glass-bg: rgba(255, 255, 255, 0.97);
+  --glass-border: rgba(0, 0, 0, 0.25);
+  --glass-bg-hover: rgba(245, 245, 245, 0.97);
+
+  /* --- Shadows (dark borders instead of glows for sunlight) ----------- */
+  --shadow-glow: 0 0 0 2px rgba(255, 107, 0, 0.4);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  /* --- Component-specific aliases ------------------------------------ */
+  --card: #FFFFFF;
+  --popover: #F5F5F5;
+  --border: #000000;
+  --popover-foreground: #000000;
+
+  /* --- shadcn/ui compatibility variables (light/field theme values) --- */
+  --shadcn-background: 0 0% 100%;
+  --shadcn-foreground: 0 0% 0%;
+  --shadcn-card: 0 0% 100%;
+  --shadcn-card-foreground: 0 0% 0%;
+  --shadcn-popover: 0 0% 96%;
+  --shadcn-popover-foreground: 0 0% 0%;
+  --shadcn-primary: 28 100% 50%;
+  --shadcn-primary-foreground: 0 0% 100%;
+  --shadcn-secondary: 0 0% 92%;
+  --shadcn-secondary-foreground: 0 0% 0%;
+  --shadcn-muted: 0 0% 92%;
+  --shadcn-muted-foreground: 0 0% 29%;
+  --shadcn-accent: 28 100% 50%;
+  --shadcn-accent-foreground: 0 0% 100%;
+  --shadcn-destructive: 0 84% 40%;
+  --shadcn-destructive-foreground: 0 0% 100%;
+  --shadcn-border: 0 0% 0%;
+  --shadcn-input: 0 0% 0%;
+  --shadcn-ring: 28 100% 50%;
+
+  /* --- Force heavier font weight for sunlight readability ------------- */
+  font-weight: 500;
+
+  /* --- Selection overrides ------------------------------------------- */
+  color-scheme: light;
+}
+
+/* --- Field-mode text selection ---------------------------------------- */
+html.field-mode ::selection {
+  background: rgba(255, 107, 0, 0.3);
+  color: #000;
+}
+html.field-mode ::-moz-selection {
+  background: rgba(255, 107, 0, 0.3);
+  color: #000;
+}
+
+/* --- Field-mode focus ring ------------------------------------------- */
+html.field-mode :focus-visible {
+  outline: 2px solid #FF6B00;
+  outline-offset: 2px;
+}
+
+/* =====================================================================
+   Field-mode component overrides
+   ===================================================================== */
+
+/* --- Form elements: high contrast, prevent iOS zoom ----------------- */
+html.field-mode input,
+html.field-mode textarea,
+html.field-mode select {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  font-size: 16px !important;   /* Prevent iOS zoom on focus */
+  font-weight: 600 !important;
+  border-radius: 8px;
+}
+
+html.field-mode input::placeholder,
+html.field-mode textarea::placeholder {
+  color: #666666 !important;
+}
+
+/* --- Buttons: bold, bordered, large touch targets -------------------- */
+html.field-mode button {
+  font-weight: 700 !important;
+  border: 2px solid !important;
+  min-height: 48px !important;   /* Large touch targets for gloves */
+  border-radius: 8px;
+}
+
+html.field-mode button.btn-primary {
+  background: #FF6B00 !important;
+  color: #FFFFFF !important;
+  border-color: #CC5500 !important;
+  background-image: none !important;
+  background-size: auto !important;
+}
+
+html.field-mode button.btn-secondary {
+  background: #F5F5F5 !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+}
+
+/* --- Glass cards: solid white with black borders -------------------- */
+html.field-mode .glass-card {
+  background: #FFFFFF !important;
+  border: 2px solid #000000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+}
+html.field-mode .glass-card:hover {
+  background: #F5F5F5 !important;
+  border-color: #000000 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* --- Cards: white with black border -------------------------------- */
+html.field-mode .card {
+  background: #FFFFFF !important;
+  border: 2px solid #000000 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+}
+
+html.field-mode .card-header {
+  border-color: #000000 !important;
+}
+
+/* --- Inputs: consistent overrides ----------------------------------- */
+html.field-mode .input {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+}
+
+html.field-mode .input::placeholder {
+  color: #666666 !important;
+}
+
+html.field-mode .input:focus {
+  border-color: #FF6B00 !important;
+  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.15) !important;
+}
+
+/* --- Badges: high contrast ----------------------------------------- */
+html.field-mode .badge {
+  font-weight: 700 !important;
+  border: 1px solid #000000 !important;
+}
+
+/* --- Tables: black borders ----------------------------------------- */
+html.field-mode .table-header {
+  background: #EBEBEB !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+html.field-mode .table-row {
+  border-color: #000000 !important;
+}
+
+html.field-mode .table-cell {
+  color: #1A1A1A !important;
+  font-weight: 500 !important;
+}
+
+/* --- Glow border: solid border instead of glow --------------------- */
+html.field-mode .glow-border {
+  border: 2px solid #000000 !important;
+}
+html.field-mode .glow-border:hover {
+  border-color: #FF6B00 !important;
+  box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.3) !important;
+}
+
+/* --- Gradient text: solid color instead of gradient ---------------- */
+html.field-mode .gradient-text {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: #FF6B00 !important;
+  color: #FF6B00 !important;
+  animation: none !important;
+}
+
+/* --- Scrollbar: light theme ---------------------------------------- */
+html.field-mode ::-webkit-scrollbar-track {
+  background: #F5F5F5;
+}
+html.field-mode ::-webkit-scrollbar-thumb {
+  background: #999999;
+  border-radius: 4px;
+}
+html.field-mode ::-webkit-scrollbar-thumb:hover {
+  background: #666666;
+}
+html.field-mode *,
+html.field-mode *::before,
+html.field-mode *::after {
+  scrollbar-color: #999999 #F5F5F5;
+}
+
+/* --- Body overrides ----------------------------------------------- */
+html.field-mode body {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+/* --- Navigation bar: light theme ----------------------------------- */
+html.field-mode nav {
+  background: #FFFFFF !important;
+  border-color: #000000 !important;
+}
+
+/* --- Links: visible underline -------------------------------------- */
+html.field-mode a {
+  color: #CC5500 !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+html.field-mode a:hover {
+  color: #FF6B00 !important;
+}
+
+/* --- Disable noise overlay in field mode ---------------------------- */
+html.field-mode .noise-overlay::before {
+  display: none !important;
+}
+
+/* --- Text elements: ensure minimum contrast ------------------------ */
+html.field-mode h1,
+html.field-mode h2,
+html.field-mode h3,
+html.field-mode h4,
+html.field-mode h5,
+html.field-mode h6 {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+html.field-mode p,
+html.field-mode li,
+html.field-mode span,
+html.field-mode label {
+  color: #1A1A1A !important;
+  font-weight: 500 !important;
+}
+
+html.field-mode small {
+  color: #4A4A4A !important;
+  font-weight: 500 !important;
+}
+
+/* ========================================================================
    2. BASE LAYER
    ======================================================================== */
 @layer base {

@@ -60,6 +60,8 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
+import { createSchemeLayers, zoomToSchemeExtent } from '@/lib/map/schemeLayer'
+import { SchemeLayerPanel } from '@/app/map/components/SchemeLayerPanel'
 
 // ── Sub-components (lazy where appropriate) ──
 import { MapToolbar } from '@/app/map/components/MapToolbar'
@@ -196,6 +198,19 @@ export default function MapClient() {
   const [offlineDialogOpen, setOfflineDialogOpen] = useState(false)
   const [showAnnotations, setShowAnnotations] = useState(false)
   const [projectSearch, setProjectSearch] = useState('')
+
+  // ── Scheme layer state ──
+  const [schemeLoading, setSchemeLoading] = useState(false)
+  const [schemeError, setSchemeError] = useState('')
+  const [schemeLoaded, setSchemeLoaded] = useState(false)
+  const [schemeParcelCount, setSchemeParcelCount] = useState(0)
+  const [schemeBlockCount, setSchemeBlockCount] = useState(0)
+  const [schemeBeaconCount, setSchemeBeaconCount] = useState(0)
+  const [showSchemeParcels, setShowSchemeParcels] = useState(true)
+  const [showSchemeBlocks, setShowSchemeBlocks] = useState(true)
+  const [showSchemeBeacons, setShowSchemeBeacons] = useState(true)
+  const schemeCleanupRef = useRef<(() => void) | null>(null)
+  const schemeLayersRef = useRef<{ parcelLayer: any; blockLayer: any; beaconLayer: any; extent: number[] | null } | null>(null)
 
   // ── History hook ──
   const ctx: MapContext = useMemo(() => ({
@@ -376,6 +391,108 @@ export default function MapClient() {
     await interactions.handleCoordSearchLocal(input)
   }, [interactions])
 
+  // ── Scheme layer: get projectId from URL params ──
+  const schemeProjectId = searchParams.get('projectId')
+
+  // ── Scheme layer: load scheme data ──
+  const loadSchemeData = useCallback(async () => {
+    if (!schemeProjectId || !mapInstance.current || schemeLoading) return
+
+    setSchemeLoading(true)
+    setSchemeError('')
+
+    try {
+      // Clean up any existing scheme layers first
+      if (schemeCleanupRef.current) {
+        schemeCleanupRef.current()
+        schemeCleanupRef.current = null
+        schemeLayersRef.current = null
+      }
+
+      const result = await createSchemeLayers(schemeProjectId, mapInstance.current, {
+        autoZoom: true,
+        showParcelLabels: true,
+      })
+
+      schemeCleanupRef.current = result.cleanup
+      schemeLayersRef.current = {
+        parcelLayer: result.parcelLayer,
+        blockLayer: result.blockLayer,
+        beaconLayer: result.beaconLayer,
+        extent: result.extent,
+      }
+
+      setSchemeParcelCount(result.parcelCount)
+      setSchemeBlockCount(result.blockCount)
+      setSchemeBeaconCount(result.beaconCount)
+      setSchemeLoaded(true)
+    } catch (err) {
+      console.error('[MapClient] Failed to load scheme data:', err)
+      setSchemeError(err instanceof Error ? err.message : 'Failed to load scheme data')
+      setSchemeLoaded(false)
+    } finally {
+      setSchemeLoading(false)
+    }
+  }, [schemeProjectId, schemeLoading])
+
+  // ── Scheme layer: auto-load when projectId is available ──
+  useEffect(() => {
+    if (schemeProjectId && mapReady && !schemeLoaded && !schemeLoading && !schemeError) {
+      loadSchemeData()
+    }
+  }, [schemeProjectId, mapReady, schemeLoaded, schemeLoading, schemeError, loadSchemeData])
+
+  // ── Scheme layer: toggle layer visibility ──
+  const toggleSchemeParcelVisibility = useCallback(() => {
+    if (!schemeLayersRef.current?.parcelLayer) return
+    const newVisible = !showSchemeParcels
+    schemeLayersRef.current.parcelLayer.setVisible(newVisible)
+    setShowSchemeParcels(newVisible)
+  }, [showSchemeParcels])
+
+  const toggleSchemeBlockVisibility = useCallback(() => {
+    if (!schemeLayersRef.current?.blockLayer) return
+    const newVisible = !showSchemeBlocks
+    schemeLayersRef.current.blockLayer.setVisible(newVisible)
+    setShowSchemeBlocks(newVisible)
+  }, [showSchemeBlocks])
+
+  const toggleSchemeBeaconVisibility = useCallback(() => {
+    if (!schemeLayersRef.current?.beaconLayer) return
+    const newVisible = !showSchemeBeacons
+    schemeLayersRef.current.beaconLayer.setVisible(newVisible)
+    setShowSchemeBeacons(newVisible)
+  }, [showSchemeBeacons])
+
+  // ── Scheme layer: zoom to scheme extent ──
+  const handleZoomToScheme = useCallback(() => {
+    if (!mapInstance.current || !schemeLayersRef.current?.extent) return
+    zoomToSchemeExtent(mapInstance.current, schemeLayersRef.current.extent)
+  }, [])
+
+  // ── Scheme layer: remove all scheme layers ──
+  const handleRemoveScheme = useCallback(() => {
+    if (schemeCleanupRef.current) {
+      schemeCleanupRef.current()
+      schemeCleanupRef.current = null
+    }
+    schemeLayersRef.current = null
+    setSchemeLoaded(false)
+    setSchemeParcelCount(0)
+    setSchemeBlockCount(0)
+    setSchemeBeaconCount(0)
+    setSchemeError('')
+  }, [])
+
+  // ── Scheme layer: cleanup on unmount ──
+  useEffect(() => {
+    return () => {
+      if (schemeCleanupRef.current) {
+        schemeCleanupRef.current()
+      }
+    }
+  }, [])
+
   // ── Geolocation position tracking ──
   useEffect(() => {
     if (!mapInstance.current) return
@@ -480,6 +597,27 @@ export default function MapClient() {
               <MapNotifications
                 importMsg={importMsg}
                 saveMsg={saveMsg}
+              />
+
+              {/* Scheme Layer Panel */}
+              <SchemeLayerPanel
+                hasProjectId={!!schemeProjectId}
+                loading={schemeLoading}
+                error={schemeError}
+                loaded={schemeLoaded}
+                parcelCount={schemeParcelCount}
+                blockCount={schemeBlockCount}
+                beaconCount={schemeBeaconCount}
+                showParcels={showSchemeParcels}
+                showBlocks={showSchemeBlocks}
+                showBeacons={showSchemeBeacons}
+                onLoadScheme={loadSchemeData}
+                onRetry={loadSchemeData}
+                onToggleParcels={toggleSchemeParcelVisibility}
+                onToggleBlocks={toggleSchemeBlockVisibility}
+                onToggleBeacons={toggleSchemeBeaconVisibility}
+                onZoomToScheme={handleZoomToScheme}
+                onRemoveScheme={handleRemoveScheme}
               />
             </>
           )}

@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 import { callPythonCompute } from '@/lib/compute/pythonService'
+import { ProcessGNSSSchema } from '@/lib/validation/apiSchemas'
 
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
-  const { projectId, files, stationLabels } = ctx.body as {
-    projectId?: string
-    files?: unknown[]
-    stationLabels?: string[]
-  }
-
-  if (!projectId || !files || files.length < 2) {
-    return NextResponse.json(
-      { error: 'Need at least 2 RINEX files to compute baselines' },
-      { status: 400 }
-    )
-  }
+export const POST = apiHandler({ auth: true, schema: ProcessGNSSSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
+  const { projectId, files, stationLabels } = ctx.body as z.infer<typeof ProcessGNSSSchema>
 
   // Create session record
   const sessionRes = await db.query(

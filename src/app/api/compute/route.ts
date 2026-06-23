@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server'
 import { apiHandler, ValidationError, NotFoundError } from '@/lib/api/handler'
 import { z } from 'zod'
-
-const computeRequestSchema = z.object({
-  task: z.enum(['volume', 'tin', 'contours', 'raster_analysis', 'seabed', 'export_dxf', 'export_geojson']),
-  payload: z.unknown().optional(),
-})
+import { ComputeRequestSchema } from '@/lib/validation/apiSchemas'
 
 const TINPointSchema = z.object({ id: z.string(), x: z.number(), y: z.number(), z: z.number() })
 const TINPayloadSchema = z.object({
@@ -42,7 +38,7 @@ const volumeSurfaceSchema = z.object({
 
 export const POST = apiHandler({
   requireAuth: true,
-  schema: computeRequestSchema,
+  schema: ComputeRequestSchema,
   rateLimit: { max: 50, windowMs: 60000 },
   handler: async (ctx) => {
     const { task, payload } = ctx.input

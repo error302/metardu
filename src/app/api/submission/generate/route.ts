@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
+import { GenerateSubmissionSchema } from '@/lib/validation/apiSchemas'
 
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const { projectId, documentId } = ctx.body as { projectId?: string; documentId?: string }
-
-  if (!projectId || !documentId) {
-    return NextResponse.json({ error: 'Missing projectId or documentId' }, { status: 400 })
-  }
+export const POST = apiHandler({ auth: true, schema: GenerateSubmissionSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const { projectId, documentId } = ctx.body as z.infer<typeof GenerateSubmissionSchema>
 
   const { rows } = await db.query(
     'SELECT id, survey_type FROM projects WHERE id = $1 AND user_id = $2 LIMIT 1',

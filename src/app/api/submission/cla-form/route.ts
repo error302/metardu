@@ -10,6 +10,7 @@
  */
 
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import {
   CLA_FORMS,
@@ -18,6 +19,7 @@ import {
   isValidClaFormNumber,
   type ClaFormNumber,
 } from '@/lib/submission/generators/claForms';
+import { GenerateCLAFormSchema } from '@/lib/validation/apiSchemas'
 
 export const dynamic = 'force-dynamic';
 
@@ -58,34 +60,17 @@ export const GET = apiHandler({ auth: false, rateLimit: { max: 20, windowMs: 600
  * - `Content-Disposition: attachment; filename="CLA-Form-{N}.pdf"`
  * - Body: PDF bytes
  */
-export const POST = apiHandler({ auth: true, audit: 'cla_form_generated' }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, schema: GenerateCLAFormSchema, audit: 'cla_form_generated' }, async (req, ctx) => {
   const userId = ctx.userId
 
-  const body = ctx.body as {
-    formNumber: number;
-    formData: Record<string, unknown>;
-    projectId?: string;
-  } | null
-
-  if (!body) {
-    return NextResponse.json({ error: 'Missing request body.' }, { status: 400 })
-  }
-
-  const { formNumber, formData, projectId } = body
+  const { formNumber, formData, projectId } = ctx.body as z.infer<typeof GenerateCLAFormSchema>
 
   // Validate form number
-  if (!formNumber || !isValidClaFormNumber(formNumber)) {
+  if (!isValidClaFormNumber(formNumber)) {
     return NextResponse.json(
       {
         error: `Invalid form number: ${formNumber}. Supported: ${CLA_FORMS.map((f) => f.formNumber).join(', ')}`,
       },
-      { status: 400 },
-    );
-  }
-
-  if (!formData || typeof formData !== 'object' || Object.keys(formData).length === 0) {
-    return NextResponse.json(
-      { error: 'Missing required field: formData (object with form fields).' },
       { status: 400 },
     );
   }

@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { searchBenchmarks, getBenchmarkById, getAvailableCountries, getBenchmarkTypes } from '@/lib/online/benchmarks'
+import { SearchBenchmarksSchema } from '@/lib/validation/apiSchemas'
 
 export async function POST(request: NextRequest) {
   const { error: authError } = await requireAuth()
   if (authError) return authError
 
   try {
-    const body = await request.json()
-    const { country, region, type, radiusKm, latitude, longitude } = body
+    const rawBody = await request.json()
+
+    const parsed = SearchBenchmarksSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', issues: parsed.error.issues },
+        { status: 400 }
+      )
+    }
+
+    const { country, region, type, radiusKm, latitude, longitude } = parsed.data
 
     const result = await searchBenchmarks({
       country,

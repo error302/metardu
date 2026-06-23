@@ -1,28 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import { db, setRlsContext } from '@/lib/db'
+import { SaveEarthworksSchema } from '@/lib/validation/apiSchemas'
 
 // POST: Save computed earthworks results for an alignment
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const { alignment_id, method, results } = ctx.body as {
-    alignment_id: string
-    method: string
-    results: {
-      chainage: number
-      cut_area: number
-      fill_area: number
-      cut_volume: number
-      fill_volume: number
-      cumulative_cut: number
-      cumulative_fill: number
-      net_volume: number
-      mass_ordinate: number
-    }[]
-  }
-
-  if (!alignment_id || !method || !results || !Array.isArray(results)) {
-    return NextResponse.json({ error: 'Missing required fields: alignment_id, method, results' }, { status: 400 })
-  }
+export const POST = apiHandler({ auth: true, schema: SaveEarthworksSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const { alignment_id, method, results } = ctx.body as z.infer<typeof SaveEarthworksSchema>
 
   const client = await db.getClient()
 

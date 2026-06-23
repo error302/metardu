@@ -32,7 +32,7 @@ interface HotkeyOptions {
   disabled?: boolean;
 }
 
-interface HotkeyRegistration {
+export interface HotkeyRegistration {
   keys: string;
   description: string;
 }

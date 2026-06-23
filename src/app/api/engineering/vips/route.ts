@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import { db, setRlsContext } from '@/lib/db'
+import { SaveVIPsSchema } from '@/lib/validation/apiSchemas'
 
 // POST: Save vertical intersection points for an alignment (upsert by chainage)
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const { alignment_id, vips } = ctx.body as {
-    alignment_id: string
-    vips: {
-      chainage: number
-      reduced_level: number
-      k_value?: number
-    }[]
-  }
-
-  if (!alignment_id || !vips || !Array.isArray(vips)) {
-    return NextResponse.json({ error: 'Missing required fields: alignment_id, vips' }, { status: 400 })
-  }
+export const POST = apiHandler({ auth: true, schema: SaveVIPsSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const { alignment_id, vips } = ctx.body as z.infer<typeof SaveVIPsSchema>
 
   const client = await db.getClient()
 

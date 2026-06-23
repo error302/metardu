@@ -1,23 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { CreateAlignmentSchema } from '@/lib/validation/apiSchemas'
 
 // POST: Save full road alignment for a project (upsert on project_id)
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const body = ctx.body as {
-    project_id: string
-    road_name: string
-    start_chainage: number
-    datum: string
-    coordinate_system: string
-    design_speed: number
-    road_class: string
-    terrain_type?: string
-    standard?: string
-    cross_section_template: Record<string, unknown>
-    road_reserve_width?: number
-  }
-
+export const POST = apiHandler({ auth: true, schema: CreateAlignmentSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const {
     project_id,
     road_name,
@@ -30,11 +18,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     standard,
     cross_section_template,
     road_reserve_width,
-  } = body
-
-  if (!project_id || !road_name) {
-    return NextResponse.json({ error: 'Missing required fields: project_id, road_name' }, { status: 400 })
-  }
+  } = ctx.body as z.infer<typeof CreateAlignmentSchema>
 
   const { rows } = await db.query(
     `INSERT INTO road_alignments (

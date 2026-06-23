@@ -6,18 +6,29 @@
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { z } from 'zod'
+
+const DiffQuerySchema = z.object({
+  compare_with: z.coerce.number().int().min(1, 'compare_with must be a positive version number'),
+})
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
   const { searchParams } = new URL(req.url)
-  const compareWith = searchParams.get('compare_with') // version number to compare against
 
-  if (!compareWith) {
+  // Validate query params via Zod
+  const parsed = DiffQuerySchema.safeParse({
+    compare_with: searchParams.get('compare_with'),
+  })
+
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: 'compare_with query parameter (version number) is required', code: 'VALIDATION_ERROR' },
+      { error: 'Validation failed', code: 'VALIDATION_ERROR', issues: parsed.error.issues },
       { status: 400 }
     )
   }
+
+  const { compare_with } = parsed.data
 
   // Get the target version
   const { rows: targetRows } = await db.query(
@@ -38,12 +49,12 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   const { rows: compareRows } = await db.query(
     `SELECT * FROM entity_versions
      WHERE entity_type = $1 AND entity_id = $2 AND version = $3`,
-    [target.entity_type, target.entity_id, parseInt(compareWith)]
+    [target.entity_type, target.entity_id, compare_with]
   )
 
   if (compareRows.length === 0) {
     return NextResponse.json(
-      { error: `Version ${compareWith} not found for this entity`, code: 'NOT_FOUND' },
+      { error: `Version ${compare_with} not found for this entity`, code: 'NOT_FOUND' },
       { status: 404 }
     )
   }

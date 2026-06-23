@@ -9,14 +9,19 @@
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { z } from 'zod'
 
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const { id } = ctx.params
+const RestoreSchema = z.object({
+  version_id: z.string().uuid('version_id must be a valid UUID'),
+})
+
+export const POST = apiHandler({ auth: true, schema: RestoreSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const { version_id } = ctx.body as z.infer<typeof RestoreSchema>
 
   // Get the version to restore
   const { rows: versionRows } = await db.query(
     `SELECT * FROM entity_versions WHERE id = $1`,
-    [id]
+    [version_id]
   )
 
   if (versionRows.length === 0) {
@@ -31,7 +36,15 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   const { entity_type, entity_id } = version
 
   // Whitelist of tables that can be restored
-  const RESTORABLE_TABLES = new Set(['parcels', 'blocks', 'projects', 'traverse_results'])
+  const RESTORABLE_TABLES = new Set([
+    'parcels',
+    'blocks',
+    'projects',
+    'traverse_results',
+    'traverse_observations',
+    'project_fieldbook_entries',
+    'survey_points',
+  ])
   if (!RESTORABLE_TABLES.has(entity_type)) {
     return NextResponse.json(
       { error: `Cannot restore entity type: ${entity_type}`, code: 'FORBIDDEN' },

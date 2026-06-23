@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
 import { generateDeedPlan } from '@/lib/generators/deedPlan'
 import JSZip from 'jszip'
+import { BatchDeedPlanSchema } from '@/lib/validation/apiSchemas'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,14 +20,9 @@ export const dynamic = 'force-dynamic'
  * No more generating each parcel's deed plan one by one.
  */
 export const POST = apiHandler(
-  { auth: true, rateLimit: { max: 5, windowMs: 60000 } },
+  { auth: true, schema: BatchDeedPlanSchema, rateLimit: { max: 5, windowMs: 60000 } },
   async (req, ctx) => {
-    const body = await req.json()
-    const { projectId } = body as { projectId: string }
-
-    if (!projectId) {
-      return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
-    }
+    const { projectId } = ctx.body as z.infer<typeof BatchDeedPlanSchema>
 
     // Verify project belongs to user
     const projectCheck = await db.query(

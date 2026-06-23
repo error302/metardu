@@ -37,13 +37,11 @@ const nextConfig = {
 
   // ─── Linting & TypeScript ───
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true,  // ESLint still has ~1300 any warnings; run via CI separately
   },
   typescript: {
-    ignoreBuildErrors: true,
-    // Type checking is done in CI (GitHub Actions typecheck job) — skipping here
-    // saves ~8 minutes and 2GB RAM on the VM during docker build.
-    // CI catches type errors before merge; deploy only runs on passing main.
+    ignoreBuildErrors: false,  // R4: Strict builds — tsc --noEmit passes clean
+    // Type errors are now caught at build time, not just in CI.
   },
 
   // ─── Performance settings ───
@@ -189,7 +187,7 @@ const nextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(self)' },
           ...(isProd ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }] : []),
           {
             key: 'Content-Security-Policy',

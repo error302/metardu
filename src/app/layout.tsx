@@ -7,6 +7,7 @@ import { ProjectionInit } from '@/components/layout/ProjectionInit'
 import AppShell from '@/components/layout/AppShell'
 import QueryProvider from '@/lib/api/QueryProvider'
 import { getPublicAppUrl } from '@/lib/site'
+import { WebVitals } from './web-vitals'
 
 const publicAppUrl = getPublicAppUrl()
 
@@ -124,6 +125,7 @@ export default function RootLayout({
         </a>
         <AuthProvider>
           <QueryProvider>
+            <WebVitals />
             <AppShell>
               {children}
             </AppShell>

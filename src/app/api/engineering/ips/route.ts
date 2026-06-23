@@ -1,23 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import { db, setRlsContext } from '@/lib/db'
+import { SaveIPsSchema } from '@/lib/validation/apiSchemas'
 
 // POST: Save intersection points (horizontal alignment) for an alignment
 // Replaces all existing IPs for the alignment with the new set
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const { alignment_id, ips } = ctx.body as {
-    alignment_id: string
-    ips: {
-      name: string
-      easting: number
-      northing: number
-      radius: number
-    }[]
-  }
-
-  if (!alignment_id || !ips || !Array.isArray(ips)) {
-    return NextResponse.json({ error: 'Missing required fields: alignment_id, ips' }, { status: 400 })
-  }
+export const POST = apiHandler({ auth: true, schema: SaveIPsSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const { alignment_id, ips } = ctx.body as z.infer<typeof SaveIPsSchema>
 
   const client = await db.getClient()
 

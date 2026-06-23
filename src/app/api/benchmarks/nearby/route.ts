@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
+import { NearbyBenchmarksSchema } from '@/lib/validation/apiSchemas'
 import db from '@/lib/db'
 
 interface BenchmarkRow {
@@ -39,21 +40,21 @@ export async function GET(request: NextRequest) {
   if (authError) return authError
 
   const { searchParams } = new URL(request.url)
-  const lat = searchParams.get('lat')
-  const lon = searchParams.get('lon')
-  const radius = parseFloat(searchParams.get('radius') || '10')
-  const limit = parseInt(searchParams.get('limit') || '10')
+  const parsed = NearbyBenchmarksSchema.safeParse({
+    lat: searchParams.get('lat'),
+    lon: searchParams.get('lon'),
+    radius: searchParams.get('radius') || '10',
+    limit: searchParams.get('limit') || '10',
+  })
 
-  if (!lat || !lon) {
-    return NextResponse.json({ error: 'lat and lon required' }, { status: 400 })
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Validation failed', issues: parsed.error.issues },
+      { status: 400 }
+    )
   }
 
-  const latitude = parseFloat(lat)
-  const longitude = parseFloat(lon)
-
-  if (isNaN(latitude) || isNaN(longitude)) {
-    return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 })
-  }
+  const { lat: latitude, lon: longitude, radius, limit } = parsed.data
 
   try {
     let rows: BenchmarkRow[]

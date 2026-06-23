@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import { db, setRlsContext } from '@/lib/db'
+import { SaveStationsSchema } from '@/lib/validation/apiSchemas'
 
 // POST: Save cross-section station data (bulk upsert)
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const { alignment_id, stations } = ctx.body as {
-    alignment_id: string
-    stations: {
-      chainage: number
-      ground_level: number
-    }[]
-  }
-
-  if (!alignment_id || !stations || !Array.isArray(stations)) {
-    return NextResponse.json({ error: 'Missing required fields: alignment_id, stations' }, { status: 400 })
-  }
+export const POST = apiHandler({ auth: true, schema: SaveStationsSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const { alignment_id, stations } = ctx.body as z.infer<typeof SaveStationsSchema>
 
   const client = await db.getClient()
 

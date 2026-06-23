@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { isAdmin } from '@/lib/auth/rbac'
-import { z } from 'zod'
+import { UpdateSchemeStatusSchema } from '@/lib/validation/apiSchemas'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,12 +21,6 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   review: ['approved', 'in_progress'],
   approved: [], // Terminal — only DBA can reopen
 }
-
-const statusSchema = z.object({
-  project_id: z.string().min(1),
-  new_status: z.enum(['planning', 'in_progress', 'review', 'approved']),
-  reason: z.string().max(500).optional(),
-})
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { searchParams } = new URL(req.url)
@@ -55,7 +50,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   })
 })
 
-export const POST = apiHandler({ auth: true, schema: statusSchema }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, schema: UpdateSchemeStatusSchema }, async (req, ctx) => {
   const userRole = (ctx.session!.user as { role?: string }).role || 'surveyor'
 
   // Only admins can change scheme status
@@ -63,7 +58,7 @@ export const POST = apiHandler({ auth: true, schema: statusSchema }, async (req,
     return NextResponse.json({ error: 'Only admins can change scheme status' }, { status: 403 })
   }
 
-  const { project_id, new_status, reason } = ctx.body as z.infer<typeof statusSchema>
+  const { project_id, new_status, reason } = ctx.body as z.infer<typeof UpdateSchemeStatusSchema>
 
   // Get current status
   const { rows: current } = await db.query(
