@@ -17,6 +17,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { X, Check, MapPin, Ruler, Compass, Mountain, Waves, Pickaxe, Bluetooth, RefreshCw } from 'lucide-react'
 import { BeaconPhotoCapture, type CapturedBeaconPhoto } from './BeaconPhotoCapture'
+import { VoiceDictationButton } from '@/components/shared/VoiceDictationButton'
 
 export type MobileSurveyType = 'leveling' | 'traverse' | 'control' | 'hydrographic' | 'mining'
 
@@ -253,18 +254,26 @@ export function UniversalMobileObservationForm({
                 {field.label}
                 {field.required && <span className="text-[var(--accent)] ml-1">*</span>}
               </label>
-              <input
-                type={field.inputMode === 'decimal' || field.inputMode === 'numeric' ? 'number' : 'text'}
-                inputMode={field.inputMode}
-                step={field.step}
-                value={form[field.key]}
-                onChange={(e) => handleChange(field.key, e.target.value, field)}
-                className={inputClass}
-                placeholder={field.placeholder}
-                autoFocus={field === fields[0]}
-                autoComplete="off"
-                autoCapitalize={field.station ? 'characters' : 'off'}
-              />
+              <div className={field.key === 'remarks' ? 'flex items-start gap-2' : undefined}>
+                <input
+                  type={field.inputMode === 'decimal' || field.inputMode === 'numeric' ? 'number' : 'text'}
+                  inputMode={field.inputMode}
+                  step={field.step}
+                  value={form[field.key]}
+                  onChange={(e) => handleChange(field.key, e.target.value, field)}
+                  className={field.key === 'remarks' ? inputClass + ' flex-1 min-w-0' : inputClass}
+                  placeholder={field.placeholder}
+                  autoFocus={field === fields[0]}
+                  autoComplete="off"
+                  autoCapitalize={field.station ? 'characters' : 'off'}
+                />
+                {field.key === 'remarks' && (
+                  <VoiceDictationButton
+                    value={form[field.key]}
+                    onChange={(v) => handleChange(field.key, v, field)}
+                  />
+                )}
+              </div>
             </div>
           ))}
 

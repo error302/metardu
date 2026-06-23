@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { apiHandler } from '@/lib/apiHandler'
+import { NextResponse } from 'next/server'
+import { apiHandler, AppError } from '@/lib/api/handler'
 import db from '@/lib/db'
 import { z } from 'zod'
 
@@ -22,57 +22,65 @@ const createProjectSchema = z.object({
   adjudication_section: z.string().optional(),
 })
 
-export const POST = apiHandler({ auth: true, schema: createProjectSchema }, async (req, ctx) => {
-  const validated = ctx.body as z.infer<typeof createProjectSchema>
+export const POST = apiHandler({
+  requireAuth: true,
+  schema: createProjectSchema,
+  handler: async (ctx) => {
+    const validated = ctx.input
 
-  const projectResult = await db.query(
-    `INSERT INTO projects (user_id, name, survey_type, location, utm_zone, hemisphere,
-      project_type, client_name, surveyor_name, country, datum, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
-     RETURNING id, name, survey_type, location, utm_zone, hemisphere, project_type, created_at`,
-    [
-      ctx.userId, validated.name, validated.survey_type, validated.location,
-      validated.utm_zone, validated.hemisphere, validated.project_type,
-      validated.client_name ?? null, validated.surveyor_name ?? null,
-      validated.country ?? null, validated.datum ?? null,
-    ]
-  )
+    const projectResult = await db.query(
+      `INSERT INTO projects (user_id, name, survey_type, location, utm_zone, hemisphere,
+        project_type, client_name, surveyor_name, country, datum, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
+       RETURNING id, name, survey_type, location, utm_zone, hemisphere, project_type, created_at`,
+      [
+        ctx.userId, validated.name, validated.survey_type, validated.location,
+        validated.utm_zone, validated.hemisphere, validated.project_type,
+        validated.client_name ?? null, validated.surveyor_name ?? null,
+        validated.country ?? null, validated.datum ?? null,
+      ]
+    )
 
-  if (projectResult.rows.length === 0) {
-    return NextResponse.json({ error: 'Failed to create project' }, { status: 500 })
-  }
-
-  const project = projectResult.rows[0] as Record<string, unknown>
-
-  if (validated.project_type === 'scheme') {
-    try {
-      await db.query(
-        `INSERT INTO scheme_details (project_id, scheme_number, county, sub_county, ward,
-          planned_parcels, adjudication_section)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [
-          project.id, validated.scheme_number ?? null, validated.county ?? null,
-          validated.sub_county ?? null, validated.ward ?? null,
-          validated.planned_parcels ?? 0, validated.adjudication_section ?? null,
-        ]
-      )
-    } catch (schemeErr) {
-      await db.query('DELETE FROM projects WHERE id = $1', [project.id])
-      console.error('scheme_details insert failed:', schemeErr)
-      return NextResponse.json({ error: 'Failed to create scheme details' }, { status: 500 })
+    if (projectResult.rows.length === 0) {
+      throw new AppError('Failed to create project', 500, 'PROJECT_CREATE_FAILED')
     }
-  }
 
-  return NextResponse.json({ data: project }, { status: 201 })
+    const project = projectResult.rows[0] as Record<string, unknown>
+
+    if (validated.project_type === 'scheme') {
+      try {
+        await db.query(
+          `INSERT INTO scheme_details (project_id, scheme_number, county, sub_county, ward,
+            planned_parcels, adjudication_section)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [
+            project.id, validated.scheme_number ?? null, validated.county ?? null,
+            validated.sub_county ?? null, validated.ward ?? null,
+            validated.planned_parcels ?? 0, validated.adjudication_section ?? null,
+          ]
+        )
+      } catch (schemeErr) {
+        await db.query('DELETE FROM projects WHERE id = $1', [project.id])
+        console.error('scheme_details insert failed:', schemeErr)
+        throw new AppError('Failed to create scheme details', 500, 'SCHEME_CREATE_FAILED')
+      }
+    }
+
+    return NextResponse.json({ data: project }, { status: 201 })
+  },
 })
 
-export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const result = await db.query(
-    `SELECT id, name, survey_type, location, utm_zone, hemisphere, project_type,
-            client_name, surveyor_name, country, datum, created_at
-     FROM projects WHERE user_id = $1 ORDER BY created_at DESC`,
-    [ctx.userId]
-  )
+export const GET = apiHandler({
+  requireAuth: true,
+  rateLimit: { max: 60, windowMs: 60000 },
+  handler: async (ctx) => {
+    const result = await db.query(
+      `SELECT id, name, survey_type, location, utm_zone, hemisphere, project_type,
+              client_name, surveyor_name, country, datum, created_at
+       FROM projects WHERE user_id = $1 ORDER BY created_at DESC`,
+      [ctx.userId]
+    )
 
-  return NextResponse.json({ data: result.rows })
+    return NextResponse.json({ data: result.rows })
+  },
 })

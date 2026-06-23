@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { setCurrentUserId } from '@/lib/db'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import { z } from 'zod'
 
 import { generateDXF } from '@/lib/export/generateDXF'
@@ -31,12 +29,8 @@ const requestSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+  const { error } = await requireAuth()
+  if (error) return error
 
   const body = await request.json().catch(() => null)
   const parsed = requestSchema.safeParse(body)
@@ -67,10 +61,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
+  const { error } = await requireAuth()
+  if (error) return error
 
   return NextResponse.json({
     endpoint: '/api/compute/export/dxf',

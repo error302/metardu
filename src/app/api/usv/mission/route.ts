@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { setCurrentUserId } from '@/lib/db'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import { callPythonCompute } from '@/lib/compute/pythonService'
 import type { CreateMissionRequest } from '@/types/usv'
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+  const { error } = await requireAuth()
+  if (error) return error
 
   try {
     const body: CreateMissionRequest = await request.json()

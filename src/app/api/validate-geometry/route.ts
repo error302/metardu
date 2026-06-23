@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { setCurrentUserId } from '@/lib/db'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import { z } from 'zod'
 
 // Source: RDM 1.3 Kenya August 2023
@@ -37,12 +35,8 @@ const schema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+  const { error } = await requireAuth()
+  if (error) return error
 
   const body = await request.json().catch(() => null)
   const parsed = schema.safeParse(body)

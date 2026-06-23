@@ -1,19 +1,33 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Camera, Check } from 'lucide-react';
+/**
+ * QuickAddModal — Legacy quick-add for traverse observations (polar only).
+ *
+ * Now properly integrated with BeaconPhotoCapture for evidence-chain
+ * photo capture with EXIF GPS extraction. Photos are embedded into
+ * the observation's remarks field for legal traceability.
+ *
+ * For multi-survey-type entry, use UniversalMobileObservationForm instead.
+ */
+
+import { useState, useEffect } from 'react';
+import { X, Check } from 'lucide-react';
+import { BeaconPhotoCapture, type CapturedBeaconPhoto, revokeCapturedPhotos } from './BeaconPhotoCapture';
+import { VoiceDictationButton } from '@/components/shared/VoiceDictationButton';
+
+export interface QuickAddObservation {
+  station_from: string;
+  station_to: string;
+  horizontal_angle: number;
+  vertical_angle: number;
+  slope_distance: number;
+  target_height: number;
+  instrument_height: number;
+  remarks: string;
+}
 
 interface QuickAddModalProps {
-  onAdd: (obs: {
-    station_from: string;
-    station_to: string;
-    horizontal_angle: number;
-    vertical_angle: number;
-    slope_distance: number;
-    target_height: number;
-    instrument_height: number;
-    remarks: string;
-  }) => void;
+  onAdd: (obs: QuickAddObservation, photos: CapturedBeaconPhoto[]) => void;
   onClose: () => void;
 }
 
@@ -30,37 +44,61 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
   });
 
   const [saving, setSaving] = useState(false);
+  const [photos, setPhotos] = useState<CapturedBeaconPhoto[]>([]);
+
+  // Revoke object URLs on unmount
+  useEffect(() => {
+    return () => { revokeCapturedPhotos(photos); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Build a remarks string that includes photo GPS evidence markers. */
+  const buildRemarks = (): string => {
+    let remarks = form.remarks;
+    const gpsPhotos = photos.filter(p => p.exif);
+    if (gpsPhotos.length > 0) {
+      const markers = gpsPhotos.map((p, i) => {
+        const caption = p.caption ? ` "${p.caption}"` : '';
+        return `[photo${i + 1} @${p.exif!.latitude.toFixed(6)},${p.exif!.longitude.toFixed(6)}${caption}]`;
+      });
+      remarks = remarks ? `${remarks} ${markers.join(' ')}` : markers.join(' ');
+    }
+    return remarks;
+  };
 
   const handleSubmit = async () => {
     if (!form.station_from || !form.station_to || !form.slope_distance) return;
-    
+
     setSaving(true);
-    
+
     try {
-      await onAdd({
-        station_from: form.station_from.toUpperCase(),
-        station_to: form.station_to.toUpperCase(),
-        horizontal_angle: parseFloat(form.horizontal_angle) || 0,
-        vertical_angle: parseFloat(form.vertical_angle) || 90,
-        slope_distance: parseFloat(form.slope_distance) || 0,
-        target_height: parseFloat(form.target_height) || 1.5,
-        instrument_height: parseFloat(form.instrument_height) || 1.5,
-        remarks: form.remarks,
-      });
+      await onAdd(
+        {
+          station_from: form.station_from.toUpperCase(),
+          station_to: form.station_to.toUpperCase(),
+          horizontal_angle: parseFloat(form.horizontal_angle) || 0,
+          vertical_angle: parseFloat(form.vertical_angle) || 90,
+          slope_distance: parseFloat(form.slope_distance) || 0,
+          target_height: parseFloat(form.target_height) || 1.5,
+          instrument_height: parseFloat(form.instrument_height) || 1.5,
+          remarks: buildRemarks(),
+        },
+        photos,
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const inputClass = "w-full p-4 text-xl border rounded-lg touch-manipulation";
-  const labelClass = "block text-sm font-medium mb-1";
+  const inputClass = 'w-full p-4 text-xl border rounded-lg touch-manipulation';
+  const labelClass = 'block text-sm font-medium mb-1';
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
       <div className="w-full bg-white rounded-t-2xl max-h-[95vh] overflow-auto flex flex-col">
         <div className="sticky top-0 bg-white border-b px-4 py-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">New Observation</h2>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100"
           >
@@ -156,22 +194,26 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
 
           <div>
             <label className={labelClass}>Remarks</label>
-            <div className="flex gap-2">
+            <div className="flex items-start gap-2">
               <input
                 type="text"
                 value={form.remarks}
                 onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-                className={`${inputClass} flex-1`}
+                className={inputClass + ' flex-1 min-w-0'}
                 placeholder="Concrete beacon, flush"
               />
-
+              <VoiceDictationButton
+                value={form.remarks}
+                onChange={(v) => setForm({ ...form, remarks: v })}
+              />
             </div>
           </div>
 
-          <button className="w-full p-4 border rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50">
-            <Camera className="w-5 h-5" />
-            <span>Attach Beacon Photo</span>
-          </button>
+          {/* ─── Beacon photo capture with EXIF GPS ─── */}
+          <div className="pt-2 border-t">
+            <label className={labelClass}>Beacon / Site Photos</label>
+            <BeaconPhotoCapture photos={photos} onChange={setPhotos} maxPhotos={4} />
+          </div>
         </div>
 
         <div className="sticky bottom-0 p-4 bg-white border-t">

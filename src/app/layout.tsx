@@ -5,6 +5,7 @@ import './globals.css'
 import AuthProvider from '@/components/AuthProvider'
 import { ProjectionInit } from '@/components/layout/ProjectionInit'
 import AppShell from '@/components/layout/AppShell'
+import QueryProvider from '@/lib/api/QueryProvider'
 import { getPublicAppUrl } from '@/lib/site'
 
 const publicAppUrl = getPublicAppUrl()
@@ -122,9 +123,11 @@ export default function RootLayout({
           Skip to content
         </a>
         <AuthProvider>
-          <AppShell>
-            {children}
-          </AppShell>
+          <QueryProvider>
+            <AppShell>
+              {children}
+            </AppShell>
+          </QueryProvider>
         </AuthProvider>
       </body>
     </html>

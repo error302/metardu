@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth/requireAuth'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,8 +9,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { error } = await requireAuth()
+    if (error) return error
 
     const body = await req.json()
     const { id: projectId } = params
@@ -48,8 +47,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { error } = await requireAuth()
+    if (error) return error
 
     const res = await db.query(
       'SELECT * FROM hydro_surveys WHERE project_id = $1',

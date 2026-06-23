@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
 import { getAuthUser } from '@/lib/auth/session'
+import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
+import { z } from 'zod'
 
 /**
  * DELETE /api/projects/[id]
@@ -37,6 +39,95 @@ const UNIQUE_TABLES = [
   'bathymetric_surveys', 'benchmarks', 'deed_plans', 'field_books',
   'gnss_sessions', 'leveling_runs', 'mine_twins', 'survey_reports',
 ]
+
+/**
+ * PATCH /api/projects/[id]
+ *
+ * Update a project's mutable fields with optimistic locking.
+ * Frontend MUST send `updated_at` in the request body — the value should be
+ * the `updated_at` timestamp from the most recent GET/fetch of this project.
+ * If the DB row's `updated_at` differs (another surveyor edited it), returns 409.
+ */
+const patchProjectSchema = z.object({
+  name: z.string().min(1).optional(),
+  survey_type: z.string().optional(),
+  client_name: z.string().nullable().optional(),
+  location: z.string().nullable().optional(),
+  lr_number: z.string().nullable().optional(),
+  utm_zone: z.number().int().min(1).max(60).optional(),
+  hemisphere: z.enum(['N', 'S']).optional(),
+  datum: z.string().optional(),
+  area_ha: z.number().nullable().optional(),
+  status: z.enum(['active', 'draft', 'review', 'LOCKED']).optional(),
+  // Optimistic locking: frontend must send the updated_at value it last read
+  updated_at: z.string(),
+})
+
+export const PATCH = apiHandler(
+  { auth: true, optimisticLock: true, schema: patchProjectSchema },
+  async (_req, ctx) => {
+    const { id } = ctx.params
+    const body = ctx.body as z.infer<typeof patchProjectSchema>
+
+    // Fetch current row for ownership check + optimistic lock
+    const { rows } = await db.query(
+      'SELECT id, user_id, updated_at FROM projects WHERE id = $1',
+      [id]
+    )
+
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Project not found', code: 'NOT_FOUND' }, { status: 404 })
+    }
+
+    if (rows[0].user_id !== ctx.userId) {
+      return NextResponse.json({ error: 'Forbidden — you do not own this project', code: 'FORBIDDEN' }, { status: 403 })
+    }
+
+    // Optimistic lock check
+    const conflict = checkOptimisticLock(body as unknown as Record<string, unknown>, rows[0])
+    if (conflict) return conflict
+
+    // Build dynamic UPDATE — only SET fields that were provided
+    const fields: string[] = []
+    const values: unknown[] = []
+    let paramIdx = 1
+
+    const allowedFields: Record<string, string> = {
+      name: 'name',
+      survey_type: 'survey_type',
+      client_name: 'client_name',
+      location: 'location',
+      lr_number: 'lr_number',
+      utm_zone: 'utm_zone',
+      hemisphere: 'hemisphere',
+      datum: 'datum',
+      area_ha: 'area_ha',
+      status: 'status',
+    }
+
+    for (const [bodyKey, colName] of Object.entries(allowedFields)) {
+      if (bodyKey in body && body[bodyKey as keyof typeof body] !== undefined) {
+        fields.push(`${colName} = $${paramIdx++}`)
+        values.push(body[bodyKey as keyof typeof body])
+      }
+    }
+
+    if (fields.length === 0) {
+      return NextResponse.json({ error: 'No fields to update', code: 'NO_FIELDS' }, { status: 400 })
+    }
+
+    // Always bump updated_at
+    fields.push(`updated_at = NOW()`)
+    values.push(id)
+
+    const result = await db.query(
+      `UPDATE projects SET ${fields.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      values
+    )
+
+    return NextResponse.json({ data: result.rows[0] })
+  }
+)
 
 export async function DELETE(
   _request: NextRequest,

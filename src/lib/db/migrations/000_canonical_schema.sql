@@ -27,15 +27,18 @@ $$ LANGUAGE plpgsql;
 
 -- Users — the root identity table (self-hosted NextAuth, NOT auth.users)
 CREATE TABLE IF NOT EXISTS users (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email         VARCHAR(255) UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  full_name     VARCHAR(255),
-  isk_number    VARCHAR(50),
-  verified_isk  BOOLEAN DEFAULT FALSE,
-  role          VARCHAR(50) DEFAULT 'user',
-  created_at    TIMESTAMPTZ DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ DEFAULT NOW()
+  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email              VARCHAR(255) UNIQUE NOT NULL,
+  password_hash      TEXT NOT NULL,
+  full_name          VARCHAR(255),
+  isk_number         VARCHAR(50),
+  verified_isk       BOOLEAN DEFAULT FALSE,
+  role               VARCHAR(50) DEFAULT 'user',
+  provider           VARCHAR(50) DEFAULT 'credentials',
+  oauth_provider_id  VARCHAR(255),
+  oauth_avatar_url   TEXT,
+  created_at         TIMESTAMPTZ DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Profiles — 1:1 extension of users

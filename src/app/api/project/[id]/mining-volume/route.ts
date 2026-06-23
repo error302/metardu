@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth/requireAuth'
 
 export async function POST(
   request: NextRequest,
@@ -9,8 +8,8 @@ export async function POST(
 ) {
   try {
     const { id: projectId } = await params
-    const session = await getServerSession(authOptions)
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { error } = await requireAuth()
+    if (error) return error
 
     const body = await request.json()
     const { method, sections, gridPoints, materialDensity, materialType, designElevation, gridSpacing } = body
@@ -61,8 +60,8 @@ export async function GET(
 ) {
   try {
     const { id: projectId } = await params
-    const session = await getServerSession(authOptions)
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { error } = await requireAuth()
+    if (error) return error
 
     const res = await db.query(
       'SELECT * FROM mining_surveys WHERE project_id = $1 ORDER BY created_at DESC',

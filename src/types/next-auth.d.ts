@@ -6,9 +6,11 @@ declare module 'next-auth' {
     id: string
     email: string
     name?: string | null
+    image?: string | null
     isk_number?: string
     verified_isk?: boolean
     role?: string
+    provider?: string
   }
 
   interface Session {
@@ -20,6 +22,7 @@ declare module 'next-auth' {
       isk_number?: string
       verified_isk?: boolean
       role?: string
+      provider?: string
     }
   }
 }
@@ -30,6 +33,6 @@ declare module 'next-auth/jwt' {
     isk_number?: string
     verified_isk?: boolean
     role?: string
+    provider?: string
   }
 }
-

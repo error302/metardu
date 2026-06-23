@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import { searchBenchmarks, getBenchmarkById, getAvailableCountries, getBenchmarkTypes } from '@/lib/online/benchmarks'
 
 export async function POST(request: NextRequest) {
+  const { error: authError } = await requireAuth()
+  if (authError) return authError
+
   try {
     const body = await request.json()
     const { country, region, type, radiusKm, latitude, longitude } = body
@@ -25,6 +29,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const { error: authError } = await requireAuth()
+  if (authError) return authError
+
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
   const countries = searchParams.get('countries')

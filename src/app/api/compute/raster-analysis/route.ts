@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { setCurrentUserId } from '@/lib/db'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import { computeRasterAnalysis, validateRasterRequest } from '@/lib/compute/rasterAnalysis'
 import { callPythonCompute } from '@/lib/compute/pythonService'
 import { apiSuccess, apiError } from '@/lib/api/response'
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+  const { session, error } = await requireAuth()
+  if (error) return error
 
   const body = await request.json().catch(() => null)
 
@@ -47,10 +41,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
+  const { error } = await requireAuth()
+  if (error) return error
 
   return NextResponse.json(apiSuccess({
     endpoint: '/api/compute/raster-analysis',

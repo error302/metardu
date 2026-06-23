@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { setCurrentUserId } from '@/lib/db'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import db from '@/lib/db'
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile'
 import { generateSubmissionRef } from '@/lib/submission/revisionNumber'
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+  const { session, error } = await requireAuth()
+  if (error) return error
 
   try {
     const projectId = req.nextUrl.searchParams.get('projectId')

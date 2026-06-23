@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { setCurrentUserId, db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth/requireAuth'
+import { db } from '@/lib/db'
 import { z } from 'zod'
 
 import { generateGeoJSON, type SurveyPoint } from '@/lib/export/generateGeoJSON'
@@ -28,12 +27,8 @@ const projectIdSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+  const { error } = await requireAuth()
+  if (error) return error
 
   const body = await request.json().catch(() => null)
 
@@ -119,10 +114,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
+  const { error } = await requireAuth()
+  if (error) return error
 
   return NextResponse.json({
     endpoint: '/api/compute/export/geojson',

@@ -6,21 +6,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { setCurrentUserId } from '@/lib/db';
+import { requireAuth } from '@/lib/auth/requireAuth';
 import { CLA_FORM_REGISTRY } from '@/lib/legal/claForms';
 
 export const dynamic = 'force-dynamic';
 
 /** GET: Return list of available CLA forms */
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+  const { error } = await requireAuth()
+  if (error) return error
 
   const forms = Object.entries(CLA_FORM_REGISTRY).map(([key, value]) => ({
     formType: key,
@@ -36,12 +30,8 @@ export async function GET() {
 
 /** POST: Generate a CLA form PDF */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
-  }
-  const userId = (session.user as any).id
-  if (userId) setCurrentUserId(String(userId))
+  const { error } = await requireAuth()
+  if (error) return error
 
   try {
     const body = await request.json();

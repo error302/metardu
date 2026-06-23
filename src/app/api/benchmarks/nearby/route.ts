@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import db from '@/lib/db'
 
 interface BenchmarkRow {
@@ -34,6 +35,9 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 export async function GET(request: NextRequest) {
+  const { error: authError } = await requireAuth()
+  if (authError) return authError
+
   const { searchParams } = new URL(request.url)
   const lat = searchParams.get('lat')
   const lon = searchParams.get('lon')

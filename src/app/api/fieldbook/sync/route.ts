@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { apiHandler } from '@/lib/apiHandler'
+import { apiHandler, checkOptimisticLock } from '@/lib/api/handler'
 import { z } from 'zod'
 import db from '@/lib/db'
 
@@ -8,6 +8,11 @@ export const dynamic = 'force-dynamic'
 // ponytail: sync endpoint receives observations from the offline field book
 // and stores them in the survey_points table. Each observation is idempotent
 // (uses the client-generated UUID as the unique key).
+//
+// OPTIMISTIC LOCKING: When updating an existing entry (re-sync), the frontend
+// MUST send `updated_at` in the request body — the value should be the
+// `updated_at` timestamp from the most recent fetch of this observation.
+// If the DB row's `updated_at` differs (another surveyor edited it), returns 409.
 
 const observationSchema = z.object({
   id: z.string(),
@@ -31,12 +36,43 @@ const observationSchema = z.object({
   longitude: z.number().optional(),
   notes: z.string().optional(),
   createdAt: z.string(),
+  // Optimistic locking: required when updating an existing entry.
+  // Frontend should send the updated_at value it last read for this observation.
+  updated_at: z.string().optional(),
 }).passthrough()
 
-export const POST = apiHandler(
-  { auth: true, rateLimit: { max: 120, windowMs: 60000 }, schema: observationSchema },
-  async (req, ctx) => {
-    const obs = ctx.body as z.infer<typeof observationSchema>
+export const POST = apiHandler({
+  requireAuth: true,
+  schema: observationSchema,
+  rateLimit: { max: 120, windowMs: 60000 },
+  handler: async (ctx) => {
+    const obs = ctx.input
+
+    // Check if this observation already exists (for optimistic locking)
+    const existing = await db.query(
+      'SELECT id, updated_at FROM survey_points WHERE id = $1',
+      [obs.id]
+    )
+
+    if (existing.rows.length > 0) {
+      // Updating an existing entry — enforce optimistic locking
+      const clientUpdatedAt = (obs as Record<string, unknown>).updated_at as string | undefined
+      if (!clientUpdatedAt) {
+        return NextResponse.json(
+          {
+            error: 'Optimistic locking requires updated_at field when updating existing entries',
+            code: 'CONFLICT_CHECK_REQUIRED',
+          },
+          { status: 400 }
+        )
+      }
+
+      const conflict = checkOptimisticLock(
+        obs as unknown as Record<string, unknown>,
+        existing.rows[0]
+      )
+      if (conflict) return conflict
+    }
 
     // Upsert: if the observation ID already exists (re-sync), update it
     const result = await db.query(
@@ -72,7 +108,8 @@ export const POST = apiHandler(
         elevation = EXCLUDED.elevation,
         latitude = EXCLUDED.latitude,
         longitude = EXCLUDED.longitude,
-        notes = EXCLUDED.notes
+        notes = EXCLUDED.notes,
+        updated_at = NOW()
       RETURNING id`,
       [
         obs.id, obs.projectId, obs.station, obs.backsight ?? null, obs.foresight ?? null,
@@ -87,4 +124,4 @@ export const POST = apiHandler(
 
     return NextResponse.json({ ok: true, id: result.rows[0]?.id })
   },
-)
+})

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { apiHandler } from '@/lib/apiHandler'
+import { NextResponse } from 'next/server'
+import { apiHandler, ValidationError } from '@/lib/api/handler'
 import db from '@/lib/db'
 import { z } from 'zod'
 
@@ -12,10 +12,11 @@ import { z } from 'zod'
  * the fieldbook_signed_audit_func trigger (migration 015). Each event
  * contains a SHA-256 hash chain so tampering is detectable.
  */
-export const GET = apiHandler(
-  { auth: true, rateLimit: { max: 60, windowMs: 60_000 } },
-  async (req: NextRequest, ctx) => {
-    const url = new URL(req.url)
+export const GET = apiHandler({
+  requireAuth: true,
+  rateLimit: { max: 60, windowMs: 60_000 },
+  handler: async (ctx) => {
+    const url = new URL(ctx.req.url)
     const projectId = url.searchParams.get('project_id') || null
     const limit = Math.min(
       Number(url.searchParams.get('limit') || '100'),
@@ -64,8 +65,8 @@ export const GET = apiHandler(
     )
 
     return NextResponse.json({ events: rows, count: rows.length })
-  }
-)
+  },
+})
 
 /**
  * POST /api/fieldbook/audit/verify
@@ -81,17 +82,12 @@ const verifySchema = z.object({
   table_name: z.enum(['project_fieldbook_entries', 'survey_points']),
 })
 
-export const POST = apiHandler(
-  { auth: true, rateLimit: { max: 30, windowMs: 60_000 } },
-  async (req: NextRequest, ctx) => {
-    const parsed = verifySchema.safeParse(ctx.body)
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Invalid payload', issues: parsed.error.issues },
-        { status: 400 }
-      )
-    }
-    const { row_id, table_name } = parsed.data
+export const POST = apiHandler({
+  requireAuth: true,
+  schema: verifySchema,
+  rateLimit: { max: 30, windowMs: 60_000 },
+  handler: async (ctx) => {
+    const { row_id, table_name } = ctx.input
 
     const { rows } = await db.query(
       `SELECT id, action, prev_hash, hash, created_at
@@ -127,5 +123,5 @@ export const POST = apiHandler(
       last_hash: prevHash,
       last_action: rows[rows.length - 1].action,
     })
-  }
-)
+  },
+})

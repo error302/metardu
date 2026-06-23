@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { apiHandler } from '@/lib/apiHandler'
+import { NextResponse } from 'next/server'
+import { apiHandler, ValidationError, NotFoundError } from '@/lib/api/handler'
 import { z } from 'zod'
 
 const computeRequestSchema = z.object({
@@ -40,15 +40,17 @@ const volumeSurfaceSchema = z.object({
   design: z.array(z.object({ easting: z.number(), northing: z.number(), elevation: z.number() })).min(3),
 })
 
-export const POST = apiHandler(
-  { auth: true, schema: computeRequestSchema, rateLimit: { max: 50, windowMs: 60000 } },
-  async (req, ctx) => {
-    const { task, payload } = ctx.body as z.infer<typeof computeRequestSchema>
+export const POST = apiHandler({
+  requireAuth: true,
+  schema: computeRequestSchema,
+  rateLimit: { max: 50, windowMs: 60000 },
+  handler: async (ctx) => {
+    const { task, payload } = ctx.input
 
     if (task === 'tin') {
       const parsed = TINPayloadSchema.safeParse(payload)
       if (!parsed.success) {
-        return NextResponse.json({ error: 'Invalid TIN payload', issues: parsed.error.issues }, { status: 400 })
+        throw new ValidationError('Invalid TIN payload', parsed.error.issues)
       }
       const { generateTIN, interpolateElevation } = await import('@/lib/compute/tin')
       const triangles = generateTIN(parsed.data.points as any[])
@@ -79,10 +81,7 @@ export const POST = apiHandler(
           )
           return NextResponse.json({ ...result, python_required: false })
         } catch (err) {
-          return NextResponse.json(
-            { error: err instanceof Error ? err.message : 'Seabed processing failed' },
-            { status: 500 }
-          )
+          throw err instanceof Error ? err : new Error('Seabed processing failed')
         }
       }
     }
@@ -123,10 +122,7 @@ export const POST = apiHandler(
         })
       }
 
-      return NextResponse.json(
-        { error: 'Invalid volume payload. Supported: cross_section or surface.' },
-        { status: 400 }
-      )
+      throw new ValidationError('Invalid volume payload. Supported: cross_section or surface.')
     }
 
     if (task === 'export_dxf') {
@@ -149,7 +145,7 @@ export const POST = apiHandler(
       })
       const parsed = schema.safeParse(payload)
       if (!parsed.success) {
-        return NextResponse.json({ error: 'Invalid export_dxf payload' }, { status: 400 })
+        throw new ValidationError('Invalid export_dxf payload', parsed.error.issues)
       }
       const { generateDXF } = await import('@/lib/export/generateDXF')
       const dxf = generateDXF(parsed.data as any)
@@ -177,7 +173,7 @@ export const POST = apiHandler(
       })
       const parsed = schema.safeParse(payload)
       if (!parsed.success) {
-        return NextResponse.json({ error: 'Invalid export_geojson payload' }, { status: 400 })
+        throw new ValidationError('Invalid export_geojson payload', parsed.error.issues)
       }
       const { generateGeoJSON } = await import('@/lib/export/generateGeoJSON')
       const geojson = generateGeoJSON(parsed.data.points as any[], parsed.data.projectName, parsed.data.utmZone, parsed.data.hemisphere)
@@ -198,15 +194,18 @@ export const POST = apiHandler(
       )
     }
 
-    return NextResponse.json({ error: 'Unknown compute task', code: 'NOT_FOUND' }, { status: 400 })
-  }
-)
+    throw new NotFoundError('Unknown compute task')
+  },
+})
 
-export const GET = apiHandler({ auth: true }, async () => {
-  return NextResponse.json({
-    endpoint: '/api/compute',
-    description: 'Compute Gateway: routes heavy tasks to Python, keeps deterministic survey math in TS.',
-    tasks: ['volume', 'tin', 'contours', 'raster_analysis', 'seabed', 'export_dxf', 'export_geojson'],
-    native_tasks: ['volume', 'tin', 'seabed', 'export_dxf', 'export_geojson'],
-  })
+export const GET = apiHandler({
+  requireAuth: true,
+  handler: async () => {
+    return NextResponse.json({
+      endpoint: '/api/compute',
+      description: 'Compute Gateway: routes heavy tasks to Python, keeps deterministic survey math in TS.',
+      tasks: ['volume', 'tin', 'contours', 'raster_analysis', 'seabed', 'export_dxf', 'export_geojson'],
+      native_tasks: ['volume', 'tin', 'seabed', 'export_dxf', 'export_geojson'],
+    })
+  },
 })

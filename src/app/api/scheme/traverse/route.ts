@@ -1,6 +1,6 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { apiHandler } from '@/lib/apiHandler'
+import { apiHandler, ValidationError, NotFoundError } from '@/lib/api/handler'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -37,17 +37,19 @@ const saveTraverseSchema = z.object({
   })).min(1, 'At least one observation is required'),
 })
 
-export const POST = apiHandler(
-  { auth: true, schema: saveTraverseSchema, audit: 'traverse_saved' , rateLimit: { max: 60, windowMs: 60000 } },
-  async (req, ctx) => {
-    const { parcel_id, observations, ...config } = ctx.body as z.infer<typeof saveTraverseSchema>
+export const POST = apiHandler({
+  requireAuth: true,
+  schema: saveTraverseSchema,
+  audit: 'traverse_saved',
+  rateLimit: { max: 60, windowMs: 60000 },
+  handler: async (ctx) => {
+    const { parcel_id, observations, ...config } = ctx.input
 
     // Validate: closing control point required per Survey Regulations Reg 60 & 67
     // Swinging/hanging traverses are prohibited for cadastral surveys
     if (!config.closing_easting || !config.closing_northing) {
-      return NextResponse.json(
-        { error: 'Closing control point coordinates (closing_easting, closing_northing) are required per Survey Regulations Reg. 60(2)(c) and Reg. 67. A traverse must close between two previously fixed stations. Swinging/hanging traverses are prohibited.' },
-        { status: 400 }
+      throw new ValidationError(
+        'Closing control point coordinates (closing_easting, closing_northing) are required per Survey Regulations Reg. 60(2)(c) and Reg. 67. A traverse must close between two previously fixed stations. Swinging/hanging traverses are prohibited.'
       )
     }
 
@@ -59,9 +61,8 @@ export const POST = apiHandler(
     const coordDiff = Math.abs(config.closing_easting - config.opening_easting) +
                        Math.abs(config.closing_northing - config.opening_northing)
     if (coordDiff < 0.001) {
-      return NextResponse.json(
-        { error: 'Closing control point must be DIFFERENT from opening control point. A cadastral traverse requires minimum 2 distinct known control points for position verification per Survey Regulations Reg. 60(2)(c) and Reg. 67. A 1-point traverse has no absolute position check.' },
-        { status: 400 }
+      throw new ValidationError(
+        'Closing control point must be DIFFERENT from opening control point. A cadastral traverse requires minimum 2 distinct known control points for position verification per Survey Regulations Reg. 60(2)(c) and Reg. 67. A 1-point traverse has no absolute position check.'
       )
     }
 
@@ -72,7 +73,7 @@ export const POST = apiHandler(
       [parcel_id, ctx.userId]
     )
     if (parcelCheck.rows.length === 0) {
-      return NextResponse.json({ error: 'Parcel not found' }, { status: 404 })
+      throw new NotFoundError('Parcel not found')
     }
 
     const projectId = parcelCheck.rows[0].project_id
@@ -211,17 +212,18 @@ export const POST = apiHandler(
         },
       },
     }, { status: 201 })
-  }
-)
+  },
+})
 
-export const GET = apiHandler(
-  { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
-  async (req, ctx) => {
-    const { searchParams } = new URL(req.url)
+export const GET = apiHandler({
+  requireAuth: true,
+  rateLimit: { max: 60, windowMs: 60000 },
+  handler: async (ctx) => {
+    const { searchParams } = new URL(ctx.req.url)
     const parcelId = searchParams.get('parcel_id')
 
     if (!parcelId) {
-      return NextResponse.json({ error: 'parcel_id is required' }, { status: 400 })
+      throw new ValidationError('parcel_id is required')
     }
 
     const check = await db.query(
@@ -251,5 +253,5 @@ export const GET = apiHandler(
         coordinates: coordsRes.rows,
       },
     })
-  }
-)
+  },
+})

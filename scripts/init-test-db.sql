@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS users (
     isk_number VARCHAR(50),
     verified_isk BOOLEAN DEFAULT FALSE,
     role VARCHAR(50) DEFAULT 'user',
+    provider VARCHAR(50) DEFAULT 'credentials',
+    oauth_provider_id VARCHAR(255),
+    oauth_avatar_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
