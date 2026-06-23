@@ -96,12 +96,15 @@ export function VoiceDictationButton({
 }: VoiceDictationButtonProps) {
   /* ── i18n ──────────────────────────────────────────────────────── */
   let i18nLanguage: Language | undefined;
+  let t: (key: string, values?: Record<string, string | number>) => string;
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const ctx = useLanguage();
     i18nLanguage = ctx.language;
+    t = ctx.t;
   } catch {
     // LanguageProvider may not be available in all contexts; that's fine
+    t = (key: string) => key;
   }
 
   const speechLang = language ?? (i18nLanguage ? toSpeechLang(i18nLanguage) : 'en-US');
@@ -236,8 +239,8 @@ export function VoiceDictationButton({
             ? 'bg-red-500/15 text-red-500 focus:ring-red-500/40'
             : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 focus:ring-[var(--accent)]/40',
         ].join(' ')}
-        aria-label={listening ? 'Stop voice dictation' : 'Start voice dictation'}
-        title={listening ? 'Listening… tap to stop' : 'Tap to dictate'}
+        aria-label={listening ? t('voiceDictation.stopDictation') : t('voiceDictation.startDictation')}
+        title={listening ? t('voiceDictation.listening') : t('voiceDictation.tapToDictate')}
       >
         {/* Pulsing red ring when listening */}
         {listening && (
@@ -256,7 +259,7 @@ export function VoiceDictationButton({
         <span className="flex items-center gap-1.5 text-xs select-none">
           <span className="flex items-center gap-1 text-red-500 font-medium whitespace-nowrap">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            Listening…
+            {t('voiceDictation.listening')}
           </span>
           {interimText && (
             <span className="text-[var(--text-muted)] italic truncate max-w-[140px]">

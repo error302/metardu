@@ -11,7 +11,7 @@ export default function GNSSPage() {
   const [position, setPosition] = useState<NMEAPosition | null>(null);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-secondary)]">
       <div className="bg-[#1B3A5C] text-white px-4 py-3 flex items-center gap-3">
         <Link href="/field" className="p-2 -ml-2">
           <ArrowLeft className="w-5 h-5" />
@@ -34,20 +34,20 @@ export default function GNSSPage() {
           />
         )}
 
-        <div className="p-4 bg-yellow-50 rounded-lg">
-          <h3 className="font-medium text-yellow-800 mb-2">Instructions</h3>
-          <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
+        <div className="p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-lg">
+          <h3 className="font-medium text-[var(--accent)] mb-2">Instructions</h3>
+          <ol className="text-sm text-[var(--text-secondary)] space-y-1 list-decimal list-inside">
             <li>Enable Bluetooth on your device</li>
             <li>Turn on your GNSS receiver</li>
-            <li>Tap "Scan for GNSS" to find devices</li>
-            <li>Select your receiver and tap "Connect"</li>
+            <li>Tap &quot;Scan for GNSS&quot; to find devices</li>
+            <li>Select your receiver and tap &quot;Connect&quot;</li>
             <li>Coordinates will stream automatically</li>
           </ol>
         </div>
 
-        <div className="p-4 bg-gray-100 rounded-lg">
-          <h3 className="font-medium mb-2">Supported Receivers</h3>
-          <ul className="text-sm text-gray-600 space-y-1">
+        <div className="p-4 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg">
+          <h3 className="font-medium text-[var(--text-primary)] mb-2">Supported Receivers</h3>
+          <ul className="text-sm text-[var(--text-secondary)] space-y-1">
             <li>• Trimble R Series (R2, R4, R6, R8, R10)</li>
             <li>• Leica GS Series (GS14, GS16, GS18)</li>
             <li>• Topcon HiPer Series</li>

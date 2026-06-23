@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react'
+import { Download } from 'lucide-react'
 import { inverseComputation, polarComputation, intersectionComputation, resectionComputation, areaComputation, joinComputation, distanceDistanceIntersection, bearingDistanceIntersection, arcByRadiusAndChord, type InverseStep, type DistDistResult, type BearingDistResult, type ArcResult } from '@/lib/computations/cogoEngine'
+import { downloadCSV, toCSV } from '@/lib/export/helpers'
 
 type Tab = 'inverse' | 'polar' | 'intersection' | 'distDist' | 'bearingDist' | 'arcBoundary' | 'resection' | 'area' | 'join'
 
@@ -388,6 +390,71 @@ export default function COGOCalculator({ compact = false }: Props) {
     }
   }
 
+  const handleExportCSV = () => {
+    try {
+      let headers: string[] = ['Parameter', 'Value']
+      let rows: string[][] = []
+
+      if (activeTab === 'inverse' && invResult) {
+        headers = ['Parameter', 'Value', 'Formula']
+        rows = [
+          ['Point 1', invL1, ''],
+          ['Point 2', invL2, ''],
+          ['Delta Easting (m)', invResult.deltaE.toFixed(4), ''],
+          ['Delta Northing (m)', invResult.deltaN.toFixed(4), ''],
+          ['WCB', invResult.wcbDMS, ''],
+          ['Distance (m)', invResult.distance.toFixed(4), ''],
+          ['Reduced Bearing', invResult.reducedBearing, ''],
+          ['Back Bearing', invResult.backBearingDMS, ''],
+          ['Quadrant', invResult.quadrant, ''],
+          ['Arithmetic Check', invResult.arithmeticCheck.passed ? 'PASS' : 'FAIL', invResult.arithmeticCheck.value.toFixed(6)],
+        ]
+      } else if (activeTab === 'polar' && polResult) {
+        rows = [
+          ['WCB Used', polResult.wcbDMS],
+          ['E2 (m)', polResult.e2.toFixed(4)],
+          ['N2 (m)', polResult.n2.toFixed(4)],
+        ]
+      } else if (activeTab === 'intersection' && intResult) {
+        rows = [
+          ['Intersection E3 (m)', intResult.e3.toFixed(4)],
+          ['Intersection N3 (m)', intResult.n3.toFixed(4)],
+          ['Distance from P1 (m)', intResult.distanceFrom1.toFixed(4)],
+          ['Distance from P2 (m)', intResult.distanceFrom2.toFixed(4)],
+        ]
+      } else if (activeTab === 'resection' && resResult) {
+        rows = [
+          ['Station E (m)', resResult.eP.toFixed(4)],
+          ['Station N (m)', resResult.nP.toFixed(4)],
+          ['Distance to A (m)', resResult.distToA.toFixed(4)],
+          ['Distance to B (m)', resResult.distToB.toFixed(4)],
+          ['Distance to C (m)', resResult.distToC.toFixed(4)],
+        ]
+      } else if (activeTab === 'area' && areaResult) {
+        rows = [
+          ['Area (m²)', areaResult.areaSqm.toFixed(4)],
+          ['Area (ha)', areaResult.areaHa.toFixed(4)],
+          ['Perimeter (m)', areaResult.perimeter.toFixed(4)],
+          ['Centroid E (m)', areaResult.centroid.easting.toFixed(4)],
+          ['Centroid N (m)', areaResult.centroid.northing.toFixed(4)],
+        ]
+      } else if (activeTab === 'join' && joinResult) {
+        headers = ['From', 'To', 'Delta E (m)', 'Delta N (m)', 'Distance (m)', 'WCB', 'Back Bearing']
+        rows = joinResult.rows.map(r => [r.from, r.to, r.deltaE.toFixed(4), r.deltaN.toFixed(4), r.distance.toFixed(4), r.wcbDMS, r.backBearingDMS])
+      } else {
+        setError('No data to export')
+        return
+      }
+
+      const csv = toCSV(headers, rows)
+      const tabName = TABS.find(t => t.id === activeTab)?.label.replace(/[^a-zA-Z]/g, '_') || activeTab
+      downloadCSV(csv, `METARDU_COGO_${tabName}`)
+    } catch (err) {
+      console.error('CSV export error:', err)
+      setError('Failed to export CSV. Please try again.')
+    }
+  }
+
   const TABS: { id: Tab; label: string }[] = [
     { id: 'inverse', label: 'Distance & Bearing' },
     { id: 'polar', label: 'Radiation' },
@@ -425,8 +492,12 @@ export default function COGOCalculator({ compact = false }: Props) {
         ))}
         <div className="flex-1" />
         <button onClick={handleExportPDF}
-          className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] border border-[var(--border-color)] hover:border-[var(--accent)] rounded">
-          Export PDF
+          className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] border border-[var(--border-color)] hover:border-[var(--accent)] rounded inline-flex items-center gap-1">
+          <Download className="w-3 h-3" /> PDF
+        </button>
+        <button onClick={handleExportCSV}
+          className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] border border-[var(--border-color)] hover:border-[var(--accent)] rounded inline-flex items-center gap-1">
+          <Download className="w-3 h-3" /> CSV
         </button>
         <button onClick={clearAll}
           className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]">

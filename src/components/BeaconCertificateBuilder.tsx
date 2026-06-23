@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useCallback } from 'react'
+import { Download } from 'lucide-react'
 import { printBeaconCertificate } from '@/lib/print/beaconCertificate'
 import type { BeaconEntry, BeaconCondition, MonumentType } from '@/lib/print/beaconCertificate'
 import { PrintMetaPanel, defaultPrintMeta } from '@/components/shared/PrintMetaPanel'
 import type { PrintMeta } from '@/components/shared/PrintMetaPanel'
+import { downloadCSV, toCSV } from '@/lib/export/helpers'
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -388,6 +390,24 @@ export default function BeaconCertificateBuilder() {
               className="flex-1 py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded text-sm transition-colors"
             >
               Print Beacon Certificate — {beacons.length} beacon{beacons.length !== 1 ? 's' : ''}
+            </button>
+            <button
+              onClick={() => {
+                if (beacons.length === 0) return
+                const csv = toCSV(
+                  ['No', 'Beacon ID', 'Monument Type', 'Condition', 'Easting (m)', 'Northing (m)', 'RL (m)', 'Description', 'Adjacent Features'],
+                  beacons.map((b, i) => [
+                    String(i + 1), b.name, b.monumentType, b.condition,
+                    b.easting, b.northing, b.elevation,
+                    b.description, b.adjacentFeatures,
+                  ]),
+                )
+                downloadCSV(csv, 'beacon-certificate-data')
+              }}
+              disabled={beacons.length === 0}
+              className="py-3 px-4 border border-[var(--border-color)] hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--text-primary)] rounded text-sm transition-colors inline-flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" /> CSV
             </button>
           </div>
         </div>

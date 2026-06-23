@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { Download } from 'lucide-react';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { compoundCurveSolved, reverseCurveSolved, simpleCurveSolved } from '@/lib/engine/solution/wrappers/curves'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
 
 type CurveType = 'simple' | 'compound' | 'reverse' | 'vertical';
 
@@ -268,11 +270,76 @@ export default function CurvesCalculator() {
               </>
             )}
           </div>
-          <button
-            onClick={curveType === 'vertical' ? calcVertical : calculate}
-            className="w-full px-6 py-4 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-bold rounded-lg">
-            {curveType === 'vertical' ? 'Calculate Vertical Curve' : 'Calculate'}
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={curveType === 'vertical' ? calcVertical : calculate}
+              className="w-full px-6 py-4 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-bold rounded-lg">
+              {curveType === 'vertical' ? 'Calculate Vertical Curve' : 'Calculate'}
+            </button>
+            {(result || vResult) && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (curveType === 'vertical' && vResult) {
+                      generatePDF(
+                        { title: 'Vertical Curve Computation', reference: 'RDM 1.3 Kenya | RDM 1.1 (2025)' },
+                        [
+                          { title: 'Vertical Curve Parameters', rows: [
+                            { label: 'Curve Type', value: vResult.isCrest ? 'Crest' : 'Sag' },
+                            { label: 'Curve Length L', value: `${vResult.curveLen.toFixed(3)} m` },
+                            { label: 'Algebraic A', value: `${vResult.A.toFixed(4)} %` },
+                            { label: 'K-value', value: `${vResult.K_computed.toFixed(2)} m/%` },
+                            { label: 'BVC Chainage', value: `${vResult.BVC_chainage.toFixed(3)} m` },
+                            { label: 'EVC Chainage', value: `${vResult.EVC_chainage.toFixed(3)} m` },
+                            { label: 'BVC RL', value: `${vResult.BVC_RL.toFixed(4)} m` },
+                            { label: 'EVC RL', value: `${vResult.EVC_RL.toFixed(4)} m` },
+                            { label: 'Arithmetic Check', value: vResult.arithPass ? 'PASS' : 'FAIL' },
+                            { label: 'K-Compliance', value: vResult.kPass ? 'PASS' : 'FAIL' },
+                          ]},
+                        ],
+                        [
+                          { title: 'RL Table — 20m Intervals', headers: ['Chainage (m)', 'x from BVC (m)', 'RL (m)', 'Grade (%)'], rows: vResult.tableRows.map((r: any) => [r.chainage.toFixed(3), r.x.toFixed(3), r.RL.toFixed(4), r.grade.toFixed(4)]) },
+                        ],
+                      )
+                    } else if (result && result.steps) {
+                      generatePDF(
+                        { title: `${curveType.charAt(0).toUpperCase() + curveType.slice(1)} Curve Data Sheet`, reference: 'RDM 1.1 (2025) | Kenya Highway Design Manual' },
+                        [
+                          { title: 'Computation Steps', rows: result.steps.map((s: SolutionStep) => ({ label: s.label, value: s.result || s.computation || '—' })) },
+                        ],
+                        result.stakePoints ? [
+                          { title: 'Stakeout Table', headers: ['Chainage', 'Chord (m)', 'Deflection'], rows: result.stakePoints.map((p: any) => [p.chainage.toFixed(3), p.chordLength?.toFixed(3) ?? '—', p.totalDeflection ?? p.deflectionAngle ?? '—']) },
+                        ] : [],
+                      )
+                    }
+                  }}
+                  className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Download PDF
+                </button>
+                <button
+                  onClick={() => {
+                    if (curveType === 'vertical' && vResult) {
+                      const csv = toCSV(
+                        ['Chainage (m)', 'x from BVC (m)', 'RL (m)', 'Grade (%)'],
+                        vResult.tableRows.map((r: any) => [r.chainage.toFixed(3), r.x.toFixed(3), r.RL.toFixed(4), r.grade.toFixed(4)]),
+                      )
+                      downloadCSV(csv, 'vertical-curve-data')
+                    } else if (result) {
+                      const csv = toCSV(
+                        ['Parameter', 'Value'],
+                        result.steps.map((s: SolutionStep) => [s.label, s.result || s.computation || '—']),
+                      )
+                      downloadCSV(csv, `${curveType}-curve-data`)
+                    }
+                  }}
+                  className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Download CSV
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {vError && <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">{vError}</div>}

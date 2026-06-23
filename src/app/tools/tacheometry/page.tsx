@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { Download } from 'lucide-react';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { tacheometrySolved } from '@/lib/engine/solution/wrappers/tacheometry'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
 
 export default function TacheometryCalculator() {
   const [inputs, setInputs] = useState({
@@ -103,6 +105,53 @@ export default function TacheometryCalculator() {
             </div>
             {calcError && <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">{calcError}</div>}
             <button onClick={calculate} className="btn btn-primary w-full">Calculate</button>
+            {steps && (
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => {
+                    generatePDF(
+                      { title: 'Tacheometric Computation Sheet', reference: 'Survey Regulations 1994 | RDM 1.1 (2025) Section 5.6' },
+                      [
+                        { title: 'Observations', rows: [
+                          { label: 'Instrument Height (h.i.)', value: `${inputs.hi} m` },
+                          { label: 'Upper Staff Reading', value: `${inputs.upper} m` },
+                          { label: 'Middle Staff Reading', value: `${inputs.middle} m` },
+                          { label: 'Lower Staff Reading', value: `${inputs.lower} m` },
+                          { label: 'Vertical Angle', value: `${inputs.vertDeg}° ${inputs.vertMin}' ${inputs.vertSec}"` },
+                          { label: 'K (multiplying constant)', value: inputs.k },
+                          { label: 'C (additive constant)', value: inputs.c },
+                        ]},
+                        { title: 'Computation Steps', rows: steps.map((s: SolutionStep) => ({ label: s.label, value: s.result || s.computation || '—' })) },
+                      ],
+                    )
+                  }}
+                  className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Download PDF
+                </button>
+                <button
+                  onClick={() => {
+                    const csv = toCSV(
+                      ['Parameter', 'Value'],
+                      [
+                        ['Instrument Height (m)', inputs.hi],
+                        ['Upper Staff (m)', inputs.upper],
+                        ['Middle Staff (m)', inputs.middle],
+                        ['Lower Staff (m)', inputs.lower],
+                        ['Vertical Angle', `${inputs.vertDeg}° ${inputs.vertMin}' ${inputs.vertSec}"`],
+                        ['K', inputs.k],
+                        ['C', inputs.c],
+                        ...steps.map((s: SolutionStep) => [s.label, s.result || s.computation || '']),
+                      ],
+                    )
+                    downloadCSV(csv, 'tacheometry-data')
+                  }}
+                  className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Download CSV
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

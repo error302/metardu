@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { Download } from 'lucide-react';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { twoPegTestSolved } from '@/lib/engine/solution/wrappers/twoPegTest'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
 
 export default function TwoPegTestCalculator() {
   const [inputs, setInputs] = useState({
@@ -69,6 +71,47 @@ export default function TwoPegTestCalculator() {
               </div>
             </div>
             <button onClick={calculate} className="btn btn-primary w-full">Run Two Peg Test</button>
+            {steps && (
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => {
+                    generatePDF(
+                      { title: 'Two Peg Test Certificate', reference: 'Survey Regulations 1994 | Survey Act Cap 299 | RDM 1.1 (2025)' },
+                      [
+                        { title: 'Staff Readings', rows: [
+                          { label: 'Staff at A (Pos 1)', value: `${inputs.a1} m` },
+                          { label: 'Staff at B (Pos 1)', value: `${inputs.b1} m` },
+                          { label: 'Staff at A (Pos 2)', value: `${inputs.a2} m` },
+                          { label: 'Staff at B (Pos 2)', value: `${inputs.b2} m` },
+                        ]},
+                        { title: 'Computation Steps', rows: steps.map((s: SolutionStep) => ({ label: s.label, value: s.result || s.computation || '—' })) },
+                      ],
+                    )
+                  }}
+                  className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Download PDF
+                </button>
+                <button
+                  onClick={() => {
+                    const csv = toCSV(
+                      ['Reading', 'Value (m)'],
+                      [
+                        ['Staff at A (Position 1)', inputs.a1],
+                        ['Staff at B (Position 1)', inputs.b1],
+                        ['Staff at A (Position 2)', inputs.a2],
+                        ['Staff at B (Position 2)', inputs.b2],
+                        ...steps.map((s: SolutionStep) => [s.label, s.result || s.computation || '']),
+                      ],
+                    )
+                    downloadCSV(csv, 'two-peg-test-results')
+                  }}
+                  className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Download CSV
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

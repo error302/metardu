@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Sun, Eye } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 type DisplayMode = 'dark' | 'field'
@@ -48,6 +49,7 @@ export default function FieldModeToggle() {
   const sensorRef = useRef<any>(null)
   const tooltipDismissed = useRef(false)
   const addNotification = useUIStore((s) => s.addNotification)
+  const { t } = useLanguage()
 
   /* ── Hydration-safe mount ───────────────────────────────────────────── */
   useEffect(() => {
@@ -103,8 +105,8 @@ export default function FieldModeToggle() {
           localStorage.setItem(STORAGE_KEY, 'field')
           addNotification({
             type: 'info',
-            title: 'Field Mode Auto-Activated',
-            message: `High ambient light detected (${Math.round(lux)} lux). Switched to sunlight-readable mode.`,
+            title: t('fieldMode.autoActivated'),
+            message: t('fieldMode.autoActivatedDesc'),
             duration: 4000,
           })
         } else if (lux < 3000 && currentStored === 'field') {
@@ -113,8 +115,8 @@ export default function FieldModeToggle() {
           localStorage.setItem(STORAGE_KEY, 'dark')
           addNotification({
             type: 'info',
-            title: 'Dark Mode Restored',
-            message: `Ambient light dropped (${Math.round(lux)} lux). Switched back to dark mode.`,
+            title: t('fieldMode.darkRestored'),
+            message: t('fieldMode.darkRestoredDesc'),
             duration: 4000,
           })
         }
@@ -136,7 +138,7 @@ export default function FieldModeToggle() {
       try { sensor?.stop?.() } catch { /* ignore */ }
       sensorRef.current = null
     }
-  }, [mounted, sensorEnabled, addNotification])
+  }, [mounted, sensorEnabled, addNotification, t])
 
   /* ── Toggle handler ────────────────────────────────────────────────── */
   const toggleMode = useCallback(() => {
@@ -147,13 +149,11 @@ export default function FieldModeToggle() {
 
     addNotification({
       type: next === 'field' ? 'success' : 'info',
-      title: next === 'field' ? 'Field Mode Enabled' : 'Dark Mode Enabled',
-      message: next === 'field'
-        ? 'Optimized for sunlight readability — high contrast, bold text, large touch targets.'
-        : 'Switched back to standard dark theme.',
+      title: next === 'field' ? t('fieldMode.fieldEnabled') : t('fieldMode.darkEnabled'),
+      message: next === 'field' ? t('fieldMode.fieldEnabledDesc') : t('fieldMode.darkEnabledDesc'),
       duration: 3000,
     })
-  }, [mode, addNotification])
+  }, [mode, addNotification, t])
 
   /* ── Dismiss tooltip ───────────────────────────────────────────────── */
   const dismissTooltip = useCallback(() => {
@@ -183,8 +183,8 @@ export default function FieldModeToggle() {
       {/* Toggle button */}
       <button
         onClick={toggleMode}
-        aria-label={isField ? 'Switch to dark mode' : 'Switch to field mode'}
-        title={isField ? 'Switch to dark mode' : 'Field mode: sunlight readable'}
+        aria-label={isField ? t('fieldMode.switchToDark') : t('fieldMode.switchToField')}
+        title={isField ? t('fieldMode.switchToDark') : t('fieldMode.tooltip')}
         className={`
           relative flex items-center justify-center
           w-10 h-10 rounded-lg
@@ -216,9 +216,9 @@ export default function FieldModeToggle() {
             <div className="flex items-start gap-2.5">
               <Sun className="w-5 h-5 text-[var(--accent)] flex-shrink-0 mt-0.5" strokeWidth={2} />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[var(--text-primary)]">Field Mode</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{t('field.fieldMode')}</p>
                 <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
-                  Optimized for sunlight readability — high contrast, bold text, and large touch targets for outdoor use.
+                  {t('fieldMode.fieldEnabledDesc')}
                 </p>
               </div>
               <button
@@ -254,7 +254,7 @@ export default function FieldModeToggle() {
                   />
                 </div>
                 <span className="text-[11px] text-[var(--text-muted)] leading-tight">
-                  Auto-detect sunlight
+                  {t('fieldMode.autoDetectSunlight')}
                 </span>
               </label>
             </div>

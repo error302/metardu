@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Download } from 'lucide-react';
 import { riseAndFall, heightOfCollimation } from '@/lib/engine/leveling';
 import { trackEvent } from '@/lib/analytics/events';
 import type { LevelingInput } from '@/lib/engine/leveling'
@@ -9,6 +10,7 @@ import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { levelingSolved } from '@/lib/engine/solution/wrappers/leveling'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
 
 interface Reading {
   id: number;
@@ -199,11 +201,62 @@ export default function LevelingCalculator() {
         </div>
       </div>
 
-      <button onClick={calculate} disabled={calculating} className="btn btn-primary mb-6 disabled:opacity-60 disabled:cursor-not-allowed">
+      <div className="flex flex-wrap gap-3 mb-6">
+        <button onClick={calculate} disabled={calculating} className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
           {calculating ? (
             <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Calculating…</>
           ) : 'Calculate'}
         </button>
+        {result && (
+          <>
+            <button
+              onClick={() => {
+                if (!result) return
+                generatePDF(
+                  { title: 'Levelling Computation Sheet', reference: 'RDM 1.1 (2025) Table 5.1 | Survey Act Cap 299' },
+                  [
+                    { title: 'Computation Summary', rows: [
+                      { label: 'Method', value: methodLabel },
+                      { label: 'Opening RL', value: `${bm} m` },
+                      { label: 'Misclosure', value: `${result.misclosure.toFixed(6)} m` },
+                      { label: 'Allowable (10√K mm)', value: `±${(result.allowableMisclosure * 1000).toFixed(3)} mm` },
+                      { label: 'Arithmetic Check', value: result.arithmeticCheck ? 'PASS' : 'FAIL' },
+                      { label: 'Status', value: result.isAcceptable ? 'Acceptable' : 'Unacceptable' },
+                    ]},
+                  ],
+                  [
+                    { title: 'Level Book Observations', headers: ['Station', 'BS (m)', 'FS (m)', 'Rise (m)', 'Fall (m)', 'RL (m)', 'Adj RL (m)'], rows: result.readings.map((r: any) => [
+                      r.station || '—', r.bs?.toFixed(4) || '—', r.fs?.toFixed(4) || '—',
+                      r.rise?.toFixed(4) || '—', r.fall?.toFixed(4) || '—',
+                      r.reducedLevel?.toFixed(4) || '—', r.adjustedRL?.toFixed(4) || '—',
+                    ]) },
+                  ],
+                )
+              }}
+              className="btn btn-secondary inline-flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" /> Download PDF
+            </button>
+            <button
+              onClick={() => {
+                if (!result) return
+                const csv = toCSV(
+                  ['Station', 'BS (m)', 'FS (m)', 'Rise (m)', 'Fall (m)', 'RL (m)', 'Adj RL (m)', 'Remarks'],
+                  result.readings.map((r: any) => [
+                    r.station || '', r.bs?.toFixed(4) || '', r.fs?.toFixed(4) || '',
+                    r.rise?.toFixed(4) || '', r.fall?.toFixed(4) || '',
+                    r.reducedLevel?.toFixed(4) || '', r.adjustedRL?.toFixed(4) || '', '',
+                  ]),
+                )
+                downloadCSV(csv, 'levelling-observations')
+              }}
+              className="btn btn-secondary inline-flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" /> Download CSV
+            </button>
+          </>
+        )}
+      </div>
 
       {result && (
         <div className="grid md:grid-cols-2 gap-6">

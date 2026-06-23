@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { Download } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { dmsToDecimalSolved, geographicToUtmSolved, utmToGeographicSolved, decimalToDmsSolved } from '@/lib/engine/solution/wrappers/coordinates'
+import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
 
 export default function CoordinatesCalculator() {
   const [tab, setTab] = useState<'utm-to-geo' | 'geo-to-utm' | 'dms-dec'>('utm-to-geo');
@@ -117,6 +119,41 @@ export default function CoordinatesCalculator() {
             <button onClick={convertDecimalToDms} className="btn btn-secondary w-full">
               Convert Decimal → DMS
             </button>
+          )}
+          {steps && (
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => {
+                  generatePDF(
+                    { title: 'Coordinate Transformation Report', reference: 'WGS84 | Arc 1960 / UTM Zone 37S | SRID 21037' },
+                    [
+                      { title: 'Conversion Steps', rows: steps.map((s: SolutionStep) => ({ label: s.label, value: s.result || s.computation || '—' })) },
+                    ],
+                  )
+                }}
+                className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Download PDF
+              </button>
+              <button
+                onClick={() => {
+                  const inputRows: string[][] = []
+                  const outputRows: string[][] = []
+                  steps.forEach((s: SolutionStep) => {
+                    if (s.formula) inputRows.push([s.label, s.formula])
+                    if (s.result || s.computation) outputRows.push([s.label, s.result || s.computation || ''])
+                  })
+                  const csv = toCSV(
+                    ['Parameter', 'Input', 'Output'],
+                    steps.map((s: SolutionStep) => [s.label, s.formula || '', s.result || s.computation || '']),
+                  )
+                  downloadCSV(csv, 'coordinate-transformation')
+                }}
+                className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Download CSV
+              </button>
+            </div>
           )}
         </div>
 

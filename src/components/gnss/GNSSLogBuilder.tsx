@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react'
+import { Download } from 'lucide-react'
 import { printGNSSObservationLog, type GNSSLogInput, type GNSSObservationEntry, type GNSSBaselineEntry } from '@/lib/print/gnssObservationLog'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
+import { downloadCSV, toCSV } from '@/lib/export/helpers'
 
 const FIX_TYPES: GNSSObservationEntry['fixType'][] = ['RTK_FIX', 'FIX', 'RTK_FLOAT', 'FLOAT', 'DGNSS', 'AUTONOMOUS']
 const ANT_METHODS: GNSSObservationEntry['antennaMeasurement'][] = ['VERTICAL', 'SLANT', 'ARP']
@@ -408,15 +410,38 @@ export default function GNSSLogBuilder() {
         <p className="font-mono mt-1">Reference: Survey Act Cap 299 | Survey Regulations 1994 Reg. 21 | ISK GNSS Guidelines 2019 | ISO 17123-8</p>
       </div>
 
-      {/* ── PRINT BUTTON ─────────────────────────────────────────────────────── */}
-      <button
-        onClick={handlePrint}
-        disabled={observations.length === 0}
-        className="w-full py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded text-sm transition-colors"
-      >
-        Print GNSS Observation Log — {observations.length} point{observations.length !== 1 ? 's' : ''}
-        {baselines.length > 0 ? ` · ${baselines.length} baseline${baselines.length !== 1 ? 's' : ''}` : ''}
-      </button>
+      {/* ── PRINT / EXPORT BUTTONS ──────────────────────────────────────────── */}
+      <div className="flex gap-3">
+        <button
+          onClick={handlePrint}
+          disabled={observations.length === 0}
+          className="flex-1 py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded text-sm transition-colors"
+        >
+          Print GNSS Observation Log — {observations.length} point{observations.length !== 1 ? 's' : ''}
+          {baselines.length > 0 ? ` · ${baselines.length} baseline${baselines.length !== 1 ? 's' : ''}` : ''}
+        </button>
+        <button
+          onClick={() => {
+            if (observations.length === 0) return
+            const csv = toCSV(
+              ['Point ID', 'Start Time', 'End Time', 'Duration (min)', 'Satellites', 'PDOP', 'HDOP', 'VDOP', 'Fix Type', 'Ant Height (m)', 'Ant Meas', 'Easting (m)', 'Northing (m)', 'Ell Height (m)', 'RMS H (m)', 'Notes'],
+              observations.map(o => [
+                o.pointId, o.startTime, o.endTime, String(o.durationMin),
+                String(o.satellites), String(o.pdop), String(o.hdop), String(o.vdop),
+                o.fixType, String(o.antennaHeight), o.antennaMeasurement,
+                o.easting?.toFixed(3) ?? '', o.northing?.toFixed(3) ?? '',
+                o.ellHeight?.toFixed(3) ?? '', o.rmsH?.toFixed(4) ?? '',
+                o.notes ?? '',
+              ]),
+            )
+            downloadCSV(csv, 'gnss-observation-log')
+          }}
+          disabled={observations.length === 0}
+          className="py-3 px-4 border border-[var(--border-color)] hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--text-primary)] rounded text-sm transition-colors inline-flex items-center gap-2"
+        >
+          <Download className="w-4 h-4" /> CSV
+        </button>
+      </div>
 
     </div>
   )

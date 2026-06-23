@@ -15,6 +15,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { Camera, X, MapPin, Loader2, CheckCircle2, AlertTriangle, ImageOff } from 'lucide-react'
 import { extractEXIFGPS, isEXIFSupported, type EXIFGPSData } from '@/lib/engineering/exifPhoto'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export interface CapturedBeaconPhoto {
   /** object URL for preview — revoke on unmount */
@@ -33,6 +34,7 @@ interface BeaconPhotoCaptureProps {
 }
 
 export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPhotoCaptureProps) {
+  const { t } = useLanguage()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -42,7 +44,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
     async (files: FileList | null) => {
       if (!files || files.length === 0) return
       if (photos.length >= maxPhotos) {
-        setError(`Maximum ${maxPhotos} photos per reading`)
+        setError(t('photoCapture.maxPhotosReached', { count: maxPhotos }))
         return
       }
       setError(null)
@@ -55,7 +57,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
       for (const file of toProcess) {
         // Basic type guard — only JPEG / HEIC / PNG
         if (!/^image\/(jpeg|png|heic|heif)$/i.test(file.type) && !/\.(jpe?g|heic|heif|png)$/i.test(file.name)) {
-          setError(`"${file.name}" is not a supported image format`)
+          setError(t('photoCapture.unsupportedFormat', { name: file.name }))
           continue
         }
 
@@ -79,7 +81,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
           })
         } catch (err) {
           console.error('Photo capture failed:', err)
-          setError(`Failed to process "${file.name}"`)
+          setError(t('photoCapture.captureFailed', { name: file.name }))
         }
       }
 
@@ -90,7 +92,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
       // Reset input so the same file can be re-captured if needed
       if (inputRef.current) inputRef.current.value = ''
     },
-    [photos, maxPhotos, onChange]
+    [photos, maxPhotos, onChange, t]
   )
 
   const removePhoto = (idx: number) => {
@@ -131,13 +133,13 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
             {busy ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-sm font-medium">Processing photo…</span>
+                <span className="text-sm font-medium">{t('photoCapture.processing')}</span>
               </>
             ) : (
               <>
                 <Camera className="w-5 h-5" />
                 <span className="text-sm font-medium">
-                  Capture Beacon Photo
+                  {t('photoCapture.captureButton')}
                 </span>
               </>
             )}
@@ -145,7 +147,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
           {!exifSupported && (
             <p className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
               <AlertTriangle className="w-3 h-3" />
-              EXIF parsing not supported in this browser — photos will save without GPS metadata.
+              {t('photoCapture.exifNotSupported')}
             </p>
           )}
         </>
@@ -184,7 +186,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
                 ) : photo.missingGps ? (
                   <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/90 text-black text-[9px] font-medium backdrop-blur-sm">
                     <AlertTriangle className="w-2.5 h-2.5" />
-                    No GPS
+                    {t('photoCapture.noGPS')}
                   </span>
                 ) : null}
               </div>
@@ -204,7 +206,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
                 type="text"
                 value={photo.caption}
                 onChange={(e) => updateCaption(idx, e.target.value)}
-                placeholder="Caption (optional)"
+                placeholder={t('photoCapture.captionPlaceholder')}
                 className="w-full px-2 py-1.5 text-xs bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] border-t border-[var(--border-color)] focus:outline-none"
               />
             </div>
@@ -216,7 +218,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
       {photos.length === 0 && !busy && (
         <div className="flex items-center gap-2 text-[10px] text-[var(--text-muted)] px-1">
           <ImageOff className="w-3 h-3" />
-          Optional — capture up to {maxPhotos} beacon photos with embedded GPS.
+          {t('photoCapture.emptyState', { count: maxPhotos })}
         </div>
       )}
 
@@ -224,7 +226,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
       {photos.length > 0 && photos.some((p) => p.exif) && (
         <div className="flex items-center gap-1 text-[10px] text-emerald-400 px-1">
           <CheckCircle2 className="w-3 h-3" />
-          {photos.filter((p) => p.exif).length} photo(s) with GPS evidence captured
+          {t('photoCapture.gpsEvidence', { count: photos.filter((p) => p.exif).length })}
         </div>
       )}
     </div>

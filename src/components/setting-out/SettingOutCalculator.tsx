@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useRef } from 'react'
+import { Download } from 'lucide-react'
 import { computeSettingOut, checkCoordinate, parseSettingOutCSV, type InstrumentStation, type Backsight, type DesignPoint, type ReObservation, type SettingOutResult } from '@/lib/computations/settingOutEngine'
 import SettingOutTable from './SettingOutTable'
 import StakeOutSheet from './StakeOutSheet'
 import ChainageOffsetTable from './ChainageOffsetTable'
+import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
 
 type PointRow = {
   id: string
@@ -173,7 +175,7 @@ export default function SettingOutCalculator() {
       </div>
 
       {/* Compute */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <button onClick={compute} className="px-6 py-2 bg-[var(--accent)] text-white rounded font-medium hover:opacity-90">
           Compute Setting Out
         </button>
@@ -181,6 +183,52 @@ export default function SettingOutCalculator() {
           <button onClick={() => setShowStakeOutSheet(true)} className="px-4 py-2 border border-[var(--border-color)] rounded text-sm hover:bg-[var(--bg-tertiary)]">
             Generate Stake Out Sheet
           </button>
+        )}
+        {result && (
+          <>
+            <button
+              onClick={() => {
+                generatePDF(
+                  { title: 'Setting Out Schedule', reference: 'Ghilani & Wolf Ch.23 | RDM 1.1 Table 5.2' },
+                  [
+                    { title: 'Instrument Station', rows: [
+                      { label: 'Station E', value: station.e || '—' },
+                      { label: 'Station N', value: station.n || '—' },
+                      { label: 'Station RL', value: `${station.rl || '—'} m` },
+                      { label: 'IH', value: `${station.ih || '—'} m` },
+                      { label: 'BS Bearing', value: result.bsBearing },
+                    ]},
+                  ],
+                  [
+                    { title: 'Setting Out Table', headers: ['Point ID', 'Hz Angle', 'HD (m)', 'ΔRL (m)', 'Design E', 'Design N', 'Design RL'], rows: result.rows.map((r: any) => [
+                      r.id, r.horizontalAngle || '—', r.horizontalDistance?.toFixed(4) || '—',
+                      r.deltaRL?.toFixed(4) || '—', r.designE?.toFixed(3) || '—',
+                      r.designN?.toFixed(3) || '—', r.designRL?.toFixed(3) || '—',
+                    ]) },
+                  ],
+                )
+              }}
+              className="px-4 py-2 border border-[var(--border-color)] rounded text-sm inline-flex items-center gap-2 hover:bg-[var(--bg-tertiary)]"
+            >
+              <Download className="w-4 h-4" /> Download PDF
+            </button>
+            <button
+              onClick={() => {
+                const csv = toCSV(
+                  ['Point ID', 'Hz Angle', 'HD (m)', 'Delta RL (m)', 'Design E', 'Design N', 'Design RL'],
+                  result.rows.map((r: any) => [
+                    r.id, r.horizontalAngle || '', r.horizontalDistance?.toFixed(4) || '',
+                    r.deltaRL?.toFixed(4) || '', r.designE?.toFixed(3) || '',
+                    r.designN?.toFixed(3) || '', r.designRL?.toFixed(3) || '',
+                  ]),
+                )
+                downloadCSV(csv, 'setting-out-data')
+              }}
+              className="px-4 py-2 border border-[var(--border-color)] rounded text-sm inline-flex items-center gap-2 hover:bg-[var(--bg-tertiary)]"
+            >
+              <Download className="w-4 h-4" /> Download CSV
+            </button>
+          </>
         )}
       </div>
 

@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { Download } from 'lucide-react';
 import { Point2D } from '@/lib/engine/types';
 import { PageHeader } from '@/components/shared/PageHeader';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer';
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder';
 import { coordinateAreaSolution, offsetAreaSolution } from '@/lib/engine/solution/wrappers/area';
+import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers';
 
 interface PointInput {
   id: number;
@@ -138,6 +140,48 @@ export default function AreaCalculator() {
 
           {calcError && <div className="text-red-500 bg-red-950/20 p-4 rounded mt-4">{calcError}</div>}
           <button onClick={calculate} className="btn btn-primary w-full mt-4">Calculate Area</button>
+          {steps && (
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  generatePDF(
+                    { title: 'Area Computation Certificate', reference: 'Survey Regulations 1994 | Survey Act Cap 299 | RDM 1.1 (2025)' },
+                    [
+                      { title: 'Computation Steps', rows: steps.map((s: SolutionStep) => ({ label: s.label, value: s.result || s.computation || '—' })) },
+                    ],
+                    method === 'coordinate' ? [
+                      { title: 'Coordinate List', headers: ['Point', 'Northing (m)', 'Easting (m)'], rows: points.filter(p => p.n && p.e).map((p, i) => [String.fromCharCode(65 + i), p.n, p.e]) },
+                    ] : [
+                      { title: 'Offset Data', headers: ['Ordinate (m)', 'Interval (m)'], rows: offsets.split(',').map(s => s.trim()).filter(Boolean).map(o => [o, interval]) },
+                    ],
+                  )
+                }}
+                className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Download PDF
+              </button>
+              <button
+                onClick={() => {
+                  if (method === 'coordinate') {
+                    const csv = toCSV(
+                      ['Point', 'Northing (m)', 'Easting (m)'],
+                      points.filter(p => p.n && p.e).map((p, i) => [String.fromCharCode(65 + i), p.n, p.e]),
+                    )
+                    downloadCSV(csv, 'area-coordinates')
+                  } else {
+                    const csv = toCSV(
+                      ['Ordinate (m)', 'Interval (m)', 'Method'],
+                      offsets.split(',').map(s => s.trim()).filter(Boolean).map(o => [o, interval, method]),
+                    )
+                    downloadCSV(csv, 'area-offsets')
+                  }
+                }}
+                className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Download CSV
+              </button>
+            </div>
+          )}
         </div>
 
         {steps ? <SolutionStepsRenderer title={solutionTitle} steps={steps} /> : null}

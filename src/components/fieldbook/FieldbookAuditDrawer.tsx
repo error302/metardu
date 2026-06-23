@@ -16,6 +16,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { X, ShieldCheck, ShieldAlert, Copy, Check, ChevronDown, ChevronRight, Hash, User, Clock } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface AuditEvent {
   id: string
@@ -37,12 +38,12 @@ interface FieldbookAuditDrawerProps {
   projectId?: string
 }
 
-const ACTION_STYLES: Record<AuditEvent['action'], { bg: string; text: string; label: string }> = {
-  INSERT:     { bg: 'bg-emerald-500/15',  text: 'text-emerald-300', label: 'Created' },
-  UPDATE:     { bg: 'bg-blue-500/15',     text: 'text-blue-300',    label: 'Updated' },
-  SOFT_DELETE:{ bg: 'bg-amber-500/15',    text: 'text-amber-300',   label: 'Soft-deleted' },
-  RESTORE:    { bg: 'bg-purple-500/15',   text: 'text-purple-300',  label: 'Restored' },
-  DELETE:     { bg: 'bg-red-500/15',      text: 'text-red-300',     label: 'Hard-deleted' },
+const ACTION_STYLES: Record<AuditEvent['action'], { bg: string; text: string; i18nKey: string }> = {
+  INSERT:     { bg: 'bg-emerald-500/15',  text: 'text-emerald-300', i18nKey: 'audit.created' },
+  UPDATE:     { bg: 'bg-blue-500/15',     text: 'text-blue-300',    i18nKey: 'audit.updated' },
+  SOFT_DELETE:{ bg: 'bg-amber-500/15',    text: 'text-amber-300',   i18nKey: 'audit.softDeleted' },
+  RESTORE:    { bg: 'bg-purple-500/15',   text: 'text-purple-300',  i18nKey: 'audit.restored' },
+  DELETE:     { bg: 'bg-red-500/15',      text: 'text-red-300',     i18nKey: 'audit.deleted' },
 }
 
 function relTime(iso: string): string {
@@ -55,6 +56,7 @@ function relTime(iso: string): string {
 }
 
 export function FieldbookAuditDrawer({ open, onClose, projectId }: FieldbookAuditDrawerProps) {
+  const { t } = useLanguage()
   const [events, setEvents] = useState<AuditEvent[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -121,7 +123,7 @@ export function FieldbookAuditDrawer({ open, onClose, projectId }: FieldbookAudi
               <ShieldCheck className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">Audit Trail</h2>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">{t('audit.title')}</h2>
               <p className="text-xs text-[var(--text-muted)]">
                 Hash-chained evidence log · {events.length} event{events.length !== 1 ? 's' : ''}
               </p>
@@ -141,7 +143,7 @@ export function FieldbookAuditDrawer({ open, onClose, projectId }: FieldbookAudi
           {loading && (
             <div className="flex items-center justify-center py-12 text-[var(--text-muted)]">
               <div className="w-5 h-5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mr-2" />
-              Loading audit events…
+              {t('common.loading')}
             </div>
           )}
 
@@ -155,8 +157,7 @@ export function FieldbookAuditDrawer({ open, onClose, projectId }: FieldbookAudi
           {!loading && !error && events.length === 0 && (
             <div className="text-center py-12 text-[var(--text-muted)]">
               <ShieldCheck className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">No audit events yet.</p>
-              <p className="text-xs mt-1">Changes you make to fieldbook rows will appear here.</p>
+              <p className="text-sm">{t('audit.noEvents')}</p>
             </div>
           )}
 
@@ -177,7 +178,7 @@ export function FieldbookAuditDrawer({ open, onClose, projectId }: FieldbookAudi
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider ${style.bg} ${style.text}`}>
-                              {style.label}
+                              {t(style.i18nKey)}
                             </span>
                             <span className="text-xs text-[var(--text-muted)] font-mono">
                               {ev.table_name === 'project_fieldbook_entries' ? 'fieldbook' : 'survey_point'}
@@ -201,7 +202,7 @@ export function FieldbookAuditDrawer({ open, onClose, projectId }: FieldbookAudi
                         <button
                           onClick={() => toggleExpand(ev.id)}
                           className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
-                          aria-label="Toggle details"
+                          aria-label={t('audit.viewDetails')}
                         >
                           {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         </button>
@@ -216,7 +217,7 @@ export function FieldbookAuditDrawer({ open, onClose, projectId }: FieldbookAudi
                         <button
                           onClick={() => copyHash(ev.hash)}
                           className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent)]"
-                          aria-label="Copy hash"
+                          aria-label={t('audit.copyHash')}
                         >
                           {copied === ev.hash ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                         </button>
@@ -240,7 +241,7 @@ export function FieldbookAuditDrawer({ open, onClose, projectId }: FieldbookAudi
         <div className="p-3 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50">
           <p className="text-[10px] text-[var(--text-muted)] flex items-center gap-1.5">
             <ShieldCheck className="w-3 h-3 text-emerald-400" />
-            Each event is SHA-256 hash-chained to the previous one. Any tampering breaks the chain.
+            {t('audit.integrityValid')}
           </p>
         </div>
       </div>

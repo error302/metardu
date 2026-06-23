@@ -18,6 +18,7 @@
 
 import { useEffect, useState } from 'react'
 import { Download, X, Share, PlusSquare } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const DISMISS_KEY = 'metardu_pwa_install_dismissed_at'
 const DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000 // 14 days
@@ -69,6 +70,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function PWAInstallBanner() {
+  const { t } = useLanguage()
   const [visible, setVisible] = useState(false)
   const [platform, setPlatform] = useState<Platform>('unsupported')
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
@@ -125,7 +127,7 @@ export function PWAInstallBanner() {
       {/* ─── Banner ─── */}
       <div
         role="dialog"
-        aria-label="Install METARDU app"
+        aria-label={t('pwa.installTitle')}
         className="fixed left-1/2 -translate-x-1/2 bottom-4 sm:bottom-6 z-[60] w-[calc(100%-1.5rem)] max-w-md animate-[slideUp_0.3s_ease-out]"
       >
         <div className="relative bg-[var(--bg-card)] border border-[var(--accent)]/30 rounded-2xl shadow-2xl shadow-[var(--accent)]/10 overflow-hidden">
@@ -140,12 +142,12 @@ export function PWAInstallBanner() {
 
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-0.5">
-                Install METARDU
+                {t('pwa.installTitle')}
               </h3>
               <p className="text-xs text-[var(--text-muted)] leading-relaxed">
                 {platform === 'ios-safari'
-                  ? 'Add METARDU to your Home Screen for offline field use.'
-                  : 'Install for offline field work, faster load, and push notifications.'}
+                  ? t('pwa.installDescriptionIOS')
+                  : t('pwa.installDescription')}
               </p>
 
               <div className="mt-3 flex items-center gap-2">
@@ -153,13 +155,13 @@ export function PWAInstallBanner() {
                   onClick={handleInstallClick}
                   className="px-3 py-1.5 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black text-xs font-semibold transition-colors active:scale-95"
                 >
-                  {platform === 'ios-safari' ? 'Show me how' : 'Install now'}
+                  {platform === 'ios-safari' ? t('pwa.showMeHow') : t('pwa.installNow')}
                 </button>
                 <button
                   onClick={dismiss}
                   className="px-3 py-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] text-xs font-medium transition-colors"
                 >
-                  Not now
+                  {t('pwa.notNow')}
                 </button>
               </div>
             </div>
@@ -188,7 +190,7 @@ export function PWAInstallBanner() {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                Add to Home Screen
+                {t('pwa.addToHomeScreen')}
               </h3>
               <button
                 onClick={() => setShowIosSheet(false)}
@@ -203,20 +205,20 @@ export function PWAInstallBanner() {
               <li className="flex items-start gap-3">
                 <span className="grid place-items-center w-6 h-6 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] text-xs font-bold shrink-0 mt-0.5">1</span>
                 <div>
-                  <p className="text-sm text-[var(--text-primary)]">Tap the <strong>Share</strong> button in Safari&apos;s toolbar</p>
+                  <p className="text-sm text-[var(--text-primary)]">{t('pwa.safariStep1')}</p>
                   <Share className="w-4 h-4 text-[var(--accent)] mt-1" />
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <span className="grid place-items-center w-6 h-6 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] text-xs font-bold shrink-0 mt-0.5">2</span>
                 <div>
-                  <p className="text-sm text-[var(--text-primary)]">Scroll and tap <strong>Add to Home Screen</strong></p>
+                  <p className="text-sm text-[var(--text-primary)]">{t('pwa.safariStep2')}</p>
                   <PlusSquare className="w-4 h-4 text-[var(--accent)] mt-1" />
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <span className="grid place-items-center w-6 h-6 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] text-xs font-bold shrink-0 mt-0.5">3</span>
-                <p className="text-sm text-[var(--text-primary)]">Tap <strong>Add</strong> — METARDU will appear on your Home Screen and work offline.</p>
+                <p className="text-sm text-[var(--text-primary)]">{t('pwa.safariStep3')}</p>
               </li>
             </ol>
 
@@ -227,7 +229,7 @@ export function PWAInstallBanner() {
               }}
               className="w-full mt-5 py-3 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold text-sm transition-colors active:scale-95"
             >
-              Got it
+              {t('pwa.gotIt')}
             </button>
           </div>
         </div>
