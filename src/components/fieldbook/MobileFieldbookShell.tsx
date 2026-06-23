@@ -16,9 +16,10 @@
  */
 
 import { useState } from 'react'
-import { Wifi, WifiOff, CloudUpload, Plus, Trash2, ChevronUp, CheckCircle2, AlertTriangle, Clock } from 'lucide-react'
+import { Wifi, WifiOff, CloudUpload, Plus, Trash2, ChevronUp, CheckCircle2, AlertTriangle, Clock, History } from 'lucide-react'
 import type { MobileSurveyType } from './UniversalMobileObservationForm'
 import { UniversalMobileObservationForm } from './UniversalMobileObservationForm'
+import type { CapturedBeaconPhoto } from './BeaconPhotoCapture'
 
 type Row = { id: string; [key: string]: string }
 
@@ -26,13 +27,17 @@ interface MobileFieldbookShellProps {
   surveyType: MobileSurveyType
   onSurveyTypeChange: (t: MobileSurveyType) => void
   rows: Row[]
-  onAddRow: (row: Record<string, string>) => void
+  onAddRow: (row: Record<string, string>, photos: CapturedBeaconPhoto[]) => void
   onRemoveRow: (id: string) => void
   online: boolean
   lastSaved?: string | null
   unsyncedCount?: number
   onSync?: () => void
   stationName?: string
+  /** When provided, shows a "Pull from instrument" button in the add form. */
+  onPullInstrumentReading?: () => Promise<Partial<Record<string, string>>>
+  /** When provided, shows an audit-trail button in the status bar. */
+  onViewAuditLog?: () => void
 }
 
 const TYPE_LABELS: Record<MobileSurveyType, { label: string; emoji: string }> = {
@@ -88,6 +93,8 @@ export function MobileFieldbookShell({
   unsyncedCount = 0,
   onSync,
   stationName,
+  onPullInstrumentReading,
+  onViewAuditLog,
 }: MobileFieldbookShellProps) {
   const [showForm, setShowForm] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -124,6 +131,16 @@ export function MobileFieldbookShell({
               <Clock className="w-3 h-3 inline mr-0.5" />
               {new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
+          )}
+          {onViewAuditLog && (
+            <button
+              onClick={onViewAuditLog}
+              className="grid place-items-center w-7 h-7 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition"
+              aria-label="View audit log"
+              title="Audit trail"
+            >
+              <History className="w-3.5 h-3.5" />
+            </button>
           )}
           <button
             onClick={onSync}
@@ -282,8 +299,9 @@ export function MobileFieldbookShell({
           surveyType={surveyType}
           stationName={stationName}
           lastStation={lastStation}
-          onAdd={async (row) => {
-            onAddRow({ ...row, _timestamp: new Date().toISOString() })
+          onPullInstrumentReading={onPullInstrumentReading}
+          onAdd={async (row, photos) => {
+            onAddRow({ ...row, _timestamp: new Date().toISOString() }, photos)
             setShowForm(false)
           }}
           onClose={() => setShowForm(false)}

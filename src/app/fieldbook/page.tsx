@@ -20,6 +20,8 @@ import { ControlBook } from '@/components/fieldbook/ControlBook'
 import { HydroBook } from '@/components/fieldbook/HydroBook'
 import { MiningBook } from '@/components/fieldbook/MiningBook'
 import { MobileFieldbookShell } from '@/components/fieldbook/MobileFieldbookShell'
+import { FieldbookAuditDrawer } from '@/components/fieldbook/FieldbookAuditDrawer'
+import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
 
 /** useIsMobile — SSR-safe media-query hook (lg breakpoint = 1024px). */
 function useIsMobile() {
@@ -130,6 +132,7 @@ export default function DigitalFieldBookPage() {
   const dbClient = createClient()
   const isMobile = useIsMobile()
   const [online, setOnline] = useState(true)
+  const [auditDrawerOpen, setAuditDrawerOpen] = useState(false)
 
   const [type, setType] = useState<FieldbookType>('leveling')
   const [projectId, setProjectId] = useState('')
@@ -826,8 +829,23 @@ export default function DigitalFieldBookPage() {
   })()
 
   /** Add a row produced by the mobile universal form to the active survey state. */
-  function handleMobileAddRow(row: Record<string, string>) {
+  function handleMobileAddRow(row: Record<string, string>, photos: CapturedBeaconPhoto[] = []) {
     const id = crypto.randomUUID()
+    // Build a compact photo annotation appended to remarks so the surveyor
+    // has an at-a-glance evidence trail. EXIF GPS coordinates are included
+    // when available — this is critical for cadastral legal defence.
+    const photoAnnotation = photos.length > 0
+      ? photos.map((p, i) => {
+          const gps = p.exif ? ` @${p.exif.latitude.toFixed(5)},${p.exif.longitude.toFixed(5)}` : ''
+          const cap = p.caption ? ` "${p.caption}"` : ''
+          return `[photo${i + 1}${gps}${cap}]`
+        }).join(' ')
+      : ''
+
+    const enrichedRemarks = photoAnnotation
+      ? `${row.remarks ?? ''}${row.remarks ? ' ' : ''}${photoAnnotation}`.trim()
+      : (row.remarks ?? '')
+
     if (type === 'leveling') {
       setLevelRows((p) => [...p, {
         id,
@@ -835,7 +853,7 @@ export default function DigitalFieldBookPage() {
         bs: row.bs ?? '',
         is: row.is ?? '',
         fs: row.fs ?? '',
-        remarks: row.remarks ?? '',
+        remarks: enrichedRemarks,
       }])
     } else if (type === 'traverse') {
       setTravRows((p) => [...p, {
@@ -847,7 +865,7 @@ export default function DigitalFieldBookPage() {
         slopeDist: row.slopeDist ?? '',
         vaDeg: row.vaDeg ?? '', vaMin: '', vaSec: '',
         ih: row.ih ?? '1.5', th: row.th ?? '1.5',
-        remarks: row.remarks ?? '',
+        remarks: enrichedRemarks,
       }])
     } else if (type === 'control') {
       setControlRows((p) => [...p, {
@@ -858,7 +876,7 @@ export default function DigitalFieldBookPage() {
         bearing: row.bearing ?? '',
         verticalAngle: row.verticalAngle ?? '90',
         slopeDistance: row.slopeDistance ?? '',
-        remarks: row.remarks ?? '',
+        remarks: enrichedRemarks,
       }])
     } else if (type === 'hydrographic') {
       setHydroRows((p) => [...p, {
@@ -868,7 +886,7 @@ export default function DigitalFieldBookPage() {
         northing: row.northing ?? '',
         depth: row.depth ?? '',
         tide: row.tide ?? '',
-        remarks: row.remarks ?? '',
+        remarks: enrichedRemarks,
       }])
     } else {
       setMiningRows((p) => [...p, {
@@ -877,7 +895,7 @@ export default function DigitalFieldBookPage() {
         bearing: row.bearing ?? '',
         verticalAngle: row.verticalAngle ?? '90',
         slopeDistance: row.slopeDistance ?? '',
-        remarks: row.remarks ?? '',
+        remarks: enrichedRemarks,
       }])
     }
     // Auto-save so the surveyor doesn't lose data if app is killed
@@ -893,20 +911,104 @@ export default function DigitalFieldBookPage() {
   }
 
   // ─── Mobile rendering: card-based shell with universal quick-add ─────
+  /**
+   * Pull the latest reading from a connected total station / GNSS via
+   * the Web Serial API. Returns a partial row keyed by the same field
+   * names used in UniversalMobileObservationForm.
+   *
+   * The full instrument connection lifecycle is managed by the
+   * InstrumentConnectionPanel on /field. To avoid duplicating that
+   * state machine here, this shim:
+   *   1. Verifies the Web Serial API is available.
+   *   2. Looks for a globally-exposed last-reading (the panel sets
+   *      `window.__metarduLastInstrumentReading` when streaming).
+   *   3. Translates the reading to the active survey type's fields.
+   *   4. If no reading is available, surfaces a clear CTA to open
+   *      /field and connect an instrument.
+   */
+  async function pullInstrumentReading(): Promise<Partial<Record<string, string>>> {
+    try {
+      if (typeof navigator === 'undefined' || !('serial' in navigator)) {
+        alert('Web Serial API is not supported in this browser. Use Chrome or Edge on desktop / Android.')
+        return {}
+      }
+
+      // The InstrumentConnectionPanel exposes the latest reading via a
+      // window global so other components can pull without remounting
+      // the connection.  See useInstrumentConnection.ts → onData.
+      const lastReading = (window as unknown as {
+        __metarduLastInstrumentReading?: {
+          easting?: number | null
+          northing?: number | null
+          elevation?: number | null
+          pointName?: string
+          timestamp?: string
+        }
+      }).__metarduLastInstrumentReading
+
+      if (!lastReading) {
+        const go = confirm('No instrument reading available. Open the Field page to connect a total station / GNSS?')
+        if (go) window.location.href = '/field'
+        return {}
+      }
+
+      // Translate the streamed point into the active survey type's fields
+      if (type === 'traverse' || type === 'control') {
+        const e = lastReading.easting ?? 0
+        const n = lastReading.northing ?? 0
+        return {
+          slopeDist: String(Math.sqrt(e * e + n * n)),
+          bearing: String((Math.atan2(e, n) * 180 / Math.PI + 360) % 360),
+          pointId: lastReading.pointName ?? '',
+        }
+      }
+      if (type === 'hydrographic') {
+        return {
+          easting: String(lastReading.easting ?? ''),
+          northing: String(lastReading.northing ?? ''),
+          depth: lastReading.elevation != null ? String(-lastReading.elevation) : '',
+          soundingId: lastReading.pointName ?? '',
+        }
+      }
+      if (type === 'mining') {
+        const e = lastReading.easting ?? 0
+        const n = lastReading.northing ?? 0
+        return {
+          slopeDist: String(Math.sqrt(e * e + n * n)),
+          bearing: String((Math.atan2(e, n) * 180 / Math.PI + 360) % 360),
+          pointId: lastReading.pointName ?? '',
+        }
+      }
+      return {}
+    } catch (err) {
+      console.error('pullInstrumentReading failed:', err)
+      return {}
+    }
+  }
+
   if (isMobile) {
     return (
-      <MobileFieldbookShell
-        surveyType={type}
-        onSurveyTypeChange={(t) => resetForType(t)}
-        rows={mobileRows}
-        onAddRow={handleMobileAddRow}
-        onRemoveRow={handleMobileRemoveRow}
-        online={online}
-        lastSaved={saveStatus.kind === 'saved' ? saveStatus.when : null}
-        unsyncedCount={savedFieldbooks.filter((fb) => !fb.updated_at).length}
-        onSync={handleSyncNow}
-        stationName={type === 'control' ? controlStation.name : type === 'mining' ? miningStation.name : undefined}
-      />
+      <>
+        <MobileFieldbookShell
+          surveyType={type}
+          onSurveyTypeChange={(t) => resetForType(t)}
+          rows={mobileRows}
+          onAddRow={handleMobileAddRow}
+          onRemoveRow={handleMobileRemoveRow}
+          online={online}
+          lastSaved={saveStatus.kind === 'saved' ? saveStatus.when : null}
+          unsyncedCount={savedFieldbooks.filter((fb) => !fb.updated_at).length}
+          onSync={handleSyncNow}
+          stationName={type === 'control' ? controlStation.name : type === 'mining' ? miningStation.name : undefined}
+          onPullInstrumentReading={pullInstrumentReading}
+          onViewAuditLog={() => setAuditDrawerOpen(true)}
+        />
+        <FieldbookAuditDrawer
+          open={auditDrawerOpen}
+          onClose={() => setAuditDrawerOpen(false)}
+          projectId={projectId || undefined}
+        />
+      </>
     )
   }
 

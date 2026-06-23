@@ -15,7 +15,8 @@
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import { X, Camera, Check, ChevronDown, MapPin, Ruler, Compass, Mountain, Waves, Pickaxe } from 'lucide-react'
+import { X, Check, MapPin, Ruler, Compass, Mountain, Waves, Pickaxe, Bluetooth, RefreshCw } from 'lucide-react'
+import { BeaconPhotoCapture, type CapturedBeaconPhoto } from './BeaconPhotoCapture'
 
 export type MobileSurveyType = 'leveling' | 'traverse' | 'control' | 'hydrographic' | 'mining'
 
@@ -86,10 +87,20 @@ export interface UniversalMobileObservationFormProps {
   surveyType: MobileSurveyType
   /** station context (for control / mining where station header exists) */
   stationName?: string
-  onAdd: (row: Record<string, string>) => void
+  /**
+   * Called when the user saves a reading. Returns the row plus any
+   * captured beacon photos with embedded EXIF GPS data.
+   */
+  onAdd: (row: Record<string, string>, photos: CapturedBeaconPhoto[]) => void
   onClose: () => void
   /** auto-increment last station name (e.g. P1 -> P2) */
   lastStation?: string
+  /**
+   * Optional instrument-read callback. When provided, a "Pull from
+   * instrument" button appears that calls this and fills the form
+   * with the latest total-station reading (HA, VA, slope, etc.).
+   */
+  onPullInstrumentReading?: () => Promise<Partial<Record<string, string>>>
 }
 
 export function UniversalMobileObservationForm({
@@ -98,6 +109,7 @@ export function UniversalMobileObservationForm({
   onAdd,
   onClose,
   lastStation,
+  onPullInstrumentReading,
 }: UniversalMobileObservationFormProps) {
   const fields = FIELD_SETS[surveyType]
   const meta = TYPE_META[surveyType]
@@ -116,11 +128,25 @@ export function UniversalMobileObservationForm({
 
   const [form, setForm] = useState<Record<string, string>>(initial)
   const [saving, setSaving] = useState(false)
+  const [photos, setPhotos] = useState<CapturedBeaconPhoto[]>([])
+  const [instrumentConnected, setInstrumentConnected] = useState(false)
+  const [readingFromInstrument, setReadingFromInstrument] = useState(false)
 
   // Reset form when survey type changes (so reopening doesn't keep stale values)
   useEffect(() => {
     setForm(initial)
+    setPhotos([])
   }, [initial])
+
+  // Revoke object URLs on unmount
+  useEffect(() => {
+    return () => {
+      for (const p of photos) {
+        try { URL.revokeObjectURL(p.previewUrl) } catch { /* ignore */ }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleChange = (key: string, value: string, field: FieldDef) => {
     setForm((prev) => ({ ...prev, [key]: field.station ? value.toUpperCase() : value }))
@@ -133,7 +159,7 @@ export function UniversalMobileObservationForm({
     if (!isComplete) return
     setSaving(true)
     try {
-      await onAdd(form)
+      await onAdd(form, photos)
     } finally {
       setSaving(false)
     }
@@ -144,7 +170,7 @@ export function UniversalMobileObservationForm({
     if (!isComplete) return
     setSaving(true)
     try {
-      await onAdd(form)
+      await onAdd(form, photos)
       // suggest next station
       const firstStationField = fields.find((f) => f.station)
       if (firstStationField && form[firstStationField.key]) {
@@ -154,8 +180,34 @@ export function UniversalMobileObservationForm({
         if (next) reset[firstStationField.key] = next
         setForm(reset)
       }
+      // Revoke old photo preview URLs and clear
+      for (const p of photos) {
+        try { URL.revokeObjectURL(p.previewUrl) } catch { /* ignore */ }
+      }
+      setPhotos([])
     } finally {
       setSaving(false)
+    }
+  }
+
+  /** Pull the latest reading from a connected total station / GNSS. */
+  const handlePullFromInstrument = async () => {
+    if (!onPullInstrumentReading || readingFromInstrument) return
+    setReadingFromInstrument(true)
+    try {
+      const reading = await onPullInstrumentReading()
+      if (reading && Object.keys(reading).length > 0) {
+        const sanitized: Record<string, string> = {}
+        for (const [k, v] of Object.entries(reading)) {
+          if (v !== undefined && v !== null) sanitized[k] = String(v)
+        }
+        setForm((prev) => ({ ...prev, ...sanitized }))
+        setInstrumentConnected(true)
+      }
+    } catch (err) {
+      console.error('Instrument read failed:', err)
+    } finally {
+      setReadingFromInstrument(false)
     }
   }
 
@@ -216,14 +268,47 @@ export function UniversalMobileObservationForm({
             </div>
           ))}
 
-          {/* Photo attach — universal across all survey types */}
-          <button
-            type="button"
-            className="w-full p-4 border-2 border-dashed border-[var(--border-color)] rounded-xl flex items-center justify-center gap-2 text-[var(--text-secondary)] hover:border-[var(--accent)]/50 hover:text-[var(--accent)] hover:bg-[var(--accent)]/5 transition active:scale-[0.99]"
-          >
-            <Camera className="w-5 h-5" />
-            <span className="text-sm font-medium">Attach Beacon / Site Photo</span>
-          </button>
+          {/* Pull-from-instrument button — only when an instrument
+              connection is available (Bluetooth / Web Serial). */}
+          {onPullInstrumentReading && (
+            <div className="pt-2 border-t border-[var(--border-color)]">
+              <button
+                type="button"
+                onClick={handlePullFromInstrument}
+                disabled={readingFromInstrument}
+                className={[
+                  'w-full p-3.5 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all border',
+                  instrumentConnected
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                    : 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--accent)]/40 hover:text-[var(--accent)]',
+                ].join(' ')}
+              >
+                {readingFromInstrument ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Reading from instrument…
+                  </>
+                ) : instrumentConnected ? (
+                  <>
+                    <Bluetooth className="w-4 h-4" />
+                    Pull latest reading
+                  </>
+                ) : (
+                  <>
+                    <Bluetooth className="w-4 h-4" />
+                    Connect instrument & pull reading
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Photo capture — universal across all survey types, with
+              EXIF GPS extraction for evidence chains. */}
+          <div className="pt-3 border-t border-[var(--border-color)]">
+            <label className={labelClass}>Beacon / Site Photos</label>
+            <BeaconPhotoCapture photos={photos} onChange={setPhotos} maxPhotos={4} />
+          </div>
         </div>
 
         {/* Sticky action bar — large touch targets */}

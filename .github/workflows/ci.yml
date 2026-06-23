@@ -2,8 +2,9 @@
 # METARDU CI Pipeline
 #
 # Triggers on push / PR to main.
-# Jobs: typecheck → lint → test → security audit.
-# Build is done on the VM during deploy — not here (saves CI minutes).
+# Jobs: typecheck → lint → build → test → security audit → i18n integrity.
+# Build is now gated in CI so regressions like styled-jsx in Server
+# Components are caught BEFORE they reach the VM deploy.
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: CI
@@ -48,6 +49,46 @@ jobs:
       # TODO: Remove continue-on-error after any count drops below 50
       - run: npx eslint src/ --ext .ts,.tsx --max-warnings 0
         continue-on-error: true
+
+  build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Block PRs that fail to build — this is the gate that catches
+    # Server Component / styled-jsx / RSC violations before deploy.
+    needs: [typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --legacy-peer-deps
+      - name: Build Next.js (production)
+        env:
+          # Skip Sentry + GCS upload during CI build — they're not needed
+          # to validate compilation and would otherwise fail without secrets.
+          NEXT_PUBLIC_SENTRY_DSN: ''
+          DISABLE_PWA: 'true'
+        run: npx next build
+      - name: Verify standalone output exists
+        run: |
+          test -d .next/standalone && echo "✓ standalone build OK"
+          test -f .next/BUILD_ID && echo "✓ BUILD_ID present"
+
+  i18n:
+    name: i18n Integrity Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --legacy-peer-deps
+      - name: Verify all locale files parse and cover English keys
+        run: node scripts/i18n-sync.mjs --check
 
   test:
     name: Jest Tests

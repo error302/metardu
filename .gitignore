@@ -83,7 +83,6 @@ manual/
 
 # Local scripts and generated assets
 scripts/generate-icons.js
-scripts/i18n-sync.mjs
 scripts/push_github.ps1
 scripts/public/
 

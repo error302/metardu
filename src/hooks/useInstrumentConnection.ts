@@ -159,6 +159,18 @@ export function useInstrumentConnection(): UseInstrumentConnectionReturn {
       if (point) {
         setLastPoint(point)
         setPoints(prev => [...prev, point!])
+        // Expose the latest reading globally so other components (e.g.
+        // the mobile fieldbook's "Pull from instrument" button) can
+        // read it without re-instantiating the connection.
+        if (typeof window !== 'undefined') {
+          ;(window as unknown as { __metarduLastInstrumentReading?: unknown }).__metarduLastInstrumentReading = {
+            easting: point.easting,
+            northing: point.northing,
+            elevation: point.elevation,
+            pointName: point.pointName,
+            timestamp: point.timestamp.toISOString(),
+          }
+        }
       }
     })
 
@@ -230,6 +242,15 @@ export function useInstrumentConnection(): UseInstrumentConnectionReturn {
       if (point) {
         setLastPoint(point)
         setPoints(prev => [...prev, point!])
+        if (typeof window !== 'undefined') {
+          ;(window as unknown as { __metarduLastInstrumentReading?: unknown }).__metarduLastInstrumentReading = {
+            easting: point.easting,
+            northing: point.northing,
+            elevation: point.elevation,
+            pointName: point.pointName,
+            timestamp: point.timestamp.toISOString(),
+          }
+        }
       }
     })
 
@@ -254,6 +275,11 @@ export function useInstrumentConnection(): UseInstrumentConnectionReturn {
   const clearPoints = useCallback(() => {
     setPoints([])
     setLastPoint(null)
+    if (typeof window !== 'undefined') {
+      try {
+        delete (window as unknown as { __metarduLastInstrumentReading?: unknown }).__metarduLastInstrumentReading
+      } catch { /* ignore */ }
+    }
   }, [])
 
   return {

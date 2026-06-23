@@ -7,9 +7,9 @@ on:
 
 jobs:
   check:
-    name: Type Check, Lint & Test
+    name: Type Check, Lint, Build & Test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -34,6 +34,16 @@ jobs:
         # because we have ~1300 existing 'any' warnings from Phase 6. Once those
         # are resolved, remove continue-on-error to make lint blocking.
         # TODO: Remove continue-on-error after any count drops below 50
+
+      - name: i18n integrity check
+        run: node scripts/i18n-sync.mjs --check
+
+      - name: Production build
+        env:
+          NEXT_PUBLIC_SENTRY_DSN: ''
+          DISABLE_PWA: 'true'
+        run: npx next build
+        timeout-minutes: 12
 
       - name: Run tests
         run: npx jest --silent --passWithNoTests

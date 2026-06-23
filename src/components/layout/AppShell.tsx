@@ -11,6 +11,7 @@ import MobileNav from '@/components/MobileNav'
 import KeyboardShortcuts from '@/components/KeyboardShortcuts'
 import { AppUpdateBanner } from '@/components/app/AppUpdateBanner'
 import { OfflineIndicator } from '@/components/app/OfflineIndicator'
+import { PWAInstallBanner } from '@/components/app/PWAInstallBanner'
 import { ProjectionInit } from '@/components/layout/ProjectionInit'
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import { CountryProvider } from '@/lib/country'
@@ -71,6 +72,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <>
         <AppUpdateBanner />
         <OfflineIndicator />
+        <PWAInstallBanner />
         <ProjectionInit />
         <LanguageProvider>
           <CountryProvider>
@@ -94,6 +96,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <>
         <AppUpdateBanner />
         <OfflineIndicator />
+        <PWAInstallBanner />
         <ProjectionInit />
         <LanguageProvider>
           <CountryProvider>
@@ -116,6 +119,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <>
       <AppUpdateBanner />
       <OfflineIndicator />
+      <PWAInstallBanner />
       <ProjectionInit />
       <LanguageProvider>
         <CountryProvider>
