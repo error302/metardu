@@ -30,7 +30,7 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Pro
   const dbClient = await createClient()
   const { data: project, error } = await dbClient
     .from('projects')
-    .select('id, name, survey_type, project_type')
+    .select('id, name, survey_type, project_type, location, utm_zone, hemisphere, workflow_step, workflow_max_unlocked')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()
@@ -45,7 +45,9 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Pro
   const surveyType = normalizeSurveyType(project.survey_type as string | null | undefined)
   const workflow = getWorkflow(surveyType)
   const urlStep = parseInt(searchParams.step ?? '', 10)
-  const stepIndex = Number.isFinite(urlStep) ? urlStep : 1
+  const dbStep = (project.workflow_step as number) ?? 1
+  const stepIndex = Number.isFinite(urlStep) ? urlStep : dbStep
+  const dbMaxUnlocked = (project.workflow_max_unlocked as number) ?? 1
 
   return (
     <ProjectWorkspaceClient
@@ -54,7 +56,7 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Pro
         name: project.name as string,
         surveyType,
         workflowStep: stepIndex,
-        maxUnlocked: 1,
+        maxUnlocked: dbMaxUnlocked,
       }}
       workflow={workflow}
     />

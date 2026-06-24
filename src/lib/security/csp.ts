@@ -31,6 +31,9 @@ export function getCspHeaders(nonce: string) {
       `font-src 'self' https://fonts.gstatic.com`,
       `img-src 'self' data: blob: https:`,
       `connect-src 'self' ${isDev ? 'ws://localhost:* http://localhost:*' : ''} wss: https:`,
+      // Web Bluetooth API requires bluetooth directive (Chrome 104+)
+      // Needed for GNSSConnectionPanel + InstrumentConnectionPanel
+      `bluetooth 'self'`,
       `frame-src 'none'`,
       `object-src 'none'`,
       `base-uri 'self'`,

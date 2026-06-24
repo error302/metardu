@@ -4,12 +4,25 @@
  *
  * All interaction logic extracted from MapClient for maintainability.
  * Uses useCallback for stable references to prevent unnecessary re-renders.
+ *
+ * Stakeout mode: Full GPS-guided point navigation with overlay, audio alerts,
+ * bearing/distance computation, and proximity color-coding.
  */
 
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import type { DrawMode, MeasureMode } from '@/app/map/mapTypes'
 import { downloadDXF, type SurveyPoint } from '@/lib/export/generateDXF'
 import { downloadLandXML, type LandXMLProject, type LandXMLPoint } from '@/lib/export/generateLandXML'
+import {
+  createStakeoutOverlay,
+  updateStakeoutDirection,
+  updateTargetProximityStyle,
+  createStakeoutAudioAlert,
+  stopStakeoutAudio,
+  type StakeoutTarget,
+  type StakeoutState,
+  type StakeoutPosition,
+} from '@/lib/map/stakeout'
 
 interface UseMapInteractionsParams {
   mapInstance: React.MutableRefObject<any>
@@ -27,6 +40,7 @@ interface UseMapInteractionsParams {
   measureMode: MeasureMode
   showAnnotations: boolean
   gpsTracking: boolean
+  stakeoutActive: boolean
   stakeoutTarget: { e: number; n: number } | null
   gpsPos: { lon: number; lat: number; accuracy: number } | null
   hasFeature: (feature: string) => boolean
@@ -41,6 +55,7 @@ interface UseMapInteractionsParams {
   setGpsPos: (v: { lon: number; lat: number; accuracy: number } | null) => void
   setStakeoutTarget: (v: { e: number; n: number } | null) => void
   setStakeoutActive: (v: boolean) => void
+  setStakeoutState: (v: StakeoutState | null) => void
   setShowAnnotations: (v: boolean) => void
   setSaveMsg: (s: string) => void
   pushHistory: () => void
@@ -50,6 +65,14 @@ interface UseMapInteractionsParams {
 }
 
 export function useMapInteractions(p: UseMapInteractionsParams) {
+
+  // ── Stakeout overlay refs (persist across renders) ──
+  const stakeoutOverlayRef = useRef<any>(null)         // OL Overlay
+  const stakeoutTargetSourceRef = useRef<any>(null)     // Vector source for target marker
+  const stakeoutTargetLayerRef = useRef<any>(null)      // Vector layer for target marker
+  const stakeoutDirectionSourceRef = useRef<any>(null)  // Vector source for direction line
+  const stakeoutDirectionLayerRef = useRef<any>(null)   // Vector layer for direction line
+  const stakeoutCleanupDone = useRef(false)
 
   // ── DRAW ──
   const toggleDraw = useCallback(async (mode: DrawMode) => {
@@ -402,7 +425,136 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     }
   }, [p.gpsTracking])
 
-  // ── STAKEOUT ──
+  // ── STAKEOUT: Activate with full overlay ──
+  const activateStakeout = useCallback(async (target: StakeoutTarget) => {
+    if (!p.hasFeature('gps_stakeout')) return
+    if (!p.mapInstance.current) return
+
+    // Deactivate any existing stakeout first
+    await deactivateStakeout()
+
+    try {
+      const { overlay, targetSource, targetLayer, directionSource, directionLayer } =
+        await createStakeoutOverlay(target)
+
+      // Store refs
+      stakeoutOverlayRef.current = overlay
+      stakeoutTargetSourceRef.current = targetSource
+      stakeoutTargetLayerRef.current = targetLayer
+      stakeoutDirectionSourceRef.current = directionSource
+      stakeoutDirectionLayerRef.current = directionLayer
+
+      // Add overlay and layers to the map
+      p.mapInstance.current.addOverlay(overlay)
+      p.mapInstance.current.addLayer(targetLayer)
+      p.mapInstance.current.addLayer(directionLayer)
+
+      // Set the target state
+      p.setStakeoutTarget({ e: target.easting, n: target.northing })
+      p.setStakeoutActive(true)
+      stakeoutCleanupDone.current = false
+
+      // Enable GPS if not already tracking
+      if (!p.gpsTracking) p.toggleGPS()
+
+      // Zoom to target
+      const { transform } = await import('ol/proj')
+      const targetCoord = transform([target.easting, target.northing], 'EPSG:21037', 'EPSG:3857')
+      p.mapInstance.current.getView().animate({ center: targetCoord, zoom: 18, duration: 800 })
+    } catch (err) {
+      console.error('[activateStakeout] Failed:', err)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.hasFeature, p.gpsTracking, p.toggleGPS])
+
+  // ── STAKEOUT: Deactivate and clean up ──
+  const deactivateStakeout = useCallback(async () => {
+    if (stakeoutCleanupDone.current) return
+    stakeoutCleanupDone.current = true
+
+    stopStakeoutAudio()
+
+    if (p.mapInstance.current) {
+      // Remove overlay
+      if (stakeoutOverlayRef.current) {
+        try {
+          p.mapInstance.current.removeOverlay(stakeoutOverlayRef.current)
+        } catch { /* already removed */ }
+        stakeoutOverlayRef.current = null
+      }
+
+      // Remove target layer
+      if (stakeoutTargetLayerRef.current) {
+        try {
+          stakeoutTargetSourceRef.current?.clear()
+          p.mapInstance.current.removeLayer(stakeoutTargetLayerRef.current)
+        } catch { /* already removed */ }
+        stakeoutTargetLayerRef.current = null
+        stakeoutTargetSourceRef.current = null
+      }
+
+      // Remove direction layer
+      if (stakeoutDirectionLayerRef.current) {
+        try {
+          stakeoutDirectionSourceRef.current?.clear()
+          p.mapInstance.current.removeLayer(stakeoutDirectionLayerRef.current)
+        } catch { /* already removed */ }
+        stakeoutDirectionLayerRef.current = null
+        stakeoutDirectionSourceRef.current = null
+      }
+    }
+
+    p.setStakeoutTarget(null)
+    p.setStakeoutActive(false)
+    p.setStakeoutState(null)
+  }, [])
+
+  // ── STAKEOUT: Update on GPS position change ──
+  const updateStakeoutOnGPS = useCallback(async () => {
+    if (!p.stakeoutActive || !p.stakeoutTarget || !p.gpsPos) return
+    if (!stakeoutDirectionSourceRef.current) return
+
+    try {
+      const { transform } = await import('ol/proj')
+      const [gpsE, gpsN] = transform(
+        [p.gpsPos.lon, p.gpsPos.lat],
+        'EPSG:4326',
+        'EPSG:21037'
+      ) as [number, number]
+
+      const currentPos: StakeoutPosition = {
+        easting: gpsE,
+        northing: gpsN,
+        accuracy: p.gpsPos.accuracy,
+      }
+
+      const target: StakeoutTarget = {
+        easting: p.stakeoutTarget.e,
+        northing: p.stakeoutTarget.n,
+      }
+
+      // Update direction line on the map
+      const state = await updateStakeoutDirection(
+        stakeoutDirectionSourceRef.current,
+        currentPos,
+        target
+      )
+
+      // Update target marker proximity color
+      await updateTargetProximityStyle(
+        stakeoutTargetSourceRef.current,
+        state.proximityColor
+      )
+
+      // Update state for the panel
+      p.setStakeoutState(state)
+
+      // Trigger audio alert
+      createStakeoutAudioAlert(state.distance)
+    } catch { /* skip update */ }
+  }, [p.stakeoutActive, p.stakeoutTarget, p.gpsPos])
+
+  // ── STAKEOUT: Legacy toggle (for backward compat) ──
   const toggleStakeout = useCallback(() => {
     if (!p.hasFeature('gps_stakeout')) return
     if (!p.stakeoutTarget) {
@@ -411,23 +563,20 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       if (center) {
         import('ol/proj').then(({ transform }) => {
           const [e, n] = transform(center, 'EPSG:3857', 'EPSG:21037')
-          p.setStakeoutTarget({ e, n })
-          p.setStakeoutActive(true)
-          if (!p.gpsTracking) p.toggleGPS()
+          activateStakeout({ easting: e, northing: n })
         })
       }
     } else {
-      p.setStakeoutTarget(null)
-      p.setStakeoutActive(false)
+      deactivateStakeout()
     }
-  }, [p.hasFeature, p.stakeoutTarget, p.gpsTracking, p.toggleGPS])
+  }, [p.hasFeature, p.stakeoutTarget, activateStakeout, deactivateStakeout])
 
-  // ── STAKEOUT INFO ──
+  // ── STAKEOUT INFO (legacy, for backward compat) ──
   const stakeoutInfo = useCallback(() => {
     if (!p.stakeoutTarget || !p.gpsPos) return null
-    const { transform } = require('ol/proj')
     let gpsE = 0, gpsN = 0
     try {
+      const { transform } = require('ol/proj')
       const [e, n] = transform(
         [p.gpsPos.lon, p.gpsPos.lat],
         'EPSG:4326',
@@ -632,6 +781,9 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     toggleGPS: toggleGPSInternal,
     toggleStakeout,
     stakeoutInfo,
+    activateStakeout,
+    deactivateStakeout,
+    updateStakeoutOnGPS,
     saveToProject,
     toggleAnnotations,
     fitToKenya,

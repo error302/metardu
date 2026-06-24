@@ -9,12 +9,14 @@
  *  - Loading spinner during fetch
  *  - Error state with retry
  *  - Zoom-to-scheme button
+ *  - Create Parcel from Traverse button (when traverse is computed)
+ *  - Traverse-to-parcel preview/confirm/cancel workflow
  *
  * Positioned at the top-right of the map, styled to match the
  * existing dark glass-morphism UI (bg-[#14141e]/95, #E8841A accents).
  */
 
-import React, { memo, useCallback } from 'react'
+import React, { memo, useCallback, useState } from 'react'
 
 export interface SchemeLayerPanelProps {
   /** Whether a project ID is available for loading scheme data */
@@ -35,6 +37,10 @@ export interface SchemeLayerPanelProps {
   showParcels: boolean
   showBlocks: boolean
   showBeacons: boolean
+  /** Whether a traverse has been computed for the project */
+  hasTraverse?: boolean
+  /** Traverse-to-parcel workflow state */
+  traverseParcelPreviewActive?: boolean
   /** Handlers */
   onLoadScheme: () => void
   onRetry: () => void
@@ -43,6 +49,10 @@ export interface SchemeLayerPanelProps {
   onToggleBeacons: () => void
   onZoomToScheme: () => void
   onRemoveScheme: () => void
+  /** Traverse-to-parcel handlers */
+  onCreateParcelFromTraverse?: () => void
+  onConfirmTraverseParcel?: () => void
+  onCancelTraverseParcel?: () => void
 }
 
 export const SchemeLayerPanel = memo(function SchemeLayerPanel({
@@ -57,6 +67,8 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
   showParcels,
   showBlocks,
   showBeacons,
+  hasTraverse,
+  traverseParcelPreviewActive,
   onLoadScheme,
   onRetry,
   onToggleParcels,
@@ -64,7 +76,12 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
   onToggleBeacons,
   onZoomToScheme,
   onRemoveScheme,
+  onCreateParcelFromTraverse,
+  onConfirmTraverseParcel,
+  onCancelTraverseParcel,
 }: SchemeLayerPanelProps) {
+  const [showTraverseWorkflow, setShowTraverseWorkflow] = useState(false)
+
   if (!hasProjectId) return null
 
   return (
@@ -170,6 +187,73 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
                   onToggle={onToggleBeacons}
                 />
               </div>
+
+              {/* Traverse-to-Parcel Workflow */}
+              {hasTraverse && !traverseParcelPreviewActive && onCreateParcelFromTraverse && (
+                <div className="pt-1 border-t border-white/[0.06]">
+                  <button
+                    onClick={() => {
+                      setShowTraverseWorkflow(true)
+                      onCreateParcelFromTraverse()
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg
+                               bg-green-500/10 border border-green-500/25 text-green-400
+                               text-xs font-semibold transition-all duration-200
+                               hover:bg-green-500/20 hover:border-green-500/40
+                               focus:outline-none focus:ring-1 focus:ring-green-500/40"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                    </svg>
+                    Create Parcel from Traverse
+                  </button>
+                </div>
+              )}
+
+              {/* Traverse preview confirm/cancel */}
+              {traverseParcelPreviewActive && (
+                <div className="pt-1 border-t border-white/[0.06] space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[10px] text-green-400 uppercase tracking-wider font-semibold">
+                      Traverse Preview
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">
+                    The traverse stations are shown as a polygon preview. Confirm to save as a parcel boundary.
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={onConfirmTraverseParcel}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
+                                 bg-green-500/20 border border-green-500/30 text-green-400
+                                 text-[11px] font-semibold transition-all duration-200
+                                 hover:bg-green-500/30 hover:text-green-300
+                                 focus:outline-none focus:ring-1 focus:ring-green-500/30"
+                      title="Save traverse as parcel boundary"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Confirm
+                    </button>
+                    <button
+                      onClick={onCancelTraverseParcel}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
+                                 bg-red-500/10 border border-red-500/20 text-red-400
+                                 text-[11px] font-medium transition-all duration-200
+                                 hover:bg-red-500/20 hover:text-red-300
+                                 focus:outline-none focus:ring-1 focus:ring-red-500/30"
+                      title="Cancel — remove preview"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Action buttons */}
               <div className="flex items-center gap-1.5">

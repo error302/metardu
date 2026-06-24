@@ -5,6 +5,9 @@
  * Memoized to prevent re-renders from unrelated state changes.
  * All overlays are absolutely positioned within the map container.
  * Mobile-responsive: adjusts sizes and positions for small screens.
+ *
+ * Note: The full stakeout panel is rendered by the StakeoutPanel component.
+ * This file only shows the simplified HUD in the bottom-right corner.
  */
 
 import React, { memo } from 'react'
@@ -80,7 +83,7 @@ export const MapOverlays = memo(function MapOverlays({
         </div>
       )}
 
-      {/* Stakeout HUD */}
+      {/* Stakeout HUD (simplified — full panel is in StakeoutPanel component) */}
       {stakeoutActive && stakeoutTarget && (() => {
         const info = stakeoutInfo()
         return (

@@ -2,7 +2,7 @@
 # METARDU CI Pipeline
 #
 # Triggers on push / PR to main.
-# Jobs: typecheck → lint → build → test → security audit → i18n integrity.
+# Jobs: typecheck → lint → build → test → security audit → i18n integrity → E2E.
 # Build is now gated in CI so regressions like styled-jsx in Server
 # Components are caught BEFORE they reach the VM deploy.
 # ──────────────────────────────────────────────────────────────────────────────
@@ -102,6 +102,56 @@ jobs:
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
       - run: npx jest --silent --passWithNoTests
+
+  e2e:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --legacy-peer-deps
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright E2E tests
+        env:
+          NEXT_PUBLIC_SENTRY_DSN: ''
+          DISABLE_PWA: 'true'
+        run: npx playwright test --reporter=list
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  mobile-build-check:
+    name: Mobile Build Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --legacy-peer-deps
+      - name: Build static export (MOBILE_BUILD=true)
+        env:
+          MOBILE_BUILD: 'true'
+          NEXT_PUBLIC_SENTRY_DSN: ''
+          DISABLE_PWA: 'true'
+        run: npx next build
+      - name: Verify static export exists
+        run: |
+          test -d out && echo "✓ static export OK"
+          test -f out/index.html && echo "✓ index.html present"
 
   security:
     name: Security Audit

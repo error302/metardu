@@ -48,3 +48,12 @@ jobs:
       - name: Run tests
         run: npx jest --silent --passWithNoTests
         timeout-minutes: 5
+
+      - name: Verify mobile static export
+        env:
+          MOBILE_BUILD: 'true'
+          NEXT_PUBLIC_SENTRY_DSN: ''
+          DISABLE_PWA: 'true'
+        run: |
+          npx next build
+          test -d out && echo "✓ mobile static export OK"

@@ -2,14 +2,19 @@
  * METARDU — Instrument Connection Panel
  * =======================================
  * React component providing a UI to connect to surveying instruments
- * via the Web Serial API. Includes:
+ * via Web Serial API or Bluetooth LE. Includes:
  *
+ * - Transport selector (USB Serial / Bluetooth LE)
  * - Instrument preset selector (Leica, Trimble, Topcon, etc.)
  * - Custom baud rate / serial config
  * - Connection status indicator with live stats
  * - Real-time streaming point display
  * - Points table with count
  * - Import streamed points to current project
+ *
+ * The BLE path uses @capacitor-community/bluetooth-le on native
+ * and Web Bluetooth API in the browser, with NUS + Location+NMEA
+ * service support for surveying instruments.
  */
 
 'use client'
@@ -36,19 +41,32 @@ import {
   Ruler,
   Play,
   Square,
+  Bluetooth,
+  BluetoothOff,
+  Usb,
 } from 'lucide-react'
+import { Capacitor } from '@capacitor/core'
+import { WebBluetoothGNSS } from '@/lib/gnss/bluetooth'
+import { CapacitorBLEGNSS, type CapacitorGNSSDevice } from '@/lib/gnss/capacitor-ble'
+import { useInstrumentStore, type InstrumentDevice, type ConnectionTransport } from '@/stores/instrumentStore'
+import type { NMEAPosition } from '@/lib/gnss/nmea-parser'
+
+type TransportMode = 'serial' | 'ble'
 
 interface InstrumentConnectionPanelProps {
   /** Called when user clicks "Import Points" to add streamed points to the project */
   onImportPoints?: (points: StreamedPoint[]) => void
   /** Called when a new point is received in real-time */
   onPointReceived?: (point: StreamedPoint) => void
+  /** Default transport mode (auto-detected if not specified) */
+  defaultTransport?: TransportMode
   className?: string
 }
 
 export function InstrumentConnectionPanel({
   onImportPoints,
   onPointReceived,
+  defaultTransport,
   className = '',
 }: InstrumentConnectionPanelProps) {
   const {
@@ -57,7 +75,7 @@ export function InstrumentConnectionPanel({
     disconnect,
     status,
     isStreaming,
-    isSupported,
+    isSupported: isSerialSupported,
     instrumentInfo,
     points,
     lastPoint,
@@ -66,6 +84,22 @@ export function InstrumentConnectionPanel({
     clearPoints,
     error,
   } = useInstrumentConnection()
+
+  // Instrument store for BLE state
+  const instrumentStore = useInstrumentStore()
+
+  // Transport mode
+  const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform()
+  const [transportMode, setTransportMode] = useState<TransportMode>(
+    defaultTransport || (isNative ? 'ble' : 'serial')
+  )
+  const [bleConnecting, setBleConnecting] = useState(false)
+  const [bleError, setBleError] = useState<string | null>(null)
+  const [bleScannedDevices, setBleScannedDevices] = useState<CapacitorGNSSDevice[]>([])
+  const [bleSelectedDevice, setBleSelectedDevice] = useState<string | null>(null)
+  const [bleService, setBleService] = useState<CapacitorBLEGNSS | WebBluetoothGNSS | null>(null)
+
+  const isSupported = transportMode === 'ble' ? true : isSerialSupported
 
   const [showConfig, setShowConfig] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState('generic-gnss')
@@ -149,7 +183,102 @@ export function InstrumentConnectionPanel({
     reconnecting: 'bg-orange-500/10 border-orange-500/30',
   }
 
-  if (!isSupported) {
+  // ─── BLE connection handlers ──────────────────────────
+  const handleBleScan = useCallback(async () => {
+    setBleError(null)
+    try {
+      let service: CapacitorBLEGNSS | WebBluetoothGNSS
+      if (isNative) {
+        const ble = new CapacitorBLEGNSS()
+        await ble.initialize()
+        service = ble
+      } else {
+        service = new WebBluetoothGNSS()
+      }
+      setBleService(service)
+
+      if (isNative && service instanceof CapacitorBLEGNSS) {
+        const devices = await service.scanForDevices(5000)
+        setBleScannedDevices(devices)
+      } else if (service instanceof WebBluetoothGNSS) {
+        const devices = await service.scanForDevices()
+        setBleScannedDevices(
+          devices.map((d) => ({
+            deviceId: d.id,
+            name: d.name,
+            type: d.type === 'generic' ? 'unknown' as const : undefined,
+          }))
+        )
+      }
+    } catch (err) {
+      setBleError((err as Error).message)
+    }
+  }, [isNative])
+
+  const handleBleConnect = useCallback(async () => {
+    if (!bleService || !bleSelectedDevice) return
+    setBleConnecting(true)
+    setBleError(null)
+    try {
+      // Set up position + connection callbacks before connecting
+      bleService.onPosition((pos: NMEAPosition) => {
+        instrumentStore.addPoint({
+          id: `ble-${Date.now()}`,
+          pointName: `PT${instrumentStore.points.length + 1}`,
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          northing: 0,
+          easting: 0,
+          elevation: pos.altitude,
+          timestamp: pos.timestamp,
+          source: pos.quality >= 4 ? 'nmea' : 'nmea',
+          quality: pos.quality,
+          satellites: pos.satellites,
+          hdop: pos.hdop,
+        })
+      })
+
+      bleService.onConnectionChange((connected, err) => {
+        if (connected) {
+          const transport: ConnectionTransport = isNative ? 'capacitor-ble' : 'web-bluetooth'
+          const device: InstrumentDevice = {
+            id: bleSelectedDevice,
+            name: bleScannedDevices.find(d => d.deviceId === bleSelectedDevice)?.name || 'Unknown',
+            kind: 'gnss-receiver',
+            transport,
+          }
+          instrumentStore.setConnected(device, transport)
+          instrumentStore.setInstrumentInfo({
+            manufacturer: device.name.split(' ')[0],
+            protocol: 'nmea',
+          })
+        } else {
+          instrumentStore.setDisconnected()
+          if (err) setBleError(err)
+        }
+      })
+
+      await bleService.connect(bleSelectedDevice)
+    } catch (err) {
+      setBleError((err as Error).message)
+    } finally {
+      setBleConnecting(false)
+    }
+  }, [bleService, bleSelectedDevice, bleScannedDevices, isNative, instrumentStore])
+
+  const handleBleDisconnect = useCallback(async () => {
+    if (bleService) {
+      try {
+        await bleService.disconnect()
+      } catch { /* ignore */ }
+    }
+    instrumentStore.setDisconnected()
+    setBleScannedDevices([])
+    setBleSelectedDevice(null)
+    setBleError(null)
+  }, [bleService, instrumentStore])
+
+  if (!isSupported && transportMode === 'serial') {
     return (
       <div className={`rounded-lg border border-yellow-600/30 bg-yellow-900/10 p-4 ${className}`}>
         <div className="flex items-center gap-2 mb-2">
@@ -158,8 +287,14 @@ export function InstrumentConnectionPanel({
         </div>
         <p className="text-xs text-yellow-200/70">
           The Web Serial API requires Google Chrome or Microsoft Edge.
-          Please use a supported browser to connect instruments directly.
+          Switch to Bluetooth LE mode or use a supported browser.
         </p>
+        <button
+          onClick={() => setTransportMode('ble')}
+          className="mt-2 text-xs text-blue-400 hover:text-blue-300"
+        >
+          Switch to Bluetooth LE →
+        </button>
       </div>
     )
   }
@@ -169,10 +304,41 @@ export function InstrumentConnectionPanel({
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-white/5">
         <div className="flex items-center gap-2">
-          <Cable className="w-4 h-4 text-blue-400" />
+          {transportMode === 'serial' ? (
+            <Cable className="w-4 h-4 text-blue-400" />
+          ) : (
+            <Bluetooth className="w-4 h-4 text-blue-400" />
+          )}
           <span className="text-sm font-medium">Instrument Connection</span>
         </div>
         <div className="flex items-center gap-2">
+          {/* Transport toggle */}
+          <div className="flex bg-black/20 rounded-md p-0.5">
+            <button
+              onClick={() => setTransportMode('serial')}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                transportMode === 'serial'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+              title="USB Serial"
+            >
+              <Usb className="w-3 h-3" />
+              Serial
+            </button>
+            <button
+              onClick={() => setTransportMode('ble')}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                transportMode === 'ble'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+              title="Bluetooth LE"
+            >
+              <Bluetooth className="w-3 h-3" />
+              BLE
+            </button>
+          </div>
           <Circle
             className={`w-2 h-2 ${isStreaming ? 'fill-green-400 text-green-400 animate-pulse' : statusColors[status]}`}
           />
@@ -183,8 +349,141 @@ export function InstrumentConnectionPanel({
       </div>
 
       <div className="p-3 space-y-3">
-        {/* Preset Selector */}
-        {status === 'disconnected' && (
+        {/* BLE Error */}
+        {bleError && transportMode === 'ble' && (
+          <p className="text-xs text-red-400 bg-red-900/20 rounded px-2 py-1">
+            {bleError}
+          </p>
+        )}
+
+        {/* ── BLE Mode ── */}
+        {transportMode === 'ble' && status === 'disconnected' && (
+          <>
+            {!bleSelectedDevice && bleScannedDevices.length === 0 && (
+              <button
+                onClick={handleBleScan}
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-md px-4 py-2.5 transition-colors"
+              >
+                <Bluetooth className="w-3 h-3" />
+                Scan for BLE Instruments
+              </button>
+            )}
+
+            {bleScannedDevices.length > 0 && !bleSelectedDevice && (
+              <div className="space-y-1.5">
+                <div className="text-[9px] text-gray-400 uppercase tracking-wider">
+                  Found {bleScannedDevices.length} device{bleScannedDevices.length !== 1 ? 's' : ''}
+                </div>
+                {bleScannedDevices.map((device) => (
+                  <button
+                    key={device.deviceId}
+                    onClick={() => setBleSelectedDevice(device.deviceId)}
+                    className="w-full p-2 text-left bg-black/20 border border-white/5 rounded-md hover:border-blue-500/30 transition-colors"
+                  >
+                    <div className="text-xs font-medium">{device.name}</div>
+                    <div className="text-[9px] text-gray-400">
+                      {device.deviceId.slice(0, 12)}… • {device.type || 'unknown'} • RSSI: {device.rssi ?? '—'}
+                    </div>
+                  </button>
+                ))}
+                <button
+                  onClick={handleBleScan}
+                  className="text-[9px] text-blue-400 hover:text-blue-300"
+                >
+                  Rescan
+                </button>
+              </div>
+            )}
+
+            {bleSelectedDevice && (
+              <div className="space-y-2">
+                <div className="p-2 bg-black/20 rounded-md">
+                  <div className="text-xs font-medium">
+                    {bleScannedDevices.find(d => d.deviceId === bleSelectedDevice)?.name || 'Unknown'}
+                  </div>
+                  <div className="text-[9px] text-gray-400">{bleSelectedDevice.slice(0, 16)}…</div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleBleConnect}
+                    disabled={bleConnecting}
+                    className="flex-1 flex items-center justify-center gap-1 bg-green-600 hover:bg-green-500 disabled:bg-green-600/50 text-white text-xs font-medium rounded-md px-3 py-2 transition-colors"
+                  >
+                    {bleConnecting ? (
+                      <><Activity className="w-3 h-3 animate-spin" /> Connecting…</>
+                    ) : (
+                      <><Bluetooth className="w-3 h-3" /> Connect</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setBleSelectedDevice(null)}
+                    className="px-3 py-2 text-xs text-gray-400 border border-white/10 rounded-md"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* BLE Connected State */}
+        {transportMode === 'ble' && (status === 'connected' || status === 'streaming') && instrumentStore.device && (
+          <>
+            <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-md">
+              <div className="flex items-center gap-2">
+                <Bluetooth className="w-3 h-3 text-green-400" />
+                <span className="text-xs font-medium text-green-300">{instrumentStore.device.name}</span>
+                <span className="text-[9px] text-gray-400 ml-auto">BLE</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-black/20 rounded-md p-2 text-center">
+                <div className="text-lg font-mono font-bold text-blue-300">{instrumentStore.points.length}</div>
+                <div className="text-[9px] text-gray-400 uppercase">Points</div>
+              </div>
+              <div className="bg-black/20 rounded-md p-2 text-center">
+                <div className="text-lg font-mono font-bold text-green-300">{instrumentStore.metrics.messagesParsed}</div>
+                <div className="text-[9px] text-gray-400 uppercase">Messages</div>
+              </div>
+              <div className="bg-black/20 rounded-md p-2 text-center">
+                <div className="text-lg font-mono font-bold text-orange-300">{instrumentStore.metrics.errorsCount}</div>
+                <div className="text-[9px] text-gray-400 uppercase">Errors</div>
+              </div>
+            </div>
+            {instrumentStore.latestPoint && (
+              <div className="bg-black/20 rounded-md p-2 border border-green-500/20">
+                <div className="flex items-center gap-1 mb-1">
+                  <Crosshair className="w-3 h-3 text-green-400" />
+                  <span className="text-xs font-medium text-green-300">Latest Reading</span>
+                </div>
+                <div className="text-[9px] font-mono text-gray-300">
+                  Lat: {instrumentStore.latestPoint.latitude.toFixed(7)} Lon: {instrumentStore.latestPoint.longitude.toFixed(7)}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleBleDisconnect()}
+                className="flex-1 flex items-center justify-center gap-1 bg-red-900/30 hover:bg-red-900/50 border border-red-700/30 text-red-300 text-xs rounded-md px-3 py-2 transition-colors"
+              >
+                <BluetoothOff className="w-3 h-3" />
+                Disconnect
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={instrumentStore.points.length === 0}
+                className="flex-1 flex items-center justify-center gap-1 bg-green-900/30 hover:bg-green-900/50 border border-green-700/30 disabled:opacity-40 text-green-300 text-xs rounded-md px-3 py-2 transition-colors"
+              >
+                <Download className="w-3 h-3" />
+                Import ({instrumentStore.points.length})
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Serial Mode (existing UI) ── */}
+        {transportMode === 'serial' && status === 'disconnected' && (
           <>
             <div>
               <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">
@@ -264,8 +563,8 @@ export function InstrumentConnectionPanel({
           </>
         )}
 
-        {/* Connected / Streaming State */}
-        {(status === 'connected' || status === 'streaming') && (
+        {/* Connected / Streaming State — Serial mode only (BLE has its own above) */}
+        {transportMode === 'serial' && (status === 'connected' || status === 'streaming') && (
           <>
             {/* Stats Grid */}
             <div className="grid grid-cols-3 gap-2">

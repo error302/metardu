@@ -62,6 +62,13 @@ import dynamic from 'next/dynamic'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import { createSchemeLayers, zoomToSchemeExtent } from '@/lib/map/schemeLayer'
 import { SchemeLayerPanel } from '@/app/map/components/SchemeLayerPanel'
+import type { StakeoutState } from '@/lib/map/stakeout'
+import {
+  createTraversePolygonPreview,
+  removeTraversePolygonPreview,
+  createParcelFromTraverse,
+  type TraverseToParcelResult,
+} from '@/lib/map/traverseToParcel'
 
 // ── Sub-components (lazy where appropriate) ──
 import { MapToolbar } from '@/app/map/components/MapToolbar'
@@ -70,6 +77,7 @@ import { MapStatusBar } from '@/app/map/components/MapStatusBar'
 import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
+import { StakeoutPanel } from '@/components/map/StakeoutPanel'
 
 // ── Hooks ──
 import { useMapBasemaps } from '@/app/map/hooks/useMapBasemaps'
@@ -194,6 +202,8 @@ export default function MapClient() {
   const [layerOpacity, setLayerOpacity] = useState(100)
   const [stakeoutTarget, setStakeoutTarget] = useState<{ e: number; n: number } | null>(null)
   const [stakeoutActive, setStakeoutActive] = useState(false)
+  const [stakeoutState, setStakeoutState] = useState<StakeoutState | null>(null)
+  const [audioMuted, setAudioMuted] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   const [offlineDialogOpen, setOfflineDialogOpen] = useState(false)
   const [showAnnotations, setShowAnnotations] = useState(false)
@@ -211,6 +221,11 @@ export default function MapClient() {
   const [showSchemeBeacons, setShowSchemeBeacons] = useState(true)
   const schemeCleanupRef = useRef<(() => void) | null>(null)
   const schemeLayersRef = useRef<{ parcelLayer: any; blockLayer: any; beaconLayer: any; extent: number[] | null } | null>(null)
+
+  // ── Traverse-to-parcel state ──
+  const [traverseParcelPreviewActive, setTraverseParcelPreviewActive] = useState(false)
+  const [hasTraverse, setHasTraverse] = useState(false)
+  const traversePreviewLayerRef = useRef<any>(null)
 
   // ── History hook ──
   const ctx: MapContext = useMemo(() => ({
@@ -284,6 +299,7 @@ export default function MapClient() {
     measureMode,
     showAnnotations,
     gpsTracking,
+    stakeoutActive,
     stakeoutTarget,
     gpsPos,
     hasFeature,
@@ -298,6 +314,7 @@ export default function MapClient() {
     setGpsPos,
     setStakeoutTarget,
     setStakeoutActive,
+    setStakeoutState,
     setShowAnnotations,
     setSaveMsg,
     pushHistory,
@@ -493,6 +510,115 @@ export default function MapClient() {
     }
   }, [])
 
+  // ── Traverse-to-parcel: check if traverse exists ──
+  useEffect(() => {
+    if (!schemeProjectId || !schemeLoaded) return
+    // Check if there are computed traverses for this project
+    const checkTraverse = async () => {
+      try {
+        const res = await fetch(`/api/scheme/traverse/summary?project_id=${schemeProjectId}`)
+        if (res.ok) {
+          const data = await res.json()
+          setHasTraverse(data.data?.hasTraverses ?? false)
+        }
+      } catch {
+        // API not available — assume no traverse
+        setHasTraverse(false)
+      }
+    }
+    checkTraverse()
+  }, [schemeProjectId, schemeLoaded])
+
+  // ── Traverse-to-parcel: create preview ──
+  const handleCreateParcelFromTraverse = useCallback(async () => {
+    if (!schemeProjectId || !mapInstance.current) return
+
+    try {
+      // Fetch traverse data to get coordinates
+      const res = await fetch(`/api/scheme/traverse/summary?project_id=${schemeProjectId}`)
+      if (!res.ok) throw new Error('Failed to fetch traverse summary')
+      const summaryData = await res.json()
+
+      // Get the first parcel with a traverse
+      const parcelId = summaryData.data?.parcels?.[0]?.id
+      if (!parcelId) throw new Error('No parcels with traverses found')
+
+      // Fetch the actual traverse coordinates
+      const traverseRes = await fetch(`/api/scheme/traverse?parcel_id=${parcelId}`)
+      if (!traverseRes.ok) throw new Error('Failed to fetch traverse coordinates')
+      const traverseData = await traverseRes.json()
+
+      const coordinates = traverseData.data?.coordinates
+      if (!coordinates || coordinates.length < 3) {
+        throw new Error('Traverse has fewer than 3 stations — cannot form a polygon')
+      }
+
+      const traversePoints = coordinates.map((c: any) => ({
+        easting: c.easting,
+        northing: c.northing,
+        pointName: c.station,
+      }))
+
+      // Create the preview layer
+      const { layer } = await createTraversePolygonPreview(traversePoints)
+      mapInstance.current.addLayer(layer)
+      traversePreviewLayerRef.current = layer
+
+      // Zoom to the preview
+      const source = layer.getSource()
+      if (source) {
+        const extent = source.getExtent()
+        if (extent && extent[0] !== Infinity) {
+          mapInstance.current.getView().fit(extent, { padding: [80, 80, 80, 80], duration: 600 })
+        }
+      }
+
+      setTraverseParcelPreviewActive(true)
+    } catch (err) {
+      console.error('[MapClient] Traverse preview failed:', err)
+      setSaveMsg(err instanceof Error ? err.message : 'Failed to preview traverse')
+      setTimeout(() => setSaveMsg(''), 4000)
+    }
+  }, [schemeProjectId])
+
+  // ── Traverse-to-parcel: confirm and save ──
+  const handleConfirmTraverseParcel = useCallback(async () => {
+    if (!schemeProjectId) return
+
+    try {
+      // Get the first parcel with a traverse
+      const summaryRes = await fetch(`/api/scheme/traverse/summary?project_id=${schemeProjectId}`)
+      const summaryData = await summaryRes.json()
+      const parcelId = summaryData.data?.parcels?.[0]?.id
+
+      if (!parcelId) throw new Error('No parcel found for traverse')
+
+      const result = await createParcelFromTraverse(schemeProjectId, parcelId)
+
+      // Remove the preview layer
+      removeTraversePolygonPreview(mapInstance.current, traversePreviewLayerRef.current)
+      traversePreviewLayerRef.current = null
+      setTraverseParcelPreviewActive(false)
+
+      const areaHa = result.areaHa?.toFixed(4) ?? 'unknown'
+      setSaveMsg(`Parcel boundary created: ${areaHa} ha`)
+      setTimeout(() => setSaveMsg(''), 4000)
+    } catch (err) {
+      console.error('[MapClient] Traverse confirm failed:', err)
+      setSaveMsg(err instanceof Error ? err.message : 'Failed to save parcel boundary')
+      setTimeout(() => setSaveMsg(''), 4000)
+    }
+  }, [schemeProjectId])
+
+  // ── Traverse-to-parcel: cancel and remove preview ──
+  const handleCancelTraverseParcel = useCallback(() => {
+    if (mapInstance.current && traversePreviewLayerRef.current) {
+      removeTraversePolygonPreview(mapInstance.current, traversePreviewLayerRef.current)
+      traversePreviewLayerRef.current = null
+    }
+    setTraverseParcelPreviewActive(false)
+  }, [])
+
   // ── Geolocation position tracking ──
   useEffect(() => {
     if (!mapInstance.current) return
@@ -513,6 +639,14 @@ export default function MapClient() {
     geolocation.on('change:position', onPositionChange)
     return () => geolocation.un('change:position', onPositionChange)
   }, [mapReady])
+
+  // ── Update stakeout overlay on each GPS position change ──
+  useEffect(() => {
+    if (stakeoutActive && gpsPos) {
+      interactions.updateStakeoutOnGPS()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stakeoutActive, gpsPos])
 
   // ══════════════════════════════════════════════════════════════════
   //  RENDER
@@ -599,6 +733,19 @@ export default function MapClient() {
                 saveMsg={saveMsg}
               />
 
+              {/* Stakeout Panel (full-featured) */}
+              <StakeoutPanel
+                active={stakeoutActive}
+                target={stakeoutTarget ? { easting: stakeoutTarget.e, northing: stakeoutTarget.n } : null}
+                stakeoutState={stakeoutState}
+                gpsPos={gpsPos ? { easting: 0, northing: 0, accuracy: gpsPos.accuracy } : null}
+                gpsAccuracy={gpsPos?.accuracy ?? 0}
+                onCancel={interactions.deactivateStakeout}
+                audioMuted={audioMuted}
+                onToggleAudio={() => setAudioMuted(m => !m)}
+                isMobile={isMobile}
+              />
+
               {/* Scheme Layer Panel */}
               <SchemeLayerPanel
                 hasProjectId={!!schemeProjectId}
@@ -611,6 +758,8 @@ export default function MapClient() {
                 showParcels={showSchemeParcels}
                 showBlocks={showSchemeBlocks}
                 showBeacons={showSchemeBeacons}
+                hasTraverse={hasTraverse}
+                traverseParcelPreviewActive={traverseParcelPreviewActive}
                 onLoadScheme={loadSchemeData}
                 onRetry={loadSchemeData}
                 onToggleParcels={toggleSchemeParcelVisibility}
@@ -618,6 +767,9 @@ export default function MapClient() {
                 onToggleBeacons={toggleSchemeBeaconVisibility}
                 onZoomToScheme={handleZoomToScheme}
                 onRemoveScheme={handleRemoveScheme}
+                onCreateParcelFromTraverse={handleCreateParcelFromTraverse}
+                onConfirmTraverseParcel={handleConfirmTraverseParcel}
+                onCancelTraverseParcel={handleCancelTraverseParcel}
               />
             </>
           )}

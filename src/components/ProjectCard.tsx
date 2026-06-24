@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useEffect, useCallback } from 'react'
+import ProjectWorkflowBadge from '@/components/shared/ProjectWorkflowBadge'
 
 /* ── Delete Confirmation Modal ──────────────────────────────────────────── */
 function DeleteConfirmModal({
@@ -231,9 +232,14 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
           <span className={`badge shrink-0 text-[10px] border ${badgeColor}`}>{surveyType}</span>
         </div>
 
-        <p className="text-sm text-[var(--text-muted)] mb-4 truncate">
+        <p className="text-sm text-[var(--text-muted)] mb-3 truncate">
           {project.location || 'No location set'}
         </p>
+
+        {/* Workflow badge */}
+        <div className="mb-3">
+          <ProjectWorkflowBadge project={project} />
+        </div>
 
         <div className="grid grid-cols-3 gap-2 text-xs text-[var(--text-secondary)] mb-3">
           <div>

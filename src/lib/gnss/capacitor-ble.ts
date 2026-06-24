@@ -81,6 +81,97 @@ export class CapacitorBLEGNSS {
   private buffer: string = '';
   private scanning = false;
 
+  // ─── Reconnection resilience ────────────────────────────
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private baseReconnectDelayMs = 2000;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private intentionallyDisconnected = false;
+  private lastConnectedDeviceId: string | null = null;
+  private isReconnecting = false;
+
+  /**
+   * Configure reconnection behaviour.
+   * Call before connect() to customise backoff parameters.
+   */
+  setReconnectConfig(opts: { maxAttempts?: number; baseDelayMs?: number }): void {
+    if (opts.maxAttempts !== undefined) this.maxReconnectAttempts = opts.maxAttempts;
+    if (opts.baseDelayMs !== undefined) this.baseReconnectDelayMs = opts.baseDelayMs;
+  }
+
+  /** Whether the service is currently in a reconnection cycle. */
+  getIsReconnecting(): boolean {
+    return this.isReconnecting;
+  }
+
+  /** Number of reconnection attempts made so far. */
+  getReconnectAttemptCount(): number {
+    return this.reconnectAttempts;
+  }
+
+  /** Cancel any pending reconnection attempt. */
+  cancelReconnect(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.isReconnecting = false;
+    this.reconnectAttempts = 0;
+  }
+
+  /**
+   * Exponential backoff delay: 2s → 4s → 8s → 16s → 30s cap.
+   * Jitter ±20% to avoid thundering herd on multi-device setups.
+   */
+  private getReconnectDelay(): number {
+    const base = this.baseReconnectDelayMs * Math.pow(2, this.reconnectAttempts);
+    const capped = Math.min(base, 30000);
+    const jitter = capped * (0.8 + Math.random() * 0.4); // ±20%
+    return Math.round(jitter);
+  }
+
+  /**
+   * Internal auto-reconnect on unexpected disconnect.
+   * Called from the BLE disconnect callback only when the
+   * disconnect was NOT initiated by the user.
+   */
+  private async attemptReconnect(): Promise<void> {
+    if (this.intentionallyDisconnected) return;
+    if (!this.lastConnectedDeviceId) return;
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.isReconnecting = false;
+      this.notifyConnection(false, `Failed to reconnect after ${this.maxReconnectAttempts} attempts`);
+      return;
+    }
+
+    this.isReconnecting = true;
+    this.reconnectAttempts++;
+    const delay = this.getReconnectDelay();
+
+    // Notify subscribers that we're reconnecting
+    this.notifyConnection(false, `Reconnecting (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})…`);
+
+    await new Promise<void>((resolve) => {
+      this.reconnectTimer = setTimeout(resolve, delay);
+    });
+
+    // Check if cancelReconnect was called during the wait
+    if (this.intentionallyDisconnected || !this.lastConnectedDeviceId) {
+      this.isReconnecting = false;
+      return;
+    }
+
+    try {
+      await this.connect(this.lastConnectedDeviceId);
+      // Success — reset counters
+      this.reconnectAttempts = 0;
+      this.isReconnecting = false;
+    } catch {
+      // Failed — schedule next attempt
+      this.attemptReconnect();
+    }
+  }
+
   /**
    * Check whether Capacitor BLE is available on this platform.
    * Returns true only when running natively with the BLE plugin.
@@ -166,15 +257,27 @@ export class CapacitorBLEGNSS {
       throw new Error('Capacitor Bluetooth LE not available');
     }
 
+    this.intentionallyDisconnected = false;
+
     await BleClient.connect(deviceId, (disconnectedDeviceId: string) => {
       if (disconnectedDeviceId === this.deviceId) {
         this.deviceId = null;
-        this.notifyConnection(false, 'Device disconnected');
+        this.buffer = '';
+
+        if (!this.intentionallyDisconnected) {
+          // Unexpected disconnect — trigger auto-reconnect
+          this.attemptReconnect();
+        } else {
+          this.notifyConnection(false, 'Device disconnected');
+        }
       }
     });
 
     this.deviceId = deviceId;
+    this.lastConnectedDeviceId = deviceId;
     this.buffer = '';
+    this.reconnectAttempts = 0;
+    this.isReconnecting = false;
 
     // Try NUS first — most surveying instruments use this
     let connected = false;
@@ -247,6 +350,10 @@ export class CapacitorBLEGNSS {
   }
 
   async disconnect(): Promise<void> {
+    // Mark as intentional to suppress auto-reconnect
+    this.intentionallyDisconnected = true;
+    this.cancelReconnect();
+
     if (this.deviceId) {
       const BleClient = await getBLEPlugin();
       if (BleClient) {
