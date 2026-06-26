@@ -176,3 +176,6 @@ debug.log
 # Keep the data/cassini-source/ committed for reproducibility (small ~200KB total)
 # but ignore any scratch outputs from the extractor
 data/cassini-source/_scratch/
+.env
+.env.local
+.env*.local
