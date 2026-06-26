@@ -959,46 +959,7 @@ export default function MapClient() {
 
               <MapCoordSearch onSearch={handleCoordSearch} />
 
-              <MapToolbar
-                panelOpen={panelOpen}
-                setPanelOpen={setPanelOpen}
-                drawMode={drawMode}
-                editMode={editMode}
-                measureMode={measureMode}
-                showAnnotations={showAnnotations}
-                basemap={basemap}
-                layerOpacity={layerOpacity}
-                gpsTracking={gpsTracking}
-                stakeoutActive={stakeoutActive}
-                featureCount={featureCount}
-                featureName={featureName}
-                selectedFeature={selectedFeature}
-                projectCount={projectCount}
-                projectSearch={projectSearch}
-                setProjectSearch={setProjectSearch}
-                measureResult={measureResult}
-                hasFeature={hasFeature}
-                canUndo={canUndo}
-                canRedo={canRedo}
-                onToggleDraw={interactions.toggleDraw}
-                onToggleEdit={interactions.toggleEdit}
-                onUndo={undo}
-                onRedo={redo}
-                onDeleteSelected={interactions.deleteSelected}
-                onToggleMeasure={interactions.toggleMeasure}
-                onToggleAnnotations={interactions.toggleAnnotations}
-                onToggleBasemap={toggleBasemap}
-                onOpacityChange={handleOpacityChange}
-                onFitToKenya={interactions.fitToKenya}
-                onFitToDrawn={interactions.fitToDrawn}
-                onToggleGPS={toggleGPS}
-                onToggleStakeout={interactions.toggleStakeout}
-                onToggleOfflineDialog={() => setOfflineDialogOpen(true)}
-                onSaveToProject={interactions.saveToProject}
-                onExportFeatures={interactions.exportFeatures}
-                onClearDrawn={interactions.clearDrawn}
-                onUpdateFeatureName={handleUpdateFeatureName}
-              />
+              <MapToolbar />
 
               <MapStatusBar
                 mouseCoord={mouseCoord}

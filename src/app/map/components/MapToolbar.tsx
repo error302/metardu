@@ -2,8 +2,11 @@
 /**
  * MapToolbar — The left sidebar panel with draw, edit, measure, layers, actions
  *
- * Memoized to prevent re-renders when parent state changes that don't affect
- * the toolbar. Receives all needed data via props.
+ * Now consumes all state and actions from MapReactContext via useMapContext().
+ * Previously received 38+ props from MapClient — now reads from context directly.
+ * This eliminates massive prop drilling and makes the component self-contained.
+ *
+ * Memoized to prevent re-renders when context values haven't changed.
  */
 
 import React, { memo } from 'react'
@@ -17,7 +20,8 @@ import {
   MoonIcon, TerrainIcon, GridIcon, OpacityIcon,
 } from '@/components/map/PremiumIcons'
 import { Search as SearchIcon } from 'lucide-react'
-import type { BasemapMode, DrawMode, MeasureMode } from '@/app/map/mapTypes'
+import { useMapContext } from '@/app/map/MapReactContext'
+import type { DrawMode } from '@/hooks/useMapTypes'
 
 // ── Helper sub-components ──
 
@@ -154,89 +158,50 @@ function FeatureProperties({
   )
 }
 
-// ── Main component props ──
+// ── Main component — now reads from MapReactContext ──
 
-interface MapToolbarProps {
-  panelOpen: boolean
-  setPanelOpen: (v: boolean) => void
-  drawMode: DrawMode
-  editMode: boolean
-  measureMode: MeasureMode
-  showAnnotations: boolean
-  basemap: BasemapMode
-  layerOpacity: number
-  gpsTracking: boolean
-  stakeoutActive: boolean
-  featureCount: number
-  featureName: string
-  selectedFeature: any
-  projectCount: number
-  projectSearch: string
-  setProjectSearch: (v: string) => void
-  measureResult: string
-  hasFeature: (feature: string) => boolean
-  canUndo: boolean
-  canRedo: boolean
-  onToggleDraw: (mode: DrawMode) => void
-  onToggleEdit: () => void
-  onUndo: () => void
-  onRedo: () => void
-  onDeleteSelected: () => void
-  onToggleMeasure: (mode: MeasureMode) => void
-  onToggleAnnotations: () => void
-  onToggleBasemap: (mode: BasemapMode) => void
-  onOpacityChange: (val: number) => void
-  onFitToKenya: () => void
-  onFitToDrawn: () => void
-  onToggleGPS: () => void
-  onToggleStakeout: () => void
-  onToggleOfflineDialog: () => void
-  onSaveToProject: () => void
-  onExportFeatures: (format: 'GeoJSON' | 'KML' | 'WKT' | 'DXF' | 'LandXML') => void
-  onClearDrawn: () => void
-  onUpdateFeatureName: (name: string) => void
-}
+export const MapToolbar = memo(function MapToolbar() {
+  const {
+    panelOpen,
+    setPanelOpen,
+    drawMode,
+    editMode,
+    measureMode,
+    showAnnotations,
+    basemap,
+    layerOpacity,
+    gpsTracking,
+    stakeoutActive,
+    featureCount,
+    featureName,
+    selectedFeature,
+    projectCount,
+    projectSearch,
+    setProjectSearch,
+    measureResult,
+    hasFeature,
+    canUndo,
+    canRedo,
+    toggleDraw,
+    toggleEdit,
+    undo,
+    redo,
+    deleteSelected,
+    toggleMeasure,
+    toggleAnnotations,
+    toggleBasemap,
+    handleOpacityChange,
+    fitToKenya,
+    fitToDrawn,
+    toggleGPS,
+    toggleStakeout,
+    setOfflineDialogOpen,
+    saveToProject,
+    exportFeatures,
+    clearDrawn,
+    updateFeatureName,
+  } = useMapContext()
 
-export const MapToolbar = memo(function MapToolbar({
-  panelOpen,
-  setPanelOpen,
-  drawMode,
-  editMode,
-  measureMode,
-  showAnnotations,
-  basemap,
-  layerOpacity,
-  gpsTracking,
-  stakeoutActive,
-  featureCount,
-  featureName,
-  selectedFeature,
-  projectCount,
-  projectSearch,
-  setProjectSearch,
-  measureResult,
-  hasFeature,
-  canUndo,
-  canRedo,
-  onToggleDraw,
-  onToggleEdit,
-  onUndo,
-  onRedo,
-  onDeleteSelected,
-  onToggleMeasure,
-  onToggleAnnotations,
-  onToggleBasemap,
-  onOpacityChange,
-  onFitToKenya,
-  onFitToDrawn,
-  onToggleGPS,
-  onToggleStakeout,
-  onToggleOfflineDialog,
-  onSaveToProject,
-  onExportFeatures,
-  onClearDrawn,
-  onUpdateFeatureName,
-}: MapToolbarProps) {
   return (
     <>
       {/* Collapsed icon strip */}
@@ -251,7 +216,7 @@ export const MapToolbar = memo(function MapToolbar({
           {(['Point', 'LineString', 'Polygon', 'Circle'] as DrawMode[]).map(mode => (
             <button
               key={mode}
-              onClick={() => onToggleDraw(mode)}
+              onClick={() => toggleDraw(mode)}
               title={`Draw ${mode === 'LineString' ? 'Line' : mode}`}
               className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${
                 drawMode === mode
@@ -267,7 +232,7 @@ export const MapToolbar = memo(function MapToolbar({
           ))}
           <div className="w-6 h-px bg-white/[0.06] my-1" />
           <button
-            onClick={onToggleEdit}
+            onClick={toggleEdit}
             title="Modify features"
             className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${
               editMode
@@ -299,19 +264,19 @@ export const MapToolbar = memo(function MapToolbar({
             {/* DRAW */}
             <SectionHeader label="Draw" />
             <div className="grid grid-cols-4 gap-1.5">
-              <ToolButton label="Point" icon={<MapPinIcon className="w-5 h-5" active={drawMode === 'Point'} />} isActive={drawMode === 'Point'} onClick={() => onToggleDraw('Point')} title="Draw Point" />
-              <ToolButton label="Line" icon={<PencilIcon className="w-5 h-5" active={drawMode === 'LineString'} />} isActive={drawMode === 'LineString'} onClick={() => onToggleDraw('LineString')} title="Draw Line" />
-              <ToolButton label="Polygon" icon={<HexagonIcon className="w-5 h-5" active={drawMode === 'Polygon'} />} isActive={drawMode === 'Polygon'} onClick={() => onToggleDraw('Polygon')} title="Draw Polygon" />
-              <ToolButton label="Circle" icon={<CircleIcon className="w-5 h-5" active={drawMode === 'Circle'} />} isActive={drawMode === 'Circle'} onClick={() => onToggleDraw('Circle')} title="Draw Circle" />
+              <ToolButton label="Point" icon={<MapPinIcon className="w-5 h-5" active={drawMode === 'Point'} />} isActive={drawMode === 'Point'} onClick={() => toggleDraw('Point')} title="Draw Point" />
+              <ToolButton label="Line" icon={<PencilIcon className="w-5 h-5" active={drawMode === 'LineString'} />} isActive={drawMode === 'LineString'} onClick={() => toggleDraw('LineString')} title="Draw Line" />
+              <ToolButton label="Polygon" icon={<HexagonIcon className="w-5 h-5" active={drawMode === 'Polygon'} />} isActive={drawMode === 'Polygon'} onClick={() => toggleDraw('Polygon')} title="Draw Polygon" />
+              <ToolButton label="Circle" icon={<CircleIcon className="w-5 h-5" active={drawMode === 'Circle'} />} isActive={drawMode === 'Circle'} onClick={() => toggleDraw('Circle')} title="Draw Circle" />
             </div>
 
             {/* EDIT */}
             <SectionHeader label="Edit" />
             <div className="space-y-1">
-              <ActionButton label="Modify Vertices" icon={<EditIcon className="w-4 h-4" active={editMode} />} isActive={editMode} onClick={onToggleEdit} />
+              <ActionButton label="Modify Vertices" icon={<EditIcon className="w-4 h-4" active={editMode} />} isActive={editMode} onClick={toggleEdit} />
               <div className="flex gap-1.5">
                 <button
-                  onClick={onUndo}
+                  onClick={undo}
                   disabled={!canUndo}
                   className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.06] text-xs font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
                 >
@@ -319,7 +284,7 @@ export const MapToolbar = memo(function MapToolbar({
                   <span>Undo</span>
                 </button>
                 <button
-                  onClick={onRedo}
+                  onClick={redo}
                   disabled={!canRedo}
                   className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.06] text-xs font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
                 >
@@ -327,22 +292,22 @@ export const MapToolbar = memo(function MapToolbar({
                   <span>Redo</span>
                 </button>
               </div>
-              <ActionButton label="Delete Selected" icon={<TrashIcon className="w-4 h-4" active={false} />} isActive={false} onClick={onDeleteSelected} isDanger />
+              <ActionButton label="Delete Selected" icon={<TrashIcon className="w-4 h-4" active={false} />} isActive={false} onClick={deleteSelected} isDanger />
             </div>
 
             {/* Feature properties */}
             <FeatureProperties
               featureName={featureName}
               selectedFeature={selectedFeature}
-              onUpdateName={onUpdateFeatureName}
+              onUpdateName={updateFeatureName}
             />
 
             {/* MEASURE */}
             <SectionHeader label="Measure" />
             <div className="space-y-1">
-              <ActionButton label="Distance" icon={<RulerIcon className="w-4 h-4" active={measureMode === 'distance'} />} isActive={measureMode === 'distance'} onClick={() => onToggleMeasure('distance')} />
-              <ActionButton label="Area" icon={<GridIcon className="w-4 h-4" active={measureMode === 'area'} />} isActive={measureMode === 'area'} onClick={() => onToggleMeasure('area')} />
-              <ActionButton label="Bearings" icon={<CompassIcon className="w-4 h-4" active={showAnnotations} />} isActive={showAnnotations} onClick={onToggleAnnotations} />
+              <ActionButton label="Distance" icon={<RulerIcon className="w-4 h-4" active={measureMode === 'distance'} />} isActive={measureMode === 'distance'} onClick={() => toggleMeasure('distance')} />
+              <ActionButton label="Area" icon={<GridIcon className="w-4 h-4" active={measureMode === 'area'} />} isActive={measureMode === 'area'} onClick={() => toggleMeasure('area')} />
+              <ActionButton label="Bearings" icon={<CompassIcon className="w-4 h-4" active={showAnnotations} />} isActive={showAnnotations} onClick={toggleAnnotations} />
             </div>
             {measureResult && (
               <div className="mt-1.5 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
@@ -358,10 +323,10 @@ export const MapToolbar = memo(function MapToolbar({
             {/* LAYERS */}
             <SectionHeader label="Layers" />
             <div className="grid grid-cols-4 gap-1.5">
-              <ToolButton label="OSM" icon={<MapIcon className="w-5 h-5" active={basemap === 'osm'} />} isActive={basemap === 'osm'} onClick={() => onToggleBasemap('osm')} title="OpenStreetMap" />
-              <ToolButton label="Satellite" icon={<SatelliteIcon className="w-5 h-5" active={basemap === 'satellite'} />} isActive={basemap === 'satellite'} onClick={() => onToggleBasemap('satellite')} title="Satellite Imagery" />
-              <ToolButton label="Dark" icon={<MoonIcon className="w-5 h-5" active={basemap === 'dark'} />} isActive={basemap === 'dark'} onClick={() => onToggleBasemap('dark')} title="CartoDB Dark" />
-              <ToolButton label="Terrain" icon={<TerrainIcon className="w-5 h-5" active={basemap === 'terrain'} />} isActive={basemap === 'terrain'} onClick={() => onToggleBasemap('terrain')} title="Topographic Terrain" />
+              <ToolButton label="OSM" icon={<MapIcon className="w-5 h-5" active={basemap === 'osm'} />} isActive={basemap === 'osm'} onClick={() => toggleBasemap('osm')} title="OpenStreetMap" />
+              <ToolButton label="Satellite" icon={<SatelliteIcon className="w-5 h-5" active={basemap === 'satellite'} />} isActive={basemap === 'satellite'} onClick={() => toggleBasemap('satellite')} title="Satellite Imagery" />
+              <ToolButton label="Dark" icon={<MoonIcon className="w-5 h-5" active={basemap === 'dark'} />} isActive={basemap === 'dark'} onClick={() => toggleBasemap('dark')} title="CartoDB Dark" />
+              <ToolButton label="Terrain" icon={<TerrainIcon className="w-5 h-5" active={basemap === 'terrain'} />} isActive={basemap === 'terrain'} onClick={() => toggleBasemap('terrain')} title="Topographic Terrain" />
             </div>
 
             {/* Layer opacity */}
@@ -373,7 +338,7 @@ export const MapToolbar = memo(function MapToolbar({
                 max={100}
                 step={5}
                 value={layerOpacity}
-                onChange={(e) => onOpacityChange(Number(e.target.value))}
+                onChange={(e) => handleOpacityChange(Number(e.target.value))}
                 className="flex-1 h-1 accent-[#E8841A] cursor-pointer"
               />
               <span className="text-[10px] text-gray-500 font-mono w-7 text-right">{layerOpacity}%</span>
@@ -382,19 +347,19 @@ export const MapToolbar = memo(function MapToolbar({
             {/* ACTIONS */}
             <SectionHeader label="Actions" />
             <div className="space-y-1">
-              <ActionButton label="Fit to Kenya" icon={<TargetIcon className="w-4 h-4" active={false} />} isActive={false} onClick={onFitToKenya} />
-              <ActionButton label="Fit to Drawn" icon={<CrosshairIcon className="w-4 h-4" active={false} />} isActive={false} onClick={onFitToDrawn} />
-              <ActionButton label="GPS Tracking" icon={<LocationDotIcon className="w-4 h-4" active={gpsTracking} />} isActive={gpsTracking} onClick={onToggleGPS} />
+              <ActionButton label="Fit to Kenya" icon={<TargetIcon className="w-4 h-4" active={false} />} isActive={false} onClick={fitToKenya} />
+              <ActionButton label="Fit to Drawn" icon={<CrosshairIcon className="w-4 h-4" active={false} />} isActive={false} onClick={fitToDrawn} />
+              <ActionButton label="GPS Tracking" icon={<LocationDotIcon className="w-4 h-4" active={gpsTracking} />} isActive={gpsTracking} onClick={toggleGPS} />
               <ActionButton
                 label={stakeoutActive ? 'Stakeout ON' : 'Stakeout'}
                 icon={<CompassIcon className="w-4 h-4" active={stakeoutActive} />}
                 isActive={stakeoutActive}
-                onClick={onToggleStakeout}
+                onClick={toggleStakeout}
               />
               {!hasFeature('gps_stakeout') && (
                 <div className="text-[10px] text-amber-400/70 px-1">Pro+ required for Stakeout</div>
               )}
-              <ActionButton label="Offline Tiles" icon={<BoltIcon className="w-4 h-4" active={false} />} isActive={false} onClick={onToggleOfflineDialog} />
+              <ActionButton label="Offline Tiles" icon={<BoltIcon className="w-4 h-4" active={false} />} isActive={false} onClick={() => setOfflineDialogOpen(true)} />
               {!hasFeature('offline_tiles') && (
                 <div className="text-[10px] text-amber-400/70 px-1">Pro+ required for Offline Tiles</div>
               )}
@@ -423,7 +388,7 @@ export const MapToolbar = memo(function MapToolbar({
               <>
                 <SectionHeader label="Project" />
                 <div className="space-y-1">
-                  <ActionButton label="Save to Project" icon={<BoltIcon className="w-4 h-4" active={false} />} isActive={false} onClick={onSaveToProject} />
+                  <ActionButton label="Save to Project" icon={<BoltIcon className="w-4 h-4" active={false} />} isActive={false} onClick={saveToProject} />
                 </div>
               </>
             )}
@@ -433,14 +398,14 @@ export const MapToolbar = memo(function MapToolbar({
               <>
                 <SectionHeader label={`Export (${featureCount})`} />
                 <div className="space-y-1">
-                  <ActionButton label="GeoJSON" icon={<DownloadIcon className="w-4 h-4" active={false} />} isActive={false} onClick={() => onExportFeatures('GeoJSON')} />
-                  <ActionButton label="KML" icon={<DownloadIcon className="w-4 h-4" active={false} />} isActive={false} onClick={() => onExportFeatures('KML')} />
-                  <ActionButton label="WKT" icon={<DownloadIcon className="w-4 h-4" active={false} />} isActive={false} onClick={() => onExportFeatures('WKT')} />
+                  <ActionButton label="GeoJSON" icon={<DownloadIcon className="w-4 h-4" active={false} />} isActive={false} onClick={() => exportFeatures('GeoJSON')} />
+                  <ActionButton label="KML" icon={<DownloadIcon className="w-4 h-4" active={false} />} isActive={false} onClick={() => exportFeatures('KML')} />
+                  <ActionButton label="WKT" icon={<DownloadIcon className="w-4 h-4" active={false} />} isActive={false} onClick={() => exportFeatures('WKT')} />
                   <ActionButton
                     label={hasFeature('dxf_export') ? 'DXF' : 'DXF (Pro+)'}
                     icon={<DownloadIcon className="w-4 h-4" active={false} />}
                     isActive={false}
-                    onClick={() => onExportFeatures('DXF')}
+                    onClick={() => exportFeatures('DXF')}
                   />
                   {!hasFeature('dxf_export') && (
                     <div className="text-[10px] text-amber-400/70 px-1">Pro+ required for DXF export</div>
@@ -449,13 +414,13 @@ export const MapToolbar = memo(function MapToolbar({
                     label={hasFeature('landxml') ? 'LandXML' : 'LandXML (Pro+)'}
                     icon={<DownloadIcon className="w-4 h-4" active={false} />}
                     isActive={false}
-                    onClick={() => onExportFeatures('LandXML')}
+                    onClick={() => exportFeatures('LandXML')}
                   />
                   {!hasFeature('landxml') && (
                     <div className="text-[10px] text-amber-400/70 px-1">Pro+ required for LandXML</div>
                   )}
                   <div className="pt-1">
-                    <ActionButton label="Clear All" icon={<TrashIcon className="w-4 h-4" active={false} />} isActive={false} onClick={onClearDrawn} isDanger />
+                    <ActionButton label="Clear All" icon={<TrashIcon className="w-4 h-4" active={false} />} isActive={false} onClick={clearDrawn} isDanger />
                   </div>
                 </div>
               </>
