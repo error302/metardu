@@ -14,6 +14,18 @@ import {
 } from 'lucide-react'
 import { z } from 'zod'
 import { apiGet, apiPost, apiPatch, ApiError } from '@/lib/api/client'
+import dynamic from 'next/dynamic'
+import { RevenueLineChart, SubscriptionDonutChart, Sparkline } from '@/components/admin/charts/AdminCharts'
+import SystemHealthPanel from '@/components/admin/SystemHealthPanel'
+
+const DashboardSearch = dynamic(
+  () => import('@/components/dashboard/DashboardSearch').then(m => m.default || m),
+  { ssr: false },
+)
+const PerformanceDashboard = dynamic(
+  () => import('@/components/PerformanceDashboard').then(m => m.default || m),
+  { ssr: false },
+)
 
 // ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
 
@@ -367,18 +379,21 @@ export default function AdminDashboardPage() {
             Platform overview for Metardu administrators
           </p>
         </div>
-        <button
-          onClick={fetchDashboard}
-          className="btn btn-secondary text-sm"
-          disabled={loading}
-        >
-          {loading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Activity className="w-4 h-4" />
-          )}
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <DashboardSearch />
+          <button
+            onClick={fetchDashboard}
+            className="btn btn-secondary text-sm"
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Activity className="w-4 h-4" />
+            )}
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -421,8 +436,8 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      {/* Extended Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {/* Extended Stats Row + Subscription Donut */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           icon={CreditCard}
           label="Pro Subscribers"
@@ -444,6 +459,17 @@ export default function AdminDashboardPage() {
           trend={data.iskPendingCount > 0 ? 'up' : 'neutral'}
           color="#fbbf24"
         />
+        {/* Subscription Donut Chart */}
+        <div className="card p-4">
+          <p className="text-xs text-[var(--text-secondary)] mb-2">Subscriptions</p>
+          <SubscriptionDonutChart
+            data={[
+              { name: 'free', value: data.activeSubscriptions?.free ?? 0 },
+              { name: 'pro', value: data.activeSubscriptions?.pro ?? 0 },
+              { name: 'enterprise', value: data.activeSubscriptions?.enterprise ?? 0 },
+            ]}
+          />
+        </div>
       </div>
 
       {/* Revenue + ISK Verification Queue */}
@@ -464,19 +490,7 @@ export default function AdminDashboardPage() {
               {formatCurrency(data.revenue.total)}
             </p>
             {data.revenue.byMonth.length > 0 ? (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {data.revenue.byMonth.map((item) => (
-                  <div
-                    key={item.month}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <span className="text-[var(--text-secondary)]">{item.month}</span>
-                    <span className="font-medium text-[var(--text-primary)]">
-                      {formatCurrency(item.total)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <RevenueLineChart data={data.revenue.byMonth} />
             ) : (
               <p className="text-sm text-[var(--text-muted)]">No revenue data yet</p>
             )}
@@ -686,91 +700,8 @@ export default function AdminDashboardPage() {
 
       {/* System Health + Quick Actions + Subscription Override */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* System Health */}
-        <div className="card">
-          <div className="card-header">
-            <div className="flex items-center gap-2">
-              <Cpu className="w-5 h-5 text-[var(--accent)]" />
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                System Health
-              </h2>
-            </div>
-          </div>
-          <div className="p-5 space-y-4">
-            {/* Database */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    data.system.database.status === 'healthy'
-                      ? 'bg-green-400'
-                      : 'bg-red-400'
-                  }`}
-                />
-                <div className="flex items-center gap-2">
-                  <Database className="w-4 h-4 text-[var(--text-secondary)]" />
-                  <span className="text-sm text-[var(--text-primary)]">Database</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <span
-                  className={`text-sm font-medium ${
-                    data.system.database.status === 'healthy'
-                      ? 'text-green-400'
-                      : 'text-red-400'
-                  }`}
-                >
-                  {data.system.database.status === 'healthy' ? 'Connected' : 'Error'}
-                </span>
-                <span className="text-xs text-[var(--text-muted)] ml-2">
-                  {data.system.database.latencyMs}ms
-                </span>
-              </div>
-            </div>
-
-            {/* Uptime */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-green-400" />
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[var(--text-secondary)]" />
-                  <span className="text-sm text-[var(--text-primary)]">Uptime</span>
-                </div>
-              </div>
-              <span className="text-sm text-[var(--text-primary)]">
-                {formatUptime(data.system.uptime)}
-              </span>
-            </div>
-
-            {/* Memory */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                <div className="flex items-center gap-2">
-                  <HardDrive className="w-4 h-4 text-[var(--text-secondary)]" />
-                  <span className="text-sm text-[var(--text-primary)]">Memory</span>
-                </div>
-              </div>
-              <span className="text-sm text-[var(--text-secondary)]">
-                {data.system.memory.heapUsedMb}MB / {data.system.memory.heapTotalMb}MB
-              </span>
-            </div>
-
-            {/* Response Time */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400" />
-                <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-[var(--text-secondary)]" />
-                  <span className="text-sm text-[var(--text-primary)]">API Response</span>
-                </div>
-              </div>
-              <span className="text-sm text-[var(--text-secondary)]">
-                {data.system.responseTimeMs}ms
-              </span>
-            </div>
-          </div>
-        </div>
+        {/* System Health — Enhanced with charts */}
+        <SystemHealthPanel />
 
         {/* Quick Actions */}
         <div className="card">
@@ -887,6 +818,21 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Performance Dashboard — Web Vitals & Optimization */}
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center gap-2">
+            <Activity className="w-5 h-5 text-[var(--accent)]" />
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              Performance Monitoring
+            </h2>
+          </div>
+        </div>
+        <div className="[&_*]:text-[var(--text-primary)] [&_.bg-gray-900]:bg-[var(--bg-primary)] [&_.bg-gray-800]:bg-[var(--bg-secondary)] [&_.bg-gray-700]:bg-[var(--bg-tertiary)] [&_.text-white]:text-[var(--text-primary)] [&_.text-gray-400]:text-[var(--text-muted)] [&_.text-gray-300]:text-[var(--text-secondary)] [&_.text-gray-500]:text-[var(--text-muted)] [&_.border-gray-700]:border-[var(--border-color)] [&_.border-b_border-gray-700]:border-[var(--border-color)]">
+          <PerformanceDashboard />
+        </div>
       </div>
     </div>
   )

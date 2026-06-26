@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { z } from 'zod'
 import { apiGet, apiPost, apiPut, apiDelete, ApiError } from '@/lib/api/client'
+import { MobileUserCard } from '@/components/admin/MobileCards'
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -526,8 +527,33 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Users Table */}
-      <div className="card overflow-hidden">
+      {/* Users — Card layout on mobile, table on lg+ */}
+      {/* Mobile: card list */}
+      <div className="lg:hidden space-y-3">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 text-[var(--accent)] animate-spin" />
+            <p className="text-sm text-[var(--text-muted)] ml-2">Loading users...</p>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-12">
+            <Users className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-2" />
+            <p className="text-sm text-[var(--text-muted)]">No users found</p>
+          </div>
+        ) : (
+          users.map((user) => (
+            <MobileUserCard
+              key={user.id}
+              user={user}
+              onRoleClick={() => setActiveModal({ type: 'role', user })}
+              onSuspendClick={() => setActiveModal({ type: 'suspend', user })}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="card overflow-hidden hidden lg:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -662,6 +688,31 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      {/* Mobile pagination */}
+      {!loading && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between lg:hidden px-2">
+          <p className="text-xs text-[var(--text-muted)]">
+            {pagination.page} / {pagination.totalPages}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page <= 1}
+              className="btn btn-secondary text-xs px-3 py-2 disabled:opacity-40"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={!pagination.hasMore}
+              className="btn btn-secondary text-xs px-3 py-2 disabled:opacity-40"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {activeModal?.type === 'role' && (

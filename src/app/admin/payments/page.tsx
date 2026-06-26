@@ -7,6 +7,7 @@ import {
   CreditCard, DollarSign, Loader2, AlertCircle,
   ChevronLeft, ChevronRight, Download,
 } from 'lucide-react'
+import { MobilePaymentCard } from '@/components/admin/MobileCards'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -244,8 +245,28 @@ export default function AdminPaymentsPage() {
         </div>
       )}
 
-      {/* Payments Table */}
-      <div className="card overflow-hidden">
+      {/* Payments — Card layout on mobile, table on lg+ */}
+      {/* Mobile: card list */}
+      <div className="lg:hidden space-y-3">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 text-[var(--accent)] animate-spin" />
+            <p className="text-sm text-[var(--text-muted)] ml-2">Loading payments...</p>
+          </div>
+        ) : payments.length === 0 ? (
+          <div className="text-center py-12">
+            <CreditCard className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-2" />
+            <p className="text-sm text-[var(--text-muted)]">No payments found</p>
+          </div>
+        ) : (
+          payments.map((payment) => (
+            <MobilePaymentCard key={payment.id} payment={payment} />
+          ))
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="card overflow-hidden hidden lg:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -342,6 +363,31 @@ export default function AdminPaymentsPage() {
           </div>
         )}
       </div>
+
+      {/* Mobile pagination */}
+      {!loading && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between lg:hidden px-2">
+          <p className="text-xs text-[var(--text-muted)]">
+            {pagination.page} / {pagination.totalPages}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page <= 1}
+              className="btn btn-secondary text-xs px-3 py-2 disabled:opacity-40"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={!pagination.hasMore}
+              className="btn btn-secondary text-xs px-3 py-2 disabled:opacity-40"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
