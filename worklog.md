@@ -37,3 +37,49 @@ Stage Summary:
 - 53/53 tests pass
 - Full audit trail in correction pipeline
 - Architecture plan is comprehensive enough for any agent to continue
+
+---
+Task ID: 2
+Agent: Super Z (Main)
+Task: Add database, API routes, document engine, curves, volumes, and extended test suite
+
+Work Log:
+- Set up Prisma v6 with SQLite (compatible schema for later PostgreSQL migration)
+- Created full Prisma schema: Projects, Surveys, Stations, Observations, Coordinates, Documents, AuditLog, CoordinateSystem
+- Built database query layer with cache integration:
+  - projects.ts: CRUD with LRU caching and pattern invalidation
+  - observations.ts: Single + batch create (createMany), update corrected values
+  - coordinates.ts: Upsert + batch upsert with Prisma transactions
+  - audit.ts: Fire-and-forget audit logging for legal compliance
+- Built API routes:
+  - /api/projects: Full CRUD (GET, POST, PUT, DELETE)
+  - /api/survey/traverse: Process observations through pipeline + Bowditch/LS adjustment
+  - /api/survey/corrections: Apply corrections to single or batch observations
+  - /api/survey/cogo: Inverse, forward, line-line, line-circle, circle-circle
+  - /api/survey/area: Shoelace, DMD, unit conversion
+  - /api/sync: Batch field data upload (offline→server)
+  - /api/documents/deed-plan: Generate vector PDF deed plans
+- Built document generation engine:
+  - pdf-engine.ts: Vector PDF with Kenya standard line weights and text sizes
+  - deed-plan/generator.ts: Complete deed plan with boundaries, beacons, grid, title block
+  - deed-plan/title-block.ts: Kenya standard title block (LR No, area, scale, surveyor)
+  - deed-plan/grid-overlay.ts: UTM coordinate grid with tick marks and labels
+  - deed-plan/symbology.ts: Kenya beacon, boundary, building, tree, fence symbols
+- Built curve calculation modules:
+  - circular.ts: Full circular curve (T, L, LC, M, E, D) + setting-out stations
+  - vertical.ts: Parabolic vertical curves (crest/sag) + station elevations
+  - transition.ts: Clothoid spiral curves (Ls, p, k, X, Y)
+- Built volume computation module:
+  - end-area.ts: End-area method, total volumes, prismoidal formula
+- Extended test suite: 27 new tests for curves, volumes, and LRU cache
+- Total: 80/80 tests pass
+- Updated package.json with proper scripts (dev, test, db:migrate, etc.)
+
+Stage Summary:
+- Full database schema with Prisma, migration applied
+- 7 API routes wired to computation engine and database
+- Vector PDF document generation with Kenya standards
+- Circular, vertical, and spiral curve calculations
+- Volume computation (end-area + prismoidal)
+- 80/80 tests pass
+- Pushed to GitHub (2 commits)
