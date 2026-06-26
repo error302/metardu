@@ -225,3 +225,34 @@ Stage Summary:
 - Survey computation engine integrated alongside existing app
 - Key lesson: NEVER force-push — always merge or rebase carefully
 - Build is currently working but needs full next build verification (takes long in this environment)
+
+---
+Task ID: Survey-Engine-Integration
+Agent: Super Z (Main)
+Task: Wire survey engine corrections into existing app components
+
+Work Log:
+- Audited 5 computation layers: engine/, computations/, compute/, workers/, survey/
+- Found 4 independent Bowditch implementations, 3 different atmospheric correction formulas
+- Identified critical web worker bug: missing +180° back-bearing in WCB propagation
+- Found 4 duplicated Shoelace area implementations
+- Created unified adapter layer at src/lib/survey/adapter/index.ts
+- Replaced old EDM correction chain in TraverseBook.tsx with survey engine pipeline
+- Replaced old EDM correction chain in TraverseFieldBook.tsx with survey engine pipeline
+- Added grid scale factor computation (Simpson's rule) to deed plan generator
+- Fixed web worker Bowditch bug (was computing wrong bearings for all legs after the first)
+- Removed intermediate rounding in worker (was losing precision on long traverses)
+- Added CorrectionAuditTrail UI component for pipeline audit display
+- Consolidated duplicated computeMeanAngleDMS() into shared adapter function
+- TypeScript compilation: PASS (0 errors in changed files)
+- Tests: 243/244 passing (1 pre-existing renderer test failure unrelated to changes)
+- Committed: 5133b60
+- Pushed to main
+
+Stage Summary:
+- 6 files changed, 745 insertions, 80 deletions
+- New files: src/lib/survey/adapter/index.ts, src/components/survey/CorrectionAuditTrail.tsx
+- Key achievement: EDM corrections now use IAG/ISO standard instead of Barrel & Sears
+- Key achievement: Deed plan now includes grid scale factors per boundary leg
+- Key achievement: Web worker Bowditch fixed (was producing wrong coordinates)
+- Remaining work: Wire atmospheric/sea level data from fieldbook UI (currently skipped due to no elevation data in fieldbook)
