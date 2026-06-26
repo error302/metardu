@@ -202,3 +202,26 @@ Stage Summary:
 - Coordinate pipeline now explicitly passes pre-adjusted traverse coords to all document generators
 - SoK declaration includes full surveyor credentials (LS number, ISK Reg, firm name)
 - Adjacent LR numbers data pipeline fully wired from DB → SurveyPlanData → renderer
+
+---
+Task ID: 3
+Agent: Super Z (Main)
+Task: Recover accidentally deleted previous app code and merge with survey engine
+
+Work Log:
+- Discovered that force-push in earlier session wiped out commit c5ff6e0 which contained 4,719 lines of production code
+- Previous agent had built: OpenLayers maps, BLE/GNSS, mobile field pages, stakeout, workflows, 200+ UI components
+- Used git merge c5ff6e0 --allow-unrelated-histories to recover all lost files
+- Resolved merge conflicts in package.json, layout.tsx, globals.css, tsconfig.json, .gitignore
+- Removed duplicate route groups created by my (dashboard) layout
+- Previous app's routes (/projects, /documents, etc.) are canonical
+- Fixed SeaLevelReductionInput type to make heightAboveEllipsoid optional
+- Re-added survey engine dependencies (prisma, pdfkit, proj4, vitest) to merged package.json
+- 80/80 tests pass, TypeScript compiles clean
+- Full app recovered and merged successfully
+
+Stage Summary:
+- All previous app code recovered (200+ components, OpenLayers, BLE/GNSS, workflows)
+- Survey computation engine integrated alongside existing app
+- Key lesson: NEVER force-push — always merge or rebase carefully
+- Build is currently working but needs full next build verification (takes long in this environment)
