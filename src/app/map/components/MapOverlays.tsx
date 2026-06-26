@@ -56,11 +56,12 @@ export const MapOverlays = memo(function MapOverlays({
       )}
 
       {/* Zoom controls - top right */}
-      <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-1">
+      <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-1" role="group" aria-label="Map zoom controls">
         <button
           onClick={() => mapInstance.current?.getView().animate({ zoom: mapInstance.current.getView().getZoom() + 1 }, { duration: 200 })}
           className="w-10 h-10 bg-[#14141e]/90 backdrop-blur-sm border border-[var(--border-color)] rounded-lg text-white flex items-center justify-center hover:bg-[#E8841A]/20 transition-colors"
           title="Zoom In"
+          aria-label="Zoom in"
         >
           +
         </button>
@@ -68,6 +69,7 @@ export const MapOverlays = memo(function MapOverlays({
           onClick={() => mapInstance.current?.getView().animate({ zoom: Math.max(6, mapInstance.current.getView().getZoom() - 1) }, { duration: 200 })}
           className="w-10 h-10 bg-[#14141e]/90 backdrop-blur-sm border border-[var(--border-color)] rounded-lg text-white flex items-center justify-center hover:bg-[#E8841A]/20 transition-colors"
           title="Zoom Out"
+          aria-label="Zoom out"
         >
           {'\u2212'}
         </button>

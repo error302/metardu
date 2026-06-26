@@ -35,6 +35,7 @@ interface UseMapInteractionsParams {
   measureSourceRef: React.MutableRefObject<any>
   measureLayerRef: React.MutableRefObject<any>
   annotationLayerRef: React.MutableRefObject<any>
+  cleanupRef: React.MutableRefObject<import('@/lib/map/olTypes').MapCleanupRefs | null>
   drawMode: DrawMode
   editMode: boolean
   measureMode: MeasureMode
@@ -408,18 +409,17 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   // ── GPS ──
   const toggleGPSInternal = useCallback(() => {
     if (!p.mapInstance.current) return
-    const cleanup = (p.mapInstance.current as any)._cleanup
-    if (!cleanup?.geolocation) return
+    if (!p.cleanupRef.current?.geolocation) return
 
     if (p.gpsTracking) {
-      cleanup.geolocation.setTracking(false)
+      p.cleanupRef.current.geolocation.setTracking(false)
       p.setGpsTracking(false)
       p.setStakeoutActive(false)
     } else {
-      cleanup.geolocation.setTracking(true)
+      p.cleanupRef.current.geolocation.setTracking(true)
       p.setGpsTracking(true)
-      cleanup.geolocation.once('change:position', () => {
-        const pos = cleanup.geolocation.getPosition()
+      p.cleanupRef.current.geolocation.once('change:position', () => {
+        const pos = p.cleanupRef.current?.geolocation?.getPosition()
         if (pos) p.mapInstance.current.getView().animate({ center: pos, zoom: 16, duration: 1000 })
       })
     }

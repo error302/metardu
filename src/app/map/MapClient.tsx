@@ -63,6 +63,7 @@ import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import { createSchemeLayers, zoomToSchemeExtent } from '@/lib/map/schemeLayer'
 import { SchemeLayerPanel } from '@/app/map/components/SchemeLayerPanel'
 import type { StakeoutState } from '@/lib/map/stakeout'
+import type { MapCleanupRefs } from '@/lib/map/olTypes'
 import {
   createTraversePolygonPreview,
   removeTraversePolygonPreview,
@@ -184,6 +185,9 @@ export default function MapClient() {
   // ── GPS toggle ref (allows interactions hook to call the real toggleGPS) ──
   const toggleGPSRef = useRef<() => void>(() => {})
 
+  // ── Map cleanup refs (replaces _cleanup hack on map object) ──
+  const cleanupRef = useRef<MapCleanupRefs | null>(null)
+
   // ── UI state ──
   const [mapReady, setMapReady] = useState(false)
   const [initError, setInitError] = useState('')
@@ -277,6 +281,7 @@ export default function MapClient() {
     measureLayerRef,
     selectInteractionRef,
     mapInstance,
+    cleanupRef,
     popupRef,
     createBasemaps,
     onPopupRender: renderPopup,
@@ -297,6 +302,7 @@ export default function MapClient() {
     measureSourceRef,
     measureLayerRef,
     annotationLayerRef,
+    cleanupRef,
     drawMode,
     editMode,
     measureMode,
@@ -329,18 +335,17 @@ export default function MapClient() {
   // Wire GPS toggle (needs interactions reference)
   const toggleGPS = useCallback(() => {
     if (!mapInstance.current) return
-    const cleanup = (mapInstance.current as any)._cleanup
-    if (!cleanup?.geolocation) return
+    if (!cleanupRef.current?.geolocation) return
 
     if (gpsTracking) {
-      cleanup.geolocation.setTracking(false)
+      cleanupRef.current.geolocation.setTracking(false)
       setGpsTracking(false)
       setStakeoutActive(false)
     } else {
-      cleanup.geolocation.setTracking(true)
+      cleanupRef.current.geolocation.setTracking(true)
       setGpsTracking(true)
-      cleanup.geolocation.once('change:position', () => {
-        const pos = cleanup.geolocation.getPosition()
+      cleanupRef.current.geolocation.once('change:position', () => {
+        const pos = cleanupRef.current?.geolocation?.getPosition()
         if (pos) mapInstance.current.getView().animate({ center: pos, zoom: 16, duration: 1000 })
       })
     }
@@ -628,10 +633,9 @@ export default function MapClient() {
   // ── Geolocation position tracking ──
   useEffect(() => {
     if (!mapInstance.current) return
-    const cleanup = (mapInstance.current as any)._cleanup
-    if (!cleanup?.geolocation) return
+    if (!cleanupRef.current?.geolocation) return
 
-    const geolocation = cleanup.geolocation
+    const geolocation = cleanupRef.current.geolocation
 
     const onPositionChange = async () => {
       const pos = geolocation.getPosition()

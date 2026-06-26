@@ -20,7 +20,8 @@
  */
 
 import { useEffect, useRef } from 'react'
-import type { BasemapMode } from '@/app/map/mapTypes'
+import type { BasemapMode } from '@/hooks/useMapTypes'
+import type { MapCleanupRefs } from '@/lib/map/olTypes'
 
 interface UseMapInitParams {
   mapRef: React.RefObject<HTMLDivElement | null>
@@ -41,6 +42,7 @@ interface UseMapInitParams {
   measureLayerRef: React.MutableRefObject<unknown>
   selectInteractionRef: React.MutableRefObject<unknown>
   mapInstance: React.MutableRefObject<unknown>
+  cleanupRef: React.MutableRefObject<MapCleanupRefs | null>
   popupRef: React.MutableRefObject<HTMLDivElement | null>
   createBasemaps: (olModules: any) => Record<string, any>
   onPopupRender: (popupElement: HTMLDivElement, data: any, hidePopup: () => void) => void
@@ -53,7 +55,7 @@ export function useMapInit(params: UseMapInitParams) {
     setSelectedFeature, setFeatureName, mouseCoordThrottleRef,
     searchParams, pushHistory,
     drawSourceRef, drawLayerRef, measureSourceRef, measureLayerRef,
-    selectInteractionRef, mapInstance, popupRef,
+    selectInteractionRef, mapInstance, cleanupRef, popupRef,
     createBasemaps, onPopupRender,
   } = params
 
@@ -459,8 +461,8 @@ export function useMapInit(params: UseMapInitParams) {
           }
         }
 
-        // Store cleanup refs
-        ;(map as any)._cleanup = { geolocation, snap, dragAndDrop }
+        // Store cleanup refs in dedicated ref (not on map object)
+        cleanupRef.current = { geolocation, snap, dragAndDrop }
 
         if (!cancelled) setMapReady(true)
       } catch (err: unknown) {
@@ -475,11 +477,13 @@ export function useMapInit(params: UseMapInitParams) {
       cancelled = true
       if (map) {
         try {
-          const cleanup = (map as any)._cleanup
-          if (cleanup?.geolocation) cleanup.geolocation.setTracking(false)
+          if (cleanupRef.current?.geolocation) {
+            cleanupRef.current.geolocation.setTracking(false)
+          }
         } catch { /* ignore */ }
         try { map.setTarget(undefined) } catch { /* ignore */ }
         mapInstance.current = null
+        cleanupRef.current = null
       }
     }
   
