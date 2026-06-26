@@ -63,6 +63,23 @@ export interface MapContextValue {
   traverseParcelPreviewActive: boolean
   hasProjectId: boolean
 
+  // ── Vertex editing state (Tier 1) ──
+  vertexEditingEnabled: boolean
+  snapEnabled: boolean
+  snapTolerance: number
+  vertexEditState: {
+    vertexCount: number
+    hoveredVertex: { easting: number; northing: number; index: number } | null
+    lastEditedVertex: { easting: number; northing: number; index: number } | null
+  }
+
+  // ── Projection state (Tier 2) ──
+  activeProjection: string
+
+  // ── Print state (Tier 1) ──
+  showSheetLayout: boolean
+  isPrinting: boolean
+
   // ── Feature flags ──
   hasFeature: (feature: string) => boolean
 
@@ -75,6 +92,10 @@ export interface MapContextValue {
   setProjectSearch: (v: string) => void
   setAudioMuted: React.Dispatch<React.SetStateAction<boolean>>
   setOfflineDialogOpen: React.Dispatch<React.SetStateAction<boolean>>
+  setVertexEditingEnabled: React.Dispatch<React.SetStateAction<boolean>>
+  setSnapEnabled: React.Dispatch<React.SetStateAction<boolean>>
+  setSnapTolerance: React.Dispatch<React.SetStateAction<number>>
+  setShowSheetLayout: React.Dispatch<React.SetStateAction<boolean>>
 
   // ── Actions ──
   toggleDraw: (mode: DrawMode) => void
@@ -109,6 +130,12 @@ export interface MapContextValue {
   createParcelFromTraverse: () => void
   confirmTraverseParcel: () => void
   cancelTraverseParcel: () => void
+
+  // ── Projection actions (Tier 2) ──
+  switchProjection: (projection: string) => void
+
+  // ── Print actions (Tier 1) ──
+  printMap: (overrides?: any) => Promise<void>
 }
 
 // ─── Context Creation ────────────────────────────────────────────────────

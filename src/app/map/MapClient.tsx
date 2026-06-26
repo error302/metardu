@@ -96,6 +96,7 @@ import { useMapState } from '@/app/map/hooks/useMapState'
 import { useMapInteractions } from '@/app/map/hooks/useMapInteractions'
 import { useVertexEditing } from '@/hooks/useVertexEditing'
 import { usePrint } from '@/hooks/usePrint'
+import { MapProvider, type MapContextValue } from '@/app/map/MapReactContext'
 
 // ── Dynamic imports for heavy components ──
 const OfflineTileDownloader = dynamic(
@@ -806,10 +807,129 @@ export default function MapClient() {
   }, [stakeoutActive, gpsPos])
 
   // ══════════════════════════════════════════════════════════════════
+  //  CONTEXT VALUE (for MapReactContext — eliminates prop drilling)
+  // ══════════════════════════════════════════════════════════════════
+  const mapContextValue = useMemo<MapContextValue>(() => ({
+    mapInstance,
+    popupRef,
+    mapReady,
+    initError,
+    projectCount,
+    basemap,
+    drawMode,
+    measureMode,
+    editMode,
+    mouseCoord,
+    gpsTracking,
+    gpsPos,
+    featureCount,
+    importMsg,
+    panelOpen,
+    dragHint,
+    selectedFeature,
+    featureName,
+    measureResult,
+    layerOpacity,
+    stakeoutTarget,
+    stakeoutActive,
+    stakeoutState,
+    audioMuted,
+    saveMsg,
+    offlineDialogOpen,
+    showAnnotations,
+    projectSearch,
+    isMobile,
+    schemeLoading,
+    schemeError,
+    schemeLoaded,
+    schemeParcelCount,
+    schemeBlockCount,
+    schemeBeaconCount,
+    showSchemeParcels,
+    showSchemeBlocks,
+    showSchemeBeacons,
+    hasTraverse,
+    traverseParcelPreviewActive,
+    hasProjectId: !!schemeProjectId,
+    vertexEditingEnabled,
+    snapEnabled,
+    snapTolerance,
+    vertexEditState: vertexEditState,
+    activeProjection,
+    showSheetLayout,
+    isPrinting,
+    hasFeature,
+    canUndo,
+    canRedo,
+    setPanelOpen,
+    setProjectSearch,
+    setAudioMuted,
+    setOfflineDialogOpen,
+    setVertexEditingEnabled,
+    setSnapEnabled,
+    setSnapTolerance,
+    setShowSheetLayout,
+    toggleDraw: interactions.toggleDraw,
+    toggleEdit: interactions.toggleEdit,
+    toggleMeasure: interactions.toggleMeasure,
+    toggleAnnotations: interactions.toggleAnnotations,
+    toggleBasemap,
+    toggleGPS,
+    toggleStakeout: interactions.toggleStakeout,
+    deleteSelected: interactions.deleteSelected,
+    undo,
+    redo,
+    fitToKenya: interactions.fitToKenya,
+    fitToDrawn: interactions.fitToDrawn,
+    saveToProject: interactions.saveToProject,
+    exportFeatures: interactions.exportFeatures,
+    clearDrawn: interactions.clearDrawn,
+    updateFeatureName: handleUpdateFeatureName,
+    handleOpacityChange,
+    handleCoordSearch,
+    stakeoutInfo: interactions.stakeoutInfo,
+    deactivateStakeout: interactions.deactivateStakeout,
+    getMapExtent: interactions.getMapExtent,
+    loadSchemeData,
+    toggleSchemeParcelVisibility,
+    toggleSchemeBlockVisibility,
+    toggleSchemeBeaconVisibility,
+    zoomToScheme: handleZoomToScheme,
+    removeScheme: handleRemoveScheme,
+    createParcelFromTraverse: handleCreateParcelFromTraverse,
+    confirmTraverseParcel: handleConfirmTraverseParcel,
+    cancelTraverseParcel: handleCancelTraverseParcel,
+    switchProjection: handleProjectionSwitch,
+    printMap: handlePrintMap,
+  }), [
+    mapInstance, popupRef, mapReady, initError, projectCount, basemap, drawMode,
+    measureMode, editMode, mouseCoord, gpsTracking, gpsPos, featureCount, importMsg,
+    panelOpen, dragHint, selectedFeature, featureName, measureResult, layerOpacity,
+    stakeoutTarget, stakeoutActive, stakeoutState, audioMuted, saveMsg,
+    offlineDialogOpen, showAnnotations, projectSearch, isMobile,
+    schemeLoading, schemeError, schemeLoaded, schemeParcelCount, schemeBlockCount,
+    schemeBeaconCount, showSchemeParcels, showSchemeBlocks, showSchemeBeacons,
+    hasTraverse, traverseParcelPreviewActive, schemeProjectId,
+    vertexEditingEnabled, snapEnabled, snapTolerance, vertexEditState,
+    activeProjection, showSheetLayout, isPrinting,
+    hasFeature, canUndo, canRedo,
+    setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen,
+    setVertexEditingEnabled, setSnapEnabled, setSnapTolerance, setShowSheetLayout,
+    interactions, toggleBasemap, toggleGPS,
+    handleUpdateFeatureName, handleOpacityChange, handleCoordSearch,
+    loadSchemeData, toggleSchemeParcelVisibility, toggleSchemeBlockVisibility,
+    toggleSchemeBeaconVisibility, handleZoomToScheme, handleRemoveScheme,
+    handleCreateParcelFromTraverse, handleConfirmTraverseParcel,
+    handleCancelTraverseParcel, handleProjectionSwitch, handlePrintMap,
+    undo, redo,
+  ])
+
+  // ══════════════════════════════════════════════════════════════════
   //  RENDER
   // ══════════════════════════════════════════════════════════════════
   return (
     <MapErrorBoundary>
+      <MapProvider value={mapContextValue}>
       <div
         id="metardu-global-map"
         className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden"
@@ -1030,6 +1150,7 @@ export default function MapClient() {
           />
         )}
       </div>
+      </MapProvider>
     </MapErrorBoundary>
   )
 }
