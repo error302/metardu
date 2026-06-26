@@ -2,45 +2,31 @@
 /**
  * MapOverlays — Floating map UI overlays (zoom controls, GPS badge, stakeout HUD, project count)
  *
+ * Now reads state from MapReactContext via useMapContext().
  * Memoized to prevent re-renders from unrelated state changes.
  * All overlays are absolutely positioned within the map container.
  * Mobile-responsive: adjusts sizes and positions for small screens.
- *
- * Note: The full stakeout panel is rendered by the StakeoutPanel component.
- * This file only shows the simplified HUD in the bottom-right corner.
  */
 
 import React, { memo } from 'react'
+import { useMapContext } from '@/app/map/MapReactContext'
 
-interface MapOverlaysProps {
-  mapInstance: React.MutableRefObject<any>
-  panelOpen: boolean
-  setPanelOpen: (v: boolean) => void
-  gpsTracking: boolean
-  gpsPos: { lon: number; lat: number; accuracy: number } | null
-  stakeoutActive: boolean
-  stakeoutTarget: { e: number; n: number } | null
-  stakeoutInfo: () => { distance: number; bearing: number; dE: number; dN: number } | null
-  toggleStakeout: () => void
-  toggleGPS: () => void
-  projectCount: number
-  isMobile: boolean
-}
+export const MapOverlays = memo(function MapOverlays() {
+  const {
+    mapInstance,
+    panelOpen,
+    setPanelOpen,
+    gpsTracking,
+    gpsPos,
+    stakeoutActive,
+    stakeoutTarget,
+    stakeoutInfo,
+    toggleStakeout,
+    toggleGPS,
+    projectCount,
+    isMobile,
+  } = useMapContext()
 
-export const MapOverlays = memo(function MapOverlays({
-  mapInstance,
-  panelOpen,
-  setPanelOpen,
-  gpsTracking,
-  gpsPos,
-  stakeoutActive,
-  stakeoutTarget,
-  stakeoutInfo,
-  toggleStakeout,
-  toggleGPS,
-  projectCount,
-  isMobile,
-}: MapOverlaysProps) {
   return (
     <>
       {/* Hamburger toggle when panel is open */}

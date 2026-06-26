@@ -2,24 +2,17 @@
 /**
  * MapStatusBar — Bottom coordinate bar overlay
  *
+ * Now reads state from MapReactContext via useMapContext().
  * Shows live mouse coordinates in both Lon/Lat and EPSG:21037 (E/N).
- * Memoized to prevent re-renders from unrelated state changes.
  * Responsive: hides E/N on mobile, adjusts font sizes.
  */
 
 import React, { memo } from 'react'
+import { useMapContext } from '@/app/map/MapReactContext'
 
-interface MapStatusBarProps {
-  mouseCoord: { lon: number; lat: number; e: number; n: number } | null
-  dragHint: boolean
-  isMobile: boolean
-}
+export const MapStatusBar = memo(function MapStatusBar() {
+  const { mouseCoord, dragHint, isMobile } = useMapContext()
 
-export const MapStatusBar = memo(function MapStatusBar({
-  mouseCoord,
-  dragHint,
-  isMobile,
-}: MapStatusBarProps) {
   return (
     <div className="absolute bottom-0 left-0 right-0 z-10" style={{ bottom: isMobile ? '64px' : '0px' }}>
       <div className="mx-2 mb-2 h-8 bg-[#0d0d14]/95 backdrop-blur-xl border border-white/[0.06] rounded-lg flex items-center justify-between px-2 md:px-3 overflow-x-auto">

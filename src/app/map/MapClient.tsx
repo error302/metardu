@@ -942,30 +942,13 @@ export default function MapClient() {
           {/* ── Overlays (only when map is ready) ── */}
           {mapReady && (
             <>
-              <MapOverlays
-                mapInstance={mapInstance}
-                panelOpen={panelOpen}
-                setPanelOpen={setPanelOpen}
-                gpsTracking={gpsTracking}
-                gpsPos={gpsPos}
-                stakeoutActive={stakeoutActive}
-                stakeoutTarget={stakeoutTarget}
-                stakeoutInfo={interactions.stakeoutInfo}
-                toggleStakeout={interactions.toggleStakeout}
-                toggleGPS={toggleGPS}
-                projectCount={projectCount}
-                isMobile={isMobile}
-              />
+              <MapOverlays />
 
               <MapCoordSearch onSearch={handleCoordSearch} />
 
               <MapToolbar />
 
-              <MapStatusBar
-                mouseCoord={mouseCoord}
-                dragHint={dragHint}
-                isMobile={isMobile}
-              />
+              <MapStatusBar />
 
               <MapNotifications
                 importMsg={importMsg}
