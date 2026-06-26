@@ -16,6 +16,8 @@
  * │  ├─ components/MapLoadingOverlay.tsx → Loading/Error states │
  * │  ├─ components/MapNotifications.tsx  → Toast notifications  │
  * │  ├─ components/MapCoordSearch.tsx   → Coord search input    │
+ * │  ├─ components/CogoInfoPanel.tsx    → COGO traverse readout │
+ * │  ├─ components/RotationControl.tsx  → North arrow reset     │
  * │  ├─ LayerControl (Tier 1)       → Grid/XYZ/WMS/Opacity     │
  * │  ├─ VertexEditToolbar (Tier 1)  → Vertex editing + snap    │
  * │  ├─ SheetLayout (Tier 1)        → Print layout overlay      │
@@ -81,6 +83,8 @@ import { MapOverlays } from '@/app/map/components/MapOverlays'
 import { MapStatusBar } from '@/app/map/components/MapStatusBar'
 import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
+import { CogoInfoPanel } from '@/app/map/components/CogoInfoPanel'
+import { RotationControl } from '@/app/map/components/RotationControl'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
 import { StakeoutPanel } from '@/components/map/StakeoutPanel'
 import { LayerControl } from '@/components/map/LayerControl'
@@ -267,9 +271,6 @@ export default function MapClient() {
     orientation,
     setOrientation,
   } = usePrint({ printTarget: 'metardu-global-map' })
-
-  // ── Layer control visibility (Tier 1: LayerControl) ──
-  const [layerControlOpen, setLayerControlOpen] = useState(true)
 
   // ── Map extent for offline tile dialog (async resolve) ──
   const [offlineMapExtent, setOfflineMapExtent] = useState<any>(null)
@@ -855,6 +856,7 @@ export default function MapClient() {
     snapEnabled,
     snapTolerance,
     vertexEditState: vertexEditState,
+    vertexEditingVertices,
     activeProjection,
     showSheetLayout,
     isPrinting,
@@ -910,7 +912,7 @@ export default function MapClient() {
     schemeLoading, schemeError, schemeLoaded, schemeParcelCount, schemeBlockCount,
     schemeBeaconCount, showSchemeParcels, showSchemeBlocks, showSchemeBeacons,
     hasTraverse, traverseParcelPreviewActive, schemeProjectId,
-    vertexEditingEnabled, snapEnabled, snapTolerance, vertexEditState,
+    vertexEditingEnabled, snapEnabled, snapTolerance, vertexEditState, vertexEditingVertices,
     activeProjection, showSheetLayout, isPrinting,
     hasFeature, canUndo, canRedo,
     setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen,
@@ -944,16 +946,13 @@ export default function MapClient() {
             <>
               <MapOverlays />
 
-              <MapCoordSearch onSearch={handleCoordSearch} />
+              <MapCoordSearch />
 
               <MapToolbar />
 
               <MapStatusBar />
 
-              <MapNotifications
-                importMsg={importMsg}
-                saveMsg={saveMsg}
-              />
+              <MapNotifications />
 
               {/* Stakeout Panel (full-featured) */}
               <StakeoutPanel
@@ -1012,6 +1011,9 @@ export default function MapClient() {
                   activeProjection={activeProjection}
                   onSwitch={handleProjectionSwitch}
                 />
+
+                {/* ── Rotation Control (north reset) ── */}
+                <RotationControl />
               </div>
 
               {/* ── Tier 1: Vertex Edit Toolbar ── */}
@@ -1025,6 +1027,11 @@ export default function MapClient() {
                   onToleranceChange={setSnapTolerance}
                   editState={vertexEditState}
                 />
+              </div>
+
+              {/* ── COGO Info Panel (bottom-left, above status bar) ── */}
+              <div className="absolute bottom-10 left-3 z-20 sm:bottom-12 sm:left-4">
+                <CogoInfoPanel />
               </div>
 
               {/* ── Tier 1: Print/PDF & Sheet Layout ── */}

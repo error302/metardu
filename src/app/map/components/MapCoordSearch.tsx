@@ -2,27 +2,23 @@
 /**
  * MapCoordSearch — Coordinate search input overlay
  *
+ * Now reads handleCoordSearch from MapReactContext via useMapContext().
  * Positioned top-left on the map. Accepts lat/lon, DMS, or UTM coordinates.
- * Memoized for performance.
  */
 
 import React, { memo, useState, useCallback } from 'react'
 import { Search as SearchIcon } from 'lucide-react'
+import { useMapContext } from '@/app/map/MapReactContext'
 
-interface MapCoordSearchProps {
-  onSearch: (input: string) => Promise<void>
-}
-
-export const MapCoordSearch = memo(function MapCoordSearch({
-  onSearch,
-}: MapCoordSearchProps) {
+export const MapCoordSearch = memo(function MapCoordSearch() {
+  const { handleCoordSearch } = useMapContext()
   const [searchInput, setSearchInput] = useState('')
 
   const handleSearch = useCallback(async () => {
     if (!searchInput.trim()) return
-    await onSearch(searchInput)
+    await handleCoordSearch(searchInput)
     setSearchInput('')
-  }, [searchInput, onSearch])
+  }, [searchInput, handleCoordSearch])
 
   return (
     <div className="absolute top-3 left-14 z-20 md:left-14">

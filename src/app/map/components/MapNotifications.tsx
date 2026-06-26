@@ -2,21 +2,16 @@
 /**
  * MapNotifications — Toast-style notification overlays for import/save messages
  *
+ * Now reads from MapReactContext via useMapContext().
  * Positioned at top center, auto-dismiss via parent timeout.
- * Memoized for performance.
  */
 
 import React, { memo } from 'react'
+import { useMapContext } from '@/app/map/MapReactContext'
 
-interface MapNotificationsProps {
-  importMsg: string
-  saveMsg: string
-}
+export const MapNotifications = memo(function MapNotifications() {
+  const { importMsg, saveMsg } = useMapContext()
 
-export const MapNotifications = memo(function MapNotifications({
-  importMsg,
-  saveMsg,
-}: MapNotificationsProps) {
   return (
     <div aria-live="polite" aria-atomic="true">
       {importMsg && (

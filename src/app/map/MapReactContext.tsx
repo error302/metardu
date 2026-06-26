@@ -72,6 +72,7 @@ export interface MapContextValue {
     hoveredVertex: { easting: number; northing: number; index: number } | null
     lastEditedVertex: { easting: number; northing: number; index: number } | null
   }
+  vertexEditingVertices: Array<{ easting: number; northing: number }>
 
   // ── Projection state (Tier 2) ──
   activeProjection: string
