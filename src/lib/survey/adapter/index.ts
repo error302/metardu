@@ -404,3 +404,23 @@ export function bearingToDMS(bearing: number): string {
   const s = (mFloat - m) * 60;
   return `${String(d).padStart(3, '0')}° ${String(m).padStart(2, '0')}' ${s.toFixed(1)}"`;
 }
+
+// ─── Atmospheric Defaults ─────────────────────────────────────────
+export {
+  getAtmosphericDefaults,
+  autoDetectUTMZone,
+  findNearestPreset,
+  findPresetByCounty,
+  icaoPressure,
+  fetchRealtimeWeather,
+  computeAtmosphericErrorImpact,
+  validateAtmosphericDefaults,
+  KENYA_LOCATION_PRESETS,
+} from './atmosphericDefaults';
+
+export type {
+  AtmosphericDefaults,
+  AtmosphericSource,
+  ProjectAtmosphericSettings,
+  KenyaLocationPreset,
+} from './atmosphericDefaults';

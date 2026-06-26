@@ -6,8 +6,8 @@ import { computeTraverse, type RawObservation, type TraverseComputationResult } 
 import { parseTraverseCSV } from '@/lib/parsers/totalStation'
 import { bearingToString } from '@/lib/engine/angles'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
-import { reduceEDMObservation, computeMeanAngleDMS as sharedMeanAngleDMS, processTraverseObservations } from '@/lib/survey/adapter'
-import type { AdaptedEDMResult, ProcessedObservation } from '@/lib/survey/adapter'
+import { reduceEDMObservation, computeMeanAngleDMS as sharedMeanAngleDMS, processTraverseObservations, getAtmosphericDefaults, autoDetectUTMZone, findNearestPreset, findPresetByCounty, fetchRealtimeWeather, computeAtmosphericErrorImpact, validateAtmosphericDefaults, KENYA_LOCATION_PRESETS } from '@/lib/survey/adapter'
+import type { AdaptedEDMResult, ProcessedObservation, AtmosphericDefaults, KenyaLocationPreset } from '@/lib/survey/adapter'
 import { CorrectionAuditTrail } from '@/components/survey/CorrectionAuditTrail'
 import type { CorrectionObservationSummary } from '@/components/survey/CorrectionAuditTrail'
 import { TraverseStationInput } from '@/types/field'
@@ -60,11 +60,19 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
   const [edmOpen, setEdmOpen] = useState(false)
   const [showPlot, setShowPlot] = useState(false)
   const [atmOpen, setAtmOpen] = useState(false)
-  const [temperature, setTemperature] = useState('')
-  const [pressure, setPressure] = useState('')
-  const [humidity, setHumidity] = useState('')
-  const [meanElevation, setMeanElevation] = useState('')
-  const [utmProjection, setUtmProjection] = useState<'UTM36S' | 'UTM37S'>('UTM37S')
+  const [weatherLoading, setWeatherLoading] = useState(false)
+  const [weatherFetchedAt, setWeatherFetchedAt] = useState<string | null>(null)
+
+  // Initialize atmospheric defaults using the 3-tier fallback system
+  // (project settings → location preset → default)
+  const [initialDefaults] = useState(() => getAtmosphericDefaults({}))
+  const [temperature, setTemperature] = useState(String(initialDefaults.temperature))
+  const [pressure, setPressure] = useState(String(initialDefaults.pressure))
+  const [humidity, setHumidity] = useState(String(initialDefaults.humidity))
+  const [meanElevation, setMeanElevation] = useState(String(initialDefaults.elevation))
+  const [utmProjection, setUtmProjection] = useState<'UTM36S' | 'UTM37S'>(initialDefaults.utmZone)
+  const [atmSource, setAtmSource] = useState<string>(initialDefaults.source)
+  const [atmVerified, setAtmVerified] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   
   const searchParams = useSearchParams()
@@ -387,48 +395,136 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
               <span className="flex items-center gap-2">
                 <span>Atmospheric Conditions &amp; EDM Settings</span>
                 <span className="text-[var(--text-muted)] font-normal text-xs">
-                  (IAG/ISO Correction Pipeline)
+                  (IAG/ISO · {atmSource === 'default' ? 'Nairobi defaults' : atmSource === 'location_preset' ? 'Location preset' : atmSource === 'weather_api' ? 'Live weather' : 'Custom'})
                 </span>
-                {temperature && pressure && (
-                  <span className="bg-green-600/30 text-green-300 text-[10px] px-1.5 py-0.5 rounded-full">Active</span>
+                {atmVerified ? (
+                  <span className="bg-green-600/30 text-green-300 text-[10px] px-1.5 py-0.5 rounded-full">Verified</span>
+                ) : (
+                  <span className="bg-amber-600/30 text-amber-300 text-[10px] px-1.5 py-0.5 rounded-full">Unverified</span>
                 )}
               </span>
               <span className="text-[var(--text-muted)]">{atmOpen ? '▲' : '▼'}</span>
             </button>
             {atmOpen && (
-              <div className="grid grid-cols-5 gap-3 p-4 bg-[var(--bg-tertiary)]/20">
+              <div className="space-y-3 p-4 bg-[var(--bg-tertiary)]/20">
+                {/* Location preset selector */}
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">Temperature (&deg;C)</label>
-                  <input value={temperature} onChange={e => setTemperature(e.target.value)} type="number" step="0.1" placeholder="20"
-                    className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">Location Preset (auto-fills all fields)</label>
+                  <div className="flex gap-2">
+                    <select onChange={(e) => {
+                      const key = e.target.value;
+                      if (!key) return;
+                      const preset = KENYA_LOCATION_PRESETS[key];
+                      if (preset) {
+                        setTemperature(String(preset.temperature));
+                        setPressure(String(preset.pressure));
+                        setHumidity(String(preset.humidity));
+                        setMeanElevation(String(preset.elevation));
+                        setUtmProjection(preset.utmZone);
+                        setAtmSource('location_preset');
+                        setAtmVerified(false);
+                      }
+                    }} className="flex-1 px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm">
+                      <option value="">-- Select city/location --</option>
+                      {Object.entries(KENYA_LOCATION_PRESETS).map(([key, preset]) => (
+                        <option key={key} value={key}>{preset.name} ({preset.county}) — {preset.elevation}m</option>
+                      ))}
+                    </select>
+                    <button onClick={async () => {
+                      setWeatherLoading(true);
+                      try {
+                        // Use opening coordinates or Nairobi default
+                        const lat = openingN ? parseFloat(openingN) / 111000 : -1.2921;
+                        const lon = openingE ? (parseFloat(openingE) - 500000) / 111000 + 39 : 36.8219;
+                        const weather = await fetchRealtimeWeather(lat, lon);
+                        if (weather) {
+                          setTemperature(String(Math.round(weather.temperature * 10) / 10));
+                          setPressure(String(Math.round(weather.pressure * 10) / 10));
+                          setHumidity(String(Math.round(weather.humidity)));
+                          setAtmSource('weather_api');
+                          setWeatherFetchedAt(weather.fetchedAt);
+                          setAtmVerified(false);
+                        }
+                      } finally {
+                        setWeatherLoading(false);
+                      }
+                    }} disabled={weatherLoading}
+                      className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 disabled:bg-blue-900 text-white rounded text-xs whitespace-nowrap">
+                      {weatherLoading ? 'Loading...' : 'Fetch Live Weather'}
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">Pressure (hPa)</label>
-                  <input value={pressure} onChange={e => setPressure(e.target.value)} type="number" step="0.1" placeholder="1013.25"
-                    className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+
+                {/* Atmospheric input fields */}
+                <div className="grid grid-cols-5 gap-3">
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Temperature (&deg;C)</label>
+                    <input value={temperature} onChange={e => { setTemperature(e.target.value); setAtmVerified(false); }} type="number" step="0.1"
+                      className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Pressure (hPa)</label>
+                    <input value={pressure} onChange={e => { setPressure(e.target.value); setAtmVerified(false); }} type="number" step="0.1"
+                      className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Humidity (%)</label>
+                    <input value={humidity} onChange={e => { setHumidity(e.target.value); setAtmVerified(false); }} type="number" step="1" min="0" max="100"
+                      className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Mean Elevation (m)</label>
+                    <input value={meanElevation} onChange={e => { setMeanElevation(e.target.value); setAtmVerified(false); }} type="number" step="1"
+                      className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">UTM Zone</label>
+                    <select value={utmProjection} onChange={e => { setUtmProjection(e.target.value as 'UTM36S' | 'UTM37S'); setAtmVerified(false); }}
+                      className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm">
+                      <option value="UTM36S">UTM 36S (CM 33&deg;E)</option>
+                      <option value="UTM37S">UTM 37S (CM 39&deg;E)</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">Humidity (%)</label>
-                  <input value={humidity} onChange={e => setHumidity(e.target.value)} type="number" step="1" min="0" max="100" placeholder="50"
-                    className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+
+                {/* Verification button & error impact */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setAtmVerified(true)}
+                      className={`px-3 py-1.5 rounded text-xs font-medium ${atmVerified ? 'bg-green-700 text-green-100' : 'bg-amber-700 hover:bg-amber-600 text-amber-100'}`}>
+                      {atmVerified ? '✓ Verified' : 'Verify These Readings'}
+                    </button>
+                    {weatherFetchedAt && (
+                      <span className="text-[10px] text-[var(--text-muted)]">
+                        Weather fetched: {new Date(weatherFetchedAt).toLocaleTimeString()}
+                      </span>
+                    )}
+                  </div>
+                  {(() => {
+                    const impact = computeAtmosphericErrorImpact({
+                      temperature: parseFloat(temperature) || 20,
+                      pressure: parseFloat(pressure) || 1013.25,
+                      humidity: parseFloat(humidity) || 50,
+                      elevation: parseFloat(meanElevation) || 0,
+                      utmZone: utmProjection,
+                      geoidUndulation: -12,
+                      refractionCoefficient: 0.13,
+                      source: atmSource as any,
+                      verified: atmVerified,
+                    });
+                    return (
+                      <span className="text-[10px] text-[var(--text-muted)]">
+                        Uncorrected error at these conditions: <span className="text-amber-400 font-mono">{impact.mmPerKm.toFixed(0)} mm/km</span>
+                      </span>
+                    );
+                  })()}
                 </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">Mean Elevation (m)</label>
-                  <input value={meanElevation} onChange={e => setMeanElevation(e.target.value)} type="number" step="1" placeholder="e.g. 1700"
-                    className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">UTM Zone</label>
-                  <select value={utmProjection} onChange={e => setUtmProjection(e.target.value as 'UTM36S' | 'UTM37S')}
-                    className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm">
-                    <option value="UTM36S">UTM 36S (CM 33&deg;E)</option>
-                    <option value="UTM37S">UTM 37S (CM 39&deg;E)</option>
-                  </select>
-                </div>
-                <div className="col-span-5 text-[10px] text-[var(--text-muted)]">
-                  Without atmospheric data, the correction pipeline will skip atmospheric and sea level corrections.
-                  For Nairobi (~1700m, 830hPa, 20&deg;C), uncorrected EDM distances accumulate ~22 ppm atmospheric error and ~267 ppm sea level error.
-                </div>
+
+                {!atmVerified && (
+                  <div className="p-2 bg-amber-900/20 border border-amber-700/30 rounded text-[10px] text-amber-300">
+                    Please verify these atmospheric readings match your field observations. Incorrect atmospheric data leads to systematic distance errors.
+                  </div>
+                )}
               </div>
             )}
           </div>
