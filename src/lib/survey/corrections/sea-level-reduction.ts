@@ -26,7 +26,7 @@ export interface SeaLevelReductionInput {
    *  If orthometric height is known, add geoid undulation N:
    *  h_ellipsoid = h_orthometric + N
    */
-  heightAboveEllipsoid: number;
+  heightAboveEllipsoid?: number;
   /** Latitude in decimal degrees (for computing Earth radius) */
   latitude?: number;
   /** Geoid undulation N at the point (meters)
