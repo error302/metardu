@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────
+
+enum SurveyType {
+  CADASTRAL
+  TOPOGRAPHIC
+  ENGINEERING
+  CONTROL
+  HYDROGRAPHIC
+  MINING
+}
+
+enum SurveyMethod {
+  TRAVERSE
+  TRIANGULATION
+  TRILATERATION
+  GPS
+  LEVELING
+  TOTAL_STATION
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+  DRAFT
+}
+
+enum ComputationStatus {
+  PENDING
+  COMPUTING
+  COMPLETED
+  FAILED
+}
+
+enum StationType {
+  TRAVERSE
+  CONTROL
+  BEACON
+  BENCHMARK
+  INTERSECTION
+}
+
+enum DatumType {
+  ARC1960
+  WGS84
+}
+
+enum ProjectionType {
+  UTM36S
+  UTM37S
+  CASSINI_SOLDNER
+  LOCAL
+}
+
+enum DocumentType {
+  DEED_PLAN
+  FORM_C22
+  BEACON_CERTIFICATE
+  TRAVERSE_SHEET
+  SETTING_OUT
+  TOPO_PLAN
+  CONTOUR_PLAN
+  CROSS_SECTION
+}
+
+enum PaperSize {
+  A4
+  A3
+  A2
+  A1
+  A0
+}
+
+enum Orientation {
+  PORTRAIT
+  LANDSCAPE
+}
+
+// ─── Core Models ─────────────────────────────────────────────────
+
+model Project {
+  id                String         @id @default(cuid())
+  name              String
+  description       String?
+  surveyType        SurveyType     @default(CADASTRAL)
+  surveyOrder       Int            @default(3)
+  status            ProjectStatus  @default(ACTIVE)
+
+  // Location
+  county            String?
+  subCounty         String?
+  lrNumber          String?
+
+  // Datum & Projection
+  datum             DatumType      @default(ARC1960)
+  projection        ProjectionType @default(UTM37S)
+  zone              Int?
+
+  // Surveyor
+  surveyorName      String
+  surveyorLicense   String
+
+  // Timestamps
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  surveys           Survey[]
+  documents         Document[]
+
+  @@index([surveyorLicense])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Survey {
+  id                String            @id @default(cuid())
+  projectId         String
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  surveyType        SurveyType        @default(CADASTRAL)
+  method            SurveyMethod      @default(TRAVERSE)
+  order             Int               @default(3)
+
+  // Correction parameters applied
+  correctionsApplied String?
+  correctionParams   String?
+
+  // Results
+  misclosureDistance  Float?
+  misclosureRatio    String?
+  accuracyAchieved   Float?
+
+  status             ComputationStatus @default(PENDING)
+  computedAt         DateTime?
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  stations           Station[]
+  observations       Observation[]
+  coordinates        Coordinate[]
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model Station {
+  id          String      @id @default(cuid())
+  surveyId    String
+  survey      Survey      @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  name        String
+  type        StationType @default(TRAVERSE)
+  order       Int         @default(0)
+
+  coordinates Coordinate?
+
+  @@index([surveyId])
+  @@index([name])
+}
+
+model Observation {
+  id                String   @id @default(cuid())
+  surveyId          String
+  survey            Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  fromStationId     String
+  toStationId       String
+
+  // Raw measurements
+  rawHorizontalAngle  Float?
+  rawVerticalAngle    Float?
+  rawSlopeDistance    Float?
+
+  // EDM data
+  edmConstant         Float?
+  ppmSetting          Float?
+
+  // Atmospheric conditions
+  temperature         Float?
+  pressure            Float?
+  humidity            Float?
+
+  // Heights
+  instrumentHeight    Float?
+  targetHeight        Float?
+
+  // Corrected values
+  correctedDistance   Float?
+  correctedHd         Float?
+  correctedVd         Float?
+  correctedBearing    Float?
+
+  // Corrections log (JSON audit trail)
+  correctionsLog      String?
+
+  // Uncertainty
+  stdDevDistance      Float?
+  stdDevAngle         Float?
+
+  observationDate     DateTime?
+
+  createdAt           DateTime @default(now())
+
+  @@index([surveyId])
+  @@index([fromStationId])
+  @@index([toStationId])
+}
+
+model Coordinate {
+  id                    String   @id @default(cuid())
+  surveyId              String
+  survey                Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  stationId             String   @unique
+  station               Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  easting               Float
+  northing              Float
+  elevation             Float?
+
+  datum                 DatumType      @default(ARC1960)
+  projection            ProjectionType @default(UTM37S)
+  zone                  Int?
+
+  // Uncertainty
+  stdDevEasting         Float?
+  stdDevNorthing        Float?
+  stdDevElevation       Float?
+  errorEllipseSemiMajor  Float?
+  errorEllipseSemiMinor  Float?
+  errorEllipseOrientation Float?
+  confidenceLevel       Float?
+
+  // Scale factor at this point
+  pointScaleFactor      Float?
+  gridConvergence       Float?
+
+  isFixed               Boolean  @default(false)
+
+  createdAt             DateTime @default(now())
+
+  @@index([surveyId])
+  @@index([easting, northing])
+}
+
+model Document {
+  id            String       @id @default(cuid())
+  projectId     String
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  documentType  DocumentType
+  title         String
+
+  paperSize     PaperSize    @default(A4)
+  orientation   Orientation  @default(PORTRAIT)
+  scale         Int?
+
+  filePath      String?
+  fileSize      Int?
+  checksum      String?
+
+  pdfVersion    String?
+  isVector      Boolean      @default(false)
+
+  generatedAt   DateTime?
+
+  createdAt     DateTime     @default(now())
+
+  @@index([projectId])
+  @@index([documentType])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  action      String
+  userId      String
+  userName    String
+  changes     String?
+  timestamp   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([timestamp])
+}
+
+model CoordinateSystem {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  datum       DatumType
+  projection  ProjectionType
+  zone        Int?
+  parameters  String
+  epsgCode    Int?
+
+  createdAt   DateTime @default(now())
+}

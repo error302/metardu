@@ -199,3 +199,50 @@ export type {
   Helmert7Param,
   UTMCoords,
 } from './coordinates/transform';
+
+// ─── Curves ──────────────────────────────────────────────────────
+export {
+  computeCircularCurve,
+  computeCurveFromTangent,
+  computeCurveFromDegree,
+  computeCurveStations,
+} from './curves/circular';
+
+export type {
+  CircularCurveParams,
+  CircularCurveResult,
+  CurveStationResult,
+} from './curves/circular';
+
+export {
+  computeVerticalCurve,
+  computeVerticalCurveStations,
+} from './curves/vertical';
+
+export type {
+  VerticalCurveInput,
+  VerticalCurveResult,
+  VerticalCurveStationResult,
+} from './curves/vertical';
+
+export {
+  computeSpiralCurve,
+} from './curves/transition';
+
+export type {
+  SpiralCurveInput,
+  SpiralCurveResult,
+} from './curves/transition';
+
+// ─── Volumes ─────────────────────────────────────────────────────
+export {
+  computeEndAreaVolume,
+  computeTotalVolumes,
+  computePrismoidalVolume,
+} from './volumes/end-area';
+
+export type {
+  CrossSection,
+  VolumeResult,
+  TotalVolumeResult,
+} from './volumes/end-area';

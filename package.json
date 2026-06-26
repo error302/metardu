@@ -1,20 +1,29 @@
 {
-  "name": "my-project",
+  "name": "metardu",
   "version": "1.0.0",
-  "description": "",
+  "description": "Professional survey computation engine for Kenya cadastral surveys",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "@types/node": "^26.0.1",
     "@types/react": "^19.2.17",
     "next": "^16.2.9",
     "pdfkit": "^0.19.1",
+    "prisma": "^6.19.3",
     "proj4": "^2.20.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
