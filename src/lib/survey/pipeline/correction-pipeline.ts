@@ -307,9 +307,9 @@ export function processObservation(
   let seaLevelPPM = 0;
   
   if (config.applySeaLevelReduction) {
-    const h = observation.heightAboveEllipsoid ?? observation.orthometricHeight !== undefined
+    const h = observation.heightAboveEllipsoid ?? (observation.orthometricHeight !== undefined
       ? observation.orthometricHeight + (config.geoidUndulation ?? 0)
-      : undefined;
+      : undefined);
     
     if (h !== undefined) {
       const slrResult = applySeaLevelReduction({
@@ -343,13 +343,18 @@ export function processObservation(
   let lineScaleFactor: number | undefined;
   
   if (config.applyGridScaleFactor && observation.fromEasting !== undefined && observation.toEasting !== undefined) {
+    // Grid scale factor currently supports UTM only
+    const utmProjection = config.projection === 'UTM36S' || config.projection === 'UTM37S'
+      ? config.projection
+      : 'UTM37S'; // Default fallback
+    
     const gsfResult = applyGridScaleFactor(
       afterSeaLevel,
       observation.fromEasting,
       observation.fromNorthing ?? 0,
       observation.toEasting,
       observation.toNorthing ?? 0,
-      config.projection
+      utmProjection
     );
     
     gridDistance = gsfResult.gridDistance;

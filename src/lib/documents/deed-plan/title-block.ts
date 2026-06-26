@@ -16,7 +16,7 @@
  * - North arrow
  */
 
-import type { PDFKit.PDFDocument } from '../pdf-engine';
+import type PDFKit from 'pdfkit';
 import { drawLine, drawRect, drawText, LINE_WEIGHTS, TEXT_SIZES } from '../pdf-engine';
 import { drawNorthArrow, drawScaleBar } from '../pdf-engine';
 

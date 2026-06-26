@@ -5,7 +5,7 @@
  */
 
 import prisma from '../client';
-import { projectCache, CacheKeys } from '../cache/memory-cache';
+import { projectCache, CacheKeys } from '../../cache/memory-cache';
 
 // ─── Types ───────────────────────────────────────────────────────
 

@@ -1,4 +1,6 @@
 skills/
 node_modules/
+.next/
+db/
 
 /generated/prisma

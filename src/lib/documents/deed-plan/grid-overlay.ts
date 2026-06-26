@@ -11,7 +11,7 @@
  * - Interior ticks: Coordinates abbreviated to last 3 digits
  */
 
-import type { PDFKit.PDFDocument } from '../pdf-engine';
+import type PDFKit from 'pdfkit';
 import { drawLine, drawText } from '../pdf-engine';
 
 // ─── Types ───────────────────────────────────────────────────────

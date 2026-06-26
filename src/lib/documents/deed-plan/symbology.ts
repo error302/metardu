@@ -6,7 +6,7 @@
  * boundary types, and cartographic features.
  */
 
-import type { PDFKit.PDFDocument } from '../pdf-engine';
+import type PDFKit from 'pdfkit';
 import { drawLine, drawCircle, drawRect, drawText } from '../pdf-engine';
 
 // ─── Beacon Symbols ──────────────────────────────────────────────

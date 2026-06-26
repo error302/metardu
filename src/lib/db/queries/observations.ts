@@ -6,7 +6,7 @@
  */
 
 import prisma from '../client';
-import { computationCache, CacheKeys } from '../cache/memory-cache';
+import { computationCache, CacheKeys } from '../../cache/memory-cache';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -107,7 +107,6 @@ export async function batchCreateObservations(input: BatchObservationInput) {
   
   return prisma.observation.createMany({
     data,
-    skipDuplicates: true,
   });
 }
 

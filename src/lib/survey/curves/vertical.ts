@@ -162,7 +162,7 @@ export function computeVerticalCurveStations(
       chainage: curve.pvtChainage,
       distanceFromPVC: length,
       elevation: Math.round(elevation * 1000) / 1000,
-      grade: g2,
+      grade: curve.g2,
       tangentOffset: Math.round((elevation - curve.pvtElevation) * 1000) / 1000,
     });
   }

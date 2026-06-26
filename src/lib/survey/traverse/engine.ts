@@ -160,8 +160,8 @@ export function bowditchAdjustment(
       
       adjusted.push({
         name: station.name,
-        easting: station.easting + corrE,
-        northing: station.northing + corrN,
+        easting: (station.easting ?? 0) + corrE,
+        northing: (station.northing ?? 0) + corrN,
         correctionE: corrE,
         correctionN: corrN,
         isFixed: false,

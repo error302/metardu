@@ -3,7 +3,7 @@
  */
 
 import prisma from '../client';
-import { computationCache, CacheKeys } from '../cache/memory-cache';
+import { computationCache, CacheKeys } from '../../cache/memory-cache';
 
 // ─── Types ───────────────────────────────────────────────────────
 
