@@ -371,6 +371,10 @@ export async function createSchemeBeaconLayer(
       blockNumber: feat.properties.block_number,
     })
 
+    // Store original EPSG:21037 coordinates for vertex editing / COGO
+    olFeature.set('easting', coord[0])
+    olFeature.set('northing', coord[1])
+
     features.push(olFeature)
   }
 
@@ -893,6 +897,10 @@ async function buildBeaconLayerFromData(
       parcelNumber: feat.properties.parcel_number,
       blockNumber: feat.properties.block_number,
     })
+
+    // Store original EPSG:21037 coordinates for vertex editing / COGO
+    olFeature.set('easting', coord[0])
+    olFeature.set('northing', coord[1])
 
     features.push(olFeature)
   }

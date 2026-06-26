@@ -85,7 +85,9 @@ import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
 import { StakeoutPanel } from '@/components/map/StakeoutPanel'
 import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbar } from '@/components/map/VertexEditToolbar'
+import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
 import { PrintButton } from '@/hooks/usePrint'
+import { switchMapView, getProjectionConfig, registerExtendedProjections } from '@/lib/map/nativeProjectionView'
 
 // ── Hooks ──
 import { useMapBasemaps } from '@/app/map/hooks/useMapBasemaps'
@@ -271,6 +273,9 @@ export default function MapClient() {
   // ── Map extent for offline tile dialog (async resolve) ──
   const [offlineMapExtent, setOfflineMapExtent] = useState<any>(null)
 
+  // ── Map projection (Tier 2: Projection switching) ──
+  const [activeProjection, setActiveProjection] = useState<string>('EPSG:3857')
+
   // ── History hook ──
   const ctx: MapContext = useMemo(() => ({
     mapInstance,
@@ -406,6 +411,37 @@ export default function MapClient() {
     toggleBasemapHook(mapInstance, mode, setBasemap)
   }, [toggleBasemapHook])
 
+  // ── Projection switch handler (Tier 2) ──
+  const handleProjectionSwitch = useCallback(async (targetProjection: string) => {
+    if (!mapInstance.current) return
+    try {
+      if (targetProjection === 'EPSG:3857') {
+        // Switch back to Web Mercator (default)
+        const { default: View } = await import('ol/View')
+        const { transform } = await import('ol/proj')
+        const currentView = mapInstance.current.getView()
+        const currentCenter = currentView.getCenter()
+        const currentZoom = currentView.getZoom() ?? 14
+        const newCenter = currentCenter
+          ? transform(currentCenter, currentView.getProjection(), 'EPSG:3857') as [number, number]
+          : undefined
+        mapInstance.current.setView(new View({
+          projection: 'EPSG:3857',
+          center: newCenter ?? [3900000, -500000],
+          zoom: currentZoom,
+        }))
+        setActiveProjection('EPSG:3857')
+      } else {
+        await switchMapView(mapInstance.current, targetProjection)
+        setActiveProjection(targetProjection)
+      }
+    } catch (err) {
+      console.error('[MapClient] Projection switch failed:', err)
+      setSaveMsg('Failed to switch projection')
+      setTimeout(() => setSaveMsg(''), 3000)
+    }
+  }, [])
+
   // ── Keyboard shortcuts ──
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -512,6 +548,28 @@ export default function MapClient() {
       setSchemeBlockCount(result.blockCount)
       setSchemeBeaconCount(result.beaconCount)
       setSchemeLoaded(true)
+
+      // ── Extract beacon vertices for vertex editing (Tier 2) ──
+      // Read beacon coordinates from the beacon layer source (already in EPSG:21037)
+      const beaconSource = result.beaconLayer.getSource()
+      if (beaconSource) {
+        const beaconFeatures = beaconSource.getFeatures()
+        const beaconVertices = beaconFeatures
+          .map((f: any) => {
+            const geom = f.getGeometry()
+            if (!geom || geom.getType() !== 'Point') return null
+            const coord = geom.getCoordinates()
+            // Beacon coordinates are stored in EPSG:3857 (display projection)
+            // We need to transform them back to EPSG:21037 for vertex editing
+            return { easting: f.get('easting') as number, northing: f.get('northing') as number }
+          })
+          .filter((v: { easting: number; northing: number } | null): v is { easting: number; northing: number } =>
+            v !== null && v.easting !== undefined && v.northing !== undefined
+          )
+        if (beaconVertices.length >= 3) {
+          setVertexEditingVertices(beaconVertices)
+        }
+      }
     } catch (err) {
       console.error('[MapClient] Failed to load scheme data:', err)
       setSchemeError(err instanceof Error ? err.message : 'Failed to load scheme data')
@@ -713,6 +771,32 @@ export default function MapClient() {
     return () => geolocation.un('change:position', onPositionChange)
   }, [mapReady])
 
+  // ── GPS position in EPSG:21037 (for StakeoutPanel) ──
+  // This replaces the synchronous require('ol/proj') that breaks ESM.
+  // We compute it asynchronously in an effect and store the result.
+  const [gpsPos21037, setGpsPos21037] = useState<{ easting: number; northing: number; accuracy: number } | null>(null)
+
+  useEffect(() => {
+    if (!gpsPos) {
+      setGpsPos21037(null)
+      return
+    }
+    const currentGpsPos = gpsPos // capture for async closure
+    let cancelled = false
+    async function transformGpsPos() {
+      try {
+        const { transform } = await import('ol/proj')
+        if (cancelled) return
+        const [e, n] = transform([currentGpsPos.lon, currentGpsPos.lat], 'EPSG:4326', 'EPSG:21037') as [number, number]
+        setGpsPos21037({ easting: e, northing: n, accuracy: currentGpsPos.accuracy })
+      } catch {
+        if (!cancelled) setGpsPos21037({ easting: 0, northing: 0, accuracy: currentGpsPos.accuracy })
+      }
+    }
+    transformGpsPos()
+    return () => { cancelled = true }
+  }, [gpsPos])
+
   // ── Update stakeout overlay on each GPS position change ──
   useEffect(() => {
     if (stakeoutActive && gpsPos) {
@@ -812,17 +896,7 @@ export default function MapClient() {
                 active={stakeoutActive}
                 target={stakeoutTarget ? { easting: stakeoutTarget.e, northing: stakeoutTarget.n } : null}
                 stakeoutState={stakeoutState}
-                gpsPos={(() => {
-                  if (!gpsPos) return null
-                  // Transform GPS lon/lat to EPSG:21037 easting/northing
-                  try {
-                    const { transform } = require('ol/proj')
-                    const [e, n] = transform([gpsPos.lon, gpsPos.lat], 'EPSG:4326', 'EPSG:21037') as [number, number]
-                    return { easting: e, northing: n, accuracy: gpsPos.accuracy }
-                  } catch {
-                    return { easting: 0, northing: 0, accuracy: gpsPos.accuracy }
-                  }
-                })()}
+                gpsPos={gpsPos21037}
                 gpsAccuracy={gpsPos?.accuracy ?? 0}
                 onCancel={interactions.deactivateStakeout}
                 audioMuted={audioMuted}
@@ -857,17 +931,22 @@ export default function MapClient() {
               />
 
               {/* ── Tier 1: Layer Control (Grid + XYZ + WMS + Opacity) ── */}
-              <div className="absolute top-14 right-3 z-20 sm:top-16 sm:right-4">
+              <div className="absolute top-14 right-3 z-20 sm:top-16 sm:right-4 flex flex-col gap-2 items-end">
                 <LayerControl
                   map={mapInstance.current}
                   hideBasemap
                   defaultCollapsed={isMobile}
                   onBasemapChange={(bm) => {
-                    // Sync LayerControl basemap choice to MapClient basemap state
                     if (bm === 'osm' || bm === 'satellite') {
                       toggleBasemap(bm as BasemapMode)
                     }
                   }}
+                />
+
+                {/* ── Tier 2: Projection Switcher ── */}
+                <ProjectionSwitcher
+                  activeProjection={activeProjection}
+                  onSwitch={handleProjectionSwitch}
                 />
               </div>
 
