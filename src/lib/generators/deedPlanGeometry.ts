@@ -3,6 +3,8 @@ import { coordinateArea } from '@/lib/engine/area';
 import { bowditchAdjustment } from '@/lib/engine/traverse';
 import { bearingToString } from '@/lib/engine/angles';
 import type { NamedPoint2D } from '@/lib/engine/types';
+import { computeLineScaleFactor, computeUTMPointScaleFactor } from '@/lib/survey/adapter';
+import type { LineScaleFactorResult } from '@/lib/survey/adapter';
 
 export interface TraverseStation {
   station: string;
@@ -44,6 +46,17 @@ export interface DeedPlanGeometry {
   maxN: number;
   /** Source of the coordinates — tracks whether pre-adjusted or independently computed */
   coordinateSource: 'pre_adjusted' | 'computed';
+  /** Line scale factor for each boundary leg (survey engine, Simpson's rule) */
+  lineScaleFactors?: Array<{
+    from: string;
+    to: string;
+    scaleFactor: number;
+    ppmFromUnity: number;
+    gridDistance: number;
+    ellipsoidalDistance: number;
+  }>;
+  /** UTM projection used for scale factor computation */
+  projection?: 'UTM36S' | 'UTM37S';
 }
 
 /**
@@ -140,6 +153,8 @@ function buildFromPreAdjusted(
   const areaResult = coordinateArea(pts);
 
   // Bearing schedule recomputed from adjusted positions — ensures consistency
+  // Now includes grid scale factors from the survey engine (Simpson's rule)
+  const projection: 'UTM36S' | 'UTM37S' = 'UTM37S'; // Default for Kenya
   const bearingSchedule: BearingLeg[] = adjusted.map((st, i) => {
     const next = adjusted[(i + 1) % adjusted.length];
     const dE = next.easting - st.easting;
@@ -153,6 +168,35 @@ function buildFromPreAdjusted(
       bearing: bearingToString(brg),
       distance: dist.toFixed(3),
     };
+  });
+
+  // Compute line scale factors using the survey engine's Simpson's rule
+  const lineScaleFactors = adjusted.map((st, i) => {
+    const next = adjusted[(i + 1) % adjusted.length];
+    try {
+      const sfResult = computeLineScaleFactor(
+        st.easting, st.northing,
+        next.easting, next.northing,
+        projection
+      );
+      return {
+        from: st.station,
+        to: next.station,
+        scaleFactor: sfResult.lineScaleFactor,
+        ppmFromUnity: sfResult.ppmCorrection,
+        gridDistance: sfResult.gridDistance,
+        ellipsoidalDistance: sfResult.ellipsoidalDistance,
+      };
+    } catch {
+      return {
+        from: st.station,
+        to: next.station,
+        scaleFactor: 1.0,
+        ppmFromUnity: 0,
+        gridDistance: 0,
+        ellipsoidalDistance: 0,
+      };
+    }
   });
 
   const eastings = adjusted.map((s) => s.easting);
@@ -178,6 +222,8 @@ function buildFromPreAdjusted(
     minN: Math.min(...northings),
     maxN: Math.max(...northings),
     coordinateSource: 'pre_adjusted',
+    lineScaleFactors,
+    projection,
   };
 }
 
@@ -345,6 +391,8 @@ async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry
 
   // Bearing schedule from adjusted coordinates — bearings are recomputed from
   // the adjusted positions to ensure consistency with the coordinate schedule
+  // Now includes grid scale factors from the survey engine (Simpson's rule)
+  const projection: 'UTM36S' | 'UTM37S' = 'UTM37S'; // Default for Kenya
   const bearingSchedule: BearingLeg[] = adjusted.map((st, i) => {
     const next = adjusted[(i + 1) % adjusted.length];
     const dE = next.easting - st.easting;
@@ -358,6 +406,35 @@ async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry
       bearing: bearingToString(brg),
       distance: dist.toFixed(3),
     };
+  });
+
+  // Compute line scale factors using the survey engine's Simpson's rule
+  const lineScaleFactors = adjusted.map((st, i) => {
+    const next = adjusted[(i + 1) % adjusted.length];
+    try {
+      const sfResult = computeLineScaleFactor(
+        st.easting, st.northing,
+        next.easting, next.northing,
+        projection
+      );
+      return {
+        from: st.station,
+        to: next.station,
+        scaleFactor: sfResult.lineScaleFactor,
+        ppmFromUnity: sfResult.ppmCorrection,
+        gridDistance: sfResult.gridDistance,
+        ellipsoidalDistance: sfResult.ellipsoidalDistance,
+      };
+    } catch {
+      return {
+        from: st.station,
+        to: next.station,
+        scaleFactor: 1.0,
+        ppmFromUnity: 0,
+        gridDistance: 0,
+        ellipsoidalDistance: 0,
+      };
+    }
   });
 
   const eastings = adjusted.map((s) => s.easting);
@@ -377,5 +454,7 @@ async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry
     minN: Math.min(...northings),
     maxN: Math.max(...northings),
     coordinateSource: 'computed',
+    lineScaleFactors,
+    projection,
   };
 }

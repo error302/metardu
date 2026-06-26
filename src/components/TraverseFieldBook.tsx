@@ -6,7 +6,8 @@ import { computeTraverse, type RawObservation, type TraverseComputationResult } 
 import { parseTraverseCSV } from '@/lib/parsers/totalStation'
 import { bearingToString } from '@/lib/engine/angles'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
-import { slopeFromEDM, seaLevelCorrection, gridCorrection } from '@/lib/engine/edm-corrections'
+import { reduceEDMObservation, computeMeanAngleDMS as sharedMeanAngleDMS } from '@/lib/survey/adapter'
+import type { AdaptedEDMResult } from '@/lib/survey/adapter'
 import { TraverseStationInput } from '@/types/field'
 import { printTraverseSheet, type TraverseSheetInput } from '@/lib/print/traverseSheet'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
@@ -27,27 +28,12 @@ function openPrint(html: string, title: string) {
   setTimeout(() => { win.focus(); win.print() }, 400)
 }
 
+/**
+ * Compute mean angle from HCL/HCR readings.
+ * Now delegates to the shared survey adapter implementation.
+ */
 function computeMeanAngleDMS(obs: RawObservation): string {
-  const hasHCL = obs.hclDeg !== '' || obs.hclMin !== '' || obs.hclSec !== ''
-  const hasHCR = obs.hcrDeg !== '' || obs.hcrMin !== '' || obs.hcrSec !== ''
-  if (!hasHCL || !hasHCR) return '—'
-
-  const hclDecimal = (parseInt(obs.hclDeg) || 0) + (parseInt(obs.hclMin) || 0) / 60 + (parseFloat(obs.hclSec) || 0) / 3600
-  const hcrDecimal = (parseInt(obs.hcrDeg) || 0) + (parseInt(obs.hcrMin) || 0) / 60 + (parseFloat(obs.hcrSec) || 0) / 3600
-
-  // If HCR > HCL, add 180° to HCL; if HCR < HCL, add 180° to HCR. Then divide by 2.
-  const adjustedA = hcrDecimal > hclDecimal ? hclDecimal + 180 : hclDecimal
-  const adjustedB = hcrDecimal > hclDecimal ? hcrDecimal : hcrDecimal + 180
-
-  const mean = (adjustedA + adjustedB) / 2
-  const normMean = ((mean % 360) + 360) % 360
-
-  const deg = Math.floor(normMean)
-  const minFloat = (normMean - deg) * 60
-  const min = Math.floor(minFloat)
-  const sec = (minFloat - min) * 60
-
-  return `${deg}°${String(min).padStart(2, '0')}'${sec.toFixed(1)}"`
+  return sharedMeanAngleDMS(obs.hclDeg, obs.hclMin, obs.hclSec, obs.hcrDeg, obs.hcrMin, obs.hcrSec)
 }
 
 export default function TraverseFieldBook({ projectId, onImport }: TraverseFieldBookProps) {
@@ -536,7 +522,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
           <div className="border border-[var(--border-color)] rounded overflow-hidden">
             <button onClick={() => setEdmOpen(!edmOpen)}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-tertiary)]/50 text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
-              <span>📐 EDM Corrections <span className="text-[var(--text-muted)] font-normal">(UTM 37S · SF 0.9996)</span></span>
+              <span>📐 EDM Corrections <span className="text-[var(--text-muted)] font-normal">(Survey Engine · IAG/ISO · UTM 37S)</span></span>
               <span className="text-[var(--text-muted)]">{edmOpen ? '▲' : '▼'}</span>
             </button>
             {edmOpen && (
@@ -547,7 +533,9 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                       <th className="px-2 py-2 text-left text-[var(--text-secondary)]">Line</th>
                       <th className="px-2 py-2 text-right text-[var(--text-secondary)]">SD (m)</th>
                       <th className="px-2 py-2 text-right text-[var(--text-secondary)]">HD (m)</th>
-                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">C&R Corr (mm)</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">C&R (mm)</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">Atm PPM</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">Scale Factor</th>
                       <th className="px-2 py-2 text-right text-[var(--text-secondary)]">Grid Dist (m)</th>
                     </tr>
                   </thead>
@@ -555,28 +543,28 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                     {result.legs.map((leg, i) => {
                       const obs = result.observations[i]
                       if (!obs) return null
-                      const slopeOut = slopeFromEDM({
-                        slopeDistanceMetres: leg.sd,
+                      // Survey engine correction pipeline (IAG/ISO standard)
+                      // replaces old slopeFromEDM + seaLevelCorrection + gridCorrection
+                      const edmResult = reduceEDMObservation({
+                        slopeDistance: leg.sd,
                         verticalAngle: obs.verticalAngle,
-                      })
-                      const fromCoord = result.coordinates[i]
-                      const toCoord = result.coordinates[i + 1]
-                      const meanElev = ((fromCoord?.rl ?? 0) + (toCoord?.rl ?? 0)) / 2
-                      const seaOut = seaLevelCorrection({
-                        horizontalDistance: slopeOut.horizontalDistance,
-                        meanElevationMetres: meanElev,
-                      })
-                      const gridOut = gridCorrection({
-                        seaLevelDistance: seaOut.seaLevelDistance,
-                        scaleFactor: 0.9996,
+                        fromEasting: result.coordinates[i]?.easting,
+                        fromNorthing: result.coordinates[i]?.northing,
+                        toEasting: result.coordinates[i + 1]?.easting,
+                        toNorthing: result.coordinates[i + 1]?.northing,
+                        instrumentHeight: obs.ih,
+                        targetHeight: obs.th,
+                        skipSeaLevel: true, // No reliable elevation data yet
                       })
                       return (
                         <tr key={i} className="border-b border-[var(--border-color)]/30">
                           <td className="px-2 py-1.5 font-mono text-[var(--text-primary)]">{leg.from} → {leg.to}</td>
                           <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{leg.sd.toFixed(3)}</td>
-                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{slopeOut.horizontalDistance.toFixed(3)}</td>
-                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{(seaOut.curvatureRefractionCorr * 1000).toFixed(1)}</td>
-                          <td className="px-2 py-1.5 text-right font-mono text-[var(--accent)]">{gridOut.gridDistance.toFixed(3)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{edmResult.horizontalDistance.toFixed(3)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{(edmResult.crCorrection * 1000).toFixed(1)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{edmResult.atmosphericPPM.toFixed(1)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{edmResult.lineScaleFactor.toFixed(6)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--accent)]">{edmResult.gridDistance.toFixed(3)}</td>
                         </tr>
                       )
                     })}

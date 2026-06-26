@@ -278,8 +278,13 @@ function computeTraverseAdjustment(input: TraverseAdjustInput) {
   let totalLatitude = 0
   let totalDeparture = 0
 
+  // Compute bearings with correct back-bearing propagation.
+  // FIXED: Previous version was missing the +180° back-bearing in WCB propagation.
+  // Source: Basak, Chapter 10 — WCB(forward) = back_bearing(previous line) + observed angle
+  // back_bearing(x) = x + 180°
+  // DO NOT round intermediate values — this loses precision on long traverses.
   const computedLegs = legs.map((leg: { fromStation: string; toStation: string; angle: number; distance: number }) => {
-    // Compute bearing of this leg
+    // Forward bearing = back bearing of previous + observed angle
     currentBearing = (currentBearing + leg.angle) % 360
     if (currentBearing < 0) currentBearing += 360
 
@@ -290,11 +295,18 @@ function computeTraverseAdjustment(input: TraverseAdjustInput) {
     totalLatitude += dLatitude
     totalDeparture += dDeparture
 
+    const forwardBearing = currentBearing
+
+    // Update currentBearing to BACK BEARING for next iteration
+    // This was the critical bug: the old code didn't add 180° here,
+    // causing all subsequent bearings to be wrong by 180°.
+    currentBearing = (currentBearing + 180) % 360
+
     return {
       ...leg,
-      computedBearing: currentBearing,
-      dLatitude: Math.round(dLatitude * 1000) / 1000,
-      dDeparture: Math.round(dDeparture * 1000) / 1000,
+      computedBearing: forwardBearing,
+      dLatitude,
+      dDeparture,
     }
   })
 

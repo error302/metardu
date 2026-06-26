@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { slopeFromEDM, seaLevelCorrection, gridCorrection } from '@/lib/engine/edm-corrections'
+import { reduceEDMObservation, computeMeanAngleDMS as sharedMeanAngleDMS } from '@/lib/survey/adapter'
 import { parseFieldAngle } from '@/lib/engine/angles'
 
 type Translator = (key: string, values?: Record<string, string | number>) => string
@@ -19,26 +19,13 @@ export type TravRow = {
   remarks: string
 }
 
+/**
+ * Compute mean angle from HCL/HCR readings.
+ * Delegates to the shared survey adapter implementation
+ * (was duplicated here and in TraverseFieldBook — now consolidated).
+ */
 function computeMeanAngleDMS(obs: TravRow): string {
-  const hasHCL = obs.hclDeg !== '' || obs.hclMin !== '' || obs.hclSec !== ''
-  const hasHCR = obs.hcrDeg !== '' || obs.hcrMin !== '' || obs.hcrSec !== ''
-  if (!hasHCL || !hasHCR) return '—'
-
-  const hclDecimal = (parseInt(obs.hclDeg) || 0) + (parseInt(obs.hclMin) || 0) / 60 + (parseFloat(obs.hclSec) || 0) / 3600
-  const hcrDecimal = (parseInt(obs.hcrDeg) || 0) + (parseInt(obs.hcrMin) || 0) / 60 + (parseFloat(obs.hcrSec) || 0) / 3600
-
-  const adjustedA = hcrDecimal > hclDecimal ? hclDecimal + 180 : hcrDecimal
-  const adjustedB = hcrDecimal > hclDecimal ? hcrDecimal : hcrDecimal + 180
-
-  const mean = (adjustedA + adjustedB) / 2
-  const normMean = ((mean % 360) + 360) % 360
-
-  const deg = Math.floor(normMean)
-  const minFloat = (normMean - deg) * 60
-  const min = Math.floor(minFloat)
-  const sec = (minFloat - min) * 60
-
-  return `${deg}°${String(min).padStart(2, '0')}'${sec.toFixed(1)}"`
+  return sharedMeanAngleDMS(obs.hclDeg, obs.hclMin, obs.hclSec, obs.hcrDeg, obs.hcrMin, obs.hcrSec)
 }
 
 function makeEmptyRow(index: number): TravRow {
@@ -127,19 +114,19 @@ export function TraverseBook({
 
       if (sd <= 0) return null
 
-      const slopeOut = slopeFromEDM({
-        slopeDistanceMetres: sd,
+      // Use the survey engine's full correction pipeline (IAG/ISO standard)
+      // instead of the old Barrel & Sears / USACE formulas.
+      // This gives wavelength-dependent atmospheric correction, WGS84 Earth
+      // radius, geoid undulation support, and Simpson's rule line scale factor.
+      const edmResult = reduceEDMObservation({
+        slopeDistance: sd,
         verticalAngle: vaDecimal,
-      })
-
-      const meanElev = 0 // simplified — no elevation data in fieldbook traverse
-      const seaOut = seaLevelCorrection({
-        horizontalDistance: slopeOut.horizontalDistance,
-        meanElevationMetres: meanElev,
-      })
-      const gridOut = gridCorrection({
-        seaLevelDistance: seaOut.seaLevelDistance,
-        scaleFactor: 0.9996,
+        // Coordinates available for grid scale factor computation
+        fromEasting: parseFloat(startE) || undefined,
+        fromNorthing: parseFloat(startN) || undefined,
+        // Note: temperature/pressure/height not available in simplified fieldbook
+        // — pipeline will skip those stages and log warnings
+        skipSeaLevel: true,  // No elevation data in fieldbook traverse yet
       })
 
       const fromStation = i === 0 ? startStation : travRows[i - 1]?.station || '?'
@@ -148,9 +135,13 @@ export function TraverseBook({
       return {
         line: `${fromStation} → ${toStation}`,
         sd,
-        hd: slopeOut.horizontalDistance,
-        crCorr: seaOut.curvatureRefractionCorr * 1000,
-        gridDist: gridOut.gridDistance,
+        hd: edmResult.horizontalDistance,
+        crCorr: edmResult.crCorrection * 1000,
+        gridDist: edmResult.gridDistance,
+        atmPPM: edmResult.atmosphericPPM,
+        seaPPM: edmResult.seaLevelPPM,
+        sf: edmResult.lineScaleFactor,
+        warnings: edmResult.warnings,
       }
     }).filter(Boolean)
   })()
@@ -296,7 +287,7 @@ export function TraverseBook({
               onClick={() => setEdmOpen(!edmOpen)}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-primary)]/40 text-sm font-medium hover:bg-[var(--border-color)]/30 transition-colors"
             >
-              <span>📐 EDM Corrections <span className="text-[var(--text-muted)] font-normal">(UTM 37S · SF 0.9996)</span></span>
+              <span>📐 EDM Corrections <span className="text-[var(--text-muted)] font-normal">(Survey Engine · IAG/ISO · UTM 37S)</span></span>
               <span className="text-[var(--text-muted)]">{edmOpen ? '▲' : '▼'}</span>
             </button>
             {edmOpen && (
@@ -307,7 +298,9 @@ export function TraverseBook({
                       <th className="px-2 py-2 text-left">Line</th>
                       <th className="px-2 py-2 text-right">SD (m)</th>
                       <th className="px-2 py-2 text-right">HD (m)</th>
-                      <th className="px-2 py-2 text-right">C&amp;R Corr (mm)</th>
+                      <th className="px-2 py-2 text-right">C&amp;R (mm)</th>
+                      <th className="px-2 py-2 text-right">Atm PPM</th>
+                      <th className="px-2 py-2 text-right">Scale Factor</th>
                       <th className="px-2 py-2 text-right">Grid Dist (m)</th>
                     </tr>
                   </thead>
@@ -318,6 +311,8 @@ export function TraverseBook({
                         <td className="px-2 py-1.5 text-right font-mono">{row.sd.toFixed(3)}</td>
                         <td className="px-2 py-1.5 text-right font-mono">{row.hd.toFixed(3)}</td>
                         <td className="px-2 py-1.5 text-right font-mono">{row.crCorr.toFixed(1)}</td>
+                        <td className="px-2 py-1.5 text-right font-mono text-blue-400">{(row as any).atmPPM?.toFixed(1) ?? '—'}</td>
+                        <td className="px-2 py-1.5 text-right font-mono text-cyan-400">{(row as any).sf?.toFixed(6) ?? '—'}</td>
                         <td className="px-2 py-1.5 text-right font-mono text-amber-400">{row.gridDist.toFixed(3)}</td>
                       </tr>
                     ))}
