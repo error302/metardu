@@ -10,18 +10,23 @@
  * │  ├─ hooks/useMapBasemaps.ts    → Basemap layer management   │
  * │  ├─ hooks/useMapState.ts       → View persistence           │
  * │  ├─ hooks/useMapInteractions.ts → Draw/Measure/GPS/Export   │
- * │  ├─ components/MapToolbar.tsx   → Left sidebar panel        │
- * │  ├─ components/MapOverlays.tsx  → Zoom/GPS/Stakeout HUD    │
- * │  ├─ components/MapStatusBar.tsx → Bottom coordinate bar     │
- * │  ├─ components/MapLoadingOverlay.tsx → Loading/Error states │
- * │  ├─ components/MapNotifications.tsx  → Toast notifications  │
- * │  ├─ components/MapCoordSearch.tsx   → Coord search input    │
- * │  ├─ components/CogoInfoPanel.tsx    → COGO traverse readout │
+ * │  ├─ components/MapToolbar.tsx   → Left sidebar (context)    │
+ * │  ├─ components/MapOverlays.tsx  → Zoom/GPS/Stakeout (ctx)   │
+ * │  ├─ components/MapStatusBar.tsx → Bottom coord bar (ctx)    │
+ * │  ├─ components/MapLoadingOverlay.tsx → Loading/Error (ctx)  │
+ * │  ├─ components/MapNotifications.tsx  → Toast (context)      │
+ * │  ├─ components/MapCoordSearch.tsx   → Coord search (ctx)    │
+ * │  ├─ components/CogoInfoPanel.tsx    → COGO traverse (ctx)   │
  * │  ├─ components/RotationControl.tsx  → North arrow reset     │
- * │  ├─ LayerControl (Tier 1)       → Grid/XYZ/WMS/Opacity     │
- * │  ├─ VertexEditToolbar (Tier 1)  → Vertex editing + snap    │
- * │  ├─ SheetLayout (Tier 1)        → Print layout overlay      │
- * │  └─ PrintButton (Tier 1)        → PDF/Print controls        │
+ * │  ├─ components/MapPrintButton.tsx   → Print button (ctx)    │
+ * │  ├─ LayerControl (reusable, props)  → Grid/XYZ/WMS/Opacity │
+ * │  ├─ VertexEditToolbar (ctx version) → Vertex editing + snap │
+ * │  ├─ ProjectionSwitcher (context)    → CRS switching         │
+ * │  ├─ StakeoutPanel (context)         → GPS stakeout HUD      │
+ * │  ├─ SchemeLayerPanel (context)      → Scheme layer controls │
+ * │  ├─ OfflineTileDownloader (context) → Offline tile dialog   │
+ * │  ├─ SheetLayout (dynamic)           → Print layout overlay  │
+ * │  └─ MapReactContext                 → Zero-prop data bus    │
  * │                                                              │
  * │  Performance optimizations:                                  │
  * │  - All sub-components wrapped in React.memo                 │
@@ -74,7 +79,6 @@ import {
   createTraversePolygonPreview,
   removeTraversePolygonPreview,
   createParcelFromTraverse,
-  type TraverseToParcelResult,
 } from '@/lib/map/traverseToParcel'
 
 // ── Sub-components (lazy where appropriate) ──
@@ -91,7 +95,7 @@ import { StakeoutPanel } from '@/components/map/StakeoutPanel'
 import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
-import { switchMapView, getProjectionConfig, registerExtendedProjections } from '@/lib/map/nativeProjectionView'
+import { switchMapView } from '@/lib/map/nativeProjectionView'
 
 // ── Hooks ──
 import { useMapBasemaps } from '@/app/map/hooks/useMapBasemaps'
