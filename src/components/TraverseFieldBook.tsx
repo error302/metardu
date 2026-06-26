@@ -6,8 +6,10 @@ import { computeTraverse, type RawObservation, type TraverseComputationResult } 
 import { parseTraverseCSV } from '@/lib/parsers/totalStation'
 import { bearingToString } from '@/lib/engine/angles'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
-import { reduceEDMObservation, computeMeanAngleDMS as sharedMeanAngleDMS } from '@/lib/survey/adapter'
-import type { AdaptedEDMResult } from '@/lib/survey/adapter'
+import { reduceEDMObservation, computeMeanAngleDMS as sharedMeanAngleDMS, processTraverseObservations } from '@/lib/survey/adapter'
+import type { AdaptedEDMResult, ProcessedObservation } from '@/lib/survey/adapter'
+import { CorrectionAuditTrail } from '@/components/survey/CorrectionAuditTrail'
+import type { CorrectionObservationSummary } from '@/components/survey/CorrectionAuditTrail'
 import { TraverseStationInput } from '@/types/field'
 import { printTraverseSheet, type TraverseSheetInput } from '@/lib/print/traverseSheet'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
@@ -57,6 +59,12 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
   const [printMeta, setPrintMeta] = useState<PrintMeta>(defaultPrintMeta)
   const [edmOpen, setEdmOpen] = useState(false)
   const [showPlot, setShowPlot] = useState(false)
+  const [atmOpen, setAtmOpen] = useState(false)
+  const [temperature, setTemperature] = useState('')
+  const [pressure, setPressure] = useState('')
+  const [humidity, setHumidity] = useState('')
+  const [meanElevation, setMeanElevation] = useState('')
+  const [utmProjection, setUtmProjection] = useState<'UTM36S' | 'UTM37S'>('UTM37S')
   const fileRef = useRef<HTMLInputElement>(null)
   
   const searchParams = useSearchParams()
@@ -372,6 +380,59 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
             </div>
           </div>
 
+          {/* Atmospheric Conditions & EDM Settings — for the correction pipeline */}
+          <div className="border border-[var(--border-color)] rounded overflow-hidden">
+            <button onClick={() => setAtmOpen(!atmOpen)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-tertiary)]/50 text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
+              <span className="flex items-center gap-2">
+                <span>Atmospheric Conditions &amp; EDM Settings</span>
+                <span className="text-[var(--text-muted)] font-normal text-xs">
+                  (IAG/ISO Correction Pipeline)
+                </span>
+                {temperature && pressure && (
+                  <span className="bg-green-600/30 text-green-300 text-[10px] px-1.5 py-0.5 rounded-full">Active</span>
+                )}
+              </span>
+              <span className="text-[var(--text-muted)]">{atmOpen ? '▲' : '▼'}</span>
+            </button>
+            {atmOpen && (
+              <div className="grid grid-cols-5 gap-3 p-4 bg-[var(--bg-tertiary)]/20">
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">Temperature (&deg;C)</label>
+                  <input value={temperature} onChange={e => setTemperature(e.target.value)} type="number" step="0.1" placeholder="20"
+                    className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">Pressure (hPa)</label>
+                  <input value={pressure} onChange={e => setPressure(e.target.value)} type="number" step="0.1" placeholder="1013.25"
+                    className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">Humidity (%)</label>
+                  <input value={humidity} onChange={e => setHumidity(e.target.value)} type="number" step="1" min="0" max="100" placeholder="50"
+                    className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">Mean Elevation (m)</label>
+                  <input value={meanElevation} onChange={e => setMeanElevation(e.target.value)} type="number" step="1" placeholder="e.g. 1700"
+                    className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">UTM Zone</label>
+                  <select value={utmProjection} onChange={e => setUtmProjection(e.target.value as 'UTM36S' | 'UTM37S')}
+                    className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm">
+                    <option value="UTM36S">UTM 36S (CM 33&deg;E)</option>
+                    <option value="UTM37S">UTM 37S (CM 39&deg;E)</option>
+                  </select>
+                </div>
+                <div className="col-span-5 text-[10px] text-[var(--text-muted)]">
+                  Without atmospheric data, the correction pipeline will skip atmospheric and sea level corrections.
+                  For Nairobi (~1700m, 830hPa, 20&deg;C), uncorrected EDM distances accumulate ~22 ppm atmospheric error and ~267 ppm sea level error.
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
@@ -544,7 +605,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                       const obs = result.observations[i]
                       if (!obs) return null
                       // Survey engine correction pipeline (IAG/ISO standard)
-                      // replaces old slopeFromEDM + seaLevelCorrection + gridCorrection
+                      // Now uses atmospheric conditions from the UI inputs
                       const edmResult = reduceEDMObservation({
                         slopeDistance: leg.sd,
                         verticalAngle: obs.verticalAngle,
@@ -554,7 +615,11 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                         toNorthing: result.coordinates[i + 1]?.northing,
                         instrumentHeight: obs.ih,
                         targetHeight: obs.th,
-                        skipSeaLevel: true, // No reliable elevation data yet
+                        temperature: temperature ? parseFloat(temperature) : undefined,
+                        pressure: pressure ? parseFloat(pressure) : undefined,
+                        humidity: humidity ? parseFloat(humidity) : undefined,
+                        orthometricHeight: meanElevation ? parseFloat(meanElevation) : undefined,
+                        projection: utmProjection,
                       })
                       return (
                         <tr key={i} className="border-b border-[var(--border-color)]/30">
@@ -573,6 +638,48 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
               </div>
             )}
           </div>
+
+          {/* Correction Pipeline Audit Trail — full stage-by-stage breakdown */}
+          {(() => {
+            const auditObs: CorrectionObservationSummary[] = result.legs.map((leg, i) => {
+              const obs = result.observations[i]
+              if (!obs) return null
+              const edmResult = reduceEDMObservation({
+                slopeDistance: leg.sd,
+                verticalAngle: obs.verticalAngle,
+                fromEasting: result.coordinates[i]?.easting,
+                fromNorthing: result.coordinates[i]?.northing,
+                toEasting: result.coordinates[i + 1]?.easting,
+                toNorthing: result.coordinates[i + 1]?.northing,
+                instrumentHeight: obs.ih,
+                targetHeight: obs.th,
+                temperature: temperature ? parseFloat(temperature) : undefined,
+                pressure: pressure ? parseFloat(pressure) : undefined,
+                humidity: humidity ? parseFloat(humidity) : undefined,
+                orthometricHeight: meanElevation ? parseFloat(meanElevation) : undefined,
+                projection: utmProjection,
+              })
+              return {
+                fromStation: leg.from,
+                toStation: leg.to,
+                rawSlopeDistance: leg.sd,
+                gridDistance: edmResult.gridDistance,
+                correctionLog: edmResult.correctionLog,
+                warnings: edmResult.warnings,
+                atmosphericPPM: edmResult.atmosphericPPM,
+                seaLevelPPM: edmResult.seaLevelPPM,
+                lineScaleFactor: edmResult.lineScaleFactor,
+                convergence: edmResult.convergence,
+              } as CorrectionObservationSummary
+            }).filter(Boolean) as CorrectionObservationSummary[]
+
+            return (
+              <CorrectionAuditTrail
+                observations={auditObs}
+                projection={utmProjection === 'UTM36S' ? 'UTM 36S' : 'UTM 37S'}
+              />
+            )
+          })()}
 
           {/* Plot Traverse Section */}
           <div className="border border-[var(--border-color)] rounded overflow-hidden">
