@@ -49,6 +49,10 @@ interface LayerControlProps {
   map: Map | null;
   /** Callback when basemap changes, for external state sync */
   onBasemapChange?: (basemap: 'osm' | 'satellite' | 'blank') => void;
+  /** Hide the basemap selector section (when parent already manages basemaps) */
+  hideBasemap?: boolean;
+  /** Start collapsed (default false) */
+  defaultCollapsed?: boolean;
   className?: string;
 }
 
@@ -60,8 +64,8 @@ interface CustomLayerEntry {
 
 type BasemapType = 'osm' | 'satellite' | 'blank';
 
-export function LayerControl({ map, onBasemapChange, className = '' }: LayerControlProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaultCollapsed = false, className = '' }: LayerControlProps) {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [activeBasemap, setActiveBasemap] = useState<BasemapType>('osm');
   const [gridEnabled, setGridEnabled] = useState(false);
   const [gridInterval, setGridInterval] = useState<GridInterval>('auto');
@@ -91,22 +95,32 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
     let cancelled = false;
 
     async function init() {
-      // Check if SurveyMap already created an OSM layer
+      // Check if layers already exist (from parent map init)
       const existingLayers = mapInstance.getLayers().getArray();
       const hasExistingOSM = existingLayers.some((l: any) => l.get('basemapId') === 'osm');
+      const hasExistingSatellite = existingLayers.some((l: any) => l.get('basemapId') === 'satellite');
+      const hasExistingBlank = existingLayers.some((l: any) => l.get('basemapId') === 'blank');
       const hasExistingGrid = existingLayers.some((l: any) => l.get('layerId') === GRID_LAYER_ID);
 
-      const [satelliteLayer, blankLayer] = await Promise.all([
-        createSatelliteLayer(),
-        createBlankLayer(),
-      ]);
+      // Only create basemap layers that don't already exist
+      let osmLayer: Awaited<ReturnType<typeof createOSMLayer>> | null = null;
+      let satelliteLayer: Awaited<ReturnType<typeof createSatelliteLayer>> | null = null;
+      let blankLayer: Awaited<ReturnType<typeof createBlankLayer>> | null = null;
 
+      const layerPromises: Promise<any>[] = [];
+      const layerNames: string[] = [];
+
+      if (!hasExistingOSM) { layerPromises.push(createOSMLayer()); layerNames.push('osm'); }
+      if (!hasExistingSatellite) { layerPromises.push(createSatelliteLayer()); layerNames.push('satellite'); }
+      if (!hasExistingBlank) { layerPromises.push(createBlankLayer()); layerNames.push('blank'); }
+
+      const createdLayers = await Promise.all(layerPromises);
       if (cancelled) return;
 
-      // Only create OSM layer if SurveyMap didn't already create one
-      let osmLayer: Awaited<ReturnType<typeof createOSMLayer>> | null = null;
-      if (!hasExistingOSM) {
-        osmLayer = await createOSMLayer();
+      for (let i = 0; i < createdLayers.length; i++) {
+        if (layerNames[i] === 'osm') osmLayer = createdLayers[i];
+        if (layerNames[i] === 'satellite') satelliteLayer = createdLayers[i];
+        if (layerNames[i] === 'blank') blankLayer = createdLayers[i];
       }
 
       let gridLayer: Awaited<ReturnType<typeof createGridOverlayLayer>> | null = null;
@@ -114,16 +128,20 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
         gridLayer = await createGridOverlayLayer();
       }
 
-      // Insert basemap layers at the beginning
+      // Insert new basemap layers at the beginning
       const layers = mapInstance.getLayers();
-      layers.insertAt(0, blankLayer);
-      layers.insertAt(1, satelliteLayer);
+      if (blankLayer) {
+        layers.insertAt(0, blankLayer);
+        blankLayer.setVisible(false);
+      }
+      if (satelliteLayer) {
+        layers.insertAt(layers.getLength() > 0 ? 1 : 0, satelliteLayer);
+        satelliteLayer.setVisible(false);
+      }
       if (osmLayer) {
-        layers.insertAt(2, osmLayer);
+        layers.insertAt(layers.getLength() > 0 ? 2 : 0, osmLayer);
         osmLayer.setVisible(true);
       }
-      satelliteLayer.setVisible(false);
-      blankLayer.setVisible(false);
 
       if (gridLayer) {
         layers.push(gridLayer);
@@ -353,7 +371,7 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
           <div>
             <div className="text-sm font-semibold text-gray-900">Layers</div>
             <div className="text-[10px] text-gray-500">
-              {activeBasemap === 'osm' ? 'Street Map' : activeBasemap === 'satellite' ? 'Satellite' : 'Blank'} ·{' '}
+              {!hideBasemap ? `${activeBasemap === 'osm' ? 'Street Map' : activeBasemap === 'satellite' ? 'Satellite' : 'Blank'} · ` : ''}
               {customLayers.length} overlay{customLayers.length !== 1 ? 's' : ''}
             </div>
           </div>
@@ -366,6 +384,7 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
       {isCollapsed ? null : (
         <div className="divide-y divide-gray-100 max-h-[70vh] overflow-y-auto">
           {/* ─── Basemap Selector ──────────────────────────────────────── */}
+          {!hideBasemap && (
           <div className="p-3">
             <label className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-2 block">
               <MapIcon className="w-3 h-3 inline mr-1" />
@@ -388,6 +407,7 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
               ))}
             </div>
           </div>
+          )}
 
           {/* ─── Grid Overlay ──────────────────────────────────────────── */}
           <div className="p-3">
@@ -581,6 +601,7 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
 
             <div className="space-y-1">
               {/* Basemap entry */}
+              {!hideBasemap && (
               <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-50 rounded-md text-xs">
                 <div className="flex items-center gap-2">
                   <Eye className="w-3.5 h-3.5 text-green-600" />
@@ -590,6 +611,7 @@ export function LayerControl({ map, onBasemapChange, className = '' }: LayerCont
                 </div>
                 <span className="text-[10px] text-gray-400">basemap</span>
               </div>
+              )}
 
               {/* Grid entry */}
               <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-50 rounded-md text-xs">

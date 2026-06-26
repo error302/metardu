@@ -15,7 +15,11 @@
  * │  ├─ components/MapStatusBar.tsx → Bottom coordinate bar     │
  * │  ├─ components/MapLoadingOverlay.tsx → Loading/Error states │
  * │  ├─ components/MapNotifications.tsx  → Toast notifications  │
- * │  └─ components/MapCoordSearch.tsx   → Coord search input    │
+ * │  ├─ components/MapCoordSearch.tsx   → Coord search input    │
+ * │  ├─ LayerControl (Tier 1)       → Grid/XYZ/WMS/Opacity     │
+ * │  ├─ VertexEditToolbar (Tier 1)  → Vertex editing + snap    │
+ * │  ├─ SheetLayout (Tier 1)        → Print layout overlay      │
+ * │  └─ PrintButton (Tier 1)        → PDF/Print controls        │
  * │                                                              │
  * │  Performance optimizations:                                  │
  * │  - All sub-components wrapped in React.memo                 │
@@ -79,16 +83,26 @@ import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
 import { StakeoutPanel } from '@/components/map/StakeoutPanel'
+import { LayerControl } from '@/components/map/LayerControl'
+import { VertexEditToolbar } from '@/components/map/VertexEditToolbar'
+import { PrintButton } from '@/hooks/usePrint'
 
 // ── Hooks ──
 import { useMapBasemaps } from '@/app/map/hooks/useMapBasemaps'
 import { useMapInit } from '@/app/map/hooks/useMapInit'
 import { useMapState } from '@/app/map/hooks/useMapState'
 import { useMapInteractions } from '@/app/map/hooks/useMapInteractions'
+import { useVertexEditing } from '@/hooks/useVertexEditing'
+import { usePrint } from '@/hooks/usePrint'
 
 // ── Dynamic imports for heavy components ──
 const OfflineTileDownloader = dynamic(
   () => import('@/components/map/OfflineTileDownloader').then(m => ({ default: m.OfflineTileDownloader })),
+  { ssr: false }
+)
+
+const SheetLayout = dynamic(
+  () => import('@/components/map/SheetLayout'),
   { ssr: false }
 )
 
@@ -234,6 +248,29 @@ export default function MapClient() {
   const [hasTraverse, setHasTraverse] = useState(false)
   const traversePreviewLayerRef = useRef<any>(null)
 
+  // ── Vertex editing state (Tier 1: VertexEditToolbar) ──
+  const [vertexEditingEnabled, setVertexEditingEnabled] = useState(false)
+  const [snapEnabled, setSnapEnabled] = useState(true)
+  const [snapTolerance, setSnapTolerance] = useState(10)
+  const [vertexEditingVertices, setVertexEditingVertices] = useState<Array<{ easting: number; northing: number }>>([])
+
+  // ── Print/PDF state (Tier 1: usePrint + SheetLayout) ──
+  const [showSheetLayout, setShowSheetLayout] = useState(false)
+  const {
+    print: printMap,
+    isPrinting,
+    paperSize,
+    setPaperSize,
+    orientation,
+    setOrientation,
+  } = usePrint({ printTarget: 'metardu-global-map' })
+
+  // ── Layer control visibility (Tier 1: LayerControl) ──
+  const [layerControlOpen, setLayerControlOpen] = useState(true)
+
+  // ── Map extent for offline tile dialog (async resolve) ──
+  const [offlineMapExtent, setOfflineMapExtent] = useState<any>(null)
+
   // ── History hook ──
   const ctx: MapContext = useMemo(() => ({
     mapInstance,
@@ -332,6 +369,16 @@ export default function MapClient() {
     toggleGPS: () => toggleGPSRef.current(), // wired via ref to real toggleGPS
   })
 
+  // ── Vertex editing hook (Tier 1) ──
+  const { state: vertexEditState } = useVertexEditing({
+    map: mapInstance.current,
+    vertices: vertexEditingVertices,
+    enabled: vertexEditingEnabled,
+    onVerticesChange: setVertexEditingVertices,
+    snapTolerance,
+    snapEnabled,
+  })
+
   // Wire GPS toggle (needs interactions reference)
   const toggleGPS = useCallback(() => {
     if (!mapInstance.current) return
@@ -418,6 +465,17 @@ export default function MapClient() {
   const handleCoordSearch = useCallback(async (input: string) => {
     await interactions.handleCoordSearchLocal(input)
   }, [interactions])
+
+  // ── Print handler: show sheet layout overlay then trigger browser print ──
+  const handlePrintMap = useCallback(async (overrides?: any) => {
+    setShowSheetLayout(true)
+    // Small delay to let sheet layout render before print
+    await new Promise(resolve => setTimeout(resolve, 400))
+    await printMap(overrides)
+    // Sheet layout stays visible so it appears in the printed output
+    // It will be hidden when the user closes the print dialog
+    setTimeout(() => setShowSheetLayout(false), 6000)
+  }, [printMap])
 
   // ── Scheme layer: get projectId from URL params ──
   const schemeProjectId = searchParams.get('projectId')
@@ -669,6 +727,7 @@ export default function MapClient() {
   return (
     <MapErrorBoundary>
       <div
+        id="metardu-global-map"
         className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden"
         style={{ '--map-bottom-offset': isMobile ? '64px' : '0px' } as React.CSSProperties}
       >
@@ -796,6 +855,73 @@ export default function MapClient() {
                 onConfirmTraverseParcel={handleConfirmTraverseParcel}
                 onCancelTraverseParcel={handleCancelTraverseParcel}
               />
+
+              {/* ── Tier 1: Layer Control (Grid + XYZ + WMS + Opacity) ── */}
+              <div className="absolute top-14 right-3 z-20 sm:top-16 sm:right-4">
+                <LayerControl
+                  map={mapInstance.current}
+                  hideBasemap
+                  defaultCollapsed={isMobile}
+                  onBasemapChange={(bm) => {
+                    // Sync LayerControl basemap choice to MapClient basemap state
+                    if (bm === 'osm' || bm === 'satellite') {
+                      toggleBasemap(bm as BasemapMode)
+                    }
+                  }}
+                />
+              </div>
+
+              {/* ── Tier 1: Vertex Edit Toolbar ── */}
+              <div className="absolute top-3 right-[280px] z-20 sm:top-4 sm:right-[292px]">
+                <VertexEditToolbar
+                  enabled={vertexEditingEnabled}
+                  onToggle={() => setVertexEditingEnabled(v => !v)}
+                  snapEnabled={snapEnabled}
+                  onSnapToggle={() => setSnapEnabled(v => !v)}
+                  snapTolerance={snapTolerance}
+                  onToleranceChange={setSnapTolerance}
+                  editState={vertexEditState}
+                />
+              </div>
+
+              {/* ── Tier 1: Print/PDF & Sheet Layout ── */}
+              <div className="absolute bottom-10 right-3 z-20 no-print print-hide flex items-center gap-2">
+                <button
+                  onClick={() => setShowSheetLayout(v => !v)}
+                  className={`p-2 rounded-lg border transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)] ${
+                    showSheetLayout
+                      ? 'border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]'
+                      : 'border-[var(--border-color)] hover:border-[var(--accent)] hover:bg-[var(--accent-subtle)]'
+                  }`}
+                  title={showSheetLayout ? 'Hide Sheet Layout' : 'Show Sheet Layout (north arrow, scale bar, title block)'}
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M12 8v8M8 12h8" />
+                  </svg>
+                </button>
+                <PrintButton
+                  print={handlePrintMap}
+                  isPrinting={isPrinting}
+                  paperSize={paperSize}
+                  setPaperSize={setPaperSize}
+                  orientation={orientation}
+                  setOrientation={setOrientation}
+                  compact
+                  printTarget="metardu-global-map"
+                  printTitle="METARDU Global Map"
+                />
+              </div>
+
+              {/* ── Tier 1: Sheet Layout Overlay (for print) ── */}
+              {showSheetLayout && (
+                <SheetLayout
+                  show={showSheetLayout}
+                  map={mapInstance.current}
+                  planGeometry={null}
+                  projectName={schemeProjectId ? `Project ${schemeProjectId}` : 'Global Map'}
+                />
+              )}
             </>
           )}
 
@@ -814,8 +940,14 @@ export default function MapClient() {
         {mapReady && (
           <OfflineTileDownloader
             open={offlineDialogOpen}
-            onOpenChange={setOfflineDialogOpen}
-            mapExtent={interactions.getMapExtent()}
+            onOpenChange={async (open: boolean) => {
+              setOfflineDialogOpen(open)
+              if (open) {
+                const extent = await interactions.getMapExtent()
+                setOfflineMapExtent(extent)
+              }
+            }}
+            mapExtent={offlineMapExtent}
           />
         )}
       </div>
