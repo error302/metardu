@@ -533,9 +533,17 @@ export async function addSchemeHoverInteraction(
     fill: new Fill({ color: 'rgba(232, 132, 26, 0.18)' }),
   })
 
+  let lastMoveTime = 0
+
   const onMouseMove = (evt: any) => {
     const target = map.getTarget()
     if (!target) return
+
+    // Throttle: only process hover detection every 50ms to reduce CPU load
+    // forEachFeatureAtPixel is expensive on large scheme datasets
+    const now = Date.now()
+    if (now - lastMoveTime < 50) return
+    lastMoveTime = now
 
     const pixel = map.getEventPixel(evt.originalEvent)
     const hit = map.forEachFeatureAtPixel(
