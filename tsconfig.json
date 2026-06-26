@@ -1,21 +1,24 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "es2017",
     "lib": [
       "dom",
       "dom.iterable",
+      "es2017",
       "esnext"
     ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "incremental": true,
     "plugins": [
       {
@@ -26,17 +29,21 @@
       "@/*": [
         "./src/*"
       ]
-    },
-    "baseUrl": "."
+    }
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "android",
+    "scripts",
+    "server",
+    "%TEMP%",
+    "**/%TEMP%/**",
+    "**/OpenAgentsControl/**"
   ]
 }

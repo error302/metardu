@@ -1,0 +1,360 @@
+/**
+ * AI Chat Endpoint — NVIDIA NIM
+ * Handles survey data QA, report generation, and assistance.
+ *
+ * Phase 4 improvements:
+ * - Rate limiting (20 AI calls per minute per user)
+ * - AI usage tracking (decrements ai_calls_remaining on each call)
+ * - SSE streaming for report generation
+ * - Security: API key never logged or exposed in responses
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import {
+  chat,
+  chatStream,
+  checkSurveyDataQA,
+  extractCoordinates,
+  generateReportSection,
+  validateSurveyResults,
+  interpretFieldPhoto,
+  isConfigured,
+} from '@/lib/ai/nvidiaService'
+import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
+import { db, setCurrentUserId } from '@/lib/db'
+import { z } from 'zod'
+
+// ─── Rate limiting: 20 AI requests per minute per user ────────────────────────
+const AI_RATE_LIMIT = { max: 20, windowMs: 60_000 }
+
+// ─── AI usage limits per tier ─────────────────────────────────────────────────
+const TIER_LIMITS: Record<string, number> = {
+  free: 10,
+  pro: 100,
+  team: 500,
+  firm: 500,
+  enterprise: Infinity,
+}
+
+// Admin emails get unlimited AI calls
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
+
+// ─── Zod Schemas ──────────────────────────────────────────────────────────────
+
+/** Top-level chat message validation — limits prompt size to prevent injection / abuse */
+const AiChatSchema = z.object({
+  message: z.string().max(4000),
+  context: z.string().max(10000).optional(),
+  projectId: z.string().uuid().optional(),
+})
+
+/** Per-action data validation schemas — match service function signatures */
+const SurveyQADataSchema = z.object({
+  surveyType: z.string().max(100),
+  coordinates: z.array(z.object({ point: z.string(), easting: z.number(), northing: z.number(), elevation: z.number().optional() })).optional(),
+  distances: z.array(z.object({ from: z.string(), to: z.string(), distance: z.number(), bearing: z.string().optional() })).optional(),
+  area: z.number().optional(),
+  boundary: z.array(z.record(z.unknown())).max(5000).optional(),
+  observations: z.array(z.record(z.unknown())).max(10000).optional(),
+})
+
+const ExtractCoordsDataSchema = z.object({
+  text: z.string().max(50000),
+})
+
+const GenerateSectionDataSchema = z.object({
+  sectionType: z.string().max(100),
+  surveyType: z.string().max(100),
+  projectData: z.record(z.unknown()),
+  customInstructions: z.string().max(5000).optional(),
+})
+
+const ValidateResultsDataSchema = z.object({
+  surveyType: z.string().max(100),
+  measured: z.record(z.unknown()),
+  expected: z.record(z.unknown()).optional(),
+  tolerances: z.record(z.number()).optional(),
+})
+
+const InterpretPhotoDataSchema = z.object({
+  imageBase64: z.string().max(10_000_000),
+  mimeType: z.string().max(100),
+  surveyTypeHint: z.string().max(100).optional(),
+})
+
+const ChatOptionsSchema = z.object({
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().int().min(1).max(4096).optional(),
+  model: z.string().max(200).optional(),
+})
+
+// ─── Request schema ───────────────────────────────────────────────────────────
+// data uses z.record(z.unknown()) at the top level for type compatibility,
+// then is validated per-action with the specific schemas above.
+
+const requestSchema = z.object({
+  action: z.enum(['chat', 'survey-qa', 'extract-coords', 'generate-section', 'validate-results', 'interpret-field-photo']),
+  messages: z.array(z.object({
+    role: z.enum(['system', 'user', 'assistant']),
+    content: z.string().max(4000),
+  })).optional(),
+  data: z.record(z.unknown()).optional(),
+  options: z.record(z.unknown()).optional(),
+  /** If true, response is streamed via SSE (only for generate-section) */
+  stream: z.boolean().optional(),
+  /** Top-level chat fields (alternative to messages array) */
+  message: AiChatSchema.shape.message.optional(),
+  context: AiChatSchema.shape.context.optional(),
+  projectId: AiChatSchema.shape.projectId.optional(),
+})
+
+// ─── AI usage tracking ────────────────────────────────────────────────────────
+
+async function decrementAiCalls(userId: string, email?: string): Promise<{ remaining: number; limit: number }> {
+  // Admin users get unlimited AI calls — skip decrement entirely
+  const isFounder = email?.toLowerCase() === 'mohameddosho20@gmail.com'
+  const isAdmin = isFounder || (email ? ADMIN_EMAILS.includes(email.toLowerCase()) : false)
+  if (isAdmin) {
+    return { remaining: Infinity, limit: Infinity }
+  }
+
+  try {
+    // Get current usage — use SELECT FOR UPDATE to prevent race conditions
+    const profile = await db.query(
+      'SELECT ai_calls_remaining, tier FROM profiles WHERE user_id = $1 FOR UPDATE',
+      [userId]
+    )
+
+    if (profile.rows.length === 0) {
+      // No profile yet — FAIL CLOSED: deny the call until profile exists
+      console.error('[ai/chat] No profile found for user — blocking AI call (fail-closed)')
+      return { remaining: 0, limit: TIER_LIMITS.free }
+    }
+
+    const row = profile.rows[0]
+    const ai_calls_remaining = row?.ai_calls_remaining as number | null
+    const tier = (row?.tier as string) || 'free'
+    const limit = TIER_LIMITS[tier] || TIER_LIMITS.free
+
+    const currentRemaining = ai_calls_remaining ?? limit
+
+    // If already at 0, deny before decrementing
+    if (currentRemaining <= 0) {
+      return { remaining: 0, limit }
+    }
+
+    // Decrement remaining (but never below 0)
+    const newRemaining = Math.max(0, currentRemaining - 1)
+    await db.query(
+      'UPDATE profiles SET ai_calls_remaining = $1 WHERE user_id = $2',
+      [newRemaining, userId]
+    )
+
+    return { remaining: newRemaining, limit }
+  } catch (err) {
+    // FAIL CLOSED: If DB is down, deny ALL AI calls to prevent unlimited usage
+    console.error('[ai/chat] Usage tracking failed — BLOCKING AI call (fail-closed):', err)
+    return { remaining: 0, limit: 0 }
+  }
+}
+
+// ─── POST handler ─────────────────────────────────────────────────────────────
+
+export async function POST(request: NextRequest) {
+  try {
+    // 1. Auth check
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const userId = (session.user as { id?: string }).id
+    if (!userId) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    }
+
+    // Set RLS context so PostgreSQL current_user_id() works for subsequent DB queries
+    setCurrentUserId(String(userId))
+
+    // 2. Rate limiting
+    const identifier = `ai:${userId}`
+    const { allowed, remaining: rlRemaining } = await rateLimit(identifier, AI_RATE_LIMIT.max, AI_RATE_LIMIT.windowMs)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many AI requests. Please wait a minute.', code: 'RATE_LIMITED' },
+        { status: 429, headers: { 'X-RateLimit-Remaining': String(rlRemaining) } }
+      )
+    }
+
+    // 3. AI usage check (tier-based)
+    const userEmail = (session.user as { email?: string }).email
+    const usage = await decrementAiCalls(userId, userEmail)
+    if (usage.remaining <= 0) {
+      return NextResponse.json(
+        {
+          error: 'AI call limit reached for your plan. Upgrade to Pro for more calls.',
+          code: 'AI_LIMIT_REACHED',
+          tier: usage.limit,
+        },
+        { status: 403 }
+      )
+    }
+
+    // 4. Parse request
+    const body = await request.json().catch(() => ({}))
+    const parsed = requestSchema.safeParse(body)
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid request', details: parsed.error.errors }, { status: 400 })
+    }
+
+    const { action, messages, data, options, stream: useStream } = parsed.data
+
+    // 5. Route to action (per-action validation using specific schemas)
+    if (action === 'chat') {
+      if (!messages?.length) {
+        return NextResponse.json({ error: 'Messages required' }, { status: 400 })
+      }
+      const validatedOpts = ChatOptionsSchema.safeParse(options ?? {})
+      const chatOpts = validatedOpts.success ? validatedOpts.data : {}
+      const response = await chat({ messages, ...chatOpts })
+      return NextResponse.json({ response, callsRemaining: usage.remaining })
+    }
+
+    if (action === 'survey-qa') {
+      const validated = SurveyQADataSchema.safeParse(data ?? {})
+      if (!validated.success) {
+        return NextResponse.json({ error: 'Invalid survey-qa data', details: validated.error.issues }, { status: 400 })
+      }
+      const result = await checkSurveyDataQA(validated.data)
+      return NextResponse.json({ result, callsRemaining: usage.remaining })
+    }
+
+    if (action === 'extract-coords') {
+      const validated = ExtractCoordsDataSchema.safeParse(data ?? {})
+      if (!validated.success) {
+        return NextResponse.json({ error: 'Invalid extract-coords data', details: validated.error.issues }, { status: 400 })
+      }
+      const result = await extractCoordinates(validated.data.text)
+      return NextResponse.json({ ...result, callsRemaining: usage.remaining })
+    }
+
+    if (action === 'generate-section') {
+      const validated = GenerateSectionDataSchema.safeParse(data ?? {})
+      if (!validated.success) {
+        return NextResponse.json({ error: 'Invalid generate-section data', details: validated.error.issues }, { status: 400 })
+      }
+      const { sectionType, surveyType, projectData, customInstructions } = validated.data
+
+      // Streaming response via SSE
+      if (useStream) {
+        const encoder = new TextEncoder()
+        const stream = new ReadableStream({
+          async start(controller) {
+            try {
+              await generateReportSection({
+                sectionType,
+                surveyType,
+                projectData,
+                customInstructions,
+                onToken: (token) => {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`))
+                },
+              })
+              // Send done signal
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, callsRemaining: usage.remaining })}\n\n`))
+              controller.close()
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : 'Streaming failed'
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`))
+              controller.close()
+            }
+          },
+        })
+
+        return new Response(stream, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+        })
+      }
+
+      // Non-streaming (backward compatible)
+      const result = await generateReportSection({
+        sectionType,
+        surveyType,
+        projectData,
+        customInstructions,
+      })
+      return NextResponse.json({ result, callsRemaining: usage.remaining })
+    }
+
+    if (action === 'validate-results') {
+      const validated = ValidateResultsDataSchema.safeParse(data ?? {})
+      if (!validated.success) {
+        return NextResponse.json({ error: 'Invalid validate-results data', details: validated.error.issues }, { status: 400 })
+      }
+      const { surveyType, measured, expected, tolerances } = validated.data
+      const result = await validateSurveyResults({ surveyType, measured, expected, tolerances })
+      return NextResponse.json({
+        ...result,
+        _safety: 'AI_ASSESSMENT_NOT_AUTHORITATIVE',
+        _authoritative_source: 'toleranceEngine (deterministic computation)',
+        callsRemaining: usage.remaining,
+      })
+    }
+
+    if (action === 'interpret-field-photo') {
+      const validated = InterpretPhotoDataSchema.safeParse(data ?? {})
+      if (!validated.success) {
+        return NextResponse.json({ error: 'Invalid interpret-field-photo data', details: validated.error.issues }, { status: 400 })
+      }
+      const { imageBase64, mimeType, surveyTypeHint } = validated.data
+      const result = await interpretFieldPhoto({ imageBase64, mimeType, surveyTypeHint })
+      return NextResponse.json({
+        ...result,
+        _safety: 'AI_FIELD_DATA_MUST_BE_VERIFIED',
+        callsRemaining: usage.remaining,
+      })
+    }
+
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+  } catch (error: unknown) {
+    // Never expose API keys or internal details in error responses
+    const message = error instanceof Error ? (error as Error).message : 'AI service error'
+    console.error('[ai/chat] Error:', message)
+
+    // Map common NVIDIA errors to user-friendly messages
+    if (message.includes('NVIDIA_API_KEY not configured')) {
+      return NextResponse.json(
+        { error: 'AI service is not configured. Please contact support.', code: 'AI_NOT_CONFIGURED' },
+        { status: 503 }
+      )
+    }
+    if (message.includes('429')) {
+      return NextResponse.json(
+        { error: 'AI service is busy. Please try again in a moment.', code: 'AI_OVERLOADED' },
+        { status: 503 }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'AI service error. Please try again.', code: 'AI_ERROR' },
+      { status: 500 }
+    )
+  }
+}
+
+// ─── GET: Health check ────────────────────────────────────────────────────────
+
+export async function GET() {
+  const configured = isConfigured()
+  return NextResponse.json({
+    configured,
+    models: configured ? ['meta/llama-3.1-70b-instruct', 'meta/llama-3.2-90b-vision-instruct'] : [],
+  })
+}

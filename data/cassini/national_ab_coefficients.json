@@ -1,0 +1,133 @@
+{
+  "metadata": {
+    "description": "NEW3 v2: A/B polynomial coefficients from synthetic exact-chain residuals",
+    "generatedDate": "2026-06-02T19:44:06.678Z",
+    "method": "6x6 interior grid via exact chain (Cassini inverse + Molodensky + TM forward). A/B fitted from Helmert4 residuals at synthetic points only (not XLS corners). Helmert4 (P,Q,Cx,Cy) preserved from XLS reference.",
+    "gridSize": 6,
+    "sheetsProcessed": 224,
+    "averageCornerRmseBeforeMm": 279279.2,
+    "averageCornerRmseAfterMm": 183854499.5,
+    "averageInteriorRmseMm": 239961717.8
+  },
+  "coefficients": {
+    "119/2": {
+      "A": 3.9842901656761576e-11,
+      "B": -1.3572169909412249e-12,
+      "cornerRmseMm": 1738.2,
+      "interiorRmseMm": 2260.1,
+      "zone": 37
+    },
+    "119/4": {
+      "A": 5.131131284489922e-11,
+      "B": 1.805278098881909e-11,
+      "cornerRmseMm": 2405.3,
+      "interiorRmseMm": 3175.6,
+      "zone": 37
+    },
+    "120/1": {
+      "A": -4.2212722428374075e-11,
+      "B": -5.328154328923581e-11,
+      "cornerRmseMm": 1112.6,
+      "interiorRmseMm": 1518.2,
+      "zone": 37
+    },
+    "120/2": {
+      "A": -4.334354333073169e-10,
+      "B": -5.280558313036946e-10,
+      "cornerRmseMm": 3579.8,
+      "interiorRmseMm": 3696.7,
+      "zone": 37
+    },
+    "120/3": {
+      "A": 2.7974286982016187e-11,
+      "B": -3.2800602659303575e-11,
+      "cornerRmseMm": 548.2,
+      "interiorRmseMm": 817.9,
+      "zone": 37
+    },
+    "120/4": {
+      "A": 2.1048303213379507e-10,
+      "B": -6.973214085277011e-11,
+      "cornerRmseMm": 1211.3,
+      "interiorRmseMm": 1124.3,
+      "zone": 37
+    },
+    "121/3": {
+      "A": -3.81349801815936e-10,
+      "B": -1.1767094415250516e-10,
+      "cornerRmseMm": 3276.4,
+      "interiorRmseMm": 3506.5,
+      "zone": 37
+    },
+    "134/1": {
+      "A": 6.579074836574739e-11,
+      "B": -7.597528648687332e-12,
+      "cornerRmseMm": 1166.7,
+      "interiorRmseMm": 1061.5,
+      "zone": 37
+    },
+    "134/2": {
+      "A": 2.3767162000117366e-10,
+      "B": -2.7913499636554524e-11,
+      "cornerRmseMm": 1175.3,
+      "interiorRmseMm": 1074.6,
+      "zone": 37
+    },
+    "148/II": {
+      "A": 2.2721337840580926e-10,
+      "B": -4.5463921352007214e-12,
+      "cornerRmseMm": 1078.9,
+      "interiorRmseMm": 559.1,
+      "zone": 37
+    },
+    "148/II/2": {
+      "A": 3.311286992306707e-10,
+      "B": -1.2235211943538976e-11,
+      "cornerRmseMm": 1674.5,
+      "interiorRmseMm": 1421.6,
+      "zone": 37
+    },
+    "148/III": {
+      "A": 1.425935017348993e-10,
+      "B": -2.0316500938412944e-12,
+      "cornerRmseMm": 2283,
+      "interiorRmseMm": 2418,
+      "zone": 37
+    },
+    "148/IV": {
+      "A": 1.7180182218761684e-10,
+      "B": -7.099391631450627e-12,
+      "cornerRmseMm": 1337.5,
+      "interiorRmseMm": 1408.7,
+      "zone": 37
+    },
+    "149/I": {
+      "A": -2.2146064066713953e-10,
+      "B": -8.365415059221307e-12,
+      "cornerRmseMm": 1938,
+      "interiorRmseMm": 2038.2,
+      "zone": 37
+    },
+    "149/III": {
+      "A": -3.204345843334371e-10,
+      "B": -9.399186246700987e-12,
+      "cornerRmseMm": 2937.5,
+      "interiorRmseMm": 3248.9,
+      "zone": 37
+    },
+    "162/II": {
+      "A": -1.6011367059983526e-10,
+      "B": -5.401352596806408e-12,
+      "cornerRmseMm": 4185.5,
+      "interiorRmseMm": 5052.2,
+      "zone": 37
+    },
+    "188/3": {
+      "A": -2.347218429495712e-10,
+      "B": 6.2064778356649305e-12,
+      "cornerRmseMm": 4295.5,
+      "interiorRmseMm": 3863.4,
+      "zone": 37
+    }
+  }
+}

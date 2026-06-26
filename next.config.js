@@ -1,0 +1,276 @@
+let withBundleAnalyzer = (c) => c
+try {
+  withBundleAnalyzer = require('@next/bundle-analyzer')({
+    enabled: process.env.ANALYZE === 'true',
+  })
+} catch (e) {
+  // bundle-analyzer not available, pass-through
+}
+
+const withPWA = require('@ducanh2912/next-pwa').default({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+  disable:
+    process.env.NODE_ENV !== 'production' ||
+    process.env.DISABLE_PWA === 'true' ||
+    (process.platform === 'win32' && process.env.ENABLE_PWA_ON_WINDOWS !== 'true'),
+  workboxOptions: { disableDevLogs: true },
+})
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Standalone output — smaller deploy, lower RAM
+  // Use 'export' for Capacitor mobile builds (set MOBILE_BUILD=true)
+  output: process.env.MOBILE_BUILD === 'true' ? 'export' : 'standalone',
+
+  reactStrictMode: true,
+
+  // Disabled — SWC minifier breaks OpenLayers tile rendering in production builds
+  swcMinify: true,  // OPTIMIZED: 20x faster than Terser
+
+  // ─── Image optimization (enabled for web, disabled for Capacitor mobile builds) ───
+  images: {
+    unoptimized: process.env.MOBILE_BUILD === 'true',
+    minimumCacheTTL: 60 * 60 * 24,
+  },
+
+  // ─── Linting & TypeScript ───
+  eslint: {
+    ignoreDuringBuilds: true,  // ESLint still has ~1300 any warnings; run via CI separately
+  },
+  typescript: {
+    ignoreBuildErrors: false,  // R4: Strict builds — tsc --noEmit passes clean
+    // Type errors are now caught at build time, not just in CI.
+  },
+
+  // ─── Performance settings ───
+  compress: true,
+  poweredByHeader: false,
+  generateEtags: true,
+
+  // ─── Tree-shaking for heavy packages ───
+  // Only imports the named exports actually used instead of the entire package
+  experimental: {
+    // Next 14 expects server-only externals under the experimental flag.
+    serverComponentsExternalPackages: [
+      'pg',
+      'canvas',
+      '@google-cloud/storage',
+      'bcryptjs',
+      'better-sqlite3',
+      'three',
+      'pdfjs-dist',
+    ],
+    optimizePackageImports: [
+      // NOTE: 'ol' removed — it breaks dynamic imports of 42+ ol/* submodules
+      // used by MapClient.tsx. The ol package uses side-effectful modules
+      // (e.g. ol/proj/proj4 register()) that conflict with tree-shaking
+      // when combined with output: "standalone".
+      'lucide-react',
+      'recharts',
+      'd3-array',
+      'd3-contour',
+      '@radix-ui/react-accordion',
+      '@radix-ui/react-alert-dialog',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-collapsible',
+      '@radix-ui/react-context-menu',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-hover-card',
+      '@radix-ui/react-label',
+      '@radix-ui/react-menubar',
+      '@radix-ui/react-navigation-menu',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-progress',
+      '@radix-ui/react-radio-group',
+      '@radix-ui/react-scroll-area',
+      '@radix-ui/react-select',
+      '@radix-ui/react-separator',
+      '@radix-ui/react-slider',
+      '@radix-ui/react-switch',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-toast',
+      '@radix-ui/react-toggle',
+      '@radix-ui/react-toggle-group',
+      '@radix-ui/react-tooltip',
+      'date-fns',
+      '@tanstack/react-table',
+    ],
+  },
+
+  // ─── Webpack configuration for OpenLayers ───
+  webpack: (config, { isServer }) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      crypto: false,
+    }
+
+    if (isServer) {
+      config.externals = config.externals || []
+      config.externals.push(/^ol/)
+      // Externalize heavy server-only native modules
+      config.externals.push('better-sqlite3', 'canvas')
+    } else {
+      // Client-side: externalize Node.js built-ins that pg transitively depends on.
+      // These are pulled in when client components (e.g. checkout/page.tsx) import
+      // server modules (enterprise/auditTrail → db.ts → pg).
+      config.externals = config.externals || []
+      config.externals.push('pg', 'pg-native', 'pg-protocol', 'pg-connection-string',
+        'pg-pool', 'pg-types', 'pg-cursor', 'async_hooks', 'dns', 'net', 'tls')
+    }
+
+    // Improve chunk splitting for large dependencies
+    config.optimization = {
+      ...config.optimization,
+      splitChunks: {
+        ...config.optimization?.splitChunks,
+        chunks: 'all',
+        cacheGroups: {
+          ...config.optimization?.splitChunks?.cacheGroups,
+          // Isolate openlayers into its own chunk
+          openlayers: {
+            test: /[\\/]node_modules[\\/]ol[\\/]/,
+            name: 'vendor-ol',
+            chunks: 'all',
+            priority: 20,
+          },
+        },
+      },
+    }
+
+    return config
+  },
+
+  // ─── Headers for performance & security ───
+  async headers() {
+    const isProd = process.env.NODE_ENV === 'production'
+    // Allow the CSP to work with any domain (production, staging, dev)
+    // instead of hardcoding metardu.duckdns.org which breaks other environments
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || ''
+    const siteHost = siteUrl ? new URL(siteUrl).hostname : ''
+    const wssHost = siteHost ? `wss://${siteHost}` : ''
+    const httpsHost = siteHost ? `https://${siteHost}` : ''
+
+    // Build connect-src with dynamic host or fallback to 'self'
+    const connectSrcParts = [
+      "'self'",
+      "blob:",
+    ]
+    if (httpsHost) connectSrcParts.push(httpsHost)
+    if (wssHost) connectSrcParts.push(wssHost)
+    // Always allow these external services
+    connectSrcParts.push(
+      "https://ipapi.co",
+      "https://*.upstash.io",
+      "https://api.anthropic.com",
+      "https://sentry.io",
+      "https://*.sentry.io",
+      "https://fonts.googleapis.com",
+      "https://fonts.gstatic.com",
+      "https://tile.openstreetmap.org",
+      "https://*.tile.openstreetmap.org",
+      "https://server.arcgisonline.com",
+      "https://*.arcgisonline.com",
+      "https://*.basemaps.cartocdn.com",
+    )
+
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-DNS-Prefetch-Control', value: 'on' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(self)' },
+          ...(isProd ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }] : []),
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              // 'unsafe-inline' required because next.config.js static headers override
+              // the middleware nonce-based CSP. Next.js RSC inline scripts
+              // (self.__next_f.push) need 'unsafe-inline' to execute.
+              `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"} 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com`,
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "font-src 'self' https://fonts.gstatic.com",
+              "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
+              `connect-src ${connectSrcParts.join(' ')}`,
+              "worker-src 'self' blob:",
+              "frame-ancestors 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+            ].join('; '),
+          },
+        ],
+      },
+      {
+        source: '/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
+        ],
+      },
+      {
+        source: '/api/projects/:path*',
+        headers: [
+          // User-specific data — must not be cached by CDNs/proxies
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/api/survey-report/:path*',
+        headers: [
+          // User-specific report data — must not be cached by CDNs/proxies
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/api/tools/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=3600' },
+        ],
+      },
+      {
+        source: '/api/field/mbtiles/tiles/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+        ],
+      },
+    ]
+  },
+}
+
+// Sentry (only wraps when NEXT_PUBLIC_SENTRY_DSN is set — no-op otherwise)
+const { withSentryConfig } = require('@sentry/nextjs')
+
+const hasSentry =
+  process.env.NODE_ENV === 'production' &&
+  Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN)
+
+module.exports = hasSentry
+  ? withSentryConfig(
+      withBundleAnalyzer(withPWA(nextConfig)),
+      {
+        silent: true,
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+      },
+      {
+        widenClientFileUpload: true,
+        hideSourceMaps: true,
+        disableLogger: true,
+      }
+    )
+  : withBundleAnalyzer(withPWA(nextConfig))

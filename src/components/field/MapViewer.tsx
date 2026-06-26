@@ -1,0 +1,287 @@
+'use client';
+import { useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
+import { MapLayer, FieldBeacon, FieldParcel, GeoPDFLayer, MBTilesSession } from '@/types/field';
+
+
+
+export interface MapHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetToKenya: () => void;
+  fitToData: () => void;
+  getView: () => { center: number[]; zoom: number } | null;
+}
+
+interface Props {
+  layers: MapLayer[];
+  beacons: FieldBeacon[];
+  parcels: FieldParcel[];
+  geoPDFLayers?: GeoPDFLayer[];
+  mbtilesSessions?: MBTilesSession[];
+  onMapClick?: (lat: number, lng: number) => void;
+  onGPSUpdate?: (lat: number, lng: number, accuracy: number) => void;
+  onPerimeterWalk?: () => void;
+}
+
+const MapViewer = forwardRef<MapHandle, Props>(function MapViewer(
+  { layers, beacons, parcels, geoPDFLayers, mbtilesSessions, onMapClick, onGPSUpdate, onPerimeterWalk },
+  ref
+) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const kenyaCenterRef = useRef<number[]>([0, 0]);
+
+
+  /* ---- Expose imperative handle to parent ---- */
+  useImperativeHandle(ref, () => ({
+    zoomIn() {
+      const map = mapRef.current;
+      if (!map) return;
+      const view = map.getView();
+      view.animate({ zoom: view.getZoom()! + 1, duration: 250 });
+    },
+    zoomOut() {
+      const map = mapRef.current;
+      if (!map) return;
+      const view = map.getView();
+      view.animate({ zoom: view.getZoom()! - 1, duration: 250 });
+    },
+    resetToKenya() {
+      const map = mapRef.current;
+      if (!map) return;
+      const view = map.getView();
+      view.animate({ center: kenyaCenterRef.current, zoom: 6, duration: 400 });
+    },
+    fitToData() {
+      const map = mapRef.current;
+      if (!map) return;
+      const layers = map.getLayers().getArray();
+      // Try beacon / parcel layers first, then geojson
+      for (let i = layers.length - 1; i >= 0; i--) {
+        const l = layers[i] as any;
+        const src = l?.getSource?.();
+        if (src && src.getFeatures && src.getFeatures().length > 0) {
+          const ext = src.getExtent();
+          if (ext && ext[0] !== Infinity && ext[1] !== Infinity) {
+            map.getView().fit(ext, { padding: [80, 80, 80, 80], maxZoom: 17, duration: 400 });
+            return;
+          }
+        }
+      }
+    },
+    getView() {
+      const map = mapRef.current;
+      if (!map) return null;
+      const v = map.getView();
+      return { center: v.getCenter() ?? [], zoom: v.getZoom() ?? 6 };
+    },
+  }), []);
+
+  /* ---- Stable callback refs so OL event handlers stay valid ---- */
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    let mounted = true;
+
+    async function initMap() {
+      try {
+        // Inject OpenLayers CSS via link tag (dynamic import of CSS crashes in Next.js)
+        if (!document.querySelector('link[href*="ol/ol.css"]')) {
+          try {
+            await import('ol/ol.css' as any);
+          } catch {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/ol@10.8.0/ol.css';
+            document.head.appendChild(link);
+          }
+        }
+
+        // Import OpenLayers modules individually
+        const { default: Map } = await import('ol/Map');
+        const { default: View } = await import('ol/View');
+        const { default: TileLayer } = await import('ol/layer/Tile');
+        const { default: VectorLayer } = await import('ol/layer/Vector');
+        const { default: OSM } = await import('ol/source/OSM');
+        const { default: VectorSource } = await import('ol/source/Vector');
+        const { default: GeoJSONFormat } = await import('ol/format/GeoJSON');
+        const { default: Feature } = await import('ol/Feature');
+        const { default: Point } = await import('ol/geom/Point');
+        const { default: Polygon } = await import('ol/geom/Polygon');
+        const { default: Style } = await import('ol/style/Style');
+        const { default: CircleStyle } = await import('ol/style/Circle');
+        const { default: Fill } = await import('ol/style/Fill');
+        const { default: Stroke } = await import('ol/style/Stroke');
+        const { default: TextStyle } = await import('ol/style/Text');
+        const { fromLonLat, toLonLat } = await import('ol/proj');
+        const { default: Attribution } = await import('ol/control/Attribution');
+        const olControl = await import('ol/control');
+        const defaultControls = olControl.defaults;
+
+        if (!mounted || !containerRef.current) return;
+
+        // Cleanup previous map
+        if (mapRef.current) {
+          mapRef.current.setTarget(undefined);
+          mapRef.current = null;
+        }
+
+        // Default center at Kenya
+        const kenyaCenter = fromLonLat([37.91, 0.02]);
+        kenyaCenterRef.current = kenyaCenter;
+
+        // Base OSM tile layer
+        const baseLayer = new TileLayer({ source: new OSM() });
+
+        // GeoJSON vector layers (from imported KML/KMZ)
+        const vectorLayers = layers
+          .filter(l => l.visible && l.geojson)
+          .map(l => {
+            const features = new GeoJSONFormat().readFeatures(l.geojson, {
+              dataProjection: 'EPSG:4326',
+              featureProjection: 'EPSG:3857',
+            });
+            return new VectorLayer({
+              source: new VectorSource({ features }),
+              style: new Style({
+                stroke: new Stroke({ color: '#3b82f6', width: 2 }),
+                fill: new Fill({ color: 'rgba(59,130,246,0.1)' }),
+              }),
+            });
+          });
+
+        // Beacon point layer
+        const beaconFeatures = beacons.map(b => {
+          const f = new Feature({
+            geometry: new Point(fromLonLat([b.coordinate.lng, b.coordinate.lat])),
+          });
+          f.set('label', b.label);
+          return f;
+        });
+
+        const beaconLayer = new VectorLayer({
+          source: new VectorSource({ features: beaconFeatures }),
+          style: (feature: any) => new Style({
+            image: new CircleStyle({
+              radius: 8,
+              fill: new Fill({ color: '#f59e0b' }),
+              stroke: new Stroke({ color: '#ffffff', width: 2 }),
+            }),
+            text: new TextStyle({
+              text: feature.get('label') || '',
+              offsetY: -16,
+              fill: new Fill({ color: '#f59e0b' }),
+              stroke: new Stroke({ color: '#000', width: 3 }),
+              font: 'bold 12px monospace',
+            }),
+          }),
+        });
+
+        // Parcel polygon layer
+        const parcelFeatures = parcels
+          .filter(p => p.walkPoints.length >= 3)
+          .map(p => {
+            const coords = p.walkPoints.map(wp =>
+              fromLonLat([wp.coordinate.lng, wp.coordinate.lat])
+            );
+            coords.push(coords[0]);
+            const f = new Feature({ geometry: new Polygon([coords]) });
+            f.set('label', p.label);
+            return f;
+          });
+
+        const parcelLayer = new VectorLayer({
+          source: new VectorSource({ features: parcelFeatures }),
+          style: new Style({
+            stroke: new Stroke({ color: '#10b981', width: 2 }),
+            fill: new Fill({ color: 'rgba(16,185,129,0.08)' }),
+          }),
+        });
+
+        const map = new Map({
+          target: containerRef.current,
+          layers: [baseLayer, ...vectorLayers, parcelLayer, beaconLayer],
+          view: new View({
+            center: kenyaCenter,
+            zoom: 6,
+            minZoom: 6,
+            maxZoom: 20,
+            extent: [-2.2e7, -1.2e7, 2.2e7, 1.5e7],
+          }),
+          controls: defaultControls({ attribution: false }),
+        });
+
+        // Fit to data extent (if we have beacons or parcels)
+        if (beaconFeatures.length > 0) {
+          const src = beaconLayer.getSource();
+          if (src) {
+            const ext = src.getExtent();
+            if (ext && ext[0] !== Infinity) {
+              map.getView().fit(ext, { padding: [80, 80, 80, 80], maxZoom: 17 });
+            }
+          }
+        } else if (parcelFeatures.length > 0) {
+          const src = parcelLayer.getSource();
+          if (src) {
+            const ext = src.getExtent();
+            if (ext && ext[0] !== Infinity) {
+              map.getView().fit(ext, { padding: [80, 80, 80, 80], maxZoom: 17 });
+            }
+          }
+        }
+
+        // Map click handler — uses ref for stable callback
+        map.on('click', (e: any) => {
+          const cb = onMapClickRef.current;
+          if (cb) {
+            const [lng, lat] = toLonLat(e.coordinate);
+            cb(lat, lng);
+          }
+        });
+
+        // GeoPDF layers
+        if (geoPDFLayers?.length) {
+          const { buildOLGeoPDFLayer } = await import('@/lib/field/geopdf');
+          geoPDFLayers.filter(g => g.visible && g.gcps.length === 4).forEach(g => {
+            map.addLayer(buildOLGeoPDFLayer(g));
+          });
+        }
+
+        // MBTiles layers
+        if (mbtilesSessions?.length) {
+          const { buildOLMBTilesLayer } = await import('@/lib/field/mbtiles');
+          mbtilesSessions.forEach(s => {
+            map.addLayer(buildOLMBTilesLayer(s));
+          });
+        }
+
+        mapRef.current = map;
+      } catch (err) {
+        console.error('[MapViewer] Init error:', err);
+      }
+    }
+
+    initMap();
+
+    return () => {
+      mounted = false;
+      if (mapRef.current) {
+        mapRef.current.setTarget(undefined);
+        mapRef.current = null;
+      }
+    };
+  }, [layers, beacons, parcels, geoPDFLayers, mbtilesSessions]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{ width: '100%', height: '100%' }}
+      className="absolute inset-0"
+    />
+  );
+});
+
+MapViewer.displayName = 'MapViewer';
+export default MapViewer;

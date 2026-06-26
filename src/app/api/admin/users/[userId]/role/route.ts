@@ -1,0 +1,103 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { apiHandler } from '@/lib/apiHandler';
+import { db } from '@/lib/db';
+import { assignRole, requirePermissionAsync, type Role, ROLE_HIERARCHY } from '@/lib/auth/rbac';
+import { logAuditEvent } from '@/lib/enterprise/auditTrail';
+import { z } from 'zod';
+
+export const dynamic = 'force-dynamic';
+
+const assignRoleSchema = z.object({
+  role: z.enum(['super_admin', 'org_admin', 'project_manager', 'surveyor', 'viewer']),
+});
+
+/**
+ * PUT /api/admin/users/[userId]/role
+ *
+ * Assign a role to a user. Requires `users.invite` permission.
+ * Body: { role: Role }
+ */
+export const PUT = apiHandler(
+  { auth: true, schema: assignRoleSchema , rateLimit: { max: 60, windowMs: 60000 } },
+  async (req, ctx) => {
+    const callerId = ctx.userId;
+    const targetUserId = ctx.params.userId;
+    const { role } = ctx.body as z.infer<typeof assignRoleSchema>;
+
+    // Check caller has permission to manage users
+    const permCheck = await requirePermissionAsync(callerId, 'users.invite');
+    if (permCheck) return permCheck.response as NextResponse;
+
+    // Caller can only assign roles at or below their own level
+    // Resolve caller role from DB
+    const { rows: callerRows } = await db.query(
+      `SELECT role FROM user_roles WHERE user_id = $1 AND revoked_at IS NULL
+       UNION
+       SELECT role FROM surveyor_profiles WHERE user_id = $1
+       LIMIT 1`,
+      [callerId],
+    );
+
+    if (callerRows.length === 0) {
+      return NextResponse.json(
+        { error: 'Caller role could not be determined', code: 'FORBIDDEN' },
+        { status: 403 },
+      );
+    }
+
+    const callerRoleRaw = callerRows[0].role as string;
+    // Map legacy 'admin' → 'org_admin'
+    const callerRole = (callerRoleRaw === 'admin' ? 'org_admin' : callerRoleRaw) as Role;
+    const callerLevel = ROLE_HIERARCHY.indexOf(callerRole);
+    const targetLevel = ROLE_HIERARCHY.indexOf(role);
+
+    if (callerLevel === -1 || targetLevel === -1) {
+      return NextResponse.json(
+        { error: 'Invalid role', code: 'BAD_REQUEST' },
+        { status: 400 },
+      );
+    }
+
+    // Can only assign roles at or below your level
+    if (targetLevel < callerLevel) {
+      return NextResponse.json(
+        { error: `Cannot assign role '${role}' — insufficient privilege. You can only assign roles at or below '${callerRole}'.`, code: 'FORBIDDEN' },
+        { status: 403 },
+      );
+    }
+
+    // Cannot change your own role
+    if (callerId === targetUserId) {
+      return NextResponse.json(
+        { error: 'Cannot change your own role', code: 'BAD_REQUEST' },
+        { status: 400 },
+      );
+    }
+
+    // Assign the role
+    await assignRole(targetUserId, role, callerId);
+
+    // Audit log
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const userAgent = req.headers.get('user-agent') || undefined;
+    await logAuditEvent({
+      userId: callerId,
+      action: 'user.role.assign',
+      resourceType: 'user',
+      resourceId: targetUserId,
+      details: { newRole: role, previousRole: callerRoleRaw },
+      ipAddress: clientIp,
+      userAgent,
+      timestamp: new Date(),
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        userId: targetUserId,
+        newRole: role,
+        assignedBy: callerId,
+      },
+    });
+  },
+);

@@ -1,0 +1,40 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { apiHandler } from '@/lib/apiHandler'
+import db from '@/lib/db'
+import type { EngineeringSubtype } from '@/lib/engine/engineering'
+import { SaveEngineeringDataSchema } from '@/lib/validation/apiSchemas'
+
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const { searchParams } = new URL(req.url)
+  const projectId = searchParams.get('projectId')
+
+  if (!projectId) {
+    return NextResponse.json({ error: 'Missing projectId' }, { status: 400 })
+  }
+
+  const { rows } = await db.query(
+    'SELECT * FROM engineering_survey_data WHERE project_id = $1 LIMIT 1',
+    [projectId]
+  )
+
+  if (rows.length === 0) {
+    return NextResponse.json({ data: null })
+  }
+
+  return NextResponse.json({ data: rows[0] })
+})
+
+export const POST = apiHandler({ auth: true, schema: SaveEngineeringDataSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const { projectId, subtype, data } = ctx.body as z.infer<typeof SaveEngineeringDataSchema>
+
+  const { rows } = await db.query(
+    `INSERT INTO engineering_survey_data (project_id, subtype, data)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (project_id) DO UPDATE SET subtype = EXCLUDED.subtype, data = EXCLUDED.data
+     RETURNING *`,
+    [projectId, subtype, JSON.stringify(data)]
+  )
+
+  return NextResponse.json({ data: rows[0] })
+})

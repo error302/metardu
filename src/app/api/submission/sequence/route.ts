@@ -1,0 +1,39 @@
+/**
+ * POST /api/submission/sequence
+ * Atomically increments the submission sequence number for a surveyor/year pair.
+ * Uses direct PostgreSQL with advisory lock instead of DbClient RPC.
+ */
+
+import { NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
+import db from '@/lib/db'
+
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const body = ctx.body as { surveyorProfileId?: string; year?: number } | null
+
+  if (!body?.surveyorProfileId || !body.year) {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+
+  const { surveyorProfileId, year } = body
+
+  // Atomic upsert — INSERT with ON CONFLICT to atomically increment
+  const { rows } = await db.query(
+    `INSERT INTO submission_sequences (surveyor_profile_id, year, current_sequence)
+     VALUES ($1, $2, 1)
+     ON CONFLICT (surveyor_profile_id, year)
+     DO UPDATE SET current_sequence = submission_sequences.current_sequence + 1
+     RETURNING current_sequence`,
+    [surveyorProfileId, year]
+  )
+
+  const sequence = rows[0]?.current_sequence ?? 1
+  const referenceNumber = `ISK_${year}_${String(sequence).padStart(3, '0')}_R00`
+
+  return NextResponse.json({
+    sequence,
+    reference_number: referenceNumber,
+    revision: 0,
+    year
+  })
+})
