@@ -126,21 +126,22 @@ export function QuickCompute() {
       {/* ── FAB Button ────────────────────────────────────────── */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-44 right-4 md:bottom-20 md:right-6 z-[41] flex items-center gap-2.5
+        className="fixed right-4 z-[51] flex items-center gap-2.5
                    bg-gradient-to-r from-[#FFB84D] to-[#E8841A] text-white
                    px-5 py-3 rounded-2xl font-semibold text-sm
                    shadow-[0_0_20px_rgba(232,132,26,0.3)]
                    hover:shadow-[0_0_30px_rgba(232,132,26,0.45)]
                    transition-all duration-300 hover:scale-[1.02]
-                   active:scale-[0.98]"
+                   active:scale-[1.02]
+                   bottom-20 md:bottom-6"
       >
         <BoltIcon className="w-4 h-4" active />
-        <span>Quick Compute</span>
+        <span className="hidden sm:inline">Quick Compute</span>
       </button>
 
       {/* ── Slide-in Panel ────────────────────────────────────── */}
       <div
-        className={`fixed inset-0 z-50 flex transition-all duration-300 ease-out ${
+        className={`fixed inset-0 z-[60] flex transition-all duration-300 ease-out ${
           open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -158,19 +159,24 @@ export function QuickCompute() {
                       ${open ? 'translate-x-0' : 'translate-x-full'}`}
         >
           {/* Panel header */}
-          <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-[#0d0d14]/95 backdrop-blur-xl border-b border-white/[0.06]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-[#E8841A]/10 flex items-center justify-center">
-                <BoltIcon className="w-4 h-4" active />
+          <div className="sticky top-0 z-10 p-4 bg-[#0d0d14]/95 backdrop-blur-xl border-b border-white/[0.06]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-[#E8841A]/10 flex items-center justify-center">
+                  <BoltIcon className="w-4 h-4" active />
+                </div>
+                <h2 className="font-semibold text-white text-base tracking-wide">Quick Compute</h2>
               </div>
-              <h2 className="font-semibold text-white text-base tracking-wide">Quick Compute</h2>
+              <button
+                onClick={() => setOpen(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/[0.06] transition-colors"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/[0.06] transition-colors"
-            >
-              <XIcon className="w-4 h-4" />
-            </button>
+            <p className="mt-1.5 text-[11px] text-gray-500 leading-snug">
+              Fast access to all computation tools. Visit <a href="/tools" className="text-[#E8841A] hover:underline">Tools page</a> for full details &amp; favorites.
+            </p>
           </div>
 
           {/* Tools list */}

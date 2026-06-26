@@ -485,8 +485,8 @@ export default function NavBar() {
               </Dropdown>
             </div>
 
-            {/* Field mode toggle — inline in navbar, unobtrusive */}
-            <div className={isRootPath(pathname) ? "block" : "hidden md:block"}>
+            {/* Field mode / dark toggle — always visible in navbar */}
+            <div className="block">
               <FieldModeToggle />
             </div>
 

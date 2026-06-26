@@ -137,7 +137,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden">
                 {children}
               </main>
-              <div className="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
+              <div className="fixed top-4 right-4 z-50">
                 <FieldModeToggle />
               </div>
               <KeyboardShortcuts />
