@@ -74,6 +74,9 @@ export interface MapContextValue {
   }
   vertexEditingVertices: Array<{ easting: number; northing: number }>
 
+  // ── GPS in EPSG:21037 (for StakeoutPanel) ──
+  gpsPos21037: { easting: number; northing: number; accuracy: number } | null
+
   // ── Projection state (Tier 2) ──
   activeProjection: string
 

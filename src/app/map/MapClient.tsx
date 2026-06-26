@@ -857,6 +857,7 @@ export default function MapClient() {
     snapTolerance,
     vertexEditState: vertexEditState,
     vertexEditingVertices,
+    gpsPos21037,
     activeProjection,
     showSheetLayout,
     isPrinting,
@@ -913,6 +914,7 @@ export default function MapClient() {
     schemeBeaconCount, showSchemeParcels, showSchemeBlocks, showSchemeBeacons,
     hasTraverse, traverseParcelPreviewActive, schemeProjectId,
     vertexEditingEnabled, snapEnabled, snapTolerance, vertexEditState, vertexEditingVertices,
+    gpsPos21037,
     activeProjection, showSheetLayout, isPrinting,
     hasFeature, canUndo, canRedo,
     setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen,
@@ -954,44 +956,11 @@ export default function MapClient() {
 
               <MapNotifications />
 
-              {/* Stakeout Panel (full-featured) */}
-              <StakeoutPanel
-                active={stakeoutActive}
-                target={stakeoutTarget ? { easting: stakeoutTarget.e, northing: stakeoutTarget.n } : null}
-                stakeoutState={stakeoutState}
-                gpsPos={gpsPos21037}
-                gpsAccuracy={gpsPos?.accuracy ?? 0}
-                onCancel={interactions.deactivateStakeout}
-                audioMuted={audioMuted}
-                onToggleAudio={() => setAudioMuted(m => !m)}
-                isMobile={isMobile}
-              />
+              {/* Stakeout Panel (zero-prop, reads from context) */}
+              <StakeoutPanel />
 
-              {/* Scheme Layer Panel */}
-              <SchemeLayerPanel
-                hasProjectId={!!schemeProjectId}
-                loading={schemeLoading}
-                error={schemeError}
-                loaded={schemeLoaded}
-                parcelCount={schemeParcelCount}
-                blockCount={schemeBlockCount}
-                beaconCount={schemeBeaconCount}
-                showParcels={showSchemeParcels}
-                showBlocks={showSchemeBlocks}
-                showBeacons={showSchemeBeacons}
-                hasTraverse={hasTraverse}
-                traverseParcelPreviewActive={traverseParcelPreviewActive}
-                onLoadScheme={loadSchemeData}
-                onRetry={loadSchemeData}
-                onToggleParcels={toggleSchemeParcelVisibility}
-                onToggleBlocks={toggleSchemeBlockVisibility}
-                onToggleBeacons={toggleSchemeBeaconVisibility}
-                onZoomToScheme={handleZoomToScheme}
-                onRemoveScheme={handleRemoveScheme}
-                onCreateParcelFromTraverse={handleCreateParcelFromTraverse}
-                onConfirmTraverseParcel={handleConfirmTraverseParcel}
-                onCancelTraverseParcel={handleCancelTraverseParcel}
-              />
+              {/* Scheme Layer Panel (zero-prop, reads from context) */}
+              <SchemeLayerPanel />
 
               {/* ── Tier 1: Layer Control (Grid + XYZ + WMS + Opacity) ── */}
               <div className="absolute top-14 right-3 z-20 sm:top-16 sm:right-4 flex flex-col gap-2 items-end">

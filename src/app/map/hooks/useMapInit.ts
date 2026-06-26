@@ -106,6 +106,7 @@ export function useMapInit(params: UseMapInitParams) {
           import('ol/interaction/Snap'),
           import('ol/interaction/Modify'),
           import('ol/interaction/DragAndDrop'),
+          import('ol/interaction/DragRotate'),
           import('ol/Overlay'),
           import('ol/Geolocation'),
           import('ol/format/GeoJSON'),
@@ -119,7 +120,7 @@ export function useMapInit(params: UseMapInitParams) {
         const [Map, View, TileLayer, VectorLayer, LayerGroup, OSM, XYZ, VectorSource,
           Cluster, Feature, Point, Polygon, CircleGeom, LineString, Style, Fill, Stroke,
           CircleStyle, Text, Icon, ScaleLine, Attribution, MousePosition,
-          Draw, Select, Snap, Modify, DragAndDrop, Overlay, Geolocation,
+          Draw, Select, Snap, Modify, DragAndDrop, DragRotate, Overlay, Geolocation,
           GeoJSONFormat, KMLFormat, WKTFormat] = imports.map(i => ('default' in i ? i.default : i)) as any[]
 
         olModules.VectorSource = VectorSource
@@ -404,6 +405,16 @@ export function useMapInit(params: UseMapInitParams) {
         // ── Snap interaction ──
         const snap = new Snap({ source: drawSource })
         map.addInteraction(snap)
+
+        // ── DragRotate interaction (Alt + drag to rotate map) ──
+        const dragRotate = new DragRotate({
+          condition: (mapBrowserEvent: any) => {
+            // Alt key (or Option on Mac) must be held
+            const altKey = mapBrowserEvent.originalEvent?.altKey
+            return !!altKey
+          },
+        })
+        map.addInteraction(dragRotate)
 
         // ── Geolocation ──
         const geolocation = new Geolocation({

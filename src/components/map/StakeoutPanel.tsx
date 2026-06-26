@@ -8,43 +8,34 @@
  * Auto-hides when arrived (<1m for 3 seconds).
  *
  * Touch-friendly with large text for field use.
+ *
+ * Now consumes all state from MapReactContext via useMapContext().
+ * Previously received 9 props from MapClient — now reads from context directly.
  */
 
 import React, { memo, useState, useEffect, useRef } from 'react'
-import type { StakeoutState, StakeoutTarget, StakeoutPosition } from '@/lib/map/stakeout'
+import { useMapContext } from '@/app/map/MapReactContext'
 
-export interface StakeoutPanelProps {
-  /** Whether stakeout is currently active */
-  active: boolean
-  /** The target point */
-  target: StakeoutTarget | null
-  /** Current computed stakeout state */
-  stakeoutState: StakeoutState | null
-  /** Current GPS position */
-  gpsPos: StakeoutPosition | null
-  /** GPS accuracy in meters */
-  gpsAccuracy: number
-  /** Cancel the stakeout */
-  onCancel: () => void
-  /** Whether audio is currently muted */
-  audioMuted: boolean
-  /** Toggle audio mute */
-  onToggleAudio: () => void
-  /** Is this a mobile viewport */
-  isMobile: boolean
-}
+export const StakeoutPanel = memo(function StakeoutPanel() {
+  const {
+    stakeoutActive: active,
+    stakeoutTarget,
+    stakeoutState,
+    gpsPos21037,
+    gpsPos,
+    deactivateStakeout,
+    audioMuted,
+    setAudioMuted,
+    isMobile,
+  } = useMapContext()
 
-export const StakeoutPanel = memo(function StakeoutPanel({
-  active,
-  target,
-  stakeoutState,
-  gpsPos: _gpsPos,
-  gpsAccuracy,
-  onCancel,
-  audioMuted,
-  onToggleAudio,
-  isMobile,
-}: StakeoutPanelProps) {
+  // Derive target in StakeoutTarget format
+  const target = stakeoutTarget
+    ? { easting: stakeoutTarget.e, northing: stakeoutTarget.n }
+    : null
+
+  const gpsAccuracy = gpsPos?.accuracy ?? 0
+
   const [arrivedStartTime, setArrivedStartTime] = useState<number | null>(null)
   const [autoHidden, setAutoHidden] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -108,6 +99,8 @@ export const StakeoutPanel = memo(function StakeoutPanel({
   const progressPercent = stakeoutState
     ? Math.max(0, Math.min(100, ((3 - Math.min(stakeoutState.distance, 3)) / 3) * 100))
     : 0
+
+  const onToggleAudio = () => setAudioMuted(m => !m)
 
   return (
     <div
@@ -180,7 +173,7 @@ export const StakeoutPanel = memo(function StakeoutPanel({
 
           {/* Cancel button */}
           <button
-            onClick={onCancel}
+            onClick={deactivateStakeout}
             className="w-7 h-7 flex items-center justify-center rounded-lg
                        bg-red-500/10 border border-red-500/20 text-red-400
                        hover:text-red-300 hover:bg-red-500/20 transition-colors"
@@ -202,13 +195,10 @@ export const StakeoutPanel = memo(function StakeoutPanel({
             Target
           </div>
           <div className="text-sm text-white font-semibold truncate">
-            {target.name || target.id || 'Point'}
+            Point
           </div>
           <div className="text-[11px] text-gray-400 font-mono">
             E: {target.easting.toFixed(2)} &nbsp; N: {target.northing.toFixed(2)}
-            {target.elevation != null && (
-              <span className="text-gray-500"> &nbsp; RL: {target.elevation.toFixed(2)}</span>
-            )}
           </div>
         </div>
 

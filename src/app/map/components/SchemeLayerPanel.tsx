@@ -14,72 +14,39 @@
  *
  * Positioned at the top-right of the map, styled to match the
  * existing dark glass-morphism UI (bg-[#14141e]/95, #E8841A accents).
+ *
+ * Now consumes all state and actions from MapReactContext via useMapContext().
+ * Previously received 18 props from MapClient — now reads from context directly.
  */
 
-import React, { memo, useCallback, useState } from 'react'
+import React, { memo, useState } from 'react'
+import { useMapContext } from '@/app/map/MapReactContext'
 
-export interface SchemeLayerPanelProps {
-  /** Whether a project ID is available for loading scheme data */
-  hasProjectId: boolean
-  /** Project name (for display) */
-  projectName?: string
-  /** Loading state */
-  loading: boolean
-  /** Error message (empty = no error) */
-  error: string
-  /** Whether scheme data is currently loaded */
-  loaded: boolean
-  /** Feature counts */
-  parcelCount: number
-  blockCount: number
-  beaconCount: number
-  /** Layer visibility toggles */
-  showParcels: boolean
-  showBlocks: boolean
-  showBeacons: boolean
-  /** Whether a traverse has been computed for the project */
-  hasTraverse?: boolean
-  /** Traverse-to-parcel workflow state */
-  traverseParcelPreviewActive?: boolean
-  /** Handlers */
-  onLoadScheme: () => void
-  onRetry: () => void
-  onToggleParcels: () => void
-  onToggleBlocks: () => void
-  onToggleBeacons: () => void
-  onZoomToScheme: () => void
-  onRemoveScheme: () => void
-  /** Traverse-to-parcel handlers */
-  onCreateParcelFromTraverse?: () => void
-  onConfirmTraverseParcel?: () => void
-  onCancelTraverseParcel?: () => void
-}
+export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
+  const {
+    hasProjectId,
+    schemeLoading: loading,
+    schemeError: error,
+    schemeLoaded: loaded,
+    schemeParcelCount: parcelCount,
+    schemeBlockCount: blockCount,
+    schemeBeaconCount: beaconCount,
+    showSchemeParcels: showParcels,
+    showSchemeBlocks: showBlocks,
+    showSchemeBeacons: showBeacons,
+    hasTraverse,
+    traverseParcelPreviewActive,
+    loadSchemeData,
+    toggleSchemeParcelVisibility,
+    toggleSchemeBlockVisibility,
+    toggleSchemeBeaconVisibility,
+    zoomToScheme,
+    removeScheme,
+    createParcelFromTraverse,
+    confirmTraverseParcel,
+    cancelTraverseParcel,
+  } = useMapContext()
 
-export const SchemeLayerPanel = memo(function SchemeLayerPanel({
-  hasProjectId,
-  projectName,
-  loading,
-  error,
-  loaded,
-  parcelCount,
-  blockCount,
-  beaconCount,
-  showParcels,
-  showBlocks,
-  showBeacons,
-  hasTraverse,
-  traverseParcelPreviewActive,
-  onLoadScheme,
-  onRetry,
-  onToggleParcels,
-  onToggleBlocks,
-  onToggleBeacons,
-  onZoomToScheme,
-  onRemoveScheme,
-  onCreateParcelFromTraverse,
-  onConfirmTraverseParcel,
-  onCancelTraverseParcel,
-}: SchemeLayerPanelProps) {
   const [showTraverseWorkflow, setShowTraverseWorkflow] = useState(false)
 
   if (!hasProjectId) return null
@@ -99,11 +66,6 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
               Scheme Data
             </span>
           </div>
-          {projectName && (
-            <span className="text-[10px] text-gray-500 truncate max-w-[120px]">
-              {projectName}
-            </span>
-          )}
         </div>
 
         {/* Body */}
@@ -111,7 +73,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
           {/* Load / Loading / Error State */}
           {!loaded && !loading && !error && (
             <button
-              onClick={onLoadScheme}
+              onClick={loadSchemeData}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg
                          bg-[#E8841A]/15 border border-[#E8841A]/30 text-[#E8841A]
                          text-xs font-semibold transition-all duration-200
@@ -143,7 +105,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
                 {error}
               </div>
               <button
-                onClick={onRetry}
+                onClick={loadSchemeData}
                 className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg
                            bg-white/[0.04] border border-white/[0.08] text-gray-400
                            text-[11px] font-medium transition-all duration-200
@@ -168,7 +130,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
                   count={parcelCount}
                   active={showParcels}
                   color="#006600"
-                  onToggle={onToggleParcels}
+                  onToggle={toggleSchemeParcelVisibility}
                 />
                 {/* Blocks toggle */}
                 <LayerToggle
@@ -176,7 +138,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
                   count={blockCount}
                   active={showBlocks}
                   color="#E8841A"
-                  onToggle={onToggleBlocks}
+                  onToggle={toggleSchemeBlockVisibility}
                 />
                 {/* Beacons toggle */}
                 <LayerToggle
@@ -184,17 +146,17 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
                   count={beaconCount}
                   active={showBeacons}
                   color="#FFD700"
-                  onToggle={onToggleBeacons}
+                  onToggle={toggleSchemeBeaconVisibility}
                 />
               </div>
 
               {/* Traverse-to-Parcel Workflow */}
-              {hasTraverse && !traverseParcelPreviewActive && onCreateParcelFromTraverse && (
+              {hasTraverse && !traverseParcelPreviewActive && (
                 <div className="pt-1 border-t border-white/[0.06]">
                   <button
                     onClick={() => {
                       setShowTraverseWorkflow(true)
-                      onCreateParcelFromTraverse()
+                      createParcelFromTraverse()
                     }}
                     className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg
                                bg-green-500/10 border border-green-500/25 text-green-400
@@ -224,7 +186,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
                   </p>
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={onConfirmTraverseParcel}
+                      onClick={confirmTraverseParcel}
                       className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
                                  bg-green-500/20 border border-green-500/30 text-green-400
                                  text-[11px] font-semibold transition-all duration-200
@@ -238,7 +200,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
                       Confirm
                     </button>
                     <button
-                      onClick={onCancelTraverseParcel}
+                      onClick={cancelTraverseParcel}
                       className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
                                  bg-red-500/10 border border-red-500/20 text-red-400
                                  text-[11px] font-medium transition-all duration-200
@@ -258,7 +220,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
               {/* Action buttons */}
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={onZoomToScheme}
+                  onClick={zoomToScheme}
                   className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
                              bg-white/[0.04] border border-white/[0.08] text-gray-400
                              text-[11px] font-medium transition-all duration-200
@@ -272,7 +234,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel({
                   Zoom
                 </button>
                 <button
-                  onClick={onRemoveScheme}
+                  onClick={removeScheme}
                   className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
                              bg-red-500/10 border border-red-500/20 text-red-400
                              text-[11px] font-medium transition-all duration-200
