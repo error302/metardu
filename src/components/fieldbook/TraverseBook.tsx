@@ -124,9 +124,9 @@ export function TraverseBook({
         // Coordinates available for grid scale factor computation
         fromEasting: parseFloat(startE) || undefined,
         fromNorthing: parseFloat(startN) || undefined,
-        // Note: temperature/pressure/height not available in simplified fieldbook
-        // — pipeline will skip those stages and log warnings
-        skipSeaLevel: true,  // No elevation data in fieldbook traverse yet
+        // Note: atmospheric/sea level corrections skipped unless
+        // temperature/pressure/elevation are provided via the
+        // TraverseFieldBook component's Atmospheric Conditions panel
       })
 
       const fromStation = i === 0 ? startStation : travRows[i - 1]?.station || '?'
