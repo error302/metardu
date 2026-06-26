@@ -12,6 +12,7 @@ import {
   ZoomIn,
   HardDrive,
 } from 'lucide-react'
+import { useMapContext } from '@/app/map/MapReactContext'
 import {
   Dialog,
   DialogContent,
@@ -89,11 +90,12 @@ function formatNumber(n: number): string {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export function OfflineTileDownloader({
-  open,
-  onOpenChange,
-  mapExtent,
-}: OfflineTileDownloaderProps) {
+export function OfflineTileDownloader() {
+  const {
+    offlineDialogOpen: open,
+    toggleOfflineDialog: onOpenChange,
+    offlineMapExtent: mapExtent,
+  } = useMapContext()
   // Source selection
   const [sourceType, setSourceType] = useState<string>('osm')
   const [customUrl, setCustomUrl] = useState('')

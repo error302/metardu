@@ -5,21 +5,16 @@
  * Shows a spinner while the map initializes, or an error message
  * with retry/reload options if initialization fails.
  * Memoized for performance.
+ *
+ * Now consumes state from MapReactContext via useMapContext().
  */
 
 import React, { memo } from 'react'
+import { useMapContext } from '@/app/map/MapReactContext'
 
-interface MapLoadingOverlayProps {
-  mapReady: boolean
-  initError: string
-  onRetry: () => void
-}
+export const MapLoadingOverlay = memo(function MapLoadingOverlay() {
+  const { mapReady, initError, retryInit } = useMapContext()
 
-export const MapLoadingOverlay = memo(function MapLoadingOverlay({
-  mapReady,
-  initError,
-  onRetry,
-}: MapLoadingOverlayProps) {
   if (mapReady && !initError) return null
 
   return (
@@ -31,7 +26,7 @@ export const MapLoadingOverlay = memo(function MapLoadingOverlay({
             <p className="text-sm text-gray-400 mb-4">{initError}</p>
             <div className="flex gap-3 justify-center">
               <button
-                onClick={onRetry}
+                onClick={retryInit}
                 className="px-4 py-2 bg-white/10 text-white rounded-lg text-sm hover:bg-white/20 transition-colors"
               >
                 Retry

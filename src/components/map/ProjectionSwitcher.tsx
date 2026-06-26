@@ -6,15 +6,13 @@
  * Allows surveyors to switch between Web Mercator (EPSG:3857) and
  * Kenya-specific Arc 1960 / WGS84 UTM projections.
  * Uses nativeProjectionView.ts for the actual projection switching.
+ *
+ * Now consumes activeProjection and switchProjection from MapReactContext.
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, memo } from 'react'
 import { Globe, ChevronDown } from 'lucide-react'
-
-interface ProjectionSwitcherProps {
-  activeProjection: string
-  onSwitch: (projection: string) => void
-}
+import { useMapContext } from '@/app/map/MapReactContext'
 
 interface ProjectionOption {
   code: string
@@ -29,7 +27,8 @@ const PROJECTIONS: ProjectionOption[] = [
   { code: 'EPSG:32736', label: 'WGS 84 / UTM 36S', shortLabel: '32736' },
 ]
 
-export function ProjectionSwitcher({ activeProjection, onSwitch }: ProjectionSwitcherProps) {
+export const ProjectionSwitcher = memo(function ProjectionSwitcher() {
+  const { activeProjection, switchProjection } = useMapContext()
   const [open, setOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -68,7 +67,7 @@ export function ProjectionSwitcher({ activeProjection, onSwitch }: ProjectionSwi
             <button
               key={p.code}
               onClick={() => {
-                onSwitch(p.code)
+                switchProjection(p.code)
                 setOpen(false)
               }}
               className={`w-full text-left px-3 py-2 text-xs transition-colors ${
@@ -90,4 +89,4 @@ export function ProjectionSwitcher({ activeProjection, onSwitch }: ProjectionSwi
       )}
     </div>
   )
-}
+})

@@ -85,12 +85,12 @@ import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { CogoInfoPanel } from '@/app/map/components/CogoInfoPanel'
 import { RotationControl } from '@/app/map/components/RotationControl'
+import { MapPrintButton } from '@/app/map/components/MapPrintButton'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
 import { StakeoutPanel } from '@/components/map/StakeoutPanel'
 import { LayerControl } from '@/components/map/LayerControl'
-import { VertexEditToolbar } from '@/components/map/VertexEditToolbar'
+import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
-import { PrintButton } from '@/hooks/usePrint'
 import { switchMapView, getProjectionConfig, registerExtendedProjections } from '@/lib/map/nativeProjectionView'
 
 // ── Hooks ──
@@ -515,6 +515,15 @@ export default function MapClient() {
     setTimeout(() => setShowSheetLayout(false), 6000)
   }, [printMap])
 
+  // ── Offline dialog toggle (async: resolves map extent when opening) ──
+  const handleToggleOfflineDialog = useCallback(async (open: boolean) => {
+    setOfflineDialogOpen(open)
+    if (open) {
+      const extent = await interactions.getMapExtent()
+      setOfflineMapExtent(extent)
+    }
+  }, [interactions])
+
   // ── Scheme layer: get projectId from URL params ──
   const schemeProjectId = searchParams.get('projectId')
 
@@ -861,6 +870,13 @@ export default function MapClient() {
     activeProjection,
     showSheetLayout,
     isPrinting,
+    paperSize,
+    orientation,
+    setPaperSize,
+    setOrientation,
+    offlineMapExtent,
+    retryInit: () => { setInitError(''); setMapReady(false) },
+    schemeProjectId,
     hasFeature,
     canUndo,
     canRedo,
@@ -904,6 +920,7 @@ export default function MapClient() {
     cancelTraverseParcel: handleCancelTraverseParcel,
     switchProjection: handleProjectionSwitch,
     printMap: handlePrintMap,
+    toggleOfflineDialog: handleToggleOfflineDialog,
   }), [
     mapInstance, popupRef, mapReady, initError, projectCount, basemap, drawMode,
     measureMode, editMode, mouseCoord, gpsTracking, gpsPos, featureCount, importMsg,
@@ -916,6 +933,7 @@ export default function MapClient() {
     vertexEditingEnabled, snapEnabled, snapTolerance, vertexEditState, vertexEditingVertices,
     gpsPos21037,
     activeProjection, showSheetLayout, isPrinting,
+    paperSize, orientation, offlineMapExtent, schemeProjectId,
     hasFeature, canUndo, canRedo,
     setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen,
     setVertexEditingEnabled, setSnapEnabled, setSnapTolerance, setShowSheetLayout,
@@ -925,6 +943,7 @@ export default function MapClient() {
     toggleSchemeBeaconVisibility, handleZoomToScheme, handleRemoveScheme,
     handleCreateParcelFromTraverse, handleConfirmTraverseParcel,
     handleCancelTraverseParcel, handleProjectionSwitch, handlePrintMap,
+    handleToggleOfflineDialog,
     undo, redo,
   ])
 
@@ -975,27 +994,16 @@ export default function MapClient() {
                   }}
                 />
 
-                {/* ── Tier 2: Projection Switcher ── */}
-                <ProjectionSwitcher
-                  activeProjection={activeProjection}
-                  onSwitch={handleProjectionSwitch}
-                />
+                {/* ── Tier 2: Projection Switcher (zero-prop) ── */}
+                <ProjectionSwitcher />
 
                 {/* ── Rotation Control (north reset) ── */}
                 <RotationControl />
               </div>
 
-              {/* ── Tier 1: Vertex Edit Toolbar ── */}
+              {/* ── Vertex Edit Toolbar (zero-prop, reads from context) ── */}
               <div className="absolute top-3 right-[280px] z-20 sm:top-4 sm:right-[292px]">
-                <VertexEditToolbar
-                  enabled={vertexEditingEnabled}
-                  onToggle={() => setVertexEditingEnabled(v => !v)}
-                  snapEnabled={snapEnabled}
-                  onSnapToggle={() => setSnapEnabled(v => !v)}
-                  snapTolerance={snapTolerance}
-                  onToleranceChange={setSnapTolerance}
-                  editState={vertexEditState}
-                />
+                <VertexEditToolbar />
               </div>
 
               {/* ── COGO Info Panel (bottom-left, above status bar) ── */}
@@ -1019,17 +1027,7 @@ export default function MapClient() {
                     <path d="M12 8v8M8 12h8" />
                   </svg>
                 </button>
-                <PrintButton
-                  print={handlePrintMap}
-                  isPrinting={isPrinting}
-                  paperSize={paperSize}
-                  setPaperSize={setPaperSize}
-                  orientation={orientation}
-                  setOrientation={setOrientation}
-                  compact
-                  printTarget="metardu-global-map"
-                  printTitle="METARDU Global Map"
-                />
+                <MapPrintButton />
               </div>
 
               {/* ── Tier 1: Sheet Layout Overlay (for print) ── */}
@@ -1044,30 +1042,16 @@ export default function MapClient() {
             </>
           )}
 
-          {/* Loading / Error overlay */}
-          <MapLoadingOverlay
-            mapReady={mapReady}
-            initError={initError}
-            onRetry={() => { setInitError(''); setMapReady(false) }}
-          />
+          {/* Loading / Error overlay (zero-prop, reads from context) */}
+          <MapLoadingOverlay />
         </div>
 
         {/* Global styles */}
         <MapGlobalStyles />
 
-        {/* Offline tile dialog */}
+        {/* Offline tile dialog (zero-prop, reads from context) */}
         {mapReady && (
-          <OfflineTileDownloader
-            open={offlineDialogOpen}
-            onOpenChange={async (open: boolean) => {
-              setOfflineDialogOpen(open)
-              if (open) {
-                const extent = await interactions.getMapExtent()
-                setOfflineMapExtent(extent)
-              }
-            }}
-            mapExtent={offlineMapExtent}
-          />
+          <OfflineTileDownloader />
         )}
       </div>
       </MapProvider>

@@ -1,6 +1,15 @@
 'use client';
+/**
+ * VertexEditToolbar — Vertex editing controls for survey parcels
+ *
+ * Two exports:
+ * - VertexEditToolbar: Props-based version (for SurveyMap and other standalone pages)
+ * - VertexEditToolbarContext: Context-based zero-prop version (for MapClient page)
+ *
+ * This split avoids conditional hook calls and keeps both usage patterns clean.
+ */
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import {
   Pencil,
   Magnet,
@@ -13,32 +22,25 @@ import {
 } from 'lucide-react';
 import type { VertexEditingState } from '@/hooks/useVertexEditing';
 
-interface VertexEditToolbarProps {
-  /** Whether vertex editing is currently active */
-  enabled: boolean;
-  /** Toggle editing on/off */
-  onToggle: () => void;
-  /** Whether snap-to-vertex is active */
-  snapEnabled: boolean;
-  /** Toggle snap on/off */
-  onSnapToggle: () => void;
-  /** Current snap tolerance in pixels */
-  snapTolerance: number;
-  /** Change snap tolerance */
-  onToleranceChange: (val: number) => void;
-  /** Vertex editing state from the hook */
-  editState: VertexEditingState;
-}
+// ── Inner component (always receives explicit values) ──
 
-export function VertexEditToolbar({
+function VertexEditToolbarInner({
   enabled,
   onToggle,
-  snapEnabled,
+  snapEnabled: snapOn,
   onSnapToggle,
-  snapTolerance,
+  snapTolerance: tolerance,
   onToleranceChange,
   editState,
-}: VertexEditToolbarProps) {
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+  snapEnabled: boolean;
+  onSnapToggle: () => void;
+  snapTolerance: number;
+  onToleranceChange: (val: number) => void;
+  editState: VertexEditingState;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -115,27 +117,27 @@ export function VertexEditToolbar({
                   onClick={onSnapToggle}
                   className={[
                     'relative w-9 h-5 rounded-full transition-colors',
-                    snapEnabled ? 'bg-[#1B3A5C]' : 'bg-gray-300',
+                    snapOn ? 'bg-[#1B3A5C]' : 'bg-gray-300',
                   ].join(' ')}
                 >
                   <span
                     className={[
                       'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                      snapEnabled ? 'translate-x-4' : 'translate-x-0.5',
+                      snapOn ? 'translate-x-4' : 'translate-x-0.5',
                     ].join(' ')}
                   />
                 </button>
               </div>
 
               {/* Tolerance slider */}
-              {snapEnabled && (
+              {snapOn && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[11px] text-gray-500">
                       Snap tolerance
                     </span>
                     <span className="text-[11px] font-mono text-[#1B3A5C]">
-                      {snapTolerance}px
+                      {tolerance}px
                     </span>
                   </div>
                   <input
@@ -143,7 +145,7 @@ export function VertexEditToolbar({
                     min={5}
                     max={20}
                     step={1}
-                    value={snapTolerance}
+                    value={tolerance}
                     onChange={(e) => onToleranceChange(Number(e.target.value))}
                     className="w-full h-1.5 accent-[#1B3A5C] cursor-pointer"
                   />
@@ -207,3 +209,73 @@ export function VertexEditToolbar({
     </div>
   );
 }
+
+// ── Props interface (for SurveyMap and other non-context consumers) ──
+
+interface VertexEditToolbarProps {
+  enabled: boolean;
+  onToggle: () => void;
+  snapEnabled: boolean;
+  onSnapToggle: () => void;
+  snapTolerance: number;
+  onToleranceChange: (val: number) => void;
+  editState: VertexEditingState;
+}
+
+/**
+ * VertexEditToolbar — Props-based version
+ * Use this in SurveyMap and other pages that don't have MapProvider.
+ */
+export const VertexEditToolbar = memo(function VertexEditToolbar({
+  enabled,
+  onToggle,
+  snapEnabled,
+  onSnapToggle,
+  snapTolerance,
+  onToleranceChange,
+  editState,
+}: VertexEditToolbarProps) {
+  return (
+    <VertexEditToolbarInner
+      enabled={enabled}
+      onToggle={onToggle}
+      snapEnabled={snapEnabled}
+      onSnapToggle={onSnapToggle}
+      snapTolerance={snapTolerance}
+      onToleranceChange={onToleranceChange}
+      editState={editState}
+    />
+  );
+});
+
+// ── Context-based version (for MapClient page) ──
+
+import { useMapContext } from '@/app/map/MapReactContext';
+
+/**
+ * VertexEditToolbarContext — Zero-prop version that reads from MapReactContext.
+ * Use this in the MapClient page where MapProvider is available.
+ */
+export const VertexEditToolbarContext = memo(function VertexEditToolbarContext() {
+  const {
+    vertexEditingEnabled,
+    setVertexEditingEnabled,
+    snapEnabled,
+    setSnapEnabled,
+    snapTolerance,
+    setSnapTolerance,
+    vertexEditState,
+  } = useMapContext()
+
+  return (
+    <VertexEditToolbarInner
+      enabled={vertexEditingEnabled}
+      onToggle={() => setVertexEditingEnabled(v => !v)}
+      snapEnabled={snapEnabled}
+      onSnapToggle={() => setSnapEnabled(v => !v)}
+      snapTolerance={snapTolerance}
+      onToleranceChange={setSnapTolerance}
+      editState={vertexEditState}
+    />
+  );
+});

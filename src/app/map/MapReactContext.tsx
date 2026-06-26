@@ -12,6 +12,7 @@
 import React, { createContext, useContext } from 'react'
 import type { BasemapMode, DrawMode, MeasureMode } from '@/hooks/useMapTypes'
 import type { StakeoutState } from '@/lib/map/stakeout'
+import type { PaperSize, Orientation } from '@/hooks/usePrint'
 
 // ─── Context Value Type ──────────────────────────────────────────────────
 
@@ -83,6 +84,19 @@ export interface MapContextValue {
   // ── Print state (Tier 1) ──
   showSheetLayout: boolean
   isPrinting: boolean
+  paperSize: PaperSize
+  orientation: Orientation
+  setPaperSize: React.Dispatch<React.SetStateAction<PaperSize>>
+  setOrientation: React.Dispatch<React.SetStateAction<Orientation>>
+
+  // ── Offline map state ──
+  offlineMapExtent: any
+
+  // ── Init retry action ──
+  retryInit: () => void
+
+  // ── Scheme project ID ──
+  schemeProjectId: string | null
 
   // ── Feature flags ──
   hasFeature: (feature: string) => boolean
@@ -140,6 +154,9 @@ export interface MapContextValue {
 
   // ── Print actions (Tier 1) ──
   printMap: (overrides?: any) => Promise<void>
+
+  // ── Offline tile actions ──
+  toggleOfflineDialog: (open: boolean) => Promise<void>
 }
 
 // ─── Context Creation ────────────────────────────────────────────────────
