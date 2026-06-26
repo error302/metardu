@@ -704,3 +704,124 @@ export async function createTraverseLegStyleFunction(
     return styles;
   };
 }
+
+// ─── Boundary Beacon Line Style ────────────────────────────────────────
+
+/**
+ * Create an OL style for boundary beacon lines with circle markers at vertices.
+ *
+ * Solid line, 2px, dark green (#006600), with circle markers at vertices (4px radius).
+ * This style is applied to LineString features that represent beacon-to-beacon
+ * boundary connections.
+ *
+ * @returns A Promise resolving to an OL style (not a function — static style).
+ *
+ * @example
+ * ```ts
+ * const boundaryStyle = await createBoundaryBeaconLineStyle();
+ * boundaryLayer.setStyle(boundaryStyle);
+ * ```
+ */
+export async function createBoundaryBeaconLineStyle() {
+  const [
+    { default: Style },
+    { default: Stroke },
+    { default: Fill },
+    { default: CircleStyle },
+  ] = await Promise.all([
+    import('ol/style/Style'),
+    import('ol/style/Stroke'),
+    import('ol/style/Fill'),
+    import('ol/style/Circle'),
+  ]);
+
+  return new Style({
+    stroke: new Stroke({
+      color: '#006600',
+      width: 2,
+    }),
+    image: new CircleStyle({
+      radius: 4,
+      fill: new Fill({ color: '#006600' }),
+      stroke: new Stroke({ color: '#fff', width: 1.5 }),
+    }),
+  });
+}
+
+// ─── Road Reserve Style ────────────────────────────────────────────────
+
+/**
+ * Create an OL style for road reserve boundaries.
+ *
+ * Dashed line, 1.5px, red (#CC0000), dash pattern [10, 5].
+ * Applied to LineString or Polygon features with `featureType === 'road_reserve'`.
+ *
+ * @returns A Promise resolving to an OL style (not a function — static style).
+ *
+ * @example
+ * ```ts
+ * const roadStyle = await createRoadReserveStyle();
+ * roadReserveLayer.setStyle(roadStyle);
+ * ```
+ */
+export async function createRoadReserveStyle() {
+  const [
+    { default: Style },
+    { default: Stroke },
+    { default: Fill },
+  ] = await Promise.all([
+    import('ol/style/Style'),
+    import('ol/style/Stroke'),
+    import('ol/style/Fill'),
+  ]);
+
+  return new Style({
+    stroke: new Stroke({
+      color: '#CC0000',
+      width: 1.5,
+      lineDash: [10, 5],
+    }),
+    fill: new Fill({
+      color: 'rgba(204, 0, 0, 0.05)',
+    }),
+  });
+}
+
+// ─── Easement Style ───────────────────────────────────────────────────
+
+/**
+ * Create an OL style for easement boundaries.
+ *
+ * Dash-dot line, 1px, blue (#0066CC), dash pattern [8, 3, 2, 3].
+ * Applied to LineString or Polygon features with `featureType === 'easement'`.
+ *
+ * @returns A Promise resolving to an OL style (not a function — static style).
+ *
+ * @example
+ * ```ts
+ * const easementStyle = await createEasementStyle();
+ * easementLayer.setStyle(easementStyle);
+ * ```
+ */
+export async function createEasementStyle() {
+  const [
+    { default: Style },
+    { default: Stroke },
+    { default: Fill },
+  ] = await Promise.all([
+    import('ol/style/Style'),
+    import('ol/style/Stroke'),
+    import('ol/style/Fill'),
+  ]);
+
+  return new Style({
+    stroke: new Stroke({
+      color: '#0066CC',
+      width: 1,
+      lineDash: [8, 3, 2, 3],
+    }),
+    fill: new Fill({
+      color: 'rgba(0, 102, 204, 0.05)',
+    }),
+  });
+}

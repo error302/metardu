@@ -60,6 +60,26 @@ interface CustomLayerEntry {
   id: string;
   label: string;
   url: string;
+  type?: 'xyz' | 'wms';
+}
+
+const CUSTOM_LAYERS_STORAGE_KEY = 'metardu-custom-layers';
+
+function loadPersistedLayers(): CustomLayerEntry[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_LAYERS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistLayers(entries: CustomLayerEntry[]) {
+  try {
+    localStorage.setItem(CUSTOM_LAYERS_STORAGE_KEY, JSON.stringify(entries));
+  } catch {
+    // localStorage may be full or unavailable
+  }
 }
 
 type BasemapType = 'osm' | 'satellite' | 'blank';
@@ -148,6 +168,41 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
       }
 
       setInitialized(true);
+
+      // ── Restore persisted custom layers from localStorage ──
+      const persisted = loadPersistedLayers();
+      if (persisted.length > 0) {
+        const restored: CustomLayerEntry[] = [];
+        for (const entry of persisted) {
+          try {
+            let layer: any = null;
+            if (entry.type === 'wms') {
+              // WMS layers need a layer name which we stored in the url field
+              // Format: url|layerName  (we stored it combined)
+              const parts = entry.url.split('|');
+              if (parts.length >= 2) {
+                layer = await createWMSLayer(parts[0], parts[1], entry.label);
+              }
+            } else {
+              layer = await createCustomXYZLayer(entry.url, entry.label);
+            }
+            if (layer) {
+              (layer as any).setOpacity(overlayOpacity / 100);
+              mapInstance.addLayer(layer);
+              const id = layer.get('basemapId') as string;
+              restored.push({ id, label: entry.label, url: entry.url, type: entry.type });
+            }
+          } catch {
+            // Skip layers that fail to restore
+          }
+        }
+        if (restored.length > 0) {
+          setCustomLayers(restored);
+          const visibilityMap: Record<string, boolean> = {};
+          restored.forEach((e) => { visibilityMap[e.id] = true; });
+          setTileLayerVisibility((prev) => ({ ...prev, ...visibilityMap }));
+        }
+      }
 
       // Update grid on view changes (debounced)
       let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -261,7 +316,12 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
 
       map.addLayer(layer);
       const id = layer.get('basemapId') as string;
-      setCustomLayers((prev) => [...prev, { id, label, url: customUrl.trim() }]);
+      const newEntry = { id, label, url: customUrl.trim(), type: 'xyz' as const };
+      setCustomLayers((prev) => {
+        const updated = [...prev, newEntry];
+        persistLayers(updated);
+        return updated;
+      });
       setTileLayerVisibility((prev) => ({ ...prev, [id]: true }));
       setCustomUrl('');
       setCustomLabel('');
@@ -286,7 +346,12 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
 
       map.addLayer(layer);
       const id = layer.get('basemapId') as string;
-      setCustomLayers((prev) => [...prev, { id, label, url: wmsUrl.trim() }]);
+      const newEntry = { id, label, url: `${wmsUrl.trim()}|${wmsLayerName.trim()}`, type: 'wms' as const };
+      setCustomLayers((prev) => {
+        const updated = [...prev, newEntry];
+        persistLayers(updated);
+        return updated;
+      });
       setTileLayerVisibility((prev) => ({ ...prev, [id]: true }));
       setWmsUrl('');
       setWmsLayerName('');
@@ -310,7 +375,11 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
           break;
         }
       }
-      setCustomLayers((prev) => prev.filter((l) => l.id !== id));
+      setCustomLayers((prev) => {
+        const updated = prev.filter((l) => l.id !== id);
+        persistLayers(updated);
+        return updated;
+      });
       setTileLayerVisibility((prev) => {
         const next = { ...prev };
         delete next[id];

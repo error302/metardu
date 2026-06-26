@@ -7,6 +7,8 @@ import type { MutableRefObject } from 'react'
  *  - Lat/Lon decimal (e.g. "-1.0, 37.0" or "-1.0 37.0")
  *  - DMS format (e.g. "1°15'30"S 37°45'20"E" or "1 15 30 S 37 45 20 E")
  *  - UTM Easting/Northing in EPSG:21037 (large numbers, e.g. "500000 9800000")
+ *  - Beacon names (e.g. "Beacon 5" or "BM12")
+ *  - Parcel numbers (e.g. "LR12345" or "Parcel 5")
  *
  * Note: The caller is responsible for clearing the search input after
  * this resolves, since the setter lives in component state.
@@ -115,13 +117,149 @@ function tryParseDMS(input: string): { lat: number; lon: number } | null {
   return null
 }
 
+/**
+ * Flash a feature on the map by briefly toggling its style.
+ * Creates a highlight overlay that fades after a short duration.
+ */
+async function flashFeature(mapInstance: MutableRefObject<any>, feature: any): Promise<void> {
+  try {
+    const [{ default: Style }, { default: Stroke }, { default: Fill }, { default: CircleStyle }] =
+      await Promise.all([
+        import('ol/style/Style'),
+        import('ol/style/Stroke'),
+        import('ol/style/Fill'),
+        import('ol/style/Circle'),
+      ])
+
+    const originalStyle = feature.getStyle()
+    const flashStyle = new Style({
+      stroke: new Stroke({ color: '#E8841A', width: 4 }),
+      fill: new Fill({ color: 'rgba(232, 132, 26, 0.3)' }),
+      image: new CircleStyle({
+        radius: 12,
+        fill: new Fill({ color: 'rgba(232, 132, 26, 0.5)' }),
+        stroke: new Stroke({ color: '#E8841A', width: 3 }),
+      }),
+    })
+
+    feature.setStyle(flashStyle)
+    setTimeout(() => {
+      feature.setStyle(originalStyle || undefined)
+    }, 1500)
+  } catch {
+    // Flash is best-effort
+  }
+}
+
+/**
+ * Search all VectorLayer sources on the map for a feature whose label/name/number
+ * matches the given search term.
+ */
+async function searchFeatureOnMap(
+  mapInstance: MutableRefObject<any>,
+  searchTerm: string,
+  options: { parcelOnly?: boolean; beaconOnly?: boolean } = {},
+): Promise<any | null> {
+  if (!mapInstance.current) return null
+
+  const { default: VectorLayer } = await import('ol/layer/Vector')
+  const layers = mapInstance.current.getLayers().getArray()
+  const term = searchTerm.toLowerCase().trim()
+
+  for (const layer of layers) {
+    if (!(layer instanceof VectorLayer)) continue
+    const source = layer.getSource()
+    if (!source || typeof source.getFeatures !== 'function') continue
+
+    const features = source.getFeatures()
+    for (const feature of features) {
+      // Check various feature properties for a match
+      const props = feature.getProperties() || {}
+      const label = (props.label || props.name || props.beacon_name || props.stationName || '')
+        .toString()
+        .toLowerCase()
+      const parcelNumber = (props.parcelNumber || props.parcel_number || props.parcelNo || '')
+        .toString()
+        .toLowerCase()
+
+      if (options.beaconOnly) {
+        // Match beacon-like names: "Beacon 5", "BM12", etc.
+        if (label && (label === term || label.includes(term))) {
+          return feature
+        }
+      } else if (options.parcelOnly) {
+        // Match parcel numbers: "LR12345", "Parcel 5", etc.
+        if (
+          parcelNumber &&
+          (parcelNumber === term || parcelNumber.includes(term) || term.includes(parcelNumber))
+        ) {
+          return feature
+        }
+        if (label && (label === term || label.includes(term))) {
+          return feature
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+/**
+ * Check if the search term looks like a beacon name (e.g. "Beacon 5", "BM12").
+ */
+function looksLikeBeaconName(input: string): boolean {
+  const t = input.trim()
+  return /^(beacon|bm|b)\s*\d+/i.test(t) || /^bm\d+/i.test(t)
+}
+
+/**
+ * Check if the search term looks like a parcel number (e.g. "LR12345", "Parcel 5").
+ */
+function looksLikeParcelNumber(input: string): boolean {
+  const t = input.trim()
+  return /^(parcel|lot|lr|plot)\s*\d+/i.test(t) || /^lr\d+/i.test(t)
+}
+
 export async function handleCoordSearch(
   searchInput: string,
   mapInstance: MutableRefObject<any>,
 ): Promise<void> {
   if (!mapInstance.current || !searchInput.trim()) return
 
-  // ── Try DMS format first ──
+  // ── Try beacon name search ──
+  if (looksLikeBeaconName(searchInput)) {
+    const feature = await searchFeatureOnMap(mapInstance, searchInput, { beaconOnly: true })
+    if (feature) {
+      const geom = feature.getGeometry()
+      if (geom) {
+        const coord = geom.getType() === 'Point'
+          ? geom.getCoordinates()
+          : geom.getClosestPoint(mapInstance.current.getView().getCenter())
+        mapInstance.current.getView().animate({ center: coord, zoom: 18, duration: 600 })
+        flashFeature(mapInstance, feature)
+        return
+      }
+    }
+  }
+
+  // ── Try parcel number search ──
+  if (looksLikeParcelNumber(searchInput)) {
+    const feature = await searchFeatureOnMap(mapInstance, searchInput, { parcelOnly: true })
+    if (feature) {
+      const geom = feature.getGeometry()
+      if (geom) {
+        const extent = geom.getExtent()
+        if (extent && extent[0] !== Infinity) {
+          mapInstance.current.getView().fit(extent, { padding: [100, 100, 100, 100], maxZoom: 18, duration: 600 })
+        }
+        flashFeature(mapInstance, feature)
+        return
+      }
+    }
+  }
+
+  // ── Try DMS format ──
   const dmsResult = tryParseDMS(searchInput)
   if (dmsResult) {
     const { fromLonLat } = await import('ol/proj')

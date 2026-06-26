@@ -107,6 +107,7 @@ export function useMapInit(params: UseMapInitParams) {
           import('ol/interaction/Modify'),
           import('ol/interaction/DragAndDrop'),
           import('ol/interaction/DragRotate'),
+          import('ol/interaction/PinchRotate'),
           import('ol/Overlay'),
           import('ol/Geolocation'),
           import('ol/format/GeoJSON'),
@@ -120,7 +121,7 @@ export function useMapInit(params: UseMapInitParams) {
         const [Map, View, TileLayer, VectorLayer, LayerGroup, OSM, XYZ, VectorSource,
           Cluster, Feature, Point, Polygon, CircleGeom, LineString, Style, Fill, Stroke,
           CircleStyle, Text, Icon, ScaleLine, Attribution, MousePosition,
-          Draw, Select, Snap, Modify, DragAndDrop, DragRotate, Overlay, Geolocation,
+          Draw, Select, Snap, Modify, DragAndDrop, DragRotate, PinchRotate, Overlay, Geolocation,
           GeoJSONFormat, KMLFormat, WKTFormat] = imports.map(i => ('default' in i ? i.default : i)) as any[]
 
         olModules.VectorSource = VectorSource
@@ -415,6 +416,10 @@ export function useMapInit(params: UseMapInitParams) {
           },
         })
         map.addInteraction(dragRotate)
+
+        // ── PinchRotate interaction (two-finger rotation on mobile) ──
+        const pinchRotate = new PinchRotate()
+        map.addInteraction(pinchRotate)
 
         // ── Geolocation ──
         const geolocation = new Geolocation({

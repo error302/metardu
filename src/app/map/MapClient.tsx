@@ -93,6 +93,9 @@ import { CogoToolsPanel } from '@/app/map/components/CogoToolsPanel'
 import { RotationControl } from '@/app/map/components/RotationControl'
 import { MapPrintButton } from '@/app/map/components/MapPrintButton'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
+import { BookmarkPanel } from '@/app/map/components/BookmarkPanel'
+import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
+import { GpsTrackPanel } from '@/app/map/components/GpsTrackPanel'
 import { StakeoutPanel } from '@/components/map/StakeoutPanel'
 import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
@@ -975,6 +978,8 @@ export default function MapClient() {
 
               <MapCoordSearch />
 
+              <GpsTrackPanel />
+
               <MapToolbar />
 
               <MapStatusBar />
@@ -1014,6 +1019,7 @@ export default function MapClient() {
 
               {/* ── COGO Info Panel (bottom-left) + COGO Tools (above it) ── */}
               <div className="absolute bottom-10 left-3 z-20 sm:bottom-12 sm:left-4 flex flex-col gap-2 items-start">
+                <BookmarkPanel />
                 <CogoToolsPanel />
                 <CogoInfoPanel />
               </div>
@@ -1052,6 +1058,9 @@ export default function MapClient() {
           {/* Loading / Error overlay (zero-prop, reads from context) */}
           <MapLoadingOverlay />
         </div>
+
+        {/* Keyboard shortcuts modal (global overlay) */}
+        <KeyboardShortcutsHelp />
 
         {/* Global styles */}
         <MapGlobalStyles />
