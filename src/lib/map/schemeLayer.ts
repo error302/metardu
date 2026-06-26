@@ -686,6 +686,220 @@ export async function zoomToSchemeExtent(
   })
 }
 
+// ─── Data-Driven Layer Builders (single fetch, shared data) ────────────────
+
+/**
+ * Build a parcel layer from pre-fetched scheme data.
+ * This avoids redundant API calls when all layers share the same data.
+ */
+async function buildParcelLayerFromData(
+  data: SchemeGeoJSON,
+  options: { showParcelLabels?: boolean } = {},
+): Promise<import('ol/layer/Vector').default> {
+  const { showParcelLabels = true } = options
+
+  const [
+    { default: VectorLayer },
+    { default: VectorSource },
+    { default: Feature },
+    { default: Polygon },
+  ] = await Promise.all([
+    import('ol/layer/Vector'),
+    import('ol/source/Vector'),
+    import('ol/Feature'),
+    import('ol/geom/Polygon'),
+  ])
+
+  const parcelStyleFn = await createParcelStyleFunction({
+    showLabel: showParcelLabels,
+    strokeWidth: 2.5,
+    zIndex: 20,
+  })
+
+  const features: InstanceType<typeof Feature>[] = []
+
+  for (const feat of data.features) {
+    if (feat.properties.type !== 'parcel') continue
+    if (feat.geometry.type !== 'Polygon') continue
+
+    const rings = feat.geometry.coordinates as unknown as number[][][]
+    const transformedRings: Array<Array<[number, number]>> = []
+
+    for (const ring of rings) {
+      const transformedRing = await transformRing(ring)
+      transformedRings.push(transformedRing)
+    }
+
+    const olFeature = new Feature({
+      geometry: new Polygon(transformedRings),
+      type: 'scheme-parcel',
+      parcelId: feat.properties.parcel_id,
+      parcelNumber: feat.properties.parcel_number,
+      lrNumber: feat.properties.lr_number,
+      blockNumber: feat.properties.block_number,
+      areaHa: feat.properties.area_ha,
+      status: (feat.properties.status || 'default') as ParcelStatus,
+    })
+
+    olFeature.setId(`parcel-${feat.properties.parcel_id || features.length}`)
+    features.push(olFeature)
+  }
+
+  const source = new VectorSource({ features })
+
+  return new VectorLayer({
+    source,
+    style: parcelStyleFn as any,
+    zIndex: 20,
+    visible: true,
+    properties: { name: 'scheme-parcels' },
+  })
+}
+
+/**
+ * Build a block layer from pre-fetched scheme data.
+ */
+async function buildBlockLayerFromData(
+  data: SchemeGeoJSON,
+): Promise<import('ol/layer/Vector').default> {
+  const [
+    { default: VectorLayer },
+    { default: VectorSource },
+    { default: Feature },
+    { default: Point },
+    { default: Style },
+    { default: CircleStyle },
+    { default: Stroke },
+    { default: Fill },
+    { default: Text },
+  ] = await Promise.all([
+    import('ol/layer/Vector'),
+    import('ol/source/Vector'),
+    import('ol/Feature'),
+    import('ol/geom/Point'),
+    import('ol/style/Style'),
+    import('ol/style/Circle'),
+    import('ol/style/Stroke'),
+    import('ol/style/Fill'),
+    import('ol/style/Text'),
+  ])
+
+  const features: InstanceType<typeof Feature>[] = []
+
+  for (const feat of data.features) {
+    if (feat.properties.type !== 'block_label') continue
+    if (feat.geometry.type !== 'Point') continue
+
+    const coord = feat.geometry.coordinates as number[]
+    const [x, y] = await transformCoord(coord)
+
+    const olFeature = new Feature({
+      geometry: new Point([x, y]),
+      type: 'scheme-block',
+      blockId: feat.properties.block_id,
+      blockNumber: feat.properties.block_number,
+      blockName: feat.properties.block_name,
+      parcelCount: feat.properties.parcel_count,
+    })
+
+    const labelText = feat.properties.block_name || `Block ${feat.properties.block_number}`
+    const countLabel = feat.properties.parcel_count
+      ? `${feat.properties.parcel_count} parcels`
+      : ''
+
+    olFeature.setStyle(new Style({
+      image: new CircleStyle({
+        radius: 10,
+        fill: new Fill({ color: 'rgba(232, 132, 26, 0.25)' }),
+        stroke: new Stroke({ color: '#E8841A', width: 2 }),
+      }),
+      text: new Text({
+        text: countLabel ? `${labelText}\n${countLabel}` : labelText,
+        font: 'bold 12px Calibri, sans-serif',
+        fill: new Fill({ color: '#E8841A' }),
+        stroke: new Stroke({ color: '#FFFFFF', width: 3.5 }),
+        textAlign: 'center',
+        textBaseline: 'middle',
+        offsetY: -20,
+      }),
+    }))
+
+    features.push(olFeature)
+  }
+
+  const source = new VectorSource({ features })
+
+  return new VectorLayer({
+    source,
+    zIndex: 25,
+    visible: true,
+    properties: { name: 'scheme-blocks' },
+  })
+}
+
+/**
+ * Build a beacon layer from pre-fetched scheme data.
+ */
+async function buildBeaconLayerFromData(
+  data: SchemeGeoJSON,
+): Promise<import('ol/layer/Vector').default> {
+  const [
+    { default: VectorLayer },
+    { default: VectorSource },
+    { default: Feature },
+    { default: Point },
+  ] = await Promise.all([
+    import('ol/layer/Vector'),
+    import('ol/source/Vector'),
+    import('ol/Feature'),
+    import('ol/geom/Point'),
+  ])
+
+  const beaconStyleFn = await createBeaconStyleFunction({
+    radius: 6,
+    showDescription: false,
+    labelOffsetX: 12,
+    labelOffsetY: -12,
+  })
+
+  const features: InstanceType<typeof Feature>[] = []
+  const seenStations = new Set<string>()
+
+  for (const feat of data.features) {
+    if (feat.properties.type !== 'parcel_point') continue
+    if (feat.geometry.type !== 'Point') continue
+
+    const stationKey = feat.properties.station || `${(feat.geometry.coordinates as number[])[0]}_${(feat.geometry.coordinates as number[])[1]}`
+    if (seenStations.has(stationKey)) continue
+    seenStations.add(stationKey)
+
+    const coord = feat.geometry.coordinates as number[]
+    const [x, y] = await transformCoord(coord)
+
+    const olFeature = new Feature({
+      geometry: new Point([x, y]),
+      type: 'scheme-beacon',
+      beacon_type: 'boundary' as BeaconType,
+      label: feat.properties.station || `Stn ${features.length + 1}`,
+      parcelId: feat.properties.parcel_id,
+      parcelNumber: feat.properties.parcel_number,
+      blockNumber: feat.properties.block_number,
+    })
+
+    features.push(olFeature)
+  }
+
+  const source = new VectorSource({ features })
+
+  return new VectorLayer({
+    source,
+    style: beaconStyleFn as any,
+    zIndex: 30,
+    visible: true,
+    properties: { name: 'scheme-beacons' },
+  })
+}
+
 // ─── Convenience: Create All Scheme Layers ────────────────────────────────
 
 /**
@@ -693,6 +907,8 @@ export async function zoomToSchemeExtent(
  * interactions in one call.
  *
  * This is the main entry point for wiring scheme data to the map.
+ * Data is fetched ONCE and shared across all three layers, avoiding
+ * the triple API call that would occur if creating layers individually.
  *
  * @param projectId - The project ID
  * @param map - The OpenLayers map instance
@@ -714,16 +930,19 @@ export async function createSchemeLayers(
   beaconCount: number
   extent: number[] | null
 }> {
-  const { autoZoom = true } = options
+  const { autoZoom = true, showParcelLabels = true } = options
 
   // Ensure projections are registered
   await registerProjections()
 
-  // Create all three layers in parallel
+  // Fetch data ONCE and share across all layers (prevents triple API call)
+  const data = await loadSchemeData(projectId)
+
+  // Create all three layers using the shared data
   const [parcelLayer, blockLayer, beaconLayer] = await Promise.all([
-    createSchemeParcelLayer(projectId, options),
-    createSchemeBlockLayer(projectId),
-    createSchemeBeaconLayer(projectId),
+    buildParcelLayerFromData(data, { showParcelLabels }),
+    buildBlockLayerFromData(data),
+    buildBeaconLayerFromData(data),
   ])
 
   // Add layers to map

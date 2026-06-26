@@ -56,7 +56,7 @@ export const MapOverlays = memo(function MapOverlays({
       )}
 
       {/* Zoom controls - top right */}
-      <div className="fixed top-[16px] right-[16px] z-[1000] flex flex-col gap-1">
+      <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-1">
         <button
           onClick={() => mapInstance.current?.getView().animate({ zoom: mapInstance.current.getView().getZoom() + 1 }, { duration: 200 })}
           className="w-10 h-10 bg-[#14141e]/90 backdrop-blur-sm border border-[var(--border-color)] rounded-lg text-white flex items-center justify-center hover:bg-[#E8841A]/20 transition-colors"
@@ -76,7 +76,7 @@ export const MapOverlays = memo(function MapOverlays({
       {/* GPS status badge - bottom left */}
       {gpsTracking && gpsPos && (
         <div
-          className="fixed z-[1000] bg-[#14141e]/90 backdrop-blur-sm border border-green-500/30 rounded-lg px-3 py-1.5 text-xs text-green-400 font-mono"
+          className="absolute z-[1000] bg-[#14141e]/90 backdrop-blur-sm border border-green-500/30 rounded-lg px-3 py-1.5 text-xs text-green-400 font-mono"
           style={{ bottom: `calc(${isMobile ? '64px' : '0px'} + 56px)`, left: '16px' }}
         >
           GPS {'\u00B1'}{Math.round(gpsPos.accuracy)}m
@@ -88,7 +88,7 @@ export const MapOverlays = memo(function MapOverlays({
         const info = stakeoutInfo()
         return (
           <div
-            className="fixed z-[1000] bg-[#14141e]/95 backdrop-blur-xl border border-[#E8841A]/30 rounded-xl px-4 py-3 shadow-2xl"
+            className="absolute z-[1000] bg-[#14141e]/95 backdrop-blur-xl border border-[#E8841A]/30 rounded-xl px-4 py-3 shadow-2xl"
             style={{ bottom: `calc(${isMobile ? '64px' : '0px'} + 56px)`, right: '16px', width: isMobile ? '180px' : '220px' }}
           >
             <div className="flex items-center justify-between mb-2">

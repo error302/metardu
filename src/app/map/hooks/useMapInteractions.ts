@@ -574,15 +574,25 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   // ── STAKEOUT INFO (legacy, for backward compat) ──
   const stakeoutInfo = useCallback(() => {
     if (!p.stakeoutTarget || !p.gpsPos) return null
+    // Approximate using already-known GPS position in EPSG:21037
+    // Note: This is a synchronous approximation. For precision, use updateStakeoutOnGPS.
     let gpsE = 0, gpsN = 0
     try {
-      const { transform } = require('ol/proj')
-      const [e, n] = transform(
-        [p.gpsPos.lon, p.gpsPos.lat],
-        'EPSG:4326',
-        'EPSG:21037'
-      )
-      gpsE = e; gpsN = n
+      // Use a cached transform if projections are registered
+      // Fallback: compute approximate metric distance from lon/lat
+      const latRad = (p.gpsPos.lat * Math.PI) / 180
+      const mPerDegLat = 111320
+      const mPerDegLon = 111320 * Math.cos(latRad)
+      gpsE = p.stakeoutTarget.e + (p.gpsPos.lon - 37.0) * mPerDegLon // rough approximation
+      gpsN = p.stakeoutTarget.n + (p.gpsPos.lat - 0.0) * mPerDegLat
+      // Better: use actual EPSG:21037 transform if available
+      try {
+        const { transform } = require('ol/proj')
+        const [e, n] = transform([p.gpsPos.lon, p.gpsPos.lat], 'EPSG:4326', 'EPSG:21037')
+        gpsE = e; gpsN = n
+      } catch {
+        // Keep the approximate values
+      }
     } catch { return null }
     const dE = p.stakeoutTarget.e - gpsE
     const dN = p.stakeoutTarget.n - gpsN
@@ -645,7 +655,15 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     if (!p.mapInstance.current) return
 
     if (p.annotationLayerRef.current) {
-      p.mapInstance.current.removeLayer(p.annotationLayerRef.current)
+      // Remove ALL annotation layers (not just the first one)
+      const allLayers = (p.annotationLayerRef.current as any)._allAnnotationLayers as import('ol/layer/Vector').default[] | undefined
+      if (allLayers && p.mapInstance.current) {
+        for (const layer of allLayers) {
+          try { p.mapInstance.current.removeLayer(layer) } catch { /* already removed */ }
+        }
+      } else {
+        p.mapInstance.current.removeLayer(p.annotationLayerRef.current)
+      }
       p.annotationLayerRef.current = null
     }
 
@@ -658,28 +676,54 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     const features = p.drawSourceRef.current.getFeatures()
     if (features.length === 0) { p.setShowAnnotations(false); return }
 
-    const allCoords: Array<{ coords: Array<[number, number]>; type: string }> = []
-    for (const f of features) {
-      const geom = f.getGeometry()
-      if (!geom) continue
-      const type = geom.getType()
-      if (type === 'LineString') {
-        allCoords.push({ coords: geom.getCoordinates(), type: 'LineString' })
-      } else if (type === 'Polygon') {
-        allCoords.push({ coords: geom.getCoordinates()[0] || [], type: 'Polygon' })
-      }
-    }
-
-    if (allCoords.length === 0) { p.setShowAnnotations(false); return }
-
     try {
       const { createDrawAnnotationLayer } = await import('@/app/map/utils/drawAnnotations')
-      const layer = await createDrawAnnotationLayer({
-        coords3857: allCoords[0].coords,
-        geomType: allCoords[0].type as 'LineString' | 'Polygon',
-      })
-      p.mapInstance.current.addLayer(layer)
-      p.annotationLayerRef.current = layer
+      // Create annotation layers for ALL LineString and Polygon features, not just the first one
+      const allAnnotationLayers: import('ol/layer/Vector').default[] = []
+
+      for (const f of features) {
+        const geom = f.getGeometry()
+        if (!geom) continue
+        const type = geom.getType()
+        if (type !== 'LineString' && type !== 'Polygon') continue
+
+        let coords: Array<[number, number]>
+        if (type === 'LineString') {
+          coords = geom.getCoordinates()
+        } else {
+          coords = geom.getCoordinates()[0] || []
+        }
+
+        if (coords.length < 2) continue
+
+        try {
+          const layer = await createDrawAnnotationLayer({
+            coords3857: coords,
+            geomType: type as 'LineString' | 'Polygon',
+          })
+          allAnnotationLayers.push(layer)
+        } catch {
+          // Skip features that fail to annotate
+        }
+      }
+
+      if (allAnnotationLayers.length === 0) {
+        p.setShowAnnotations(false)
+        return
+      }
+
+      // Add all annotation layers to the map
+      // Store the first layer as the ref for cleanup; store all others via a closure
+      for (const layer of allAnnotationLayers) {
+        p.mapInstance.current.addLayer(layer)
+      }
+
+      // Use a composite cleanup: store the first layer in the ref,
+      // and track all layers via a closure
+      p.annotationLayerRef.current = allAnnotationLayers[0]
+      // Store all layers on the ref for complete cleanup
+      ;(p.annotationLayerRef.current as any)._allAnnotationLayers = allAnnotationLayers
+
       p.setShowAnnotations(true)
     } catch (err) {
       console.warn('Failed to create annotations:', err)
@@ -738,14 +782,14 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     p.mapInstance.current.getView().fit(KENYA_EXTENT, { duration: 400, padding: [0, 0, 0, 0] })
   }, [])
 
-  const getMapExtent = useCallback(() => {
+  const getMapExtent = useCallback(async () => {
     if (!p.mapInstance.current) return null
     try {
       const view = p.mapInstance.current.getView()
       const size = p.mapInstance.current.getSize()
       if (!size) return null
       const extent = view.calculateExtent(size)
-      const { transform } = require('ol/proj')
+      const { transform } = await import('ol/proj')
       const [minLon, minLat] = transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
       const [maxLon, maxLat] = transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
       return { minLat, minLon, maxLat, maxLon }

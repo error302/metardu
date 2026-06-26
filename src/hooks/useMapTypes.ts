@@ -3,6 +3,10 @@
  *
  * All hooks receive a `MapContext` object so they can coordinate
  * interactions (e.g. toggling draw deactivates measure & edit).
+ *
+ * Note: Mode types (BasemapMode, DrawMode, MeasureMode) and PopupData
+ * are the canonical definitions here. The duplicate definitions in
+ * @/app/map/mapTypes.ts re-export from this file for backward compatibility.
  */
 
 import { MutableRefObject, Dispatch, SetStateAction } from 'react'
@@ -20,6 +24,7 @@ export interface PopupData {
   easting?: string
   northing?: string
   geometryType?: string
+  projectId?: string
 }
 
 export interface HistoryEntry {

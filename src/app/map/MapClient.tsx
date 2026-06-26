@@ -181,6 +181,9 @@ export default function MapClient() {
   const measureLayerRef = useRef<any>(null)
   const annotationLayerRef = useRef<any>(null)
 
+  // ── GPS toggle ref (allows interactions hook to call the real toggleGPS) ──
+  const toggleGPSRef = useRef<() => void>(() => {})
+
   // ── UI state ──
   const [mapReady, setMapReady] = useState(false)
   const [initError, setInitError] = useState('')
@@ -320,7 +323,7 @@ export default function MapClient() {
     pushHistory,
     clearHistory,
     popupRef,
-    toggleGPS: () => {}, // placeholder, wired below
+    toggleGPS: () => toggleGPSRef.current(), // wired via ref to real toggleGPS
   })
 
   // Wire GPS toggle (needs interactions reference)
@@ -342,6 +345,9 @@ export default function MapClient() {
       })
     }
   }, [gpsTracking])
+
+  // Keep the ref up-to-date so the interactions hook can call the real function
+  toggleGPSRef.current = toggleGPS
 
   // ── Basemap toggle wrapper ──
   const toggleBasemap = useCallback((mode: BasemapMode) => {
@@ -626,13 +632,18 @@ export default function MapClient() {
     if (!cleanup?.geolocation) return
 
     const geolocation = cleanup.geolocation
-    const { default: proj } = require('ol/proj')
 
-    const onPositionChange = () => {
+    const onPositionChange = async () => {
       const pos = geolocation.getPosition()
       if (pos) {
-        const lonLat = proj.toLonLat(pos)
-        setGpsPos({ lon: lonLat[0], lat: lonLat[1], accuracy: geolocation.getAccuracy() })
+        try {
+          const { transform } = await import('ol/proj')
+          const lonLat = transform(pos, 'EPSG:3857', 'EPSG:4326')
+          setGpsPos({ lon: lonLat[0], lat: lonLat[1], accuracy: geolocation.getAccuracy() })
+        } catch {
+          // Fallback: use raw coordinates
+          setGpsPos({ lon: pos[0], lat: pos[1], accuracy: geolocation.getAccuracy() })
+        }
       }
     }
 
@@ -738,7 +749,17 @@ export default function MapClient() {
                 active={stakeoutActive}
                 target={stakeoutTarget ? { easting: stakeoutTarget.e, northing: stakeoutTarget.n } : null}
                 stakeoutState={stakeoutState}
-                gpsPos={gpsPos ? { easting: 0, northing: 0, accuracy: gpsPos.accuracy } : null}
+                gpsPos={(() => {
+                  if (!gpsPos) return null
+                  // Transform GPS lon/lat to EPSG:21037 easting/northing
+                  try {
+                    const { transform } = require('ol/proj')
+                    const [e, n] = transform([gpsPos.lon, gpsPos.lat], 'EPSG:4326', 'EPSG:21037') as [number, number]
+                    return { easting: e, northing: n, accuracy: gpsPos.accuracy }
+                  } catch {
+                    return { easting: 0, northing: 0, accuracy: gpsPos.accuracy }
+                  }
+                })()}
                 gpsAccuracy={gpsPos?.accuracy ?? 0}
                 onCancel={interactions.deactivateStakeout}
                 audioMuted={audioMuted}
