@@ -16,7 +16,7 @@
  */
 
 import { useState } from 'react'
-import { Wifi, WifiOff, CloudUpload, Plus, Trash2, ChevronUp, CheckCircle2, AlertTriangle, Clock, History } from 'lucide-react'
+import { Wifi, WifiOff, CloudUpload, Plus, Trash2, ChevronUp, ChevronDown, CheckCircle2, AlertTriangle, Clock, History, Settings, Calculator } from 'lucide-react'
 import type { MobileSurveyType } from './UniversalMobileObservationForm'
 import { UniversalMobileObservationForm } from './UniversalMobileObservationForm'
 import type { CapturedBeaconPhoto } from './BeaconPhotoCapture'
@@ -38,6 +38,45 @@ interface MobileFieldbookShellProps {
   onPullInstrumentReading?: () => Promise<Partial<Record<string, string>>>
   /** When provided, shows an audit-trail button in the status bar. */
   onViewAuditLog?: () => void
+
+  // --- Computations ---
+  computed: any
+
+  // --- Leveling setup props ---
+  openingRL: string
+  setOpeningRL: (val: string) => void
+  closingRL: string
+  setClosingRL: (val: string) => void
+  distanceKm: string
+  setDistanceKm: (val: string) => void
+  levelMethod: 'rise_and_fall' | 'height_of_collimation'
+  setLevelMethod: (val: 'rise_and_fall' | 'height_of_collimation') => void
+
+  // --- Traverse setup props ---
+  travMode: 'open' | 'closed' | 'link'
+  setTravMode: (val: 'open' | 'closed' | 'link') => void
+  startStation: string
+  setStartStation: (val: string) => void
+  startE: string
+  setStartE: (val: string) => void
+  startN: string
+  setStartN: (val: string) => void
+  closeE: string
+  setCloseE: (val: string) => void
+  closeN: string
+  setCloseN: (val: string) => void
+
+  // --- Control setups props ---
+  controlSetups: any[]
+  setControlSetups: React.Dispatch<React.SetStateAction<any[]>>
+  activeControlSetupId: string
+  setActiveControlSetupId: (id: string) => void
+  controlStation: { name: string; e: string; n: string; z: string }
+  setControlStation: (val: any) => void
+
+  // --- Mining setup props ---
+  miningStation: { name: string; e: string; n: string; z: string }
+  setMiningStation: (val: any) => void
 }
 
 const TYPE_LABELS: Record<MobileSurveyType, { label: string; emoji: string }> = {
@@ -95,9 +134,40 @@ export function MobileFieldbookShell({
   stationName,
   onPullInstrumentReading,
   onViewAuditLog,
+  computed,
+  openingRL,
+  setOpeningRL,
+  closingRL,
+  setClosingRL,
+  distanceKm,
+  setDistanceKm,
+  levelMethod,
+  setLevelMethod,
+  travMode,
+  setTravMode,
+  startStation,
+  setStartStation,
+  startE,
+  setStartE,
+  startN,
+  setStartN,
+  closeE,
+  setCloseE,
+  closeN,
+  setCloseN,
+  controlSetups,
+  setControlSetups,
+  activeControlSetupId,
+  setActiveControlSetupId,
+  controlStation,
+  setControlStation,
+  miningStation,
+  setMiningStation,
 }: MobileFieldbookShellProps) {
   const [showForm, setShowForm] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [setupOpen, setSetupOpen] = useState(false)
+  const [resultsOpen, setResultsOpen] = useState(true)
 
   const lastStation = rows.length > 0
     ? (rows[rows.length - 1].station || rows[rows.length - 1].pointId || rows[rows.length - 1].soundingId || '')
@@ -185,6 +255,322 @@ export function MobileFieldbookShell({
 
       {/* ─── Card list ─── */}
       <div className="flex-1 overflow-y-auto px-4 py-3 pb-28">
+        
+        {/* Setup & Coordinates Panel */}
+        <div className="mb-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden shadow-sm">
+          <button
+            onClick={() => setSetupOpen(!setupOpen)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)]/50 text-sm font-semibold text-[var(--text-primary)]"
+          >
+            <span className="flex items-center gap-2">
+              <Settings className="w-4 h-4 text-[var(--accent)]" />
+              Setup & Coordinates
+            </span>
+            {setupOpen ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
+          </button>
+
+          {setupOpen && (
+            <div className="p-4 border-t border-[var(--border-color)] space-y-3 bg-[var(--bg-secondary)]/25">
+              {surveyType === 'leveling' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2 flex gap-2">
+                    <button
+                      onClick={() => setLevelMethod('rise_and_fall')}
+                      className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition ${
+                        levelMethod === 'rise_and_fall' ? 'bg-[var(--accent)] text-black border-transparent font-bold' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)]'
+                      }`}
+                    >
+                      Rise & Fall
+                    </button>
+                    <button
+                      onClick={() => setLevelMethod('height_of_collimation')}
+                      className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition ${
+                        levelMethod === 'height_of_collimation' ? 'bg-[var(--accent)] text-black border-transparent font-bold' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)]'
+                      }`}
+                    >
+                      HOC (Collimation)
+                    </button>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Opening RL (m)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      value={openingRL}
+                      onChange={(e) => setOpeningRL(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Closing RL (m)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      value={closingRL}
+                      placeholder="Optional"
+                      onChange={(e) => setClosingRL(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Distance (km)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      value={distanceKm}
+                      onChange={(e) => setDistanceKm(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {surveyType === 'traverse' && (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    {(['open', 'closed', 'link'] as const).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setTravMode(m)}
+                        className={`flex-1 py-2 text-xs font-semibold rounded-lg border capitalize transition ${
+                          travMode === m ? 'bg-[var(--accent)] text-black border-transparent font-bold' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)]'
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Start Stn</label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] uppercase focus:outline-none focus:border-[var(--accent)]"
+                        value={startStation}
+                        onChange={(e) => setStartStation(e.target.value.toUpperCase())}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Start E (m)</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                        value={startE}
+                        onChange={(e) => setStartE(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Start N (m)</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                        value={startN}
+                        onChange={(e) => setStartN(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  {travMode === 'link' && (
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-color)]/50">
+                      <div>
+                        <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Close E (m) *</label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                          value={closeE}
+                          onChange={(e) => setCloseE(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Close N (m) *</label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                          value={closeN}
+                          onChange={(e) => setCloseN(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {surveyType === 'control' && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                    {controlSetups.map((s, idx) => {
+                      const label = s.station.name?.trim() ? s.station.name.trim() : `Setup ${idx + 1}`
+                      const active = s.id === activeControlSetupId
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setActiveControlSetupId(s.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs border whitespace-nowrap transition-colors ${
+                            active ? 'bg-[var(--accent)] text-black border-transparent font-semibold shadow-sm' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                    <button
+                      onClick={() => {
+                        const id = crypto.randomUUID()
+                        const suffix = controlSetups.length + 1
+                        const template = controlStation
+                        setControlSetups((prev) => [
+                          ...prev,
+                          {
+                            id,
+                            station: { ...template, name: template.name ? `${template.name}_${suffix}` : `STN${suffix}` },
+                            rows: [{ id: crypto.randomUUID(), pointId: `P1`, instrumentHeight: '1.500', targetHeight: '1.500', bearing: '', verticalAngle: '0', slopeDistance: '', remarks: '' }],
+                          },
+                        ])
+                        setActiveControlSetupId(id)
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs border border-[var(--border-color)] bg-[var(--bg-secondary)]/50 text-[var(--accent)] font-semibold whitespace-nowrap"
+                    >
+                      + Setup
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-color)]/50">
+                    <div className="col-span-2">
+                      <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station Name</label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] uppercase focus:outline-none focus:border-[var(--accent)]"
+                        value={controlStation.name}
+                        onChange={(e) => setControlStation((p: any) => ({ ...p, name: e.target.value.toUpperCase() }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station E (m)</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                        value={controlStation.e}
+                        onChange={(e) => setControlStation((p: any) => ({ ...p, e: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station N (m)</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                        value={controlStation.n}
+                        onChange={(e) => setControlStation((p: any) => ({ ...p, n: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Elevation Z (m)</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                        value={controlStation.z}
+                        onChange={(e) => setControlStation((p: any) => ({ ...p, z: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => {
+                        const src = controlSetups.find((s) => s.id === activeControlSetupId)
+                        if (!src) return
+                        const id = crypto.randomUUID()
+                        const suffix = controlSetups.length + 1
+                        setControlSetups((prev) => [
+                          ...prev,
+                          {
+                            id,
+                            station: { ...src.station, name: src.station.name ? `${src.station.name}_copy${suffix}` : `STN_copy${suffix}` },
+                            rows: src.rows.map((r: any) => ({ ...r, id: crypto.randomUUID() })),
+                          },
+                        ])
+                        setActiveControlSetupId(id)
+                      }}
+                      className="flex-1 py-2 text-xs font-semibold bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg"
+                    >
+                      Duplicate Setup
+                    </button>
+                    <button
+                      disabled={controlSetups.length <= 1}
+                      onClick={() => {
+                        if (controlSetups.length <= 1) return
+                        if (!confirm('Remove this setup?')) return
+                        const next = controlSetups.filter((s) => s.id !== activeControlSetupId)
+                        const nextActive = next[0]?.id ?? controlSetups[0]?.id
+                        setControlSetups(next)
+                        if (nextActive) setActiveControlSetupId(nextActive)
+                      }}
+                      className="flex-1 py-2 text-xs font-semibold bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg disabled:opacity-50"
+                    >
+                      Delete Setup
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {surveyType === 'mining' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="col-span-2">
+                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Mining Station Name</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] uppercase focus:outline-none focus:border-[var(--accent)]"
+                      value={miningStation.name}
+                      onChange={(e) => setMiningStation((p: any) => ({ ...p, name: e.target.value.toUpperCase() }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station E (m)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      value={miningStation.e}
+                      onChange={(e) => setMiningStation((p: any) => ({ ...p, e: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station N (m)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      value={miningStation.n}
+                      onChange={(e) => setMiningStation((p: any) => ({ ...p, n: e.target.value }))}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Elevation Z (m)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      value={miningStation.z}
+                      onChange={(e) => setMiningStation((p: any) => ({ ...p, z: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {surveyType === 'hydrographic' && (
+                <p className="text-xs text-[var(--text-muted)]">
+                  Hydrographic soundings: tide and depth values are recorded for each point. Coordinates represent localized GPS or total station readings.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
         {rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="grid place-items-center w-16 h-16 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] mb-4">
@@ -280,6 +666,93 @@ export function MobileFieldbookShell({
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* Calculations & Precision Panel */}
+        {computed && (
+          <div className="mt-4 mb-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden shadow-sm">
+            <button
+              onClick={() => setResultsOpen(!resultsOpen)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)]/50 text-sm font-semibold text-[var(--text-primary)]"
+            >
+              <span className="flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-[var(--accent)]" />
+                Precision & Closure Checks
+              </span>
+              {resultsOpen ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
+            </button>
+
+            {resultsOpen && (
+              <div className="p-4 border-t border-[var(--border-color)] space-y-3 bg-[var(--bg-secondary)]/25">
+                {!computed.ok ? (
+                  <div className="p-3 bg-red-950/20 border border-red-500/30 rounded-lg text-xs text-red-300 space-y-1">
+                    <div className="font-semibold text-red-400">⚠ Calculation Errors:</div>
+                    {computed.errors.map((e: string, i: number) => (
+                      <div key={i} className="list-item ml-3">{e}</div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {surveyType === 'leveling' && (
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="col-span-2 p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                          <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Arithmetic Check</div>
+                          <div className={`font-mono text-sm font-bold ${computed.calc.arithmeticCheck ? 'text-green-400' : 'text-red-400'}`}>
+                            {computed.calc.arithmeticCheck ? 'PASS' : 'FAIL'}
+                          </div>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                          <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Misclosure</div>
+                          <div className="font-mono text-sm text-[var(--text-primary)]">{Number(computed.calc.misclosure).toFixed(4)} m</div>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                          <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Allowable</div>
+                          <div className="font-mono text-sm text-[var(--text-primary)]">±{Number(computed.calc.allowableMisclosure).toFixed(4)} m</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {surveyType === 'traverse' && (
+                      <>
+                        {computed.mode === 'open' ? (
+                          <div className="p-3 bg-yellow-950/20 border border-yellow-500/30 rounded-lg text-xs text-yellow-350">
+                            ⚠ Open Traverse: No closing coordinate check. Prohibited for legal land boundary surveys under Reg 67.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                              <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Linear Error</div>
+                              <div className="font-mono text-sm text-[var(--text-primary)]">{Number(computed.adjusted.linearError).toFixed(4)} m</div>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                              <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Precision Ratio</div>
+                              <div className="font-mono text-sm text-[var(--accent)] font-bold">
+                                1 : {Math.max(1, Math.round(Number(computed.adjusted.totalDistance) / Math.max(1e-12, Number(computed.adjusted.linearError)))).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                              <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Closing Error E</div>
+                              <div className="font-mono text-xs text-[var(--text-primary)]">{Number(computed.adjusted.closingErrorE).toFixed(4)} m</div>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                              <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Closing Error N</div>
+                              <div className="font-mono text-xs text-[var(--text-primary)]">{Number(computed.adjusted.closingErrorN).toFixed(4)} m</div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {(surveyType === 'control' || surveyType === 'mining' || surveyType === 'hydrographic') && (
+                      <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-lg text-xs text-emerald-300">
+                        ✓ All {rows.length} points calculated successfully via 3D polar computations.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

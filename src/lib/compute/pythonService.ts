@@ -96,7 +96,10 @@ export async function callPythonCompute<T>(
   try {
     const response = await fetch(`${base}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env.WORKER_SECRET ? { 'X-Worker-Secret': process.env.WORKER_SECRET } : {}),
+      },
       body: JSON.stringify(body),
       signal: controller.signal,
     })

@@ -9,7 +9,7 @@ import { createClient } from '@/lib/api-client/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { heightOfCollimation, riseAndFall } from '@/lib/engine/leveling'
 import { bowditchAdjustment, forwardTraverse } from '@/lib/engine/traverse'
-import { bearingToString, normalizeBearing, parseDMSString } from '@/lib/engine/angles'
+import { bearingToString, normalizeBearing, parseDMSString, parseFieldAngle } from '@/lib/engine/angles'
 import { applyTideCorrection } from '@/lib/engine/hydrographic'
 import { polar3DWithHeights } from '@/lib/engine/polar'
 import { isOnline, queueOperation, setupOnlineListener, syncPendingOperations } from '@/lib/offline/syncQueue'
@@ -102,12 +102,8 @@ function asNumber(value: string): number | null {
 }
 
 function asBearing(bearingText: string): number | null {
-  const parsed = parseDMSString(bearingText)
-  if (parsed === null) {
-    const raw = asNumber(bearingText)
-    return raw === null ? null : normalizeBearing(raw)
-  }
-  return normalizeBearing(parsed)
+  const parsed = parseFieldAngle(bearingText)
+  return parsed === null ? null : normalizeBearing(parsed)
 }
 
 function niceNow() {
@@ -444,7 +440,7 @@ export default function DigitalFieldBookPage() {
     const errors: string[] = []
     const rows = controlRows.map((r) => {
       const b = asBearing(r.bearing)
-      const v = asNumber(r.verticalAngle)
+      const v = parseFieldAngle(r.verticalAngle)
       const s = asNumber(r.slopeDistance)
       const hi = asNumber(r.instrumentHeight)
       const ht = asNumber(r.targetHeight)
@@ -474,7 +470,7 @@ export default function DigitalFieldBookPage() {
     const errors: string[] = []
     const rows = miningRows.map((r) => {
       const b = asBearing(r.bearing)
-      const v = asNumber(r.verticalAngle)
+      const v = parseFieldAngle(r.verticalAngle)
       const s = asNumber(r.slopeDistance)
       if (!r.pointId.trim()) errors.push('Point ID is required.')
       if (b === null) errors.push(`Invalid bearing at ${r.pointId || '(blank)'}`)
@@ -1002,6 +998,35 @@ export default function DigitalFieldBookPage() {
           stationName={type === 'control' ? controlStation.name : type === 'mining' ? miningStation.name : undefined}
           onPullInstrumentReading={pullInstrumentReading}
           onViewAuditLog={() => setAuditDrawerOpen(true)}
+          computed={currentComputed}
+          openingRL={openingRL}
+          setOpeningRL={setOpeningRL}
+          closingRL={closingRL}
+          setClosingRL={setClosingRL}
+          distanceKm={distanceKm}
+          setDistanceKm={setDistanceKm}
+          levelMethod={levelMethod}
+          setLevelMethod={setLevelMethod}
+          travMode={travMode}
+          setTravMode={setTravMode}
+          startStation={startStation}
+          setStartStation={setStartStation}
+          startE={startE}
+          setStartE={setStartE}
+          startN={startN}
+          setStartN={setStartN}
+          closeE={closeE}
+          setCloseE={setCloseE}
+          closeN={closeN}
+          setCloseN={setCloseN}
+          controlSetups={controlSetups}
+          setControlSetups={setControlSetups}
+          activeControlSetupId={activeControlSetupId}
+          setActiveControlSetupId={setActiveControlSetupId}
+          controlStation={controlStation}
+          setControlStation={setControlStation}
+          miningStation={miningStation}
+          setMiningStation={setMiningStation}
         />
         <FieldbookAuditDrawer
           open={auditDrawerOpen}

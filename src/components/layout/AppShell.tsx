@@ -35,6 +35,10 @@ function isAdminRoute(pathname: string): boolean {
   return pathname === '/admin' || pathname.startsWith('/admin/')
 }
 
+function isAuthRoute(pathname: string): boolean {
+  return pathname === '/login' || pathname === '/register' || pathname.startsWith('/login/') || pathname.startsWith('/register/')
+}
+
 function isHiddenShellRoute(pathname: string): boolean {
   return isFullScreenRoute(pathname) || isAdminRoute(pathname)
 }
@@ -46,10 +50,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const fullScreen = isFullScreenRoute(pathname)
   const admin = isAdminRoute(pathname)
   const hidden = isHiddenShellRoute(pathname)
+  const auth = isAuthRoute(pathname)
   const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
-    if (pathname === '/login' || pathname.startsWith('/login/')) return
+    if (isAuthRoute(pathname)) return
     if (!localStorage.getItem('metardu_onboarding_seen')) {
       setShowOnboarding(true)
     }
@@ -67,6 +72,27 @@ export default function AppShell({ children }: { children: ReactNode }) {
       onComplete={dismissOnboarding}
     />
   )
+
+  // Auth routes (login/register): bare page, no chrome
+  if (auth) {
+    return (
+      <>
+        <SkipToContent />
+        <OfflineIndicator />
+        <ProjectionInit />
+        <LanguageProvider>
+          <CountryProvider>
+            <SubscriptionProvider>
+              <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden">
+                {children}
+              </main>
+              <NotificationToast />
+            </SubscriptionProvider>
+          </CountryProvider>
+        </LanguageProvider>
+      </>
+    )
+  }
 
   // Full-screen routes (field map): no chrome at all, but field mode toggle is always available
   if (fullScreen) {
@@ -144,9 +170,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <KeyboardShortcuts />
             <QuickCompute />
             <MobileNav />
-            <div className="fixed bottom-24 right-4 z-50 md:bottom-8 md:right-8">
-              <FieldModeToggle />
-            </div>
             <NotificationToast />
             {onboardingModal}
           </SubscriptionProvider>

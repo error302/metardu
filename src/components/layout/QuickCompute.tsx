@@ -126,7 +126,7 @@ export function QuickCompute() {
       {/* ── FAB Button ────────────────────────────────────────── */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-40 right-4 md:bottom-16 md:right-6 z-[41] flex items-center gap-2.5
+        className="fixed bottom-44 right-4 md:bottom-20 md:right-6 z-[41] flex items-center gap-2.5
                    bg-gradient-to-r from-[#FFB84D] to-[#E8841A] text-white
                    px-5 py-3 rounded-2xl font-semibold text-sm
                    shadow-[0_0_20px_rgba(232,132,26,0.3)]

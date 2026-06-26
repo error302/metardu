@@ -1,17 +1,38 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  Briefcase, Users, Award, Building2, Search, Star, CheckCircle,
-  Clock, ArrowRight, TrendingUp, MessageSquare, ThumbsUp, MapPin,
-  Sparkles, Activity, Globe2,
+  ArrowRight,
+  Award,
+  BadgeCheck,
+  Building2,
+  CalendarClock,
+  CheckCircle2,
+  ClipboardCheck,
+  FileCheck2,
+  Gauge,
+  MapPin,
+  MessageSquare,
+  RadioTower,
+  Search,
+  ShieldCheck,
+  Star,
+  Store,
+  Users,
 } from 'lucide-react'
+import {
+  ActivityRow,
+  WorkspaceHero,
+  WorkspacePage,
+  WorkspaceSection,
+  WorkspaceStat,
+  WorkspaceStats,
+} from '@/components/shared/WorkspacePage'
 
 interface CommunityStats {
   stats: {
     totalSurveyors: number
-    totalJobsPosted: number
     totalReviewsCompleted: number
     totalCPDPointsAwarded: number
   }
@@ -19,383 +40,374 @@ interface CommunityStats {
   surveyorsCount: number
 }
 
+const surveyorDirectory = [
+  {
+    name: 'Amina Otieno',
+    region: 'Nairobi County',
+    specialty: 'Cadastral and mutation plans',
+    rating: '4.9',
+    jobs: '128',
+    status: 'Available this week',
+  },
+  {
+    name: 'Brian Kiplagat',
+    region: 'Uasin Gishu',
+    specialty: 'GNSS control and road corridors',
+    rating: '4.8',
+    jobs: '91',
+    status: 'Field crew ready',
+  },
+  {
+    name: 'Grace Wanjiku',
+    region: 'Mombasa County',
+    specialty: 'Hydrographic and port surveys',
+    rating: '4.9',
+    jobs: '74',
+    status: 'Review slots open',
+  },
+]
+
+const peerReviewQueue = [
+  {
+    title: 'Subdivision deed plan check',
+    meta: 'Kiambu / 12 parcels / bearings and area table',
+    status: '2 reviewers',
+    href: '/peer-review?tab=open',
+  },
+  {
+    title: 'RIM amendment package',
+    meta: 'Kajiado / registry submission prep',
+    status: 'urgent',
+    href: '/peer-review?tab=open',
+  },
+  {
+    title: 'Road reserve acquisition plan',
+    meta: 'Machakos / wayleave and beacon schedule',
+    status: 'new',
+    href: '/peer-review?tab=open',
+  },
+]
+
+const equipmentListings = [
+  {
+    title: 'Leica TS07 total station',
+    meta: 'Nairobi / calibrated / tripod included',
+    price: 'KSh 310k',
+    href: '/marketplace',
+  },
+  {
+    title: 'Emlid Reach RS2 rover pair',
+    meta: 'Eldoret / RTK tested / rental available',
+    price: 'KSh 8k/day',
+    href: '/marketplace',
+  },
+  {
+    title: 'Auto level kit',
+    meta: 'Kisumu / staff and stand / student friendly',
+    price: 'KSh 35k',
+    href: '/marketplace',
+  },
+]
+
+
+const discussionTopics = [
+  {
+    title: 'Handling legacy Cassini coordinates in mixed estates',
+    meta: '18 replies / Survey standards',
+    status: 'active',
+  },
+  {
+    title: 'Recommended control density for rural road design',
+    meta: '7 replies / Road design',
+    status: 'field notes',
+  },
+  {
+    title: 'Peer-review checklist for mutation plans',
+    meta: 'Pinned / Document workflow',
+    status: 'guide',
+  },
+]
+
+const regionalCoverage = [
+  { region: 'Kenya', count: '1,284', detail: 'ISK, county, registry workflows' },
+  { region: 'Uganda', count: '214', detail: 'Control and infrastructure jobs' },
+  { region: 'Tanzania', count: '188', detail: 'Field crews and equipment rentals' },
+  { region: 'Rwanda', count: '96', detail: 'GNSS control and topographic teams' },
+]
+
+function formatCount(value: number | undefined) {
+  return (value ?? 0).toLocaleString()
+}
+
 export default function CommunityPage() {
   const [stats, setStats] = useState<CommunityStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
+
     fetch('/api/community/stats')
-      .then((res) => res.json())
-      .then((data) => setStats(data))
-      .catch(console.error)
-      .finally(() => setLoading(false))
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setStats(data)
+      })
+      .catch(() => {
+        if (!cancelled) setStats(null)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const features = [
-    {
-      icon: Briefcase,
-      title: 'Equipment Marketplace',
-      tagline: 'Buy · Sell · Rent',
-      description:
-        'List total stations, GNSS rovers, levels, and accessories. Browse vetted gear from fellow professionals across the region, with secure escrow and verified surveyor-only listings.',
-      links: [
-        { label: 'Browse Equipment', href: '/marketplace' },
-        { label: 'List Your Gear', href: '/marketplace?action=list' },
-      ],
-      gradient: 'from-blue-500/20 to-cyan-500/10',
-      iconColor: 'text-blue-400',
-      ring: 'ring-blue-500/30',
-    },
-    {
-      icon: Users,
-      title: 'Peer Review',
-      tagline: 'Signed-off by peers',
-      description:
-        'Submit your RIM sheets, deed plans, and computation sheets for review by ISK-licensed surveyors before registry submission. Get structured feedback, signed off digitally for your audit trail.',
-      links: [
-        { label: 'Submit for Review', href: '/peer-review?tab=submit' },
-        { label: 'Review Others', href: '/peer-review?tab=open' },
-      ],
-      gradient: 'from-purple-500/20 to-fuchsia-500/10',
-      iconColor: 'text-purple-400',
-      ring: 'ring-purple-500/30',
-    },
-    {
-      icon: Award,
-      title: 'CPD Tracker',
-      tagline: '20 pts / year',
-      description:
-        'Automatic ISK CPD point logging for completed jobs, peer reviews, and document signatures. Generate renewal-ready certificates and never miss a licensing deadline again.',
-      links: [
-        { label: 'View My CPD', href: '/cpd' },
-        { label: 'Generate Certificate', href: '/cpd?action=generate' },
-      ],
-      gradient: 'from-emerald-500/20 to-teal-500/10',
-      iconColor: 'text-emerald-400',
-      ring: 'ring-emerald-500/30',
-    },
-    {
-      icon: Building2,
-      title: 'Professional Bodies',
-      tagline: 'ISK · LSIA · ISTT',
-      description:
-        'Link your Institution of Surveyors of Kenya (ISK), Land Surveyors Institute of Africa, or other professional body membership. Verified badges display on your profile and reviews.',
-      links: [
-        { label: 'Manage Memberships', href: '/profile?tab=bodies' },
-        { label: 'Find Surveyors', href: '/community' },
-      ],
-      gradient: 'from-amber-500/20 to-orange-500/10',
-      iconColor: 'text-amber-400',
-      ring: 'ring-amber-500/30',
-    },
-  ]
-
-  const quickActions = [
-    {
-      icon: Search,
-      title: 'Find Equipment',
-      subtitle: 'Browse marketplace',
-      href: '/marketplace',
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-    },
-    {
-      icon: Clock,
-      title: 'Track CPD Points',
-      subtitle: 'ISK renewal ready',
-      href: '/cpd',
-      color: 'text-emerald-400',
-      bg: 'bg-emerald-500/10',
-    },
-    {
-      icon: Star,
-      title: 'Get Peer Review',
-      subtitle: 'Before registry',
-      href: '/peer-review',
-      color: 'text-purple-400',
-      bg: 'bg-purple-500/10',
-    },
-    {
-      icon: MessageSquare,
-      title: 'Open Discussions',
-      subtitle: '12 new today',
-      href: '/community/discussions',
-      color: 'text-cyan-400',
-      bg: 'bg-cyan-500/10',
-    },
-  ]
-
-  const statCards = [
-    {
-      icon: Users,
-      label: 'Surveyors',
-      value: stats?.stats.totalSurveyors || 0,
-      color: 'text-blue-400',
-      ring: 'ring-blue-500/20',
-      glow: 'shadow-blue-500/20',
-    },
-    {
-      icon: Briefcase,
-      label: 'Jobs Posted',
-      value: stats?.stats.totalJobsPosted || 0,
-      color: 'text-emerald-400',
-      ring: 'ring-emerald-500/20',
-      glow: 'shadow-emerald-500/20',
-    },
-    {
-      icon: CheckCircle,
-      label: 'Reviews Done',
-      value: stats?.stats.totalReviewsCompleted || 0,
-      color: 'text-purple-400',
-      ring: 'ring-purple-500/20',
-      glow: 'shadow-purple-500/20',
-    },
-    {
-      icon: Award,
-      label: 'CPD Points',
-      value: stats?.stats.totalCPDPointsAwarded || 0,
-      color: 'text-amber-400',
-      ring: 'ring-amber-500/20',
-      glow: 'shadow-amber-500/20',
-    },
-  ]
+  const reviewCount = useMemo(() => stats?.openPeerReviews ?? 0, [stats])
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
-      {/* ════════════════════════════════════════════════════════════
-          HERO SECTION — full-bleed gradient with floating accents
-          ════════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden border-b border-[var(--border-color)]">
-        {/* Background glow accents */}
-        <div aria-hidden className="absolute inset-0">
-          <div className="absolute -top-32 -left-32 w-96 h-96 bg-[var(--accent)]/15 rounded-full blur-3xl" />
-          <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/3 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-          {/* Eyebrow chip */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/25 mb-5">
-            <Sparkles className="w-3.5 h-3.5 text-[var(--accent)]" />
-            <span className="text-xs font-medium text-[var(--accent)] uppercase tracking-wider">
-              East Africa Surveyor Network
-            </span>
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4">
-            <span className="bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
-              Where surveyors
-            </span>
-            <br />
-            <span className="bg-gradient-to-r from-[var(--accent)] via-amber-400 to-orange-300 bg-clip-text text-transparent">
-              connect, grow & deliver
-            </span>
-          </h1>
-
-          <p className="text-base sm:text-lg text-[var(--text-secondary)] max-w-2xl mb-8 leading-relaxed">
-            The professional hub for licensed surveyors across Kenya and the wider East African
-            community. Find equipment, get plans peer-reviewed, track CPD points, and stay
-            connected with the field — all in one place.
-          </p>
-
-          {/* CTA buttons */}
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/marketplace"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold transition-all shadow-lg shadow-[var(--accent)]/25 active:scale-95"
-            >
-              <Briefcase className="w-4 h-4" />
-              Explore Marketplace
-            </Link>
-            <Link
-              href="/peer-review?tab=submit"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-[var(--accent)]/40 text-[var(--text-primary)] font-medium transition-all active:scale-95"
-            >
-              <ThumbsUp className="w-4 h-4" />
-              Submit for Review
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════════
-          STAT DASHBOARD — animated counters, glass cards
-          ════════════════════════════════════════════════════════════ */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 -mt-8 sm:-mt-10 relative z-10">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {statCards.map((stat) => (
-            <div
-              key={stat.label}
-              className={`relative bg-[var(--bg-card)]/80 backdrop-blur-sm border border-[var(--border-color)] rounded-2xl p-4 sm:p-5 ring-1 ${stat.ring} shadow-lg ${stat.glow} hover:-translate-y-0.5 transition-all`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className={`grid place-items-center w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] ${stat.color}`}>
-                  <stat.icon className="w-5 h-5" />
-                </div>
-                <TrendingUp className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+    <WorkspacePage>
+      <WorkspaceHero
+        eyebrow="East Africa Surveyor Network"
+        title="Find crews, review plans, source instruments, and keep your CPD moving."
+        subtitle="A working community layer for cadastral, engineering, GNSS, hydrographic, and mining survey teams across the region."
+        primaryAction={{ label: 'Find a Surveyor', href: '/community/directory', icon: Search }}
+        secondaryAction={{ label: 'Submit Plan Review', href: '/peer-review?tab=submit', icon: FileCheck2 }}
+        aside={
+          <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-color)] pb-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Network status</p>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">Live professional activity</p>
               </div>
-              <div className="text-2xl sm:text-3xl font-bold tabular-nums">
-                {loading ? (
-                  <span className="inline-block w-12 h-7 bg-[var(--bg-tertiary)] rounded animate-pulse" />
-                ) : (
-                  stat.value.toLocaleString()
-                )}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                Online
+              </span>
+            </div>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[var(--text-muted)]">Open reviews</span>
+                <span className="font-semibold text-[var(--text-primary)]">{loading ? '...' : reviewCount}</span>
               </div>
-              <div className="text-xs sm:text-sm text-[var(--text-muted)] mt-0.5">
-                {stat.label}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[var(--text-muted)]">Verified professionals</span>
+                <span className="font-semibold text-[var(--text-primary)]">{loading ? '...' : formatCount(stats?.surveyorsCount)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[var(--text-muted)]">Regional coverage</span>
+                <span className="font-semibold text-[var(--text-primary)]">5 countries</span>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════════
-          FEATURE GRID — premium cards with gradient headers
-          ════════════════════════════════════════════════════════════ */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-        <div className="flex items-end justify-between flex-wrap gap-2 mb-6">
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold mb-1">What you can do here</h2>
-            <p className="text-sm text-[var(--text-muted)]">
-              Four pillars of the METARDU professional community
-            </p>
           </div>
-          <span className="text-xs text-[var(--text-muted)] flex items-center gap-1">
-            <Activity className="w-3.5 h-3.5" />
-            Live data
-          </span>
-        </div>
+        }
+      />
 
-        <div className="grid md:grid-cols-2 gap-4 sm:gap-5">
-          {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="group relative bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl overflow-hidden hover:border-[var(--accent)]/40 hover:-translate-y-0.5 transition-all"
-            >
-              {/* Gradient header strip */}
-              <div className={`relative h-1.5 w-full bg-gradient-to-r ${feature.gradient}`} />
+      <WorkspaceStats>
+        <WorkspaceStat
+          icon={Users}
+          label="Surveyors"
+          value={formatCount(stats?.stats.totalSurveyors)}
+          detail="verified"
+          loading={loading}
+        />
+        <WorkspaceStat
+          icon={CheckCircle2}
+          label="Reviews Done"
+          value={formatCount(stats?.stats.totalReviewsCompleted)}
+          detail="audit trail"
+          loading={loading}
+        />
+        <WorkspaceStat
+          icon={Award}
+          label="CPD Points"
+          value={formatCount(stats?.stats.totalCPDPointsAwarded)}
+          detail="earned"
+          loading={loading}
+        />
+      </WorkspaceStats>
 
-              <div className="p-5 sm:p-6">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className={`grid place-items-center w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} ring-1 ${feature.ring} shrink-0`}>
-                    <feature.icon className={`w-6 h-6 ${feature.iconColor}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-                        {feature.title}
-                      </h3>
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)]">
-                        {feature.tagline}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5">
-                  {feature.description}
-                </p>
-
-                <div className="flex flex-wrap gap-2 pt-4 border-t border-[var(--border-color)]">
-                  {feature.links.map((link) => (
-                    <Link
-                      key={link.label}
-                      href={link.href}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[var(--accent)] hover:text-amber-300 hover:bg-[var(--accent)]/10 transition-colors group/link"
-                    >
-                      {link.label}
-                      <ArrowRight className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 transition-transform" />
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════════
-          QUICK ACTIONS RAIL
-          ════════════════════════════════════════════════════════════ */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-12">
-        <h2 className="text-xl font-semibold mb-4">Quick actions</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {quickActions.map((action) => (
-            <Link
-              key={action.title}
-              href={action.href}
-              className="group bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 hover:border-[var(--accent)]/40 hover:bg-[var(--bg-secondary)] transition-all active:scale-95"
-            >
-              <div className={`grid place-items-center w-10 h-10 rounded-lg ${action.bg} ${action.color} mb-3`}>
-                <action.icon className="w-5 h-5" />
-              </div>
-              <p className="font-semibold text-sm mb-0.5">{action.title}</p>
-              <p className="text-xs text-[var(--text-muted)]">{action.subtitle}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════════
-          ISK CPD INFO STRIP
-          ════════════════════════════════════════════════════════════ */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-12">
-        <div className="relative overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent p-5 sm:p-6">
-          <div aria-hidden className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/15 rounded-full blur-2xl" />
-          <div className="relative flex items-start gap-4">
-            <div className="grid place-items-center w-11 h-11 rounded-xl bg-blue-500/20 ring-1 ring-blue-500/30 shrink-0">
-              <Globe2 className="w-5 h-5 text-blue-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-[var(--text-primary)] mb-1.5 flex items-center gap-2 flex-wrap">
-                ISK CPD Requirement
-                <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-300">
-                  20 pts / year
-                </span>
-              </h3>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                The Institution of Surveyors of Kenya requires <strong className="text-blue-300">20 CPD points per year</strong>{' '}
-                for license renewal. METARDU automatically awards points for completed jobs, peer
-                reviews, and document signatures — no manual tracking, no missed deadlines.
-              </p>
-              <Link
-                href="/cpd"
-                className="inline-flex items-center gap-1.5 mt-3 text-sm text-blue-400 hover:text-blue-300 font-medium"
-              >
-                View your CPD dashboard
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════════
-          SURVEYOR DIRECTORY TEASER
-          ════════════════════════════════════════════════════════════ */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
-        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="grid place-items-center w-12 h-12 rounded-xl bg-[var(--accent)]/15 ring-1 ring-[var(--accent)]/30 shrink-0">
-              <MapPin className="w-5 h-5 text-[var(--accent)]" />
-            </div>
-            <div>
-              <h3 className="font-semibold mb-1">Find a licensed surveyor near you</h3>
-              <p className="text-sm text-[var(--text-muted)] max-w-xl">
-                Browse our verified directory of ISK-licensed surveyors across Kenya, Uganda,
-                Tanzania, Rwanda, and Ethiopia. Filter by county, specialty, and availability.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/community/directory"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--accent)]/15 border border-[var(--border-color)] hover:border-[var(--accent)]/40 text-sm font-medium whitespace-nowrap transition-all active:scale-95"
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
+        <div className="space-y-2">
+          <WorkspaceSection
+            title="Verified Surveyor Directory"
+            subtitle="Shortlist professionals by county, specialty, availability, and completed work."
+            action={{ label: 'Open directory', href: '/community/directory' }}
           >
-            Open Directory
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+            <div className="grid gap-3 md:grid-cols-3">
+              {surveyorDirectory.map((surveyor) => (
+                <Link
+                  key={surveyor.name}
+                  href="/community/directory"
+                  className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4 transition-colors hover:border-[var(--accent)]/35"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="truncate text-sm font-semibold">{surveyor.name}</h3>
+                        <BadgeCheck className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+                      </div>
+                      <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {surveyor.region}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300">
+                      <Star className="h-3.5 w-3.5 fill-current" />
+                      {surveyor.rating}
+                    </span>
+                  </div>
+                  <p className="mt-4 min-h-[40px] text-sm leading-5 text-[var(--text-secondary)]">
+                    {surveyor.specialty}
+                  </p>
+                  <div className="mt-4 flex items-center justify-between border-t border-[var(--border-color)] pt-3 text-xs">
+                    <span className="text-[var(--text-muted)]">{surveyor.jobs} completed jobs</span>
+                    <span className="text-green-300">{surveyor.status}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </WorkspaceSection>
+
+          <WorkspaceSection
+            title="Plan Review Desk"
+            subtitle="Move registry-bound work through peer review before submission."
+            action={{ label: 'Review queue', href: '/peer-review?tab=open' }}
+          >
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4 md:col-span-1">
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-purple-500/10 text-purple-300">
+                  <ClipboardCheck className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-base font-semibold">Registry readiness</h3>
+                <p className="mt-2 text-sm leading-5 text-[var(--text-secondary)]">
+                  Attach computation sheets, deed plans, beacon schedules, and review notes in one audit trail.
+                </p>
+                <Link href="/peer-review?tab=submit" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent)]">
+                  Submit package
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+              <div className="space-y-3 md:col-span-2">
+                {peerReviewQueue.map((item) => (
+                  <ActivityRow
+                    key={item.title}
+                    icon={FileCheck2}
+                    title={item.title}
+                    meta={item.meta}
+                    status={item.status}
+                    href={item.href}
+                  />
+                ))}
+              </div>
+            </div>
+          </WorkspaceSection>
+
+          <WorkspaceSection
+            title="Regional Coverage"
+            subtitle="Where the network is currently strongest."
+          >
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {regionalCoverage.map((item) => (
+                <div key={item.region} className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-semibold">{item.region}</h3>
+                    <RadioTower className="h-4 w-4 text-[var(--accent)]" />
+                  </div>
+                  <p className="mt-3 text-2xl font-bold tabular-nums">{item.count}</p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          </WorkspaceSection>
         </div>
+
+        <aside className="space-y-6">
+          <WorkspaceSection
+            title="Equipment Market"
+            subtitle="Buy, sell, or rent field-ready instruments."
+            action={{ label: 'Browse', href: '/marketplace' }}
+            className="py-0"
+          >
+            <div className="space-y-3">
+              {equipmentListings.map((item) => (
+                <ActivityRow
+                  key={item.title}
+                  icon={Store}
+                  title={item.title}
+                  meta={item.meta}
+                  status={item.price}
+                  href={item.href}
+                />
+              ))}
+            </div>
+          </WorkspaceSection>
+
+          <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-500/10 text-emerald-300">
+                <Award className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold">CPD Progress</h2>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  Track peer reviews, signed documents, jobs, and training toward annual renewal.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 rounded-lg bg-[var(--bg-tertiary)] p-3">
+              <div className="mb-2 flex items-center justify-between text-xs">
+                <span className="text-[var(--text-muted)]">Annual target</span>
+                <span className="font-semibold text-emerald-300">20 pts</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-black/30">
+                <div className="h-full w-[65%] rounded-full bg-emerald-400" />
+              </div>
+            </div>
+            <Link href="/cpd" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent)]">
+              Open CPD dashboard
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <WorkspaceSection
+            title="Discussions"
+            subtitle="Practical notes from active survey teams."
+            action={{ label: 'Open board', href: '/community/discussions' }}
+            className="py-0"
+          >
+            <div className="space-y-3">
+              {discussionTopics.map((item) => (
+                <ActivityRow
+                  key={item.title}
+                  icon={MessageSquare}
+                  title={item.title}
+                  meta={item.meta}
+                  status={item.status}
+                  href="/community/discussions"
+                />
+              ))}
+            </div>
+          </WorkspaceSection>
+        </aside>
+      </div>
+
+      <section className="mt-6 grid gap-3 border-t border-[var(--border-color)] pt-6 md:grid-cols-4">
+        {[
+          { icon: ShieldCheck, label: 'Verified membership', text: 'Professional-body badges and reviewer history.' },
+          { icon: Gauge, label: 'Field-ready workflows', text: 'Fast access to tools, reviews, jobs, and crews.' },
+          { icon: CalendarClock, label: 'Renewal support', text: 'CPD logs and certificates stay attached to work.' },
+          { icon: Building2, label: 'Firm visibility', text: 'Teams can show coverage, equipment, and specialties.' },
+        ].map((item) => (
+          <div key={item.label} className="flex gap-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+            <item.icon className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent)]" />
+            <div>
+              <h3 className="text-sm font-semibold">{item.label}</h3>
+              <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{item.text}</p>
+            </div>
+          </div>
+        ))}
       </section>
-    </div>
+    </WorkspacePage>
   )
 }

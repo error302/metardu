@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { slopeFromEDM, seaLevelCorrection, gridCorrection } from '@/lib/engine/edm-corrections'
+import { parseFieldAngle } from '@/lib/engine/angles'
 
 type Translator = (key: string, values?: Record<string, string | number>) => string
 
@@ -119,10 +120,10 @@ export function TraverseBook({
       const leg = legs[i]
       if (!leg) return null
       const sd = parseFloat(row.slopeDist) || 0
-      const vaD = parseInt(row.vaDeg) || 0
-      const vaM = parseInt(row.vaMin) || 0
-      const vaS = parseFloat(row.vaSec) || 0
-      const vaDecimal = vaD + vaM / 60 + vaS / 3600
+      const hasDMS = row.vaMin !== '' || row.vaSec !== ''
+      const vaDecimal = hasDMS
+        ? (parseInt(row.vaDeg) || 0) + (parseInt(row.vaMin) || 0) / 60 + (parseFloat(row.vaSec) || 0) / 3600
+        : (parseFieldAngle(row.vaDeg) ?? 0)
 
       if (sd <= 0) return null
 

@@ -163,15 +163,14 @@ function LoginForm() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
       {/* ──────────────────────────────────────────────────────────────
-          FULL-BLEED WORLD MAP BACKGROUND
-          The map now covers the entire viewport end-to-end on every
-          breakpoint. A subtle gradient overlay ensures the glass form
-          stays readable on top.
+          LIGHT TOPOGRAPHIC MAP BACKGROUND
+          Subtle overlays preserve the delicate contour detail while
+          giving the dark glass card maximum contrast.
          ────────────────────────────────────────────────────────────── */}
       <div className="absolute inset-0 -z-10">
-        {/* Pre-loaded PNG (also as <img> for LCP + onLoad callback) */}
+        {/* Pre-loaded topographic PNG */}
         <img
-          src="/images/signin-hero.png"
+          src="/images/signin-topo.jpg"
           alt="World topographic contour map"
           onLoad={() => setImageLoaded(true)}
           className={[
@@ -179,50 +178,51 @@ function LoginForm() {
             imageLoaded ? 'opacity-100' : 'opacity-0',
           ].join(' ')}
         />
-        {/* Fallback background color while PNG loads */}
+        {/* Fallback background color while image loads */}
         <div
           aria-hidden
-          className="absolute inset-0 bg-[#0a1620]"
+          className="absolute inset-0 bg-[#edf0f4]"
           style={{ zIndex: -1 }}
         />
-        {/* Cinematic gradient overlays for legibility */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/55 to-black/80" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/40" />
-        {/* Subtle vignette */}
+        {/* Very subtle navy tint — lets contour lines shine through */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0e1f35]/30 via-[#0a1628]/20 to-[#0e1f35]/35" />
+        {/* Bottom darkening so card/badges contrast cleanly */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#080e18]/60 via-transparent to-[#080e18]/15" />
+        {/* Soft vignette */}
         <div
           aria-hidden
           className="absolute inset-0"
           style={{
             background:
-              'radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.55) 100%)',
+              'radial-gradient(ellipse at center, transparent 45%, rgba(8,14,24,0.35) 100%)',
           }}
         />
       </div>
 
-      {/* Top brand bar — floats above background, mobile + desktop */}
+      {/* Top brand bar */}
       <header className="relative z-10 flex items-center justify-between px-5 sm:px-8 lg:px-12 py-5">
         <a
           href="/"
-          className="group inline-flex items-center gap-2 text-xl sm:text-2xl font-bold tracking-tight text-white"
+          className="group inline-flex items-center gap-2 text-xl sm:text-2xl font-bold tracking-tight text-white drop-shadow-lg"
         >
-          <span className="grid place-items-center w-9 h-9 rounded-lg bg-[var(--accent)]/15 ring-1 ring-[var(--accent)]/40 backdrop-blur-sm">
+          <span className="grid place-items-center w-9 h-9 rounded-lg bg-[var(--accent)]/20 ring-1 ring-[var(--accent)]/50 backdrop-blur-sm">
             <Globe2 className="w-5 h-5 text-[var(--accent)]" />
           </span>
-          <span className="bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-white to-white/90 bg-clip-text text-transparent">
             METARDU
           </span>
         </a>
-        <div className="hidden sm:flex items-center gap-2 text-xs text-white/70 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
+        <div className="hidden sm:flex items-center gap-2 text-xs text-white/90 px-3 py-1.5 rounded-full bg-[#080e18]/50 border border-white/20 backdrop-blur-md drop-shadow-md">
           <ShieldCheck className="w-3.5 h-3.5 text-[var(--accent)]" />
           <span>East Africa Survey Platform</span>
         </div>
       </header>
 
-      {/* Main content — vertically centered, single column on all breakpoints */}
+      {/* Main content */}
       <main className="relative z-10 flex min-h-[calc(100vh-88px)] items-center justify-center px-4 sm:px-6 pb-12">
         <div className="w-full max-w-md">
-          {/* Glass card */}
-          <div className="relative rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)] overflow-hidden">
+          {/* Dark frosted-glass card — pops against the light topo map */}
+          <div className="relative rounded-2xl border border-white/10 bg-[#080e18]/80 backdrop-blur-2xl shadow-[0_24px_80px_-12px_rgba(0,0,0,0.7)] overflow-hidden">
             {/* Top accent stripe */}
             <div className="h-1 w-full bg-gradient-to-r from-[var(--accent)] via-orange-400 to-[var(--accent)]" />
 

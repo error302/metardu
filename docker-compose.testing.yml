@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  metardu-postgres-test:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: metardu-postgres-test
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=metardu_test
+      - POSTGRES_USER=metardu_test
+      - POSTGRES_PASSWORD=metardu_test
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metardu_test -d metardu_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  metardu-worker-test:
+    build:
+      context: ./python_worker
+    container_name: metardu-worker-test
+    ports:
+      - "8001:8000"
+    environment:
+      - ENVIRONMENT=development
+      - WORKER_SECRET=dev-worker-secret
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  metardu-app-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: metardu-app-test
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgresql://metardu_test:metardu_test@metardu-postgres-test:5432/metardu_test
+      - AUTH_SECRET=dev-auth-secret-32-chars-long-or-more-needed-for-nextauth
+      - NEXTAUTH_URL=http://localhost:3001
+      - NEXT_PUBLIC_APP_URL=http://localhost:3001
+      - PYTHON_COMPUTE_URL=http://metardu-worker-test:8000
+      - WORKER_SECRET=dev-worker-secret
+      - DISABLE_PWA=true
+    depends_on:
+      metardu-postgres-test:
+        condition: service_healthy
+      metardu-worker-test:
+        condition: service_healthy
+
+volumes:
+  postgres_test_data:

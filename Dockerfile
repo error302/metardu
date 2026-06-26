@@ -16,7 +16,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DISABLE_PWA=true
-ENV NODE_OPTIONS="--max-old-space-size=1536"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 # Build requires some env vars to be present (even if placeholder)
 ARG DATABASE_URL="postgresql://build:build@localhost/build"
 ARG AUTH_SECRET="build-placeholder-not-used-at-runtime"
@@ -57,12 +57,13 @@ RUN mkdir -p /app/download/worker-output && chown -R nextjs:nodejs /app/download
 # Install postgresql-client for migration runner
 RUN apk add --no-cache postgresql-client
 
-# Ensure entrypoint is executable
-RUN chmod +x ./docker-entrypoint.sh
+# Strip Windows CRLF line endings and ensure entrypoint is executable
+RUN sed -i 's/\r//' ./docker-entrypoint.sh && \
+    chmod +x ./docker-entrypoint.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://localhost:3000/api/public/health || exit 1
+  CMD wget -qO- http://127.0.0.1:3000/api/public/health || exit 1
 
 USER nextjs
 

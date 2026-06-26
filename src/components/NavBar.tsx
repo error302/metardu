@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { z } from 'zod'
 import { apiGet, apiPost, ApiError } from '@/lib/api/client'
 
@@ -12,6 +12,7 @@ import MetarduLogo from '@/components/MetarduLogo'
 import SubscriptionBadge from '@/components/SubscriptionBadge'
 import type { PlanId } from '@/lib/subscription/catalog'
 import { APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isNavItemActive } from '@/lib/navigation-shell'
+import FieldModeToggle from '@/components/shared/FieldModeToggle'
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 const subscriptionResponseSchema = z.object({
@@ -234,6 +235,58 @@ export default function NavBar() {
 
   const { language, setLanguage, t, hydrated } = useLanguage()
   const pathname = usePathname()
+  const router = useRouter()
+
+  // Helper to check if a route is a mobile root-level view
+  const isRootPath = (path: string) => {
+    const roots = ['/', '/dashboard', '/fieldbook', '/map', '/tools', '/reports', '/community']
+    return roots.includes(path)
+  }
+
+  // Helper to determine the logical parent path for back button fallback
+  const getParentPath = (path: string) => {
+    if (path.startsWith('/tools/')) return '/tools'
+    if (path.startsWith('/fieldbook/')) return '/fieldbook'
+    if (path.startsWith('/reports/')) return '/reports'
+    if (path.startsWith('/account/')) return '/account'
+    if (path.startsWith('/admin/')) return '/admin'
+    const segments = path.split('/').filter(Boolean)
+    if (segments.length > 1) {
+      return '/' + segments.slice(0, -1).join('/')
+    }
+    return '/dashboard'
+  }
+
+  // Helper to handle back click
+  const handleBack = (e: React.MouseEvent) => {
+    if (window.history.length > 1) {
+      e.preventDefault()
+      router.back()
+    }
+  }
+
+  // Resolve dynamic sub-page titles using searchablePages definitions
+  const pageTitle = useMemo(() => {
+    const matchedPage = searchablePages.find(p => p.href === pathname)
+    if (matchedPage) return t(matchedPage.labelKey)
+
+    // Manual/Dynamic overrides
+    if (pathname.startsWith('/fieldbook/')) {
+      if (pathname.includes('/new')) return 'New Observation'
+      return 'Observation Detail'
+    }
+    if (pathname.startsWith('/projects/')) return 'Project Details'
+    if (pathname.startsWith('/account')) return 'Account'
+    if (pathname.startsWith('/docs/')) return 'Documentation'
+    
+    // Fallback: capitalize the last segment
+    const segments = pathname.split('/').filter(Boolean)
+    if (segments.length > 0) {
+      const last = segments[segments.length - 1]
+      return last.charAt(0).toUpperCase() + last.slice(1).replace(/-/g, ' ')
+    }
+    return 'METARDU'
+  }, [pathname, t])
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -337,14 +390,45 @@ export default function NavBar() {
   }
 
   return (
-    <nav className="border-b border-[var(--border-color)] bg-[#0a0a0f] sticky top-0 z-50">
+    <nav className="border-b border-[var(--border-color)] bg-[#0a0a0f] sticky top-0 z-50 pt-[env(safe-area-inset-top,0px)]">
       <div ref={navRef} className="max-w-7xl mx-auto px-4">
         {/* Main Navbar */}
-        <div className="h-16 flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" prefetch={false}>
-            <MetarduLogo color="var(--accent)" size={28} showWordmark={true} />
-          </Link>
+        <div className="relative h-16 flex items-center justify-between">
+          {/* Mobile Back Button (only on sub-pages) */}
+          <div className="flex md:hidden items-center">
+            {!isRootPath(pathname) ? (
+              <Link
+                href={getParentPath(pathname)}
+                onClick={handleBack}
+                className="flex items-center gap-1.5 text-[var(--accent)] hover:text-[#FFB84D] transition-colors py-2 px-1"
+                aria-label="Go back"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="text-sm font-semibold hidden sm:inline">Back</span>
+              </Link>
+            ) : (
+              /* Default Logo on mobile root pages */
+              <Link href="/" prefetch={false}>
+                <MetarduLogo color="var(--accent)" size={24} showWordmark={true} />
+              </Link>
+            )}
+          </div>
+
+          {/* Desktop Logo (always visible on desktop) */}
+          <div className="hidden md:flex items-center">
+            <Link href="/" prefetch={false}>
+              <MetarduLogo color="var(--accent)" size={28} showWordmark={true} />
+            </Link>
+          </div>
+
+          {/* Centered Page Title on Mobile Sub-pages */}
+          {!isRootPath(pathname) && (
+            <div className="absolute left-1/2 -translate-x-1/2 md:hidden text-sm font-bold text-[var(--text-primary)] max-w-[45%] truncate tracking-wide uppercase">
+              {pageTitle}
+            </div>
+          )}
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
@@ -375,29 +459,36 @@ export default function NavBar() {
             <GlobalSearch t={t} isAuthenticated={isAuthenticated} />
 
             {/* Language Selector — compact on mobile */}
-            <Dropdown
-              label={`${currentLang.flag} ${currentLang.code.toUpperCase()}`}
-              isOpen={openDropdown === 'lang'}
-              onToggle={() => handleDropdownToggle('lang')}
-              align="right"
-              panelClassName="min-w-[180px] py-1"
-              buttonClassName="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2 py-1 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
-            >
-              {languages.map((lang) => (
-                <button
-                  key={lang.code}
-                  onClick={() => {
-                    setLanguage(lang.code)
-                    setOpenDropdown(null)
-                  }}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 ${
-                    language === lang.code ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
-                  }`}
-                >
-                  {lang.flag} {lang.name}
-                </button>
-              ))}
-            </Dropdown>
+            <div className={isRootPath(pathname) ? "block" : "hidden md:block"}>
+              <Dropdown
+                label={`${currentLang.flag} ${currentLang.code.toUpperCase()}`}
+                isOpen={openDropdown === 'lang'}
+                onToggle={() => handleDropdownToggle('lang')}
+                align="right"
+                panelClassName="min-w-[180px] py-1"
+                buttonClassName="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2 py-1 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-white/5"
+              >
+                {languages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => {
+                      setLanguage(lang.code)
+                      setOpenDropdown(null)
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 ${
+                      language === lang.code ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {lang.flag} {lang.name}
+                  </button>
+                ))}
+              </Dropdown>
+            </div>
+
+            {/* Field mode toggle — inline in navbar, unobtrusive */}
+            <div className={isRootPath(pathname) ? "block" : "hidden md:block"}>
+              <FieldModeToggle />
+            </div>
 
             {authStatus === 'loading' ? (
               <div className="w-20 h-8 bg-[var(--bg-tertiary)] animate-pulse rounded"></div>
@@ -508,19 +599,21 @@ export default function NavBar() {
             )}
 
             {/* Mobile hamburger */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-              className="md:hidden p-2 text-[var(--text-primary)]"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
+            <div className={isRootPath(pathname) ? "block" : "hidden md:block"}>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+                className="md:hidden p-2 text-[var(--text-primary)]"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {mobileMenuOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 

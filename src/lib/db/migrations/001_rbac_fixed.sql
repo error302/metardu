@@ -27,6 +27,8 @@ DO $$ BEGIN
       AND column_name = 'role'
       AND data_type = 'character varying'
   ) THEN
+    -- Must drop default before changing type, then restore it
+    ALTER TABLE surveyor_profiles ALTER COLUMN role DROP DEFAULT;
     ALTER TABLE surveyor_profiles ALTER COLUMN role TYPE user_role
       USING role::user_role;
     ALTER TABLE surveyor_profiles ALTER COLUMN role SET DEFAULT 'surveyor';

@@ -72,9 +72,12 @@ DROP TRIGGER IF EXISTS audit_projects ON projects;
 CREATE TRIGGER audit_projects AFTER INSERT OR UPDATE OR DELETE ON projects
   FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
 
-DROP TRIGGER IF EXISTS audit_surveys ON surveys;
-CREATE TRIGGER audit_surveys AFTER INSERT OR UPDATE OR DELETE ON surveys
-  FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'surveys') THEN
+    DROP TRIGGER IF EXISTS audit_surveys ON surveys;
+    EXECUTE 'CREATE TRIGGER audit_surveys AFTER INSERT OR UPDATE OR DELETE ON surveys FOR EACH ROW EXECUTE FUNCTION audit_trigger_func()';
+  END IF;
+END $$;
 
 -- User & payment data
 DROP TRIGGER IF EXISTS audit_surveyor_profiles ON surveyor_profiles;
@@ -143,20 +146,20 @@ DROP TRIGGER IF EXISTS set_updated_at_projects ON projects;
 CREATE TRIGGER set_updated_at_projects BEFORE UPDATE ON projects
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- surveys
+-- surveys (guarded — table may not exist in all deployments)
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'surveys' AND column_name = 'updated_at'
-  ) THEN
-    ALTER TABLE surveys ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now();
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'surveys') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'surveys' AND column_name = 'updated_at'
+    ) THEN
+      EXECUTE 'ALTER TABLE surveys ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now()';
+    END IF;
+    DROP TRIGGER IF EXISTS set_updated_at_surveys ON surveys;
+    EXECUTE 'CREATE TRIGGER set_updated_at_surveys BEFORE UPDATE ON surveys FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()';
   END IF;
 END $$;
-
-DROP TRIGGER IF EXISTS set_updated_at_surveys ON surveys;
-CREATE TRIGGER set_updated_at_surveys BEFORE UPDATE ON surveys
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- traverse_results
 DO $$

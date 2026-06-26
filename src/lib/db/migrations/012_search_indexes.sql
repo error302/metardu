@@ -38,13 +38,27 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- surveyor_profiles: add specialization (singular) if missing
+-- surveyor_profiles: add specialization (singular), full_name, and county if missing
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'surveyor_profiles' AND column_name = 'specialization'
   ) THEN
     ALTER TABLE surveyor_profiles ADD COLUMN specialization VARCHAR(100);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'surveyor_profiles' AND column_name = 'full_name'
+  ) THEN
+    ALTER TABLE surveyor_profiles ADD COLUMN full_name VARCHAR(255);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'surveyor_profiles' AND column_name = 'county'
+  ) THEN
+    ALTER TABLE surveyor_profiles ADD COLUMN county VARCHAR(100);
   END IF;
 END $$;
 
@@ -55,7 +69,7 @@ END $$;
 -- Instead we add GENERATED columns that compute the weighted tsvector, then
 -- index those columns with a standard GIN index.
 
--- projects: search_vector (name A, description B, survey_type C, location C)
+-- projects: search_vector (name A, survey_type B, location C)
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
@@ -64,8 +78,7 @@ DO $$ BEGIN
     ALTER TABLE projects ADD COLUMN search_vector tsvector
       GENERATED ALWAYS AS (
         setweight(to_tsvector('english', COALESCE(name, '')), 'A') ||
-        setweight(to_tsvector('english', COALESCE(description, '')), 'B') ||
-        setweight(to_tsvector('english', COALESCE(survey_type, '')), 'C') ||
+        setweight(to_tsvector('english', COALESCE(survey_type, '')), 'B') ||
         setweight(to_tsvector('english', COALESCE(location, '')), 'C')
       ) STORED;
   END IF;
