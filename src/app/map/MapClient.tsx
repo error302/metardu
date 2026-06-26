@@ -17,6 +17,7 @@
  * │  ├─ components/MapNotifications.tsx  → Toast (context)      │
  * │  ├─ components/MapCoordSearch.tsx   → Coord search (ctx)    │
  * │  ├─ components/CogoInfoPanel.tsx    → COGO traverse (ctx)   │
+ * │  ├─ components/CogoToolsPanel.tsx   → COGO compute (ctx)    │
  * │  ├─ components/RotationControl.tsx  → North arrow reset     │
  * │  ├─ components/MapPrintButton.tsx   → Print button (ctx)    │
  * │  ├─ LayerControl (reusable, props)  → Grid/XYZ/WMS/Opacity │
@@ -88,6 +89,7 @@ import { MapStatusBar } from '@/app/map/components/MapStatusBar'
 import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { CogoInfoPanel } from '@/app/map/components/CogoInfoPanel'
+import { CogoToolsPanel } from '@/app/map/components/CogoToolsPanel'
 import { RotationControl } from '@/app/map/components/RotationControl'
 import { MapPrintButton } from '@/app/map/components/MapPrintButton'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
@@ -1010,8 +1012,9 @@ export default function MapClient() {
                 <VertexEditToolbar />
               </div>
 
-              {/* ── COGO Info Panel (bottom-left, above status bar) ── */}
-              <div className="absolute bottom-10 left-3 z-20 sm:bottom-12 sm:left-4">
+              {/* ── COGO Info Panel (bottom-left) + COGO Tools (above it) ── */}
+              <div className="absolute bottom-10 left-3 z-20 sm:bottom-12 sm:left-4 flex flex-col gap-2 items-start">
+                <CogoToolsPanel />
                 <CogoInfoPanel />
               </div>
 
