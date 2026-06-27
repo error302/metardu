@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { Eye, EyeOff, ArrowLeft, CheckCircle2, Globe2, ShieldCheck, WifiOff } from 'lucide-react'
 
@@ -32,7 +32,6 @@ function MicrosoftIcon({ className }: { className?: string }) {
 }
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
 
   const [view, setView] = useState<View>('login')
@@ -102,6 +101,17 @@ function LoginForm() {
       setLoading(false)
 
       if (result?.error) {
+        // Check if the database is available — if not, show a service-unavailable message
+        try {
+          const healthRes = await fetch('/api/public/health')
+          const healthData = await healthRes.json()
+          if (healthData.checks?.database === 'error') {
+            setError('Service temporarily unavailable. The database is not reachable. Please try again later.')
+            return
+          }
+        } catch {
+          // Health check itself failed — likely a network issue
+        }
         setError('Incorrect email or password. Please try again.')
         return
       }

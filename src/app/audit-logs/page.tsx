@@ -30,21 +30,31 @@ export default async function AuditLogsPage() {
 
   setCurrentUserId(String(session.user.id))
 
-  // ponytail: db.query isn't generic — cast the result
-  const { rows } = await db.query(
-    `SELECT id, user_id, action, table_name, record_id, details, ip_address, created_at
-     FROM audit_logs
-     WHERE user_id = $1
-     ORDER BY created_at DESC
-     LIMIT 100`,
-    [session.user.id],
-  )
-  const logs = rows as AuditLog[]
+  let logs: AuditLog[] = []
+  let dbError = false
+
+  try {
+    const { rows } = await db.query(
+      `SELECT id, user_id, action, table_name, record_id, details, ip_address, created_at
+       FROM audit_logs
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 100`,
+      [session.user.id],
+    )
+    logs = rows as AuditLog[]
+  } catch {
+    dbError = true
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Audit Logs</h1>
-      {logs.length === 0 ? (
+      {dbError ? (
+        <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/5 text-amber-400 text-sm">
+          Unable to load audit logs. The database may be temporarily unavailable.
+        </div>
+      ) : logs.length === 0 ? (
         <div className="text-[var(--text-muted)]">No audit logs found.</div>
       ) : (
         <div className="overflow-x-auto">

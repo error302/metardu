@@ -2,7 +2,7 @@
 
 import {
   ShieldCheck, Ban, CheckCircle2, Mail,
-  Calendar, MoreVertical,
+  Calendar, Crown, Rocket, Building2, User as UserIcon,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -45,6 +45,29 @@ function roleBadgeClass(role: string): string {
   }
 }
 
+function planBadgeClass(plan: string): string {
+  switch (plan.toLowerCase()) {
+    case 'pro':
+      return 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+    case 'enterprise':
+      return 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+    case 'free':
+    default:
+      return 'bg-gray-500/15 text-gray-400 border-gray-500/30'
+  }
+}
+
+function planIcon(plan: string) {
+  switch (plan.toLowerCase()) {
+    case 'pro':
+      return <Rocket className="w-3 h-3" />
+    case 'enterprise':
+      return <Building2 className="w-3 h-3" />
+    default:
+      return <UserIcon className="w-3 h-3" />
+  }
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-KE', {
     year: 'numeric',
@@ -61,10 +84,12 @@ export function MobileUserCard({
   user,
   onRoleClick,
   onSuspendClick,
+  onPlanClick,
 }: {
   user: UserRecord
   onRoleClick: () => void
   onSuspendClick: () => void
+  onPlanClick?: () => void
 }) {
   return (
     <div className="card p-4 space-y-3">
@@ -87,6 +112,15 @@ export function MobileUserCard({
 
         {/* Action buttons */}
         <div className="flex items-center gap-1 shrink-0">
+          {onPlanClick && (
+            <button
+              onClick={onPlanClick}
+              className="text-xs text-amber-400 hover:underline px-1.5 py-1 flex items-center gap-0.5"
+            >
+              <Crown className="w-3 h-3" />
+              Plan
+            </button>
+          )}
           <button
             onClick={onRoleClick}
             className="text-xs text-[var(--accent)] hover:underline px-1.5 py-1"
@@ -111,7 +145,8 @@ export function MobileUserCard({
         >
           {user.role}
         </span>
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-[var(--border-color)] capitalize">
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border capitalize ${planBadgeClass(user.plan)}`}>
+          {planIcon(user.plan)}
           {user.plan}
         </span>
         {user.isSuspended ? (

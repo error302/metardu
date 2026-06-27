@@ -26,10 +26,10 @@ function getCurrentUserId(): string | undefined {
 
 function getPoolConfig() {
   const base = {
-    max: 20,
+    max: 10,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
-    statement_timeout: 30000, // 30s — prevents runaway queries
+    connectionTimeoutMillis: 2000, // Fail fast when DB is unavailable
+    statement_timeout: 10000, // 10s — prevents runaway queries
   }
 
   if (env.DATABASE_URL) {

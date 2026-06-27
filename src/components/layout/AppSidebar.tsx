@@ -26,8 +26,8 @@ interface NavItem {
 const userNavItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
-  { href: '/corrections', label: 'Corrections', icon: Wrench },
-  { href: '/cogo', label: 'COGO', icon: Compass },
+  { href: '/process', label: 'Corrections', icon: Wrench },
+  { href: '/tools/cogo', label: 'COGO', icon: Compass },
   { href: '/map', label: 'Map', icon: Map },
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },

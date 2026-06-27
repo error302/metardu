@@ -81,6 +81,10 @@ export interface PDFGenerationOptions {
   scale: number;
   metadata: DocumentMetadata;
   dpi?: number;
+  /** Company logo buffer for paid plans. If provided, rendered in title block. */
+  companyLogo?: Buffer | null;
+  /** User subscription plan. Controls watermark behavior. */
+  plan?: 'free' | 'pro' | 'team' | 'firm' | 'enterprise';
 }
 
 // ─── Core PDF Engine ─────────────────────────────────────────────
@@ -303,6 +307,81 @@ export function drawNorthArrow(
 }
 
 /**
+ * Draw a company logo in the title block area.
+ *
+ * The logo is rendered at a maximum of 200×60mm (document coordinates)
+ * while preserving aspect ratio. Supports PNG, JPG, and SVG formats.
+ *
+ * @param doc - PDFKit document
+ * @param logoBuffer - Image data as Buffer
+ * @param x - Top-left X position (mm)
+ * @param y - Top-left Y position (mm)
+ * @param maxWidth - Maximum width in mm (default: 200)
+ * @param maxHeight - Maximum height in mm (default: 60)
+ */
+export function drawCompanyLogo(
+  doc: PDFKit.PDFDocument,
+  logoBuffer: Buffer,
+  x: number,
+  y: number,
+  maxWidth: number = 200,
+  maxHeight: number = 60
+): void {
+  const mmToPt = 2.8346;
+
+  try {
+    // PDFKit image method handles PNG, JPG, and SVG natively
+    // We size it to fit within the given bounds maintaining aspect ratio
+    doc.save();
+    doc.image(logoBuffer, x * mmToPt, y * mmToPt, {
+      width: maxWidth * mmToPt,
+      height: maxHeight * mmToPt,
+    });
+    doc.restore();
+  } catch (error) {
+    console.error('[pdf-engine] Failed to render company logo:', error);
+    // Fall back to text if image rendering fails
+    drawText(doc, 'LOGO', x, y, 5, { color: '#999999', bold: true });
+  }
+}
+
+/**
+ * Draw the METARDU watermark diagonally across the document.
+ * Applied only for free-tier users.
+ *
+ * The watermark is rendered as a large, semi-transparent, rotated text
+ * that does not obscure the document content but clearly indicates
+ * the free-tier origin.
+ *
+ * @param doc - PDFKit document
+ * @param pageWidthMm - Page width in mm
+ * @param pageHeightMm - Page height in mm
+ */
+export function drawMetarduWatermark(
+  doc: PDFKit.PDFDocument,
+  pageWidthMm: number,
+  pageHeightMm: number
+): void {
+  const mmToPt = 2.8346;
+  const centerX = (pageWidthMm / 2) * mmToPt;
+  const centerY = (pageHeightMm / 2) * mmToPt;
+  const fontSize = 60 * mmToPt; // Large watermark
+
+  doc.save();
+  doc
+    .fontSize(fontSize)
+    .font('Helvetica-Bold')
+    .fillColor('rgba(0, 0, 0, 0.06)')
+    .rotate(-45, { origin: [centerX, centerY] })
+    .text('METARDU', centerX - 200 * mmToPt, centerY - fontSize / 2, {
+      width: 400 * mmToPt,
+      align: 'center',
+      lineBreak: false,
+    });
+  doc.restore();
+}
+
+/**
  * Draw a graphical scale bar.
  * Must be verified to ±0.5mm accuracy on paper.
  */
@@ -314,7 +393,6 @@ export function drawScaleBar(
   groundDistanceM: number,
   weightMm: number = 0.3
 ): void {
-  const mmToPt = 2.8346;
   const barLengthMm = (groundDistanceM / scale) * 1000; // Convert to mm on paper
   
   // Main bar

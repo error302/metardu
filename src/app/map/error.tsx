@@ -12,7 +12,7 @@ export default function MapErrorPage({
 }) {
   useEffect(() => {
     console.error('[Map Error]', error)
-    try { require('@sentry/nextjs').captureException(error) } catch {}
+    import('@sentry/nextjs').then(({ captureException }) => captureException(error)).catch(() => {})
   }, [error])
   return (
     <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] flex items-center justify-center">
