@@ -83,20 +83,15 @@ import {
 } from '@/lib/map/traverseToParcel'
 
 // ── Sub-components (lazy where appropriate) ──
-import { MapToolbar } from '@/app/map/components/MapToolbar'
 import { MapOverlays } from '@/app/map/components/MapOverlays'
 import { MapStatusBar } from '@/app/map/components/MapStatusBar'
 import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
-import { CogoInfoPanel } from '@/app/map/components/CogoInfoPanel'
-import { CogoToolsPanel } from '@/app/map/components/CogoToolsPanel'
 import { RotationControl } from '@/app/map/components/RotationControl'
 import { MapPrintButton } from '@/app/map/components/MapPrintButton'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
-import { BookmarkPanel } from '@/app/map/components/BookmarkPanel'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
-import { GpsTrackPanel } from '@/app/map/components/GpsTrackPanel'
-import { StakeoutPanel } from '@/components/map/StakeoutPanel'
+import { MapToolDock } from '@/app/map/components/MapToolDock'
 import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
@@ -978,21 +973,17 @@ export default function MapClient() {
 
               <MapCoordSearch />
 
-              <GpsTrackPanel />
-
-              <MapToolbar />
+              {/* ── Floating Tool Dock (consolidated left-edge dock) ── */}
+              <MapToolDock />
 
               <MapStatusBar />
 
               <MapNotifications />
 
-              {/* Stakeout Panel (zero-prop, reads from context) */}
-              <StakeoutPanel />
-
-              {/* Scheme Layer Panel (zero-prop, reads from context) */}
+              {/* Scheme Layer Panel (right side, zero-prop) */}
               <SchemeLayerPanel />
 
-              {/* ── Tier 1: Layer Control (Grid + XYZ + WMS + Opacity) ── */}
+              {/* ── Right side controls ── */}
               <div className="absolute top-14 right-3 z-20 sm:top-16 sm:right-4 flex flex-col gap-2 items-end">
                 <LayerControl
                   map={mapInstance.current}
@@ -1005,23 +996,16 @@ export default function MapClient() {
                   }}
                 />
 
-                {/* ── Tier 2: Projection Switcher (zero-prop) ── */}
+                {/* ── Projection Switcher (zero-prop) ── */}
                 <ProjectionSwitcher />
 
                 {/* ── Rotation Control (north reset) ── */}
                 <RotationControl />
               </div>
 
-              {/* ── Vertex Edit Toolbar (zero-prop, reads from context) ── */}
-              <div className="absolute top-3 right-[280px] z-20 sm:top-4 sm:right-[292px]">
+              {/* ── Vertex Edit Toolbar (top, near center when active) ── */}
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
                 <VertexEditToolbar />
-              </div>
-
-              {/* ── COGO Info Panel (bottom-left) + COGO Tools (above it) ── */}
-              <div className="absolute bottom-10 left-3 z-20 sm:bottom-12 sm:left-4 flex flex-col gap-2 items-start">
-                <BookmarkPanel />
-                <CogoToolsPanel />
-                <CogoInfoPanel />
               </div>
 
               {/* ── Tier 1: Print/PDF & Sheet Layout ── */}
