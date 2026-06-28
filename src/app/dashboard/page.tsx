@@ -12,6 +12,7 @@ import { createClient } from '@/lib/api-client/server'
 import ProjectCard from '@/components/ProjectCard'
 import { ConnectivityIndicator } from '@/components/shared/ConnectivityIndicator'
 import OnboardingWrapper from '@/components/shared/OnboardingWrapper'
+import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 
 export default async function DashboardPage() {
   let t = (k: string) => k
@@ -182,6 +183,11 @@ export default async function DashboardPage() {
           ))}
         </div>
       )}
+
+      {/* Activity Feed — recent user actions */}
+      <div className="mt-8">
+        <ActivityFeed limit={10} />
+      </div>
     </div>
   )
 }

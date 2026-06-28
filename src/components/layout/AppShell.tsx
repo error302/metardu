@@ -18,6 +18,8 @@ import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import { CountryProvider } from '@/lib/country'
 import { SubscriptionProvider } from '@/lib/subscription/subscriptionContext'
 import SkipToContent from '@/components/shared/SkipToContent'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { CommandPalette } from '@/components/search/CommandPalette'
 import dynamic from 'next/dynamic'
 
 const NotificationToast = dynamic(
@@ -112,6 +114,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <div className="fixed bottom-6 right-6 z-50">
                 <FieldModeToggle />
               </div>
+              <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+                <NotificationBell />
+              </div>
+              <CommandPalette />
               <KeyboardShortcuts />
               <NotificationToast />
               {onboardingModal}
@@ -137,9 +143,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden">
                 {children}
               </main>
-              <div className="fixed top-4 right-4 z-50">
+              <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+                <NotificationBell />
                 <FieldModeToggle />
               </div>
+              <CommandPalette />
               <KeyboardShortcuts />
               <NotificationToast />
               {onboardingModal}
@@ -170,6 +178,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <KeyboardShortcuts />
             <QuickCompute />
             <MobileNav />
+            <CommandPalette />
             <NotificationToast />
             {onboardingModal}
           </SubscriptionProvider>
