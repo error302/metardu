@@ -266,7 +266,7 @@ export function intersectionComputation(input: IntersectionInput): IntersectionR
     {
       description: `[CHECK] Difference between both N₃ computations`,
       formula: `|${n3From1.toFixed(4)} - ${n3From2.toFixed(4)}|`,
-      value: `${checkDiff.toFixed(4)} m  ${checkDiff <= 0.001 ? '✓ PASS' : '✗ FAIL'}`,
+      value: `${checkDiff.toFixed(4)} m  ${checkDiff <= 0.001 ? '✓ PASS' : '[x] FAIL'}`,
     },
   ]
 
@@ -403,7 +403,7 @@ export function resectionComputation(input: ResectionInput): ResectionResult {
     {
       description: `ΣK = K₁ + K₂ + K₃`,
       formula: `${k1.toFixed(6)} + ${k2.toFixed(6)} + ${k3.toFixed(6)}`,
-      value: `${sumK.toFixed(6)}${isDangerCircle ? ' ⚠ DANGER CIRCLE' : ''}`,
+      value: `${sumK.toFixed(6)}${isDangerCircle ? ' [!] DANGER CIRCLE' : ''}`,
     },
     {
       description: `Eₚ = (K₁×Eₐ + K₂×Eᵦ + K₃×E꜀) / ΣK`,
@@ -554,7 +554,7 @@ export function areaComputation(input: AreaInput): AreaResult {
     {
       description: `[CHECK] Alternative: 2A = |Σ En(Nn+1 - Nn-1)|`,
       formula: `${doubleAreaAlt.toFixed(4)}`,
-      value: `Difference: ${arithmeticCheck.diff.toFixed(4)} m²  ${arithmeticCheck.passed ? '✓ PASS' : '✗ FAIL'}`,
+      value: `Difference: ${arithmeticCheck.diff.toFixed(4)} m²  ${arithmeticCheck.passed ? '✓ PASS' : '[x] FAIL'}`,
     },
     {
       description: `Perimeter = Σ√(ΔE² + ΔN²)`,

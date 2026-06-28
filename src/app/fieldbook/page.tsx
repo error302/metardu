@@ -20,6 +20,7 @@ import { ControlBook } from '@/components/fieldbook/ControlBook'
 import { HydroBook } from '@/components/fieldbook/HydroBook'
 import { MiningBook } from '@/components/fieldbook/MiningBook'
 import { MobileFieldbookShell } from '@/components/fieldbook/MobileFieldbookShell'
+import { MobileMeasurementCapture, type CapturedMeasurement } from '@/components/fieldbook/MobileMeasurementCapture'
 import { FieldbookAuditDrawer } from '@/components/fieldbook/FieldbookAuditDrawer'
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
 
@@ -906,6 +907,71 @@ export default function DigitalFieldBookPage() {
     else setMiningRows((p) => p.filter((r) => r.id !== id))
   }
 
+  // ─── Handle measurement capture from MobileMeasurementCapture ─────
+  function handleMeasurementCapture(m: CapturedMeasurement) {
+    if (m.type === 'gps') {
+      if (type === 'control') {
+        setControlRows((p) => [...p, {
+          id: m.id, pointId: m.station || 'GPS', instrumentHeight: '1.5', targetHeight: '0',
+          bearing: '', verticalAngle: '', slopeDistance: '',
+          remarks: `GPS: ${m.lat?.toFixed(6)}, ${m.lng?.toFixed(6)} ±${m.accuracy?.toFixed(1)}m` + (m.remarks ? ` | ${m.remarks}` : ''),
+        }])
+      } else if (type === 'traverse') {
+        setTravRows((p) => [...p, {
+          id: m.id, station: m.station || 'GPS', bearing: '',
+          hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '',
+          slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '0',
+          remarks: `GPS: ${m.lat?.toFixed(6)}, ${m.lng?.toFixed(6)} ±${m.accuracy?.toFixed(1)}m`,
+        }])
+      }
+    } else if (m.type === 'bearing-distance') {
+      if (type === 'traverse') {
+        const bearingStr = m.bearing != null ? bearingToString(m.bearing) : ''
+        setTravRows((p) => [...p, {
+          id: m.id, station: m.station || '', bearing: bearingStr,
+          hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '',
+          slopeDist: m.distance?.toFixed(3) || '', vaDeg: '', vaMin: '', vaSec: '',
+          ih: '1.5', th: '1.5', remarks: m.remarks || `→ ${m.target}`,
+        }])
+      } else if (type === 'control') {
+        setControlRows((p) => [...p, {
+          id: m.id, pointId: m.target || '', instrumentHeight: '1.5', targetHeight: '1.5',
+          bearing: m.bearing?.toFixed(6) || '', verticalAngle: '',
+          slopeDistance: m.distance?.toFixed(3) || '', remarks: m.remarks || '',
+        }])
+      }
+    } else if (m.type === 'angle') {
+      if (type === 'traverse') {
+        const fl = m.faceLeft || 0
+        const fr = m.faceRight || 0
+        const deg = Math.floor(fl)
+        const minFull = (fl - deg) * 60
+        const min = Math.floor(minFull)
+        const sec = (minFull - min) * 60
+        const rDeg = Math.floor(fr)
+        const rMinFull = (fr - rDeg) * 60
+        const rMin = Math.floor(rMinFull)
+        const rSec = (rMinFull - rMin) * 60
+        setTravRows((p) => [...p, {
+          id: m.id, station: m.station || '', bearing: '',
+          hclDeg: String(deg), hclMin: String(min), hclSec: sec.toFixed(1),
+          hcrDeg: String(rDeg), hcrMin: String(rMin), hcrSec: rSec.toFixed(1),
+          slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5',
+          remarks: m.remarks || `Mean: ${m.meanAngle?.toFixed(6)}° → ${m.target}`,
+        }])
+      }
+    } else if (m.type === 'offset') {
+      if (type === 'control' || type === 'traverse') {
+        setControlRows((p) => [...p, {
+          id: m.id, pointId: m.target || 'Offset', instrumentHeight: '0', targetHeight: '0',
+          bearing: '', verticalAngle: '', slopeDistance: '',
+          remarks: `Offset: E=${m.offsetE}, N=${m.offsetN}` + (m.remarks ? ` | ${m.remarks}` : ''),
+        }])
+      }
+    }
+    handleSave()
+  }
+
   // ─── Mobile rendering: card-based shell with universal quick-add ─────
   /**
    * Pull the latest reading from a connected total station / GNSS via
@@ -985,48 +1051,56 @@ export default function DigitalFieldBookPage() {
   if (isMobile) {
     return (
       <>
-        <MobileFieldbookShell
+        <div className="pb-32">
+          <MobileFieldbookShell
+            surveyType={type}
+            onSurveyTypeChange={(t) => resetForType(t)}
+            rows={mobileRows}
+            onAddRow={handleMobileAddRow}
+            onRemoveRow={handleMobileRemoveRow}
+            online={online}
+            lastSaved={saveStatus.kind === 'saved' ? saveStatus.when : null}
+            unsyncedCount={savedFieldbooks.filter((fb) => !fb.updated_at).length}
+            onSync={handleSyncNow}
+            stationName={type === 'control' ? controlStation.name : type === 'mining' ? miningStation.name : undefined}
+            onPullInstrumentReading={pullInstrumentReading}
+            onViewAuditLog={() => setAuditDrawerOpen(true)}
+            computed={currentComputed}
+            openingRL={openingRL}
+            setOpeningRL={setOpeningRL}
+            closingRL={closingRL}
+            setClosingRL={setClosingRL}
+            distanceKm={distanceKm}
+            setDistanceKm={setDistanceKm}
+            levelMethod={levelMethod}
+            setLevelMethod={setLevelMethod}
+            travMode={travMode}
+            setTravMode={setTravMode}
+            startStation={startStation}
+            setStartStation={setStartStation}
+            startE={startE}
+            setStartE={setStartE}
+            startN={startN}
+            setStartN={setStartN}
+            closeE={closeE}
+            setCloseE={setCloseE}
+            closeN={closeN}
+            setCloseN={setCloseN}
+            controlSetups={controlSetups}
+            setControlSetups={setControlSetups}
+            activeControlSetupId={activeControlSetupId}
+            setActiveControlSetupId={setActiveControlSetupId}
+            controlStation={controlStation}
+            setControlStation={setControlStation}
+            miningStation={miningStation}
+            setMiningStation={setMiningStation}
+          />
+        </div>
+        {/* Mobile Measurement Capture Bar — take readings directly on mobile */}
+        <MobileMeasurementCapture
+          onCapture={handleMeasurementCapture}
+          stationName={type === 'control' ? controlStation.name : type === 'mining' ? miningStation.name : startStation}
           surveyType={type}
-          onSurveyTypeChange={(t) => resetForType(t)}
-          rows={mobileRows}
-          onAddRow={handleMobileAddRow}
-          onRemoveRow={handleMobileRemoveRow}
-          online={online}
-          lastSaved={saveStatus.kind === 'saved' ? saveStatus.when : null}
-          unsyncedCount={savedFieldbooks.filter((fb) => !fb.updated_at).length}
-          onSync={handleSyncNow}
-          stationName={type === 'control' ? controlStation.name : type === 'mining' ? miningStation.name : undefined}
-          onPullInstrumentReading={pullInstrumentReading}
-          onViewAuditLog={() => setAuditDrawerOpen(true)}
-          computed={currentComputed}
-          openingRL={openingRL}
-          setOpeningRL={setOpeningRL}
-          closingRL={closingRL}
-          setClosingRL={setClosingRL}
-          distanceKm={distanceKm}
-          setDistanceKm={setDistanceKm}
-          levelMethod={levelMethod}
-          setLevelMethod={setLevelMethod}
-          travMode={travMode}
-          setTravMode={setTravMode}
-          startStation={startStation}
-          setStartStation={setStartStation}
-          startE={startE}
-          setStartE={setStartE}
-          startN={startN}
-          setStartN={setStartN}
-          closeE={closeE}
-          setCloseE={setCloseE}
-          closeN={closeN}
-          setCloseN={setCloseN}
-          controlSetups={controlSetups}
-          setControlSetups={setControlSetups}
-          activeControlSetupId={activeControlSetupId}
-          setActiveControlSetupId={setActiveControlSetupId}
-          controlStation={controlStation}
-          setControlStation={setControlStation}
-          miningStation={miningStation}
-          setMiningStation={setMiningStation}
         />
         <FieldbookAuditDrawer
           open={auditDrawerOpen}

@@ -254,7 +254,7 @@ function buildSheet3_TraverseComputation(wb: ExcelJS.Workbook, input: WorkbookIn
     'Misclosure:', `${input.traverse.angularMisclosureSec.toFixed(1)}"`,
     'Tolerance:', `${input.traverse.angularToleranceSec.toFixed(1)}"`,
     'Station Count:', input.traverse.stations.length,
-    'Result:', input.traverse.angularPassesQA ? 'PASS ✓' : 'FAIL ✗',
+    'Result:', input.traverse.angularPassesQA ? 'PASS ✓' : 'FAIL [x]',
   ])
   const angRow = ws.lastRow!
   angRow.getCell(8).font = input.traverse.angularPassesQA ? STYLE.passFont : STYLE.failFont
@@ -301,7 +301,7 @@ function buildSheet3_TraverseComputation(wb: ExcelJS.Workbook, input: WorkbookIn
     'Perimeter:', `${formatDistanceM(input.traverse.perimeterM)} m`,
     'Precision:', `1:${input.traverse.precisionRatio.toLocaleString()}`,
     'Minimum:', `1:${input.traverse.precisionMinimum.toLocaleString()}`,
-    'Result:', input.traverse.linearPassesQA ? 'PASS ✓' : 'FAIL ✗',
+    'Result:', input.traverse.linearPassesQA ? 'PASS ✓' : 'FAIL [x]',
   ])
   const linRow = ws.lastRow!
   linRow.getCell(10).font = input.traverse.linearPassesQA ? STYLE.passFont : STYLE.failFont
@@ -357,7 +357,7 @@ function buildSheet5_Levelling(wb: ExcelJS.Workbook, input: WorkbookInput): void
     'Tolerance (10√K):', `${input.levellingToleranceMM?.toFixed(1) ?? '—'} mm`,
     'Closure:', `${input.levellingClosureMM?.toFixed(1) ?? '—'} mm`,
     'Result:',
-    Math.abs(input.levellingClosureMM ?? 0) <= (input.levellingToleranceMM ?? 0) ? 'PASS ✓' : 'FAIL ✗',
+    Math.abs(input.levellingClosureMM ?? 0) <= (input.levellingToleranceMM ?? 0) ? 'PASS ✓' : 'FAIL [x]',
   ])
   ws.addRow([])
 
@@ -490,14 +490,14 @@ function buildSheet9_QASummary(wb: ExcelJS.Workbook, input: WorkbookInput): void
 
   checks.forEach((check, i) => {
     const [label, value, standard, passes] = check
-    const r = ws.addRow([label, value, standard, passes === null ? 'N/A' : passes ? 'PASS ✓' : 'FAIL ✗'])
+    const r = ws.addRow([label, value, standard, passes === null ? 'N/A' : passes ? 'PASS ✓' : 'FAIL [x]'])
     applyDataRow(r, headers.length, i)
     if (passes !== null) r.getCell(4).font = passes ? STYLE.passFont : STYLE.failFont
   })
 
   const allPass = checks.every(([,,,p]) => p === null || p === true)
   ws.addRow([])
-  const overallRow = ws.addRow(['OVERALL QA RESULT', '', '', allPass ? 'ALL CHECKS PASS ✓' : 'ONE OR MORE CHECKS FAIL ✗'])
+  const overallRow = ws.addRow(['OVERALL QA RESULT', '', '', allPass ? 'ALL CHECKS PASS ✓' : 'ONE OR MORE CHECKS FAIL [x]'])
   overallRow.height = 22
   overallRow.getCell(1).font = { bold: true, size: 12, name: 'Calibri' }
   overallRow.getCell(4).font = { bold: true, size: 12, name: 'Calibri', color: { argb: allPass ? 'FF006400' : 'FFCC0000' } }

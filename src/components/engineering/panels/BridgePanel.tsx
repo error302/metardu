@@ -306,7 +306,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
           </div>
           {clearanceWarning && (
             <div className="mt-4 p-3 bg-red-900/50 border border-red-700 rounded-lg">
-              <span className="text-red-400 text-sm">⚠ Clearance below 1.5m minimum — review design</span>
+              <span className="text-red-400 text-sm">[!] Clearance below 1.5m minimum — review design</span>
             </div>
           )}
         </div>

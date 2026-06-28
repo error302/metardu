@@ -165,7 +165,7 @@ export default function SettingOutCalculator() {
                     </td>
                   ))}
                   <td className="px-1 py-1 border border-[var(--border-color)]/50">
-                    <button onClick={() => removePoint(i)} className="text-red-400 hover:text-red-300 text-xs px-1">✕</button>
+                    <button onClick={() => removePoint(i)} className="text-red-400 hover:text-red-300 text-xs px-1">[x]</button>
                   </td>
                 </tr>
               ))}
@@ -271,7 +271,7 @@ export default function SettingOutCalculator() {
             <div className={`border rounded-lg p-4 ${checkResult.isCompliant ? 'border-green-800 bg-green-900/20' : 'border-red-800 bg-red-900/20'}`}>
               <div className="flex items-center gap-2 mb-2">
                 <span className={`text-lg font-bold ${checkResult.isCompliant ? 'text-green-400' : 'text-red-400'}`}>
-                  {checkResult.isCompliant ? '✓ PASS — Within Tolerance' : '✗ FAIL — Re-set Required'}
+                  {checkResult.isCompliant ? '✓ PASS — Within Tolerance' : '[x] FAIL — Re-set Required'}
                 </span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs font-mono">
@@ -294,7 +294,7 @@ export default function SettingOutCalculator() {
           <div className="bg-[var(--bg-primary)] max-w-2xl w-full rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto border border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
               <h2 className="font-bold text-[var(--text-primary)]">Setting Out Schedule</h2>
-              <button onClick={() => setShowStakeOutSheet(false)} className="text-gray-500 hover:text-black">✕ Close</button>
+              <button onClick={() => setShowStakeOutSheet(false)} className="text-gray-500 hover:text-black">[x] Close</button>
             </div>
             <div className="p-4">
               <StakeOutSheet result={result} station={station} />

@@ -164,9 +164,9 @@ export default function FeedbackWidget() {
             <div className="flex gap-1.5">
               {([
                 { key: 'bug' as FeedbackCategory, label: 'Bug', icon: '🐛' },
-                { key: 'feature' as FeedbackCategory, label: 'Feature', icon: '💡' },
-                { key: 'performance' as FeedbackCategory, label: 'Slow', icon: '⚡' },
-                { key: 'general' as FeedbackCategory, label: 'Other', icon: '💬' },
+                { key: 'feature' as FeedbackCategory, label: 'Feature', icon: '[Tip]' },
+                { key: 'performance' as FeedbackCategory, label: 'Slow', icon: '[Fast]' },
+                { key: 'general' as FeedbackCategory, label: 'Other', icon: '[Chat]' },
               ]).map(({ key, label, icon }) => (
                 <button
                   key={key}
@@ -250,7 +250,7 @@ export default function FeedbackWidget() {
                     className="absolute top-1 right-1 w-8 h-8 bg-red-500/80 rounded-full flex items-center justify-center text-white text-xs"
                     aria-label="Remove screenshot"
                   >
-                    ✕
+                    [x]
                   </button>
                 </div>
               )}

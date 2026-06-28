@@ -78,7 +78,7 @@ export async function generateLevellingReport(
   doc.text('2. CLOSURE CHECK', 15, y);
   y += 6;
 
-  const closureStatus = misclosureMm <= toleranceMm ? 'PASS ✓' : 'FAIL ✗';
+  const closureStatus = misclosureMm <= toleranceMm ? 'PASS ✓' : 'FAIL [x]';
   const closureColor: [number, number, number] = misclosureMm <= toleranceMm ? [0, 120, 60] : [180, 0, 0];
 
   autoTable(doc, {

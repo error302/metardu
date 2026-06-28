@@ -173,7 +173,7 @@ export default function SuperelevationPanel({
           <p className="text-red-400 text-sm font-semibold mb-1">Standards Violations</p>
           <ul className="text-red-400 text-xs space-y-0.5">
             {validations.issues.map((issue, i) => (
-              <li key={i}>⚠ {issue}</li>
+              <li key={i}>[!] {issue}</li>
             ))}
           </ul>
         </div>

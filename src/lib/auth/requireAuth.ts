@@ -1,7 +1,7 @@
 /**
  * requireAuth / requireRole — Server-side auth guards for API routes.
  *
- * ⚠️ DEPRECATED: New routes should use `apiHandler()` from '@/lib/apiHandler'
+ * [!] DEPRECATED: New routes should use `apiHandler()` from '@/lib/apiHandler'
  * instead of calling requireAuth/requireRole directly. apiHandler provides
  * auth, Zod validation, optimistic locking, rate limiting, error handling,
  * and Sentry integration in a single composable wrapper.

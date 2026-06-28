@@ -75,7 +75,7 @@ export function PrintMetaPanel({ meta, onChange }: PrintMetaPanelProps) {
         aria-expanded={open}
       >
         <span className="flex items-center gap-2">
-          <span className="text-sm font-medium">📋 Print Header</span>
+          <span className="text-sm font-medium">[Clip] Print Header</span>
           <span className="text-xs text-[var(--text-muted)]">
             project · surveyor · instrument — required for official output
           </span>

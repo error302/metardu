@@ -251,7 +251,7 @@ export default function EarthworksCalculator() {
                   </Fragment>
                 ))}
                 <td className="px-1 py-1 border border-[var(--border-color)]/50">
-                  <button onClick={() => removeRow(row.id)} className="text-red-400 hover:text-red-300 text-xs px-1">✕</button>
+                  <button onClick={() => removeRow(row.id)} className="text-red-400 hover:text-red-300 text-xs px-1">[x]</button>
                 </td>
               </tr>
             ))}

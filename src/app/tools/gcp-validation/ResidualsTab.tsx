@@ -214,7 +214,7 @@ GCP-01,1234.5,567.8,120.485,484500,9863100,120.500,
                     <tr key={r.id} className={isMatched ? '' : 'opacity-50'}>
                       <td className="font-semibold">
                         {r.name}
-                        {!isMatched && <span className="ml-2 text-xs text-red-400">⚠ no match</span>}
+                        {!isMatched && <span className="ml-2 text-xs text-red-400">[!] no match</span>}
                       </td>
                       <td className="text-xs text-[var(--text-muted)]">{r.source === 'pix4d' ? 'Pix4D' : 'Agisoft'}</td>
                       <td className="font-mono">{fmt(r.softwareE)}</td>
@@ -240,7 +240,7 @@ GCP-01,1234.5,567.8,120.485,484500,9863100,120.500,
 
           <div className="mt-4">
             <button onClick={handleRunValidation} className="btn btn-primary py-3 px-8 text-base">
-              ▶ Run Validation
+              Run Validation
             </button>
           </div>
         </div>

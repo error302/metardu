@@ -263,7 +263,7 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
 
           {!config.is_closed && (
             <div className="p-2 bg-red-900/30 border border-red-600 rounded text-red-400 text-xs">
-              ⚠ Without closing control, this is a swinging traverse — prohibited by Survey Regulations Reg. 67. Enable "Closed Traverse" and provide closing coordinates.
+              [!] Without closing control, this is a swinging traverse — prohibited by Survey Regulations Reg. 67. Enable "Closed Traverse" and provide closing coordinates.
             </div>
           )}
 

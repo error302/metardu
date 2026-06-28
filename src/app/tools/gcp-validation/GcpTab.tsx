@@ -129,7 +129,7 @@ export function GcpTab({
                         className="text-red-400 hover:text-red-300 text-sm"
                         title="Remove"
                       >
-                        ✕
+                        [x]
                       </button>
                     </td>
                   </tr>

@@ -264,7 +264,7 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
         {/* Toolbar */}
         <div className="bg-gray-800 text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-lg font-bold tracking-wide">📋</span>
+            <span className="text-lg font-bold tracking-wide">[Clip]</span>
             <h2 className="font-semibold">Registry Index Map (RIM)</h2>
             <span className="text-xs bg-amber-600 px-2 py-0.5 rounded">Kenya — General Boundaries</span>
           </div>
@@ -273,7 +273,7 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
               onClick={() => setMode(m => m === 'view' ? 'edit' : 'view')}
               className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded"
             >
-              {mode === 'view' ? '✏️ Edit Sheet' : '👁 View'}
+              {mode === 'view' ? '[Edit] Edit Sheet' : '👁 View'}
             </button>
             <button
               onClick={handlePrint}
@@ -285,7 +285,7 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
               onClick={onClose}
               className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded"
             >
-              ✕ Close
+              [x] Close
             </button>
           </div>
         </div>
@@ -372,7 +372,7 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
                           placeholder="Area (ha)"
                           className="flex-1 px-1 border rounded text-xs" />
                         <button onClick={e => { e.stopPropagation(); removeParcel(p.id) }}
-                          className="text-red-500 hover:text-red-700 font-bold px-1">✕</button>
+                          className="text-red-500 hover:text-red-700 font-bold px-1">[x]</button>
                       </div>
                     ))}
                   </div>

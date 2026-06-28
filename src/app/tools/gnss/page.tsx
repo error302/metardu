@@ -188,7 +188,7 @@ export default function GNSSProcessor() {
                     <label className="block text-xs mb-1">σ (m)</label>
                     <input type="text" value={obs.sigma} onChange={e => updateObservation(obs.id, 'sigma', e.target.value)} className="input w-full text-sm" />
                   </div>
-                  <button onClick={() => removeObservation(obs.id)} className="text-red-500 text-sm mb-1">✕</button>
+                  <button onClick={() => removeObservation(obs.id)} className="text-red-500 text-sm mb-1">[x]</button>
                 </div>
               ))}
             </div>

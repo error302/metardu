@@ -96,7 +96,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
         <div className="grid md:grid-cols-2 gap-8 mt-8">
           <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-2xl p-6">
             <h3 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-              🛠 Equipment Needed
+              [Tool] Equipment Needed
             </h3>
             {equipment.length > 0 ? (
               <div className="space-y-2">
@@ -114,7 +114,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
 
           <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-2xl p-6">
             <h3 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-              ✅ Preparation Checklist
+              [OK] Preparation Checklist
             </h3>
             <div className="space-y-2">
               {checklist.map((task, idx) => (
@@ -130,7 +130,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
         {workflow.length > 0 && (
           <div className="mt-8 bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-2xl p-6">
             <h3 className="text-xl font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
-              📋 Field Workflow Guide
+              [Clip] Field Workflow Guide
             </h3>
             <ol className="space-y-3">
               {workflow.map((step, idx) => (

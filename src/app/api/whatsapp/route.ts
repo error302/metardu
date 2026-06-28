@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     } else if (message?.startsWith('area')) {
       response = parseAreaCommand(message)
     } else if (message?.startsWith('help')) {
-      response = `METARDU WhatsApp Bot 📐
+      response = `METARDU WhatsApp Bot [Compass]
 
 Commands:
 DISTANCE e1,n1,e2,n2

@@ -115,7 +115,7 @@ export default function UTMZonePicker({
         onClick={detectFromGPS}
         className="text-sm text-amber-500 underline"
       >
-        📍 Detect from my GPS location
+        [Pin] Detect from my GPS location
       </button>
     </div>
   )

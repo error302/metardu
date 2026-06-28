@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
           <div style="background: #0a0a0f; padding: 20px; text-align: center;">
             <p style="color: #444; font-size: 12px; margin: 0;">
               METARDU — Built for surveyors, by a surveyor.<br>
-              © 2026 METARDU. All rights reserved.
+              (c) 2026 METARDU. All rights reserved.
             </p>
           </div>
         </div>

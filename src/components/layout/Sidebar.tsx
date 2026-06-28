@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const NAV_ITEMS = [
-  { href: '/projects', label: 'Projects', icon: '📁' },
-  { href: '/corrections', label: 'Corrections', icon: '🔧' },
-  { href: '/cogo', label: 'COGO', icon: '📐' },
+  { href: '/projects', label: 'Projects', icon: '[Folder]' },
+  { href: '/corrections', label: 'Corrections', icon: '[Tool]' },
+  { href: '/cogo', label: 'COGO', icon: '[Compass]' },
   { href: '/documents', label: 'Documents', icon: '📄' },
 ];
 

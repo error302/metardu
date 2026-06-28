@@ -198,7 +198,7 @@ export default function SurveyTab({
 
       {points.length === 0 && (
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-12 text-center">
-          <div className="text-4xl mb-3 opacity-40">📐</div>
+          <div className="text-4xl mb-3 opacity-40">[Compass]</div>
           <p className="text-[var(--text-secondary)]">
             No data loaded for Survey {survey}.
           </p>

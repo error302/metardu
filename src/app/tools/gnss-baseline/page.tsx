@@ -165,7 +165,7 @@ export default function GNSSBaselinePage() {
         {validation && (
           <div className={`rounded-xl p-4 mb-6 ${validation.valid ? 'bg-green-950/30 border border-green-800' : 'bg-red-950/30 border border-red-800'}`}>
             <h4 className={`font-semibold mb-2 ${validation.valid ? 'text-green-300' : 'text-red-300'}`}>
-              {validation.valid ? '✓ Validation Passed' : '✗ Validation Issues'}
+              {validation.valid ? '✓ Validation Passed' : '[x] Validation Issues'}
             </h4>
             {validation.errors.length > 0 && (
               <ul className="text-sm text-red-400 space-y-1">
@@ -174,7 +174,7 @@ export default function GNSSBaselinePage() {
             )}
             {validation.warnings.length > 0 && (
               <ul className="text-sm text-yellow-400 space-y-1 mt-2">
-                {validation.warnings.map((w, i) => <li key={i}>⚠ {w}</li>)}
+                {validation.warnings.map((w, i) => <li key={i}>[!] {w}</li>)}
               </ul>
             )}
           </div>

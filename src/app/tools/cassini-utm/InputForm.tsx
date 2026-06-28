@@ -255,7 +255,7 @@ export function InputForm(props: InputFormProps) {
                   if (e.target.value !== '__auto__') setDetectedSubSheet(undefined)
                 }}
               >
-                <option value="__auto__">🔍 Auto-detect from coordinates</option>
+                <option value="__auto__">[Search] Auto-detect from coordinates</option>
                 {availableSubSheets.map(ss => (
                   <option key={ss.fullId} value={ss.subId}>
                     Sub-sheet {ss.subId} ({ss.bounds.minX.toFixed(0)}, {ss.bounds.minY.toFixed(0)}) — {ss.corners.length} corners

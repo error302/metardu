@@ -228,7 +228,7 @@ export default function ParcelNumberInput({
         parsed.validationErrors.length > 0 && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center gap-2 text-red-700 text-sm mb-1">
-              <span>⚠</span>
+              <span>[!]</span>
               <span>Invalid</span>
             </div>
             <ul className="text-xs text-red-600 space-y-1">

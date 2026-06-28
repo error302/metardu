@@ -141,7 +141,7 @@ export function RailwayPanel({ projectId, subtype }: EngineeringPanelProps) {
           ))}
           {minRadiusWarning && (
             <div className="mt-2 p-2 bg-amber-900/50 border border-amber-700 rounded-lg text-sm text-amber-400">
-              ⚠ Minimum curve radius R &lt; 200m for V ≤ 60km/h
+              [!] Minimum curve radius R &lt; 200m for V ≤ 60km/h
             </div>
           )}
         </div>
@@ -161,7 +161,7 @@ export function RailwayPanel({ projectId, subtype }: EngineeringPanelProps) {
           ))}
           {gradientWarning && (
             <div className="mt-2 p-2 bg-amber-900/50 border border-amber-700 rounded-lg text-sm text-amber-400">
-              ⚠ Gradient exceeds maximum {maxGradientPercent}%
+              [!] Gradient exceeds maximum {maxGradientPercent}%
             </div>
           )}
         </div>

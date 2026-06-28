@@ -369,7 +369,7 @@ export default function ProfilesPage({ params }: PageProps) {
                         <div className="flex items-center justify-between mb-4">
                           <div className="text-lg font-semibold text-[var(--text-primary)]">Export profile SVG (to-scale)</div>
                           <button onClick={() => setSvgModalOpen(false)} className="px-3 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)]">
-                            ✕
+                            [x]
                           </button>
                         </div>
 

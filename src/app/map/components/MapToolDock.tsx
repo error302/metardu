@@ -779,7 +779,9 @@ export const MapToolDock = memo(function MapToolDock() {
               title={`${cat.label} (${cat.shortcut})`}
               aria-label={cat.label}
               className={`
-                w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200
+                w-10 h-10 lg:w-10 lg:h-10
+                min-w-[48px] min-h-[48px] lg:min-w-[40px] lg:min-h-[40px]
+                flex items-center justify-center rounded-full transition-all duration-200
                 backdrop-blur-xl
                 ${isOpen
                   ? `bg-white/[0.10] border border-white/[0.15] text-white`

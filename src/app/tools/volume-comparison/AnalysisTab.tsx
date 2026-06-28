@@ -377,7 +377,7 @@ export default function AnalysisTab({
       {/* Not yet computed */}
       {cutVolume === null && computeErrors.length === 0 && (
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-12 text-center">
-          <div className="text-4xl mb-3 opacity-40">📊</div>
+          <div className="text-4xl mb-3 opacity-40">[Chart]</div>
           <p className="text-[var(--text-secondary)]">
             Configure settings and click &quot;Compute Volume&quot; to see results.
           </p>

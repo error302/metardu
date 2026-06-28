@@ -278,13 +278,13 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
           onClick={handleImportFromTraverse}
           className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium"
         >
-          📐 Import from Traverse
+          [Compass] Import from Traverse
         </button>
         <button
           onClick={handleImportGSI}
           className="text-sm bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 font-medium"
         >
-          📁 Import GSI File
+          [Folder] Import GSI File
         </button>
       </div>
 
@@ -450,7 +450,7 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
         <section className="space-y-5">
           <div className={`p-4 rounded-lg border ${result.passedTolerance ? 'bg-green-900/30 border-green-700' : 'bg-amber-900/30 border-amber-700'}`}>
             <h3 className="font-semibold mb-2 text-white">
-              {result.passedTolerance ? '✅ Adjustment Passed' : '⚠️ Adjustment — Check Residuals'}
+              {result.passedTolerance ? '[OK] Adjustment Passed' : '[!] Adjustment — Check Residuals'}
             </h3>
             <div className="grid grid-cols-3 gap-4 text-sm text-zinc-300">
               <div><span className="text-zinc-500">σ₀ (ref std dev)</span><br /><strong>{result.sigmaZero.toFixed(4)}</strong></div>
@@ -488,7 +488,7 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
                       <td className="px-3 py-2 border border-zinc-700 font-mono">{s.residualE.toFixed(5)}</td>
                       <td className="px-3 py-2 border border-zinc-700 font-mono">{s.residualN.toFixed(5)}</td>
                       <td className="px-3 py-2 border border-zinc-700 font-mono">{s.semiMajor.toFixed(5)}</td>
-                      <td className="px-3 py-2 border border-zinc-700">{s.isFixed ? '🔒 Fixed' : 'Free'}</td>
+                      <td className="px-3 py-2 border border-zinc-700">{s.isFixed ? '[Lock] Fixed' : 'Free'}</td>
                     </tr>
                   ))}
                 </tbody>

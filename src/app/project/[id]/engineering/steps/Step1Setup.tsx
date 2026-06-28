@@ -88,7 +88,7 @@ export function Step1Setup({
                 : 'border-zinc-700 text-zinc-400 hover:bg-zinc-800'
             }`}
           >
-            🚧 Road Design
+            [WIP] Road Design
           </button>
           <button
             type="button"
@@ -99,7 +99,7 @@ export function Step1Setup({
                 : 'border-zinc-700 text-zinc-400 hover:bg-zinc-800'
             }`}
           >
-            🌧️ Drainage Survey
+            [Rain] Drainage Survey
           </button>
         </div>
       </div>

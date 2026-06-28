@@ -202,7 +202,7 @@ export default function ProgressMonitorPanel({ projectId, projectName }: Progres
           toast.type === 'error' ? 'bg-red-900/90 text-red-300 border border-red-700' :
           'bg-zinc-800 text-zinc-300 border border-zinc-600'
         }`}>
-          {toast.type === 'success' ? '✓ ' : toast.type === 'error' ? '✕ ' : 'ℹ '}{toast.message}
+          {toast.type === 'success' ? '✓ ' : toast.type === 'error' ? '[x] ' : '(i) '}{toast.message}
         </div>
       )}
 

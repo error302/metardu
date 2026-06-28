@@ -10,6 +10,7 @@ import {
   Map,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { OutdoorModeToggle } from '@/components/shared/OutdoorModeToggle'
 
 // ---------------------------------------------------------------------------
 // Navigation items by role
@@ -119,6 +120,13 @@ export default function AppSidebar({ variant, className, onNavigate }: AppSideba
 
       {/* Footer */}
       <div className="p-3 border-t border-[var(--border-color)] space-y-1">
+        {/* Outdoor mode toggle */}
+        <div className="flex items-center justify-between px-3 py-1.5">
+          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
+            Outdoor Mode
+          </span>
+          <OutdoorModeToggle />
+        </div>
         {/* Role badge */}
         <div className="px-3 py-1.5">
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">

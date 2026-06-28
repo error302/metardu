@@ -46,7 +46,7 @@ const IMAGERY_PROVIDERS: Record<string, ImageryTile> = {
   },
   openstreetmap: {
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '© OpenStreetMap contributors',
+    attribution: '(c) OpenStreetMap contributors',
     maxZoom: 19,
     minZoom: 1
   },

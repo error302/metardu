@@ -301,7 +301,7 @@ Firm: ___________________________    Stamp: _______________`
         <div className="space-y-4">
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
             <p className="flex items-center gap-2">
-              <span>ℹ️</span>
+              <span>(i)</span>
               This section is auto-generated from your project data.
             </p>
           </div>
@@ -683,7 +683,7 @@ Firm: ___________________________    Stamp: _______________`
                     }}
                     className="text-red-500 text-xs"
                   >
-                    ✕
+                    [x]
                   </button>
                 </div>
               ))}
@@ -738,7 +738,7 @@ Firm: ___________________________    Stamp: _______________`
                     }}
                     className="text-red-500 text-xs"
                   >
-                    ✕
+                    [x]
                   </button>
                 </div>
               ))}
@@ -895,7 +895,7 @@ Firm: ___________________________    Stamp: _______________`
                     onClick={() => updateInput('conclusions', (reportInput.conclusions || []).filter((_, i) => i !== idx))}
                     className="px-2 text-red-500 hover:bg-red-50 rounded"
                   >
-                    ✕
+                    [x]
                   </button>
                 </div>
               ))}
@@ -924,7 +924,7 @@ Firm: ___________________________    Stamp: _______________`
                     onClick={() => updateInput('recommendations', (reportInput.recommendations || []).filter((_, i) => i !== idx))}
                     className="px-2 text-red-500 hover:bg-red-50 rounded"
                   >
-                    ✕
+                    [x]
                   </button>
                 </div>
               ))}

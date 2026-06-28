@@ -92,6 +92,7 @@ import { MapPrintButton } from '@/app/map/components/MapPrintButton'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
 import { MapToolDock } from '@/app/map/components/MapToolDock'
+import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
 import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
@@ -975,6 +976,9 @@ export default function MapClient() {
 
               {/* ── Floating Tool Dock (consolidated left-edge dock) ── */}
               <MapToolDock />
+
+              {/* ── Mobile Gesture Lock (two-finger pan requirement) ── */}
+              <MapInteractionToggle mapInstance={mapInstance} />
 
               <MapStatusBar />
 

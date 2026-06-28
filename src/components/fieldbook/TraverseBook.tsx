@@ -190,7 +190,7 @@ export function TraverseBook({
             </div>
           ) : (
             <div className={`p-3 border rounded text-xs flex items-center ${travMode === 'open' ? 'bg-red-900/20 border-red-600 text-red-400' : 'bg-[var(--bg-primary)]/40 border-[var(--border-color)] text-[var(--text-muted)]'}`}>
-              {travMode === 'closed' ? t('traverse.closedHint') : '⚠ Open traverse: No closing control — prohibited for cadastral surveys per Reg. 67 (swinging traverse). Use link or closed mode instead.'}
+              {travMode === 'closed' ? t('traverse.closedHint') : '[!] Open traverse: No closing control — prohibited for cadastral surveys per Reg. 67 (swinging traverse). Use link or closed mode instead.'}
             </div>
           )}
         </div>
@@ -287,7 +287,7 @@ export function TraverseBook({
               onClick={() => setEdmOpen(!edmOpen)}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-primary)]/40 text-sm font-medium hover:bg-[var(--border-color)]/30 transition-colors"
             >
-              <span>📐 EDM Corrections <span className="text-[var(--text-muted)] font-normal">(Survey Engine · IAG/ISO · UTM 37S)</span></span>
+              <span>[Compass] EDM Corrections <span className="text-[var(--text-muted)] font-normal">(Survey Engine · IAG/ISO · UTM 37S)</span></span>
               <span className="text-[var(--text-muted)]">{edmOpen ? '▲' : '▼'}</span>
             </button>
             {edmOpen && (

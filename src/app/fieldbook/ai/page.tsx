@@ -310,7 +310,7 @@ export default function FieldBookAIPage() {
               disabled={loading}
               className="w-full mt-4 px-6 py-4 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-bold rounded-lg disabled:opacity-50"
             >
-              {loading ? 'Interpreting...' : '🔍 Interpret Notes'}
+              {loading ? 'Interpreting...' : '[Search] Interpret Notes'}
             </button>
 
             {error && (
@@ -363,7 +363,7 @@ export default function FieldBookAIPage() {
 
                 {result.warnings.length > 0 && (
                   <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded">
-                    <p className="text-yellow-400 text-sm font-medium mb-1">⚠ Warnings:</p>
+                    <p className="text-yellow-400 text-sm font-medium mb-1">[!] Warnings:</p>
                     {result.warnings.map((w, i) => (
                       <p key={i} className="text-yellow-400 text-sm">{w}</p>
                     ))}
@@ -389,7 +389,7 @@ export default function FieldBookAIPage() {
                     disabled={!selectedProject || saving}
                     className="w-full px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded font-medium disabled:opacity-50"
                   >
-                    {saving ? 'Saving...' : '💾 Save to Project'}
+                    {saving ? 'Saving...' : '[Save] Save to Project'}
                   </button>
                 </div>
               </div>

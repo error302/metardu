@@ -295,7 +295,7 @@ function LoginForm() {
                   <form onSubmit={handleLogin} className="space-y-5">
                     {error && (
                       <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-sm flex items-start gap-2">
-                        <span className="mt-0.5">⚠</span>
+                        <span className="mt-0.5">[!]</span>
                         <span>{error}</span>
                       </div>
                     )}

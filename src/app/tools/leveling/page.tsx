@@ -283,7 +283,7 @@ export default function LevelingCalculator() {
               <ResultRow label="Allowable (C = 10√K mm)" value={`±${(result.allowableMisclosure * 1000).toFixed(3)} mm`} />
               <ResultRow
                 label="Arithmetic Check (ΣBS − ΣFS = Last RL − First RL)"
-                value={result.arithmeticCheck ? 'PASS ✓' : 'FAIL ✗'}
+                value={result.arithmeticCheck ? 'PASS ✓' : 'FAIL [x]'}
                 highlight={result.arithmeticCheck}
               />
             </div>

@@ -349,7 +349,7 @@ export default function ProcessPage() {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
           >
-            <div className="text-6xl mb-4">📋</div>
+            <div className="text-6xl mb-4">[Clip]</div>
             <p className="text-lg font-semibold text-[var(--text-primary)] mb-2">
               Drop your field notes here or click to upload
             </p>
@@ -418,7 +418,7 @@ export default function ProcessPage() {
               {interpretResult.warnings.length > 0 && (
                 <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded">
                   {interpretResult.warnings.map((w, i) => (
-                    <p key={i} className="text-sm text-yellow-400">⚠ {w}</p>
+                    <p key={i} className="text-sm text-yellow-400">[!] {w}</p>
                   ))}
                 </div>
               )}
@@ -477,7 +477,7 @@ export default function ProcessPage() {
             <>
               <div className={`card border-2 ${toleranceResult?.passed ? 'border-green-700' : 'border-red-700'}`}>
                 <div className="card-header flex items-center gap-3">
-                  <span className="text-2xl">{toleranceResult?.passed ? '✓' : '✗'}</span>
+                  <span className="text-2xl">{toleranceResult?.passed ? '✓' : '[x]'}</span>
                   <span className="font-semibold">
                     Tolerance Check: {toleranceResult?.passed ? 'PASS' : 'FAIL'}
                   </span>
@@ -488,7 +488,7 @@ export default function ProcessPage() {
                 <div className="card-body">
                   {toleranceResult?.checks.map((check, i) => (
                     <div key={i} className={`flex items-center justify-between py-2 border-b border-[var(--border-color)] last:border-0 ${check.passed ? 'text-green-400' : 'text-red-400'}`}>
-                      <span>{check.passed ? '✓' : '✗'} {check.name}</span>
+                      <span>{check.passed ? '✓' : '[x]'} {check.name}</span>
                       <span className="text-sm">{check.message}</span>
                     </div>
                   ))}
@@ -630,7 +630,7 @@ export default function ProcessPage() {
               {interpretResult?.error || 'Could not parse the uploaded file'}
             </p>
             {interpretResult?.warnings.map((w, i) => (
-              <p key={i} className="text-sm text-yellow-400">⚠ {w}</p>
+              <p key={i} className="text-sm text-yellow-400">[!] {w}</p>
             ))}
             
             <div className="mt-6 p-4 bg-[var(--bg-tertiary)] rounded">

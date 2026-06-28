@@ -253,13 +253,13 @@ const HOW_IT_WORKS_STEPS = [
     number: '01',
     title: 'Enter Your Observations',
     description: 'Input field book data — bearings, distances, angles, and leveling readings. Import from CSV or type directly.',
-    emoji: '📝',
+    emoji: '[Note]',
   },
   {
     number: '02',
     title: 'Adjust & Calculate',
     description: 'Run traverse adjustments, COGO computations, and leveling reductions with one click. Full audit trail included.',
-    emoji: '⚙️',
+    emoji: '[Config]',
   },
   {
     number: '03',

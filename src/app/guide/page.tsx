@@ -24,7 +24,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'closed-traverse',
     name: 'Closed Traverse',
-    icon: '🔗',
+    icon: '[Link]',
     description: 'Survey around a polygon and return to start for accuracy verification',
     time: '2-4 hours',
     difficulty: 'Intermediate',
@@ -33,7 +33,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'leveling',
     name: 'Leveling Run',
-    icon: '📊',
+    icon: '[Chart]',
     description: 'Establish relative elevations using differential leveling',
     time: '1-2 hours',
     difficulty: 'Beginner',
@@ -51,7 +51,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'setting-out',
     name: 'Setting Out',
-    icon: '📍',
+    icon: '[Pin]',
     description: 'Mark designed points and lines on the ground for construction',
     time: '1-4 hours',
     difficulty: 'Intermediate',
@@ -60,7 +60,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'boundary',
     name: 'Boundary Survey',
-    icon: '🏡',
+    icon: '[Home]',
     description: 'Mark property boundaries and corners for land registration',
     time: '4-8 hours',
     difficulty: 'Advanced',
@@ -69,7 +69,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'road-survey',
     name: 'Road Survey',
-    icon: '🛣️',
+    icon: '🛣',
     description: 'Profile and cross-sections for road design and construction',
     time: '3-6 hours',
     difficulty: 'Intermediate',
@@ -78,7 +78,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'control-network',
     name: 'Control Network',
-    icon: '🎯',
+    icon: '[Target]',
     description: 'Establish densified control points for larger surveys',
     time: '4-8 hours',
     difficulty: 'Advanced',
@@ -87,7 +87,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'mining',
     name: 'Mining Survey',
-    icon: '⛏️',
+    icon: '⛏',
     description: 'Underground traverse, volume calculations, and subsidence monitoring',
     time: '4-8 hours',
     difficulty: 'Advanced',
@@ -96,7 +96,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'hydrographic',
     name: 'Hydrographic Survey',
-    icon: '🌊',
+    icon: '[Water]',
     description: 'Bathymetry, tidal corrections, and chart datum conversions',
     time: '3-6 hours',
     difficulty: 'Advanced',
@@ -287,17 +287,17 @@ export default function GuidePage() {
           <h2 className="text-lg font-semibold mb-4">How Guides Work</h2>
           <div className="grid md:grid-cols-3 gap-6 text-sm text-[var(--text-secondary)]">
             <div>
-              <div className="text-xl mb-2">👨‍🎓 👴</div>
+              <div className="text-xl mb-2">👨[Grad] 👴</div>
               <h3 className="font-medium text-[var(--text-primary)] mb-1">Two Modes</h3>
               <p>Junior Mode explains everything. Senior Mode gives quick prompts for experienced surveyors.</p>
             </div>
             <div>
-              <div className="text-xl mb-2">📊</div>
+              <div className="text-xl mb-2">[Chart]</div>
               <h3 className="font-medium text-[var(--text-primary)] mb-1">Track Progress</h3>
               <p>Your progress is saved automatically. Pick up where you left off anytime.</p>
             </div>
             <div>
-              <div className="text-xl mb-2">🔗</div>
+              <div className="text-xl mb-2">[Link]</div>
               <h3 className="font-medium text-[var(--text-primary)] mb-1">METARDU Tools</h3>
               <p>Each step links directly to the relevant METARDU calculator or tool.</p>
             </div>

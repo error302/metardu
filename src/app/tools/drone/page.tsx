@@ -549,7 +549,7 @@ export default function DroneSurveyPage() {
               <div className={`mt-4 p-4 rounded text-center text-lg font-semibold ${
                 accuracyResults.pass ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
               }`}>
-                {accuracyResults.pass ? '✓ PASS' : '✗ FAIL'} — {selectedClass.name} ({selectedClass.scale})
+                {accuracyResults.pass ? '✓ PASS' : '[x] FAIL'} — {selectedClass.name} ({selectedClass.scale})
               </div>
             </div>
           )}

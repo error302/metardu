@@ -347,7 +347,7 @@ export default function OrthophotoViewerPage() {
     const satelliteLayer = new TileLayerModule.default({
       source: new XYZModule.default({
         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        attributions: 'Tiles © Esri',
+        attributions: 'Tiles (c) Esri',
         crossOrigin: 'anonymous',
         maxZoom: 19,
       }),

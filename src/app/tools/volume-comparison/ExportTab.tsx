@@ -71,7 +71,7 @@ export default function ExportTab({
           {/* Export grid CSV */}
           <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-2xl">📐</span>
+              <span className="text-2xl">[Compass]</span>
               <div>
                 <h4 className="font-medium text-sm">Cut/Fill Grid (CSV)</h4>
                 <p className="text-xs text-[var(--text-muted)]">Per-cell easting, northing, diff, type</p>
@@ -89,7 +89,7 @@ export default function ExportTab({
           {/* Print report */}
           <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-2xl">🖨️</span>
+              <span className="text-2xl">🖨</span>
               <div>
                 <h4 className="font-medium text-sm">Print-Friendly Report</h4>
                 <p className="text-xs text-[var(--text-muted)]">Browser print dialog</p>

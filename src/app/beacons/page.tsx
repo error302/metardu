@@ -72,15 +72,15 @@ function getMarkerColor(type: string) {
 
 function getProjectIcon(type: string) {
   const icons: Record<string, string> = {
-    boundary: '📐',
-    topographic: '🗺',
+    boundary: '[Compass]',
+    topographic: '[Map]',
     road: '🛣',
     construction: '🏗',
-    control: '📍',
-    leveling: '📏',
-    other: '📌'
+    control: '[Pin]',
+    leveling: '[Ruler]',
+    other: '[Pin]'
   }
-  return icons[type || 'other'] || '📌'
+  return icons[type || 'other'] || '[Pin]'
 }
 
 export default function BeaconsPage() {

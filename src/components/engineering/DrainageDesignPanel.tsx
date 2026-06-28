@@ -135,7 +135,7 @@ function PipeSizingTab() {
       {/* Warning banner */}
       {hasWarning && (
         <div className="bg-amber-950/50 border border-amber-700 rounded-lg p-3 text-sm text-amber-300">
-          ⚠ Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
+          [!] Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
         </div>
       )}
 
@@ -303,7 +303,7 @@ function CatchmentTab() {
       {/* Warning banner */}
       {hasWarning && (
         <div className="bg-amber-950/50 border border-amber-700 rounded-lg p-3 text-sm text-amber-300">
-          ⚠ Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
+          [!] Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
         </div>
       )}
 
@@ -431,7 +431,7 @@ function ChannelTab() {
       {/* Warning banner */}
       {hasWarning && (
         <div className="bg-amber-950/50 border border-amber-700 rounded-lg p-3 text-sm text-amber-300">
-          ⚠ Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
+          [!] Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
         </div>
       )}
 

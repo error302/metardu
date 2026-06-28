@@ -226,7 +226,7 @@ function getPrecisionGrade(checks: ToleranceCheck[]): string {
 }
 
 export function formatToleranceCheck(result: ToleranceCheckResult): string {
-  const status = result.passed ? '✓ PASS' : '✗ FAIL'
+  const status = result.passed ? '✓ PASS' : '[x] FAIL'
   const lines = [
     `Tolerance Check: ${status}`,
     `Profile: ${TOLERANCE_CONFIGS[result.profile].name}`,
@@ -235,7 +235,7 @@ export function formatToleranceCheck(result: ToleranceCheckResult): string {
   ]
 
   for (const check of result.checks) {
-    lines.push(`${check.passed ? '✓' : '✗'} ${check.name}: ${check.message}`)
+    lines.push(`${check.passed ? '✓' : '[x]'} ${check.name}: ${check.message}`)
   }
 
   if (result.recommendations.length > 0) {

@@ -57,7 +57,7 @@ export default function SuperelevationPage() {
           <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
             <div className="text-sm text-zinc-400 mb-1">Minimum Radius Check</div>
             <div className="text-lg font-medium text-white">
-              {radius >= 30 ? '✓ Pass' : '✗ Fail'} (KRDM min: 30m at {designSpeed}km/h)
+              {radius >= 30 ? '✓ Pass' : '[x] Fail'} (KRDM min: 30m at {designSpeed}km/h)
             </div>
           </div>
         </div>

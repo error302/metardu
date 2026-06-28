@@ -486,7 +486,7 @@ ${azmSection}`
                 <ResultRow label="Allowable (RDM 1.1)"    value="≤ 3.0″ per station" />
                 {azmResult.coursesWarning && (
                   <div className="rounded p-3 bg-amber-900/20 border border-amber-700 text-xs text-amber-300">
-                    ⚠️ {azmResult.numCourses} courses — RDM 1.1 requires an azimuth check every 15 courses maximum.
+                    [!] {azmResult.numCourses} courses — RDM 1.1 requires an azimuth check every 15 courses maximum.
                   </div>
                 )}
                 <div className={`mt-1 p-3 rounded-lg text-center ${azmResult.passes

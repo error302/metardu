@@ -76,7 +76,7 @@ export default function NLIMSLookup({ initialParcel = '', onParcelVerified }: NL
             className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 disabled:opacity-50"
           >
             {loading ? (
-              <span className="animate-spin">⏳</span>
+              <span className="animate-spin">[Wait]</span>
             ) : (
               <Search className="w-4 h-4" />
             )}
@@ -123,7 +123,7 @@ export default function NLIMSLookup({ initialParcel = '', onParcelVerified }: NL
           {result.parcel.status === 'DISPUTED' && (
             <div className="p-4 bg-red-100 border-b border-red-200">
               <p className="text-red-800 font-medium">
-                ⚠️ This parcel has a registered dispute. Proceed only with written 
+                [!] This parcel has a registered dispute. Proceed only with written 
                 instruction from client. Cite: Survey Act Cap 299 s.22
               </p>
             </div>

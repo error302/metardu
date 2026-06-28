@@ -261,7 +261,7 @@ export default function WhiteLabelPage() {
               : 'bg-red-600 text-white'
           }`}
         >
-          <span>{toast.type === 'success' ? '✓' : '✕'}</span>
+          <span>{toast.type === 'success' ? '✓' : '[x]'}</span>
           {toast.message}
         </div>
       )}

@@ -104,7 +104,7 @@ export default function PipeGradientPage() {
               status === 'TOO_FLAT' ? 'text-red-400' :
               'text-amber-400'
             }`}>
-              {status === 'OK' ? '✓ PASS' : status === 'TOO_FLAT' ? '✗ TOO FLAT' : '⚠ TOO STEEP'}
+              {status === 'OK' ? '✓ PASS' : status === 'TOO_FLAT' ? '[x] TOO FLAT' : '[!] TOO STEEP'}
             </div>
           </div>
 

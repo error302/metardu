@@ -427,7 +427,7 @@ export default function CADEditor({
                   </text>
                   {/* Lock icon */}
                   {b.locked && (
-                    <text x={-12} y={-8} fontSize={8} fill="#888">🔒</text>
+                    <text x={-12} y={-8} fontSize={8} fill="#888">[Lock]</text>
                   )}
                 </g>
               )

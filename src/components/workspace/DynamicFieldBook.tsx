@@ -302,7 +302,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
                     className={`text-xs ${deleteConfirm === rowIdx ? 'text-red-600 font-medium' : 'text-gray-300 hover:text-red-400'} disabled:opacity-0`}
                     title={deleteConfirm === rowIdx ? 'Click again to confirm' : 'Delete row'}
                   >
-                    {deleteConfirm === rowIdx ? '✓' : '✕'}
+                    {deleteConfirm === rowIdx ? '✓' : '[x]'}
                   </button>
                 </td>
               </tr>

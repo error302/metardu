@@ -456,7 +456,7 @@ export function generateCorrectionReport(
     lines.push(`  Final grid distance:  ${obs.gridDistance.toFixed(4)} m`);
     
     if (obs.warnings.length > 0) {
-      lines.push('  ⚠ WARNINGS:');
+      lines.push('  [!] WARNINGS:');
       for (const w of obs.warnings) {
         lines.push(`    - ${w}`);
       }

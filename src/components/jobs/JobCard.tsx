@@ -38,17 +38,17 @@ export default function JobCard({ job }: { job: MetarduJob }) {
         
         <div className="space-y-1 text-sm">
           <div className="flex items-center gap-2 text-[var(--text-secondary)]">
-            <span>📍</span>
+            <span>[Pin]</span>
             <span>{job.location ? 'Location set' : 'No location'}</span>
           </div>
           {job.crew_size && (
             <div className="flex items-center gap-2 text-[var(--text-secondary)]">
-              <span>👥</span>
+              <span>[Users]</span>
               <span>{job.crew_size} crew</span>
             </div>
           )}
           <div className="flex items-center gap-2 text-[var(--text-primary)] font-medium">
-            <span>📅</span>
+            <span>[Date]</span>
             <span>{formatDate(job.scheduled_date ?? null)}</span>
           </div>
         </div>

@@ -146,7 +146,7 @@ export function ErrorEllipseCanvas({
                   x={pos.x + 10} y={pos.y - 8}
                   fontSize={11} fill="#f87171" fontWeight="600"
                 >
-                  {s.name || s.id} 🔒
+                  {s.name || s.id} [Lock]
                 </text>
               </g>
             )

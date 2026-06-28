@@ -55,7 +55,7 @@ export default function ImportTab({
           className="border-2 border-dashed border-[var(--border-color)] rounded-lg p-8 text-center hover:border-[var(--accent)] transition-colors cursor-pointer mb-4"
           onClick={() => fileInputRef.current?.click()}
         >
-          <div className="text-3xl mb-2">📁</div>
+          <div className="text-3xl mb-2">[Folder]</div>
           <p className="text-[var(--text-secondary)]">
             Drag & drop a file here, or click to browse
           </p>
@@ -174,7 +174,7 @@ export default function ImportTab({
       {/* Warnings */}
       {warningMsg && (
         <div className="p-4 bg-yellow-900/30 border border-yellow-600 rounded text-yellow-400 text-sm">
-          ⚠ {warningMsg}
+          [!] {warningMsg}
         </div>
       )}
 

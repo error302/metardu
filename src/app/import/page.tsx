@@ -190,7 +190,7 @@ export default function ImportPage() {
               <div className="mt-8">
                 <label className="block">
                   <div className="border-2 border-dashed border-amber-500/50 rounded-xl p-12 text-center cursor-pointer hover:border-amber-500 transition-colors">
-                    <div className="text-4xl mb-4">📁</div>
+                    <div className="text-4xl mb-4">[Folder]</div>
                     <p className="text-[var(--text-primary)] font-medium mb-2">
                       {file ? file.name : 'Drop your file here or click to browse'}
                     </p>
@@ -238,7 +238,7 @@ export default function ImportPage() {
                 {warnings.length > 0 && (
                   <div className="bg-amber-900/20 border border-amber-500/50 rounded p-3 mb-4">
                     {warnings.map((w, i) => (
-                      <p key={i} className="text-amber-400 text-sm">⚠ {w}</p>
+                      <p key={i} className="text-amber-400 text-sm">[!] {w}</p>
                     ))}
                   </div>
                 )}

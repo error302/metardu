@@ -182,14 +182,14 @@ export function issueCPDCertificate(
 
 export function getActivityTypes() {
   return [
-    { id: 'course', name: 'Formal Course', icon: '📚' },
-    { id: 'workshop', name: 'Workshop', icon: '🔧' },
+    { id: 'course', name: 'Formal Course', icon: '[Books]' },
+    { id: 'workshop', name: 'Workshop', icon: '[Tool]' },
     { id: 'seminar', name: 'Seminar', icon: '🎤' },
     { id: 'conference', name: 'Conference', icon: '🎪' },
     { id: 'webinar', name: 'Webinar', icon: '💻' },
-    { id: 'self_study', name: 'Self Study', icon: '📖' },
-    { id: 'mentoring', name: 'Mentoring', icon: '👥' },
-    { id: 'research', name: 'Research/Publication', icon: '📝' },
+    { id: 'self_study', name: 'Self Study', icon: '[Book]' },
+    { id: 'mentoring', name: 'Mentoring', icon: '[Users]' },
+    { id: 'research', name: 'Research/Publication', icon: '[Note]' },
   ]
 }
 

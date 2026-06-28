@@ -233,7 +233,7 @@ function CountryPrecisionBadge({ country, totalDistance, linearError }: {
   const passes = achieved >= order.minPrecision
   return (
     <span className={`px-2 py-1 rounded text-xs font-semibold ${passes ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
-      {passes ? '✓' : '✗'} Req 1:{order.minPrecision.toLocaleString()}
+      {passes ? '✓' : '[x]'} Req 1:{order.minPrecision.toLocaleString()}
     </span>
   )
 }
@@ -1164,7 +1164,7 @@ export default function TraverseModal({
 
               {!hasClosingControl && (
                 <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
-                  ⚠ Without a closing control point, this becomes a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A traverse must close between two previously fixed stations.
+                  [!] Without a closing control point, this becomes a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A traverse must close between two previously fixed stations.
                 </div>
               )}
             </div>
@@ -1260,7 +1260,7 @@ export default function TraverseModal({
                       <tr key={idx} className={`border-b border-[var(--border-color)]/50 ${isBlunderRow ? 'bg-red-900/30' : ''}`}>
                         <td className={`px-2 py-2 font-mono ${isBlunderRow ? 'text-red-400' : 'text-[var(--text-primary)]'}`}>
                           {leg.from} → {leg.to}
-                          {isBlunderRow && <span className="ml-2 text-red-400">⚠</span>}
+                          {isBlunderRow && <span className="ml-2 text-red-400">[!]</span>}
                         </td>
                         <td className="px-2 py-2 text-right font-mono text-[var(--text-primary)]">{leg.distance.toFixed(3)}</td>
                         <td className="px-2 py-2 font-mono text-[var(--text-primary)]">{leg.bearingDMS}</td>
@@ -1305,7 +1305,7 @@ export default function TraverseModal({
                         />
                       </div>
                       <span className="w-12 text-right">{b.contribution}%</span>
-                      {b.isBlunder && <span className="text-red-400">⚠ CHECK</span>}
+                      {b.isBlunder && <span className="text-red-400">[!] CHECK</span>}
                       {!b.isBlunder && !b.distanceMismatch && <span className="text-green-400">✓ OK</span>}
                     </div>
                   ))}

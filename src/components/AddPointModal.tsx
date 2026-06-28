@@ -296,7 +296,7 @@ export default function AddPointModal({
                   className="w-4 h-4 rounded bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--accent)] focus:ring-[#E8841A]"
                 />
                 <label htmlFor="locked" className="text-sm text-[var(--text-primary)]">
-                  🔒 Lock this point (prevent edit/delete)
+                  [Lock] Lock this point (prevent edit/delete)
                 </label>
               </div>
             </div>

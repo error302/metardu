@@ -207,13 +207,13 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
   const getStatusIcon = (status: DocumentStatus) => {
     switch (status) {
       case 'ready':
-        return '✅';
+        return '[OK]';
       case 'generating':
-        return '🔄';
+        return '[Sync]';
       case 'error':
-        return '❌';
+        return '[X]';
       default:
-        return '⏳';
+        return '[Wait]';
     }
   };
 

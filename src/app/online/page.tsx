@@ -392,7 +392,7 @@ export default function OnlineServicesPage() {
                 }}
                 className="text-sm px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
-                📍 Get Live Weather
+                [Pin] Get Live Weather
               </button>
             </div>
             <div className="grid md:grid-cols-2 gap-6">

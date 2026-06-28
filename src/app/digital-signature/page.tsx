@@ -270,7 +270,7 @@ export default function DigitalSignaturePage() {
                 <h3 className={`font-medium mb-2 ${
                   verificationResult.valid ? 'text-green-800' : 'text-red-800'
                 }`}>
-                  {verificationResult.valid ? '✓ Signature Verified' : '✗ Verification Failed'}
+                  {verificationResult.valid ? '✓ Signature Verified' : '[x] Verification Failed'}
                 </h3>
                 <p className="text-sm">{verificationResult.message}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-2">

@@ -367,7 +367,7 @@ export default function EquipmentPage() {
         {/* Empty state */}
         {items.length === 0 && (
           <div className="text-center py-24 border border-dashed border-[var(--border-color)] rounded-2xl">
-            <div className="text-4xl mb-4">📐</div>
+            <div className="text-4xl mb-4">[Compass]</div>
             <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">No instruments registered</h2>
             <p className="text-sm text-[var(--text-muted)] mb-6 max-w-sm mx-auto">
               Add your total stations, GNSS receivers, levels, and other instruments to track their calibration schedules.

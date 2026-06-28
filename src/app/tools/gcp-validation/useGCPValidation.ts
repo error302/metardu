@@ -255,14 +255,14 @@ export function useGCPValidation() {
       lines.push(`Unmatched GCP names:           ${s.unmatchedNames.join(', ')}`);
     }
     lines.push('');
-    lines.push(`Horizontal RMSE:               ${fmt(s.hRMSE)} m    ${s.hPass ? '✓ PASS' : '✗ FAIL'}`);
-    lines.push(`Vertical RMSE:                 ${fmt(s.vRMSE)} m    ${s.vPass ? '✓ PASS' : '✗ FAIL'}`);
+    lines.push(`Horizontal RMSE:               ${fmt(s.hRMSE)} m    ${s.hPass ? '✓ PASS' : '[x] FAIL'}`);
+    lines.push(`Vertical RMSE:                 ${fmt(s.vRMSE)} m    ${s.vPass ? '✓ PASS' : '[x] FAIL'}`);
     lines.push(`Max Horizontal Error:          ${fmt(s.maxHorizontal)} m`);
     lines.push(`Max Vertical Error:            ${fmt(s.maxVertical)} m`);
     lines.push(`Max 3D Error:                  ${fmt(s.max3D)} m`);
     lines.push(`Pass Rate:                     ${s.matchedGCPs > 0 ? ((s.passCount / s.matchedGCPs) * 100).toFixed(1) : '0.0'}% (${s.passCount}/${s.matchedGCPs})`);
     lines.push('');
-    lines.push(`OVERALL RESULT:                 ${s.pass ? '✓ PASS' : '✗ FAIL'}`);
+    lines.push(`OVERALL RESULT:                 ${s.pass ? '✓ PASS' : '[x] FAIL'}`);
     lines.push('');
 
     lines.push('──────────────────────────────────────────────────────────────');

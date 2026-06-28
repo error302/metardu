@@ -81,7 +81,7 @@ export default function KeyboardShortcuts() {
               onClick={() => setShow(false)}
               className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)]"
             >
-              ✕
+              [x]
             </button>
           </div>
           <p className="text-xs text-[var(--text-muted)] mt-1">Press ? to toggle this menu</p>

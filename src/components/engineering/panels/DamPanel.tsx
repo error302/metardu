@@ -319,7 +319,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
           </div>
           {freeboardWarning && (
             <div className="mt-4 p-3 bg-red-900/50 border border-red-700 rounded-lg">
-              <span className="text-red-400 text-sm">⚠ Freeboard below 0.5m minimum — review dam height</span>
+              <span className="text-red-400 text-sm">[!] Freeboard below 0.5m minimum — review dam height</span>
             </div>
           )}
         </div>

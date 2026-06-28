@@ -10,7 +10,7 @@
  *         → [optional datum shift] → (φ, λ) on Clarke 1880
  *         → Forward Transverse Mercator → UTM (E, N) on Clarke 1880
  *
- * ⚠️ Without a datum shift, this differs from Helmert by 100–300m.
+ * [!] Without a datum shift, this differs from Helmert by 100–300m.
  * cassiniFeetToUTMExactWithDatum() adds a Molodensky 3-param shift to fix this.
  */
 

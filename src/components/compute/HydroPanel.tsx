@@ -656,7 +656,7 @@ export function HydroPanel({ projectId, projectData }: Props) {
               {reduced.warnings.length > 0 && (
                 <div className="bg-amber-900/20 border border-amber-700 rounded p-3 text-sm text-amber-400">
                   {reduced.warnings.map((w, i) => (
-                    <p key={i}>⚠️ {w}</p>
+                    <p key={i}>[!] {w}</p>
                   ))}
                 </div>
               )}

@@ -41,7 +41,7 @@ export default function NewJobPage() {
         </div>
 
         <div className="mt-12 text-center text-[var(--text-muted)] text-sm">
-          <p>Need location mapping? Add it in mission details after creation 📍</p>
+          <p>Need location mapping? Add it in mission details after creation [Pin]</p>
         </div>
       </main>
     </div>

@@ -43,8 +43,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://metardu:metardu_secure_2024@metardu-postgres:5432/metardu
       - AUTH_SECRET=dev-auth-secret-32-chars-long-or-more-needed-for-nextauth
-      - NEXTAUTH_URL=http://localhost:3000
-      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - NEXTAUTH_URL=https://metardu.duckdns.org
+      - NEXT_PUBLIC_APP_URL=https://metardu.duckdns.org
       - PYTHON_COMPUTE_URL=http://metardu-worker:8000
       - WORKER_SECRET=dev-worker-secret
       - HOSTNAME=0.0.0.0

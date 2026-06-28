@@ -57,7 +57,7 @@ export function ResultsTab({
               ? 'bg-green-900/30 border border-green-600 text-green-400'
               : 'bg-red-900/30 border border-red-600 text-red-400'
           }`}>
-            {validationSummary.pass ? '✓ OVERALL PASS' : '✗ OVERALL FAIL'} — {selectedClass.name} ({selectedClass.scale})
+            {validationSummary.pass ? '✓ OVERALL PASS' : '[x] OVERALL FAIL'} — {selectedClass.name} ({selectedClass.scale})
           </div>
 
           {/* Summary Cards */}
@@ -105,7 +105,7 @@ export function ResultsTab({
           {/* Unmatched warning */}
           {validationSummary.unmatchedNames.length > 0 && (
             <div className="p-4 bg-amber-900/30 border border-amber-600 rounded text-sm">
-              <span className="text-amber-400 font-semibold">⚠ Unmatched GCPs: </span>
+              <span className="text-amber-400 font-semibold">[!] Unmatched GCPs: </span>
               <span className="text-[var(--text-secondary)]">
                 {validationSummary.unmatchedNames.join(', ')} — not found in known coordinates table.
                 Check that names match exactly (case-sensitive).
@@ -178,7 +178,7 @@ export function ResultsTab({
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-900/50 text-red-400 border border-red-600">
-                            ✗ FAIL
+                            [x] FAIL
                           </span>
                         )}
                       </td>

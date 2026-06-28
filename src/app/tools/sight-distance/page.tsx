@@ -79,7 +79,7 @@ export default function SightDistancePage() {
               <div className="flex justify-between">
                 <span className="text-zinc-500">SSD vs curve radius:</span>
                 <span className="text-white">
-                  {curveRadius >= ssd ? '✓ Adequate' : `⚠ Radius needs ≥ ${ssd.toFixed(0)}m`}
+                  {curveRadius >= ssd ? '✓ Adequate' : `[!] Radius needs ≥ ${ssd.toFixed(0)}m`}
                 </span>
               </div>
             </div>

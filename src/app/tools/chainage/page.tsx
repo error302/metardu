@@ -139,7 +139,7 @@ export default function ChainageCalculator() {
                   <input className="input flex-1" value={point.easting} onChange={e => updatePoint(point.id, 'easting', e.target.value)} placeholder="Easting" />
                   <input className="input flex-1" value={point.northing} onChange={e => updatePoint(point.id, 'northing', e.target.value)} placeholder="Northing" />
                   {alignmentPoints.length > 2 && (
-                    <button onClick={() => removePoint(point.id)} className="text-red-400 hover:text-red-300 px-2">✕</button>
+                    <button onClick={() => removePoint(point.id)} className="text-red-400 hover:text-red-300 px-2">[x]</button>
                   )}
                 </div>
               ))}

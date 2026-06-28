@@ -155,7 +155,7 @@ export async function captureScreenshot(): Promise<string | null> {
 
 /** Log feedback to console (fallback when no backend is available) */
 export function logFeedbackToConsole(entry: FeedbackEntry) {
-  console.group(`📋 METARDU Feedback [${entry.type.toUpperCase()}]`)
+  console.group(`[Clip] METARDU Feedback [${entry.type.toUpperCase()}]`)
   console.log('ID:', entry.id)
   console.log('Message:', entry.message)
   console.log('Email:', entry.email || '(none)')

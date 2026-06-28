@@ -97,7 +97,7 @@ export default function SightDistanceChecker() {
               ['Computed SSD (level)', `${result.ssdComputed.toFixed(2)} m`, 'RDM 1.3 §3.3'],
               ['Grade Correction', `${result.ssdGradeCorrection.toFixed(2)} m`, 'RDM 1.3 §3.3'],
               ['Minimum SSD', `${result.ssdMin} m`, 'RDM 1.3 Table 3-5'],
-              ['SSD Status', result.ssdStatus === 'GREEN' ? `✓ PASS (${result.ssdMin}m min)` : `✗ FAIL`, result.ssdStatus === 'GREEN' ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'],
+              ['SSD Status', result.ssdStatus === 'GREEN' ? `✓ PASS (${result.ssdMin}m min)` : `[x] FAIL`, result.ssdStatus === 'GREEN' ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'],
               ['Minimum PSD', `${result.psdMin} m`, 'RDM 1.3 Table 3-6'],
               ['Friction Factor f', result.frictionFactor.toFixed(2), 'RDM 1.3 Table 3-4'],
             ].map(([label, value, source]) => (
@@ -152,7 +152,7 @@ export default function SightDistanceChecker() {
           {[
             ['Minimum Radius', `${radiusResult.minRadius.toFixed(0)} m`, 'RDM 1.3 Table 3-3'],
             ['Proposed / Min Ratio', `${radiusResult.ratio.toFixed(3)}×`, 'RDM 1.3 Table 3-3'],
-            ['Compliance Status', radiusResult.status === 'GREEN' ? '✓ PASS — R ≥ Rmin' : '✗ FAIL — R < Rmin', radiusResult.status === 'GREEN' ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'],
+            ['Compliance Status', radiusResult.status === 'GREEN' ? '✓ PASS — R ≥ Rmin' : '[x] FAIL — R < Rmin', radiusResult.status === 'GREEN' ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'],
           ].map(([label, value, source]) => (
             <div key={label} className={`bg-[var(--bg-tertiary)] border rounded p-3 ${radiusResult.status === 'GREEN' && label.includes('Compliance') ? 'border-green-800' : label.includes('Compliance') ? 'border-red-800' : 'border-[var(--border-color)]'}`}>
               <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>

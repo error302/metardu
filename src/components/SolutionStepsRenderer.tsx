@@ -66,7 +66,7 @@ function StepBody({ step }: { step: SolutionStep }) {
     return lines.length ? (
       <div className="space-y-2">
         {lines.map((l, idx) => {
-          const ok = l.startsWith('✓') ? true : l.startsWith('✗') ? false : null
+          const ok = l.startsWith('✓') ? true : l.startsWith('[x]') ? false : null
           return (
             <div
               key={idx}

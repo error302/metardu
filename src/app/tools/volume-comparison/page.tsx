@@ -732,7 +732,7 @@ export default function VolumeComparisonPage() {
 
         {points.length === 0 && (
           <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-12 text-center">
-            <div className="text-4xl mb-3 opacity-40">📐</div>
+            <div className="text-4xl mb-3 opacity-40">[Compass]</div>
             <p className="text-[var(--text-secondary)]">
               No data loaded for Survey {survey}.
             </p>
@@ -1070,7 +1070,7 @@ export default function VolumeComparisonPage() {
         {/* Not yet computed */}
         {cutVolume === null && computeErrors.length === 0 && (
           <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-12 text-center">
-            <div className="text-4xl mb-3 opacity-40">📊</div>
+            <div className="text-4xl mb-3 opacity-40">[Chart]</div>
             <p className="text-[var(--text-secondary)]">
               Configure settings and click &quot;Compute Volume&quot; to see results.
             </p>
@@ -1119,7 +1119,7 @@ export default function VolumeComparisonPage() {
             {/* Export grid CSV */}
             <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">📐</span>
+                <span className="text-2xl">[Compass]</span>
                 <div>
                   <h4 className="font-medium text-sm">Cut/Fill Grid (CSV)</h4>
                   <p className="text-xs text-[var(--text-muted)]">Per-cell easting, northing, diff, type</p>
@@ -1137,7 +1137,7 @@ export default function VolumeComparisonPage() {
             {/* Print report */}
             <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">🖨️</span>
+                <span className="text-2xl">🖨</span>
                 <div>
                   <h4 className="font-medium text-sm">Print-Friendly Report</h4>
                   <p className="text-xs text-[var(--text-muted)]">Browser print dialog</p>

@@ -820,3 +820,83 @@ main, section, header, footer, nav, article, aside {
 .animate-slide-up {
   animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ========================================================================
+   OUTDOOR MODE — High-contrast theme for field work under sunlight
+   ======================================================================== */
+html.outdoor-mode {
+  --bg-primary: #ffffff !important;
+  --bg-secondary: #f5f5f5 !important;
+  --bg-tertiary: #ebebeb !important;
+  --bg-card: #ffffff !important;
+  --text-primary: #000000 !important;
+  --text-secondary: #1a1a1a !important;
+  --text-muted: #404040 !important;
+  --border-color: #000000 !important;
+  --border-hover: #000000 !important;
+  --accent: #000000 !important;
+  --accent-dim: #333333 !important;
+  --accent-subtle: #f0f0f0 !important;
+  color: #000000 !important;
+  background: #ffffff !important;
+}
+html.outdoor-mode body { background: #ffffff !important; color: #000000 !important; }
+html.outdoor-mode *:not(.lucide):not(svg):not(path) { color: #000000 !important; }
+html.outdoor-mode .card, html.outdoor-mode .btn, html.outdoor-mode .input,
+html.outdoor-mode button, html.outdoor-mode [class*="border"] {
+  border-color: #000000 !important;
+  border-width: 1.5px !important;
+}
+html.outdoor-mode .backdrop-blur, html.outdoor-mode .backdrop-blur-sm,
+html.outdoor-mode .backdrop-blur-md, html.outdoor-mode .backdrop-blur-lg,
+html.outdoor-mode .backdrop-blur-xl, html.outdoor-mode .backdrop-blur-2xl {
+  backdrop-filter: none !important;
+  background: #ffffff !important;
+}
+html.outdoor-mode .btn-primary, html.outdoor-mode button[class*="bg-[var(--accent)"] {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #000000 !important;
+  font-weight: 700 !important;
+}
+html.outdoor-mode .btn-secondary {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  font-weight: 600 !important;
+}
+html.outdoor-mode .input, html.outdoor-mode input, html.outdoor-mode select, html.outdoor-mode textarea {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  font-weight: 600 !important;
+}
+html.outdoor-mode .input::placeholder, html.outdoor-mode input::placeholder, html.outdoor-mode textarea::placeholder {
+  color: #666666 !important;
+  font-weight: 500 !important;
+}
+html.outdoor-mode table, html.outdoor-mode .table-header, html.outdoor-mode .table-row, html.outdoor-mode .table-cell {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+  border-width: 1.5px !important;
+  font-weight: 600 !important;
+}
+html.outdoor-mode [class*="bg-[#0d0d14]"], html.outdoor-mode [class*="bg-[#14141e]"], html.outdoor-mode [class*="bg-[#0a0a0f]"] {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+html.outdoor-mode .text-xs { font-size: 0.875rem !important; }
+html.outdoor-mode .text-sm { font-size: 1rem !important; }
+html.outdoor-mode .text-\[10px\] { font-size: 0.8125rem !important; }
+html.outdoor-mode .text-\[11px\] { font-size: 0.875rem !important; }
+html.outdoor-mode button:not(.lucide):not(svg) { min-height: 44px !important; min-width: 44px !important; }
+html.outdoor-mode * { box-shadow: none !important; text-shadow: none !important; }
+html.outdoor-mode [class*="text-[var(--accent)]"], html.outdoor-mode [class*="text-amber"],
+html.outdoor-mode [class*="text-orange"], html.outdoor-mode [class*="text-blue"],
+html.outdoor-mode [class*="text-green"], html.outdoor-mode [class*="text-emerald"],
+html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}

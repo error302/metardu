@@ -80,11 +80,11 @@ interface MobileFieldbookShellProps {
 }
 
 const TYPE_LABELS: Record<MobileSurveyType, { label: string; emoji: string }> = {
-  leveling:     { label: 'Leveling',     emoji: '📏' },
-  traverse:     { label: 'Traverse',     emoji: '🧭' },
-  control:      { label: 'Control',      emoji: '📍' },
-  hydrographic: { label: 'Hydrographic', emoji: '🌊' },
-  mining:       { label: 'Mining',       emoji: '⛏️' },
+  leveling:     { label: 'Leveling',     emoji: '[Ruler]' },
+  traverse:     { label: 'Traverse',     emoji: '[Compass]' },
+  control:      { label: 'Control',      emoji: '[Pin]' },
+  hydrographic: { label: 'Hydrographic', emoji: '[Water]' },
+  mining:       { label: 'Mining',       emoji: '⛏' },
 }
 
 /** Per-survey-type primary fields to display on each card (in order). */
@@ -687,7 +687,7 @@ export function MobileFieldbookShell({
               <div className="p-4 border-t border-[var(--border-color)] space-y-3 bg-[var(--bg-secondary)]/25">
                 {!computed.ok ? (
                   <div className="p-3 bg-red-950/20 border border-red-500/30 rounded-lg text-xs text-red-300 space-y-1">
-                    <div className="font-semibold text-red-400">⚠ Calculation Errors:</div>
+                    <div className="font-semibold text-red-400">[!] Calculation Errors:</div>
                     {computed.errors.map((e: string, i: number) => (
                       <div key={i} className="list-item ml-3">{e}</div>
                     ))}
@@ -717,7 +717,7 @@ export function MobileFieldbookShell({
                       <>
                         {computed.mode === 'open' ? (
                           <div className="p-3 bg-yellow-950/20 border border-yellow-500/30 rounded-lg text-xs text-yellow-350">
-                            ⚠ Open Traverse: No closing coordinate check. Prohibited for legal land boundary surveys under Reg 67.
+                            [!] Open Traverse: No closing coordinate check. Prohibited for legal land boundary surveys under Reg 67.
                           </div>
                         ) : (
                           <div className="grid grid-cols-2 gap-2 text-xs">

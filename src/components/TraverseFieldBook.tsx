@@ -596,7 +596,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
           {/* Regulatory warning when no closing control */}
           {(!closingE || !closingN) && (
             <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
-              ⚠ CLOSING CONTROL IS MANDATORY — Without closing control coordinates, this is a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A cadastral traverse must close between two previously fixed stations (minimum 2 distinct known control points). Enter closing control point coordinates above.
+              [!] CLOSING CONTROL IS MANDATORY — Without closing control coordinates, this is a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A cadastral traverse must close between two previously fixed stations (minimum 2 distinct known control points). Enter closing control point coordinates above.
             </div>
           )}
           {/* Warning when closing = opening (1-point traverse) */}
@@ -604,7 +604,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
             Math.abs(parseFloat(closingE) - parseFloat(openingE)) + Math.abs(parseFloat(closingN) - parseFloat(openingN)) < 0.001
           ) && (
             <div className="p-3 bg-amber-900/30 border border-amber-600 rounded text-amber-400 text-sm">
-              ⚠ Closing point is the SAME as opening point — this is a 1-point traverse with no absolute position check. For cadastral surveys, minimum 2 DISTINCT known control points are required. The traverse could be shifted/rotated from true position undetected.
+              [!] Closing point is the SAME as opening point — this is a 1-point traverse with no absolute position check. For cadastral surveys, minimum 2 DISTINCT known control points are required. The traverse could be shifted/rotated from true position undetected.
             </div>
           )}
 
@@ -679,7 +679,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
           <div className="border border-[var(--border-color)] rounded overflow-hidden">
             <button onClick={() => setEdmOpen(!edmOpen)}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-tertiary)]/50 text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
-              <span>📐 EDM Corrections <span className="text-[var(--text-muted)] font-normal">(Survey Engine · IAG/ISO · UTM 37S)</span></span>
+              <span>[Compass] EDM Corrections <span className="text-[var(--text-muted)] font-normal">(Survey Engine · IAG/ISO · UTM 37S)</span></span>
               <span className="text-[var(--text-muted)]">{edmOpen ? '▲' : '▼'}</span>
             </button>
             {edmOpen && (
@@ -781,7 +781,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
           <div className="border border-[var(--border-color)] rounded overflow-hidden">
             <button onClick={() => setShowPlot(!showPlot)}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-tertiary)]/50 text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
-              <span>🗺️ Plot Traverse</span>
+              <span>[Map] Plot Traverse</span>
               <span className="text-[var(--text-muted)]">{showPlot ? '▲ Hide' : '▼ Show'}</span>
             </button>
             {showPlot && result && (() => {

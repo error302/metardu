@@ -46,7 +46,7 @@ const CountryContext = createContext<CountryContextType>({
   getBeacon: () => getBeaconRule(DEFAULT_COUNTRY),
   getFieldNote: () => getFieldNoteRule(DEFAULT_COUNTRY),
   getReportReq: () => getSurveyorReportRequirement(DEFAULT_COUNTRY),
-  flag: '🇰🇪',
+  flag: 'KE',
   isoCode: 'KE',
 })
 

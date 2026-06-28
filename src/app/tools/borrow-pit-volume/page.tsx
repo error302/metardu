@@ -174,7 +174,7 @@ export default function BorrowPitVolumePage() {
                         </span>
                       </td>
                       <td>
-                        <button onClick={() => removePoint(p.id)} className="text-red-400 hover:text-red-300 text-sm">✕</button>
+                        <button onClick={() => removePoint(p.id)} className="text-red-400 hover:text-red-300 text-sm">[x]</button>
                       </td>
                     </tr>
                   ))}

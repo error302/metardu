@@ -26,7 +26,7 @@ interface Guide {
 const guideData: { [key: string]: Guide } = {
   'closed-traverse': {
     title: 'Closed Traverse',
-    icon: '🔗',
+    icon: '[Link]',
     fieldChecklist: [
       'Project datum / UTM zone / hemisphere confirmed (no guessing)',
       '2+ control points verified and recovered on ground (IDs match)',
@@ -228,7 +228,7 @@ Never discard raw field notes. If a coordinate is challenged later, raw notes ar
   },
   'leveling': {
     title: 'Leveling Run',
-    icon: '📊',
+    icon: '[Chart]',
     fieldChecklist: [
       'Instrument collimation known (Two Peg Test done if needed)',
       'Start BM RL confirmed; end BM/closure plan confirmed',
@@ -466,7 +466,7 @@ For multiple stations:
   },
   'setting-out': {
     title: 'Setting Out',
-    icon: '📍',
+    icon: '[Pin]',
     fieldChecklist: [
       'Design coordinates validated (units/datum/UTM zone)',
       'Occupied correct control point (ID confirmed)',
@@ -600,7 +600,7 @@ If marks will be disturbed by work, ALWAYS provide offsets and clear written ins
   },
   'boundary': {
     title: 'Boundary Survey',
-    icon: '🏡',
+    icon: '[Home]',
     fieldChecklist: [
       'Deed/plan documents confirmed for the correct parcel (ID, edition/date)',
       'Jurisdiction rules confirmed (monument type, witnessing, required forms)',
@@ -753,7 +753,7 @@ Minimum contents:
   },
   'road-survey': {
     title: 'Road Survey',
-    icon: '🛣️',
+    icon: '🛣',
     steps: [
       {
         id: 1,
@@ -834,7 +834,7 @@ For design:
   },
   'control-network': {
     title: 'Control Network',
-    icon: '🎯',
+    icon: '[Target]',
     steps: [
       {
         id: 1,
@@ -1036,7 +1036,7 @@ In METARDU:
   },
   'hydrographic': {
     title: 'Hydrographic Survey',
-    icon: '🌊',
+    icon: '[Water]',
     steps: [
       {
         id: 1,
@@ -1329,7 +1329,7 @@ export default function GuideTypePage({ params }: PageProps) {
                     mode === 'junior' ? 'bg-[var(--accent)] text-black' : 'text-[var(--text-secondary)]'
                   }`}
                 >
-                  👨‍🎓 Junior
+                  👨[Grad] Junior
                 </button>
                 <button
                   onClick={() => setMode('senior')}
@@ -1337,7 +1337,7 @@ export default function GuideTypePage({ params }: PageProps) {
                     mode === 'senior' ? 'bg-[var(--accent)] text-black' : 'text-[var(--text-secondary)]'
                   }`}
                 >
-                  ⚡ Senior
+                  [Fast] Senior
                 </button>
               </div>
             </div>
@@ -1439,7 +1439,7 @@ export default function GuideTypePage({ params }: PageProps) {
                         href={toolLink.href}
                         className="inline-flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
                       >
-                        <span className="text-xs">🔗</span>
+                        <span className="text-xs">[Link]</span>
                         {toolLink.label}
                       </Link>
                     </div>
