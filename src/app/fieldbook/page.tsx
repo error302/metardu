@@ -23,6 +23,7 @@ import { MobileFieldbookShell } from '@/components/fieldbook/MobileFieldbookShel
 import { MobileMeasurementCapture, type CapturedMeasurement } from '@/components/fieldbook/MobileMeasurementCapture'
 import { GNSSRoverConnection } from '@/components/survey/GNSSRoverConnection'
 import { NTRIPClientPanel } from '@/components/survey/NTRIPClientPanel'
+import { GNSSQualityReport } from '@/components/survey/GNSSQualityReport'
 import { FieldbookAuditDrawer } from '@/components/fieldbook/FieldbookAuditDrawer'
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
 
@@ -1335,6 +1336,9 @@ export default function DigitalFieldBookPage() {
 
           {/* NTRIP Client — RTK correction stream from CORS */}
           <NTRIPClientPanel />
+
+          {/* GNSS Quality Report — QA/QC for ArdhiSasa compliance */}
+          <GNSSQualityReport />
         </div>
 
         <div className="lg:col-span-9 space-y-4">

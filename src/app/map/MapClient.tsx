@@ -97,6 +97,7 @@ import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButto
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
 import { DigitizingToolbar } from '@/app/map/components/DigitizingToolbar'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
+import { StakeoutRadar } from '@/components/survey/StakeoutRadar'
 import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
@@ -110,6 +111,7 @@ import { useMapInteractions } from '@/app/map/hooks/useMapInteractions'
 import { useVertexEditing } from '@/hooks/useVertexEditing'
 import { usePrint } from '@/hooks/usePrint'
 import { MapProvider, type MapContextValue } from '@/app/map/MapReactContext'
+import { Target } from 'lucide-react'
 
 // ── Dynamic imports for heavy components ──
 const OfflineTileDownloader = dynamic(
@@ -280,6 +282,10 @@ export default function MapClient() {
   const [activeDigitizingTool, setActiveDigitizingTool] = useState<'draw' | 'split' | 'merge' | 'reshape' | 'rotate' | 'offset' | null>(null)
   const [snappingEnabled, setSnappingEnabled] = useState(true)
   const [showSnappingOptions, setShowSnappingOptions] = useState(false)
+
+  // ── Stakeout Radar state ──
+  const [showStakeoutRadar, setShowStakeoutRadar] = useState(false)
+  const [stakeoutRadarTarget, setStakeoutRadarTarget] = useState<{ e: number; n: number } | null>(null)
 
   const {
     print: printMap,
@@ -1035,6 +1041,37 @@ export default function MapClient() {
                   }
                 }}
               />
+
+              {/* ── Stakeout Radar button (launch beacon recovery) ── */}
+              {!showStakeoutRadar && (
+                <button
+                  onClick={() => {
+                    // Use map center as default target, or selected feature
+                    const view = mapInstance.current?.getView()
+                    if (view) {
+                      const center = view.getCenter()
+                      if (center) {
+                        setStakeoutRadarTarget({ e: center[0], n: center[1] })
+                        setShowStakeoutRadar(true)
+                      }
+                    }
+                  }}
+                  className="absolute top-14 left-3 z-20 flex items-center gap-1.5 px-3 h-10 rounded-xl bg-[#0d0d14]/60 backdrop-blur-xl border border-white/[0.06] text-gray-400 hover:text-[#E8841A] hover:border-[#E8841A]/30 transition-all shadow-lg"
+                  title="Launch stakeout radar for beacon recovery"
+                >
+                  <Target className="w-4 h-4" />
+                  <span className="text-xs font-medium hidden sm:inline">Radar</span>
+                </button>
+              )}
+
+              {/* ── Stakeout Radar (full-screen when active) ── */}
+              {showStakeoutRadar && stakeoutRadarTarget && (
+                <StakeoutRadar
+                  targetE={stakeoutRadarTarget.e}
+                  targetN={stakeoutRadarTarget.n}
+                  onClose={() => setShowStakeoutRadar(false)}
+                />
+              )}
 
               <MapStatusBar />
 
