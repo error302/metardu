@@ -18,6 +18,8 @@ import WorkflowQualityGate from '@/components/shared/WorkflowQualityGate';
 import WorkflowOverviewPanel from '@/components/shared/WorkflowOverviewPanel';
 import { CollaborationPanel } from '@/components/realtime/CollaborationPanel';
 import { useCollaboration } from '@/lib/realtime/useCollaboration';
+import { QADashboard } from '@/components/dashboard/QADashboard';
+import { BatchParcelImport } from '@/components/parcels/BatchParcelImport';
 
 interface ProjectProps {
   id: string;
@@ -401,6 +403,16 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
           onSend={handleSendChat}
           conflictWarnings={conflictWarnings}
         />
+      </div>
+
+      {/* QA Validation Dashboard */}
+      <div className="max-w-5xl mx-auto px-4 py-4">
+        <QADashboard projectId={project.id} />
+      </div>
+
+      {/* Batch Parcel Import */}
+      <div className="max-w-5xl mx-auto px-4 py-4">
+        <BatchParcelImport projectId={project.id} />
       </div>
     </div>
   );
