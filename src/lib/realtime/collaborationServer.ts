@@ -17,8 +17,9 @@
  */
 
 import { WebSocketServer, WebSocket } from 'ws'
-import { createServer } from 'http'
+import { createServer, IncomingMessage } from 'http'
 import { parse } from 'url'
+import { createVerify } from 'crypto'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,6 +54,127 @@ interface CollaborationMessage {
 }
 
 // ---------------------------------------------------------------------------
+// JWT Authentication
+// ---------------------------------------------------------------------------
+
+/**
+ * Verify a JWT token (NextAuth-compatible).
+ *
+ * NextAuth uses HS256 by default with AUTH_SECRET as the key.
+ * This verifies the token signature without importing NextAuth
+ * (keeps the WebSocket server lightweight).
+ */
+function verifyToken(token: string, secret: string): { userId?: string; email?: string; name?: string } | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+
+    const [headerB64, payloadB64, signatureB64] = parts
+    const signedContent = `${headerB64}.${payloadB64}`
+
+    // Verify signature
+    const verify = createVerify('RSA-SHA256')
+    verify.update(signedContent)
+    verify.end()
+
+    // NextAuth uses HS256 (HMAC), not RSA
+    // For HMAC verification, we need crypto.createHmac
+    const crypto = require('crypto')
+    const expectedSig = crypto.createHmac('sha256', secret)
+      .update(signedContent)
+      .digest('base64url')
+
+    if (expectedSig !== signatureB64) {
+      return null
+    }
+
+    // Decode payload
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString())
+    return {
+      userId: payload.sub || payload.userId,
+      email: payload.email,
+      name: payload.name || payload.fullName,
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Authenticate a WebSocket connection request.
+ * Returns the user info if valid, null otherwise.
+ */
+function authenticateRequest(req: IncomingMessage): { userId: string; userName: string } | null {
+  const url = parse(req.url || '', true)
+  const token = url.query.token as string
+  const userId = url.query.userId as string
+  const userName = url.query.userName as string
+
+  // If AUTH_SECRET is set, require valid token
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  if (secret) {
+    if (!token) return null
+    const decoded = verifyToken(token, secret)
+    if (!decoded || !decoded.userId) return null
+    return {
+      userId: decoded.userId,
+      userName: decoded.name || userName || `User ${decoded.userId.substring(0, 6)}`,
+    }
+  }
+
+  // Fallback: no secret set, allow unauthenticated (development only)
+  if (!userId) return null
+  return { userId, userName: userName || `User ${userId.substring(0, 6)}` }
+}
+
+// ---------------------------------------------------------------------------
+// Conflict Resolution (Last-Write-Wins with timestamps)
+// ---------------------------------------------------------------------------
+
+interface FeatureVersion {
+  featureId: string
+  version: number
+  timestamp: number
+  userId: string
+  data: unknown
+}
+
+class ConflictResolver {
+  private versions: Map<string, FeatureVersion> = new Map()
+
+  /**
+   * Attempt to apply an update. Returns true if accepted, false if rejected
+   * (stale version).
+   */
+  applyUpdate(featureId: string, data: unknown, timestamp: number, userId: string): boolean {
+    const existing = this.versions.get(featureId)
+
+    if (existing && timestamp < existing.timestamp) {
+      // Stale update — reject
+      return false
+    }
+
+    this.versions.set(featureId, {
+      featureId,
+      version: (existing?.version || 0) + 1,
+      timestamp,
+      data,
+      userId,
+    })
+
+    return true
+  }
+
+  delete(featureId: string): void {
+    this.versions.delete(featureId)
+  }
+
+  getVersion(featureId: string): FeatureVersion | undefined {
+    return this.versions.get(featureId)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Collaboration Server
 // ---------------------------------------------------------------------------
 
@@ -60,6 +182,7 @@ export class CollaborationServer {
   private wss: WebSocketServer | null = null
   private collaborators: Map<string, Collaborator> = new Map()
   private projectRooms: Map<string, Set<string>> = new Map() // projectId -> set of collaborator IDs
+  private conflictResolvers: Map<string, ConflictResolver> = new Map() // projectId -> resolver
 
   // User colors for cursor display
   private readonly COLORS = [
@@ -71,17 +194,23 @@ export class CollaborationServer {
     const server = createServer()
     this.wss = new WebSocketServer({ server, path: '/ws/collaboration' })
 
-    this.wss.on('connection', (ws: WebSocket, req) => {
-      const url = parse(req.url || '', true)
-      const userId = url.query.userId as string
-      const userName = url.query.userName as string
-      const projectId = url.query.projectId as string
-
-      if (!userId || !projectId) {
-        ws.close(1008, 'Missing userId or projectId')
+    this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+      // Authenticate the connection
+      const auth = authenticateRequest(req)
+      if (!auth) {
+        ws.close(1008, 'Authentication failed')
         return
       }
 
+      const url = parse(req.url || '', true)
+      const projectId = url.query.projectId as string
+
+      if (!projectId) {
+        ws.close(1008, 'Missing projectId')
+        return
+      }
+
+      const { userId, userName } = auth
       const collaboratorId = `${userId}-${Date.now()}`
       const color = this.COLORS[this.collaborators.size % this.COLORS.length]
 
@@ -132,17 +261,44 @@ export class CollaborationServer {
               }, collaboratorId)
               break
 
-            case 'feature_edit':
-              this.broadcastToProject(projectId, {
-                type: 'feature_edit',
-                userId,
-                userName: collaborator.userName,
-                feature: msg.feature,
-                timestamp: Date.now(),
-              }, collaboratorId)
-              break
+            case 'feature_edit': {
+              // Conflict resolution: last-write-wins with timestamps
+              const resolver = this.getResolver(projectId)
+              const featureId = msg.feature?.id
+              if (!featureId) break
 
-            case 'feature_delete':
+              const accepted = resolver.applyUpdate(
+                featureId,
+                msg.feature,
+                msg.timestamp,
+                userId,
+              )
+
+              if (accepted) {
+                this.broadcastToProject(projectId, {
+                  type: 'feature_edit',
+                  userId,
+                  userName: collaborator.userName,
+                  feature: msg.feature,
+                  timestamp: msg.timestamp,
+                }, collaboratorId)
+              } else {
+                // Reject stale update — notify sender
+                ws.send(JSON.stringify({
+                  type: 'conflict_rejected',
+                  featureId,
+                  message: 'Update rejected — newer version exists',
+                  timestamp: Date.now(),
+                }))
+              }
+              break
+            }
+
+            case 'feature_delete': {
+              const resolver = this.getResolver(projectId)
+              if (msg.featureId) {
+                resolver.delete(msg.featureId)
+              }
               this.broadcastToProject(projectId, {
                 type: 'feature_delete',
                 userId,
@@ -151,6 +307,7 @@ export class CollaborationServer {
                 timestamp: Date.now(),
               }, collaboratorId)
               break
+            }
 
             case 'chat':
               this.broadcastToProject(projectId, {
@@ -215,6 +372,13 @@ export class CollaborationServer {
     }
   }
 
+  private getResolver(projectId: string): ConflictResolver {
+    if (!this.conflictResolvers.has(projectId)) {
+      this.conflictResolvers.set(projectId, new ConflictResolver())
+    }
+    return this.conflictResolvers.get(projectId)!
+  }
+
   private sendPresence(ws: WebSocket, projectId: string) {
     const room = this.projectRooms.get(projectId)
     if (!room) return
@@ -240,6 +404,7 @@ export class CollaborationServer {
     this.wss?.close()
     this.collaborators.clear()
     this.projectRooms.clear()
+    this.conflictResolvers.clear()
   }
 }
 

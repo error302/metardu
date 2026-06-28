@@ -30,6 +30,8 @@ interface UseCollaborationProps {
   projectId: string | null
   userId?: string
   userName?: string
+  /** JWT token for authentication (from NextAuth session) */
+  token?: string
   /** WebSocket URL — defaults to same host on port 3001 */
   wsUrl?: string
 }
@@ -37,6 +39,7 @@ interface UseCollaborationProps {
 interface UseCollaborationReturn {
   collaborators: Collaborator[]
   isConnected: boolean
+  conflictWarnings: string[]
   sendCursor: (lat: number, lng: number) => void
   sendFeatureEdit: (feature: any) => void
   sendFeatureDelete: (featureId: string) => void
@@ -50,10 +53,12 @@ export function useCollaboration({
   projectId,
   userId,
   userName,
+  token,
   wsUrl,
 }: UseCollaborationProps): UseCollaborationReturn {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
   const [isConnected, setIsConnected] = useState(false)
+  const [conflictWarnings, setConflictWarnings] = useState<string[]>([])
   const wsRef = useRef<WebSocket | null>(null)
   const callbacksRef = useRef<{
     onFeatureEdit?: (feature: any, userId: string) => void
@@ -64,7 +69,8 @@ export function useCollaboration({
   // Determine WebSocket URL
   const finalWsUrl = wsUrl || (
     typeof window !== 'undefined'
-      ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:3001/ws/collaboration`
+      ? process.env.NEXT_PUBLIC_WS_URL ||
+        `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:3001/ws/collaboration`
       : ''
   )
 
@@ -72,7 +78,14 @@ export function useCollaboration({
   useEffect(() => {
     if (!projectId || !userId || !finalWsUrl) return
 
-    const url = `${finalWsUrl}?userId=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName || '')}&projectId=${encodeURIComponent(projectId)}`
+    const params = new URLSearchParams({
+      userId,
+      userName: userName || '',
+      projectId,
+    })
+    if (token) params.set('token', token)
+
+    const url = `${finalWsUrl}?${params.toString()}`
 
     const ws = new WebSocket(url)
     wsRef.current = ws
@@ -128,6 +141,11 @@ export function useCollaboration({
           case 'chat':
             callbacksRef.current.onChat?.(msg.message, msg.userName, msg.userId)
             break
+
+          case 'conflict_rejected':
+            setConflictWarnings(prev => [...prev, msg.message || 'Update rejected'])
+            setTimeout(() => setConflictWarnings(prev => prev.slice(1)), 5000)
+            break
         }
       } catch (err) {
         console.error('[useCollaboration] Message parse error:', err)
@@ -147,7 +165,7 @@ export function useCollaboration({
       ws.close()
       wsRef.current = null
     }
-  }, [projectId, userId, userName, finalWsUrl])
+  }, [projectId, userId, userName, token, finalWsUrl])
 
   // Send functions
   const sendCursor = useCallback((lat: number, lng: number) => {
@@ -193,6 +211,7 @@ export function useCollaboration({
   return {
     collaborators,
     isConnected,
+    conflictWarnings,
     sendCursor,
     sendFeatureEdit,
     sendFeatureDelete,

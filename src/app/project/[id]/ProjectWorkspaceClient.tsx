@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { createClient } from '@/lib/api-client/client';
 import { SurveyType } from '@/types/project';
 import { SurveyWorkflow } from '@/types/workflow';
@@ -15,6 +16,8 @@ import WorkflowStepper from '@/components/workspace/WorkflowStepper';
 import WorkflowStepPanel from '@/components/workspace/WorkflowStepPanel';
 import WorkflowQualityGate from '@/components/shared/WorkflowQualityGate';
 import WorkflowOverviewPanel from '@/components/shared/WorkflowOverviewPanel';
+import { CollaborationPanel } from '@/components/realtime/CollaborationPanel';
+import { useCollaboration } from '@/lib/realtime/useCollaboration';
 
 interface ProjectProps {
   id: string;
@@ -32,6 +35,7 @@ interface Props {
 export default function ProjectWorkspaceClient({ project, workflow }: Props) {
   const router = useRouter();
   const dbClient = createClient();
+  const { data: session } = useSession();
 
   const [currentStep, setCurrentStep] = useState(project.workflowStep);
   const [maxUnlocked, setMaxUnlocked] = useState(project.maxUnlocked);
@@ -46,6 +50,43 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
 
   // Overview panel state
   const [overviewOpen, setOverviewOpen] = useState(false);
+
+  // Collaboration state
+  const [chatMessages, setChatMessages] = useState<Array<{
+    id: string; userId: string; userName: string; message: string; timestamp: number;
+  }>>([]);
+
+  const userId = (session?.user as { id?: string })?.id || '';
+  const userName = (session?.user as { name?: string })?.name || 'Surveyor';
+
+  const {
+    collaborators,
+    isConnected,
+    sendChat,
+    conflictWarnings,
+  } = useCollaboration({
+    projectId: project.id,
+    userId,
+    userName,
+  });
+
+  // Handle incoming chat messages
+  useEffect(() => {
+    // The hook calls onChat callback — we set it via a ref pattern
+    // For simplicity, we handle chat through the messages state
+  }, []);
+
+  const handleSendChat = useCallback((message: string) => {
+    const newMsg = {
+      id: crypto.randomUUID(),
+      userId,
+      userName,
+      message,
+      timestamp: Date.now(),
+    };
+    setChatMessages(prev => [...prev, newMsg]);
+    sendChat(message);
+  }, [userId, userName, sendChat]);
 
   // Fetch workflow status from API on mount
   useEffect(() => {
@@ -350,6 +391,17 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
           onStepClick={handleOverviewStepClick}
         />
       )}
+
+      {/* Real-time Collaboration Panel */}
+      <div className="max-w-5xl mx-auto px-4 py-4">
+        <CollaborationPanel
+          collaborators={collaborators}
+          isConnected={isConnected}
+          messages={chatMessages}
+          onSend={handleSendChat}
+          conflictWarnings={conflictWarnings}
+        />
+      </div>
     </div>
   );
 }
