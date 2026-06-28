@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import AppSidebar from '@/components/layout/AppSidebar'
+import { PerformanceMonitor } from '@/components/admin/PerformanceMonitor'
 
 // ---------------------------------------------------------------------------
 // Layout
@@ -57,6 +58,9 @@ export default function AdminLayout({
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           {children}
         </div>
+
+        {/* Performance Monitor — admin-only Core Web Vitals overlay */}
+        <PerformanceMonitor visible={true} />
       </div>
     </div>
   )

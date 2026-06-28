@@ -963,10 +963,12 @@ export default function MapClient() {
         id="metardu-global-map"
         className="h-[calc(100vh-4rem)] bg-[#0a0a0f] relative overflow-hidden"
         style={{ '--map-bottom-offset': isMobile ? '64px' : '0px' } as React.CSSProperties}
+        role="application"
+        aria-label="Survey map — use arrow keys to pan, plus/minus to zoom. Press question mark for keyboard shortcuts."
       >
         {/* Map container */}
         <div className="w-full h-full relative">
-          <div ref={mapRef} className="w-full h-full" />
+          <div ref={mapRef} className="w-full h-full" aria-label="Interactive survey map" />
 
           {/* ── Overlays (only when map is ready) ── */}
           {mapReady && (

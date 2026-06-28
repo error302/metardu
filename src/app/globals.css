@@ -900,3 +900,43 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
   color: #000000 !important;
   font-weight: 700 !important;
 }
+
+/* ========================================================================
+   SCREEN READER ONLY — Visually hidden but accessible to screen readers
+   ======================================================================== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus visible — keyboard navigation indicator */
+*:focus-visible {
+  outline: 2px solid var(--accent, #E8841A);
+  outline-offset: 2px;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  * {
+    border-color: CurrentColor !important;
+  }
+}
