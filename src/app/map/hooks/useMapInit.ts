@@ -150,16 +150,29 @@ export function useMapInit(params: UseMapInitParams) {
         // ── Basemap layers ──
         const basemaps = createBasemaps(olModules)
 
-        // ── Draw layer ──
+        // ── Draw layer — using enhanced SoK-compliant styles ──
         const drawSource = new VectorSource()
         drawSourceRef.current = drawSource
+
+        // Dynamic import of enhanced styles (SoK-compliant, zoom-aware)
+        const { getStyleForFeature } = await import('@/lib/map/enhancedStyles')
+
         const drawLayer = new VectorLayer({
           source: drawSource,
-          style: new Style({
-            fill: new Fill({ color: 'rgba(232, 132, 26, 0.15)' }),
-            stroke: new Stroke({ color: '#E8841A', width: 2.5 }),
-            image: new CircleStyle({ radius: 7, fill: new Fill({ color: '#E8841A' }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
-          }),
+          // Use a style function that adapts to feature type + zoom
+          style: (feature: any, resolution: number) => {
+            // For drawn features, use the enhanced SoK style
+            const geomType = feature.getGeometry()?.getType()
+            if (geomType === 'Polygon') {
+              return getStyleForFeature(feature, resolution)
+            }
+            // Default style for points/lines being drawn
+            return new Style({
+              fill: new Fill({ color: 'rgba(232, 132, 26, 0.15)' }),
+              stroke: new Stroke({ color: '#E8841A', width: 2.5 }),
+              image: new CircleStyle({ radius: 7, fill: new Fill({ color: '#E8841A' }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
+            })
+          },
           zIndex: 50,
         })
         drawLayerRef.current = drawLayer
