@@ -19,7 +19,7 @@ import {
   Search, Star, Clock, ChevronRight, Calculator,
   Compass, Ruler, MapPin, FileText, Mountain,
   Waves, Building2, Navigation, Layers,
-  X,
+  X, Activity,
 } from 'lucide-react'
 
 interface Tool {
@@ -85,6 +85,14 @@ const TOOLS: Tool[] = [
   // Validation
   { id: 'gcp-validation', name: 'GCP Validation', description: 'Ground control point validation', category: 'Validation', href: '/tools/gcp-validation', icon: MapPin, keywords: ['gcp', 'ground', 'control', 'validation'] },
   { id: 'detail-tolerances', name: 'Detail Tolerances', description: 'Survey detail tolerance check', category: 'Validation', href: '/tools/detail-tolerances', icon: Ruler, keywords: ['detail', 'tolerance', 'accuracy'] },
+
+  // Advanced
+  { id: 'cut-fill', name: 'Cut & Fill Engine', description: 'Earthwork volume with heat map', category: 'Engineering', href: '/tools/cut-fill', icon: Mountain, keywords: ['cut', 'fill', 'earthwork', 'volume', 'grid'] },
+  { id: 'deformation', name: 'Deformation Monitor', description: 'Epoch tracking + displacement', category: 'Validation', href: '/tools/deformation', icon: Activity, keywords: ['deformation', 'monitoring', 'epoch', 'displacement', 'mining', 'dam'] },
+  { id: 'gcp-optimizer', name: 'GCP Optimizer', description: 'Drone GCP planning + Pix4D export', category: 'Engineering', href: '/tools/gcp-optimizer', icon: MapPin, keywords: ['gcp', 'drone', 'pix4d', 'webodm', 'ground', 'control'] },
+  { id: 'depth-sounder', name: 'Depth Sounder', description: 'Live echo sounder + bathymetric track', category: 'Hydrographic', href: '/tools/depth-sounder', icon: Waves, keywords: ['depth', 'sounder', 'echo', 'bathymetric', 'hydrographic', 'nmea'] },
+  { id: 'lsa', name: 'Least Squares', description: 'Parametric adjustment + error ellipses', category: 'Calculations', href: '/tools/lsa', icon: Calculator, keywords: ['least', 'squares', 'adjustment', 'lsa', 'control', 'network'] },
+  { id: 'field-records', name: 'F/R Vault', description: 'Historic field record search', category: 'Documents', href: '/field-records', icon: FileText, keywords: ['field', 'record', 'fr', 'historic', 'archive', 'vault'] },
 ]
 
 const CATEGORIES = ['All', 'Calculations', 'Coordinates', 'Engineering', 'Volumes', 'Mining', 'Hydrographic', 'Documents', 'Field Books', 'Validation']
