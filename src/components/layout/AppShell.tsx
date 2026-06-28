@@ -20,6 +20,7 @@ import { SubscriptionProvider } from '@/lib/subscription/subscriptionContext'
 import SkipToContent from '@/components/shared/SkipToContent'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { CommandPalette } from '@/components/search/CommandPalette'
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
 import dynamic from 'next/dynamic'
 
 const NotificationToast = dynamic(
@@ -180,6 +181,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <MobileNav />
             <CommandPalette />
             <NotificationToast />
+            <OnboardingTour />
             {onboardingModal}
           </SubscriptionProvider>
         </CountryProvider>
