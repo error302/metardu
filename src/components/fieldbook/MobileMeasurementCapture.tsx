@@ -19,6 +19,7 @@ import {
   Check, X, Navigation, Ruler, Triangle,
 } from 'lucide-react'
 import { GPSGuardrail, type AccuracyLevel, type GPSReading } from '@/components/survey/GPSGuardrail'
+import { CoordinateChip } from '@/components/survey/CoordinateChip'
 
 export interface CapturedMeasurement {
   id: string
@@ -240,9 +241,18 @@ export function MobileMeasurementCapture({ onCapture, stationName, surveyType }:
             </div>
 
             {mode === 'gps' && (
-              <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+              <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 space-y-2">
                 <GPSGuardrail onAccuracyChange={handleAccuracyChange} showCoords />
-                <p className="text-[11px] text-gray-500 mt-2">Tap "Capture" to record the current GPS position as a survey point.</p>
+                {gpsReading && (
+                  <CoordinateChip
+                    lat={gpsReading.lat}
+                    lng={gpsReading.lng}
+                    accuracy={gpsReading.accuracy}
+                    label="Captured Point (RTK)"
+                    compact
+                  />
+                )}
+                <p className="text-[11px] text-gray-500">Tap "Capture" to record the current GPS position as a survey point.</p>
               </div>
             )}
 
