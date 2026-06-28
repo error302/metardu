@@ -940,3 +940,121 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
     border-color: CurrentColor !important;
   }
 }
+
+/* ========================================================================
+   PREMIUM UI POLISH — Billion Dollar Look
+   Glassmorphism, micro-interactions, premium dark mode
+   ======================================================================== */
+
+/* Glassmorphism panels */
+.glass-panel {
+  background: rgba(13, 13, 20, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Premium button glow */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+}
+.btn-glow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+.btn-glow:hover::before {
+  left: 100%;
+}
+
+/* Animated gradient border */
+.gradient-border {
+  position: relative;
+  background: rgba(13, 13, 20, 0.9);
+  border-radius: 16px;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 16px;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(232, 132, 26, 0.3), rgba(232, 132, 26, 0.05));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Premium scrollbar */
+.premium-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.premium-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.premium-scroll::-webkit-scrollbar-thumb {
+  background: rgba(232, 132, 26, 0.2);
+  border-radius: 2px;
+}
+.premium-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 132, 26, 0.4);
+}
+
+/* Shimmer effect for loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Premium card hover */
+.card-premium {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(232, 132, 26, 0.1);
+}
+
+/* Smooth fade-in */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Pulse glow for active elements */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(232, 132, 26, 0.15); }
+  50% { box-shadow: 0 0 20px rgba(232, 132, 26, 0.3); }
+}
+.pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* Premium focus ring */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(232, 132, 26, 0.4), 0 0 0 4px rgba(232, 132, 26, 0.1);
+}

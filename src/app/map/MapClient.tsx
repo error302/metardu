@@ -94,6 +94,9 @@ import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHel
 import { MapToolDock } from '@/app/map/components/MapToolDock'
 import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
 import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButton'
+import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
+import { DigitizingToolbar } from '@/app/map/components/DigitizingToolbar'
+import { SnappingOptions } from '@/app/map/components/SnappingOptions'
 import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
@@ -269,6 +272,15 @@ export default function MapClient() {
 
   // ── Print/PDF state (Tier 1: usePrint + SheetLayout) ──
   const [showSheetLayout, setShowSheetLayout] = useState(false)
+
+  // ── Identify Panel state ──
+  const [identifiedFeature, setIdentifiedFeature] = useState<IdentifiedFeature | null>(null)
+
+  // ── Digitizing Tools state ──
+  const [activeDigitizingTool, setActiveDigitizingTool] = useState<'draw' | 'split' | 'merge' | 'reshape' | 'rotate' | 'offset' | null>(null)
+  const [snappingEnabled, setSnappingEnabled] = useState(true)
+  const [showSnappingOptions, setShowSnappingOptions] = useState(false)
+
   const {
     print: printMap,
     isPrinting,
@@ -985,6 +997,44 @@ export default function MapClient() {
 
               {/* ── Offline Tile Download (pre-cache for field work) ── */}
               <OfflineDownloadButton />
+
+              {/* ── Digitizing Toolbar (split, merge, reshape, rotate) ── */}
+              <DigitizingToolbar
+                activeTool={activeDigitizingTool}
+                onToolChange={setActiveDigitizingTool}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={undo}
+                onRedo={redo}
+                snappingEnabled={snappingEnabled}
+                onToggleSnapping={() => {
+                  setSnappingEnabled(!snappingEnabled)
+                  setShowSnappingOptions(!snappingEnabled)
+                }}
+              />
+
+              {/* ── Snapping Options Panel ── */}
+              <SnappingOptions
+                open={showSnappingOptions}
+                onClose={() => setShowSnappingOptions(false)}
+                enabled={snappingEnabled}
+                onToggleEnabled={() => setSnappingEnabled(!snappingEnabled)}
+              />
+
+              {/* ── Identify Panel (shows when a feature is selected) ── */}
+              <IdentifyPanel
+                feature={identifiedFeature}
+                onClose={() => setIdentifiedFeature(null)}
+                onZoomTo={(feature) => {
+                  if (feature.centroidE && feature.centroidN) {
+                    mapInstance.current?.getView().animate({
+                      center: [feature.centroidE, feature.centroidN],
+                      zoom: 18,
+                      duration: 500,
+                    })
+                  }
+                }}
+              />
 
               <MapStatusBar />
 
