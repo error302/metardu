@@ -124,6 +124,98 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   )
 }
 
+// ─── Bowditch Adjustment Summary ────────────────────────────────────
+// Displays precision stats and statutory compliance for closed/link traverses.
+// Uses the TraverseResult from the existing bowditchAdjustment() engine.
+
+function BowditchSummary({ adjusted }: { adjusted: import('@/lib/engine/types').TraverseResult }) {
+  const precisionRatio = adjusted.precisionRatio
+  const linearError = adjusted.linearError
+  const totalDistance = adjusted.totalDistance
+  const grade = adjusted.precisionGrade
+
+  const threshold = 10000 // urban default
+  const isAcceptable = precisionRatio >= threshold
+  const ratioDisplay = `1:${precisionRatio.toLocaleString()}`
+
+  const gradeConfig: Record<string, { color: string; bg: string; label: string }> = {
+    excellent: { color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', label: 'Excellent' },
+    good: { color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30', label: 'Good' },
+    acceptable: { color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', label: 'Acceptable' },
+    poor: { color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30', label: 'Poor' },
+  }
+  const cfg = gradeConfig[grade] || gradeConfig.poor
+
+  return (
+    <div className="card p-4 mt-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-[var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 7h6M9 12h6M9 17h6M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" />
+          </svg>
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Bowditch Adjustment Summary</span>
+        </div>
+        <span className={`text-[10px] font-medium px-2 py-0.5 rounded border ${cfg.bg} ${cfg.color}`}>
+          {cfg.label}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)]/50">
+          <span className="text-[9px] text-gray-500 uppercase tracking-wider">Precision Ratio</span>
+          <div className={`text-sm font-mono font-semibold mt-0.5 ${isAcceptable ? 'text-emerald-400' : 'text-red-400'}`}>
+            {ratioDisplay}
+          </div>
+          <div className="text-[9px] text-gray-600 mt-0.5">
+            Threshold: 1:10,000
+          </div>
+        </div>
+        <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)]/50">
+          <span className="text-[9px] text-gray-500 uppercase tracking-wider">Linear Error</span>
+          <div className="text-sm font-mono text-gray-300 mt-0.5">
+            {linearError.toFixed(4)} m
+          </div>
+          <div className="text-[9px] text-gray-600 mt-0.5">
+            dE: {adjusted.closingErrorE.toFixed(4)} | dN: {adjusted.closingErrorN.toFixed(4)}
+          </div>
+        </div>
+        <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)]/50">
+          <span className="text-[9px] text-gray-500 uppercase tracking-wider">Total Distance</span>
+          <div className="text-sm font-mono text-gray-300 mt-0.5">
+            {totalDistance.toFixed(3)} m
+          </div>
+          <div className="text-[9px] text-gray-600 mt-0.5">
+            {adjusted.legs.length} legs
+          </div>
+        </div>
+      </div>
+
+      {!isAcceptable && (
+        <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg bg-red-500/5 border border-red-500/20">
+          <svg className="w-4 h-4 text-red-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <p className="text-[11px] text-red-400/80">
+            Precision is below the statutory threshold (1:10,000 for urban surveys per Survey Act Cap 299).
+            Check observations for errors before submitting.
+          </p>
+        </div>
+      )}
+
+      {isAcceptable && (
+        <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+          <svg className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-[11px] text-emerald-400/80">
+            Within statutory tolerance. Bowditch adjustment applied — coordinates distributed across the traverse.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function DigitalFieldBookPage() {
   const { t } = useLanguage()
   const dbClient = createClient()
@@ -1282,24 +1374,30 @@ export default function DigitalFieldBookPage() {
           )}
 
           {type === 'traverse' && (
-            <TraverseBook
-              t={t}
-              travMode={travMode}
-              setTravMode={setTravMode}
-              startStation={startStation}
-              startE={startE}
-              startN={startN}
-              closeE={closeE}
-              closeN={closeN}
-              setStartStation={setStartStation}
-              setStartE={setStartE}
-              setStartN={setStartN}
-              setCloseE={setCloseE}
-              setCloseN={setCloseN}
-              travRows={travRows}
-              setTravRows={setTravRows}
-              computed={traverseComputed}
-            />
+            <>
+              <TraverseBook
+                t={t}
+                travMode={travMode}
+                setTravMode={setTravMode}
+                startStation={startStation}
+                startE={startE}
+                startN={startN}
+                closeE={closeE}
+                closeN={closeN}
+                setStartStation={setStartStation}
+                setStartE={setStartE}
+                setStartN={setStartN}
+                setCloseE={setCloseE}
+                setCloseN={setCloseN}
+                travRows={travRows}
+                setTravRows={setTravRows}
+                computed={traverseComputed}
+              />
+              {/* Bowditch Adjustment Summary — shows precision stats and statutory compliance */}
+              {traverseComputed.ok && traverseComputed.mode !== 'open' && (
+                <BowditchSummary adjusted={traverseComputed.adjusted} />
+              )}
+            </>
           )}
 
           {type === 'control' && (

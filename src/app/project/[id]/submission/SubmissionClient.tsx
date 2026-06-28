@@ -9,6 +9,7 @@ import { getDocumentsForSurveyType } from '@/lib/submission/submissionDocuments'
 import { SurveyType } from '@/types/project';
 import { SupportingDocUpload } from '@/components/submission/SupportingDocUpload';
 import { FormNo4Preview } from '@/components/drawing/FormNo4Preview';
+import { NLIMSExportPanel } from '@/components/submission/NLIMSExportPanel';
 
 // ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
 
@@ -519,6 +520,9 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
           </div>
         )}
       </div>
+
+      {/* NLIMS / ArdhiSasa Export Panel */}
+      <NLIMSExportPanel projectId={project.id} />
     </div>
   );
 }

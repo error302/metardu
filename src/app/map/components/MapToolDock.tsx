@@ -37,6 +37,8 @@ import { CogoToolsPanel } from '@/app/map/components/CogoToolsPanel'
 import { BookmarkPanel } from '@/app/map/components/BookmarkPanel'
 import { GpsTrackPanel } from '@/app/map/components/GpsTrackPanel'
 import { StakeoutPanel } from '@/components/map/StakeoutPanel'
+import { TopologyGuardrail } from '@/components/survey/TopologyGuardrail'
+import type { SurveyPoint } from '@/lib/map/turfHelpers'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -263,8 +265,44 @@ const ReconPanel = memo(function ReconPanel() {
 // Panel: Capture (Draw & Measure)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Helper: Extract polygon vertices from an OL feature
+// ---------------------------------------------------------------------------
+
+function extractPolygonVertices(feature: any): SurveyPoint[] {
+  if (!feature) return []
+  try {
+    const geom = feature.getGeometry?.()
+    if (!geom) return []
+    const type = geom.getType?.()
+    if (type === 'Polygon') {
+      const coords = geom.getCoordinates?.()
+      const ring = coords?.[0] || []
+      // Drop the closing point if it duplicates the first
+      const vertices = ring.slice(0, -1).map((c: number[]) => ({
+        easting: c[0],
+        northing: c[1],
+      }))
+      return vertices
+    }
+    if (type === 'LineString') {
+      const coords = geom.getCoordinates?.() || []
+      return coords.map((c: number[]) => ({ easting: c[0], northing: c[1] }))
+    }
+  } catch {}
+  return []
+}
+
+// ---------------------------------------------------------------------------
+// Panel: Capture (Draw + Measure + Edit)
+// ---------------------------------------------------------------------------
+
 const CapturePanel = memo(function CapturePanel() {
   const ctx = useMapContext()
+
+  // Extract vertices from the selected feature for topology checking
+  const polygonVertices: SurveyPoint[] = extractPolygonVertices(ctx.selectedFeature)
+
   return (
     <div className="space-y-1">
       <SectionLabel hint="D">Draw</SectionLabel>
@@ -319,6 +357,14 @@ const CapturePanel = memo(function CapturePanel() {
             className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md px-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors"
           />
         </div>
+      )}
+
+      {/* Topology Guardrail — real-time overlap/sliver/encroachment detection */}
+      {polygonVertices.length >= 3 && (
+        <>
+          <SectionLabel hint="T">Topology Check</SectionLabel>
+          <TopologyGuardrail vertices={polygonVertices} compact />
+        </>
       )}
     </div>
   )
