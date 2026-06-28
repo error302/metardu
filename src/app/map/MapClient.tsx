@@ -93,6 +93,7 @@ import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
 import { MapToolDock } from '@/app/map/components/MapToolDock'
 import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
+import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButton'
 import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
@@ -979,6 +980,9 @@ export default function MapClient() {
 
               {/* ── Mobile Gesture Lock (two-finger pan requirement) ── */}
               <MapInteractionToggle mapInstance={mapInstance} />
+
+              {/* ── Offline Tile Download (pre-cache for field work) ── */}
+              <OfflineDownloadButton />
 
               <MapStatusBar />
 

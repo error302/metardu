@@ -7,7 +7,7 @@ import {
   FolderKanban, Wrench, Compass, FileText,
   LayoutDashboard, Users, ShieldCheck, CreditCard,
   Settings2, Activity, ChevronLeft, BarChart3,
-  Map, Building2,
+  Map, Building2, HelpCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OutdoorModeToggle } from '@/components/shared/OutdoorModeToggle'
@@ -33,6 +33,7 @@ const userNavItems: NavItem[] = [
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/sectional', label: 'Sectional', icon: Building2 },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/help', label: 'Help', icon: HelpCircle },
 ]
 
 const adminNavItems: NavItem[] = [
