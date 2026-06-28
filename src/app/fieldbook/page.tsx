@@ -22,6 +22,7 @@ import { MiningBook } from '@/components/fieldbook/MiningBook'
 import { MobileFieldbookShell } from '@/components/fieldbook/MobileFieldbookShell'
 import { MobileMeasurementCapture, type CapturedMeasurement } from '@/components/fieldbook/MobileMeasurementCapture'
 import { GNSSRoverConnection } from '@/components/survey/GNSSRoverConnection'
+import { NTRIPClientPanel } from '@/components/survey/NTRIPClientPanel'
 import { FieldbookAuditDrawer } from '@/components/fieldbook/FieldbookAuditDrawer'
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
 
@@ -1331,6 +1332,9 @@ export default function DigitalFieldBookPage() {
 
           {/* GNSS Rover Connection — direct hardware integration */}
           <GNSSRoverConnection />
+
+          {/* NTRIP Client — RTK correction stream from CORS */}
+          <NTRIPClientPanel />
         </div>
 
         <div className="lg:col-span-9 space-y-4">

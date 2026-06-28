@@ -21,6 +21,7 @@ import SkipToContent from '@/components/shared/SkipToContent'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { CommandPalette } from '@/components/search/CommandPalette'
 import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
+import { LoadingScreen } from '@/components/shared/LoadingScreen'
 import dynamic from 'next/dynamic'
 
 const NotificationToast = dynamic(
@@ -55,6 +56,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const hidden = isHiddenShellRoute(pathname)
   const auth = isAuthRoute(pathname)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
+
+  // Show branded loading screen on initial app load
+  useEffect(() => {
+    const timer = setTimeout(() => setInitialLoading(false), 1500)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     if (isAuthRoute(pathname)) return
@@ -162,6 +170,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // Default: full app shell
   return (
     <>
+      <LoadingScreen
+        visible={initialLoading}
+        message="Initializing METARDU"
+        subMessage="Loading survey engine, map projections, and field tools..."
+        autoDismiss={1500}
+        onDismiss={() => setInitialLoading(false)}
+      />
       <SkipToContent />
       <AppUpdateBanner />
       <OfflineIndicator />
