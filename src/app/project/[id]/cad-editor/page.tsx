@@ -146,7 +146,6 @@ export default function CADEditorPage() {
     // ponytail: save the CAD document to the project's engineering_data or a new cad_documents table
     // For now, save to localStorage as MVP. Phase 2: persist to DB.
     localStorage.setItem(`cad-doc-${projectId}`, JSON.stringify(savedDoc))
-    console.log('[CAD] Document saved')
   }, [projectId])
 
   if (loading) {

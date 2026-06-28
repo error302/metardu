@@ -37,13 +37,11 @@ class SyncService {
 
   private handleOnline() {
     this.isOnline = true
-    console.log('[Sync] Connection restored, starting sync...')
     this.syncPending()
   }
 
   private handleOffline() {
     this.isOnline = false
-    console.log('[Sync] Connection lost, pausing sync...')
   }
 
   async syncPending(): Promise<{ synced: number; failed: number }> {

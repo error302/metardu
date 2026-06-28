@@ -272,7 +272,6 @@ export async function applyRecommendedIndexes(): Promise<{ applied: string[]; sk
       try {
         await dbClient.rpc('execute_sql', { sql })
         applied.push(sql)
-        console.log(`[DB] Applied index: ${sql}`)
       } catch (error) {
         skipped.push(sql)
         console.error(`[DB] Failed to apply index: ${sql}`, error)

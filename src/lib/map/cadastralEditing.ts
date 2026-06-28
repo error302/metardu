@@ -584,7 +584,7 @@ function createOrthogonalGeometryFunction(
  *   snapSource: existingParcelsSource,
  *   snapTolerance: 15,
  *   orthogonalConstraint: true,
- *   onFeatureAdded: (f) => console.log('Added', f.getId()),
+ *   onFeatureAdded: (f) => ),
  * });
  *
  * map.addInteraction(stack.snap);

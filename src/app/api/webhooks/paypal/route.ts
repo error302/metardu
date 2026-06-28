@@ -101,7 +101,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
           }
         } else {
-          console.log('[PayPal Webhook] Signature verification passed')
         }
       } catch (verifyError: any) {
         console.error(`[PayPal Webhook] Signature verification error: ${verifyError.message}`)
@@ -120,10 +119,8 @@ export async function POST(request: NextRequest) {
     }
 
     const eventType = event.event_type
-    console.log(`[PayPal Webhook] Event: ${eventType} | ID: ${event.id}`)
 
     if (!HANDLED_EVENTS.has(eventType)) {
-      console.log(`[PayPal Webhook] Ignoring unhandled event: ${eventType}`)
       return NextResponse.json({ received: true })
     }
 
@@ -145,7 +142,6 @@ export async function POST(request: NextRequest) {
       try {
         const capture = await paypal.captureOrder(orderId)
         const captureStatus = (capture as any).status?.toLowerCase()
-        console.log(`[PayPal Webhook] Capture result: ${captureStatus} for order ${orderId}`)
 
         if (captureStatus === 'completed') {
           const captureAmount = (capture as any).purchase_units?.[0]?.payments?.captures?.[0]?.amount
@@ -190,7 +186,6 @@ export async function POST(request: NextRequest) {
               )
             }
 
-            console.log(`[PayPal Webhook] Subscription activated for user ${pay.user_id}, plan ${pay.plan_id}`)
           } else {
             console.warn(`[PayPal Webhook] No payment_history record found for order ${orderId}`)
           }
@@ -218,7 +213,6 @@ export async function POST(request: NextRequest) {
             `UPDATE payment_history SET status = 'completed', transaction_id = $1 WHERE id = $2`,
             [captureId, payRows[0].id]
           )
-          console.log(`[PayPal Webhook] Payment ${payRows[0].id} marked completed via PAYMENT.CAPTURE.COMPLETED`)
         }
       }
     }
@@ -239,7 +233,6 @@ export async function POST(request: NextRequest) {
             `UPDATE payment_history SET status = 'failed' WHERE id = $1`,
             [payRows[0].id]
           )
-          console.log(`[PayPal Webhook] Payment ${payRows[0].id} marked failed via ${eventType}`)
         }
       }
     }
@@ -260,7 +253,6 @@ export async function POST(request: NextRequest) {
             `UPDATE payment_history SET status = 'refunded' WHERE id = $1`,
             [payRows[0].id]
           )
-          console.log(`[PayPal Webhook] Payment ${payRows[0].id} marked refunded via PAYMENT.CAPTURE.REFUNDED`)
         }
       }
     }
@@ -280,9 +272,7 @@ export async function POST(request: NextRequest) {
             `UPDATE user_subscriptions SET status = $1 WHERE user_id = $2`,
             [newStatus, payRows[0].user_id]
           )
-          console.log(`[PayPal Webhook] Subscription for user ${payRows[0].user_id} updated to ${newStatus} via ${eventType}`)
         } else {
-          console.log(`[PayPal Webhook] No payment_history found for subscription ${subscriptionId} — logging only`)
         }
       }
     }

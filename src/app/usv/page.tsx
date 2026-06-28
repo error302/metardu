@@ -40,7 +40,6 @@ export default function USVFleetOrchestratorPage() {
 
   const handleSaveMission = (updatedWaypoints: Waypoint[]) => {
     setWaypoints(updatedWaypoints)
-    console.log('Mission saved:', updatedWaypoints)
   }
 
   const handleCreateMission = () => {
@@ -51,7 +50,6 @@ export default function USVFleetOrchestratorPage() {
       waypoints,
       pattern_type: pattern,
     }
-    console.log('Create mission:', mission)
   }
 
   return (

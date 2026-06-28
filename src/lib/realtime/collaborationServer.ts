@@ -354,7 +354,6 @@ export class CollaborationServer {
     }, 30000)
 
     server.listen(port, () => {
-      console.log(`[CollaborationServer] WebSocket server running on port ${port}`)
     })
   }
 

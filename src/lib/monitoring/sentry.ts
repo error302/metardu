@@ -59,7 +59,6 @@ export function captureMessage(message: string, level: Sentry.SeverityLevel = 'i
   if (isProduction()) {
     Sentry.captureMessage(message, level)
   } else {
-    console.log(`[sentry][${level}] ${message}`)
   }
 }
 

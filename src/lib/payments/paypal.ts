@@ -249,7 +249,6 @@ export function getPayPalService(): PayPalService | null {
   // Default to sandbox unless PAYPAL_MODE=live is explicitly set.
   // NEVER auto-detect from NODE_ENV — prevents sandbox credentials hitting live API.
   const mode = (process.env.PAYPAL_MODE as 'sandbox' | 'live') || 'sandbox'
-  console.log(`[PayPal] Initialized in ${mode} mode`)
 
   return new PayPalService({
     clientId,

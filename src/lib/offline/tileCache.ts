@@ -285,10 +285,8 @@ export async function listCachedSources(): Promise<CachedSourceInfo[]> {
 
 /** Delete cached tiles for a specific source */
 export async function deleteCachedTiles(sourceId: string): Promise<void> {
-  console.log(`[TileCache] Deleting cached tiles for source: ${sourceId}`)
 }
 
 /** Clear all tile cache */
 export async function clearAllTileCache(): Promise<void> {
-  console.log('[TileCache] Clearing all tile cache')
 }

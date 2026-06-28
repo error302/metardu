@@ -391,8 +391,8 @@ function computeSlopeAtCell(
  * @example
  * ```ts
  * const result = analyzeSlopeFromPoints(dtmPoints, 2.0);
- * console.log(`Mean slope: ${result.statistics.meanSlopePercent.toFixed(1)}%`);
- * console.log(`Steep area: ${result.statistics.areaByClass.steep.toFixed(0)} m²`);
+ * }%`);
+ * } m²`);
  * ```
  */
 export function analyzeSlopeFromPoints(
@@ -515,9 +515,9 @@ export function analyzeSlopeFromPoints(
  * @example
  * ```ts
  * const result = computeCutFillDatum(dtmPoints, 1250.0, 2.0);
- * console.log(`Cut: ${result.totalCutVolume.toFixed(1)} m³`);
- * console.log(`Fill: ${result.totalFillVolume.toFixed(1)} m³`);
- * console.log(`Balance point RL: ${result.balancePoint.toFixed(3)} m`);
+ * } m³`);
+ * } m³`);
+ * } m`);
  * ```
  */
 export function computeCutFillDatum(

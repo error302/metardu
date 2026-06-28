@@ -228,7 +228,6 @@ export async function assignLicenseSeat(
 /** Revoke a license seat */
 export async function revokeLicenseSeat(seatId: string): Promise<void> {
   // Seats are tracked in-memory; this removes the seat association
-  console.log(`[License] Seat ${seatId} revoked`)
 }
 
 /** List seats for a given license */

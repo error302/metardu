@@ -127,5 +127,4 @@ export async function createRimTables(): Promise<void> {
       ON rim_beacons(beacon_number);
   `)
 
-  console.log('[rim] Database tables created or already exist.')
 }

@@ -87,7 +87,6 @@ function isEnabled(): boolean {
  */
 export async function sendSMS(to: string, message: string): Promise<NotificationResult> {
   if (!isEnabled()) {
-    console.log(`[Notification] SMS disabled/skip: to=${to}, message="${message.substring(0, 80)}..."`)
     return { success: true, messageId: 'dev-skip', error: 'Notifications disabled' }
   }
 
@@ -137,7 +136,6 @@ export async function sendSMS(to: string, message: string): Promise<Notification
  */
 export async function sendWhatsApp(to: string, message: string): Promise<NotificationResult> {
   if (!isEnabled()) {
-    console.log(`[Notification] WhatsApp disabled/skip: to=${to}, message="${message.substring(0, 80)}..."`)
     return { success: true, messageId: 'dev-skip', error: 'Notifications disabled' }
   }
 

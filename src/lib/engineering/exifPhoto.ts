@@ -550,8 +550,8 @@ function extractThumbnail(
  * @example
  * ```ts
  * const exif = await extractEXIFGPS(photoFile);
- * console.log(`Location: ${exif.latitude.toFixed(6)}, ${exif.longitude.toFixed(6)}`);
- * console.log(`Altitude: ${exif.altitude.toFixed(1)} m ${exif.altitudeRef}`);
+ * }, ${exif.longitude.toFixed(6)}`);
+ * } m ${exif.altitudeRef}`);
  * ```
  */
 export async function extractEXIFGPS(file: File): Promise<EXIFGPSData> {
@@ -709,7 +709,7 @@ export async function extractEXIFGPS(file: File): Promise<EXIFGPSData> {
  * ```ts
  * const results = await processPhotoFiles(fileInput.files);
  * const geotagged = results.filter(r => r.exif !== null);
- * console.log(`${geotagged.length} of ${results.length} photos have GPS data`);
+ * 
  * ```
  */
 export async function processPhotoFiles(
@@ -814,7 +814,7 @@ export function photosToGeoJSON(
  * ```ts
  * const surveyPoints = photosToSurveyPoints(results);
  * for (const sp of surveyPoints) {
- *   console.log(`E: ${sp.easting.toFixed(2)} N: ${sp.northing.toFixed(2)} RL: ${sp.elevation.toFixed(2)}`);
+ *   } N: ${sp.northing.toFixed(2)} RL: ${sp.elevation.toFixed(2)}`);
  * }
  * ```
  */

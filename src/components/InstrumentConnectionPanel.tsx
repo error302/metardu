@@ -124,7 +124,6 @@ export function InstrumentConnectionPanel({
       const cmd = getInstrumentCommand(brand, commandType as any, ...args)
       // The serial connection needs to be accessed via the hook
       // For now, we'll use the sendCommand method which is handled by the serial connection
-      console.log(`Sending ${brand} command: ${cmd.description}`, cmd.command)
     } catch (err) {
       console.error('Command failed:', err)
     }

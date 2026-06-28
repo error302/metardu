@@ -52,7 +52,6 @@ export async function uploadFile(
   const fullPath = path.join(STORAGE_ROOT, relativePath)
   await ensureDir(path.dirname(fullPath))
   await fs.writeFile(fullPath, file)
-  console.log(`[storage] Saved file locally: ${fullPath} (${file.length} bytes)`)
   return relativePath
 }
 

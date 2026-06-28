@@ -50,7 +50,6 @@ class Logger {
     const msg = `${prefix} ${message}`
     switch (level) {
       case 'debug':
-        console.debug(msg, context || '')
         break
       case 'info':
         console.info(msg, context || '')
