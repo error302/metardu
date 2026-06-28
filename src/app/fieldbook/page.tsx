@@ -21,6 +21,7 @@ import { HydroBook } from '@/components/fieldbook/HydroBook'
 import { MiningBook } from '@/components/fieldbook/MiningBook'
 import { MobileFieldbookShell } from '@/components/fieldbook/MobileFieldbookShell'
 import { MobileMeasurementCapture, type CapturedMeasurement } from '@/components/fieldbook/MobileMeasurementCapture'
+import { GNSSRoverConnection } from '@/components/survey/GNSSRoverConnection'
 import { FieldbookAuditDrawer } from '@/components/fieldbook/FieldbookAuditDrawer'
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
 
@@ -1327,6 +1328,9 @@ export default function DigitalFieldBookPage() {
               )}
             </div>
           </div>
+
+          {/* GNSS Rover Connection — direct hardware integration */}
+          <GNSSRoverConnection />
         </div>
 
         <div className="lg:col-span-9 space-y-4">

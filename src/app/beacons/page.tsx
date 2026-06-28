@@ -6,6 +6,7 @@ import { createClient } from '@/lib/api-client/client'
 import { utmToGeographic } from '@/lib/engine/coordinates'
 import Link from 'next/link'
 import { BeaconRegistryPanel } from '@/components/beacons/BeaconRegistryPanel'
+import { ControlPointRegistry } from '@/components/survey/ControlPointRegistry'
 // ponytail: Phase 6 — use typed imports from ol (which ships its own .d.ts files)
 // instead of dynamic imports + `as any` casts. Same bundle (Next.js code-splits
 // these automatically), but now TypeScript can catch API misuse.
@@ -446,6 +447,11 @@ export default function BeaconsPage() {
       {/* Beacon Registry — searchable global database */}
       <div className="max-w-7xl mx-auto w-full px-4 py-6">
         <BeaconRegistryPanel />
+      </div>
+
+      {/* Control Point Registry — SoK Trig stations, KENCORS, benchmarks */}
+      <div className="max-w-7xl mx-auto w-full px-4 pb-6">
+        <ControlPointRegistry />
       </div>
     </div>
   )
