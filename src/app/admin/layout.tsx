@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import AppSidebar from '@/components/layout/AppSidebar'
 import { PerformanceMonitor } from '@/components/admin/PerformanceMonitor'
+import MetarduLogo from '@/components/MetarduLogo'
 
 // ---------------------------------------------------------------------------
 // Layout
@@ -51,7 +52,8 @@ export default function AdminLayout({
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="text-sm font-medium text-[var(--text-primary)]">Admin Panel</span>
+          <MetarduLogo size={24} showWordmark={true} color="var(--text-primary)" />
+          <span className="ml-auto text-xs text-[var(--text-muted)] uppercase tracking-wider">Admin</span>
         </div>
 
         {/* Page content */}

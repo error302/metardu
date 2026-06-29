@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OutdoorModeToggle } from '@/components/shared/OutdoorModeToggle'
+import MetarduLogo from '@/components/MetarduLogo'
 
 // ---------------------------------------------------------------------------
 // Navigation items by role
@@ -78,17 +79,7 @@ export default function AppSidebar({ variant, className, onNavigate }: AppSideba
           onClick={onNavigate}
           className="flex items-center gap-2 no-underline"
         >
-          <div className="w-8 h-8 rounded-lg bg-[var(--accent)]/15 flex items-center justify-center">
-            <span className="text-[var(--accent)] font-bold text-sm">M</span>
-          </div>
-          <div>
-            <div className="text-sm font-bold text-[var(--text-primary)] tracking-tight">
-              <span className="text-[var(--accent)]">M</span>ETARDU
-            </div>
-            <div className="text-[9px] text-[var(--text-muted)] tracking-widest uppercase">
-              Survey Engine
-            </div>
-          </div>
+          <MetarduLogo size={28} showWordmark={true} color="var(--text-primary)" />
         </Link>
       </div>
 

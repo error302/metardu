@@ -3,7 +3,8 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
-import { Eye, EyeOff, ArrowLeft, CheckCircle2, Globe2, ShieldCheck, WifiOff } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, CheckCircle2, ShieldCheck, WifiOff } from 'lucide-react'
+import MetarduLogo from '@/components/MetarduLogo'
 
 type View = 'login' | 'forgot' | 'sent'
 
@@ -213,14 +214,9 @@ function LoginForm() {
       <header className="relative z-10 flex items-center justify-between px-5 sm:px-8 lg:px-12 py-5">
         <a
           href="/"
-          className="group inline-flex items-center gap-2 text-xl sm:text-2xl font-bold tracking-tight text-white drop-shadow-lg"
+          className="group inline-flex items-center gap-3 drop-shadow-lg"
         >
-          <span className="grid place-items-center w-9 h-9 rounded-lg bg-[var(--accent)]/20 ring-1 ring-[var(--accent)]/50 backdrop-blur-sm">
-            <Globe2 className="w-5 h-5 text-[var(--accent)]" />
-          </span>
-          <span className="bg-gradient-to-r from-white to-white/90 bg-clip-text text-transparent">
-            METARDU
-          </span>
+          <MetarduLogo size={36} showWordmark={true} color="#FFFFFF" />
         </a>
         <div className="hidden sm:flex items-center gap-2 text-xs text-white/90 px-3 py-1.5 rounded-full bg-[#080e18]/50 border border-white/20 backdrop-blur-md drop-shadow-md">
           <ShieldCheck className="w-3.5 h-3.5 text-[var(--accent)]" />

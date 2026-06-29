@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Menu } from 'lucide-react'
 import AppSidebar from '@/components/layout/AppSidebar'
+import MetarduLogo from '@/components/MetarduLogo'
 
 export default function DashboardLayout({
   children,
@@ -46,9 +47,7 @@ export default function DashboardLayout({
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="text-sm font-medium text-[var(--text-primary)]">
-            <span className="text-[var(--accent)] font-bold">M</span>ETARDU
-          </span>
+          <MetarduLogo size={24} showWordmark={true} color="var(--text-primary)" />
         </div>
 
         {/* Page content */}
