@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/auth/session'
+import { validateBody, equipmentSchema } from '@/lib/validation/apiValidation'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,9 +67,9 @@ export const POST = apiHandler(
     const user = await getAuthUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = ctx.body as Record<string, unknown>
-    const name = String(body.name || '').trim()
-    const type = String(body.type || '').trim()
+    const body = validateBody(ctx.body, equipmentSchema)
+    const name = body.name
+    const type = body.type
 
     if (!name || !type) {
       return NextResponse.json({ error: 'name and type are required' }, { status: 400 })

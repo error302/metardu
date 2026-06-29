@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/auth/session'
+import { validateBody, notificationSchema } from '@/lib/validation/apiValidation'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,8 +69,8 @@ export const POST = apiHandler(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = ctx.body as Record<string, unknown>
-    const targetUserId = String(body.userId || '')
+    const body = validateBody(ctx.body, notificationSchema)
+    const targetUserId = body.userId
     const type = String(body.type || 'info')
     const category = String(body.category || 'general')
     const title = String(body.title || '')

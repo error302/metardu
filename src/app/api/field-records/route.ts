@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/auth/session'
+import { validateBody, fieldRecordSchema } from '@/lib/validation/apiValidation'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,10 +92,10 @@ export const POST = apiHandler(
     const user = await getAuthUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = ctx.body as Record<string, unknown>
-    const frNumber = String(body.frNumber || '').trim()
-    const easting = parseFloat(String(body.easting))
-    const northing = parseFloat(String(body.northing))
+    const body = validateBody(ctx.body, fieldRecordSchema)
+    const frNumber = body.frNumber
+    const easting = body.easting
+    const northing = body.northing
 
     if (!frNumber) return NextResponse.json({ error: 'F/R number is required' }, { status: 400 })
     if (!isFinite(easting) || !isFinite(northing)) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/auth/session'
+import { validateBody, beaconInputSchema } from '@/lib/validation/apiValidation'
 
 export const dynamic = 'force-dynamic'
 
@@ -89,13 +90,10 @@ export const POST = apiHandler(
     const user = await getAuthUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = ctx.body as Record<string, unknown>
-    const beaconNumber = String(body.beaconNumber || '').trim()
-    const easting = parseFloat(String(body.easting))
-    const northing = parseFloat(String(body.northing))
-
-    if (!beaconNumber) return NextResponse.json({ error: 'beaconNumber is required' }, { status: 400 })
-    if (!isFinite(easting) || !isFinite(northing)) return NextResponse.json({ error: 'Valid easting and northing required' }, { status: 400 })
+    const body = validateBody(ctx.body, beaconInputSchema)
+    const beaconNumber = body.beaconNumber
+    const easting = body.easting
+    const northing = body.northing
 
     const result = await db.query(
       `INSERT INTO beacon_registry (beacon_number, beacon_type, easting, northing, elevation, county, sub_county, locality, sheet_number, established_by, established_date, condition, description, is_adopted, created_by)

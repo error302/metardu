@@ -1,12 +1,12 @@
 {
-  "name": "METARDU",
+  "name": "METARDU — Survey Engine",
   "short_name": "METARDU",
-  "description": "Precise earth measurements.",
+  "description": "Professional land surveying platform for East Africa. COGO, deed plans, traverse adjustment, NLIMS export, RTK GNSS, and field-to-finish workflow.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#111111",
-  "orientation": "portrait-primary",
+  "background_color": "#0a0a0f",
+  "theme_color": "#E8841A",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icons/icon-72.png",
@@ -90,40 +90,25 @@
   ],
   "shortcuts": [
     {
-      "name": "Quick Tools",
+      "name": "Toolbox",
       "short_name": "Tools",
-      "description": "Open the calculation tools",
-      "url": "/tools",
-      "icons": [
-        {
-          "src": "/icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
+      "description": "Search 60+ survey calculation tools",
+      "url": "/tools/all",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "My Projects",
-      "short_name": "Projects",
-      "description": "Open your survey projects",
+      "name": "Dashboard",
+      "short_name": "Home",
+      "description": "View your projects and activity",
       "url": "/dashboard",
-      "icons": [
-        {
-          "src": "/icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Field Collection",
+      "name": "Field Book",
       "short_name": "Field",
-      "description": "Collect survey data in the field",
-      "url": "/mobile/field",
-      "icons": [
-        {
-          "src": "/icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
+      "description": "Record survey observations in the field",
+      "url": "/fieldbook",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ],
   "related_applications": [],
