@@ -1147,7 +1147,7 @@ export default function DigitalFieldBookPage() {
   if (isMobile) {
     return (
       <>
-        <div className="pb-32">
+        <div className="pb-44">
           <MobileFieldbookShell
             surveyType={type}
             onSurveyTypeChange={(t) => resetForType(t)}

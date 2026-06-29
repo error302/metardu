@@ -79,12 +79,12 @@ interface MobileFieldbookShellProps {
   setMiningStation: (val: any) => void
 }
 
-const TYPE_LABELS: Record<MobileSurveyType, { label: string; emoji: string }> = {
-  leveling:     { label: 'Leveling',     emoji: '[Ruler]' },
-  traverse:     { label: 'Traverse',     emoji: '[Compass]' },
-  control:      { label: 'Control',      emoji: '[Pin]' },
-  hydrographic: { label: 'Hydrographic', emoji: '[Water]' },
-  mining:       { label: 'Mining',       emoji: '⛏' },
+const TYPE_LABELS: Record<MobileSurveyType, { label: string; icon: string }> = {
+  leveling:     { label: 'Leveling',     icon: '[Ruler]' },
+  traverse:     { label: 'Traverse',     icon: '[Compass]' },
+  control:      { label: 'Control',      icon: '[Pin]' },
+  hydrographic: { label: 'Hydrographic', icon: '[Water]' },
+  mining:       { label: 'Mining',       icon: '[Mountain]' },
 }
 
 /** Per-survey-type primary fields to display on each card (in order). */
@@ -245,7 +245,7 @@ export function MobileFieldbookShell({
                     : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:border-[var(--accent)]/40',
                 ].join(' ')}
               >
-                <span className="text-base leading-none">{meta.emoji}</span>
+                <span className="text-xs leading-none text-[var(--text-muted)]">{meta.icon}</span>
                 <span>{meta.label}</span>
               </button>
             )
@@ -254,7 +254,7 @@ export function MobileFieldbookShell({
       </div>
 
       {/* ─── Card list ─── */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 pb-28">
+      <div className="flex-1 overflow-y-auto px-4 py-3 pb-44">
         
         {/* Setup & Coordinates Panel */}
         <div className="mb-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden shadow-sm">
@@ -757,13 +757,13 @@ export function MobileFieldbookShell({
         )}
       </div>
 
-      {/* ─── Floating Action Button ─── */}
+      {/* ─── Floating Action Button (above measurement capture bar) ─── */}
       <button
         onClick={() => setShowForm(true)}
-        className="fixed bottom-6 right-5 z-40 grid place-items-center w-16 h-16 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dim)] text-black shadow-2xl shadow-[var(--accent)]/40 active:scale-95 transition-all"
+        className="fixed bottom-24 right-5 z-40 grid place-items-center w-14 h-14 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dim)] text-black shadow-2xl shadow-[var(--accent)]/40 active:scale-95 transition-all"
         aria-label={`Add ${TYPE_LABELS[surveyType].label} reading`}
       >
-        <Plus className="w-7 h-7" strokeWidth={2.5} />
+        <Plus className="w-6 h-6" strokeWidth={2.5} />
         <span className="sr-only">Add reading</span>
       </button>
 
