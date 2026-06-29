@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import MetarduLogo from '@/components/MetarduLogo'
 import {
   FadeUp,
   FadeIn,
@@ -366,6 +367,27 @@ export default function LandingPage() {
 function HeroSection() {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Top navigation bar */}
+      <nav className="absolute top-0 left-0 right-0 z-50 px-4 sm:px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <MetarduLogo size={32} showWordmark={true} color="var(--text-primary)" />
+          </Link>
+          <div className="hidden md:flex items-center gap-6">
+            <Link href="#features" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Features</Link>
+            <Link href="#demo" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Demo</Link>
+            <Link href="/pricing" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Pricing</Link>
+            <Link href="/login" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Sign In</Link>
+            <Link href="/register" className="px-4 py-2 bg-[var(--accent)] text-black font-semibold rounded-lg text-sm hover:brightness-110 transition-all">
+              Get Started
+            </Link>
+          </div>
+          <Link href="/login" className="md:hidden px-3 py-1.5 text-xs text-[var(--text-muted)] border border-[var(--border-color)] rounded-lg">
+            Sign In
+          </Link>
+        </div>
+      </nav>
+
       {/* Animated mesh gradient background */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-[var(--bg-primary)]" />
@@ -465,7 +487,7 @@ function HeroSection() {
                     <CounterAnimation target={stat.value} suffix={stat.suffix} />
                   </div>
                 ) : (
-                  <div className="text-2xl md:text-3xl font-bold text-[var(--accent)]">🌍</div>
+                  <div className="text-2xl md:text-3xl font-bold text-[var(--accent)]">[+]</div>
                 )}
                 <div className="text-xs md:text-sm text-[var(--text-muted)] mt-1 uppercase tracking-wider">
                   {stat.label}
