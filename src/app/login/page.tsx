@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { Eye, EyeOff, ArrowLeft, CheckCircle2, ShieldCheck, WifiOff } from 'lucide-react'
 import MetarduLogo from '@/components/MetarduLogo'
+import Image from 'next/image'
 
 type View = 'login' | 'forgot' | 'sent'
 
@@ -179,13 +180,16 @@ function LoginForm() {
           giving the dark glass card maximum contrast.
          ────────────────────────────────────────────────────────────── */}
       <div className="absolute inset-0 -z-10">
-        {/* Pre-loaded topographic PNG */}
-        <img
+        {/* Pre-loaded topographic PNG — optimized with next/image */}
+        <Image
           src="/images/signin-topo.jpg"
           alt="World topographic contour map"
           onLoad={() => setImageLoaded(true)}
+          fill
+          priority
+          sizes="100vw"
           className={[
-            'absolute inset-0 h-full w-full object-cover transition-opacity duration-700',
+            'object-cover transition-opacity duration-700',
             imageLoaded ? 'opacity-100' : 'opacity-0',
           ].join(' ')}
         />

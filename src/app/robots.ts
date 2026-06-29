@@ -1,10 +1,28 @@
-import { MetadataRoute } from 'next'
-import { getPublicAppUrl } from '@/lib/site'
+import type { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
-  const base = getPublicAppUrl()
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.duckdns.org'
+
   return {
-    rules: { userAgent: '*', allow: '/' },
-    sitemap: `${base}/sitemap.xml`,
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: [
+          '/api/',
+          '/admin/',
+          '/dashboard',
+          '/settings',
+          '/account',
+          '/project/',
+          '/fieldbook',
+          '/map',
+          '/notifications',
+          '/audit-logs',
+        ],
+      },
+    ],
+    sitemap: `${baseUrl}/sitemap.xml`,
+    host: baseUrl,
   }
 }
