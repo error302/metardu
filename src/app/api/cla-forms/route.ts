@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/requireAuth';
 import { CLA_FORM_REGISTRY } from '@/lib/legal/claForms';
+import { CLAFormGenerateSchema } from '@/lib/validation/apiSchemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,15 +35,15 @@ export async function POST(request: NextRequest) {
   if (error) return error
 
   try {
-    const body = await request.json();
-    const { formType, data } = body;
-
-    if (!formType || typeof formType !== 'string') {
+    const rawBody = await request.json().catch(() => null)
+    const parsed = CLAFormGenerateSchema.safeParse(rawBody)
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'Missing or invalid formType field.' },
-        { status: 400 }
-      );
+        { success: false, error: 'Validation failed', details: parsed.error.issues },
+        { status: 422 }
+      )
     }
+    const { formType, data } = parsed.data
 
     const formEntry = CLA_FORM_REGISTRY[formType];
 
@@ -50,13 +51,6 @@ export async function POST(request: NextRequest) {
       const available = Object.keys(CLA_FORM_REGISTRY).join(', ');
       return NextResponse.json(
         { success: false, error: `Unknown form type: "${formType}". Available: ${available}` },
-        { status: 400 }
-      );
-    }
-
-    if (!data || typeof data !== 'object') {
-      return NextResponse.json(
-        { success: false, error: 'Missing or invalid data field.' },
         { status: 400 }
       );
     }

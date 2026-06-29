@@ -96,17 +96,17 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         <meta name="google" content="notranslate" />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#111111" />
+        <meta name="theme-color" content="#e8841a" />
         <meta name="application-name" content="METARDU" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="METARDU" />
         {/* description meta is set via metadata export above to avoid duplicates */}
         <meta name="format-detection" content="telephone=no" />
-        <meta name="msapplication-TileColor" content="#111111" />
+        <meta name="msapplication-TileColor" content="#e8841a" />
         <meta name="msapplication-tap-highlight" content="no" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="color-scheme" content="dark" />
+        <meta name="color-scheme" content="dark light" />
         <link rel="icon" href="/metardu-logo.jpg" type="image/jpeg" />
         <link rel="apple-touch-icon" href="/metardu-logo.jpg" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

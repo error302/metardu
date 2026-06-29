@@ -22,38 +22,27 @@ import {
   type LSObservation,
   type LSStation,
 } from '@/lib/survey/traverse/least-squares';
+import { TraverseComputeSchema } from '@/lib/validation/apiSchemas';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    
-    const {
-      observations,
-      stations,
-      method = 'bowditch',
-      order = 3,
-      config = {},
-    } = body as {
-      observations: RawObservation[];
-      stations: TraverseStation[];
-      method?: 'bowditch' | 'least_squares';
-      order?: number;
-      config?: Partial<PipelineConfig>;
-    };
-    
-    if (!observations || !stations) {
+    const rawBody = await request.json().catch(() => null)
+    const parsed = TraverseComputeSchema.safeParse(rawBody)
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'observations and stations are required' },
-        { status: 400 }
-      );
+        { error: 'Validation failed', details: parsed.error.issues },
+        { status: 422 }
+      )
     }
-    
+
+    const { observations, stations, method, order, config } = parsed.data
+
     // Step 1: Process all observations through the correction pipeline
-    const pipelineConfig = { ...KENYA_DEFAULT_CONFIG, ...config };
-    const processedObservations = observations.map(obs => 
-      processObservation(obs, pipelineConfig)
-    );
-    
+    const pipelineConfig = { ...KENYA_DEFAULT_CONFIG, ...config } as PipelineConfig
+    const processedObservations = observations.map(obs =>
+      processObservation(obs as RawObservation, pipelineConfig)
+    )
+
     // Step 2: Build traverse legs from processed observations
     const legs: TraverseLeg[] = processedObservations.map(obs => ({
       fromStation: obs.fromStation,
@@ -62,33 +51,33 @@ export async function POST(request: NextRequest) {
       distance: obs.gridDistance,
       stdDevDistance: 0.005 + obs.gridDistance * 0.00002, // 5mm + 20ppm
       stdDevBearing: 5, // 5 arc-seconds
-    }));
-    
+    }))
+
     // Step 3: Perform traverse adjustment
     let result;
-    
+
     if (method === 'bowditch') {
-      result = bowditchAdjustment(stations, legs, order);
+      result = bowditchAdjustment(stations as TraverseStation[], legs, order)
     } else {
       // Build least squares inputs from processed observations
       const lsStations: LSStation[] = stations.map(s => ({
         name: s.name,
         easting: s.easting ?? 0,
         northing: s.northing ?? 0,
-        isFixed: s.isFixed,
-      }));
-      
+        isFixed: s.isFixed ?? false,
+      }))
+
       const lsObservations: LSObservation[] = processedObservations.map(obs => ({
         type: 'distance' as const,
         fromStation: obs.fromStation,
         toStation: obs.toStation,
         value: obs.gridDistance,
         stdDev: 0.005 + obs.gridDistance * 0.00002, // 5mm + 20ppm
-      }));
-      
-      result = leastSquaresAdjustment(lsStations, lsObservations);
+      }))
+
+      result = leastSquaresAdjustment(lsStations, lsObservations)
     }
-    
+
     return NextResponse.json({
       processedObservations,
       adjustmentResult: result,
@@ -104,7 +93,7 @@ export async function POST(request: NextRequest) {
         convergence: obs.convergence,
         warnings: obs.warnings,
       })),
-    });
+    })
   } catch (error) {
     console.error('Traverse computation error:', error);
     return NextResponse.json(

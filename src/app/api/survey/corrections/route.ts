@@ -14,41 +14,45 @@ import {
   type PipelineConfig,
   type RawObservation,
 } from '@/lib/survey/pipeline/correction-pipeline';
+import { CorrectionsSchema } from '@/lib/validation/apiSchemas';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { observation, observations, config = {}, report = false } = body as {
-      observation?: RawObservation;
-      observations?: RawObservation[];
-      config?: Partial<PipelineConfig>;
-      report?: boolean;
-    };
-    
-    const pipelineConfig = { ...KENYA_DEFAULT_CONFIG, ...config };
-    
+    const rawBody = await request.json().catch(() => null)
+    const parsed = CorrectionsSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.issues },
+        { status: 422 }
+      )
+    }
+
+    const { observation, observations, config, report } = parsed.data
+
+    const pipelineConfig = { ...KENYA_DEFAULT_CONFIG, ...config } as PipelineConfig
+
     if (observation) {
       // Single observation
-      const result = processObservation(observation, pipelineConfig);
-      return NextResponse.json({ result });
+      const result = processObservation(observation as RawObservation, pipelineConfig)
+      return NextResponse.json({ result })
     }
-    
-    if (observations) {
+
+    if (observations && observations.length > 0) {
       // Batch observations
-      const results = processObservations(observations, pipelineConfig);
-      
+      const results = processObservations(observations as RawObservation[], pipelineConfig)
+
       if (report) {
-        const correctionReport = generateCorrectionReport(results);
-        return NextResponse.json({ results, report: correctionReport });
+        const correctionReport = generateCorrectionReport(results)
+        return NextResponse.json({ results, report: correctionReport })
       }
-      
-      return NextResponse.json({ results });
+
+      return NextResponse.json({ results })
     }
-    
+
     return NextResponse.json(
       { error: 'Provide observation or observations' },
       { status: 400 }
-    );
+    )
   } catch (error) {
     console.error('Corrections API error:', error);
     return NextResponse.json(

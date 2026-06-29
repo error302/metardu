@@ -130,14 +130,108 @@ const nextConfig = {
       splitChunks: {
         ...config.optimization?.splitChunks,
         chunks: 'all',
+        // Warning threshold for individual chunks (kB) — surfaces oversized chunks in build logs
+        minSize: 20_000,
+        // Cap automatic chunk size so a single vendor can't balloon past 244 KB uncompressed
+        maxSize: 244_000,
         cacheGroups: {
           ...config.optimization?.splitChunks?.cacheGroups,
-          // Isolate openlayers into its own chunk
+          // OpenLayers — base maps + COGO (15MB on disk, ~600KB minified)
           openlayers: {
             test: /[\\/]node_modules[\\/]ol[\\/]/,
             name: 'vendor-ol',
             chunks: 'all',
+            priority: 30,
+          },
+          // Three.js — 3D point cloud viewer (38MB on disk, ~1MB minified)
+          // Only loaded by /tools/point-cloud-import — keep out of main bundle
+          three: {
+            test: /[\\/]node_modules[\\/]three[\\/]/,
+            name: 'vendor-three',
+            chunks: 'all',
+            priority: 30,
+          },
+          // pdfjs-dist — PDF viewer used by /documents and OCR import (41MB on disk)
+          pdfjs: {
+            test: /[\\/]node_modules[\\/]pdfjs-dist[\\/]/,
+            name: 'vendor-pdfjs',
+            chunks: 'all',
+            priority: 30,
+          },
+          // pdf-lib — PDF generation/manipulation (24MB on disk, ~500KB minified)
+          // Used by deed plan renderer, statutory workbook, form generators
+          pdfLib: {
+            test: /[\\/]node_modules[\\/]pdf-lib[\\/]/,
+            name: 'vendor-pdf-lib',
+            chunks: 'all',
+            priority: 30,
+          },
+          // pdfkit — server-side PDF generation (8MB on disk)
+          pdfkit: {
+            test: /[\\/]node_modules[\\/]pdfkit[\\/]/,
+            name: 'vendor-pdfkit',
+            chunks: 'all',
+            priority: 30,
+          },
+          // ExcelJS — spreadsheet I/O (23MB on disk, ~700KB minified)
+          // Used by field book importer, statutory workbook generator
+          exceljs: {
+            test: /[\\/]node_modules[\\/]exceljs[\\/]/,
+            name: 'vendor-exceljs',
+            chunks: 'all',
+            priority: 30,
+          },
+          // Turf — geospatial analysis (9.6MB on disk)
+          turf: {
+            test: /[\\/]node_modules[\\/]@turf[\\/]/,
+            name: 'vendor-turf',
+            chunks: 'all',
+            priority: 30,
+          },
+          // Recharts — charting library (5.4MB on disk, ~400KB minified)
+          recharts: {
+            test: /[\\/]node_modules[\\/]recharts[\\/]/,
+            name: 'vendor-recharts',
+            chunks: 'all',
+            priority: 25,
+          },
+          // proj4 — coordinate transformations (1.6MB on disk, ~150KB minified)
+          proj4: {
+            test: /[\\/]node_modules[\\/]proj4[\\/]/,
+            name: 'vendor-proj4',
+            chunks: 'all',
+            priority: 25,
+          },
+          // JSZip — ZIP archive utilities (1.2MB on disk, ~95KB minified)
+          jszip: {
+            test: /[\\/]node_modules[\\/]jszip[\\/]/,
+            name: 'vendor-jszip',
+            chunks: 'all',
+            priority: 25,
+          },
+          // D3 family — used by recharts + contour generator
+          d3: {
+            test: /[\\/]node_modules[\\/]d3(-[a-z]+)?[\\/]/,
+            name: 'vendor-d3',
+            chunks: 'all',
             priority: 20,
+          },
+          // Radix UI primitives — shared across all dashboards
+          radix: {
+            test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
+            name: 'vendor-radix',
+            chunks: 'all',
+            priority: 15,
+          },
+          // Catch-all vendor chunk for everything else from node_modules
+          // (keeps the per-route bundle small)
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendor-common',
+            chunks: 'all',
+            priority: 1,
+            // Don't let vendor-common steal from the named groups above
+            reuseExistingChunk: true,
           },
         },
       },

@@ -416,3 +416,276 @@ export const EDMCorrectionSchema = z.object({
   distance: z.number().positive().max(100000).optional(),
   instrumentAccuracy: z.number().positive().max(50).optional().default(3),
 })
+
+// ─── CLA Forms Schema ────────────────────────────────────────────────────────
+
+export const CLAFormGenerateSchema = z.object({
+  formType: z.string().min(1, 'formType is required').max(50),
+  data: z.record(z.unknown()).refine(
+    (val) => Object.keys(val).length > 0,
+    { message: 'data must not be empty' }
+  ),
+})
+
+// ─── Deed Plan Generation Schema ─────────────────────────────────────────────
+
+const DeedPlanPointSchema = z.object({
+  pointName: z.string().min(1).max(50),
+  easting: z.number(),
+  northing: z.number(),
+  elevation: z.number().optional(),
+})
+
+export const DeedPlanInputSchema = z.object({
+  points: z.array(DeedPlanPointSchema).min(3, 'At least 3 points required for a deed plan').max(500),
+  titleData: z.object({
+    lrNumber: z.string().max(50).optional(),
+    parcelNumber: z.string().max(50).optional(),
+    county: z.string().max(100).optional(),
+    locality: z.string().max(200).optional(),
+    surveyDate: z.string().max(20).optional(),
+    scale: z.string().max(20).optional(),
+  }).passthrough().optional(),
+  boundaryData: z.record(z.unknown()).optional(),
+  areaData: z.record(z.unknown()).optional(),
+  surveyorInfo: z.object({
+    name: z.string().max(200).optional(),
+    iskNumber: z.string().max(50).optional(),
+    firmName: z.string().max(200).optional(),
+  }).passthrough().optional(),
+}).passthrough()
+
+// ─── Survey COGO Schema ──────────────────────────────────────────────────────
+
+const cogoPoint = z.object({
+  easting: z.number(),
+  northing: z.number(),
+  elevation: z.number().optional(),
+})
+
+export const CogoOperationSchema = z.discriminatedUnion('operation', [
+  z.object({
+    operation: z.literal('inverse'),
+    from: cogoPoint,
+    to: cogoPoint,
+  }),
+  z.object({
+    operation: z.literal('forward'),
+    from: cogoPoint,
+    bearing: z.number().min(0).max(360),
+    distance: z.number().positive().max(100000),
+  }),
+  z.object({
+    operation: z.literal('lineLineIntersection'),
+    point1: cogoPoint,
+    bearing1: z.number().min(0).max(360),
+    point2: cogoPoint,
+    bearing2: z.number().min(0).max(360),
+  }),
+  z.object({
+    operation: z.literal('lineCircleIntersection'),
+    linePoint: cogoPoint,
+    bearing: z.number().min(0).max(360),
+    circleCenter: cogoPoint,
+    radius: z.number().positive().max(100000),
+  }),
+  z.object({
+    operation: z.literal('circleCircleIntersection'),
+    center1: cogoPoint,
+    radius1: z.number().positive().max(100000),
+    center2: cogoPoint,
+    radius2: z.number().positive().max(100000),
+  }),
+])
+
+// ─── Survey Area Schema ──────────────────────────────────────────────────────
+
+export const AreaOperationSchema = z.union([
+  z.object({
+    operation: z.literal('shoelace'),
+    points: z.array(cogoPoint).min(3, 'At least 3 points required').max(5000),
+  }),
+  z.object({
+    operation: z.literal('dmd'),
+    bearings: z.array(z.number().min(0).max(360)).min(2).max(5000),
+    distances: z.array(z.number().positive().max(100000)).min(2).max(5000),
+  }).refine((d) => d.bearings.length === d.distances.length, {
+    message: 'bearings and distances arrays must have the same length',
+  }),
+  z.object({
+    operation: z.literal('convert'),
+    value: z.number().positive().max(1e12),
+    from: z.enum(['m2', 'ha', 'ft2', 'acre', 'km2']),
+    to: z.enum(['m2', 'ha', 'ft2', 'acre', 'km2']),
+  }),
+])
+
+// ─── Survey Traverse Computation Schema ──────────────────────────────────────
+
+const RawObservationSchema = z.object({
+  fromStation: z.string().min(1).max(50),
+  toStation: z.string().min(1).max(50),
+  rawSlopeDistance: z.number().positive().max(100000).optional(),
+  rawHorizontalAngle: z.number().min(0).max(360).optional(),
+  rawVerticalAngle: z.number().min(-90).max(90).optional(),
+  zenithAngle: z.number().min(0).max(180).optional(),
+  heightOfInstrument: z.number().min(0).max(100).optional(),
+  heightOfTarget: z.number().min(0).max(100).optional(),
+  temperature: z.number().min(-50).max(60).optional(),
+  pressure: z.number().min(500).max(1100).optional(),
+  humidity: z.number().min(0).max(100).optional(),
+  edmConstant: z.number().min(-1).max(1).optional(),
+  ppmSetting: z.number().min(0).max(1000).optional(),
+  observationDate: z.string().optional(),
+}).passthrough()
+
+const TraverseStationSchema = z.object({
+  name: z.string().min(1).max(50),
+  easting: z.number().optional(),
+  northing: z.number().optional(),
+  elevation: z.number().optional(),
+  isFixed: z.boolean().optional(),
+}).passthrough()
+
+export const TraverseComputeSchema = z.object({
+  observations: z.array(RawObservationSchema).min(1, 'At least one observation required').max(5000),
+  stations: z.array(TraverseStationSchema).min(1, 'At least one station required').max(2000),
+  method: z.enum(['bowditch', 'least_squares']).optional().default('bowditch'),
+  order: z.number().int().min(1).max(5).optional().default(3),
+  config: z.record(z.unknown()).optional().default({}),
+})
+
+// ─── Survey Corrections Schema ───────────────────────────────────────────────
+
+export const CorrectionsSchema = z.object({
+  observation: RawObservationSchema.optional(),
+  observations: z.array(RawObservationSchema).max(5000).optional(),
+  config: z.record(z.unknown()).optional().default({}),
+  report: z.boolean().optional().default(false),
+}).refine(
+  (d) => d.observation || (d.observations && d.observations.length > 0),
+  { message: 'Provide observation or observations' }
+)
+
+// ─── USV Mission Schema ──────────────────────────────────────────────────────
+
+const WaypointSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  altitude: z.number().min(-100).max(10000).optional(),
+  speed: z.number().min(0).max(50).optional(),
+  action: z.string().max(50).optional(),
+}).passthrough()
+
+export const USVMissionSchema = z.object({
+  mission_name: z.string().min(1, 'mission_name is required').max(200),
+  waypoints: z.array(WaypointSchema).min(1, 'At least one waypoint required').max(500),
+  vehicle_id: z.string().max(100).optional(),
+  start_time: z.string().datetime().optional(),
+  parameters: z.record(z.unknown()).optional(),
+}).passthrough()
+
+// ─── Mining Volume Schema ────────────────────────────────────────────────────
+
+const MiningSectionSchema = z.object({
+  chainage: z.number(),
+  area: z.number().positive(),
+  cutArea: z.number().optional(),
+  fillArea: z.number().optional(),
+}).passthrough()
+
+const GridPointSchema = z.object({
+  easting: z.number(),
+  northing: z.number(),
+  elevation: z.number(),
+}).passthrough()
+
+export const MiningVolumeSchema = z.object({
+  method: z.enum(['end-area', 'grid']),
+  sections: z.array(MiningSectionSchema).max(10000).optional(),
+  gridPoints: z.array(GridPointSchema).max(100000).optional(),
+  materialDensity: z.number().positive().max(20).optional().default(1.8),
+  materialType: z.string().max(100).optional(),
+  designElevation: z.number().optional(),
+  gridSpacing: z.number().positive().max(1000).optional(),
+}).refine(
+  (d) => {
+    if (d.method === 'end-area') return !!d.sections && d.sections.length > 0
+    if (d.method === 'grid') return !!d.gridPoints && d.gridPoints.length > 0
+    return false
+  },
+  { message: 'sections required for end-area method; gridPoints required for grid method' }
+)
+
+// ─── GeoFusion Align Schema ──────────────────────────────────────────────────
+
+export const GeoFusionAlignSchema = z.object({
+  project_id: z.string().min(1, 'project_id is required').max(200),
+  source_layer_id: z.string().min(1, 'source_layer_id is required').max(200),
+  target_layer_id: z.string().max(200).optional(),
+  method: z.enum(['nearest', 'rubber_sheet', 'affine', 'similarity']).optional(),
+  tolerance: z.number().positive().max(1000).optional(),
+  control_points: z.array(z.object({
+    source: z.object({ x: z.number(), y: z.number() }),
+    target: z.object({ x: z.number(), y: z.number() }),
+  })).max(500).optional(),
+}).passthrough()
+
+// ─── Statutory Workbook Schema ───────────────────────────────────────────────
+
+export const StatutoryWorkbookSchema = z.object({
+  projectName: z.string().max(200).optional(),
+  lrNumber: z.string().max(50).optional(),
+  parcelNumber: z.string().max(50).optional(),
+  county: z.string().max(100).optional(),
+  locality: z.string().max(200).optional(),
+  surveyType: z.enum(['cadastral', 'engineering', 'topographic', 'mining', 'hydrographic']).optional(),
+  surveyDate: z.string().max(20).optional(),
+  surveyorName: z.string().max(200).optional(),
+  iskNumber: z.string().max(50).optional(),
+  firmName: z.string().max(200).optional(),
+  referenceNumber: z.string().max(100).optional(),
+}).passthrough()
+
+// ─── Automator Report Schema ─────────────────────────────────────────────────
+
+export const AutomatorReportSchema = z.object({
+  project_data: z.record(z.unknown()).refine(
+    (v) => Object.keys(v).length > 0,
+    { message: 'project_data must not be empty' }
+  ),
+  sections: z.array(z.string().max(100)).max(50).optional().default(['summary', 'results']),
+  style: z.enum(['technical', 'executive', 'narrative', 'tabular']).optional().default('technical'),
+}).passthrough()
+
+// ─── Field Sync Schema ───────────────────────────────────────────────────────
+
+const SyncObservationSchema = z.object({
+  fromStationId: z.string().min(1).max(100),
+  toStationId: z.string().min(1).max(100),
+  rawHorizontalAngle: z.number().min(0).max(360).optional(),
+  rawVerticalAngle: z.number().min(-90).max(90).optional(),
+  rawSlopeDistance: z.number().positive().max(100000).optional(),
+  edmConstant: z.number().min(-1).max(1).optional(),
+  ppmSetting: z.number().min(0).max(1000).optional(),
+  temperature: z.number().min(-50).max(60).optional(),
+  pressure: z.number().min(500).max(1100).optional(),
+  humidity: z.number().min(0).max(100).optional(),
+  instrumentHeight: z.number().min(0).max(100).optional(),
+  targetHeight: z.number().min(0).max(100).optional(),
+  observationDate: z.string().optional(),
+}).passthrough()
+
+export const FieldSyncSchema = z.object({
+  surveyId: z.string().min(1, 'surveyId is required').max(200),
+  observations: z.array(SyncObservationSchema).min(1, 'At least one observation required').max(10000),
+  surveyorId: z.string().min(1).max(200).optional(),
+  surveyorName: z.string().max(200).optional(),
+}).passthrough()
+
+// ─── Subscription Action Schema ──────────────────────────────────────────────
+
+export const SubscriptionActionSchema = z.object({
+  planId: z.string().min(1, 'planId is required').max(100),
+  action: z.enum(['subscribe', 'cancel', 'upgrade']),
+})

@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { z } from 'zod'
-import { sendEmail } from '@/lib/email'
+import { sendTemplatedEmail } from '@/lib/email-templates'
 import db from '@/lib/db'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 
 const forgotSchema = z.object({
   email: z.string().email('Invalid email address'),
 })
-
-
 
 function okResponse() {
   return NextResponse.json({
@@ -39,7 +37,7 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
 
     await db.query(
-      `DELETE FROM password_reset_tokens 
+      `DELETE FROM password_reset_tokens
        WHERE user_id = $1 AND used_at IS NULL`,
       [user.id]
     )
@@ -49,27 +47,16 @@ export async function POST(req: NextRequest) {
       [user.id, token, expiresAt.toISOString()]
     )
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
-    const resetUrl = `${appUrl.replace(/\/+$/, '')}/auth/reset-password?token=${encodeURIComponent(token)}`
-    const emailResult = await sendEmail({
+    const result = await sendTemplatedEmail('passwordReset', {
       to: user.email,
-      subject: 'Reset your METARDU password',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto;">
-          <h2 style="color:#111;">Reset your password</h2>
-          <p>Hi ${user.full_name || 'there'},</p>
-          <p>We received a request to reset your METARDU password.</p>
-          <p>
-            <a href="${resetUrl}" style="display:inline-block;padding:12px 18px;background:#E8841A;color:#111;text-decoration:none;border-radius:6px;font-weight:700;">
-              Reset Password
-            </a>
-          </p>
-          <p>This link expires in 1 hour. If you did not request this, you can ignore this email.</p>
-        </div>
-      `,
+      name: user.full_name ?? '',
+      resetToken: token,
+      expiresAt: expiresAt.toISOString(),
     })
-    
-    if (!emailResult.success && emailResult.error === 'Email service not configured') {
+
+    if (!result.success && result.error === 'Email service not configured') {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
+      const resetUrl = `${appUrl.replace(/\/+$/, '')}/auth/reset-password?token=${encodeURIComponent(token)}`
       console.warn('[forgot-password] SMTP not configured. Reset link:', resetUrl)
     }
 

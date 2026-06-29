@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { setCurrentUserId } from '@/lib/db'
 import { generateStatutoryWorkbook, type WorkbookInput } from '@/lib/submission/workbook/statutoryWorkbook'
+import { StatutoryWorkbookSchema } from '@/lib/validation/apiSchemas'
 
 interface RequestBody {
   projectName?: string
@@ -106,10 +107,19 @@ export async function POST(request: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
   }
-  const userId = (session.user as any).id
+  const userId = (session.user as { id?: string }).id
   if (userId) setCurrentUserId(String(userId))
 
-  const body = (await request.json()) as RequestBody
+  const rawBody = await request.json().catch(() => null)
+  const parsed = StatutoryWorkbookSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Validation failed', details: parsed.error.issues },
+      { status: 422 }
+    )
+  }
+
+  const body = parsed.data as unknown as RequestBody
   const workbook = await generateStatutoryWorkbook(bodyToWorkbookInput(body))
   return new NextResponse(new Uint8Array(workbook), {
     headers: {

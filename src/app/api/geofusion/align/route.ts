@@ -2,32 +2,35 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { callPythonCompute } from '@/lib/compute/pythonService'
 import type { AlignDataRequest, AlignDataResponse } from '@/types/geofusion'
+import { GeoFusionAlignSchema } from '@/lib/validation/apiSchemas'
 
 export async function POST(request: NextRequest) {
   const { error } = await requireAuth()
   if (error) return error
 
   try {
-    const body: AlignDataRequest = await request.json()
-    
-    if (!body.project_id || !body.source_layer_id) {
+    const rawBody = await request.json().catch(() => null)
+    const parsed = GeoFusionAlignSchema.safeParse(rawBody)
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'project_id and source_layer_id are required' },
-        { status: 400 }
+        { error: 'Validation failed', details: parsed.error.issues },
+        { status: 422 }
       )
     }
+
+    const body = parsed.data as unknown as AlignDataRequest
 
     const result = await callPythonCompute<AlignDataResponse>(
       '/geofusion/align',
       body,
       { timeoutMs: 120000 }
     )
-    
+
     if (!result.ok) {
       const err = result as { ok: false; status: number; error: string }
       return NextResponse.json({ error: err.error }, { status: err.status })
     }
-    
+
     return NextResponse.json(result.value)
   } catch (error) {
     console.error('GeoFusion align error:', error)

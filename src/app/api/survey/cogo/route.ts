@@ -13,52 +13,44 @@ import {
   circleCircleIntersection,
   type Point,
 } from '@/lib/survey/cogo/engine';
+import { CogoOperationSchema } from '@/lib/validation/apiSchemas';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { operation } = body;
-    
-    switch (operation) {
+    const rawBody = await request.json().catch(() => null)
+    const parsed = CogoOperationSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.issues },
+        { status: 422 }
+      )
+    }
+
+    const body = parsed.data
+    switch (body.operation) {
       case 'inverse': {
-        const { from, to } = body as { from: Point; to: Point };
-        const result = computeBearingAndDistance(from, to);
+        const result = computeBearingAndDistance(body.from as Point, body.to as Point);
         return NextResponse.json(result);
       }
-      
       case 'forward': {
-        const { from, bearing, distance } = body as { from: Point; bearing: number; distance: number };
-        const result = computePoint(from, bearing, distance);
+        const result = computePoint(body.from as Point, body.bearing, body.distance);
         return NextResponse.json(result);
       }
-      
       case 'lineLineIntersection': {
-        const { point1, bearing1, point2, bearing2 } = body as {
-          point1: Point; bearing1: number; point2: Point; bearing2: number;
-        };
-        const result = lineLineIntersection(point1, bearing1, point2, bearing2);
+        const result = lineLineIntersection(body.point1 as Point, body.bearing1, body.point2 as Point, body.bearing2);
         return NextResponse.json(result);
       }
-      
       case 'lineCircleIntersection': {
-        const { linePoint, bearing, circleCenter, radius } = body as {
-          linePoint: Point; bearing: number; circleCenter: Point; radius: number;
-        };
-        const result = lineCircleIntersection(linePoint, bearing, circleCenter, radius);
+        const result = lineCircleIntersection(body.linePoint as Point, body.bearing, body.circleCenter as Point, body.radius);
         return NextResponse.json(result);
       }
-      
       case 'circleCircleIntersection': {
-        const { center1, radius1, center2, radius2 } = body as {
-          center1: Point; radius1: number; center2: Point; radius2: number;
-        };
-        const result = circleCircleIntersection(center1, radius1, center2, radius2);
+        const result = circleCircleIntersection(body.center1 as Point, body.radius1, body.center2 as Point, body.radius2);
         return NextResponse.json(result);
       }
-      
       default:
         return NextResponse.json(
-          { error: `Unknown operation: ${operation}. Use: inverse, forward, lineLineIntersection, lineCircleIntersection, circleCircleIntersection` },
+          { error: `Unknown operation: ${(body as { operation?: string }).operation}` },
           { status: 400 }
         );
     }

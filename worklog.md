@@ -256,3 +256,160 @@ Stage Summary:
 - Key achievement: Deed plan now includes grid scale factors per boundary leg
 - Key achievement: Web worker Bowditch fixed (was producing wrong coordinates)
 - Remaining work: Wire atmospheric/sea level data from fieldbook UI (currently skipped due to no elevation data in fieldbook)
+
+---
+Task ID: Final-Cleanup-4
+Agent: Super Z (Main)
+Task: Complete the 4 pending cleanup tasks — API validation, Settings page, PWA Manifest, Bundle Analysis
+
+Work Log:
+
+Task 1 — API Input Validation (Zod schemas):
+- Extended src/lib/validation/apiSchemas.ts with 13 new Zod schemas for routes that were calling request.json() without validation:
+  - CLAFormGenerateSchema, DeedPlanInputSchema, CogoOperationSchema, AreaOperationSchema
+  - TraverseComputeSchema, CorrectionsSchema, USVMissionSchema, MiningVolumeSchema
+  - GeoFusionAlignSchema, StatutoryWorkbookSchema, AutomatorReportSchema
+  - FieldSyncSchema, SubscriptionActionSchema
+- Migrated 12 API routes to use these schemas via safeParse:
+  - /api/cla-forms, /api/documents/deed-plan
+  - /api/survey/{area,corrections,cogo,traverse}
+  - /api/usv/mission, /api/project/[id]/mining-volume
+  - /api/geofusion/align, /api/tools/statutory-workbook
+  - /api/automator/report, /api/sync
+- All routes now return 422 with structured field errors on invalid input
+- TypeScript: 0 errors. Tests: 80/80 passing.
+
+Task 2 — Settings/Account Page Upgrade:
+- Created DB migration 022_profile_notification_preferences.sql:
+  - Adds notification_preferences JSONB column to profiles
+  - Adds notification_preferences_updated_at TIMESTAMPTZ
+  - Defaults enable in-app + email for project/billing/security events; SMS/push opt-in
+- Created /api/profile/settings (GET + PATCH):
+  - Loads joined profiles + surveyor_profiles + users in one query
+  - PATCH supports partial updates with JSONB deep-merge for prefs
+  - Syncs firm_name/isk_number/phone/license_number to surveyor_profiles
+  - Validates with strict Zod schema
+- Rewrote /settings/profile page with 4-tab UI:
+  - Profile tab: Avatar uploader (drag-drop, validates type/size, uses /api/storage), name, phone, address, bio
+  - Company tab: Firm name, ISK number, SoK license number, verified-isk badge, suspension banner
+  - Notifications tab: 4-channel × 8-event matrix with toggles (email/SMS/push/in-app × project_updates/field_sync/document_generated/billing/security/team_mentions/weekly_digest/marketing)
+  - Security tab: Password change with strength meter + match validation, active sessions, sign-out-everywhere stub, danger zone
+- Removed obsolete ProfileForm.tsx
+
+Task 3 — PWA Manifest Upgrade:
+- Updated /public/manifest.json:
+  - Renamed "METARDU — Survey Engine" → "METARDU — Kenya Survey & Cadastral Platform"
+  - Updated description to reference Survey Act Cap. 299 and NLIMS export
+  - start_url now ?source=pwa for install attribution
+  - theme_color updated to brand orange #e8841a (was inconsistent with layout.tsx)
+  - Added scope_extensions for /field, /tools, /map, /projects, /documents
+  - Added screenshots section (placeholders for wide + narrow form factors)
+  - Added file_handlers for CSV/GeoJSON/XLSX/DXF/KML import via PWA
+  - Added share_target so users can share files to METARDU from other apps
+  - Added protocol_handlers for web+metardu deep links
+  - Added edge_side_panel.preferred_width for Edge sidebar
+  - Reorganized shortcuts: Dashboard, Map, Field Book, Toolbox, Settings (removed dead /jobs, /peer-review)
+- Updated src/app/layout.tsx theme-color and msapplication-TileColor from #111111 → #e8841a
+- Changed color-scheme from 'dark' to 'dark light' (now supports light mode toggle)
+- Created /api/import/share-target route handler for receiving shared files
+  - Persists via /api/storage
+  - Redirects to /import with file metadata
+
+Task 4 — Bundle Size Analysis:
+- Enhanced next.config.js webpack splitChunks config:
+  - Added 11 new cacheGroups: vendor-three, vendor-pdfjs, vendor-pdf-lib, vendor-pdfkit, vendor-exceljs, vendor-turf, vendor-recharts, vendor-proj4, vendor-jszip, vendor-d3, vendor-radix, vendor-common (catch-all)
+  - Set minSize: 20KB (warning threshold) and maxSize: 244KB (per-chunk cap)
+  - Priority hierarchy: isolated vendors (30) > recharts/proj4/jszip (25) > d3 (20) > radix (15) > vendor-common (1)
+- Created scripts/bundle-analysis-report.mjs:
+  - Scans .next/static/chunks/ for all .js files
+  - Groups by vendor prefix and chunk type
+  - Identifies top 30 chunks by size
+  - Generates actionable recommendations (lazy-load checks, missing isolation, total size warnings)
+  - Outputs HTML report to /home/z/my-project/download/bundle-analysis-report.html
+- Added npm scripts: npm run analyze, npm run bundle-report, npm run analyze:report
+- Verified existing codebase already uses dynamic imports for heavy deps (three, pdfjs-dist, exceljs, @turf) — no static imports of these in client components
+- Verified no layouts import heavy deps statically
+
+Stage Summary:
+- 4 tasks complete, all TypeScript-clean, all 80 tests passing
+- 13 new Zod schemas added to apiSchemas.ts (file grew from 419 to 691 lines)
+- 12 API routes migrated from raw JSON parsing to Zod-validated input
+- 1 new DB migration (022) for notification preferences
+- 1 new API route (/api/profile/settings) with GET + PATCH
+- 1 new API route (/api/import/share-target) for PWA share target
+- 5 new components: SettingsTabs, AvatarUploader, ProfileSection, CompanySection, NotificationsSection, SecuritySection
+- 1 old component removed (ProfileForm.tsx)
+- PWA manifest expanded from 116 to 188 lines with full file_handlers, share_target, protocol_handlers
+- Webpack splitChunks expanded from 1 cacheGroup (openlayers) to 12 isolated vendor chunks
+- 1 new analysis script: scripts/bundle-analysis-report.mjs
+- 3 new npm scripts for bundle analysis workflow
+
+---
+Task ID: Email-System-and-README-Fix
+Agent: Super Z (Main)
+Task: Build centralized email template system + fix aggressive README tone
+
+Work Log:
+
+Part 1 — Centralized Email Template System:
+- Built reusable layout engine in src/lib/email-templates/:
+  - layout.ts — branded METARDU header, body, footer with CAN-SPAM-compliant unsubscribe link
+  - components.ts — 11 reusable HTML helpers (Heading, Paragraph, PrimaryButton, SecondaryButton, CalloutBox, StatTable, List, Accent, Link, Divider, RichParagraph)
+  - utils.ts — formatting helpers (formatDate, formatDateTime, formatCurrency, truncate, initials)
+  - text.ts — plain-text fallback for every template (required for spam filters)
+- Created 8 templates (each with HTML + plain-text + preheader):
+  - welcome.ts — new user signup
+  - trialEnding.ts — 3-day trial warning
+  - passwordReset.ts — forgot-password flow (wired into existing route)
+  - paymentReceipt.ts — successful payment (KES formatted as "Ksh" per Kenyan convention)
+  - paymentFailed.ts — declined payment with retry guidance
+  - securityAlert.ts — new device login / suspicious activity
+  - projectShared.ts — colleague added to project (with role-aware permissions list)
+  - weeklyDigest.ts — Monday-morning activity summary (filtered by user prefs)
+- Created central registry in index.ts with sendTemplatedEmail() helper
+- All templates support:
+  - Inline CSS only (Gmail/Outlook strip <style> tags)
+  - Table-based layout (max email client compat)
+  - Preheader text for inbox preview
+  - Per-template unsubscribe controls
+  - Auto text/plain fallback
+
+Part 2 — Email API Routes:
+- Migrated /api/emails/welcome and /api/emails/trial-ending to use new system
+- Migrated /api/auth/forgot-password to use passwordReset template
+- Created 6 new internal API routes (all require Bearer API_ADMIN_KEY or session):
+  - POST /api/emails/password-reset
+  - POST /api/emails/payment-receipt
+  - POST /api/emails/payment-failed
+  - POST /api/emails/security-alert
+  - POST /api/emails/project-shared (session-auth — called from share UI)
+  - POST /api/emails/weekly-digest (admin-key only — called by Monday cron)
+- All routes validate input with Zod schemas
+- sendEmail() enhanced with replyTo, from, headers params (for List-Unsubscribe headers)
+- Created scripts/test-email-templates.ts — renders all 8 templates with sample data, verifies output
+- Added npm run test:emails script
+
+Part 3 — README Tone Fix:
+- Rewrote README.md to remove aggressive competitor comparisons:
+  - Removed "complete replacement for expensive software like Trimble, Leica, and AutoCAD" (legal risk)
+  - Removed "Surveying is mentally exhausting" (condescending tone)
+  - Removed "Built for African surveyors, by understanding their challenges" (paternalistic)
+  - Replaced with: "Built in Kenya for the surveying community."
+- Fixed factual errors:
+  - "Supabase" → "PostgreSQL with row-level security" (actual stack)
+  - Removed broken Windows path C:/Users/ADMIN/...
+  - Removed deleted /jobs page from route list
+  - Updated page list to reflect current routes (dashboard, map, settings/profile, etc.)
+- Updated opening paragraph to focus on Kenya-specific value (Cap. 299, NLIMS, ISK) instead of competitor replacement
+- Verified no competitor mentions remain in marketing copy (only in functional code: equipment brand dropdowns, file format parsers)
+
+Stage Summary:
+- 11 new files in src/lib/email-templates/ (layout + 8 templates + utils + components + text + index)
+- 6 new API routes in src/app/api/emails/
+- 3 existing routes migrated to new system (welcome, trial-ending, forgot-password)
+- 1 new test script (scripts/test-email-templates.ts) — 8/8 templates pass
+- sendEmail() enhanced with replyTo/from/headers
+- README rewritten — 0 competitor names in marketing copy, 0 broken paths, accurate tech stack
+- TypeScript: 0 errors
+- Tests: 80/80 passing
+- Email smoke test: 8/8 passing

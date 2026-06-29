@@ -3,38 +3,44 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { setCurrentUserId } from '@/lib/db'
 import { callPythonCompute } from '@/lib/compute/pythonService'
+import { AutomatorReportSchema } from '@/lib/validation/apiSchemas'
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
   }
-  const userId = (session.user as any).id
+  const userId = (session.user as { id?: string }).id
   if (userId) setCurrentUserId(String(userId))
 
   try {
-    const body = await request.json()
-    
-    if (!body.project_data) {
-      return NextResponse.json({ error: 'Missing project_data' }, { status: 400 })
+    const rawBody = await request.json().catch(() => null)
+    const parsed = AutomatorReportSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.issues },
+        { status: 422 }
+      )
     }
-    
-    const result = await callPythonCompute<any>(
+
+    const { project_data, sections, style } = parsed.data
+
+    const result = await callPythonCompute<unknown>(
       '/workflow/execute',
-      { 
+      {
         action: 'report',
-        project_data: body.project_data,
-        sections: body.sections || ['summary', 'results'],
-        style: body.style || 'technical'
+        project_data,
+        sections,
+        style,
       },
       { timeoutMs: 60000 }
     )
-    
+
     if (!result.ok) {
       const err = result as { ok: false; status: number; error: string }
       return NextResponse.json({ error: err.error }, { status: err.status })
     }
-    
+
     return NextResponse.json(result.value)
   } catch (error) {
     console.error('Report generation error:', error)

@@ -38,7 +38,11 @@
     "cassini:benchmark": "npx tsx scripts/benchmark_cassini.ts",
     "migrate:create": "node scripts/migrate-create.js",
     "migrate:rollback": "node scripts/migrate-unified.mjs --rollback",
-    "migrate:force": "node scripts/migrate-unified.mjs --force"
+    "migrate:force": "node scripts/migrate-unified.mjs --force",
+    "analyze": "ANALYZE=true next build",
+    "bundle-report": "node scripts/bundle-analysis-report.mjs",
+    "analyze:report": "ANALYZE=true next build && node scripts/bundle-analysis-report.mjs",
+    "test:emails": "npx tsx scripts/test-email-templates.ts"
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^8.1.3",

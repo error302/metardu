@@ -12,50 +12,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import { batchCreateObservations } from '@/lib/db/queries/observations';
 import { createAuditLog } from '@/lib/db/queries/audit';
 import prisma from '@/lib/db/client';
+import { FieldSyncSchema } from '@/lib/validation/apiSchemas';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { surveyId, observations, surveyorId, surveyorName } = body as {
-      surveyId: string;
-      observations: Array<{
-        fromStationId: string;
-        toStationId: string;
-        rawHorizontalAngle?: number;
-        rawVerticalAngle?: number;
-        rawSlopeDistance?: number;
-        edmConstant?: number;
-        ppmSetting?: number;
-        temperature?: number;
-        pressure?: number;
-        humidity?: number;
-        instrumentHeight?: number;
-        targetHeight?: number;
-        observationDate?: string;
-      }>;
-      surveyorId: string;
-      surveyorName: string;
-    };
-    
-    if (!surveyId || !observations || !Array.isArray(observations)) {
+    const rawBody = await request.json().catch(() => null);
+    const parsed = FieldSyncSchema.safeParse(rawBody);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'surveyId and observations array are required' },
-        { status: 400 }
+        { error: 'Validation failed', details: parsed.error.issues },
+        { status: 422 }
       );
     }
-    
+
+    const { surveyId, observations, surveyorId, surveyorName } = parsed.data;
+
     // Verify the survey exists
     const survey = await prisma.survey.findUnique({
       where: { id: surveyId },
     });
-    
+
     if (!survey) {
       return NextResponse.json(
         { error: 'Survey not found' },
         { status: 404 }
       );
     }
-    
+
     // Batch create all observations
     const result = await batchCreateObservations({
       surveyId,
@@ -76,17 +59,17 @@ export async function POST(request: NextRequest) {
         observationDate: obs.observationDate ? new Date(obs.observationDate) : undefined,
       })),
     });
-    
+
     // Audit log
     await createAuditLog({
       entityType: 'Survey',
       entityId: surveyId,
       action: 'SYNC_OBSERVATIONS',
-      userId: surveyorId,
-      userName: surveyorName,
+      userId: surveyorId ?? 'unknown',
+      userName: surveyorName ?? 'Unknown',
       changes: JSON.stringify({ count: observations.length }),
     });
-    
+
     return NextResponse.json({
       success: true,
       count: result.count,

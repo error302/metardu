@@ -1,10 +1,10 @@
 # METARDU
 
-Professional surveying calculation platform for land surveyors - the complete replacement for expensive software like Trimble, Leica, and AutoCAD.
+Surveying software for land surveyors in Kenya and East Africa. Built to handle the cadastral, engineering, topographic, and control-survey workflows that Kenyan professionals use day to day — with NLIMS-ready exports, Survey Act Cap. 299 compliant deed plans, and ISK-aligned surveyor credentials.
 
-## Why METARDU?
+## Why METARDU
 
-Surveying is mentally exhausting. Long days collecting observations, hours of manual computation, misclosure checks, and report writing. METARDU handles everything so you can focus on what matters - taking accurate observations.
+Surveyors spend a lot of time on paperwork — closing traverses by hand, typing field notes into Excel, drafting deed plans in CAD, and filling NLIMS submission forms. METARDU pulls those steps into one workspace so the field-to-finish flow stays in a single place. The output (deed plans, Form No. 4, statutory workbooks, RDM 1.1 reports) is shaped to match what the Survey of Kenya expects.
 
 ## Survey Types
 
@@ -62,19 +62,20 @@ Every project follows the same workflow:
 ### Integration
 - Kenya NLIMS, Uganda NLIS, Tanzania Land Registry
 - Professional body integration (ISK, EBK)
-- M-Pesa, Stripe payment
+- M-Pesa, PayPal, Stripe payment
 
 ## Tech Stack
 
 - Next.js 14 (App Router)
-- TypeScript 5.x (95%+ coverage)
+- TypeScript 5.x
 - Tailwind CSS
-- Supabase (Auth + PostgreSQL + RLS)
-- OpenLayers + Leaflet (maps)
+- PostgreSQL with row-level security
+- NextAuth.js (session-based auth, bcrypt password hashing)
+- OpenLayers (interactive maps)
 - Capacitor (Android mobile)
-- PWA support (offline-first)
+- PWA support (offline-first field work)
 - Sentry (error monitoring)
-- Jest + React Testing Library
+- Vitest + Jest test suites
 
 ## Supported
 
@@ -106,33 +107,32 @@ npm run mobile:build
 
 ## Production
 
-METARDU currently uses one canonical production path:
+METARDU runs as a standalone Next.js build managed by PM2:
 
 - `next build` with standalone output
 - `pm2 start ecosystem.config.cjs`
-- one active PM2 process only
+- One active PM2 process per instance
 
-During stabilization, Docker stays in the repo but is not the active production run path. The current runbook is in [DEPLOYMENT.md](/C:/Users/ADMIN/Desktop/Survey%20-ENG/DEPLOYMENT.md).
+Docker configuration is included in the repo for containerized deployments. See [docs/deployment/duckdns-cloudflare-tunnel.md](docs/deployment/duckdns-cloudflare-tunnel.md) for the current deployment runbook.
 
 ## Pages
 
 - `/` — Landing page
-- `/project/new` — Create new project
-- `/project/[id]` — Project workspace (5-step workflow)
+- `/dashboard` — Project list and activity feed
+- `/projects/new` — Create new project
+- `/projects/[id]` — Project workspace (5-step workflow)
 - `/fieldbook` — Digital field book
-- `/tools/*` — Standalone survey tools
+- `/map` — Interactive cadastral map
+- `/tools/*` — Standalone survey tools (40+ calculators)
 - `/community` — Surveyor community
-- `/marketplace` — Templates & services
-- `/jobs` — Job board
-- `/online` — Coordinate services
-- `/parcel` — Parcel search
+- `/marketplace` — Equipment marketplace
 - `/kencors` — RTK corrections
-- `/checkout` — Payment
 - `/pricing` — Subscription plans
+- `/settings/profile` — Account, company, notifications, security
 
 ## Build
 
-- **Web**: 181 routes, builds successfully
+- **Web**: 200+ routes, builds successfully
 - **Mobile**: Capacitor Android (requires Java for APK build)
 
 ## Testing
@@ -163,4 +163,4 @@ MIT
 
 ---
 
-Built for African surveyors, by understanding their challenges.
+Built in Kenya for the surveying community.
