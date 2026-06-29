@@ -26,6 +26,7 @@ import { NTRIPClientPanel } from '@/components/survey/NTRIPClientPanel'
 import { GNSSQualityReport } from '@/components/survey/GNSSQualityReport'
 import { FieldbookAuditDrawer } from '@/components/fieldbook/FieldbookAuditDrawer'
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
+import { CheckCircle2 } from 'lucide-react'
 
 /** useIsMobile — SSR-safe media-query hook (lg breakpoint = 1024px). */
 function useIsMobile() {
@@ -1224,121 +1225,103 @@ export default function DigitalFieldBookPage() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-3 space-y-4" ref={panelRef}>
+        {/* Left sidebar — organized into collapsible sections */}
+        <div className="lg:col-span-3 space-y-3" ref={panelRef}>
+          {/* Project & Save — always visible */}
           <div className="card p-4 space-y-3">
-            <div>
-              <label className="label">{t('projects.project')}</label>
-              <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-                <option value="">{t('projects.selectProject')}</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">Project</span>
+              {saveStatus.kind === 'saved' && (
+                <span className="text-[9px] text-green-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-2.5 h-2.5" />
+                  {new Date(saveStatus.when).toLocaleTimeString()}
+                </span>
+              )}
             </div>
-
-            <div>
-              <label className="label">{t('field.fieldBookName')}</label>
-              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('field.fieldBookNamePlaceholder')} />
-            </div>
-
+            <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">{t('projects.selectProject')}</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('field.fieldBookNamePlaceholder')} />
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={handleSave} className="btn btn-primary">
+              <button onClick={handleSave} className="btn btn-primary" disabled={saveStatus.kind === 'saving'}>
                 {saveStatus.kind === 'saving' ? t('common.saving') : t('common.save')}
               </button>
-              <button
-                onClick={() => {
-                  setFieldbookId(null)
-                  setName('')
-                  setSaveStatus({ kind: 'idle' })
-                }}
-                className="btn btn-secondary"
-              >
+              <button onClick={() => { setFieldbookId(null); setName(''); setSaveStatus({ kind: 'idle' }) }} className="btn btn-secondary">
                 {t('common.new')}
               </button>
             </div>
-
-            {saveStatus.kind === 'saved' && <p className="text-xs text-green-400">Saved: {new Date(saveStatus.when).toLocaleString()}</p>}
             {saveStatus.kind === 'error' && <p className="text-xs text-red-400">{saveStatus.message}</p>}
             {syncStatus && (
               <p className={`text-xs ${syncStatus.failed ? 'text-yellow-400' : 'text-green-400'}`}>
                 Sync: {syncStatus.synced} synced, {syncStatus.failed} failed
               </p>
             )}
+          </div>
 
-            <div className="pt-2 border-t border-[var(--border-color)]">
-              <button
-                onClick={handleDevelopFullPlan}
-                disabled={planGenerating || !projectId}
-                className="w-full btn bg-green-600 hover:bg-green-700 text-white border-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {planGenerating ? planStep || 'Generating...' : 'Develop Full Plan'}
-              </button>
-              {planResult && (
-                <div className="mt-2 p-2 rounded text-xs">
-                  {planResult.success ? (
-                    <a
-                      href={planResult.downloadUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-green-400 underline"
-                    >
-                      Download Plan Package
-                    </a>
-                  ) : (
-                    <span className="text-red-400">Error: {planResult.error}</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="pt-2 border-t border-[var(--border-color)] flex gap-2">
-              <button onClick={exportPDF} className="btn btn-secondary flex-1">
-                {t('common.exportPdf')}
-              </button>
-              <button onClick={exportCSV} className="btn btn-secondary flex-1">
-                {t('common.exportCsv')}
-              </button>
-              <button onClick={exportJSON} className="btn btn-secondary flex-1">
-                {t('common.exportJson')}
-              </button>
+          {/* Quick actions — export, plan, sync */}
+          <div className="card p-3 space-y-2">
+            <button onClick={handleDevelopFullPlan} disabled={planGenerating || !projectId}
+              className="w-full btn bg-green-600 hover:bg-green-700 text-white border-green-600 disabled:opacity-50 text-sm">
+              {planGenerating ? planStep || 'Generating...' : 'Develop Full Plan'}
+            </button>
+            {planResult?.success && (
+              <a href={planResult.downloadUrl} target="_blank" rel="noopener noreferrer" className="block text-xs text-green-400 underline text-center">
+                Download Plan Package
+              </a>
+            )}
+            <div className="grid grid-cols-3 gap-1.5">
+              <button onClick={exportPDF} className="btn btn-secondary text-xs py-2">PDF</button>
+              <button onClick={exportCSV} className="btn btn-secondary text-xs py-2">CSV</button>
+              <button onClick={exportJSON} className="btn btn-secondary text-xs py-2">JSON</button>
             </div>
           </div>
 
-          <div className="card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="label">{t('field.savedFieldbooks')}</span>
-              <span className="text-xs text-[var(--text-muted)]">{isOnline() ? t('common.online') : t('common.offline')}</span>
-            </div>
-            <div className="space-y-2 max-h-[45vh] overflow-auto pr-1">
+          {/* Saved fieldbooks — collapsible */}
+          <details className="card p-3" open>
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider flex items-center justify-between">
+              <span>{t('field.savedFieldbooks')}</span>
+              <span className="text-[10px] text-[var(--text-muted)] normal-case">{isOnline() ? t('common.online') : t('common.offline')}</span>
+            </summary>
+            <div className="mt-2 space-y-1.5 max-h-[30vh] overflow-auto pr-1">
               {savedFieldbooks.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">{t('field.noSavedFieldbooks')}</p>
+                <p className="text-xs text-[var(--text-muted)] py-2 text-center">No saved fieldbooks</p>
               ) : (
                 savedFieldbooks.map((fb) => (
-                  <button
-                    key={fb.id}
-                    onClick={() => loadFieldbook(fb)}
-                    className={`w-full text-left px-3 py-2 rounded border ${
-                      fieldbookId === fb.id ? 'border-amber-500/50 bg-amber-500/10' : 'border-[var(--border-color)] bg-[var(--bg-primary)]/30 hover:border-amber-500/20'
-                    }`}
-                  >
-                    <div className="text-sm text-[var(--text-primary)] truncate">{fb.name || fb.id}</div>
-                     <div className="text-xs text-[var(--text-muted)]">{fb.updated_at ?? fb.created_at ? new Date(fb.updated_at ?? fb.created_at as string | number | Date).toLocaleString() : ''}</div>
+                  <button key={fb.id} onClick={() => loadFieldbook(fb)}
+                    className={`w-full text-left px-2.5 py-1.5 rounded border text-xs transition-colors ${
+                      fieldbookId === fb.id ? 'border-amber-500/50 bg-amber-500/10 text-amber-300' : 'border-[var(--border-color)] hover:border-amber-500/20 text-[var(--text-secondary)]'
+                    }`}>
+                    <div className="truncate font-medium">{fb.name || fb.id}</div>
+                    <div className="text-[9px] text-[var(--text-muted)]">{fb.updated_at ?? fb.created_at ? new Date(fb.updated_at ?? fb.created_at as string).toLocaleString() : ''}</div>
                   </button>
                 ))
               )}
             </div>
-          </div>
+          </details>
 
-          {/* GNSS Rover Connection — direct hardware integration */}
-          <GNSSRoverConnection />
+          {/* GNSS & NTRIP — collapsible to save space */}
+          <details className="card p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">
+              GNSS Rover & NTRIP
+            </summary>
+            <div className="mt-3 space-y-3">
+              <GNSSRoverConnection />
+              <NTRIPClientPanel />
+            </div>
+          </details>
 
-          {/* NTRIP Client — RTK correction stream from CORS */}
-          <NTRIPClientPanel />
-
-          {/* GNSS Quality Report — QA/QC for ArdhiSasa compliance */}
-          <GNSSQualityReport />
+          {/* GNSS Quality — collapsible */}
+          <details className="card p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">
+              GNSS Quality Report
+            </summary>
+            <div className="mt-3">
+              <GNSSQualityReport />
+            </div>
+          </details>
         </div>
 
         <div className="lg:col-span-9 space-y-4">

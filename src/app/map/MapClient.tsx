@@ -998,13 +998,10 @@ export default function MapClient() {
               {/* ── Floating Tool Dock (consolidated left-edge dock) ── */}
               <MapToolDock />
 
-              {/* ── Mobile Gesture Lock (two-finger pan requirement) ── */}
+              {/* ── Mobile Gesture Lock (bottom-left, above status bar) ── */}
               <MapInteractionToggle mapInstance={mapInstance} />
 
-              {/* ── Offline Tile Download (pre-cache for field work) ── */}
-              <OfflineDownloadButton />
-
-              {/* ── Digitizing Toolbar (split, merge, reshape, rotate) ── */}
+              {/* ── Digitizing Toolbar (bottom-center, above status bar) ── */}
               <DigitizingToolbar
                 activeTool={activeDigitizingTool}
                 onToolChange={setActiveDigitizingTool}
@@ -1019,7 +1016,7 @@ export default function MapClient() {
                 }}
               />
 
-              {/* ── Snapping Options Panel ── */}
+              {/* ── Snapping Options Panel (top-right, below zoom) ── */}
               <SnappingOptions
                 open={showSnappingOptions}
                 onClose={() => setShowSnappingOptions(false)}
@@ -1027,7 +1024,7 @@ export default function MapClient() {
                 onToggleEnabled={() => setSnappingEnabled(!snappingEnabled)}
               />
 
-              {/* ── Identify Panel (shows when a feature is selected) ── */}
+              {/* ── Identify Panel (right side, below layer controls) ── */}
               <IdentifyPanel
                 feature={identifiedFeature}
                 onClose={() => setIdentifiedFeature(null)}
@@ -1042,11 +1039,10 @@ export default function MapClient() {
                 }}
               />
 
-              {/* ── Stakeout Radar button (launch beacon recovery) ── */}
+              {/* ── Stakeout Radar button (bottom-left, next to gesture lock) ── */}
               {!showStakeoutRadar && (
                 <button
                   onClick={() => {
-                    // Use map center as default target, or selected feature
                     const view = mapInstance.current?.getView()
                     if (view) {
                       const center = view.getCenter()
@@ -1056,11 +1052,11 @@ export default function MapClient() {
                       }
                     }
                   }}
-                  className="absolute top-14 left-3 z-20 flex items-center gap-1.5 px-3 h-10 rounded-xl bg-[#0d0d14]/60 backdrop-blur-xl border border-white/[0.06] text-gray-400 hover:text-[#E8841A] hover:border-[#E8841A]/30 transition-all shadow-lg"
+                  className="absolute bottom-20 left-3 z-20 flex items-center justify-center w-12 h-12 rounded-xl bg-[#0d0d14]/70 backdrop-blur-xl border border-white/[0.06] text-gray-400 hover:text-[#E8841A] hover:border-[#E8841A]/30 transition-all shadow-lg"
                   title="Launch stakeout radar for beacon recovery"
+                  aria-label="Stakeout radar"
                 >
-                  <Target className="w-4 h-4" />
-                  <span className="text-xs font-medium hidden sm:inline">Radar</span>
+                  <Target className="w-5 h-5" />
                 </button>
               )}
 
@@ -1072,6 +1068,9 @@ export default function MapClient() {
                   onClose={() => setShowStakeoutRadar(false)}
                 />
               )}
+
+              {/* ── Offline Download button (bottom-left, above radar) ── */}
+              <OfflineDownloadButton />
 
               <MapStatusBar />
 
