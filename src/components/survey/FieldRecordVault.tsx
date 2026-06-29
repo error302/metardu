@@ -19,6 +19,7 @@ import {
   Search, MapPin, Plus, Loader2, CheckCircle2,
   Calendar, User, FileText, ChevronRight, X,
 } from 'lucide-react'
+import { VirtualList } from '@/components/shared/VirtualList'
 
 interface FieldRecord {
   id: string
@@ -200,6 +201,39 @@ export function FieldRecordVault() {
                 {records.length} record{records.length !== 1 ? 's' : ''} found
               </span>
             </div>
+            {records.length > 30 ? (
+              <VirtualList
+                items={records}
+                itemHeight={88}
+                height={400}
+                renderItem={(record) => (
+                  <div className="p-1">
+                    <div className="flex items-start gap-3 p-2 rounded-lg border border-[var(--border-color)] hover:border-[var(--accent)]/30 transition-colors">
+                      <div className="shrink-0 w-8 h-8 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
+                        <FileText className="w-3.5 h-3.5 text-[var(--accent)]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium font-mono text-[var(--text-primary)]">{record.fr_number}</span>
+                          {record.is_verified && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
+                          {record.distance_m != null && (
+                            <span className="text-[9px] text-[var(--accent)] font-medium">
+                              {record.distance_m < 1000 ? `${record.distance_m.toFixed(0)}m away` : `${(record.distance_m / 1000).toFixed(1)}km away`}
+                            </span>
+                          )}
+                        </div>
+                        {record.locality && <div className="text-[10px] text-gray-500 mt-0.5">{record.county ? `${record.county} — ` : ''}{record.locality}</div>}
+                        <div className="flex items-center gap-3 mt-1 text-[9px] text-gray-600">
+                          {record.survey_year && <span>{record.survey_year}</span>}
+                          {record.surveyor_name && <span>{record.surveyor_name}</span>}
+                        </div>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-600 shrink-0" />
+                    </div>
+                  </div>
+                )}
+              />
+            ) : (
             <div className="space-y-2">
               {records.map(record => (
                 <div
@@ -265,6 +299,7 @@ export function FieldRecordVault() {
                 </div>
               ))}
             </div>
+            )}
           </>
         )}
       </div>

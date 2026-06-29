@@ -11,6 +11,7 @@ import {
   Upload, Loader2, CheckCircle2, AlertTriangle,
   Download, Table, Layers, Users,
 } from 'lucide-react'
+import { processWithProgress } from '@/lib/performance'
 
 interface ParsedParcel {
   id: string
@@ -33,6 +34,7 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
   const [parcels, setParcels] = useState<ParsedParcel[]>([])
   const [parsing, setParsing] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null)
@@ -166,35 +168,88 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
   const handleImport = useCallback(async () => {
     if (parcels.length === 0) return
     setImporting(true)
+    setImportProgress(0)
     setError(null)
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/parcels/batch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parcels: parcels.map(p => ({
-            parcelNumber: p.parcelNumber,
-            ownerName: p.ownerName,
-            ownerId: p.ownerId,
-            lrNumber: p.lrNumber,
-            areaHa: p.areaHa,
-            vertices: p.vertices,
-          })),
-        }),
-      })
+      // For large imports (100+ parcels), process in chunks to avoid UI freeze
+      if (parcels.length > 100) {
+        const validParcels = parcels.filter(p => p.valid)
+        const chunkSize = 50
+        const totalChunks = Math.ceil(validParcels.length / chunkSize)
 
-      if (!res.ok) {
+        let totalSuccess = 0
+        let totalFailed = 0
+
+        for (let i = 0; i < validParcels.length; i += chunkSize) {
+          const chunk = validParcels.slice(i, i + chunkSize)
+          const currentChunk = Math.floor(i / chunkSize) + 1
+
+          setImportProgress((currentChunk / totalChunks) * 100)
+
+          try {
+            const res = await fetch(`/api/projects/${projectId}/parcels/batch`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                parcels: chunk.map(p => ({
+                  parcelNumber: p.parcelNumber,
+                  ownerName: p.ownerName,
+                  ownerId: p.ownerId,
+                  lrNumber: p.lrNumber,
+                  areaHa: p.areaHa,
+                  vertices: p.vertices,
+                })),
+              }),
+            })
+            if (res.ok) {
+              const data = await res.json()
+              totalSuccess += data.data?.imported || chunk.length
+              totalFailed += data.data?.failed || 0
+            } else {
+              totalFailed += chunk.length
+            }
+          } catch {
+            totalFailed += chunk.length
+          }
+
+          // Yield to event loop so UI can update
+          await new Promise(resolve => setTimeout(resolve, 0))
+        }
+
+        setImportProgress(100)
+        setImportResult({ success: totalSuccess, failed: totalFailed })
+        onImport?.(parcels)
+      } else {
+        // Small import — single request
+        const res = await fetch(`/api/projects/${projectId}/parcels/batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            parcels: parcels.map(p => ({
+              parcelNumber: p.parcelNumber,
+              ownerName: p.ownerName,
+              ownerId: p.ownerId,
+              lrNumber: p.lrNumber,
+              areaHa: p.areaHa,
+              vertices: p.vertices,
+            })),
+          }),
+        })
+
+        if (!res.ok) {
+          const data = await res.json()
+          throw new Error(data.error || 'Import failed')
+        }
+
         const data = await res.json()
-        throw new Error(data.error || 'Import failed')
+        setImportResult({
+          success: data.data?.imported || parcels.length,
+          failed: data.data?.failed || 0,
+        })
+        setImportProgress(100)
+        onImport?.(parcels)
       }
-
-      const data = await res.json()
-      setImportResult({
-        success: data.data?.imported || parcels.length,
-        failed: data.data?.failed || 0,
-      })
-      onImport?.(parcels)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed')
     } finally {
@@ -354,7 +409,7 @@ MWAVUMBO/002,534860.000,9574230.000,Jane Smith,87654321,LR/12345/679,0.7500`
             className="w-full mt-3 flex items-center justify-center gap-2 h-10 rounded-lg bg-[var(--accent)] text-black text-sm font-semibold hover:bg-[var(--accent-dim)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
-            {importing ? 'Importing...' : `Import ${validCount} Parcels to Project`}
+            {importing ? `${importProgress > 0 ? Math.round(importProgress) + '%' : 'Importing...'}` : `Import ${validCount} Parcels to Project`}
           </button>
         </div>
       )}

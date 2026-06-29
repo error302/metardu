@@ -9,15 +9,13 @@
  * 3. Sends a debounced request to the spatial API
  * 4. Loads nearby parcels, beacons, and field records into the map
  *
- * This creates a "live discovery" experience — as you pan, data appears.
- *
- * Uses:
- * - OpenLayers moveend event
- * - Debounce (500ms) to avoid excessive API calls
- * - transformExtent for CRS conversion
+ * Uses performance utilities:
+ * - useDebouncedCallback for 500ms debounce
+ * - Deduplication to skip identical extents
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useDebouncedCallback } from '@/lib/performance'
 
 export interface ViewportFeature {
   id: string
@@ -47,7 +45,6 @@ export function useViewportQuery({
   const [isLoading, setIsLoading] = useState(false)
   const [featureCount, setFeatureCount] = useState(0)
   const [lastExtent, setLastExtent] = useState<string>('')
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastRequestRef = useRef<string>('')
 
   const fetchViewport = useCallback(async () => {
@@ -99,32 +96,22 @@ export function useViewportQuery({
     }
   }, [mapInstance, enabled, onFeaturesLoaded])
 
+  // Use performance utility for debounced fetch
+  const debouncedFetch = useDebouncedCallback(fetchViewport, debounceMs)
+
   // Listen for moveend events
   useEffect(() => {
     if (!mapReady || !enabled || !mapInstance.current) return
 
     const map = mapInstance.current
 
-    const handleMoveEnd = () => {
-      // Debounce to avoid spamming on rapid pan/zoom
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
-      debounceTimerRef.current = setTimeout(() => {
-        fetchViewport()
-      }, debounceMs)
-    }
-
-    map.on('moveend', handleMoveEnd)
+    map.on('moveend', debouncedFetch)
 
     // Initial fetch
     fetchViewport()
 
     return () => {
-      map.un('moveend', handleMoveEnd)
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
+      map.un('moveend', debouncedFetch)
     }
   }, [mapReady, enabled, mapInstance, fetchViewport, debounceMs])
 

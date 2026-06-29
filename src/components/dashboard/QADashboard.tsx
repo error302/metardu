@@ -23,6 +23,13 @@ import {
 import { runTopologyCheck, type ExistingParcel } from '@/lib/survey/topologyChecker'
 import { evaluateTraversePrecision, type TraverseCategory } from '@/lib/engine/computationalAccuracy'
 import { computeAreaWithPrecision } from '@/lib/engine/computationalAccuracy'
+import { memoize } from '@/lib/performance'
+
+// Memoized area computation — caches results for same vertex sets
+const memoizedComputeArea = memoize(computeAreaWithPrecision, {
+  keyFn: (...args: any[]) => JSON.stringify(args[0]),
+  maxSize: 200,
+})
 
 interface QACheck {
   id: string
@@ -138,7 +145,7 @@ export function QADashboard({
     // ─── 2. Area Reconciliation ──────────────────────────────
     if (parentAreaHa && parcels.length > 0) {
       const sumOfParts = parcels.reduce((sum, p) => {
-        const area = computeAreaWithPrecision(p.vertices)
+        const area = memoizedComputeArea(p.vertices)
         return sum + area.areaHectares
       }, 0)
 

@@ -23,6 +23,7 @@ import {
   Calculator, Ruler, Compass, Users, CreditCard, BarChart3,
   BookOpen, HelpCircle, Loader2,
 } from 'lucide-react'
+import { useDebounceValue } from '@/lib/performance'
 
 interface SearchResult {
   id: string
@@ -104,45 +105,51 @@ export function CommandPalette() {
     }
   }, [open])
 
-  // Search API when query changes (debounced)
+  // Debounced query using performance utility
+  const debouncedQuery = useDebounceValue(query, 200)
+
+  // Search API when debounced query changes
   useEffect(() => {
-    if (!query.trim() || query.length < 2) {
+    if (!debouncedQuery.trim() || debouncedQuery.length < 2) {
       setApiResults([])
       return
     }
 
     setSearching(true)
-    const timer = setTimeout(async () => {
+    let cancelled = false
+
+    async function doSearch() {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=10`)
-        if (res.ok) {
-          const data = await res.json()
-          const results: SearchResult[] = []
-          // Flatten grouped results
-          if (data.data?.groups) {
-            for (const group of data.data.groups) {
-              for (const hit of group.hits || []) {
-                results.push({
-                  id: hit.id,
-                  type: group.type,
-                  title: hit.title,
-                  subtitle: hit.subtitle,
-                  href: getHrefForType(group.type, hit.id, hit.meta),
-                })
-              }
+        const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}&limit=10`)
+        if (cancelled || !res.ok) return
+        const data = await res.json()
+        if (cancelled) return
+        const results: SearchResult[] = []
+        if (data.data?.groups) {
+          for (const group of data.data.groups) {
+            for (const hit of group.hits || []) {
+              results.push({
+                id: hit.id,
+                type: group.type,
+                title: hit.title,
+                subtitle: hit.subtitle,
+                href: getHrefForType(group.type, hit.id, hit.meta),
+              })
             }
           }
-          setApiResults(results)
         }
-      } catch (err) {
+        setApiResults(results)
+      } catch {
         // Silent fail
       } finally {
-        setSearching(false)
+        if (!cancelled) setSearching(false)
       }
-    }, 200)
+    }
 
-    return () => clearTimeout(timer)
-  }, [query])
+    doSearch()
+
+    return () => { cancelled = true }
+  }, [debouncedQuery])
 
   // Filter static nav by query
   const filteredNav = useMemo(() => {
