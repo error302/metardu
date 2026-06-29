@@ -56,11 +56,29 @@ export function useMapBasemaps(): UseMapBasemapsReturn {
       }),
       terrain: new TileLayer({
         source: new XYZ({
+          // Primary: OpenTopoMap (topographic contours + hill shading)
+          // Fallback handled by OpenLayers tile error event
           url: 'https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png',
           crossOrigin: 'anonymous',
           maxZoom: 17,
           attributions: '\u00A9 OpenTopoMap (CC-BY-SA)',
           cacheSize: 2048,
+          // Retry failed tiles
+          tileLoadFunction: (imageTile: any, src: string) => {
+            const img = imageTile.getImage()
+            img.onerror = () => {
+              // Fallback to Esri terrain if OpenTopoMap is rate-limited
+              const z = imageTile.getTileCoord()[0]
+              const x = imageTile.getTileCoord()[1]
+              const y = imageTile.getTileCoord()[2]
+              img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`
+              img.onerror = () => {
+                // Final fallback: OSM (at least show something)
+                img.src = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`
+              }
+            }
+            img.src = src
+          },
         }),
         visible: false,
         zIndex: 0,
