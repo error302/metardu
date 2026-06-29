@@ -52,18 +52,47 @@ const FIX_QUALITY_LABELS: Record<string, { label: string; color: string; icon: s
   rtk_fixed: { label: 'RTK Fixed', color: 'text-emerald-400', icon: '🟢' },
   rtk_float: { label: 'RTK Float', color: 'text-amber-400', icon: '🟡' },
   dgps: { label: 'DGPS', color: 'text-blue-400', icon: '🔵' },
-  gps: { label: 'GPS Only', color: 'text-amber-400', icon: '🟡' },
-  none: { label: 'No Fix', color: 'text-red-400', icon: '🔴' },
+  gps: { label: 'GPS Only', color: 'text-amber-400', icon: '[Y]' },
+  none: { label: 'No Fix', color: 'text-red-400', icon: '[R]' },
 }
 
-export function GNSSQualityReport() {
+export function GNSSQualityReport({ externalPosition }: {
+  /** When provided (from GNSS rover), uses NMEA data instead of browser geolocation */
+  externalPosition?: { lat: number; lng: number; altitude: number; hdop: number; satellites: number; fixType: string; quality: number } | null
+}) {
   const [quality, setQuality] = useState<GNSSQuality | null>(null)
   const [history, setHistory] = useState<GNSSQuality[]>([])
   const [watching, setWatching] = useState(false)
   const watchIdRef = useRef<number | null>(null)
 
+  // Use external rover data when available
+  useEffect(() => {
+    if (!externalPosition) return
+
+    const q: GNSSQuality = {
+      fixQuality: externalPosition.fixType as any || (externalPosition.quality >= 4 ? 'rtk_fixed' : externalPosition.quality >= 2 ? 'dgps' : 'gps'),
+      satellites: externalPosition.satellites || 0,
+      satellitesGPS: 0,
+      satellitesGLONASS: 0,
+      satellitesGalileo: 0,
+      satellitesBeiDou: 0,
+      pdop: 0, // Not available from NMEA GGA
+      hdop: externalPosition.hdop || 0,
+      vdop: 0, // Not available from NMEA GGA
+      baseDistanceKm: null,
+      correctionAge: null,
+      latitude: externalPosition.lat,
+      longitude: externalPosition.lng,
+      altitude: externalPosition.altitude,
+      timestamp: new Date(),
+    }
+    setQuality(q)
+    setHistory(prev => [...prev.slice(-99), q])
+  }, [externalPosition])
+
   const startWatch = useCallback(() => {
     if (watching) return
+    if (externalPosition) return // Using external data, don't start browser GPS
     setWatching(true)
 
     if (!('geolocation' in navigator)) {

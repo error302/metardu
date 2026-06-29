@@ -1218,9 +1218,6 @@ export default function DigitalFieldBookPage() {
           <button onClick={handleSyncNow} className="btn btn-secondary">
             {t('field.syncOffline')}
           </button>
-          <Link className="btn btn-secondary" href="/fieldbook/ai">
-            {t('field.fieldBookAI')}
-          </Link>
         </div>
       </div>
 
