@@ -83,6 +83,32 @@ export function useMapBasemaps(): UseMapBasemapsReturn {
         visible: false,
         zIndex: 0,
       }),
+      // Land cover overlay (Sentinel-2 NDVI/NDBI)
+      ndvi: new TileLayer({
+        source: new XYZ({
+          url: 'https://services.arcgisonline.com/arcgis/rest/services/Sentinel2/ImageServer/tile/{z}/{y}/{x}',
+          crossOrigin: 'anonymous',
+          maxZoom: 16,
+          attributions: '\u00A9 Esri Sentinel-2',
+          cacheSize: 1024,
+        }),
+        visible: false,
+        zIndex: 1,  // Above basemaps
+        opacity: 0.7,
+      }),
+      // Satellite imagery for NDBI/NDWI visual reference
+      imagery: new TileLayer({
+        source: new XYZ({
+          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          crossOrigin: 'anonymous',
+          maxZoom: 19,
+          attributions: '\u00A9 Esri World Imagery',
+          cacheSize: 2048,
+        }),
+        visible: false,
+        zIndex: 1,
+        opacity: 0.7,
+      }),
     }
 
     // Tag each layer for basemap lookup

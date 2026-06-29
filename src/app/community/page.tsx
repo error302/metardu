@@ -30,11 +30,7 @@ const surveyorDirectory = [
   { name: 'Grace Wanjiku', region: 'Mombasa County', county: 'Mombasa', specialty: 'Hydrographic & port surveys', tags: ['Hydro', 'Port'], rating: 4.9, jobs: '74', status: 'Review slots open', license: 'ISK/LS/2020/0287' },
 ]
 
-const peerReviewQueue = [
-  { title: 'Subdivision deed plan check', meta: 'Kiambu / 12 parcels / bearings & area table', status: 'reviewers', count: 2, href: '/peer-review?tab=open' },
-  { title: 'RIM amendment package', meta: 'Kajiado / registry submission prep', status: 'urgent', count: 0, href: '/peer-review?tab=open' },
-  { title: 'Road reserve acquisition plan', meta: 'Machakos / wayleave & beacon schedule', status: 'new', count: 0, href: '/peer-review?tab=open' },
-]
+const peerReviewQueue: Array<{ title: string; meta: string; status: string; count: number; href: string }> = []
 
 const equipmentListings = [
   { title: 'Leica TS07 total station', condition: 'good', location: 'Nairobi', price: 'KSh 310,000', type: 'sale', href: '/marketplace' },
@@ -564,7 +560,7 @@ export default function CommunityPage() {
                   <Search className="w-4 h-4" /> Find Surveyor
                 </Link>
                 <Link
-                  href="/peer-review?tab=submit"
+                  href="/marketplace"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-primary)] hover:border-[var(--accent)]/40 transition-colors"
                 >
                   <FileCheck2 className="w-4 h-4" /> Submit Review
@@ -737,7 +733,7 @@ export default function CommunityPage() {
               <FileCheck2 className="w-5 h-5 text-[var(--accent)]" />
               <h2 className="text-xl font-bold text-[var(--text-primary)]">Plan Review Desk</h2>
             </div>
-            <Link href="/peer-review?tab=open" className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1 font-medium">
+            <Link href="/marketplace" className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1 font-medium">
               Review queue <ChevronRight className="w-3 h-3" />
             </Link>
           </div>

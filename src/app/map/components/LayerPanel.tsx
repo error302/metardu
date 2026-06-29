@@ -44,6 +44,8 @@ const DEFAULT_LAYERS: Layer[] = [
   { id: 'satellite', name: 'Satellite', type: 'basemap', visible: false, opacity: 100, icon: Satellite },
   { id: 'dark', name: 'Dark Matter', type: 'basemap', visible: false, opacity: 100, icon: Moon },
   { id: 'terrain', name: 'Terrain', type: 'basemap', visible: false, opacity: 100, icon: Mountain },
+  { id: 'ndvi', name: 'Sentinel-2 NDVI', type: 'overlays', visible: false, opacity: 70, icon: Layers },
+  { id: 'imagery', name: 'Esri Imagery', type: 'overlays', visible: false, opacity: 70, icon: Satellite },
   { id: 'parcels', name: 'Parcels', type: 'parcels', visible: true, opacity: 80, icon: Layers },
   { id: 'beacons', name: 'Beacons', type: 'beacons', visible: true, opacity: 100, icon: MapPin },
   { id: 'measurements', name: 'Measurements', type: 'measurements', visible: true, opacity: 100, icon: Layers },
