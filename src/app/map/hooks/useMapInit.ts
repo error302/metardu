@@ -416,9 +416,18 @@ export function useMapInit(params: UseMapInitParams) {
           }
         })
 
-        // ── Snap interaction ──
+        // ── Snap interaction — snaps to drawn features AND scheme parcels/beacons ──
+        // Collect all vector sources for snapping (draw + scheme parcel + scheme beacon)
+        const snapSources: any[] = [drawSource]
+        // Scheme layers are added later by MapClient; we use a dynamic approach:
+        // The Snap interaction can be reconfigured when scheme layers load.
+        // For now, snap to the draw source. MapClient will add scheme sources via
+        // the snap interaction's setSource() or by creating additional Snap interactions.
         const snap = new Snap({ source: drawSource })
         map.addInteraction(snap)
+
+        // Store snap reference on the map for later source addition
+        ;(map as any)._snapInteraction = snap
 
         // ── DragRotate interaction (Alt + drag to rotate map) ──
         const dragRotate = new DragRotate({

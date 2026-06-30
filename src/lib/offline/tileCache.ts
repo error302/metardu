@@ -249,22 +249,126 @@ export interface DownloadProgress {
 
 /** Download tiles for a bounding box range.
  *  Accepts the component's Bounds shape (minLat, maxLat, minLon, maxLon).
- *  Returns a DownloadProgress-shaped result so callers can feed it directly to setState. */
+ *  Returns a DownloadProgress-shaped result so callers can feed it directly to setState.
+ *
+ *  Real implementation: fetches tiles from the tile server, stores as blobs in IndexedDB.
+ */
 export async function downloadTilesForBounds(
   sourceId: string,
-  _url: string,
+  url: string,
   bounds: { minLat: number; maxLat: number; minLon: number; maxLon: number },
   minZoom: number,
   maxZoom: number,
   _type: string,
   onProgress: (progress: DownloadProgress) => void,
-  _signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<DownloadProgress> {
   const { total } = calculateTileCount(bounds, minZoom, maxZoom)
-  // Stub: report initial progress and return empty result
-  const emptyProgress: DownloadProgress = { total, downloaded: 0, skipped: 0, failed: 0, bytesDownloaded: 0, currentZoom: minZoom, percent: 0 }
-  onProgress(emptyProgress)
-  return emptyProgress
+  let downloaded = 0
+  let skipped = 0
+  let failed = 0
+  let bytesDownloaded = 0
+
+  // Open IndexedDB
+  let db: IDBDatabase
+  try {
+    db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('METARDUTileCache', 1)
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => resolve(req.result)
+      req.onupgradeneeded = (event) => {
+        const d = (event.target as IDBOpenDBRequest).result
+        if (!d.objectStoreNames.contains('tiles')) d.createObjectStore('tiles', { keyPath: 'url' })
+        if (!d.objectStoreNames.contains('metadata')) d.createObjectStore('metadata', { keyPath: 'key' })
+      }
+    })
+  } catch {
+    return { total, downloaded: 0, skipped: 0, failed: total, bytesDownloaded: 0, currentZoom: minZoom, percent: 0 }
+  }
+
+  // Helper: cache a tile
+  const cacheTile = async (tileUrl: string, blob: Blob) => {
+    return new Promise<void>((resolve) => {
+      const tx = db.transaction('tiles', 'readwrite')
+      const store = tx.objectStore('tiles')
+      const req = store.put({ url: tileUrl, blob, timestamp: Date.now(), sourceId })
+      req.onsuccess = () => resolve()
+      req.onerror = () => resolve()
+    })
+  }
+
+  // Helper: check if tile is already cached
+  const isCached = async (tileUrl: string): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      const tx = db.transaction('tiles', 'readonly')
+      const store = tx.objectStore('tiles')
+      const req = store.get(tileUrl)
+      req.onsuccess = () => resolve(!!req.result)
+      req.onerror = () => resolve(false)
+    })
+  }
+
+  for (let z = minZoom; z <= maxZoom; z++) {
+    const tileBounds = calculateTileBounds(bounds.maxLat, bounds.minLat, bounds.maxLon, bounds.minLon, z)
+
+    for (let x = tileBounds.minX; x <= tileBounds.maxX; x++) {
+      for (let y = tileBounds.minY; y <= tileBounds.maxY; y++) {
+        if (signal?.aborted) {
+          return { total, downloaded, skipped, failed, bytesDownloaded, currentZoom: z, percent: Math.round(((downloaded + skipped) / total) * 100) }
+        }
+
+        const tileUrl = url
+          .replace('{z}', String(z))
+          .replace('{x}', String(x))
+          .replace('{y}', String(y))
+          .replace('{s}', ['a', 'b', 'c'][Math.abs(x + y) % 3])
+
+        // Check cache first
+        if (await isCached(tileUrl)) {
+          skipped++
+        } else {
+          try {
+            const response = await fetch(tileUrl, { mode: 'cors', signal })
+            if (response.ok) {
+              const blob = await response.blob()
+              await cacheTile(tileUrl, blob)
+              bytesDownloaded += blob.size
+              downloaded++
+            } else {
+              failed++
+            }
+          } catch {
+            failed++
+          }
+        }
+
+        // Report progress every 10 tiles
+        if ((downloaded + skipped + failed) % 10 === 0) {
+          onProgress({
+            total,
+            downloaded,
+            skipped,
+            failed,
+            bytesDownloaded,
+            currentZoom: z,
+            percent: Math.round(((downloaded + skipped) / total) * 100),
+          })
+        }
+      }
+    }
+  }
+
+  const finalProgress: DownloadProgress = {
+    total,
+    downloaded,
+    skipped,
+    failed,
+    bytesDownloaded,
+    currentZoom: maxZoom,
+    percent: Math.round(((downloaded + skipped) / total) * 100),
+  }
+  onProgress(finalProgress)
+  return finalProgress
 }
 
 /** Information about a cached tile source — matches what the UI manager expects */
@@ -277,16 +381,118 @@ export interface CachedSourceInfo {
   }
 }
 
-/** List all cached tile sources */
+/** List all cached tile sources by scanning IndexedDB */
 export async function listCachedSources(): Promise<CachedSourceInfo[]> {
-  // Stub: return empty list
-  return []
+  try {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('METARDUTileCache', 1)
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => resolve(req.result)
+      req.onupgradeneeded = (event) => {
+        const d = (event.target as IDBOpenDBRequest).result
+        if (!d.objectStoreNames.contains('tiles')) d.createObjectStore('tiles', { keyPath: 'url' })
+        if (!d.objectStoreNames.contains('metadata')) d.createObjectStore('metadata', { keyPath: 'key' })
+      }
+    })
+
+    return new Promise<CachedSourceInfo[]>((resolve) => {
+      const tx = db.transaction('tiles', 'readonly')
+      const store = tx.objectStore('tiles')
+      const req = store.getAll()
+
+      req.onsuccess = () => {
+        const tiles = req.result as Array<{ url: string; blob: Blob; timestamp: number; sourceId?: string }>
+        const sourceMap = new Map<string, { count: number; sizeBytes: number; newestTimestamp: number }>()
+
+        for (const tile of tiles) {
+          const sid = tile.sourceId || 'unknown'
+          const existing = sourceMap.get(sid) || { count: 0, sizeBytes: 0, newestTimestamp: 0 }
+          existing.count++
+          existing.sizeBytes += tile.blob?.size || 0
+          existing.newestTimestamp = Math.max(existing.newestTimestamp, tile.timestamp || 0)
+          sourceMap.set(sid, existing)
+        }
+
+        resolve(Array.from(sourceMap.entries()).map(([sourceId, stats]) => ({ sourceId, stats })))
+      }
+      req.onerror = () => resolve([])
+    })
+  } catch {
+    return []
+  }
 }
 
 /** Delete cached tiles for a specific source */
 export async function deleteCachedTiles(sourceId: string): Promise<void> {
+  try {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('METARDUTileCache', 1)
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => resolve(req.result)
+    })
+
+    const tx = db.transaction('tiles', 'readwrite')
+    const store = tx.objectStore('tiles')
+    const cursorReq = store.openCursor()
+
+    await new Promise<void>((resolve) => {
+      cursorReq.onsuccess = () => {
+        const cursor = cursorReq.result
+        if (cursor) {
+          if (cursor.value.sourceId === sourceId) {
+            cursor.delete()
+          }
+          cursor.continue()
+        } else {
+          resolve()
+        }
+      }
+      cursorReq.onerror = () => resolve()
+    })
+  } catch {
+    // ignore
+  }
 }
 
 /** Clear all tile cache */
 export async function clearAllTileCache(): Promise<void> {
+  try {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('METARDUTileCache', 1)
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => resolve(req.result)
+    })
+
+    const tx = db.transaction('tiles', 'readwrite')
+    const store = tx.objectStore('tiles')
+
+    await new Promise<void>((resolve) => {
+      const req = store.clear()
+      req.onsuccess = () => resolve()
+      req.onerror = () => resolve()
+    })
+  } catch {
+    // ignore
+  }
+}
+
+/** Get a cached tile blob by URL — used by custom tileLoadFunction for offline basemaps */
+export async function getCachedTileBlob(url: string): Promise<Blob | null> {
+  try {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('METARDUTileCache', 1)
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => resolve(req.result)
+    })
+
+    return new Promise<Blob | null>((resolve) => {
+      const tx = db.transaction('tiles', 'readonly')
+      const store = tx.objectStore('tiles')
+      const req = store.get(url)
+      req.onsuccess = () => resolve(req.result?.blob || null)
+      req.onerror = () => resolve(null)
+    })
+  } catch {
+    return null
+  }
 }

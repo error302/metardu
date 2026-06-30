@@ -257,8 +257,72 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     if (!source) return
 
     const modify = new Modify({ source })
-    modify.on('modifyend', () => {
+    modify.on('modifyend', async (e: any) => {
       setTimeout(p.pushHistory, 100)
+
+      // ── Vertex editing persistence: save modified geometry to project ──
+      if (p.projectId && e.features) {
+        try {
+          const features = e.features.getArray?.() || []
+          for (const feature of features) {
+            const geom = feature.getGeometry()
+            if (!geom) continue
+
+            const type = geom.getType()
+            const { transform } = await import('ol/proj')
+            const { default: GeoJSONFormat } = await import('ol/format/GeoJSON')
+            const fmt = new GeoJSONFormat()
+
+            // Convert modified feature to GeoJSON
+            const geojson = fmt.writeFeatureObject(feature, {
+              featureProjection: 'EPSG:3857',
+              dataProjection: 'EPSG:4326',
+            })
+
+            // Update the project's boundary_data with the modified feature
+            const { createClient } = await import('@/lib/api-client/client')
+            const dbClient = createClient()
+            const { data: projData } = await dbClient
+              .from('projects')
+              .select('boundary_data')
+              .eq('id', p.projectId)
+              .single()
+
+            const bd: Record<string, unknown> = (projData as any)?.boundary_data || {}
+            const drawnFeatures: any[] = ((bd as any).drawnFeatures)?.features || []
+
+            // Find and replace the modified feature (by id if available)
+            const featureId = feature.getId?.() || feature.get('ol_uid') || String(Date.now())
+            const idx = drawnFeatures.findIndex((f: any) =>
+              f.id === featureId || f.properties?.ol_uid === featureId
+            )
+
+            if (idx >= 0) {
+              drawnFeatures[idx] = geojson
+            } else {
+              drawnFeatures.push(geojson)
+            }
+
+            await dbClient
+              .from('projects')
+              .update({
+                boundary_data: {
+                  ...bd,
+                  drawnFeatures: { type: 'FeatureCollection', features: drawnFeatures },
+                  lastModifiedAt: new Date().toISOString(),
+                },
+              })
+              .eq('id', p.projectId)
+
+            if (p.setSaveMsg) {
+              p.setSaveMsg(`Vertex edited — saved to project`)
+              setTimeout(() => p.setSaveMsg?.(''), 3000)
+            }
+          }
+        } catch (err) {
+          console.error('[VertexEdit] Failed to persist:', err)
+        }
+      }
     })
     p.mapInstance.current.addInteraction(modify)
     p.modifyInteractionRef.current = modify
