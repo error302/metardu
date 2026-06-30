@@ -15,7 +15,7 @@ export default function NotFound() {
           </svg>
         </div>
 
-        <h1 className="text-6xl font-bold text-[var(--accent)] mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+        <h1 className="text-6xl font-bold text-[var(--accent)] mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           404
         </h1>
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-3">Page not found</h2>

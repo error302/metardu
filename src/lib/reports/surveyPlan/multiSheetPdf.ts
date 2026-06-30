@@ -223,19 +223,19 @@ function renderSheetSvg(
     const tableH = headerH + maxRows * rowH
 
     svg += `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(`COORDINATE SCHEDULE (${datum} / UTM ${zone})`)}</text>`
+    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(`COORDINATE SCHEDULE (${datum} / UTM ${zone})`)}</text>`
     const hY = startY + headerH
     svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
     const headers = ['Point', 'Easting', 'Northing', '']
     headers.forEach((h, i) => {
-      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
+      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
     })
     pts.slice(0, maxRows).forEach((pt, i) => {
       const ry = hY + rowH * (i + 1)
       if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
-      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(pt.name)}</text>`
-      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.easting.toFixed(3)}</text>`
-      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.northing.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(pt.name)}</text>`
+      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.easting.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.northing.toFixed(3)}</text>`
     })
 
     // Bearing schedule
@@ -251,20 +251,20 @@ function renderSheetSvg(
     const bearingMaxRows = 15
     const bearingTableH = headerH + Math.min(schedule.length, bearingMaxRows) * rowH
     svg += `<rect x="${leftPad}" y="${bearingStartY}" width="${panelInnerW}" height="${bearingTableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${bearingStartY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">BEARING SCHEDULE</text>`
+    svg += `<text x="${leftPad + 2}" y="${bearingStartY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">BEARING SCHEDULE</text>`
     const bHY = bearingStartY + headerH
     svg += `<line x1="${leftPad}" y1="${bHY}" x2="${leftPad + panelInnerW}" y2="${bHY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
     const bHeaders = ['From', 'To', 'Bearing', 'Dist (m)']
     bHeaders.forEach((h, i) => {
-      svg += `<text x="${leftPad + i * colW + 2}" y="${bHY + mmToPx(2.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
+      svg += `<text x="${leftPad + i * colW + 2}" y="${bHY + mmToPx(2.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
     })
     schedule.slice(0, bearingMaxRows).forEach((row, i) => {
       const ry = bHY + rowH * (i + 1)
       if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
-      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.from)}</text>`
-      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.to)}</text>`
-      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.bearing)}</text>`
-      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${row.distance.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.from)}</text>`
+      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.to)}</text>`
+      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.bearing)}</text>`
+      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${row.distance.toFixed(3)}</text>`
     })
   }
 
@@ -274,7 +274,7 @@ function renderSheetSvg(
   const arrowH = mmToPx(15)
   svg += `<rect x="${nx - 1}" y="${ny}" width="2" height="${arrowH * 0.7}" fill="${C_BLACK}"/>`
   svg += `<polygon points="${nx},${ny - arrowH * 0.3} ${nx - 5},${ny + 2} ${nx + 5},${ny + 2}" fill="${C_BLACK}"/>`
-  svg += `<text x="${nx}" y="${ny - arrowH * 0.3 - 6}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="11" font-weight="bold" fill="${C_BLACK}">N</text>`
+  svg += `<text x="${nx}" y="${ny - arrowH * 0.3 - 6}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="11" font-weight="bold" fill="${C_BLACK}">N</text>`
 
   // Scale bar on every page
   const scaleBarX = drawX + mmToPx(8)
@@ -286,13 +286,13 @@ function renderSheetSvg(
     const sx = scaleBarX + i * segW
     const fill = i % 2 === 0 ? C_BLACK : 'white'
     svg += `<rect x="${sx}" y="${scaleBarY}" width="${segW}" height="8" fill="${fill}" stroke="${C_BLACK}" stroke-width="0.8"/>`
-    svg += `<text x="${sx}" y="${scaleBarY - 6}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">${i * segmentMetres}</text>`
+    svg += `<text x="${sx}" y="${scaleBarY - 6}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">${i * segmentMetres}</text>`
   }
-  svg += `<text x="${scaleBarX + scaleBarW}" y="${scaleBarY - 6}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">${4 * segmentMetres}</text>`
-  svg += `<text x="${scaleBarX}" y="${scaleBarY + 18}" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">SCALE METRES</text>`
+  svg += `<text x="${scaleBarX + scaleBarW}" y="${scaleBarY - 6}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">${4 * segmentMetres}</text>`
+  svg += `<text x="${scaleBarX}" y="${scaleBarY + 18}" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">SCALE METRES</text>`
 
   // Continuation markers
-  const markerFont = `font-family="Share Tech Mono, Courier New" font-size="9" font-weight="bold" fill="${C_BLACK}"`
+  const markerFont = `font-family="JetBrains Mono, Courier New" font-size="9" font-weight="bold" fill="${C_BLACK}"`
 
   if (viewport.continuesRight) {
     const targetSheet = viewport.sheetIndex + 1
@@ -335,29 +335,29 @@ function renderSheetSvg(
     const sheetLabel = `Sheet ${viewport.sheetIndex + 1} of ${viewport.totalSheets}`
     const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
 
-    svg += `<text x="${pageW / 2}" y="${tbY + mmToPx(5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(projectName)}</text>`
-    if (parcelId) svg += `<text x="${pageW / 2}" y="${tbY + mmToPx(9)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="#555">${escapeXml(parcelId)}</text>`
-    svg += `<text x="${pageW * 0.25}" y="${tbY + mmToPx(15)}" font-family="Share Tech Mono, Courier New" font-size="6" fill="#555">Surveyor: ${escapeXml(surveyor)} LS/${escapeXml(lsNo)}</text>`
-    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(15)}" font-family="Share Tech Mono, Courier New" font-size="6" fill="#555">Scale: ${scaleLabel}</text>`
-    svg += `<text x="${pageW * 0.75}" y="${tbY + mmToPx(15)}" font-family="Share Tech Mono, Courier New" font-size="6" fill="#555">${sheetLabel}</text>`
-    svg += `<text x="${pageW * 0.25}" y="${tbY + mmToPx(20)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="#888">Coord: UTM Zone ${zone} ${datum} (Clarke 1880)</text>`
-    svg += `<text x="${pageW * 0.75}" y="${tbY + mmToPx(20)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="#888">Date: ${date}</text>`
-    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(26)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="#888">Area: ${data.parcel.area_sqm.toFixed(2)} m\u00B2 (${(data.parcel.area_sqm / 10000).toFixed(4)} ha)</text>`
-    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(31)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4" fill="#aaa">Per Survey Act Cap. 299 \u2014 Survey Regulations 1994</text>`
-    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(35)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4" fill="#aaa">Distances in metres. Divide by 0.3048 for feet.</text>`
-    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(40)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3.5" fill="#bbb">METARDU Professional Survey Platform</text>`
+    svg += `<text x="${pageW / 2}" y="${tbY + mmToPx(5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(projectName)}</text>`
+    if (parcelId) svg += `<text x="${pageW / 2}" y="${tbY + mmToPx(9)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="#555">${escapeXml(parcelId)}</text>`
+    svg += `<text x="${pageW * 0.25}" y="${tbY + mmToPx(15)}" font-family="JetBrains Mono, Courier New" font-size="6" fill="#555">Surveyor: ${escapeXml(surveyor)} LS/${escapeXml(lsNo)}</text>`
+    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(15)}" font-family="JetBrains Mono, Courier New" font-size="6" fill="#555">Scale: ${scaleLabel}</text>`
+    svg += `<text x="${pageW * 0.75}" y="${tbY + mmToPx(15)}" font-family="JetBrains Mono, Courier New" font-size="6" fill="#555">${sheetLabel}</text>`
+    svg += `<text x="${pageW * 0.25}" y="${tbY + mmToPx(20)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="#888">Coord: UTM Zone ${zone} ${datum} (Clarke 1880)</text>`
+    svg += `<text x="${pageW * 0.75}" y="${tbY + mmToPx(20)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="#888">Date: ${date}</text>`
+    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(26)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="5" fill="#888">Area: ${data.parcel.area_sqm.toFixed(2)} m\u00B2 (${(data.parcel.area_sqm / 10000).toFixed(4)} ha)</text>`
+    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(31)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="4" fill="#aaa">Per Survey Act Cap. 299 \u2014 Survey Regulations 1994</text>`
+    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(35)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="4" fill="#aaa">Distances in metres. Divide by 0.3048 for feet.</text>`
+    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(40)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3.5" fill="#bbb">METARDU Professional Survey Platform</text>`
   } else {
     // Minimal title block for intermediate sheets
     const projectName = data.project.name || 'SURVEY PLAN'
     const scaleLabel = `1:${scale.toLocaleString()}`
     const sheetLabel = `Sheet ${viewport.sheetIndex + 1} of ${viewport.totalSheets}`
-    svg += `<text x="${pageW * 0.25}" y="${tbY + mmToPx(7)}" font-family="Share Tech Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}">${escapeXml(projectName)}</text>`
-    svg += `<text x="${pageW * 0.55}" y="${tbY + mmToPx(7)}" font-family="Share Tech Mono, Courier New" font-size="7" fill="#555">Scale: ${scaleLabel}</text>`
-    svg += `<text x="${pageW * 0.8}" y="${tbY + mmToPx(7)}" font-family="Share Tech Mono, Courier New" font-size="7" fill="#555">${sheetLabel}</text>`
-    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(14)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4" fill="#aaa">Per Survey Act Cap. 299</text>`
+    svg += `<text x="${pageW * 0.25}" y="${tbY + mmToPx(7)}" font-family="JetBrains Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}">${escapeXml(projectName)}</text>`
+    svg += `<text x="${pageW * 0.55}" y="${tbY + mmToPx(7)}" font-family="JetBrains Mono, Courier New" font-size="7" fill="#555">Scale: ${scaleLabel}</text>`
+    svg += `<text x="${pageW * 0.8}" y="${tbY + mmToPx(7)}" font-family="JetBrains Mono, Courier New" font-size="7" fill="#555">${sheetLabel}</text>`
+    svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(14)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="4" fill="#aaa">Per Survey Act Cap. 299</text>`
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${pageW} ${pageH}" width="${pageW}" height="${pageH}" style="font-family: 'Share Tech Mono', 'Courier New', monospace;">${svg}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${pageW} ${pageH}" width="${pageW}" height="${pageH}" style="font-family: 'JetBrains Mono', 'Courier New', monospace;">${svg}</svg>`
 }
 
 /**

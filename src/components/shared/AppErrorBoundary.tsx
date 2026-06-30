@@ -58,7 +58,7 @@ export default function AppErrorBoundary({ error, reset, context }: AppErrorBoun
 
         <h2
           className="text-xl font-semibold mb-2"
-          style={{ color: 'var(--text-primary)', fontFamily: "'Barlow Condensed', sans-serif" }}
+          style={{ color: 'var(--text-primary)', fontFamily: "'Geist', sans-serif" }}
         >
           {context || 'Something went wrong'}
         </h2>
