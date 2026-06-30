@@ -10,7 +10,10 @@ interface PageHeaderProps {
 }
 
 /**
- * PageHeader — consistent page title block used on all tool pages.
+ * PageHeader — v0.3 editorial dark header for all tool pages.
+ *
+ * Uses font-display (Instrument Serif) for the title, font-mono for the
+ * reference crumb, and a flat badge. Applied across 56+ tool pages.
  *
  * Usage:
  * ```tsx
@@ -24,24 +27,28 @@ interface PageHeaderProps {
  */
 export function PageHeader({ title, subtitle, reference, badge }: PageHeaderProps) {
   return (
-    <div className="mb-8">
-      <div className="flex items-start justify-between gap-4">
+    <div className="mb-8 pb-5 border-b border-[var(--border-color)]">
+      <div className="flex items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-3xl font-bold leading-tight">{title}</h1>
+          {badge && (
+            <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.12em] uppercase mb-2">
+              {badge}
+            </div>
+          )}
+          <h1 className="font-display text-3xl md:text-4xl text-[var(--text-primary)] tracking-[-0.025em] leading-[1.1]">
+            {title}
+          </h1>
           {subtitle && (
-            <p className="text-sm text-[var(--text-muted)] mt-1 leading-relaxed">{subtitle}</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed max-w-[60ch]">
+              {subtitle}
+            </p>
           )}
           {reference && (
-            <p className="text-xs text-[var(--text-muted)] mt-1 font-mono opacity-75 leading-relaxed">
+            <p className="font-mono text-[11px] text-[var(--text-muted)] mt-2 leading-relaxed tracking-[0.02em]">
               {reference}
             </p>
           )}
         </div>
-        {badge && (
-          <span className="shrink-0 text-xs font-mono px-2 py-1 rounded border border-[var(--border-color)] text-[var(--text-muted)] bg-[var(--bg-tertiary)] whitespace-nowrap">
-            {badge}
-          </span>
-        )}
       </div>
     </div>
   )
