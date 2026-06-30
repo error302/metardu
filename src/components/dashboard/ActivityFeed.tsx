@@ -47,17 +47,18 @@ const ACTIVITY_ICONS: Record<string, typeof FolderKanban> = {
 }
 
 const ACTIVITY_COLORS: Record<string, string> = {
-  project_created: 'text-blue-400 bg-blue-500/10',
-  project_updated: 'text-blue-400 bg-blue-500/10',
-  document_generated: 'text-purple-400 bg-purple-500/10',
-  fieldbook_saved: 'text-amber-400 bg-amber-500/10',
-  computation_run: 'text-emerald-400 bg-emerald-500/10',
-  map_capture: 'text-[#D17B47] bg-[#D17B47]/10',
-  peer_review_submitted: 'text-cyan-400 bg-cyan-500/10',
-  peer_review_completed: 'text-cyan-400 bg-cyan-500/10',
-  team_invite: 'text-pink-400 bg-pink-500/10',
-  payment_received: 'text-green-400 bg-green-500/10',
-  settings_changed: 'text-gray-400 bg-gray-500/10',
+  // v0.3: single sienna accent + muted grays (impeccable compliance)
+  project_created: 'text-[var(--accent)] bg-[var(--accent)]/10',
+  project_updated: 'text-[var(--accent)] bg-[var(--accent)]/10',
+  document_generated: 'text-[var(--text-secondary)] bg-[var(--bg-tertiary)]',
+  fieldbook_saved: 'text-[var(--text-secondary)] bg-[var(--bg-tertiary)]',
+  computation_run: 'text-[var(--success)] bg-[var(--success)]/10',
+  map_capture: 'text-[var(--accent)] bg-[var(--accent)]/10',
+  peer_review_submitted: 'text-[var(--text-secondary)] bg-[var(--bg-tertiary)]',
+  peer_review_completed: 'text-[var(--success)] bg-[var(--success)]/10',
+  team_invite: 'text-[var(--text-secondary)] bg-[var(--bg-tertiary)]',
+  payment_received: 'text-[var(--success)] bg-[var(--success)]/10',
+  settings_changed: 'text-[var(--text-muted)] bg-[var(--bg-tertiary)]',
 }
 
 function timeAgo(dateStr: string): string {
@@ -100,72 +101,67 @@ export function ActivityFeed({ limit = 10 }: { limit?: number }) {
   }, [fetchActivities])
 
   return (
-    <div className="card p-5">
+    <div className="border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
-            <ActivityIcon className="w-4 h-4 text-[var(--accent)]" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Recent Activity</h3>
-            <p className="text-[10px] text-gray-500">What happened in your projects</p>
-          </div>
+      <div className="flex items-center justify-between mb-5 pb-3 border-b border-[var(--border-color)]">
+        <div>
+          <h3 className="font-display text-lg text-[var(--text-primary)] tracking-[-0.015em]">Today</h3>
+          <p className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase mt-0.5">Recent activity</p>
         </div>
         <Link
           href="/activity"
-          className="text-[10px] text-[var(--accent)] hover:underline flex items-center gap-0.5"
+          className="font-mono text-[10px] text-[var(--accent)] hover:opacity-80 tracking-[0.06em] uppercase no-underline"
         >
-          View all <ChevronRight className="w-3 h-3" />
+          All →
         </Link>
       </div>
 
       {/* Activity list */}
       {loading ? (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-5 h-5 text-gray-500 animate-spin" />
+          <Loader2 className="w-5 h-5 text-[var(--text-muted)] animate-spin" />
         </div>
       ) : error ? (
         <div className="text-center py-8">
-          <p className="text-xs text-gray-500">{error}</p>
+          <p className="text-xs text-[var(--text-muted)]">{error}</p>
           <button
             onClick={fetchActivities}
-            className="mt-2 text-[10px] text-[var(--accent)] hover:underline"
+            className="mt-2 font-mono text-[10px] text-[var(--accent)] hover:opacity-80 tracking-[0.06em] uppercase"
           >
             Retry
           </button>
         </div>
       ) : activities.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <Clock className="w-8 h-8 text-gray-600 mb-2" />
-          <p className="text-sm text-gray-500">No recent activity</p>
-          <p className="text-[10px] text-gray-600 mt-1">
+          <Clock className="w-7 h-7 text-[var(--text-muted)] mb-2" strokeWidth={1.5} />
+          <p className="text-sm text-[var(--text-secondary)]">No recent activity</p>
+          <p className="font-mono text-[10px] text-[var(--text-muted)] mt-1 tracking-[0.04em]">
             Create a project or run a computation to see activity here.
           </p>
         </div>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-0">
           {activities.map((activity, idx) => {
             const Icon = ACTIVITY_ICONS[activity.activity_type] || ActivityIcon
-            const colorClass = ACTIVITY_COLORS[activity.activity_type] || 'text-gray-400 bg-gray-500/10'
+            const colorClass = ACTIVITY_COLORS[activity.activity_type] || 'text-[var(--text-muted)] bg-[var(--bg-tertiary)]'
             const href = activity.project_id ? `/project/${activity.project_id}` : null
 
             const content = (
               <>
-                {/* Timeline dot */}
+                {/* Timeline dot — single sienna accent, no multi-color */}
                 {idx < activities.length - 1 && (
-                  <div className="absolute left-[15px] top-8 bottom-0 w-px bg-white/[0.06]" />
+                  <div className="absolute left-[11px] top-8 bottom-0 w-px bg-[var(--border-color)]" />
                 )}
-                <div className={`relative flex items-start gap-3 px-2 py-2 rounded-lg hover:bg-white/[0.02] transition-colors ${href ? 'cursor-pointer' : ''}`}>
-                  <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${colorClass} border border-white/[0.06]`}>
-                    <Icon className="w-3.5 h-3.5" />
+                <div className={`relative flex items-start gap-3 px-1 py-2.5 hover:bg-[var(--bg-secondary)] transition-colors rounded ${href ? 'cursor-pointer' : ''}`}>
+                  <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${colorClass} border border-[var(--border-color)]`}>
+                    <Icon className="w-3 h-3" strokeWidth={1.5} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-[var(--text-primary)] leading-tight">{activity.description}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[9px] text-gray-600">{timeAgo(activity.created_at)}</span>
+                    <p className="text-xs text-[var(--text-primary)] leading-snug">{activity.description}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-mono text-[9px] text-[var(--text-muted)] tracking-[0.04em]">{timeAgo(activity.created_at)}</span>
                       {activity.entity_type && (
-                        <span className="text-[9px] text-gray-600 px-1 py-0.5 rounded bg-white/[0.04]">
+                        <span className="font-mono text-[9px] text-[var(--text-muted)] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] tracking-[0.04em] uppercase">
                           {activity.entity_type}
                         </span>
                       )}
@@ -176,7 +172,7 @@ export function ActivityFeed({ limit = 10 }: { limit?: number }) {
             )
 
             return href ? (
-              <Link key={activity.id} href={href}>{content}</Link>
+              <Link key={activity.id} href={href} className="no-underline">{content}</Link>
             ) : (
               <div key={activity.id}>{content}</div>
             )
