@@ -32,7 +32,8 @@ export async function GET_ready() {
     const { createClient } = await import('@/lib/api-client/server')
     const client = await createClient()
     // Simple no-op query — if this throws, DB is down
-    await client.from('users').select('id').limit(1).head()
+    // Use limit(1) instead of .head() — .head() isn't in the QueryBuilder type
+    await client.from('users').select('id').limit(1)
     checks.database = 'ok'
   } catch {
     checks.database = 'fail'

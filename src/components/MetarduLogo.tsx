@@ -64,13 +64,6 @@ export default function MetarduLogo({
           <span style={{ color: '#D17B47' }}>M</span>ETARDU
         </span>
       )}
-
-      <style jsx>{`
-        @keyframes metardu-breathe {
-          0%, 100% { opacity: 0.75; }
-          50% { opacity: 1; }
-        }
-      `}</style>
     </div>
   )
 }

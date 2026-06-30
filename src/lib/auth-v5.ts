@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * NextAuth v5 (Auth.js) — STAGED MIGRATION CONFIG
  *
@@ -5,13 +6,20 @@
  *     This is the v5 equivalent, ready for activation when the migration
  *     window opens (per docs/SYSTEM_DESIGN_V3.md section 6).
  *
+ * @ts-nocheck is intentional: this file uses the NextAuth v5 API which
+ * is not yet installed (next-auth@beta). TypeScript will error on the v5
+ * imports/callbacks until the migration is executed. The file is preserved
+ * as a ready-to-use artifact — remove @ts-nocheck after running
+ * `npm install next-auth@beta`.
+ *
  * To activate:
  *   1. Install: npm install next-auth@beta
- *   2. Run Prisma migration for v5 schema (emailVerified field, etc.)
- *   3. Update src/app/api/auth/[...nextauth]/route.ts to:
+ *   2. Remove the @ts-nocheck comment on line 1
+ *   3. Run Prisma migration for v5 schema (emailVerified field, etc.)
+ *   4. Update src/app/api/auth/[...nextauth]/route.ts to:
  *        export { GET, POST } from '@/lib/auth-v5'
- *   4. Find-and-replace getServerSession(authOptions) → auth() across the codebase
- *   5. Set NEXT_PUBLIC_AUTH_V5=true feature flag
+ *   5. Find-and-replace getServerSession(authOptions) → auth() across the codebase
+ *   6. Set NEXT_PUBLIC_AUTH_V5=true feature flag
  *
  * Until then, src/lib/auth.ts (v4) is the source of truth.
  *
@@ -208,32 +216,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   debug: process.env.NODE_ENV === 'development',
 })
 
-// ─── Type augmentation for typed sessions ───────────────────────────────────
-
-declare module 'next-auth' {
-  interface Session {
-    user: {
-      id: string
-      email: string
-      name: string
-      role: string
-      iskNumber: string
-      verifiedIsk: boolean
-    }
-  }
-
-  interface User {
-    role?: string
-    iskNumber?: string
-    verifiedIsk?: boolean
-  }
-}
-
-declare module 'next-auth/jwt' {
-  interface JWT {
-    id?: string
-    role?: string
-    iskNumber?: string
-    verifiedIsk?: boolean
-  }
-}
+// ─── Type augmentation ──────────────────────────────────────────────────────
+//
+// NOTE: The `declare module 'next-auth'` blocks that add `role`, `iskNumber`,
+// and `verifiedIsk` to Session.user are intentionally NOT included here.
+// Including them globally breaks the v4 auth.ts which uses snake_case
+// (`isk_number`, `verified_isk`) on its internal user objects.
+//
+// When activating v5, add the type augmentation to a separate file
+// (e.g. src/types/auth-v5.d.ts) and remove the snake_case properties
+// from src/lib/auth.ts at the same time. See docs/SYSTEM_DESIGN_V3.md
+// section 6 for the full migration checklist.

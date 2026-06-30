@@ -1111,6 +1111,12 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
   animation: pulseGlow 2s ease-in-out infinite;
 }
 
+/* MetarduLogo breathing animation (moved from styled-jsx to globals for SSR compat) */
+@keyframes metardu-breathe {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
 /* Premium focus ring */
 .focus-ring:focus-visible {
   outline: none;
