@@ -1,8 +1,15 @@
+import ProjectDeedPlan from '@/components/deedplan/ProjectDeedPlan'
 import DeedPlanGenerator from '@/components/deedplan/DeedPlanGenerator'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 import { ProfessionalDisclaimer } from '@/components/shared/ProfessionalDisclaimer'
 
-export default function DeedPlanPage() {
+interface DeedPlanPageProps {
+  searchParams: { project?: string }
+}
+
+export default function DeedPlanPage({ searchParams }: DeedPlanPageProps) {
+  const projectId = searchParams.project
+
   return (
     <div className="space-y-4">
       <div className="mx-auto max-w-7xl px-4 pt-4">
@@ -13,7 +20,11 @@ export default function DeedPlanPage() {
       <div className="mx-auto max-w-7xl px-4">
         <ProfessionalDisclaimer />
       </div>
-      <DeedPlanGenerator projectId="new" />
+      {projectId && projectId !== 'new' ? (
+        <ProjectDeedPlan projectId={projectId} />
+      ) : (
+        <DeedPlanGenerator projectId="new" />
+      )}
     </div>
   )
 }
