@@ -24,6 +24,7 @@ const signoutMutationSchema = z.object({}).passthrough()
 const searchablePages = [
   // Cadastral workflow
   { category: 'Cadastral', group: 'Workflow', href: '/cadastral-workflow', labelKey: 'Cadastral Workflow' },
+  { category: 'Cadastral', group: 'Validation', href: '/tools/topology-check', labelKey: 'Topology Pre-flight' },
   // Engineering workflow
   { category: 'Engineering', group: 'Workflow', href: '/engineering-workflow', labelKey: 'Engineering Workflow' },
   // Topographic workflow
