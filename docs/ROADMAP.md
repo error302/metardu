@@ -76,28 +76,28 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 **How:** turf.js + jsts for topology checks. Block save on invalid geometry. Export with exact NLIMS attribute schema.
 **Where:** `/cadastral-workflow` step 2 (boundary validate), plus standalone `/tools/topology-check`
 **Effort:** 1 session
-**Status:** Not started
+**Status:** ✅ SHIPPED — `/tools/topology-check`, 9 validation rules, turf.js engine
 
 #### COGO deed plan reconstructor
 **Why:** Historical paper deed plans list bearings/distances, not coordinates. Surveyors need to digitize these without AutoCAD.
 **How:** Parser for DMS bearings + distances → compute ΔE/ΔN → OpenLayers LineString/Polygon. "Swing & scale" tool to snap onto known control.
 **Where:** `/tools/cogo` (extend existing) or new `/tools/cogo-reconstruct`
 **Effort:** 1-2 sessions
-**Status:** Not started. Math verified (DMS → decimal → sin/cos for ΔE/ΔN).
+**Status:** ✅ SHIPPED — `/tools/cogo-reconstruct`, WCB + quadrant formats, swing & scale transform
 
 #### As-built deviation guard (engineering)
 **Why:** KeNHA tolerances are strict. Catching deviations early saves rework.
 **How:** Linear referencing on design centerline. Compare as-built points vs design elevation. Green/amber/red visual feedback.
 **Where:** `/engineering-workflow` step 6 (as-built), or `/tools/setting-out` extension
 **Effort:** 1-2 sessions
-**Status:** Not started
+**Status:** ✅ SHIPPED — `/tools/as-built-deviation`, KeNHA tolerance presets, linear interpolation
 
 #### Generative lot subdivision & road network allocator (cadastral)
 **Why:** Subdividing a 10ha parcel into 50×100 plots with road reserves takes days in CAD. Algorithmic generation in seconds + beacon list output is the highest-impact premium feature.
 **How:** Parent polygon input → road spine placement → sweeping-line slice perpendicular to spine → child polygons → beacon coordinates. NOT Voronoi (irregular plots) — must produce standard rectangular plots (50×100, 100×100).
 **Where:** New `/tools/subdivision-generator` or extend `/components/subdivision/SubdivisionPanel`
 **Effort:** 2-3 sessions for core engine
-**Status:** Not started. Math: sweeping-line + polygon clip. DB persistence deferred (localStorage first, same as workflow hubs).
+**Status:** ✅ SHIPPED — `/tools/subdivision-generator`, Kenya plot presets, beacon CSV export
 
 ### Tier 2 — build when needed (real but niche)
 
