@@ -25,6 +25,7 @@ const searchablePages = [
   // Cadastral workflow
   { category: 'Cadastral', group: 'Workflow', href: '/cadastral-workflow', labelKey: 'Cadastral Workflow' },
   { category: 'Cadastral', group: 'Validation', href: '/tools/topology-check', labelKey: 'Topology Pre-flight' },
+  { category: 'Cadastral', group: 'Subdivision', href: '/tools/subdivision-generator', labelKey: 'Generative Subdivision' },
   // Engineering workflow
   { category: 'Engineering', group: 'Workflow', href: '/engineering-workflow', labelKey: 'Engineering Workflow' },
   // Topographic workflow
