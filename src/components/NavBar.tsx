@@ -42,9 +42,7 @@ const searchablePages = [
   // Tools - Earthworks
   { category: 'Tools', group: 'Earthworks', href: '/tools/cross-sections', labelKey: 'tools.crossSections' },
   { category: 'Tools', group: 'Earthworks', href: '/tools/setting-out', labelKey: 'tools.settingOut' },
-  // Tools - Specialized
-  { category: 'Tools', group: 'Specialized', href: '/tools/mining', labelKey: 'tools.mining' },
-  { category: 'Tools', group: 'Specialized', href: '/tools/hydrographic', labelKey: 'tools.hydrographic' },
+  // Tools - Specialized (scope narrowing v1: mining + hydrographic removed)
   { category: 'Tools', group: 'Specialized', href: '/tools/drone', labelKey: 'tools.drone' },
   // Field
   { category: 'Field', group: 'Field', href: '/field', labelKey: 'field.fieldMode' },

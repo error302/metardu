@@ -71,15 +71,11 @@ const TOOLS = [
     category: 'Earthworks & Volumes',
     items: [
       { label: 'Cross Sections', href: '/tools/cross-sections' },
-      { label: 'Borrow Pit Volume', href: '/tools/borrow-pit-volume' },
-      { label: 'Stockpile Volume', href: '/tools/stockpile-volume' },
     ]
   },
   {
     category: 'Specialized Surveys',
     items: [
-      { label: 'Mining Survey', href: '/tools/mining' },
-      { label: 'Hydrographic', href: '/tools/hydrographic' },
       { label: 'Drone / UAV', href: '/tools/drone' },
       { label: 'Topo Drawing Composer', href: '/tools/topo-drawing' },
       { label: 'Slope & Area Analysis', href: '/tools/slope-analysis' },

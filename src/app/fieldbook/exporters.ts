@@ -6,9 +6,7 @@ import { asBearing, asNumber, downloadBlob } from './helpers'
 import type {
   ControlSetup,
   FieldbookType,
-  HydroRow,
   LevelRow,
-  MiningRow,
   TravRow,
 } from './types'
 import type { FieldbookComputations } from './useFieldbookComputations'
@@ -22,8 +20,6 @@ interface ExportParams {
   levelRows: LevelRow[]
   travRows: TravRow[]
   controlSetups: ControlSetup[]
-  hydroRows: HydroRow[]
-  miningRows: MiningRow[]
   computations: FieldbookComputations
 }
 
@@ -51,10 +47,8 @@ export async function exportCSVFn(p: ExportParams) {
         Remarks: r.remarks,
       }))
     )
-  } else if (p.type === 'hydrographic') {
-    rows = p.hydroRows.map((r) => ({ SoundingID: r.soundingId, Easting: r.easting, Northing: r.northing, Depth: r.depth, Tide: r.tide, Remarks: r.remarks }))
   } else {
-    rows = p.miningRows.map((r) => ({ PointID: r.pointId, Bearing: r.bearing, VAngle: r.verticalAngle, SlopeDist: r.slopeDistance, Remarks: r.remarks }))
+    rows = []
   }
 
   const Papa = (await import('papaparse')).default
@@ -73,7 +67,7 @@ export async function exportPDFFn(p: ExportParams) {
   doc.setFontSize(9)
   doc.text(`Type: ${p.type}   Project: ${p.projectId || '—'}   Generated: ${new Date().toLocaleString()}`, 14, 28)
 
-  const { levelingComputed, traverseComputed, hydroComputed, miningComputed } = p.computations
+  const { levelingComputed, traverseComputed } = p.computations
 
   if (p.type === 'leveling') {
     autoTable(doc, { startY: 32, head: [['Station', 'BS', 'IS', 'FS', 'Rise', 'Fall', 'RL', 'Remarks']], body: levelingComputed.ok ? levelingComputed.calc.readings.filter((r) => r.station !== 'BM').map((r) => [r.station, r.bs ?? '', r.is ?? '', r.fs ?? '', r.rise ?? '', r.fall ?? '', r.reducedLevel ?? '', '']) : [], styles: { fontSize: 8 } })
@@ -88,8 +82,6 @@ export async function exportPDFFn(p: ExportParams) {
       })(),
       styles: { fontSize: 8 },
     })
-  } else if (p.type === 'hydrographic') {
-    autoTable(doc, { startY: 32, head: [['Sounding', 'Easting', 'Northing', 'Depth', 'Tide', 'Corrected', 'Remarks']], body: hydroComputed.ok ? hydroComputed.rows.map((r) => [r.soundingId, r.easting, r.northing, r.depth, r.tide, r.corrected ?? '', r.remarks]) : [], styles: { fontSize: 8 } })
   } else if (p.type === 'control') {
     let y = 32
     for (const setup of p.controlSetups) {
@@ -154,8 +146,6 @@ export async function exportPDFFn(p: ExportParams) {
         y = 20
       }
     }
-  } else {
-    autoTable(doc, { startY: 32, head: [['Point', 'Bearing', 'V.Ang', 'Slope', 'Easting', 'Northing', 'RL', 'Remarks']], body: miningComputed.ok ? miningComputed.rows.map((r) => [r.pointId, r.bearingNum !== null && r.bearingNum !== undefined ? bearingToString(r.bearingNum) : r.bearing, r.verticalAngle, r.slopeDistance, r.computed ? r.computed.easting : '', r.computed ? r.computed.northing : '', r.computed ? r.computed.elevation : '', r.remarks]) : [], styles: { fontSize: 8 } })
   }
 
   downloadBlob(`metardu-fieldbook-${p.type}.pdf`, doc.output('blob'))

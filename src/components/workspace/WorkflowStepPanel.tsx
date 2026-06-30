@@ -21,7 +21,6 @@ const surveyReportGenerateSchema = z.object({
 
 const DynamicFieldBook = dynamic(() => import('./DynamicFieldBook'), { ssr: false });
 const GenerateReportModal = dynamic(() => import('./GenerateReportModal'), { ssr: false });
-const HydroPanel = dynamic(() => import('@/components/compute/HydroPanel').then(m => ({ default: m.HydroPanel })), { ssr: false });
 const CadastralComputeIntegration = dynamic(() => import('./CadastralComputeIntegration'), { ssr: false });
 
 interface Props {
@@ -87,25 +86,18 @@ function ComputeStepPanel({ surveyType, projectId }: { surveyType: SurveyType; p
     cadastral: []
   };
 
-  if (surveyType === 'hydrographic') {
-    return <HydroPanel projectId={projectId} projectData={{}} />
+  if (surveyType === 'hydrographic' || surveyType === 'mining') {
+    return (
+      <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+        <h2 className="font-semibold text-[var(--text-primary)] mb-1">Step 3 — Compute</h2>
+        <p className="text-sm text-[var(--text-muted)]">This survey type is no longer supported. Use the computation engine for available tools.</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
-      {surveyType === 'mining' ? (
-        // <MiningVolumePanel projectId={projectId} projectData={{}} />
-        <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
-          <h2 className="font-semibold text-[var(--text-primary)] mb-1">Step 3 — Mining Volume</h2>
-          <p className="text-sm text-[var(--text-muted)] mb-4">Compute end-of-month volumes from survey data.</p>
-          <Link
-            href="/process"
-            className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            Open Computation Engine →
-          </Link>
-        </div>
-      ) : surveyType === 'cadastral' ? (
+      {surveyType === 'cadastral' ? (
         <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
           <div className="flex items-center justify-between mb-4">
             <div>

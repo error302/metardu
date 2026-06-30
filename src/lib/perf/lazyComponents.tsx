@@ -37,10 +37,6 @@ export const LazyImageryViewer = lazy(
   () => import('@/components/online/ImageryViewer')
 )
 
-export const LazyBathymetryMap = lazy(
-  () => import('@/components/hydrolive/BathymetryMap')
-)
-
 // ─── Drawing / Canvas Components ──────────────────────────────────────────────
 
 export const LazyTopoCanvas = lazy(
@@ -91,10 +87,6 @@ export const LazyGNSSProcessor = lazy(
 
 export const LazyVolumePanel = lazy(
   () => import('@/components/minetwin/VolumePanel')
-)
-
-export const LazyMiningVolumePanel = lazy(
-  () => import('@/components/mining/MiningVolumePanel')
 )
 
 export const LazyEarthworkQuantitiesTable = lazy(

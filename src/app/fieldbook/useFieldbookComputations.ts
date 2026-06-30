@@ -3,16 +3,13 @@
 import { useMemo } from 'react'
 import { heightOfCollimation, riseAndFall } from '@/lib/engine/leveling'
 import { bowditchAdjustment, forwardTraverse } from '@/lib/engine/traverse'
-import { applyTideCorrection } from '@/lib/engine/hydrographic'
 import { polar3DWithHeights } from '@/lib/engine/polar'
 import { asBearing, asNumber } from './helpers'
 import type {
   ControlRow,
   ControlSetup,
   ControlStation,
-  HydroRow,
   LevelRow,
-  MiningRow,
   TravRow,
 } from './types'
 
@@ -31,23 +28,16 @@ export interface FieldbookComputationsInput {
   closeE: string
   closeN: string
   travRows: TravRow[]
-  // Hydro
-  hydroRows: HydroRow[]
   // Control
   controlStation: ControlStation
   controlRows: ControlRow[]
-  // Mining
-  miningStation: ControlStation
-  miningRows: MiningRow[]
 }
 
 export function useFieldbookComputations(input: FieldbookComputationsInput) {
   const {
     openingRL, closingRL, distanceKm, levelMethod, levelRows,
     travMode, startStation, startE, startN, closeE, closeN, travRows,
-    hydroRows,
     controlStation, controlRows,
-    miningStation, miningRows,
   } = input
 
   const levelingComputed = useMemo(() => {
@@ -138,21 +128,6 @@ export function useFieldbookComputations(input: FieldbookComputationsInput) {
     return { ok: true as const, mode: travMode, adjusted }
   }, [travMode, startStation, startE, startN, closeE, closeN, travRows])
 
-  const hydroComputed = useMemo(() => {
-    const errors: string[] = []
-    const rows = hydroRows.map((r) => {
-      const depth = asNumber(r.depth)
-      const tide = asNumber(r.tide) ?? 0
-      if (depth === null) errors.push(`Invalid depth at ${r.soundingId || '(blank)'}`)
-      const e = asNumber(r.easting)
-      const n = asNumber(r.northing)
-      if (e === null || n === null) errors.push(`Invalid coordinates at ${r.soundingId || '(blank)'}`)
-      return { ...r, corrected: depth === null ? null : applyTideCorrection(depth, tide) }
-    })
-    if (errors.length) return { ok: false as const, errors }
-    return { ok: true as const, rows }
-  }, [hydroRows])
-
   const controlComputed = useMemo(() => {
     const e0 = asNumber(controlStation.e)
     const n0 = asNumber(controlStation.n)
@@ -183,29 +158,7 @@ export function useFieldbookComputations(input: FieldbookComputationsInput) {
     return { ok: true as const, rows }
   }, [controlRows, controlStation])
 
-  const miningComputed = useMemo(() => {
-    const e0 = asNumber(miningStation.e)
-    const n0 = asNumber(miningStation.n)
-    const z0 = asNumber(miningStation.z)
-    if (e0 === null || n0 === null || z0 === null) return { ok: false as const, errors: ['Mining station coordinates are required.'] }
-
-    const errors: string[] = []
-    const rows = miningRows.map((r) => {
-      const b = asBearing(r.bearing)
-      const v = asNumber(r.verticalAngle)
-      const s = asNumber(r.slopeDistance)
-      if (!r.pointId.trim()) errors.push('Point ID is required.')
-      if (b === null) errors.push(`Invalid bearing at ${r.pointId || '(blank)'}`)
-      if (v === null) errors.push(`Invalid vertical angle at ${r.pointId || '(blank)'}`)
-      if (s === null || s <= 0) errors.push(`Invalid slope distance at ${r.pointId || '(blank)'}`)
-      const computed = b !== null && v !== null && s !== null ? polar3DWithHeights({ station: { easting: e0, northing: n0, elevation: z0 }, bearing: b, verticalAngle: v, slopeDistance: s, instrumentHeight: 0, targetHeight: 0 }) : null
-      return { ...r, computed, bearingNum: b }
-    })
-    if (errors.length) return { ok: false as const, errors }
-    return { ok: true as const, rows }
-  }, [miningRows, miningStation])
-
-  return { levelingComputed, traverseComputed, hydroComputed, controlComputed, miningComputed }
+  return { levelingComputed, traverseComputed, controlComputed }
 }
 
 export type FieldbookComputations = ReturnType<typeof useFieldbookComputations>

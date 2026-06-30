@@ -10,15 +10,12 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { heightOfCollimation, riseAndFall } from '@/lib/engine/leveling'
 import { bowditchAdjustment, forwardTraverse } from '@/lib/engine/traverse'
 import { bearingToString, normalizeBearing, parseDMSString, parseFieldAngle } from '@/lib/engine/angles'
-import { applyTideCorrection } from '@/lib/engine/hydrographic'
 import { polar3DWithHeights } from '@/lib/engine/polar'
 import { isOnline, queueOperation, setupOnlineListener, syncPendingOperations } from '@/lib/offline/syncQueue'
 import { getOfflineFieldbooks, saveFieldbookOffline } from '@/lib/offline/fieldbooks'
 import { LevelingBook } from '@/components/fieldbook/LevelingBook'
 import { TraverseBook } from '@/components/fieldbook/TraverseBook'
 import { ControlBook } from '@/components/fieldbook/ControlBook'
-import { HydroBook } from '@/components/fieldbook/HydroBook'
-import { MiningBook } from '@/components/fieldbook/MiningBook'
 import { MobileFieldbookShell } from '@/components/fieldbook/MobileFieldbookShell'
 import { MobileMeasurementCapture, type CapturedMeasurement } from '@/components/fieldbook/MobileMeasurementCapture'
 import { GNSSRoverConnection } from '@/components/survey/GNSSRoverConnection'
@@ -47,7 +44,7 @@ function useIsMobile() {
 }
 
 
-type FieldbookType = 'leveling' | 'traverse' | 'control' | 'hydrographic' | 'mining'
+type FieldbookType = 'leveling' | 'traverse' | 'control'
 
 type SaveStatus = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; when: string } | { kind: 'error'; message: string }
 
@@ -87,8 +84,6 @@ type ControlSetup = {
   station: { name: string; e: string; n: string; z: string }
   rows: ControlRow[]
 }
-type HydroRow = { id: string; soundingId: string; easting: string; northing: string; depth: string; tide: string; remarks: string }
-type MiningRow = { id: string; pointId: string; bearing: string; verticalAngle: string; slopeDistance: string; remarks: string }
 
 function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob)
@@ -358,15 +353,6 @@ export default function DigitalFieldBookPage() {
     )
   }
 
-  const [hydroRows, setHydroRows] = useState<HydroRow[]>([
-    { id: crypto.randomUUID(), soundingId: '', easting: '', northing: '', depth: '', tide: '', remarks: '' },
-  ])
-
-  const [miningStation, setMiningStation] = useState({ name: '', e: '', n: '', z: '' })
-  const [miningRows, setMiningRows] = useState<MiningRow[]>([
-    { id: crypto.randomUUID(), pointId: '', bearing: '', verticalAngle: '', slopeDistance: '', remarks: '' },
-  ])
-
   const panelRef = useRef<HTMLDivElement>(null)
   const [savedFieldbooks, setSavedFieldbooks] = useState<SavedFieldbook[]>([])
 
@@ -513,21 +499,6 @@ export default function DigitalFieldBookPage() {
     return { ok: true as const, mode: travMode, adjusted }
   }, [travMode, startStation, startE, startN, closeE, closeN, travRows])
 
-  const hydroComputed = useMemo(() => {
-    const errors: string[] = []
-    const rows = hydroRows.map((r) => {
-      const depth = asNumber(r.depth)
-      const tide = asNumber(r.tide) ?? 0
-      if (depth === null) errors.push(`Invalid depth at ${r.soundingId || '(blank)'}`)
-      const e = asNumber(r.easting)
-      const n = asNumber(r.northing)
-      if (e === null || n === null) errors.push(`Invalid coordinates at ${r.soundingId || '(blank)'}`)
-      return { ...r, corrected: depth === null ? null : applyTideCorrection(depth, tide) }
-    })
-    if (errors.length) return { ok: false as const, errors }
-    return { ok: true as const, rows }
-  }, [hydroRows])
-
   const controlComputed = useMemo(() => {
     const e0 = asNumber(controlStation.e)
     const n0 = asNumber(controlStation.n)
@@ -558,36 +529,12 @@ export default function DigitalFieldBookPage() {
     return { ok: true as const, rows }
   }, [controlRows, controlStation])
 
-  const miningComputed = useMemo(() => {
-    const e0 = asNumber(miningStation.e)
-    const n0 = asNumber(miningStation.n)
-    const z0 = asNumber(miningStation.z)
-    if (e0 === null || n0 === null || z0 === null) return { ok: false as const, errors: ['Mining station coordinates are required.'] }
-
-    const errors: string[] = []
-    const rows = miningRows.map((r) => {
-      const b = asBearing(r.bearing)
-      const v = parseFieldAngle(r.verticalAngle)
-      const s = asNumber(r.slopeDistance)
-      if (!r.pointId.trim()) errors.push('Point ID is required.')
-      if (b === null) errors.push(`Invalid bearing at ${r.pointId || '(blank)'}`)
-      if (v === null) errors.push(`Invalid vertical angle at ${r.pointId || '(blank)'}`)
-      if (s === null || s <= 0) errors.push(`Invalid slope distance at ${r.pointId || '(blank)'}`)
-      const computed = b !== null && v !== null && s !== null ? polar3DWithHeights({ station: { easting: e0, northing: n0, elevation: z0 }, bearing: b, verticalAngle: v, slopeDistance: s, instrumentHeight: 0, targetHeight: 0 }) : null
-      return { ...r, computed, bearingNum: b }
-    })
-    if (errors.length) return { ok: false as const, errors }
-    return { ok: true as const, rows }
-  }, [miningRows, miningStation])
-
-  const currentComputed = type === 'leveling' ? levelingComputed : type === 'traverse' ? traverseComputed : type === 'control' ? controlComputed : type === 'hydrographic' ? hydroComputed : miningComputed
+  const currentComputed = type === 'leveling' ? levelingComputed : type === 'traverse' ? traverseComputed : controlComputed
 
   function currentDataPayload() {
     if (type === 'leveling') return { method: levelMethod, openingRL, closingRL, distanceKm, rows: levelRows }
     if (type === 'traverse') return { mode: travMode, startStation, startE, startN, closeE, closeN, rows: travRows }
-    if (type === 'control') return { activeSetupId: activeControlSetupId, setups: controlSetups }
-    if (type === 'hydrographic') return { rows: hydroRows }
-    return { station: miningStation, rows: miningRows }
+    return { activeSetupId: activeControlSetupId, setups: controlSetups }
   }
 
   function resetForType(next: FieldbookType) {
@@ -650,19 +597,6 @@ export default function DigitalFieldBookPage() {
         ])
         setActiveControlSetupId(id)
       }
-    } else if (entry.type === 'hydrographic') {
-      const rowsSource = Array.isArray(data.rows) ? (data.rows as HydroRow[]) : hydroRows
-      setHydroRows(rowsSource.map((r) => ({ ...r, id: r.id || crypto.randomUUID() })))
-    } else if (entry.type === 'mining') {
-      const s = (data.station ?? {}) as { name?: string; e?: string; n?: string; z?: string }
-      setMiningStation({
-        name: String(s.name ?? miningStation.name),
-        e: String(s.e ?? miningStation.e),
-        n: String(s.n ?? miningStation.n),
-        z: String(s.z ?? miningStation.z),
-      })
-      const rowsSource = Array.isArray(data.rows) ? (data.rows as MiningRow[]) : miningRows
-      setMiningRows(rowsSource.map((r) => ({ ...r, id: r.id || crypto.randomUUID() })))
     }
 
     panelRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
@@ -754,10 +688,6 @@ export default function DigitalFieldBookPage() {
            Remarks: r.remarks,
          }))
        )
-     } else if (type === 'hydrographic') {
-       rows = hydroRows.map((r) => ({ SoundingID: r.soundingId, Easting: r.easting, Northing: r.northing, Depth: r.depth, Tide: r.tide, Remarks: r.remarks }))
-     } else {
-       rows = miningRows.map((r) => ({ PointID: r.pointId, Bearing: r.bearing, VAngle: r.verticalAngle, SlopeDist: r.slopeDistance, Remarks: r.remarks }))
      }
 
      const Papa = (await import('papaparse')).default
@@ -789,8 +719,6 @@ export default function DigitalFieldBookPage() {
         })(),
         styles: { fontSize: 8 },
       })
-    } else if (type === 'hydrographic') {
-      autoTable(doc, { startY: 32, head: [['Sounding', 'Easting', 'Northing', 'Depth', 'Tide', 'Corrected', 'Remarks']], body: hydroComputed.ok ? hydroComputed.rows.map((r) => [r.soundingId, r.easting, r.northing, r.depth, r.tide, r.corrected ?? '', r.remarks]) : [], styles: { fontSize: 8 } })
     } else if (type === 'control') {
       let y = 32
       for (const setup of controlSetups) {
@@ -855,8 +783,6 @@ export default function DigitalFieldBookPage() {
           y = 20
         }
       }
-    } else {
-      autoTable(doc, { startY: 32, head: [['Point', 'Bearing', 'V.Ang', 'Slope', 'Easting', 'Northing', 'RL', 'Remarks']], body: miningComputed.ok ? miningComputed.rows.map((r) => [r.pointId, r.bearingNum !== null && r.bearingNum !== undefined ? bearingToString(r.bearingNum) : r.bearing, r.verticalAngle, r.slopeDistance, r.computed ? r.computed.easting : '', r.computed ? r.computed.northing : '', r.computed ? r.computed.elevation : '', r.remarks]) : [], styles: { fontSize: 8 } })
     }
 
     downloadBlob(`metardu-fieldbook-${type}.pdf`, doc.output('blob'))
@@ -900,25 +826,7 @@ export default function DigitalFieldBookPage() {
         remarks: r.remarks,
       }))
     }
-    if (type === 'hydrographic') {
-      return hydroRows.map((r) => ({
-        id: r.id,
-        soundingId: r.soundingId,
-        easting: r.easting,
-        northing: r.northing,
-        depth: r.depth,
-        tide: r.tide,
-        remarks: r.remarks,
-      }))
-    }
-    return miningRows.map((r) => ({
-      id: r.id,
-      pointId: r.pointId,
-      bearing: r.bearing,
-      verticalAngle: r.verticalAngle,
-      slopeDistance: r.slopeDistance,
-      remarks: r.remarks,
-    }))
+    return []
   })()
 
   /** Add a row produced by the mobile universal form to the active survey state. */
@@ -971,25 +879,6 @@ export default function DigitalFieldBookPage() {
         slopeDistance: row.slopeDistance ?? '',
         remarks: enrichedRemarks,
       }])
-    } else if (type === 'hydrographic') {
-      setHydroRows((p) => [...p, {
-        id,
-        soundingId: row.soundingId ?? '',
-        easting: row.easting ?? '',
-        northing: row.northing ?? '',
-        depth: row.depth ?? '',
-        tide: row.tide ?? '',
-        remarks: enrichedRemarks,
-      }])
-    } else {
-      setMiningRows((p) => [...p, {
-        id,
-        pointId: row.pointId ?? '',
-        bearing: row.bearing ?? '',
-        verticalAngle: row.verticalAngle ?? '90',
-        slopeDistance: row.slopeDistance ?? '',
-        remarks: enrichedRemarks,
-      }])
     }
     // Auto-save so the surveyor doesn't lose data if app is killed
     handleSave()
@@ -999,8 +888,6 @@ export default function DigitalFieldBookPage() {
     if (type === 'leveling') setLevelRows((p) => p.filter((r) => r.id !== id))
     else if (type === 'traverse') setTravRows((p) => p.filter((r) => r.id !== id))
     else if (type === 'control') setControlRows((p) => p.filter((r) => r.id !== id))
-    else if (type === 'hydrographic') setHydroRows((p) => p.filter((r) => r.id !== id))
-    else setMiningRows((p) => p.filter((r) => r.id !== id))
   }
 
   // ─── Handle measurement capture from MobileMeasurementCapture ─────
@@ -1120,23 +1007,6 @@ export default function DigitalFieldBookPage() {
           pointId: lastReading.pointName ?? '',
         }
       }
-      if (type === 'hydrographic') {
-        return {
-          easting: String(lastReading.easting ?? ''),
-          northing: String(lastReading.northing ?? ''),
-          depth: lastReading.elevation != null ? String(-lastReading.elevation) : '',
-          soundingId: lastReading.pointName ?? '',
-        }
-      }
-      if (type === 'mining') {
-        const e = lastReading.easting ?? 0
-        const n = lastReading.northing ?? 0
-        return {
-          slopeDist: String(Math.sqrt(e * e + n * n)),
-          bearing: String((Math.atan2(e, n) * 180 / Math.PI + 360) % 360),
-          pointId: lastReading.pointName ?? '',
-        }
-      }
       return {}
     } catch (err) {
       console.error('pullInstrumentReading failed:', err)
@@ -1150,7 +1020,7 @@ export default function DigitalFieldBookPage() {
         <div className="pb-44">
           <MobileFieldbookShell
             surveyType={type}
-            onSurveyTypeChange={(t) => resetForType(t)}
+            onSurveyTypeChange={(t) => resetForType(t as FieldbookType)}
             rows={mobileRows}
             onAddRow={handleMobileAddRow}
             onRemoveRow={handleMobileRemoveRow}
@@ -1158,7 +1028,7 @@ export default function DigitalFieldBookPage() {
             lastSaved={saveStatus.kind === 'saved' ? saveStatus.when : null}
             unsyncedCount={savedFieldbooks.filter((fb) => !fb.updated_at).length}
             onSync={handleSyncNow}
-            stationName={type === 'control' ? controlStation.name : type === 'mining' ? miningStation.name : undefined}
+            stationName={type === 'control' ? controlStation.name : undefined}
             onPullInstrumentReading={pullInstrumentReading}
             onViewAuditLog={() => setAuditDrawerOpen(true)}
             computed={currentComputed}
@@ -1188,14 +1058,14 @@ export default function DigitalFieldBookPage() {
             setActiveControlSetupId={setActiveControlSetupId}
             controlStation={controlStation}
             setControlStation={setControlStation}
-            miningStation={miningStation}
-            setMiningStation={setMiningStation}
+            miningStation={{ name: '', e: '', n: '', z: '' }}
+            setMiningStation={() => {}}
           />
         </div>
         {/* Mobile Measurement Capture Bar — take readings directly on mobile */}
         <MobileMeasurementCapture
           onCapture={handleMeasurementCapture}
-          stationName={type === 'control' ? controlStation.name : type === 'mining' ? miningStation.name : startStation}
+          stationName={type === 'control' ? controlStation.name : startStation}
           surveyType={type}
         />
         <FieldbookAuditDrawer
@@ -1331,12 +1201,6 @@ export default function DigitalFieldBookPage() {
             </TabButton>
             <TabButton active={type === 'control'} onClick={() => resetForType('control')}>
               {t('field.controlNotes')}
-            </TabButton>
-            <TabButton active={type === 'hydrographic'} onClick={() => resetForType('hydrographic')}>
-              {t('field.hydroNotes')}
-            </TabButton>
-            <TabButton active={type === 'mining'} onClick={() => resetForType('mining')}>
-              {t('field.miningNotes')}
             </TabButton>
           </div>
 
@@ -1497,10 +1361,6 @@ export default function DigitalFieldBookPage() {
                 computed={controlComputed}
               />
             </div>
-          )}
-          {type === 'hydrographic' && <HydroBook t={t} rows={hydroRows} setRows={setHydroRows} computed={hydroComputed} />}
-          {type === 'mining' && (
-            <MiningBook t={t} station={miningStation} setStation={setMiningStation} rows={miningRows} setRows={setMiningRows} computed={miningComputed} />
           )}
 
 

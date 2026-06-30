@@ -1,4 +1,4 @@
-export type FieldbookType = 'leveling' | 'traverse' | 'control' | 'hydrographic' | 'mining'
+export type FieldbookType = 'leveling' | 'traverse' | 'control'
 
 export type SaveStatus = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; when: string } | { kind: 'error'; message: string }
 
@@ -38,7 +38,4 @@ export type ControlSetup = {
   station: { name: string; e: string; n: string; z: string }
   rows: ControlRow[]
 }
-export type HydroRow = { id: string; soundingId: string; easting: string; northing: string; depth: string; tide: string; remarks: string }
-export type MiningRow = { id: string; pointId: string; bearing: string; verticalAngle: string; slopeDistance: string; remarks: string }
-
 export type ControlStation = { name: string; e: string; n: string; z: string }

@@ -24,7 +24,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/tools/cut-fill',
     '/tools/deformation',
     '/tools/gcp-optimizer',
-    '/tools/depth-sounder',
     '/tools/lsa',
     '/field-records',
     '/report-templates',

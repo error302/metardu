@@ -63,14 +63,10 @@ const TOOLS: Tool[] = [
 
   // Volumes
   { id: 'volume-comparison', name: 'Volume Comparison', description: 'Compare two surface volumes', category: 'Volumes', href: '/tools/volume-comparison', icon: Mountain, keywords: ['volume', 'comparison', 'surface'] },
-  { id: 'stockpile-volume', name: 'Stockpile Volume', description: 'Stockpile volume from survey data', category: 'Volumes', href: '/tools/stockpile-volume', icon: Mountain, keywords: ['stockpile', 'volume', 'aggregate'] },
-  { id: 'borrow-pit-volume', name: 'Borrow Pit Volume', description: 'Borrow pit volume calculation', category: 'Volumes', href: '/tools/borrow-pit-volume', icon: Mountain, keywords: ['borrow', 'pit', 'volume'] },
 
   // Mining
-  { id: 'mining', name: 'Mining Tools', description: 'Mine surveying calculations', category: 'Mining', href: '/tools/mining', icon: Mountain, keywords: ['mining', 'mine', 'tunnel'] },
 
   // Hydrographic
-  { id: 'hydrographic', name: 'Hydrographic Tools', description: 'Bathymetry, sounding, tidal reduction', category: 'Hydrographic', href: '/tools/hydrographic', icon: Waves, keywords: ['hydro', 'bathymetry', 'sounding', 'tide'] },
 
   // Documents
   { id: 'beacon-certificate', name: 'Beacon Certificate', description: 'Generate beacon certificate PDF', category: 'Documents', href: '/tools/beacon-certificate', icon: FileText, keywords: ['beacon', 'certificate', 'pdf'] },
@@ -90,7 +86,6 @@ const TOOLS: Tool[] = [
   { id: 'cut-fill', name: 'Cut & Fill Engine', description: 'Earthwork volume with heat map', category: 'Engineering', href: '/tools/cut-fill', icon: Mountain, keywords: ['cut', 'fill', 'earthwork', 'volume', 'grid'] },
   { id: 'deformation', name: 'Deformation Monitor', description: 'Epoch tracking + displacement', category: 'Validation', href: '/tools/deformation', icon: Activity, keywords: ['deformation', 'monitoring', 'epoch', 'displacement', 'mining', 'dam'] },
   { id: 'gcp-optimizer', name: 'GCP Optimizer', description: 'Drone GCP planning + Pix4D export', category: 'Engineering', href: '/tools/gcp-optimizer', icon: MapPin, keywords: ['gcp', 'drone', 'pix4d', 'webodm', 'ground', 'control'] },
-  { id: 'depth-sounder', name: 'Depth Sounder', description: 'Live echo sounder + bathymetric track', category: 'Hydrographic', href: '/tools/depth-sounder', icon: Waves, keywords: ['depth', 'sounder', 'echo', 'bathymetric', 'hydrographic', 'nmea'] },
   { id: 'lsa', name: 'Least Squares', description: 'Parametric adjustment + error ellipses', category: 'Calculations', href: '/tools/lsa', icon: Calculator, keywords: ['least', 'squares', 'adjustment', 'lsa', 'control', 'network'] },
   { id: 'field-records', name: 'F/R Vault', description: 'Historic field record search', category: 'Documents', href: '/field-records', icon: FileText, keywords: ['field', 'record', 'fr', 'historic', 'archive', 'vault'] },
 ]

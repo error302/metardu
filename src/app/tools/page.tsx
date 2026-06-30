@@ -106,8 +106,6 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '/tools/earthworks': Mountain,
   '/tools/curves': Spline,
   '/tools/tacheometry': ScanLine,
-  '/tools/mining': Pickaxe,
-  '/tools/hydrographic': Ship,
   '/tools/drone': Drone,
   '/tools/orthophoto-viewer': Eye,
   '/tools/gcp-validation': FileCheck,
@@ -127,8 +125,6 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '/tools/pipe-gradient': Construction,
   '/tools/chainage': Milestone,
   '/tools/cross-sections': ChartNoAxesCombined,
-  '/tools/borrow-pit-volume': Mountain,
-  '/tools/stockpile-volume': Mountain,
   '/tools/civil-export': Download,
   '/tools/gis-export': Download,
   '/tools/gcp-export': Download,
@@ -244,12 +240,8 @@ const TOOL_DEFS: ToolDef[] = [
 
   // Earthworks & Volumes
   { href: '/tools/cross-sections', title: 'Cross Sections', description: 'Road cross-section generation and analysis', section: 'Earthworks & Volumes', keywords: 'cross sections road generation analysis' },
-  { href: '/tools/borrow-pit-volume', title: 'Borrow Pit Volume', description: 'Grid method borrow pit volume computation', section: 'Earthworks & Volumes', keywords: 'borrow pit volume grid method computation' },
-  { href: '/tools/stockpile-volume', title: 'Stockpile Volume', description: 'Stockpile volume from survey points', section: 'Earthworks & Volumes', keywords: 'stockpile volume survey points' },
 
   // Specialized Surveys
-  { href: '/tools/mining', title: 'Mining Survey', description: 'Volume computation & DXF export', section: 'Specialized Surveys', keywords: 'mining survey volume dxf export' },
-  { href: '/tools/hydrographic', title: 'Hydrographic', description: 'Water survey & depth reduction', section: 'Specialized Surveys', keywords: 'hydrographic water survey depth reduction' },
   { href: '/tools/drone', title: 'Drone/UAV', description: 'UAV survey & GCP processing', section: 'Specialized Surveys', keywords: 'drone uav survey gcp processing' },
   { href: '/tools/orthophoto-viewer', title: 'GeoTIFF / Orthophoto Viewer', description: 'Upload orthophotos from Pix4D/Agisoft, trace boundaries on the map, export DXF & KML', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'geotiff orthophoto viewer trace boundaries pix4d agisoft dxf kml' },
   { href: '/tools/gcp-validation', title: 'GCP Residual Validation', description: 'Import residuals from Agisoft/Pix4D, compare against known GCPs, flag per Kenya accuracy classes', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'gcp residual validation agisoft pix4d accuracy class kenya isk' },

@@ -16,15 +16,13 @@ export * from './chainage';
 export * from './geometry';
 export * from './parser';
 export * from './polar';
-export * from './hydrographic';
+// hydrographic removed — scope narrowing v1 (cadastral + engineering + topo only)
 export * from './volume';
 export * from './country-math';
 export * from './topographic';
 export * from './leveling-standards';
 export * from './edm-corrections';
 export * from './datums';
-export { type DEMVolumeResult } from './miningVolume';
-export * from './miningVolume';
-export * from './tidalReduction';
+// miningVolume + tidalReduction removed — scope narrowing v1
 export * from './crossSectionVolume';
 export * from './leastSquares';

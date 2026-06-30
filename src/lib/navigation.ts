@@ -81,7 +81,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'CadastraAI', href: '/cadastra', icon: LandPlot, group: 'AI_MODULES', badge: 'AI', description: 'Boundary dispute detection, overlap and gap analysis', requiresSubscription: 'pro' },
   { label: 'MineTwin 3D', href: '/minetwin', icon: Mountain, group: 'AI_MODULES', badge: 'NEW', description: 'WebGL digital twin viewer for mining operations', requiresSubscription: 'pro' },
   { label: 'SurveyFlow', href: '/automator', icon: Workflow, group: 'AI_MODULES', badge: 'NEW', description: 'Drag-and-drop workflow automation builder', requiresSubscription: 'pro' },
-  { label: 'HydroLive', href: '/hydrolive', icon: Waves, group: 'AI_MODULES', badge: 'AI', description: 'Live contour maps, volume change, hazard detection', requiresSubscription: 'pro' },
 
   // DATA
   { label: 'Projects', href: '/project', icon: FolderKanban, group: 'DATA', description: 'Manage survey projects and revision history' },
