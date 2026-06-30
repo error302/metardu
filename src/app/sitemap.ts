@@ -14,6 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/fieldbook',
     '/cadastral-workflow',
     '/engineering-workflow',
+    '/topographic-workflow',
     '/tools/all',
     '/tools/cogo',
     '/tools/traverse',

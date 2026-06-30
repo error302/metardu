@@ -26,6 +26,8 @@ const searchablePages = [
   { category: 'Cadastral', group: 'Workflow', href: '/cadastral-workflow', labelKey: 'Cadastral Workflow' },
   // Engineering workflow
   { category: 'Engineering', group: 'Workflow', href: '/engineering-workflow', labelKey: 'Engineering Workflow' },
+  // Topographic workflow
+  { category: 'Topographic', group: 'Workflow', href: '/topographic-workflow', labelKey: 'Topographic Workflow' },
   // Tools - Calculations
   { category: 'Tools', group: 'Calculations', href: '/tools/distance', labelKey: 'tools.distance' },
   { category: 'Tools', group: 'Calculations', href: '/tools/bearing', labelKey: 'tools.bearingCalc' },
