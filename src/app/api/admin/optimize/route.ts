@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * Admin API for Performance Optimization
  * Apply database indexes and clear caches

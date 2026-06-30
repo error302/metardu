@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 import { apiHandler, ValidationError } from '@/lib/api/handler'
 import db from '@/lib/db'

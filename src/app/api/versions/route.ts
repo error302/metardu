@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * /api/versions — Entity version history
  * GET: list version history for an entity

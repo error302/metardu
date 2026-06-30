@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * GET    /api/admin/licenses/[licenseId]/seats   — List seats for license
  * POST   /api/admin/licenses/[licenseId]/seats   — Assign seat

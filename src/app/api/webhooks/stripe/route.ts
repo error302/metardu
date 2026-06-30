@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/api-client/server'
 import { getStripeService } from '@/lib/payments/stripe'

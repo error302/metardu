@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 import { apiHandler, ValidationError, NotFoundError } from '@/lib/api/handler'
 import { z } from 'zod'

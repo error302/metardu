@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * AI Chat Endpoint — NVIDIA NIM
  * Handles survey data QA, report generation, and assistance.

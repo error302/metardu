@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { NearbyBenchmarksSchema } from '@/lib/validation/apiSchemas'

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * METARDU — Sign Plan API Route (Phase 3 Enhanced)
  *

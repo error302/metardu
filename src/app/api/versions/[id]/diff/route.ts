@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * /api/versions/[id]/diff — Compare two versions of an entity
  * GET: get diff between two versions

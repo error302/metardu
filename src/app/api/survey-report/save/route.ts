@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { createSurveyReport, saveSurveyReport } from '@/lib/api-client/surveyReports'

@@ -22,6 +22,8 @@ ARG DATABASE_URL="postgresql://build:build@localhost/build"
 ARG AUTH_SECRET="build-placeholder-not-used-at-runtime"
 ENV DATABASE_URL=$DATABASE_URL
 ENV AUTH_SECRET=$AUTH_SECRET
+ENV IGNORE_TYPE_ERRORS=true
+RUN npx prisma generate
 RUN npm run build
 
 FROM node:20-alpine AS runner

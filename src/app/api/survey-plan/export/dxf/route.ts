@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * METARDU — Cadastral Plan DXF Export API Route
  *

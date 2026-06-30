@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { searchBenchmarks, getBenchmarkById, getAvailableCountries, getBenchmarkTypes } from '@/lib/online/benchmarks'

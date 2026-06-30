@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { developFullPlan, DevelopPlanOptions } from '@/lib/orchestrator/develop-full-plan'

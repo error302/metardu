@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * GET  /api/admin/licenses        — List all government licenses (paginated)
  * POST /api/admin/licenses        — Create new license (super_admin only)

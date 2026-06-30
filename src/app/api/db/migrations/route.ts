@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * /api/db/migrations — Migration Status Endpoint
  *

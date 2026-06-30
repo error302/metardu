@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { calculateEDMCorrection, calculateScaleCorrection, combinedEDMCorrection, estimateAccuracy } from '@/lib/online/weather'
 import { EDMCorrectionSchema } from '@/lib/validation/apiSchemas'

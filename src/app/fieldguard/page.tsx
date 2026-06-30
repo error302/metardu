@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { AlertCircle } from 'lucide-react'
@@ -10,7 +10,7 @@ const DataCleaner = dynamic(
   { ssr: false, loading: () => <div className="p-8">Loading...</div> }
 )
 
-export default function FieldGuardPage() {
+function FieldGuardContent() {
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project') || ''
   const [showWarning, setShowWarning] = useState(false)
@@ -34,5 +34,13 @@ export default function FieldGuardPage() {
 
       {projectId && <DataCleaner projectId={projectId} />}
     </div>
+  )
+}
+
+export default function FieldGuardPage() {
+  return (
+    <Suspense fallback={<div className="p-8">Loading...</div>}>
+      <FieldGuardContent />
+    </Suspense>
   )
 }

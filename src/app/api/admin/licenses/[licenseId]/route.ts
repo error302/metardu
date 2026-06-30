@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * GET    /api/admin/licenses/[licenseId]       — Get license details
  * PUT    /api/admin/licenses/[licenseId]       — Update license

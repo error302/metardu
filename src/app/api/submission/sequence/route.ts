@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/submission/sequence
  * Atomically increments the submission sequence number for a surveyor/year pair.

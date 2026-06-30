@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * /api/versions/[id]/restore — Restore an entity to a previous version
  * POST: restore entity to a specific snapshot

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * /api/db — Database proxy for client-side queries
  *

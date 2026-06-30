@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/auth/register — Create new user account
  *

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * /api/storage — File storage endpoint
  * Stores files on the VM filesystem with metadata in PostgreSQL.
