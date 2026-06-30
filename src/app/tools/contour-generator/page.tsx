@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { Mountain } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import {
   generateContours,
   buildTINSurface,
@@ -56,6 +57,44 @@ export default function ContourGeneratorPage() {
   const [contours, setContours] = useState<ContourLine[]>([]);
   const [tinSurface, setTinSurface] = useState<TINSurface | null>(null);
   const [volumeResult, setVolumeResult] = useState<VolumeResult | null>(null);
+
+  // ─── Project integration: auto-load points from project survey data ──────
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('project');
+  const [projectLoaded, setProjectLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!projectId || projectLoaded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/project/${projectId}/points`)
+        if (!res.ok) return
+        const json = await res.json()
+        const pts: SpotHeight[] = (json.data || [])
+          .filter((p: any) => p.elevation != null)
+          .map((p: any) => ({
+            name: p.point_name || p.id,
+            easting: p.easting,
+            northing: p.northing,
+            elevation: p.elevation,
+          }))
+        if (!cancelled && pts.length > 0) {
+          setPoints(pts)
+          setImportStats({
+            delimiter: 'auto',
+            hasHeader: false,
+          })
+        }
+      } catch {
+        // silent fail — user can import manually
+      } finally {
+        if (!cancelled) setProjectLoaded(true)
+      }
+    })()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, projectLoaded])
 
   // ─── Bounding box computation ────────────────────────────────────────────
 
