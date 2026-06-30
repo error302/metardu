@@ -50,7 +50,7 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
 }) {
   return (
     <div className="flex items-center gap-2">
-      <label className="text-[10px] text-gray-500 uppercase tracking-wider w-12 shrink-0">
+      <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider w-12 shrink-0">
         {label}
       </label>
       <input
@@ -58,7 +58,7 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="flex-1 px-2 py-1 text-xs font-mono bg-white border border-gray-200 rounded
+        className="flex-1 px-2 py-1 text-xs font-mono bg-[var(--bg-card)] border border-[var(--border-color)] rounded
                    focus:border-[#1B3A5C] focus:outline-none focus:ring-1 focus:ring-[#1B3A5C]/30
                    transition-colors"
       />
@@ -73,8 +73,8 @@ function ComputeButton({ onClick, disabled }: { onClick: () => void; disabled?: 
       onClick={onClick}
       disabled={disabled}
       className="w-full py-1.5 text-xs font-semibold rounded-lg transition-colors
-                 bg-[#1B3A5C] text-white hover:bg-[#142d49]
-                 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                 bg-[#1B3A5C] text-[var(--text-primary)] hover:bg-[#142d49]
+                 disabled:bg-gray-300 disabled:text-[var(--text-muted)] disabled:cursor-not-allowed"
     >
       Compute
     </button>
@@ -84,7 +84,7 @@ function ComputeButton({ onClick, disabled }: { onClick: () => void; disabled?: 
 /** Result display */
 function ResultDisplay({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 space-y-1">
+    <div className="bg-[var(--primary-blue)]/10 border border-blue-100 rounded-lg px-3 py-2 space-y-1">
       {children}
     </div>
   )
@@ -129,30 +129,30 @@ function RadiationPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
 
   return (
     <div className="space-y-2.5">
-      <div className="text-[10px] text-gray-400 leading-relaxed">
+      <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
         Compute a new point from a known station, bearing (WCB), and distance.
       </div>
       <div className="space-y-1.5">
-        <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold">Station</div>
+        <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold">Station</div>
         <Field label="E" value={easting} onChange={setEasting} placeholder="e.g. 512345.678" />
         <Field label="N" value={northing} onChange={setNorthing} placeholder="e.g. 9834567.890" />
-        <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold pt-1">Observation</div>
+        <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold pt-1">Observation</div>
         <Field label="Brg" value={bearing} onChange={setBearing} placeholder="e.g. 47.2314 or 47.3861" />
         <Field label="Dist" value={distance} onChange={setDistance} placeholder="e.g. 125.450" type="number" />
       </div>
       <ComputeButton onClick={compute} />
-      {error && <div className="text-[10px] text-red-500">{error}</div>}
+      {error && <div className="text-[10px] text-[var(--error)]">{error}</div>}
       {result && (
         <ResultDisplay>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Computed Point</div>
+          <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">Computed Point</div>
           <div className="text-xs font-mono text-[#1B3A5C]">{formatPoint(result.point)}</div>
-          <div className="text-[10px] text-gray-500">
+          <div className="text-[10px] text-[var(--text-muted)]">
             Bearing: {bearingToString(result.bearing)} &middot; Dist: {result.distance.toFixed(3)} m
           </div>
           <button
             onClick={() => onAddPoint(result.point, 'Rad')}
             className="flex items-center gap-1 mt-1 px-2 py-0.5 text-[10px] font-semibold
-                       bg-[#1B3A5C] text-white rounded hover:bg-[#142d49] transition-colors"
+                       bg-[#1B3A5C] text-[var(--text-primary)] rounded hover:bg-[#142d49] transition-colors"
           >
             <Plus className="w-3 h-3" /> Add to Map
           </button>
@@ -193,32 +193,32 @@ function BearingIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, lab
 
   return (
     <div className="space-y-2.5">
-      <div className="text-[10px] text-gray-400 leading-relaxed">
+      <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
         Intersect two rays defined by station + bearing (WCB). Returns the intersection point.
       </div>
       <div className="space-y-1.5">
-        <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold">Station A</div>
+        <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold">Station A</div>
         <Field label="E" value={eA} onChange={setEA} placeholder="512345.678" />
         <Field label="N" value={nA} onChange={setNA} placeholder="9834567.890" />
         <Field label="Brg" value={brgA} onChange={setBrgA} placeholder="47.2314" />
-        <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold pt-1">Station B</div>
+        <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold pt-1">Station B</div>
         <Field label="E" value={eB} onChange={setEB} placeholder="512500.000" />
         <Field label="N" value={nB} onChange={setNB} placeholder="9834600.000" />
         <Field label="Brg" value={brgB} onChange={setBrgB} placeholder="312.1500" />
       </div>
       <ComputeButton onClick={compute} />
-      {error && <div className="text-[10px] text-red-500">{error}</div>}
+      {error && <div className="text-[10px] text-[var(--error)]">{error}</div>}
       {result && (
         <ResultDisplay>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Intersection</div>
+          <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">Intersection</div>
           <div className="text-xs font-mono text-[#1B3A5C]">{formatPoint(result.point)}</div>
-          <div className="text-[10px] text-gray-500">
+          <div className="text-[10px] text-[var(--text-muted)]">
             Dist from A: {result.distA.toFixed(3)} m &middot; Dist from B: {result.distB.toFixed(3)} m
           </div>
           <button
             onClick={() => onAddPoint(result.point, 'Int')}
             className="flex items-center gap-1 mt-1 px-2 py-0.5 text-[10px] font-semibold
-                       bg-[#1B3A5C] text-white rounded hover:bg-[#142d49] transition-colors"
+                       bg-[#1B3A5C] text-[var(--text-primary)] rounded hover:bg-[#142d49] transition-colors"
           >
             <Plus className="w-3 h-3" /> Add to Map
           </button>
@@ -262,24 +262,24 @@ function DistanceIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, la
 
   return (
     <div className="space-y-2.5">
-      <div className="text-[10px] text-gray-400 leading-relaxed">
+      <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
         Intersect two circles (trilateration). Returns two possible points — select the correct one.
       </div>
       <div className="space-y-1.5">
-        <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold">Station A</div>
+        <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold">Station A</div>
         <Field label="E" value={eA} onChange={setEA} placeholder="512345.678" />
         <Field label="N" value={nA} onChange={setNA} placeholder="9834567.890" />
         <Field label="Dist" value={distA} onChange={setDistA} placeholder="125.450" type="number" />
-        <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold pt-1">Station B</div>
+        <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold pt-1">Station B</div>
         <Field label="E" value={eB} onChange={setEB} placeholder="512500.000" />
         <Field label="N" value={nB} onChange={setNB} placeholder="9834600.000" />
         <Field label="Dist" value={distB} onChange={setDistB} placeholder="98.760" type="number" />
       </div>
       <ComputeButton onClick={compute} />
-      {error && <div className="text-[10px] text-red-500">{error}</div>}
+      {error && <div className="text-[10px] text-[var(--error)]">{error}</div>}
       {result && (
         <ResultDisplay>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Two Solutions</div>
+          <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">Two Solutions</div>
           <div className="flex gap-2">
             {([0, 1] as const).map((idx) => (
               <button
@@ -287,8 +287,8 @@ function DistanceIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, la
                 onClick={() => setSelectedIdx(idx)}
                 className={`flex-1 px-2 py-1 text-[10px] font-mono rounded border transition-colors ${
                   selectedIdx === idx
-                    ? 'border-[#1B3A5C] bg-[#1B3A5C] text-white'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    ? 'border-[#1B3A5C] bg-[#1B3A5C] text-[var(--text-primary)]'
+                    : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-gray-300'
                 }`}
               >
                 P{idx + 1}: {formatPoint(result[idx])}
@@ -299,7 +299,7 @@ function DistanceIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, la
             <button
               onClick={() => onAddPoint(selected, 'DistInt')}
               className="flex items-center gap-1 mt-1 px-2 py-0.5 text-[10px] font-semibold
-                         bg-[#1B3A5C] text-white rounded hover:bg-[#142d49] transition-colors"
+                         bg-[#1B3A5C] text-[var(--text-primary)] rounded hover:bg-[#142d49] transition-colors"
             >
               <Plus className="w-3 h-3" /> Add P{selectedIdx + 1} to Map
             </button>
@@ -347,30 +347,30 @@ function ResectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
 
   return (
     <div className="space-y-2.5">
-      <div className="text-[10px] text-gray-400 leading-relaxed">
+      <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
         Tienstra three-point resection. Angles measured at unknown station between rays to control points.
       </div>
       <div className="space-y-1.5">
-        <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold">Control P1</div>
+        <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold">Control P1</div>
         <Field label="E" value={e1} onChange={setE1} placeholder="512345.678" />
         <Field label="N" value={n1} onChange={setN1} placeholder="9834567.890" />
-        <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold pt-1">Control P2</div>
+        <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold pt-1">Control P2</div>
         <Field label="E" value={e2} onChange={setE2} placeholder="512500.000" />
         <Field label="N" value={n2} onChange={setN2} placeholder="9834600.000" />
-        <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold pt-1">Control P3</div>
+        <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold pt-1">Control P3</div>
         <Field label="E" value={e3} onChange={setE3} placeholder="512600.000" />
         <Field label="N" value={n3} onChange={setN3} placeholder="9834700.000" />
-        <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold pt-1">Observed Angles</div>
+        <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold pt-1">Observed Angles</div>
         <Field label="∠12" value={a12} onChange={setA12} placeholder="e.g. 45.5000 (45°30')" />
         <Field label="∠23" value={a23} onChange={setA23} placeholder="e.g. 52.1500 (52°15')" />
       </div>
       <ComputeButton onClick={compute} />
-      {error && <div className="text-[10px] text-red-500">{error}</div>}
+      {error && <div className="text-[10px] text-[var(--error)]">{error}</div>}
       {result && (
         <ResultDisplay>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Resection Point</div>
+          <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">Resection Point</div>
           <div className="text-xs font-mono text-[#1B3A5C]">{formatPoint(result.point)}</div>
-          <div className="text-[10px] text-gray-500 space-y-0.5">
+          <div className="text-[10px] text-[var(--text-muted)] space-y-0.5">
             <div>Dist to P1: {result.d1.toFixed(3)} m</div>
             <div>Dist to P2: {result.d2.toFixed(3)} m</div>
             <div>Dist to P3: {result.d3.toFixed(3)} m</div>
@@ -378,7 +378,7 @@ function ResectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
           <button
             onClick={() => onAddPoint(result.point, 'Res')}
             className="flex items-center gap-1 mt-1 px-2 py-0.5 text-[10px] font-semibold
-                       bg-[#1B3A5C] text-white rounded hover:bg-[#142d49] transition-colors"
+                       bg-[#1B3A5C] text-[var(--text-primary)] rounded hover:bg-[#142d49] transition-colors"
           >
             <Plus className="w-3 h-3" /> Add to Map
           </button>
@@ -454,11 +454,11 @@ function CogoToolsPanelInner() {
 
   return (
     <div
-      className="bg-white rounded-lg shadow-lg border border-gray-200 select-none"
+      className="bg-[var(--bg-card)] rounded-lg shadow-lg border border-[var(--border-color)] select-none"
       style={{ fontFamily: 'Calibri, sans-serif', width: 300 }}
     >
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2">
           <Crosshair className="w-4 h-4 text-[#1B3A5C]" />
           <span className="text-sm font-semibold text-[#1B3A5C]">
@@ -467,7 +467,7 @@ function CogoToolsPanelInner() {
         </div>
         <button
           onClick={() => setExpanded(v => !v)}
-          className="p-1 hover:bg-gray-100 rounded transition-colors text-gray-500"
+          className="p-1 hover:bg-[var(--bg-secondary)] rounded transition-colors text-[var(--text-muted)]"
           title={expanded ? 'Collapse' : 'Expand'}
         >
           <RotateCcw className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -477,7 +477,7 @@ function CogoToolsPanelInner() {
       {expanded && (
         <>
           {/* ── Tab bar ── */}
-          <div className="flex border-b border-gray-100">
+          <div className="flex border-b border-[var(--border-color)]">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
@@ -485,8 +485,8 @@ function CogoToolsPanelInner() {
                 className={`flex-1 flex items-center justify-center gap-1 px-1 py-1.5 text-[9px] font-semibold
                            transition-colors border-b-2 ${
                              activeTab === tab.id
-                               ? 'text-[#1B3A5C] border-[#1B3A5C] bg-blue-50/50'
-                               : 'text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50'
+                               ? 'text-[#1B3A5C] border-[#1B3A5C] bg-[var(--primary-blue)]/10/50'
+                               : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]'
                            }`}
                 title={tab.label}
               >
@@ -505,8 +505,8 @@ function CogoToolsPanelInner() {
           </div>
 
           {/* ── Footer hint ── */}
-          <div className="px-3 py-1.5 border-t border-gray-100 bg-gray-50/50">
-            <div className="text-[9px] text-gray-400">
+          <div className="px-3 py-1.5 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50">
+            <div className="text-[9px] text-[var(--text-secondary)]">
               Bearings: DDD.MMSS (e.g. 47.2314 = 47° 23' 14") or decimal degrees
             </div>
           </div>

@@ -65,11 +65,11 @@ function RotationControlInner() {
     <button
       onClick={handleResetNorth}
       className={[
-        'relative w-10 h-10 rounded-lg border bg-white shadow-sm transition-all',
+        'relative w-10 h-10 rounded-lg border bg-[var(--bg-card)] shadow-sm transition-all',
         'flex items-center justify-center',
         isRotated
-          ? 'border-[#1B3A5C] hover:bg-blue-50 cursor-pointer'
-          : 'border-gray-200 cursor-default opacity-50',
+          ? 'border-[#1B3A5C] hover:bg-[var(--primary-blue)]/10 cursor-pointer'
+          : 'border-[var(--border-color)] cursor-default opacity-50',
       ].join(' ')}
       title={isRotated ? `Reset North (rotated ${rotationDeg}°)` : 'North (0°)'}
       disabled={!isRotated}
@@ -101,7 +101,7 @@ function RotationControlInner() {
 
       {/* Rotation badge */}
       {isRotated && (
-        <span className="absolute -top-1 -right-1 bg-[#1B3A5C] text-white text-[8px] font-bold px-1 py-0.5 rounded-full leading-none">
+        <span className="absolute -top-1 -right-1 bg-[#1B3A5C] text-[var(--text-primary)] text-[8px] font-bold px-1 py-0.5 rounded-full leading-none">
           {rotationDeg}°
         </span>
       )}

@@ -57,12 +57,12 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
       role="region"
       aria-label="Scheme layer controls"
     >
-      <div className="bg-[#14141e]/95 border border-white/[0.08] rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden">
+      <div className="bg-[#14141e]/95 border border-[var(--border-color)]/[0.08] rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border-color)]/[0.06]">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#D17B47]" />
-            <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
               Scheme Data
             </span>
           </div>
@@ -94,22 +94,22 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              <span className="text-xs text-gray-400">Loading scheme data...</span>
+              <span className="text-xs text-[var(--text-secondary)]">Loading scheme data...</span>
             </div>
           )}
 
           {/* Error State */}
           {error && !loading && (
             <div className="space-y-2">
-              <div className="text-[11px] text-red-400 bg-red-500/10 rounded-lg px-2.5 py-1.5 border border-red-500/20">
+              <div className="text-[11px] text-[var(--error)] bg-[var(--error)]/10 rounded-lg px-2.5 py-1.5 border border-red-500/20">
                 {error}
               </div>
               <button
                 onClick={loadSchemeData}
                 className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg
-                           bg-white/[0.04] border border-white/[0.08] text-gray-400
+                           bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.08] text-[var(--text-secondary)]
                            text-[11px] font-medium transition-all duration-200
-                           hover:bg-white/[0.08] hover:text-gray-300
+                           hover:bg-[var(--bg-card)]/[0.08] hover:text-[var(--text-secondary)]
                            focus:outline-none focus:ring-1 focus:ring-white/20"
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -152,16 +152,16 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
 
               {/* Traverse-to-Parcel Workflow */}
               {hasTraverse && !traverseParcelPreviewActive && (
-                <div className="pt-1 border-t border-white/[0.06]">
+                <div className="pt-1 border-t border-[var(--border-color)]/[0.06]">
                   <button
                     onClick={() => {
                       setShowTraverseWorkflow(true)
                       createParcelFromTraverse()
                     }}
                     className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg
-                               bg-green-500/10 border border-green-500/25 text-green-400
+                               bg-[var(--success)]/10 border border-green-500/25 text-[var(--success)]
                                text-xs font-semibold transition-all duration-200
-                               hover:bg-green-500/20 hover:border-green-500/40
+                               hover:bg-[var(--success)]/20 hover:border-green-500/40
                                focus:outline-none focus:ring-1 focus:ring-green-500/40"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -174,23 +174,23 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
 
               {/* Traverse preview confirm/cancel */}
               {traverseParcelPreviewActive && (
-                <div className="pt-1 border-t border-white/[0.06] space-y-2">
+                <div className="pt-1 border-t border-[var(--border-color)]/[0.06] space-y-2">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] text-green-400 uppercase tracking-wider font-semibold">
+                    <div className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" />
+                    <span className="text-[10px] text-[var(--success)] uppercase tracking-wider font-semibold">
                       Traverse Preview
                     </span>
                   </div>
-                  <p className="text-[10px] text-gray-400 leading-relaxed">
+                  <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
                     The traverse stations are shown as a polygon preview. Confirm to save as a parcel boundary.
                   </p>
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={confirmTraverseParcel}
                       className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
-                                 bg-green-500/20 border border-green-500/30 text-green-400
+                                 bg-[var(--success)]/20 border border-green-500/30 text-[var(--success)]
                                  text-[11px] font-semibold transition-all duration-200
-                                 hover:bg-green-500/30 hover:text-green-300
+                                 hover:bg-[var(--success)]/30 hover:text-[var(--success)]
                                  focus:outline-none focus:ring-1 focus:ring-green-500/30"
                       title="Save traverse as parcel boundary"
                     >
@@ -202,9 +202,9 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
                     <button
                       onClick={cancelTraverseParcel}
                       className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
-                                 bg-red-500/10 border border-red-500/20 text-red-400
+                                 bg-[var(--error)]/10 border border-red-500/20 text-[var(--error)]
                                  text-[11px] font-medium transition-all duration-200
-                                 hover:bg-red-500/20 hover:text-red-300
+                                 hover:bg-[var(--error)]/20 hover:text-[var(--error)]
                                  focus:outline-none focus:ring-1 focus:ring-red-500/30"
                       title="Cancel — remove preview"
                     >
@@ -222,9 +222,9 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
                 <button
                   onClick={zoomToScheme}
                   className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
-                             bg-white/[0.04] border border-white/[0.08] text-gray-400
+                             bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.08] text-[var(--text-secondary)]
                              text-[11px] font-medium transition-all duration-200
-                             hover:bg-white/[0.08] hover:text-gray-300
+                             hover:bg-[var(--bg-card)]/[0.08] hover:text-[var(--text-secondary)]
                              focus:outline-none focus:ring-1 focus:ring-white/20"
                   title="Zoom to scheme extent"
                 >
@@ -236,9 +236,9 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
                 <button
                   onClick={removeScheme}
                   className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
-                             bg-red-500/10 border border-red-500/20 text-red-400
+                             bg-[var(--error)]/10 border border-red-500/20 text-[var(--error)]
                              text-[11px] font-medium transition-all duration-200
-                             hover:bg-red-500/20 hover:text-red-300
+                             hover:bg-[var(--error)]/20 hover:text-[var(--error)]
                              focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   title="Remove scheme layers"
                 >
@@ -277,7 +277,7 @@ function LayerToggle({
       className={`
         w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-all duration-200
         ${active
-          ? 'bg-white/[0.06] border border-white/[0.10]'
+          ? 'bg-[var(--bg-card)]/[0.06] border border-[var(--border-color)]/[0.10]'
           : 'bg-transparent border border-transparent opacity-50'}
         focus:outline-none focus:ring-1 focus:ring-white/20
       `}
@@ -287,11 +287,11 @@ function LayerToggle({
           className="w-2.5 h-2.5 rounded-sm transition-opacity duration-200"
           style={{ backgroundColor: color, opacity: active ? 1 : 0.3 }}
         />
-        <span className={`text-[11px] font-medium ${active ? 'text-gray-200' : 'text-gray-500'}`}>
+        <span className={`text-[11px] font-medium ${active ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)]'}`}>
           {label}
         </span>
       </div>
-      <span className="text-[10px] text-gray-500 tabular-nums">
+      <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
         {count}
       </span>
     </button>

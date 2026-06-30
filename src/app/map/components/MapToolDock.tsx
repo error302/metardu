@@ -79,11 +79,11 @@ const CATEGORY_ACCENT: Record<string, string> = {
 function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
     <div className="flex items-center justify-between px-1 pt-3 pb-2 first:pt-1">
-      <span className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-semibold">
+      <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--text-muted)] font-semibold">
         {children}
       </span>
       {hint && (
-        <kbd className="px-1 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-[8px] text-gray-600 font-mono">
+        <kbd className="px-1 py-0.5 rounded bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.08] text-[8px] text-[var(--text-muted)] font-mono">
           {hint}
         </kbd>
       )}
@@ -107,13 +107,13 @@ function ToolBtn({ label, icon, isActive, onClick, shortcut }: {
         w-[52px] h-[52px] shrink-0 relative
         ${isActive
           ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47] shadow-[0_0_12px_rgba(209, 123, 71,0.15)]'
-          : 'bg-white/[0.02] border border-white/[0.06] text-gray-400 hover:bg-white/[0.04] hover:text-gray-300'}
+          : 'bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)]'}
       `}
     >
       <span className="w-5 h-5">{icon}</span>
       <span className="text-[10px] leading-tight font-medium">{label}</span>
       {shortcut && (
-        <span className="absolute top-0.5 right-1 text-[7px] text-gray-600 font-mono opacity-50">
+        <span className="absolute top-0.5 right-1 text-[7px] text-[var(--text-muted)] font-mono opacity-50">
           {shortcut}
         </span>
       )}
@@ -138,18 +138,18 @@ function ActionBtn({ label, icon, isActive, onClick, danger, shortcut, disabled 
       className={`
         flex items-center gap-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 text-xs font-medium
         ${disabled
-          ? 'opacity-30 cursor-not-allowed text-gray-600 border border-transparent'
+          ? 'opacity-30 cursor-not-allowed text-[var(--text-muted)] border border-transparent'
           : danger && isActive
-            ? 'bg-red-500/10 border border-red-500/30 text-red-400'
+            ? 'bg-[var(--error)]/10 border border-red-500/30 text-[var(--error)]'
             : isActive
               ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47]'
-              : 'text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 border border-transparent'}
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)] border border-transparent'}
       `}
     >
       <span className="w-4 h-4 shrink-0">{icon}</span>
       <span className="flex-1 text-left">{label}</span>
       {shortcut && !disabled && (
-        <kbd className="px-1 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-[8px] text-gray-600 font-mono">
+        <kbd className="px-1 py-0.5 rounded bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.08] text-[8px] text-[var(--text-muted)] font-mono">
           {shortcut}
         </kbd>
       )}
@@ -178,14 +178,14 @@ const SurveyWorkflowBadge = memo(function SurveyWorkflowBadge({
       aria-label={`Workflow stage: ${label}`}
     >
       <div
-        className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-xl border border-white/[0.08] bg-[#0d0d14]/70"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-xl border border-[var(--border-color)]/[0.08] bg-[#0d0d14]/70"
         style={{ boxShadow: `0 0 16px ${accent}20` }}
       >
         <div
           className="w-2 h-2 rounded-full animate-pulse"
           style={{ backgroundColor: accent }}
         />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-300">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-secondary)]">
           {label}
         </span>
       </div>
@@ -203,7 +203,7 @@ const MetarduWatermark = memo(function MetarduWatermark() {
       className="absolute bottom-2 right-3 z-10 pointer-events-none select-none"
       aria-hidden="true"
     >
-      <span className="text-[10px] font-bold tracking-[0.25em] text-white/[0.06] uppercase">
+      <span className="text-[10px] font-bold tracking-[0.25em] text-[var(--text-primary)]/[0.06] uppercase">
         METARDU
       </span>
     </div>
@@ -231,14 +231,14 @@ const ReconPanel = memo(function ReconPanel() {
     <div className="space-y-1">
       <SectionLabel hint="⌘F">Coordinate Search</SectionLabel>
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" />
         <input
           type="text"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
           placeholder="Coord, beacon, or parcel…"
-          className="w-full h-8 bg-white/[0.04] border border-white/[0.06] rounded-lg pl-8 pr-3 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#3B82F6]/40 transition-colors"
+          className="w-full h-8 bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.06] rounded-lg pl-8 pr-3 text-[11px] text-[var(--text-primary)] placeholder-gray-600 focus:outline-none focus:border-[#3B82F6]/40 transition-colors"
         />
       </div>
 
@@ -319,9 +319,9 @@ const CapturePanel = memo(function CapturePanel() {
         <ToolBtn label="Area" icon={<Hexagon className="w-5 h-5" />} isActive={ctx.measureMode === 'area'} onClick={() => ctx.toggleMeasure(ctx.measureMode === 'area' ? 'none' : 'area')} shortcut="M A" />
       </div>
       {ctx.measureResult && (
-        <div className="mt-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06]">
-          <span className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-semibold">Result</span>
-          <p className="text-sm text-white font-mono mt-1">{ctx.measureResult}</p>
+        <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06]">
+          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.15em] font-semibold">Result</span>
+          <p className="text-sm text-[var(--text-primary)] font-mono mt-1">{ctx.measureResult}</p>
         </div>
       )}
 
@@ -337,24 +337,24 @@ const CapturePanel = memo(function CapturePanel() {
       <SectionLabel hint="E">Edit</SectionLabel>
       <ActionBtn label="Modify Vertices" icon={<Edit3 className="w-4 h-4" />} isActive={ctx.editMode} onClick={ctx.toggleEdit} shortcut="V" />
       <div className="flex gap-1.5">
-        <button onClick={ctx.undo} disabled={!ctx.canUndo} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.06] text-xs font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+        <button onClick={ctx.undo} disabled={!ctx.canUndo} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-[var(--border-color)]/[0.06] text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all">
           <Undo2 className="w-3.5 h-3.5" /> Undo
         </button>
-        <button onClick={ctx.redo} disabled={!ctx.canRedo} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.06] text-xs font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+        <button onClick={ctx.redo} disabled={!ctx.canRedo} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-[var(--border-color)]/[0.06] text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all">
           <Redo2 className="w-3.5 h-3.5" /> Redo
         </button>
       </div>
       <ActionBtn label="Delete Selected" icon={<Trash2 className="w-4 h-4" />} isActive={false} onClick={ctx.deleteSelected} danger shortcut="Del" />
 
       {ctx.selectedFeature && (
-        <div className="mt-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-2">
-          <span className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-semibold">Feature</span>
+        <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] space-y-2">
+          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.15em] font-semibold">Feature</span>
           <input
             type="text"
             value={ctx.featureName}
             onChange={(e) => ctx.updateFeatureName(e.target.value)}
             placeholder="Feature name…"
-            className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md px-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/30 transition-colors"
+            className="w-full h-7 bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.06] rounded-md px-2 text-[11px] text-[var(--text-primary)] placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/30 transition-colors"
           />
         </div>
       )}
@@ -399,26 +399,26 @@ const ComputePanel = memo(function ComputePanel() {
         />
       ) : traverseParcelPreviewActive ? (
         <div className="space-y-1.5">
-          <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400">
+          <div className="p-2 rounded-lg bg-[var(--warning)]/10 border border-amber-500/20 text-[10px] text-[var(--warning)]">
             Preview active — confirm or cancel to continue
           </div>
           <div className="flex gap-1.5">
             <button
               onClick={confirmTraverseParcel}
-              className="flex-1 py-1.5 rounded-lg bg-green-500/20 border border-green-500/30 text-[10px] font-semibold text-green-400 hover:bg-green-500/30 transition-colors"
+              className="flex-1 py-1.5 rounded-lg bg-[var(--success)]/20 border border-green-500/30 text-[10px] font-semibold text-[var(--success)] hover:bg-[var(--success)]/30 transition-colors"
             >
               Confirm
             </button>
             <button
               onClick={cancelTraverseParcel}
-              className="flex-1 py-1.5 rounded-lg bg-red-500/20 border border-red-500/30 text-[10px] font-semibold text-red-400 hover:bg-red-500/30 transition-colors"
+              className="flex-1 py-1.5 rounded-lg bg-[var(--error)]/20 border border-red-500/30 text-[10px] font-semibold text-[var(--error)] hover:bg-[var(--error)]/30 transition-colors"
             >
               Cancel
             </button>
           </div>
         </div>
       ) : (
-        <p className="text-[10px] text-gray-600 px-1">
+        <p className="text-[10px] text-[var(--text-muted)] px-1">
           Load a scheme with traverse data to create a parcel.
         </p>
       )}
@@ -447,7 +447,7 @@ const SetOutPanel = memo(function SetOutPanel() {
         shortcut="S"
       />
       <StakeoutPanel />
-      <p className="text-[10px] text-gray-600 px-1 mt-2">
+      <p className="text-[10px] text-[var(--text-muted)] px-1 mt-2">
         Set a target coordinate and navigate using GPS.
       </p>
 
@@ -469,7 +469,7 @@ const SetOutPanel = memo(function SetOutPanel() {
         onClick={() => exportFeatures('LandXML')}
         shortcut="⌘⇧E"
       />
-      <p className="text-[10px] text-gray-600 px-1">
+      <p className="text-[10px] text-[var(--text-muted)] px-1">
         Export setting-out data as LandXML for instrument upload.
       </p>
     </div>
@@ -512,7 +512,7 @@ const LayersDockPanel = memo(function LayersDockPanel() {
           className="flex-1 h-1 accent-[#D17B47] cursor-pointer"
           aria-label="Layer opacity"
         />
-        <span className="text-[10px] text-gray-500 font-mono w-8 text-right">
+        <span className="text-[10px] text-[var(--text-muted)] font-mono w-8 text-right">
           {Math.round(layerOpacity * 100)}%
         </span>
       </div>
@@ -548,13 +548,13 @@ const LayersDockPanel = memo(function LayersDockPanel() {
           <div className="flex gap-1.5 mt-1">
             <button
               onClick={zoomToScheme}
-              className="flex-1 py-1.5 rounded-lg border border-white/[0.06] text-[10px] text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all"
+              className="flex-1 py-1.5 rounded-lg border border-[var(--border-color)]/[0.06] text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)] transition-all"
             >
               Zoom to Scheme
             </button>
             <button
               onClick={removeScheme}
-              className="flex-1 py-1.5 rounded-lg border border-red-500/20 text-[10px] text-red-400 hover:bg-red-500/10 transition-all"
+              className="flex-1 py-1.5 rounded-lg border border-red-500/20 text-[10px] text-[var(--error)] hover:bg-[var(--error)]/10 transition-all"
             >
               Remove
             </button>
@@ -585,11 +585,11 @@ const ExportPanel = memo(function ExportPanel() {
 
       <SectionLabel hint="⌘E">Export Format</SectionLabel>
       <div className="grid grid-cols-3 gap-1 mt-1">
-        <button onClick={() => exportFeatures('GeoJSON')} className="px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all">GeoJSON</button>
-        <button onClick={() => exportFeatures('KML')} className="px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all">KML</button>
-        <button onClick={() => exportFeatures('DXF')} className="px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all">DXF</button>
-        <button onClick={() => exportFeatures('WKT')} className="px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all">WKT</button>
-        <button onClick={() => exportFeatures('LandXML')} className="col-span-2 px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all">LandXML</button>
+        <button onClick={() => exportFeatures('GeoJSON')} className="px-2 py-1.5 rounded-lg border border-[var(--border-color)]/[0.06] text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)] transition-all">GeoJSON</button>
+        <button onClick={() => exportFeatures('KML')} className="px-2 py-1.5 rounded-lg border border-[var(--border-color)]/[0.06] text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)] transition-all">KML</button>
+        <button onClick={() => exportFeatures('DXF')} className="px-2 py-1.5 rounded-lg border border-[var(--border-color)]/[0.06] text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)] transition-all">DXF</button>
+        <button onClick={() => exportFeatures('WKT')} className="px-2 py-1.5 rounded-lg border border-[var(--border-color)]/[0.06] text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)] transition-all">WKT</button>
+        <button onClick={() => exportFeatures('LandXML')} className="col-span-2 px-2 py-1.5 rounded-lg border border-[var(--border-color)]/[0.06] text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)] transition-all">LandXML</button>
       </div>
 
       <SectionLabel hint="⌘P">Print / PDF</SectionLabel>
@@ -722,7 +722,7 @@ export const MapToolDock = memo(function MapToolDock() {
             className={`
               fixed inset-x-0 bottom-0 z-40
               bg-[#0d0d14]/95 backdrop-blur-2xl
-              border-t border-white/[0.08]
+              border-t border-[var(--border-color)]/[0.08]
               rounded-t-2xl
               shadow-[0_-8px_40px_rgba(0,0,0,0.5)]
               transition-transform duration-300 ease-out
@@ -732,23 +732,23 @@ export const MapToolDock = memo(function MapToolDock() {
           >
             {/* Drag handle */}
             <div className="flex justify-center pt-2 pb-1">
-              <div className="w-8 h-1 rounded-full bg-white/[0.12]" />
+              <div className="w-8 h-1 rounded-full bg-[var(--bg-card)]/[0.12]" />
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pb-2 border-b border-white/[0.06]">
+            <div className="flex items-center justify-between px-4 pb-2 border-b border-[var(--border-color)]/[0.06]">
               <div className="flex items-center gap-2">
                 <div
                   className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: activeAccent }}
                 />
-                <span className="text-xs text-gray-300 font-semibold">
+                <span className="text-xs text-[var(--text-secondary)] font-semibold">
                   {CATEGORIES.find(c => c.id === activeCategory)?.label}
                 </span>
               </div>
               <button
                 onClick={closeDrawer}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/[0.06] transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/[0.06] transition-colors"
                 aria-label="Close panel"
               >
                 <X className="w-3.5 h-3.5" />
@@ -763,7 +763,7 @@ export const MapToolDock = memo(function MapToolDock() {
         )}
 
         {/* Bottom horizontal dock bar */}
-        <div className="fixed bottom-0 inset-x-0 z-50 flex items-center justify-center gap-1 px-2 py-2 bg-[#0d0d14]/90 backdrop-blur-2xl border-t border-white/[0.06]">
+        <div className="fixed bottom-0 inset-x-0 z-50 flex items-center justify-center gap-1 px-2 py-2 bg-[#0d0d14]/90 backdrop-blur-2xl border-t border-[var(--border-color)]/[0.06]">
           {CATEGORIES.map(cat => {
             const Icon = cat.icon
             const active = isCategoryActive(cat.id)
@@ -779,10 +779,10 @@ export const MapToolDock = memo(function MapToolDock() {
                   flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all duration-200
                   w-12 h-12 shrink-0 relative
                   ${isOpen
-                    ? 'bg-white/[0.08] border border-white/[0.12] text-white'
+                    ? 'bg-[var(--bg-card)]/[0.08] border border-[var(--border-color)]/[0.12] text-[var(--text-primary)]'
                     : active
-                      ? 'bg-white/[0.04] text-white/70'
-                      : 'text-gray-500 active:bg-white/[0.04]'}
+                      ? 'bg-[var(--bg-card)]/[0.04] text-[var(--text-primary)]/70'
+                      : 'text-[var(--text-muted)] active:bg-[var(--bg-card)]/[0.04]'}
                 `}
                 style={isOpen ? { boxShadow: `0 0 12px ${accent}30` } : undefined}
               >
@@ -830,10 +830,10 @@ export const MapToolDock = memo(function MapToolDock() {
                 flex items-center justify-center rounded-full transition-all duration-200
                 backdrop-blur-xl
                 ${isOpen
-                  ? `bg-white/[0.10] border border-white/[0.15] text-white`
+                  ? `bg-[var(--bg-card)]/[0.10] border border-[var(--border-color)]/[0.15] text-[var(--text-primary)]`
                   : active
-                    ? 'bg-[#0d0d14]/60 border border-white/[0.08] text-white/70 hover:bg-[#0d0d14]/80'
-                    : 'bg-[#0d0d14]/40 border border-white/[0.04] text-gray-500 hover:bg-[#0d0d14]/60 hover:text-gray-300'}
+                    ? 'bg-[#0d0d14]/60 border border-[var(--border-color)]/[0.08] text-[var(--text-primary)]/70 hover:bg-[#0d0d14]/80'
+                    : 'bg-[#0d0d14]/40 border border-[var(--border-color)]/[0.04] text-[var(--text-muted)] hover:bg-[#0d0d14]/60 hover:text-[var(--text-secondary)]'}
               `}
               style={isOpen ? { boxShadow: `0 0 14px ${accent}30, inset 0 0 8px ${accent}10` } : undefined}
             >
@@ -851,7 +851,7 @@ export const MapToolDock = memo(function MapToolDock() {
             w-[260px] sm:w-[280px]
             max-h-[calc(100%-80px)]
             bg-[#0d0d14]/90 backdrop-blur-2xl
-            border border-white/[0.06]
+            border border-[var(--border-color)]/[0.06]
             rounded-2xl
             shadow-[0_8px_40px_rgba(0,0,0,0.4)]
             flex flex-col overflow-hidden
@@ -863,19 +863,19 @@ export const MapToolDock = memo(function MapToolDock() {
           style={{ boxShadow: `0 8px 40px rgba(0,0,0,0.4), 0 0 20px ${activeAccent}08` }}
         >
           {/* Drawer header */}
-          <div className="h-10 flex items-center justify-between px-4 shrink-0 border-b border-white/[0.06]">
+          <div className="h-10 flex items-center justify-between px-4 shrink-0 border-b border-[var(--border-color)]/[0.06]">
             <div className="flex items-center gap-2">
               <div
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: activeAccent }}
               />
-              <span className="text-xs text-gray-300 font-semibold">
+              <span className="text-xs text-[var(--text-secondary)] font-semibold">
                 {CATEGORIES.find(c => c.id === activeCategory)?.label}
               </span>
             </div>
             <button
               onClick={closeDrawer}
-              className="w-6 h-6 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/[0.06] transition-colors"
+              className="w-6 h-6 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/[0.06] transition-colors"
               aria-label="Close panel"
             >
               <X className="w-3.5 h-3.5" />

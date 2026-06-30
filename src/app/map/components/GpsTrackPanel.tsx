@@ -80,6 +80,7 @@ export const GpsTrackPanel = memo(function GpsTrackPanel() {
         { default: Feature },
         { default: Style },
         { default: Stroke },
+        { default: GeoJSONFormat },
       ] = await Promise.all([
         import('ol/source/Vector'),
         import('ol/layer/Vector'),
@@ -87,12 +88,15 @@ export const GpsTrackPanel = memo(function GpsTrackPanel() {
         import('ol/Feature'),
         import('ol/style/Style'),
         import('ol/style/Stroke'),
+        import('ol/format/GeoJSON'),
       ])
 
       const geometry = new LineString(trackPoints)
       const feature = new Feature({ geometry })
+      const trackDate = new Date().toISOString()
       feature.set('trackLog', true)
-      feature.set('trackDate', new Date().toISOString())
+      feature.set('trackDate', trackDate)
+      feature.set('trackPointCount', trackPoints.length)
 
       // Remove previous track layer if it exists
       if (trackLayerRef.current) {
@@ -104,7 +108,7 @@ export const GpsTrackPanel = memo(function GpsTrackPanel() {
         source,
         style: new Style({
           stroke: new Stroke({
-            color: '#FF8C00',
+            color: '#D17B47',
             width: 3,
           }),
         }),
@@ -113,10 +117,35 @@ export const GpsTrackPanel = memo(function GpsTrackPanel() {
 
       mapInstance.current.addLayer(layer)
       trackLayerRef.current = layer
+
+      // ── Persist track to localStorage (survives reload) ──
+      try {
+        const fmt = new GeoJSONFormat()
+        const geojson = fmt.writeFeatureObject(feature, {
+          featureProjection: 'EPSG:3857',
+          dataProjection: 'EPSG:4326',
+        })
+        const trackKey = `metardu:gps-track:${trackDate}`
+        const trackData = {
+          date: trackDate,
+          pointCount: trackPoints.length,
+          geojson,
+          totalDistance: totalDistance.toFixed(1),
+        }
+        // Store in a list of tracks
+        const existingTracks = JSON.parse(localStorage.getItem('metardu:gps-tracks') || '[]')
+        existingTracks.push(trackData)
+        // Keep last 50 tracks
+        if (existingTracks.length > 50) existingTracks.shift()
+        localStorage.setItem('metardu:gps-tracks', JSON.stringify(existingTracks))
+        localStorage.setItem(trackKey, JSON.stringify(trackData))
+      } catch {
+        // localStorage might be full — track still visible on map
+      }
     } catch (err) {
       console.error('[GpsTrackPanel] Failed to create track layer:', err)
     }
-  }, [trackPoints, mapInstance])
+  }, [trackPoints, mapInstance, totalDistance])
 
   const formatDistance = (meters: number): string => {
     if (meters >= 1000) {
@@ -126,12 +155,12 @@ export const GpsTrackPanel = memo(function GpsTrackPanel() {
   }
 
   return (
-    <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-white/[0.06] rounded-lg w-56">
+    <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-[var(--border-color)]/[0.06] rounded-lg w-56">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2">
         <div className="flex items-center gap-2">
           <MapPin className="w-3.5 h-3.5 text-[#D17B47]" />
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+          <span className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold">
             GPS Track
           </span>
         </div>
@@ -153,7 +182,7 @@ export const GpsTrackPanel = memo(function GpsTrackPanel() {
           ) : (
             <button
               onClick={stopTracking}
-              className="flex-1 h-7 flex items-center justify-center gap-1.5 text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500/30 transition-colors"
+              className="flex-1 h-7 flex items-center justify-center gap-1.5 text-[10px] bg-[var(--error)]/20 text-[var(--error)] border border-red-500/30 rounded hover:bg-[var(--error)]/30 transition-colors"
               title="Stop track logging and save"
             >
               <Square className="w-3 h-3" />
@@ -164,24 +193,24 @@ export const GpsTrackPanel = memo(function GpsTrackPanel() {
 
         {/* Stats */}
         {isTracking && (
-          <div className="flex items-center justify-between px-2 py-1.5 bg-white/[0.03] rounded">
+          <div className="flex items-center justify-between px-2 py-1.5 bg-[var(--bg-card)]/[0.03] rounded">
             <div className="flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[10px] text-gray-400">Recording</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--error)] animate-pulse" />
+              <span className="text-[10px] text-[var(--text-secondary)]">Recording</span>
             </div>
-            <span className="text-[10px] text-gray-300 font-mono">{pointCount} pts</span>
+            <span className="text-[10px] text-[var(--text-secondary)] font-mono">{pointCount} pts</span>
           </div>
         )}
 
         {(pointCount > 0 || totalDistance > 0) && (
-          <div className="flex items-center justify-between px-2 py-1.5 bg-white/[0.03] rounded">
-            <span className="text-[10px] text-gray-400">Distance</span>
-            <span className="text-[10px] text-gray-300 font-mono">{formatDistance(totalDistance)}</span>
+          <div className="flex items-center justify-between px-2 py-1.5 bg-[var(--bg-card)]/[0.03] rounded">
+            <span className="text-[10px] text-[var(--text-secondary)]">Distance</span>
+            <span className="text-[10px] text-[var(--text-secondary)] font-mono">{formatDistance(totalDistance)}</span>
           </div>
         )}
 
         {!gpsTracking && !isTracking && (
-          <div className="text-[9px] text-gray-600 text-center py-0.5">
+          <div className="text-[9px] text-[var(--text-muted)] text-center py-0.5">
             Enable GPS tracking to log tracks
           </div>
         )}

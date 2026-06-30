@@ -88,7 +88,7 @@ export const BookmarkPanel = memo(function BookmarkPanel() {
   }, [bookmarks])
 
   return (
-    <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-white/[0.06] rounded-lg w-56">
+    <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-[var(--border-color)]/[0.06] rounded-lg w-56">
       {/* Header */}
       <div
         className="flex items-center justify-between px-3 py-2 cursor-pointer select-none"
@@ -96,11 +96,11 @@ export const BookmarkPanel = memo(function BookmarkPanel() {
       >
         <div className="flex items-center gap-2">
           <Bookmark className="w-3.5 h-3.5 text-[#D17B47]" />
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+          <span className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold">
             Bookmarks
           </span>
         </div>
-        <ChevronDown className={`w-3 h-3 text-gray-500 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+        <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] transition-transform ${collapsed ? '-rotate-90' : ''}`} />
       </div>
 
       {!collapsed && (
@@ -112,7 +112,7 @@ export const BookmarkPanel = memo(function BookmarkPanel() {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Bookmark name"
-              className="flex-1 h-7 px-2 text-[10px] bg-white/5 border border-white/[0.08] rounded text-white placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/40"
+              className="flex-1 h-7 px-2 text-[10px] bg-[var(--bg-card)]/5 border border-[var(--border-color)]/[0.08] rounded text-[var(--text-primary)] placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/40"
               onKeyDown={(e) => { if (e.key === 'Enter') saveCurrentView() }}
             />
             <button
@@ -126,7 +126,7 @@ export const BookmarkPanel = memo(function BookmarkPanel() {
 
           {/* Bookmark list */}
           {bookmarks.length === 0 ? (
-            <div className="text-[9px] text-gray-600 text-center py-1">
+            <div className="text-[9px] text-[var(--text-muted)] text-center py-1">
               No saved views
             </div>
           ) : (
@@ -134,18 +134,18 @@ export const BookmarkPanel = memo(function BookmarkPanel() {
               {bookmarks.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-center justify-between px-2 py-1 bg-white/[0.03] rounded group hover:bg-white/[0.06] transition-colors"
+                  className="flex items-center justify-between px-2 py-1 bg-[var(--bg-card)]/[0.03] rounded group hover:bg-[var(--bg-card)]/[0.06] transition-colors"
                 >
                   <button
                     onClick={() => navigateToBookmark(entry)}
                     className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
                   >
-                    <Navigation className="w-3 h-3 text-gray-500 flex-shrink-0" />
-                    <span className="text-[10px] text-gray-300 truncate">{entry.label}</span>
+                    <Navigation className="w-3 h-3 text-[var(--text-muted)] flex-shrink-0" />
+                    <span className="text-[10px] text-[var(--text-secondary)] truncate">{entry.label}</span>
                   </button>
                   <button
                     onClick={() => deleteBookmark(entry.id)}
-                    className="p-0.5 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="p-0.5 text-[var(--text-muted)] hover:text-[var(--error)] opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Delete bookmark"
                   >
                     <Trash2 className="w-3 h-3" />

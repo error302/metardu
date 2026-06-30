@@ -49,18 +49,18 @@ export const KeyboardShortcutsHelp = memo(function KeyboardShortcutsHelp() {
       onClick={() => setVisible(false)}
     >
       <div
-        className="bg-[#14141e]/95 border border-white/[0.08] rounded-xl shadow-2xl backdrop-blur-xl p-5 min-w-[320px] max-w-[420px]"
+        className="bg-[#14141e]/95 border border-[var(--border-color)]/[0.08] rounded-xl shadow-2xl backdrop-blur-xl p-5 min-w-[320px] max-w-[420px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Keyboard className="w-4 h-4 text-[#D17B47]" />
-            <h3 className="text-sm font-semibold text-white">Keyboard Shortcuts</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Keyboard Shortcuts</h3>
           </div>
           <button
             onClick={() => setVisible(false)}
-            className="text-gray-500 hover:text-white transition-colors p-1"
+            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-1"
           >
             <X className="w-4 h-4" />
           </button>
@@ -71,10 +71,10 @@ export const KeyboardShortcutsHelp = memo(function KeyboardShortcutsHelp() {
           {SHORTCUTS.map((shortcut) => (
             <div
               key={shortcut.keys}
-              className="flex items-center justify-between py-1.5 px-2 rounded-md bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
+              className="flex items-center justify-between py-1.5 px-2 rounded-md bg-[var(--bg-card)]/[0.03] hover:bg-[var(--bg-card)]/[0.06] transition-colors"
             >
-              <span className="text-[11px] text-gray-300">{shortcut.description}</span>
-              <kbd className="px-2 py-0.5 text-[10px] font-mono bg-white/[0.08] text-gray-400 rounded border border-white/[0.1]">
+              <span className="text-[11px] text-[var(--text-secondary)]">{shortcut.description}</span>
+              <kbd className="px-2 py-0.5 text-[10px] font-mono bg-[var(--bg-card)]/[0.08] text-[var(--text-secondary)] rounded border border-[var(--border-color)]/[0.1]">
                 {shortcut.keys}
               </kbd>
             </div>
@@ -82,9 +82,9 @@ export const KeyboardShortcutsHelp = memo(function KeyboardShortcutsHelp() {
         </div>
 
         {/* Footer hint */}
-        <div className="mt-4 pt-3 border-t border-white/[0.06] text-center">
-          <span className="text-[9px] text-gray-600">
-            Press <kbd className="px-1 py-0.5 text-[9px] font-mono bg-white/[0.06] text-gray-500 rounded border border-white/[0.08]">?</kbd> to close
+        <div className="mt-4 pt-3 border-t border-[var(--border-color)]/[0.06] text-center">
+          <span className="text-[9px] text-[var(--text-muted)]">
+            Press <kbd className="px-1 py-0.5 text-[9px] font-mono bg-[var(--bg-card)]/[0.06] text-[var(--text-muted)] rounded border border-[var(--border-color)]/[0.08]">?</kbd> to close
           </span>
         </div>
       </div>

@@ -54,10 +54,10 @@ interface IdentifyPanelProps {
 }
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: typeof CheckCircle2 }> = {
-  registered: { color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', icon: CheckCircle2 },
-  pending: { color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', icon: Clock },
-  disputed: { color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30', icon: AlertTriangle },
-  cancelled: { color: 'text-gray-400', bg: 'bg-gray-500/10 border-gray-500/30', icon: X },
+  registered: { color: 'text-[var(--success)]', bg: 'bg-[var(--success)]/10 border-emerald-500/30', icon: CheckCircle2 },
+  pending: { color: 'text-[var(--warning)]', bg: 'bg-[var(--warning)]/10 border-amber-500/30', icon: Clock },
+  disputed: { color: 'text-[var(--error)]', bg: 'bg-[var(--error)]/10 border-red-500/30', icon: AlertTriangle },
+  cancelled: { color: 'text-[var(--text-secondary)]', bg: 'bg-[var(--bg-tertiary)]/10 border-[var(--border-hover)]/30', icon: X },
 }
 
 const TYPE_ICONS: Record<string, typeof MapPin> = {
@@ -87,21 +87,21 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
   const StatusIcon = statusCfg?.icon
 
   return (
-    <div className="absolute top-32 right-3 z-30 w-80 max-h-[calc(100%-200px)] bg-[#0d0d14]/95 backdrop-blur-2xl border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-right-2 duration-200">
+    <div className="absolute top-32 right-3 z-30 w-80 max-h-[calc(100%-200px)] bg-[#0d0d14]/95 backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-right-2 duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-gradient-to-r from-[#D17B47]/5 to-transparent">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]/[0.06] bg-gradient-to-r from-[#D17B47]/5 to-transparent">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-[#D17B47]/10 flex items-center justify-center">
             <TypeIcon className="w-4 h-4 text-[#D17B47]" />
           </div>
           <div>
-            <span className="text-sm font-semibold text-white">Identify</span>
-            <p className="text-[9px] text-gray-500 uppercase tracking-wider">{feature.type}</p>
+            <span className="text-sm font-semibold text-[var(--text-primary)]">Identify</span>
+            <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">{feature.type}</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/[0.06] transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -112,11 +112,11 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
         {/* Title + status */}
         <div className="flex items-center gap-3">
           <div className="flex-1">
-            <h3 className="text-base font-bold text-white">
+            <h3 className="text-base font-bold text-[var(--text-primary)]">
               {feature.parcelNumber || feature.beaconNumber || 'Feature'}
             </h3>
             {feature.lrNumber && (
-              <p className="text-[10px] text-gray-500 font-mono mt-0.5">{feature.lrNumber}</p>
+              <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{feature.lrNumber}</p>
             )}
           </div>
           {statusCfg && StatusIcon && (
@@ -130,31 +130,31 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
         {/* Owner information */}
         {feature.ownerName && (
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+            <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">
               <User className="w-3 h-3" />
               Owner Information
             </div>
-            <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-1">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="text-gray-500">Name</span>
-                <span className="text-white font-medium">{feature.ownerName}</span>
+                <span className="text-[var(--text-muted)]">Name</span>
+                <span className="text-[var(--text-primary)] font-medium">{feature.ownerName}</span>
               </div>
               {feature.ownerId && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">ID</span>
-                  <span className="text-gray-300 font-mono">{feature.ownerId}</span>
+                  <span className="text-[var(--text-muted)]">ID</span>
+                  <span className="text-[var(--text-secondary)] font-mono">{feature.ownerId}</span>
                 </div>
               )}
               {feature.ownerPhone && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Phone</span>
-                  <span className="text-gray-300 font-mono">{feature.ownerPhone}</span>
+                  <span className="text-[var(--text-muted)]">Phone</span>
+                  <span className="text-[var(--text-secondary)] font-mono">{feature.ownerPhone}</span>
                 </div>
               )}
               {feature.lrNumber && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Title</span>
-                  <span className="text-gray-300 font-mono">{feature.lrNumber}</span>
+                  <span className="text-[var(--text-muted)]">Title</span>
+                  <span className="text-[var(--text-secondary)] font-mono">{feature.lrNumber}</span>
                 </div>
               )}
             </div>
@@ -164,49 +164,49 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
         {/* Geometry */}
         {(feature.areaHa != null || feature.easting != null) && (
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+            <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">
               <Ruler className="w-3 h-3" />
               Geometry
             </div>
-            <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-1">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] space-y-1">
               {feature.areaHa != null && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Area</span>
-                  <span className="text-white font-mono">{feature.areaHa.toFixed(4)} ha</span>
+                  <span className="text-[var(--text-muted)]">Area</span>
+                  <span className="text-[var(--text-primary)] font-mono">{feature.areaHa.toFixed(4)} ha</span>
                 </div>
               )}
               {feature.perimeterM != null && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Perimeter</span>
-                  <span className="text-gray-300 font-mono">{feature.perimeterM.toFixed(3)} m</span>
+                  <span className="text-[var(--text-muted)]">Perimeter</span>
+                  <span className="text-[var(--text-secondary)] font-mono">{feature.perimeterM.toFixed(3)} m</span>
                 </div>
               )}
               {feature.vertexCount != null && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Vertices</span>
-                  <span className="text-gray-300">{feature.vertexCount}</span>
+                  <span className="text-[var(--text-muted)]">Vertices</span>
+                  <span className="text-[var(--text-secondary)]">{feature.vertexCount}</span>
                 </div>
               )}
               {feature.centroidE != null && feature.centroidN != null && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Centroid</span>
-                  <span className="text-gray-300 font-mono text-[10px]">
+                  <span className="text-[var(--text-muted)]">Centroid</span>
+                  <span className="text-[var(--text-secondary)] font-mono text-[10px]">
                     E:{feature.centroidE.toFixed(3)} N:{feature.centroidN.toFixed(3)}
                   </span>
                 </div>
               )}
               {feature.easting != null && feature.northing != null && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Coordinate</span>
-                  <span className="text-gray-300 font-mono text-[10px]">
+                  <span className="text-[var(--text-muted)]">Coordinate</span>
+                  <span className="text-[var(--text-secondary)] font-mono text-[10px]">
                     E:{feature.easting.toFixed(3)} N:{feature.northing.toFixed(3)}
                   </span>
                 </div>
               )}
               {feature.beaconType && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Type</span>
-                  <span className="text-gray-300 capitalize">{feature.beaconType.replace('_', ' ')}</span>
+                  <span className="text-[var(--text-muted)]">Type</span>
+                  <span className="text-[var(--text-secondary)] capitalize">{feature.beaconType.replace('_', ' ')}</span>
                 </div>
               )}
             </div>
@@ -216,7 +216,7 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
         {/* Beacons list */}
         {feature.beacons && feature.beacons.length > 0 && (
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+            <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">
               <MapPin className="w-3 h-3" />
               Beacons ({feature.beacons.length})
             </div>
@@ -224,13 +224,13 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
               {feature.beacons.map((beacon, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-2 p-1.5 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors cursor-pointer"
+                  className="flex items-center gap-2 p-1.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.04] hover:bg-[var(--bg-card)]/[0.04] transition-colors cursor-pointer"
                 >
                   <div className="w-5 h-5 rounded bg-[#D17B47]/10 flex items-center justify-center shrink-0">
                     <MapPin className="w-2.5 h-2.5 text-[#D17B47]" />
                   </div>
-                  <span className="text-[10px] font-mono text-gray-300 flex-1 truncate">{beacon.beaconNumber}</span>
-                  <span className="text-[9px] text-gray-600 font-mono">
+                  <span className="text-[10px] font-mono text-[var(--text-secondary)] flex-1 truncate">{beacon.beaconNumber}</span>
+                  <span className="text-[9px] text-[var(--text-muted)] font-mono">
                     {beacon.easting.toFixed(1)}, {beacon.northing.toFixed(1)}
                   </span>
                 </div>
@@ -241,18 +241,18 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
       </div>
 
       {/* Actions */}
-      <div className="p-3 border-t border-white/[0.06] flex items-center gap-1.5">
+      <div className="p-3 border-t border-[var(--border-color)]/[0.06] flex items-center gap-1.5">
         <button
           onClick={handleCopy}
-          className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-gray-300 hover:bg-white/[0.08] transition-colors"
+          className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.06] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.08] transition-colors"
         >
-          {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
           {copied ? 'Copied' : 'Copy'}
         </button>
         {onZoomTo && (
           <button
             onClick={() => onZoomTo(feature)}
-            className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-gray-300 hover:bg-white/[0.08] transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.06] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.08] transition-colors"
           >
             <ZoomIn className="w-3.5 h-3.5" />
             Zoom
@@ -270,7 +270,7 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
         {onDelete && (
           <button
             onClick={() => onDelete(feature)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/5 border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--error)]/5 border border-red-500/20 text-[var(--error)] hover:bg-[var(--error)]/10 transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>

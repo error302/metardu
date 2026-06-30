@@ -82,23 +82,23 @@ export function SnappingOptions({
   if (!open) return null
 
   return (
-    <div className="absolute top-32 right-3 z-30 w-72 bg-[#0d0d14]/95 backdrop-blur-2xl border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-2 duration-200">
+    <div className="absolute top-32 right-3 z-30 w-72 bg-[#0d0d14]/95 backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-2 duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]/[0.06]">
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${enabled ? 'bg-emerald-500/10' : 'bg-gray-500/10'}`}>
-            <Magnet className={`w-4 h-4 ${enabled ? 'text-emerald-400' : 'text-gray-500'}`} />
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${enabled ? 'bg-[var(--success)]/10' : 'bg-[var(--bg-tertiary)]/10'}`}>
+            <Magnet className={`w-4 h-4 ${enabled ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'}`} />
           </div>
           <div>
-            <span className="text-sm font-semibold text-white">Snapping</span>
-            <p className="text-[9px] text-gray-500 uppercase tracking-wider">
+            <span className="text-sm font-semibold text-[var(--text-primary)]">Snapping</span>
+            <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">
               {enabled ? 'Enabled' : 'Disabled'}
             </p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/[0.06]"
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/[0.06]"
         >
           <X className="w-4 h-4" />
         </button>
@@ -110,19 +110,19 @@ export function SnappingOptions({
           onClick={onToggleEnabled}
           className={`w-full flex items-center justify-between p-2.5 rounded-lg border transition-colors ${
             enabled
-              ? 'bg-emerald-500/5 border-emerald-500/30'
-              : 'bg-white/[0.02] border-white/[0.06]'
+              ? 'bg-[var(--success)]/5 border-emerald-500/30'
+              : 'bg-[var(--bg-card)]/[0.02] border-[var(--border-color)]/[0.06]'
           }`}
         >
-          <span className="text-xs text-white">Enable Snapping</span>
-          <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${enabled ? 'bg-emerald-500' : 'bg-gray-700'}`}>
-            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${enabled ? 'translate-x-4' : ''}`} />
+          <span className="text-xs text-[var(--text-primary)]">Enable Snapping</span>
+          <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${enabled ? 'bg-[var(--success)]' : 'bg-gray-700'}`}>
+            <div className={`w-4 h-4 rounded-full bg-[var(--bg-card)] transition-transform ${enabled ? 'translate-x-4' : ''}`} />
           </div>
         </button>
 
         {/* Snap mode */}
         <div>
-          <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">Snap Mode</label>
+          <label className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5">Snap Mode</label>
           <div className="grid grid-cols-3 gap-1">
             {(['vertex', 'segment', 'vertex_segment'] as SnapMode[]).map(m => (
               <button
@@ -132,7 +132,7 @@ export function SnappingOptions({
                 className={`px-2 py-1.5 rounded-lg text-[9px] font-medium transition-colors disabled:opacity-30 ${
                   localMode === m
                     ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47]'
-                    : 'bg-white/[0.02] border border-white/[0.06] text-gray-400 hover:text-gray-300'
+                    : 'bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
                 }`}
               >
                 {m === 'vertex' ? 'Vertex' : m === 'segment' ? 'Segment' : 'Both'}
@@ -144,8 +144,8 @@ export function SnappingOptions({
         {/* Tolerance */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-[9px] text-gray-500 uppercase tracking-wider">Tolerance</label>
-            <span className="text-[10px] text-gray-300 font-mono">{localTolerance.toFixed(2)} m</span>
+            <label className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Tolerance</label>
+            <span className="text-[10px] text-[var(--text-secondary)] font-mono">{localTolerance.toFixed(2)} m</span>
           </div>
           <input
             type="range"
@@ -157,7 +157,7 @@ export function SnappingOptions({
             disabled={!enabled}
             className="w-full h-1.5 accent-[#D17B47] cursor-pointer disabled:opacity-30"
           />
-          <div className="flex items-center justify-between mt-0.5 text-[8px] text-gray-600">
+          <div className="flex items-center justify-between mt-0.5 text-[8px] text-[var(--text-muted)]">
             <span>1cm</span>
             <span>1m</span>
             <span>5m</span>
@@ -166,13 +166,13 @@ export function SnappingOptions({
 
         {/* Snap to layers */}
         <div>
-          <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">Snap To</label>
+          <label className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5">Snap To</label>
           <div className="space-y-1">
             {(['parcels', 'beacons', 'grid', 'osm'] as SnapType[]).map(type => (
               <label
                 key={type}
                 className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-colors ${
-                  enabled ? 'hover:bg-white/[0.04]' : 'opacity-50'
+                  enabled ? 'hover:bg-[var(--bg-card)]/[0.04]' : 'opacity-50'
                 }`}
               >
                 <input
@@ -180,9 +180,9 @@ export function SnappingOptions({
                   checked={localSnapTypes.has(type)}
                   onChange={() => handleSnapTypeToggle(type)}
                   disabled={!enabled}
-                  className="w-3.5 h-3.5 rounded border-gray-600 accent-[#D17B47]"
+                  className="w-3.5 h-3.5 rounded border-[var(--border-hover)] accent-[#D17B47]"
                 />
-                <span className="text-[11px] text-gray-300">{SNAP_TYPE_LABELS[type]}</span>
+                <span className="text-[11px] text-[var(--text-secondary)]">{SNAP_TYPE_LABELS[type]}</span>
               </label>
             ))}
           </div>
@@ -190,8 +190,8 @@ export function SnappingOptions({
 
         {/* Info */}
         <div className="flex items-start gap-1.5 p-2 rounded-lg bg-blue-500/5 border border-blue-500/10">
-          <Settings2 className="w-3 h-3 text-blue-400 shrink-0 mt-0.5" />
-          <p className="text-[9px] text-blue-400/70 leading-relaxed">
+          <Settings2 className="w-3 h-3 text-[var(--primary-blue)] shrink-0 mt-0.5" />
+          <p className="text-[9px] text-[var(--primary-blue)]/70 leading-relaxed">
             Snapping ensures precise digitizing by aligning new features to existing vertices and edges.
             Lower tolerance = more precise but harder to snap. Higher tolerance = easier but less precise.
           </p>

@@ -22,18 +22,18 @@ export const MapLoadingOverlay = memo(function MapLoadingOverlay() {
       <div className="text-center max-w-md px-6 bg-[#14141e]/90 rounded-xl py-5 shadow-2xl">
         {initError ? (
           <>
-            <div className="text-red-400 text-lg mb-2">Map Error</div>
-            <p className="text-sm text-gray-400 mb-4">{initError}</p>
+            <div className="text-[var(--error)] text-lg mb-2">Map Error</div>
+            <p className="text-sm text-[var(--text-secondary)] mb-4">{initError}</p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={retryInit}
-                className="px-4 py-2 bg-white/10 text-white rounded-lg text-sm hover:bg-white/20 transition-colors"
+                className="px-4 py-2 bg-[var(--bg-card)]/10 text-[var(--text-primary)] rounded-lg text-sm hover:bg-[var(--bg-card)]/20 transition-colors"
               >
                 Retry
               </button>
               <button
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-[#D17B47] text-white rounded-lg text-sm hover:bg-[#D17B47]/80 transition-colors"
+                className="px-4 py-2 bg-[#D17B47] text-[var(--text-primary)] rounded-lg text-sm hover:bg-[#D17B47]/80 transition-colors"
               >
                 Reload Page
               </button>
@@ -42,7 +42,7 @@ export const MapLoadingOverlay = memo(function MapLoadingOverlay() {
         ) : (
           <>
             <div className="w-8 h-8 border-2 border-[#D17B47] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm text-gray-400">Loading map...</p>
+            <p className="text-sm text-[var(--text-secondary)]">Loading map...</p>
           </>
         )}
       </div>

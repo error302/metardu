@@ -46,7 +46,7 @@
  *  - Select interaction + Popup overlays
  *  - Undo / Redo history (via useMapHistory hook)
  *  - Measurement (Distance & Area with bearing)
- *  - GeoJSON / KML / WKT / DXF / LandXML import & export
+ *  - GeoJSON / KML / WKT import & export (DXF/LandXML export only — no import)
  *  - Drag & Drop file import
  *  - MousePosition (live EPSG:21037 coords)
  *  - Geolocation (GPS tracking)
@@ -97,7 +97,6 @@ import { MapToolDock } from '@/app/map/components/MapToolDock'
 import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
 import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButton'
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
-import { DigitizingToolbar } from '@/app/map/components/DigitizingToolbar'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
 import { StakeoutRadar } from '@/components/survey/StakeoutRadar'
 import { LayerControl } from '@/components/map/LayerControl'
@@ -146,13 +145,13 @@ function renderPopup(popupElement: HTMLDivElement, data: any, hidePopup: () => v
   const dot = document.createElement('div')
   dot.className = 'w-1.5 h-1.5 rounded-full bg-[#D17B47]'
   const label = document.createElement('span')
-  label.className = 'text-[10px] text-gray-500 uppercase tracking-[0.15em] font-semibold'
+  label.className = 'text-[10px] text-[var(--text-muted)] uppercase tracking-[0.15em] font-semibold'
   label.textContent = data.geometryType || 'Feature'
   labelWrap.append(dot, label)
 
   const closeButton = document.createElement('button')
   closeButton.type = 'button'
-  closeButton.className = 'text-gray-600 hover:text-white transition-colors p-0.5'
+  closeButton.className = 'text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-0.5'
   closeButton.textContent = 'x'
   closeButton.addEventListener('click', hidePopup)
   header.append(labelWrap, closeButton)
@@ -161,9 +160,9 @@ function renderPopup(popupElement: HTMLDivElement, data: any, hidePopup: () => v
   if (data.projectName) {
     const project = document.createElement('div')
     project.className = 'mb-1'
-    project.innerHTML = '<span class="text-[10px] text-gray-600 uppercase tracking-wider">Project</span>'
+    project.innerHTML = '<span class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Project</span>'
     const value = document.createElement('p')
-    value.className = 'text-sm font-semibold text-white'
+    value.className = 'text-sm font-semibold text-[var(--text-primary)]'
     value.textContent = data.projectName
     project.append(value)
     card.append(project)
@@ -172,7 +171,7 @@ function renderPopup(popupElement: HTMLDivElement, data: any, hidePopup: () => v
   if (data.stationName) {
     const station = document.createElement('div')
     station.className = 'mb-1'
-    station.innerHTML = '<span class="text-[10px] text-gray-600 uppercase tracking-wider">Station</span>'
+    station.innerHTML = '<span class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Station</span>'
     const value = document.createElement('p')
     value.className = 'text-sm text-[#D17B47]'
     value.textContent = data.stationName
@@ -295,6 +294,9 @@ export default function MapClient() {
   // ── Digitizing Tools state ──
   const [activeDigitizingTool, setActiveDigitizingTool] = useState<'draw' | 'split' | 'merge' | 'reshape' | 'rotate' | 'offset' | null>(null)
   const [snappingEnabled, setSnappingEnabled] = useState(true)
+  const [snappingMode, setSnappingMode] = useState<'vertex' | 'segment' | 'vertex_segment'>('vertex_segment')
+  const [snappingTolerance, setSnappingTolerance] = useState(10)
+  const [snappingTypes, setSnappingTypes] = useState<Set<'osm' | 'parcels' | 'beacons' | 'grid' | 'all'>>(new Set(['parcels', 'beacons']))
   const [showSnappingOptions, setShowSnappingOptions] = useState(false)
 
   // ── Stakeout Radar state ──
@@ -1073,26 +1075,23 @@ export default function MapClient() {
               <MapInteractionToggle mapInstance={mapInstance} />
 
               {/* ── Digitizing Toolbar (bottom-center, above status bar) ── */}
-              <DigitizingToolbar
-                activeTool={activeDigitizingTool}
-                onToolChange={setActiveDigitizingTool}
-                canUndo={canUndo}
-                canRedo={canRedo}
-                onUndo={undo}
-                onRedo={redo}
-                snappingEnabled={snappingEnabled}
-                onToggleSnapping={() => {
-                  setSnappingEnabled(!snappingEnabled)
-                  setShowSnappingOptions(!snappingEnabled)
-                }}
-              />
-
               {/* ── Snapping Options Panel (top-right, below zoom) ── */}
               <SnappingOptions
                 open={showSnappingOptions}
                 onClose={() => setShowSnappingOptions(false)}
                 enabled={snappingEnabled}
                 onToggleEnabled={() => setSnappingEnabled(!snappingEnabled)}
+                mode={snappingMode}
+                onModeChange={setSnappingMode}
+                tolerance={snappingTolerance}
+                onToleranceChange={setSnappingTolerance}
+                snapTypes={snappingTypes}
+                onSnapTypeToggle={(type) => {
+                  const next = new Set(snappingTypes)
+                  if (next.has(type)) next.delete(type)
+                  else next.add(type)
+                  setSnappingTypes(next)
+                }}
               />
 
               {/* ── Identify Panel (right side, below layer controls) ── */}
@@ -1123,7 +1122,7 @@ export default function MapClient() {
                       }
                     }
                   }}
-                  className="absolute bottom-20 left-3 z-20 flex items-center justify-center w-12 h-12 rounded-xl bg-[#0d0d14]/70 backdrop-blur-xl border border-white/[0.06] text-gray-400 hover:text-[#D17B47] hover:border-[#D17B47]/30 transition-all shadow-lg"
+                  className="absolute bottom-20 left-3 z-20 flex items-center justify-center w-12 h-12 rounded-xl bg-[#0d0d14]/70 backdrop-blur-xl border border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:text-[#D17B47] hover:border-[#D17B47]/30 transition-all shadow-lg"
                   title="Launch stakeout radar for beacon recovery"
                   aria-label="Stakeout radar"
                 >
@@ -1141,7 +1140,7 @@ export default function MapClient() {
               )}
 
               {/* ── Offline Download button (bottom-left, above radar) ── */}
-              <OfflineDownloadButton />
+              {/* Offline tiles disabled — backend stubs not implemented. See ROADMAP.md */}
 
               <MapStatusBar />
 
@@ -1219,10 +1218,7 @@ export default function MapClient() {
         {/* Global styles */}
         <MapGlobalStyles />
 
-        {/* Offline tile dialog (zero-prop, reads from context) */}
-        {mapReady && (
-          <OfflineTileDownloader />
-        )}
+        {/* Offline tile dialog disabled — backend stubs not implemented */}
       </div>
       </MapProvider>
     </MapErrorBoundary>
