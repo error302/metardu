@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/cadastral-workflow',
     '/tools/topology-check',
     '/tools/subdivision-generator',
+    '/tools/cogo-reconstruct',
     '/engineering-workflow',
     '/topographic-workflow',
     '/tools/all',

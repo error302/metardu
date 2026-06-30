@@ -26,6 +26,7 @@ const searchablePages = [
   { category: 'Cadastral', group: 'Workflow', href: '/cadastral-workflow', labelKey: 'Cadastral Workflow' },
   { category: 'Cadastral', group: 'Validation', href: '/tools/topology-check', labelKey: 'Topology Pre-flight' },
   { category: 'Cadastral', group: 'Subdivision', href: '/tools/subdivision-generator', labelKey: 'Generative Subdivision' },
+  { category: 'Cadastral', group: 'COGO', href: '/tools/cogo-reconstruct', labelKey: 'COGO Deed Reconstructor' },
   // Engineering workflow
   { category: 'Engineering', group: 'Workflow', href: '/engineering-workflow', labelKey: 'Engineering Workflow' },
   // Topographic workflow
