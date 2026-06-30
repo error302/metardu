@@ -9,7 +9,7 @@
  * bearing/distance computation, and proximity color-coding.
  */
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useEffect } from 'react'
 import type { DrawMode, MeasureMode } from '@/app/map/mapTypes'
 import { downloadDXF, type SurveyPoint } from '@/lib/export/generateDXF'
 import { downloadLandXML, type LandXMLProject, type LandXMLPoint } from '@/lib/export/generateLandXML'
@@ -61,6 +61,12 @@ interface UseMapInteractionsParams {
   setStakeoutState: (v: StakeoutState | null) => void
   setShowAnnotations: (v: boolean) => void
   setSaveMsg: (s: string) => void
+  /** Current project ID from URL params (null = no project linked) */
+  projectId: string | null
+  /** Called when a feature is drawn — used to compute live area/perimeter */
+  onDrawEnd?: (areaSqM: number, perimeterM: number, featureType: string) => void
+  /** Called when a feature is identified by single-click */
+  onIdentify?: (feature: any) => void
   pushHistory: () => void
   clearHistory: () => void
   popupRef: React.MutableRefObject<HTMLDivElement | null>
@@ -68,6 +74,65 @@ interface UseMapInteractionsParams {
 }
 
 export function useMapInteractions(p: UseMapInteractionsParams) {
+
+  // ── SINGLE-CLICK IDENTIFY: click any feature → show its attributes ──
+  useEffect(() => {
+    if (!p.mapInstance.current) return
+    const map = p.mapInstance.current
+
+    const handleClick = (evt: any) => {
+      // Don't interfere when drawing or measuring
+      if (p.drawMode !== 'none' || p.measureMode !== 'none') return
+
+      const features: any[] = []
+      map.forEachFeatureAtPixel(evt.pixel, (f: any) => {
+        features.push(f)
+        return false // collect all
+      }, {
+        hitTolerance: 5,
+      })
+
+      if (features.length > 0) {
+        const feature = features[0]
+        if (p.onIdentify) p.onIdentify(feature)
+
+        // Show popup with basic info
+        if (p.popupRef.current) {
+          const el = p.popupRef.current
+          const name = feature.get('pointName') || feature.get('parcelNumber') || feature.get('name') || feature.get('projectName') || ''
+          const code = feature.get('code') || ''
+          const elev = feature.get('elevation')
+          const isControl = feature.get('isControl')
+          const type = feature.get('pointType') || feature.get('featureType') || ''
+
+          let html = ''
+          if (name) html += `<div style="font-weight:600;color:#E8E4DE;font-size:13px;margin-bottom:4px">${name}</div>`
+          if (code) html += `<div style="color:#A89E92;font-size:11px;font-family:monospace">Code: ${code}</div>`
+          if (elev != null) html += `<div style="color:#A89E92;font-size:11px;font-family:monospace">Elevation: ${elev.toFixed(3)} m</div>`
+          if (isControl) html += `<div style="color:#D17B47;font-size:10px;font-family:monospace;text-transform:uppercase;letter-spacing:0.04em">Control point</div>`
+          if (type) html += `<div style="color:#787774;font-size:10px;font-family:monospace;text-transform:uppercase">${type}</div>`
+          if (!html) html = '<div style="color:#787774;font-size:11px">Feature (no attributes)</div>'
+
+          el.innerHTML = html
+          el.className = 'ol-popup'
+          el.style.cssText = `
+            background: #1F1C19; border: 1px solid #332E29; border-radius: 6px;
+            padding: 10px 14px; font-family: 'Geist', sans-serif; font-size: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4); min-width: 120px; max-width: 240px;
+            color: #E8E4DE; cursor: pointer;
+          `
+          el.onclick = () => { el.className = 'hidden'; el.onclick = null }
+        }
+      } else {
+        // Clicked empty space — clear selection
+        if (p.onIdentify) p.onIdentify(null)
+        if (p.popupRef.current) p.popupRef.current.className = 'hidden'
+      }
+    }
+
+    map.on('singleclick', handleClick)
+    return () => map.un('singleclick', handleClick)
+  }, [p.drawMode, p.measureMode, p.onIdentify, p.popupRef])
 
   // ── Stakeout overlay refs (persist across renders) ──
   const stakeoutOverlayRef = useRef<any>(null)         // OL Overlay
@@ -127,7 +192,28 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       }),
     })
 
-    draw.on('drawend', () => {
+    draw.on('drawend', (e: any) => {
+      // Compute live area/perimeter for the drawn feature
+      if (p.onDrawEnd && e.feature) {
+        const geom = e.feature.getGeometry()
+        if (geom) {
+          const type = geom.getType()
+          if (type === 'Polygon' || type === 'MultiPolygon') {
+            const area = Math.abs(geom.getArea())
+            const coords = type === 'Polygon' ? geom.getCoordinates()[0] : geom.getCoordinates()[0][0]
+            const perimeter = coords ? coords.reduce((sum: number, c: number[], i: number, arr: number[][]) => {
+              if (i === 0) return 0
+              const prev = arr[i - 1]
+              return sum + Math.sqrt((c[0] - prev[0]) ** 2 + (c[1] - prev[1]) ** 2)
+            }, 0) : 0
+            p.onDrawEnd(area, perimeter, 'Polygon')
+          } else if (type === 'LineString') {
+            p.onDrawEnd(0, geom.getLength(), 'LineString')
+          } else if (type === 'Point') {
+            p.onDrawEnd(0, 0, 'Point')
+          }
+        }
+      }
       setTimeout(() => p.selectInteractionRef.current?.getFeatures()?.clear(), 100)
       setTimeout(p.pushHistory, 150)
     })
@@ -589,53 +675,135 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     return { distance: dist, bearing, dE, dN }
   }, [p.stakeoutTarget, p.gpsPos21037])
 
-  // ── SAVE TO PROJECT ──
+  // ── SAVE TO PROJECT — saves drawn features to current project (not throwaway) ──
   const saveToProject = useCallback(async () => {
     if (!p.drawSourceRef.current) return
     const features = p.drawSourceRef.current.getFeatures()
-    if (features.length === 0) return
+    if (features.length === 0) {
+      p.setSaveMsg('Nothing to save — draw something first')
+      setTimeout(() => p.setSaveMsg(''), 3000)
+      return
+    }
 
     try {
       const { transform } = await import('ol/proj')
       const { createClient } = await import('@/lib/api-client/client')
       const dbClient = createClient()
       const { data: { session } } = await dbClient.auth.getSession()
-      if (!session?.user) { p.setSaveMsg('Not authenticated'); setTimeout(() => p.setSaveMsg(''), 3000); return }
+      if (!session?.user) {
+        p.setSaveMsg('Not authenticated')
+        setTimeout(() => p.setSaveMsg(''), 3000)
+        return
+      }
 
+      // Convert features to GeoJSON in EPSG:4326
       const { default: GeoJSONFormat } = await import('ol/format/GeoJSON')
       const fmt = new GeoJSONFormat()
       const geojson = fmt.writeFeatures(features, {
         featureProjection: 'EPSG:3857',
         dataProjection: 'EPSG:4326',
       })
+      const featuresJson = JSON.parse(geojson)
 
-      const { error } = await dbClient
-        .from('projects')
-        .insert({
-          user_id: session.user.id,
-          name: `Map Drawing \u2014 ${new Date().toLocaleDateString()}`,
-          survey_type: 'topographic',
-          location: 'Drawn on map',
-          utm_zone: 37,
-          hemisphere: 'S',
-          boundary_data: {
-            source: 'map-drawing',
-            drawnFeatures: JSON.parse(geojson),
-            createdFrom: 'map-client',
-          },
-        })
-
-      if (error) {
-        p.setSaveMsg(`Error: ${error.message}`)
-      } else {
-        p.setSaveMsg(`Saved ${features.length} feature(s) to new project`)
+      // Compute total area and perimeter for polygons
+      let totalArea = 0
+      let totalPerimeter = 0
+      for (const f of features) {
+        const geom = f.getGeometry()
+        if (!geom) continue
+        const type = geom.getType()
+        if (type === 'Polygon' || type === 'MultiPolygon') {
+          try {
+            const area = Math.abs(geom.getArea())
+            totalArea += area
+            const perimeter = type === 'Polygon'
+              ? new (await import('ol/geom/LineString')).default(geom.getCoordinates()[0]).getLength()
+              : 0
+            totalPerimeter += perimeter
+          } catch { /* skip */ }
+        } else if (type === 'LineString') {
+          totalPerimeter += geom.getLength()
+        }
       }
-      setTimeout(() => p.setSaveMsg(''), 4000)
+
+      if (p.projectId) {
+        // ── Save to current project ──
+        // Fetch existing boundary_data to merge
+        const { data: existing } = await dbClient
+          .from('projects')
+          .select('name, boundary_data')
+          .eq('id', p.projectId)
+          .single()
+
+        const existingBd = existing?.boundary_data || {}
+        const existingDrawn = existingBd.drawnFeatures?.features || []
+        const newFeatures = featuresJson.features || []
+
+        const { error } = await dbClient
+          .from('projects')
+          .update({
+            boundary_data: {
+              ...existingBd,
+              source: 'map-drawing',
+              drawnFeatures: {
+                type: 'FeatureCollection',
+                features: [...existingDrawn, ...newFeatures],
+              },
+              lastDrawnAt: new Date().toISOString(),
+              drawnAreaSqM: totalArea,
+              drawnPerimeterM: totalPerimeter,
+            },
+          })
+          .eq('id', p.projectId)
+
+        if (error) {
+          p.setSaveMsg(`Error: ${error.message}`)
+        } else {
+          const areaStr = totalArea > 0 ? ` · ${totalArea.toFixed(1)} m²` : ''
+          p.setSaveMsg(`Saved ${features.length} feature(s) to "${existing?.name || 'project'}"${areaStr}`)
+        }
+      } else {
+        // ── No project linked — create a new one ──
+        const projectName = prompt('Enter a name for the new project:', `Map Drawing — ${new Date().toLocaleDateString()}`)
+        if (!projectName) {
+          p.setSaveMsg('Save cancelled')
+          setTimeout(() => p.setSaveMsg(''), 3000)
+          return
+        }
+
+        const { data: newProject, error } = await dbClient
+          .from('projects')
+          .insert({
+            user_id: session.user.id,
+            name: projectName,
+            survey_type: 'cadastral',
+            location: 'Drawn on map',
+            utm_zone: 37,
+            hemisphere: 'S',
+            boundary_data: {
+              source: 'map-drawing',
+              drawnFeatures: featuresJson,
+              createdFrom: 'map-client',
+              drawnAreaSqM: totalArea,
+              drawnPerimeterM: totalPerimeter,
+            },
+          })
+          .select('id, name')
+          .single()
+
+        if (error) {
+          p.setSaveMsg(`Error: ${error.message}`)
+        } else {
+          const areaStr = totalArea > 0 ? ` · ${totalArea.toFixed(1)} m²` : ''
+          p.setSaveMsg(`Saved to "${newProject?.name}"${areaStr}`)
+        }
+      }
+      setTimeout(() => p.setSaveMsg(''), 5000)
     } catch (err: unknown) {
       p.setSaveMsg(`Error: ${err instanceof Error ? (err as Error).message : 'Save failed'}`)
       setTimeout(() => p.setSaveMsg(''), 4000)
     }
-  }, [])
+  }, [p.projectId])
 
   // ── ANNOTATIONS ──
   const toggleAnnotations = useCallback(async () => {

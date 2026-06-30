@@ -222,6 +222,9 @@ export default function MapClient() {
   // ── Map cleanup refs (replaces _cleanup hack on map object) ──
   const cleanupRef = useRef<MapCleanupRefs | null>(null)
 
+  // ── Project ID from URL params (declared early — used by useMapInteractions) ──
+  const schemeProjectId = searchParams.get('projectId')
+
   // ── UI state ──
   const [mapReady, setMapReady] = useState(false)
   const [initError, setInitError] = useState('')
@@ -391,6 +394,22 @@ export default function MapClient() {
     stakeoutTarget,
     gpsPos,
     gpsPos21037,
+    projectId: schemeProjectId,
+    onDrawEnd: (areaSqM, perimeterM, featureType) => {
+      if (featureType === 'Polygon') {
+        setSaveMsg(`Area: ${areaSqM.toFixed(1)} m² (${(areaSqM / 10000).toFixed(4)} ha) · Perimeter: ${perimeterM.toFixed(1)} m`)
+      } else if (featureType === 'LineString') {
+        setSaveMsg(`Length: ${perimeterM.toFixed(1)} m`)
+      } else {
+        setSaveMsg(`Point drawn`)
+      }
+      setTimeout(() => setSaveMsg(''), 5000)
+    },
+    onIdentify: (feature) => {
+      setSelectedFeature(feature)
+      const name = feature?.get?.('pointName') || feature?.get?.('parcelNumber') || feature?.get?.('name')
+      if (name) setFeatureName(name)
+    },
     hasFeature,
     setDrawMode,
     setEditMode,
@@ -560,10 +579,7 @@ export default function MapClient() {
     }
   }, [interactions])
 
-  // ── Scheme layer: get projectId from URL params ──
-  const schemeProjectId = searchParams.get('projectId')
-
-  // ── Scheme layer: load scheme data ──
+  // ── Scheme layer: load scheme data ── (projectId declared at top of component)
   const loadSchemeData = useCallback(async () => {
     if (!schemeProjectId || !mapInstance.current || schemeLoading) return
 
