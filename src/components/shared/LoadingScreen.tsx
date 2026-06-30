@@ -67,9 +67,9 @@ export function LoadingScreen({
         <svg viewBox="0 0 800 600" className="w-full h-full">
           <defs>
             <pattern id="contour-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-              <path d="M 0 50 Q 25 30 50 50 T 100 50" fill="none" stroke="#E8841A" strokeWidth="0.5" />
-              <path d="M 0 30 Q 25 10 50 30 T 100 30" fill="none" stroke="#E8841A" strokeWidth="0.3" />
-              <path d="M 0 70 Q 25 50 50 70 T 100 70" fill="none" stroke="#E8841A" strokeWidth="0.3" />
+              <path d="M 0 50 Q 25 30 50 50 T 100 50" fill="none" stroke="#D17B47" strokeWidth="0.5" />
+              <path d="M 0 30 Q 25 10 50 30 T 100 30" fill="none" stroke="#D17B47" strokeWidth="0.3" />
+              <path d="M 0 70 Q 25 50 50 70 T 100 70" fill="none" stroke="#D17B47" strokeWidth="0.3" />
             </pattern>
           </defs>
           <rect width="800" height="600" fill="url(#contour-pattern)" />
@@ -83,7 +83,7 @@ export function LoadingScreen({
           <svg width="80" height="80" viewBox="0 0 80 80" className="animate-pulse">
             <defs>
               <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#E8841A" />
+                <stop offset="0%" stopColor="#D17B47" />
                 <stop offset="100%" stopColor="#FFB84D" />
               </linearGradient>
             </defs>
@@ -104,7 +104,7 @@ export function LoadingScreen({
               strokeLinejoin="round"
             />
             {/* Crosshair */}
-            <circle cx="40" cy="40" r="3" fill="#E8841A" />
+            <circle cx="40" cy="40" r="3" fill="#D17B47" />
           </svg>
 
           {/* Rotating ring */}
@@ -114,7 +114,7 @@ export function LoadingScreen({
               cy="40"
               r="36"
               fill="none"
-              stroke="#E8841A"
+              stroke="#D17B47"
               strokeWidth="1"
               strokeDasharray="5 10"
               opacity="0.3"
@@ -125,7 +125,7 @@ export function LoadingScreen({
         {/* Brand name */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold tracking-tight">
-            <span className="text-[#E8841A]">M</span>
+            <span className="text-[#D17B47]">M</span>
             <span className="text-white">ETARDU</span>
           </h1>
           <p className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mt-1">
@@ -139,7 +139,7 @@ export function LoadingScreen({
             <div className="space-y-2">
               <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-[#E8841A] to-[#FFB84D] rounded-full transition-all duration-300 ease-out"
+                  className="h-full bg-gradient-to-r from-[#D17B47] to-[#FFB84D] rounded-full transition-all duration-300 ease-out"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -151,7 +151,7 @@ export function LoadingScreen({
           ) : (
             <div className="space-y-2">
               <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                <div className="h-full w-1/3 bg-gradient-to-r from-[#E8841A] to-[#FFB84D] rounded-full animate-indeterminate" />
+                <div className="h-full w-1/3 bg-gradient-to-r from-[#D17B47] to-[#FFB84D] rounded-full animate-indeterminate" />
               </div>
               <div className="text-center text-[10px] text-gray-500">{message}</div>
             </div>
@@ -192,7 +192,7 @@ export function ProgressBar({
   variant?: 'default' | 'success' | 'warning' | 'error'
 }) {
   const colors = {
-    default: 'from-[#E8841A] to-[#FFB84D]',
+    default: 'from-[#D17B47] to-[#FFB84D]',
     success: 'from-emerald-500 to-emerald-400',
     warning: 'from-amber-500 to-amber-400',
     error: 'from-red-500 to-red-400',

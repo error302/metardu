@@ -123,7 +123,7 @@ export function CoordinateChip({
       {/* Arc 1960 / UTM 37S */}
       {datums.utm37s && (
         <div className="flex items-start gap-2">
-          <MapPin className="w-3 h-3 text-[#E8841A] shrink-0 mt-0.5" />
+          <MapPin className="w-3 h-3 text-[#D17B47] shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <span className="text-[9px] text-gray-600 uppercase tracking-wider">Arc 1960 / UTM 37S</span>
             <div className={`font-mono text-gray-300 ${compact ? 'text-[10px]' : 'text-xs'}`}>

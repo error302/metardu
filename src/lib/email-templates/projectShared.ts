@@ -40,7 +40,7 @@ export const projectSharedEmail = {
       ${Heading(`${escapeOnce(args.sharerName)} shared a project with you`)}
       ${Paragraph(`Hi${args.recipientName ? ` ${args.recipientName}` : ''}, you have been added to the project "${escapeOnce(args.projectName)}" as ${Accent(roleLabel)}.`)}
       ${args.message
-        ? `<blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #E8841A;background:#1a1a2a;color:#cccccc;font-size:14px;line-height:1.6;font-style:italic;">${escapeOnce(args.message)}</blockquote>`
+        ? `<blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #D17B47;background:#1a1a2a;color:#cccccc;font-size:14px;line-height:1.6;font-style:italic;">${escapeOnce(args.message)}</blockquote>`
         : ''}
       ${Divider()}
       ${Paragraph(`With your ${escapeOnce(roleLabel)} access you can:`)}

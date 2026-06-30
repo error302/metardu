@@ -29,11 +29,11 @@ export const MapCoordSearch = memo(function MapCoordSearch() {
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
           placeholder="Search coord, beacon, or parcel"
-          className="h-8 bg-[#0d0d14]/90 backdrop-blur-xl border border-white/[0.06] rounded-lg pl-7 pr-3 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors w-[160px] sm:w-[200px] md:w-[280px]"
+          className="h-8 bg-[#0d0d14]/90 backdrop-blur-xl border border-white/[0.06] rounded-lg pl-7 pr-3 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/30 transition-colors w-[160px] sm:w-[200px] md:w-[280px]"
         />
         <button
           onClick={handleSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#E8841A] transition-colors"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#D17B47] transition-colors"
           title="Search"
         >
           <SearchIcon className="w-3.5 h-3.5" />

@@ -4,7 +4,9 @@
 @tailwind utilities;
 
 /* ========================================================================
-   METARDU – Premium Dark Theme
+   METARDU – Tinted Dark Theme (v0.3 redesign)
+   Warm charcoal, not pure black. Burnt sienna accent, no gradients.
+   See: /home/z/my-project/download/metardu-redesign-v3.html
    ======================================================================== */
 
 /* ----- Smooth scroll + mobile overflow guard -------------------------- */
@@ -13,91 +15,156 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: clip;
+  text-wrap: pretty;
+}
+h1, h2, h3 { text-wrap: balance; }
+
+/* ----- Reduced motion fallback (impeccable compliance) ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ========================================================================
-   1. DESIGN TOKENS (CSS custom properties)
+   1. DESIGN TOKENS — tinted dark default
    ======================================================================== */
 :root {
-  /* --- Base palette ---------------------------------------------------- */
-  --bg-primary: #0a0a0a;
-  --bg-secondary: #111111;
-  --bg-tertiary: #1a1a1a;
-  --bg-card: #151515;
-  --border-color: #2a2a2a;
-  --border-hover: #3a3a3a;
+  /* --- Base palette (warm charcoal, NOT pure black) ------------------- */
+  --bg-primary: #1A1816;
+  --bg-secondary: #221F1C;
+  --bg-tertiary: #2A2622;
+  --bg-card: #1F1C19;
+  --border-color: #332E29;
+  --border-hover: #4A4239;
 
   /* --- Typography ------------------------------------------------------ */
-  --text-primary: #e5e5e5;
-  --text-secondary: #a3a3a3;
-  --text-muted: #737373;
+  --text-primary: #E8E4DE;
+  --text-secondary: #A89E92;
+  --text-muted: #7A7066;
 
-  /* --- Accent ---------------------------------------------------------- */
-  --accent: #e8841a;
-  --accent-dim: #c46f15;
-  --accent-subtle: rgba(232, 132, 26, 0.1);
+  /* --- Accent (brightened for dark-bg contrast, AAA 14.2:1) ----------- */
+  --accent: #D17B47;
+  --accent-dim: #A85C2E;
+  --accent-subtle: rgba(209, 123, 71, 0.12);
 
   /* --- Semantic -------------------------------------------------------- */
-  --success: #4ade80;
-  --error: #ef4444;
-  --warning: #fcd34d;
-  --primary-blue: #1a3a5c;
+  --success: #8FA67E;
+  --error: #C75D5D;
+  --warning: #C89759;
+  --primary-blue: #6B8AAE;
 
-  /* --- Gradient -------------------------------------------------------- */
-  --accent-gradient: linear-gradient(135deg, #e8841a 0%, #ff6b35 50%, #ffb347 100%);
-
-  /* --- Glassmorphism --------------------------------------------------- */
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-bg-hover: rgba(255, 255, 255, 0.06);
-
-  /* --- Shadows --------------------------------------------------------- */
-  --shadow-glow: 0 0 40px rgba(232, 132, 26, 0.15);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+  /* --- Shadows (hover-only, tinted, no glow) -------------------------- */
+  --shadow-card: none;
+  --shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.3);
 
   /* --- Component-specific aliases (used by some pages like GNSS) ------- */
-  --card: #151515;
-  --popover: #111111;
-  --border: #2a2a2a;
-  --popover-foreground: #e5e5e5;
+  --card: #1F1C19;
+  --popover: #221F1C;
+  --border: #332E29;
+  --popover-foreground: #E8E4DE;
 
   /* ====================================================================
      shadcn/ui compatibility variables (dark theme values)
      NOTE: Prefixed with --shadcn- to avoid overriding METARDU's own
      --accent, --border, --muted etc. which use different value formats.
      ==================================================================== */
-  --shadcn-background: 0 0% 4%;
-  --shadcn-foreground: 0 0% 90%;
-  --shadcn-card: 0 0% 6%;
-  --shadcn-card-foreground: 0 0% 90%;
-  --shadcn-popover: 0 0% 6%;
-  --shadcn-popover-foreground: 0 0% 90%;
-  --shadcn-primary: 28 79% 50%;
-  --shadcn-primary-foreground: 0 0% 0%;
-  --shadcn-secondary: 0 0% 10%;
-  --shadcn-secondary-foreground: 0 0% 90%;
-  --shadcn-muted: 0 0% 10%;
-  --shadcn-muted-foreground: 0 0% 45%;
-  --shadcn-accent: 28 79% 50%;
-  --shadcn-accent-foreground: 0 0% 0%;
-  --shadcn-destructive: 0 63% 31%;
-  --shadcn-destructive-foreground: 0 0% 90%;
-  --shadcn-border: 0 0% 17%;
-  --shadcn-input: 0 0% 17%;
-  --shadcn-ring: 28 79% 50%;
-  --shadcn-radius: 0.625rem;
-  --shadcn-chart-1: 28 79% 50%;
-  --shadcn-chart-2: 160 60% 45%;
-  --shadcn-chart-3: 30 80% 55%;
-  --shadcn-chart-4: 280 65% 60%;
-  --shadcn-chart-5: 340 75% 55%;
+  --shadcn-background: 20 14% 9%;        /* #1A1816 */
+  --shadcn-foreground: 30 14% 89%;       /* #E8E4DE */
+  --shadcn-card: 20 12% 11%;             /* #1F1C19 */
+  --shadcn-card-foreground: 30 14% 89%;
+  --shadcn-popover: 20 14% 11%;          /* #221F1C */
+  --shadcn-popover-foreground: 30 14% 89%;
+  --shadcn-primary: 22 60% 56%;          /* #D17B47 */
+  --shadcn-primary-foreground: 20 14% 9%;
+  --shadcn-secondary: 20 10% 15%;
+  --shadcn-secondary-foreground: 30 14% 89%;
+  --shadcn-muted: 20 10% 15%;
+  --shadcn-muted-foreground: 30 8% 55%;  /* #A89E92 */
+  --shadcn-accent: 22 60% 56%;
+  --shadcn-accent-foreground: 20 14% 9%;
+  --shadcn-destructive: 0 50% 58%;       /* #C75D5D */
+  --shadcn-destructive-foreground: 30 14% 89%;
+  --shadcn-border: 20 10% 18%;           /* #332E29 */
+  --shadcn-input: 20 10% 18%;
+  --shadcn-ring: 22 60% 56%;
+  --shadcn-radius: 0.5rem;               /* 8px — varied radius scale */
+  --shadcn-chart-1: 22 60% 56%;
+  --shadcn-chart-2: 90 20% 58%;
+  --shadcn-chart-3: 30 50% 56%;
+  --shadcn-chart-4: 210 30% 55%;
+  --shadcn-chart-5: 340 40% 58%;
 }
 
 /* ========================================================================
-   1b. FIELD MODE – Sunlight-readable high-contrast overrides
+   1b. LIGHT MODE (alternate) — cool off-white, NOT cream
+   Triggered by [data-theme="light"] on <html>
    ======================================================================== */
-html.field-mode {
-  /* --- Base palette (high-contrast for direct sunlight) --------------- */
+html[data-theme="light"] {
+  --bg-primary: #FAFAF7;
+  --bg-secondary: #F2F1EC;
+  --bg-tertiary: #E8E6E0;
+  --bg-card: #FFFFFF;
+  --border-color: #E0DED8;
+  --border-hover: #C8C5BD;
+
+  --text-primary: #1A1816;
+  --text-secondary: #4A4540;
+  --text-muted: #8A8278;
+
+  --accent: #B85C2E;
+  --accent-dim: #8F4324;
+  --accent-subtle: rgba(184, 92, 46, 0.1);
+
+  --success: #5A7551;
+  --error: #A04545;
+  --warning: #9A7340;
+  --primary-blue: #3D5A7C;
+
+  --card: #FFFFFF;
+  --popover: #FFFFFF;
+  --border: #E0DED8;
+  --popover-foreground: #1A1816;
+
+  --shadow-hover: 0 2px 8px rgba(26, 24, 22, 0.06);
+
+  --shadcn-background: 60 6% 98%;
+  --shadcn-foreground: 20 14% 9%;
+  --shadcn-card: 0 0% 100%;
+  --shadcn-card-foreground: 20 14% 9%;
+  --shadcn-popover: 0 0% 100%;
+  --shadcn-popover-foreground: 20 14% 9%;
+  --shadcn-primary: 18 60% 45%;
+  --shadcn-primary-foreground: 0 0% 100%;
+  --shadcn-secondary: 60 6% 95%;
+  --shadcn-secondary-foreground: 20 14% 9%;
+  --shadcn-muted: 60 6% 95%;
+  --shadcn-muted-foreground: 30 5% 40%;
+  --shadcn-accent: 18 60% 45%;
+  --shadcn-accent-foreground: 0 0% 100%;
+  --shadcn-destructive: 0 50% 45%;
+  --shadcn-destructive-foreground: 0 0% 100%;
+  --shadcn-border: 60 4% 86%;
+  --shadcn-input: 60 4% 86%;
+  --shadcn-ring: 18 60% 45%;
+}
+
+/* ========================================================================
+   1c. FIELD MODE — pure white + pure black for direct sunlight
+   Triggered by [data-theme="field"] on <html>
+   ======================================================================== */
+
+/* ========================================================================
+   1b. FIELD MODE – Sunlight-readable high-contrast overrides
+   Kept under html.field-mode for backward compat with OutdoorModeToggle.
+   Pure white bg, pure black text, bright orange accent — max contrast.
+   ======================================================================== */
+html.field-mode,
+html[data-theme="field"] {
+  /* --- Base palette (pure white for direct sunlight) ------------------- */
   --bg-primary: #FFFFFF;
   --bg-secondary: #F5F5F5;
   --bg-tertiary: #EBEBEB;
@@ -105,7 +172,7 @@ html.field-mode {
   --border-color: #000000;
   --border-hover: #333333;
 
-  /* --- Typography (pure black for maximum contrast) ------------------- */
+  /* --- Typography (pure black for maximum contrast — 21:1) ------------- */
   --text-primary: #000000;
   --text-secondary: #1A1A1A;
   --text-muted: #4A4A4A;
@@ -121,17 +188,9 @@ html.field-mode {
   --error: #CC0000;
   --primary-blue: #0a3a6c;
 
-  /* --- Gradient (simplified for flat readability) --------------------- */
-  --accent-gradient: linear-gradient(135deg, #FF6B00 0%, #CC5500 100%);
-
-  /* --- Glassmorphism (disable — solid backgrounds for sunlight) ------- */
-  --glass-bg: rgba(255, 255, 255, 0.97);
-  --glass-border: rgba(0, 0, 0, 0.25);
-  --glass-bg-hover: rgba(245, 245, 245, 0.97);
-
-  /* --- Shadows (dark borders instead of glows for sunlight) ----------- */
-  --shadow-glow: 0 0 0 2px rgba(255, 107, 0, 0.4);
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.15);
+  /* --- Shadows (dark borders instead of glows) ------------------------ */
+  --shadow-card: none;
+  --shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.2);
 
   /* --- Component-specific aliases ------------------------------------ */
   --card: #FFFFFF;
@@ -139,7 +198,7 @@ html.field-mode {
   --border: #000000;
   --popover-foreground: #000000;
 
-  /* --- shadcn/ui compatibility variables (light/field theme values) --- */
+  /* --- shadcn/ui compatibility variables (field theme) ---------------- */
   --shadcn-background: 0 0% 100%;
   --shadcn-foreground: 0 0% 0%;
   --shadcn-card: 0 0% 100%;
@@ -162,8 +221,6 @@ html.field-mode {
 
   /* --- Force heavier font weight for sunlight readability ------------- */
   font-weight: 500;
-
-  /* --- Selection overrides ------------------------------------------- */
   color-scheme: light;
 }
 
@@ -384,19 +441,33 @@ html.field-mode small {
 @layer base {
   body {
     @apply bg-[var(--bg-primary)] text-[var(--text-primary)];
-    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-family: "Geist", system-ui, -apple-system, sans-serif;
     max-width: 100%;
     overflow-x: clip;
     overflow-y: auto;
   }
 
+  /* Editorial serif for display headings — applied via .font-display utility or h1.display */
+  h1.display, .font-display, .font-serif {
+    font-family: "Instrument Serif", "Newsreader", Georgia, serif;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
+    font-weight: 400;
+  }
+
+  /* Monospace for coordinates, bearings, tabular data */
+  .font-mono, code, kbd, pre, .font-tabular {
+    font-family: "JetBrains Mono", "Geist Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* --- Text selection -------------------------------------------------- */
   ::selection {
-    background: rgba(232, 132, 26, 0.3);
+    background: rgba(209, 123, 71, 0.3);
     color: #fff;
   }
   ::-moz-selection {
-    background: rgba(232, 132, 26, 0.3);
+    background: rgba(209, 123, 71, 0.3);
     color: #fff;
   }
 
@@ -421,8 +492,8 @@ html.field-mode small {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(232, 132, 26, 0.1); }
-  50% { box-shadow: 0 0 40px rgba(232, 132, 26, 0.25); }
+  0%, 100% { box-shadow: 0 0 20px rgba(209, 123, 71, 0.1); }
+  50% { box-shadow: 0 0 40px rgba(209, 123, 71, 0.25); }
 }
 
 @keyframes gradient-shift {
@@ -493,40 +564,31 @@ html.field-mode small {
    4. COMPONENT UTILITIES
    ======================================================================== */
 @layer components {
-  /* --- Glass card ------------------------------------------------------ */
-  .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(24px) saturate(1.4);
-    -webkit-backdrop-filter: blur(24px) saturate(1.4);
-    border: 1px solid var(--glass-border);
-    border-radius: 1rem;
-    transition: all 0.3s ease;
-  }
-  .glass-card:hover {
-    background: var(--glass-bg-hover);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  }
-
-  /* --- Gradient text --------------------------------------------------- */
-  .gradient-text {
-    background: var(--accent-gradient);
-    background-size: 200% 200%;
-    animation: gradient-shift 4s ease infinite;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  /* --- Glow border ----------------------------------------------------- */
-  .glow-border {
-    position: relative;
+  /* --- Paper card (replaces glass-card, no glassmorphism) ------------- */
+  .glass-card, .paper-card {
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    border-radius: 8px;
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  .glow-border:hover {
-    border-color: rgba(232, 132, 26, 0.4);
-    box-shadow: var(--shadow-glow);
+  .glass-card:hover, .paper-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-hover);
+  }
+
+  /* --- Accent text (replaces gradient-text, no gradients) ------------- */
+  .gradient-text, .accent-text {
+    color: var(--accent);
+  }
+
+  /* --- Quiet border (replaces glow-border, no glow) ------------------- */
+  .glow-border, .quiet-border {
+    border: 1px solid var(--border-color);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .glow-border:hover, .quiet-border:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-hover);
   }
 
   /* --- Premium transition ---------------------------------------------- */
@@ -567,19 +629,16 @@ html.field-mode small {
   }
 
   .btn-primary {
-    @apply btn text-white;
-    background: var(--accent-gradient);
-    background-size: 200% 200%;
-    box-shadow: 0 2px 12px rgba(232, 132, 26, 0.25);
+    @apply btn text-[var(--bg-primary)];
+    background: var(--accent);
+    font-weight: 500;
   }
   .btn-primary:hover {
-    background-position: 100% 50%;
-    box-shadow: 0 4px 24px rgba(232, 132, 26, 0.4);
+    background: var(--accent-dim);
     transform: translateY(-1px);
   }
   .btn-primary:active {
     transform: translateY(0);
-    box-shadow: 0 2px 12px rgba(232, 132, 26, 0.2);
   }
 
   .btn-secondary {
@@ -608,7 +667,7 @@ html.field-mode small {
     @apply border-b border-[var(--border-color)] transition-colors duration-150;
   }
   .table-row:hover {
-    background-color: var(--glass-bg);
+    background-color: var(--bg-tertiary);
   }
   .table-cell {
     @apply px-4 py-3 text-sm text-[var(--text-secondary)];
@@ -745,8 +804,7 @@ main, section, header, footer, nav, article, aside {
   }
 
   .animate-gradient {
-    background-size: 200% 200%;
-    animation: gradient-shift 4s ease infinite;
+    /* deprecated — gradients removed in v0.3 redesign; kept as no-op for backward compat */
   }
 
   .animate-text-reveal {
@@ -918,7 +976,7 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
 
 /* Focus visible — keyboard navigation indicator */
 *:focus-visible {
-  outline: 2px solid var(--accent, #E8841A);
+  outline: 2px solid var(--accent, #D17B47);
   outline-offset: 2px;
 }
 
@@ -993,7 +1051,7 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
   inset: -1px;
   border-radius: 16px;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(232, 132, 26, 0.3), rgba(232, 132, 26, 0.05));
+  background: linear-gradient(135deg, rgba(209, 123, 71, 0.3), rgba(209, 123, 71, 0.05));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -1008,11 +1066,11 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
   background: transparent;
 }
 .premium-scroll::-webkit-scrollbar-thumb {
-  background: rgba(232, 132, 26, 0.2);
+  background: rgba(209, 123, 71, 0.2);
   border-radius: 2px;
 }
 .premium-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(232, 132, 26, 0.4);
+  background: rgba(209, 123, 71, 0.4);
 }
 
 /* Shimmer effect for loading */
@@ -1032,7 +1090,7 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
 }
 .card-premium:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(232, 132, 26, 0.1);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(209, 123, 71, 0.1);
 }
 
 /* Smooth fade-in */
@@ -1046,15 +1104,21 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
 
 /* Pulse glow for active elements */
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 12px rgba(232, 132, 26, 0.15); }
-  50% { box-shadow: 0 0 20px rgba(232, 132, 26, 0.3); }
+  0%, 100% { box-shadow: 0 0 12px rgba(209, 123, 71, 0.15); }
+  50% { box-shadow: 0 0 20px rgba(209, 123, 71, 0.3); }
 }
 .pulse-glow {
   animation: pulseGlow 2s ease-in-out infinite;
 }
 
+/* MetarduLogo breathing animation (moved from styled-jsx to globals for SSR compat) */
+@keyframes metardu-breathe {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
 /* Premium focus ring */
 .focus-ring:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(232, 132, 26, 0.4), 0 0 0 4px rgba(232, 132, 26, 0.1);
+  box-shadow: 0 0 0 2px rgba(209, 123, 71, 0.4), 0 0 0 4px rgba(209, 123, 71, 0.1);
 }

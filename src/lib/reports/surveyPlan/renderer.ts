@@ -139,7 +139,7 @@ export class SurveyPlanRenderer {
       
       if (isMajor) {
         const ly = this.drawingY + this.drawingAreaH + 12
-        svg += `<text x="${x}" y="${ly}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" fill="${C_BLACK}" opacity="0.6">${e}</text>`
+        svg += `<text x="${x}" y="${ly}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="8" fill="${C_BLACK}" opacity="0.6">${e}</text>`
       }
     }
     
@@ -157,7 +157,7 @@ export class SurveyPlanRenderer {
       
       if (isMajor) {
         const lx = this.drawingX - 4
-        svg += `<text x="${lx}" y="${y + 3}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="8" fill="${C_BLACK}" opacity="0.6">${n}</text>`
+        svg += `<text x="${lx}" y="${y + 3}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="8" fill="${C_BLACK}" opacity="0.6">${n}</text>`
       }
     }
     
@@ -215,8 +215,8 @@ export class SurveyPlanRenderer {
       svg += `<g transform="translate(${bx},${by})">`
       svg += `<g transform="rotate(${textAngle})">`
       svg += `<rect x="${-tw/2}" y="${-th/2}" width="${tw}" height="${th}" fill="white" opacity="0.85" stroke="none"/>`
-      svg += `<text x="0" y="-3" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8.5" font-weight="bold" fill="#000000">${escapeXml(bearingStr)}</text>`
-      svg += `<text x="0" y="8" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" fill="#222222">${escapeXml(distStr)}</text>`
+      svg += `<text x="0" y="-3" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="8.5" font-weight="bold" fill="#000000">${escapeXml(bearingStr)}</text>`
+      svg += `<text x="0" y="8" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="8" fill="#222222">${escapeXml(distStr)}</text>`
       svg += `</g></g>`
     }
     return svg
@@ -268,7 +268,7 @@ export class SurveyPlanRenderer {
       svg += `<g transform="translate(${cx},${cy}) rotate(${b.rotation_deg})">`
       svg += `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="rgba(220,210,190,0.3)" stroke="${C_BLACK}" stroke-width="1"/>`
       svg += `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="url(#hatch)"/>`
-      if (b.label) svg += `<text x="0" y="3" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7.5" font-weight="bold" fill="${C_BLACK}">${escapeXml(b.label)}</text>`
+      if (b.label) svg += `<text x="0" y="3" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7.5" font-weight="bold" fill="${C_BLACK}">${escapeXml(b.label)}</text>`
       svg += '</g>'
     }
     return svg
@@ -278,7 +278,7 @@ export class SurveyPlanRenderer {
     const pts = this.rotatedPoints
     const [ce, cn] = centroid(pts)
     const id = this.data.project.parcel_id || this.data.project.name || 'LOT'
-    return `<text x="${this.toSvgX(ce)}" y="${this.toSvgY(cn)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="28" font-weight="bold" fill="${C_BLACK}" opacity="0.12">${escapeXml(id)}</text>`
+    return `<text x="${this.toSvgX(ce)}" y="${this.toSvgY(cn)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="28" font-weight="bold" fill="${C_BLACK}" opacity="0.12">${escapeXml(id)}</text>`
   }
 
   private drawAreaLabel(): string {
@@ -287,8 +287,8 @@ export class SurveyPlanRenderer {
     const area = this.data.parcel.area_sqm
     const ha = area / 10000
     return [
-      `<text x="${ax}" y="${ay}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="11" fill="${C_BLACK}">${area.toFixed(2)} m\u00B2</text>`,
-      `<text x="${ax}" y="${ay + 4.5}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="9" fill="${C_BLACK}">${ha.toFixed(4)} ha</text>`,
+      `<text x="${ax}" y="${ay}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="11" fill="${C_BLACK}">${area.toFixed(2)} m\u00B2</text>`,
+      `<text x="${ax}" y="${ay + 4.5}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="9" fill="${C_BLACK}">${ha.toFixed(4)} ha</text>`,
     ].join('')
   }
 
@@ -303,7 +303,7 @@ export class SurveyPlanRenderer {
     const tw = pin.length * 7 + 8
     const th = 12
     let svg = `<rect x="${cx - tw/2}" y="${cy - th/2}" width="${tw}" height="${th}" fill="#FFF8DC" stroke="${C_BLACK}" stroke-width="0.5" opacity="0.7"/>`
-    svg += `<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}">PIN: ${escapeXml(pin)}</text>`
+    svg += `<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}">PIN: ${escapeXml(pin)}</text>`
     return svg
   }
 
@@ -318,7 +318,7 @@ export class SurveyPlanRenderer {
     let svg = ''
     parts.forEach((part, i) => {
       const offset = (i - (parts.length - 1) / 2) * 15
-      svg += `<text x="${cx}" y="${cy + offset}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}" opacity="0.5">${escapeXml(part)}</text>`
+      svg += `<text x="${cx}" y="${cy + offset}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}" opacity="0.5">${escapeXml(part)}</text>`
     })
     return svg
   }
@@ -339,7 +339,7 @@ export class SurveyPlanRenderer {
     // Outer rectangle for combined stamp area
     svg += `<rect x="${x}" y="${y - h}" width="${w}" height="${h}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
     svg += `<line x1="${x}" y1="${y - h + mmToPx(4)}" x2="${x + w}" y2="${y - h + mmToPx(4)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
-    svg += `<text x="${x + w/2}" y="${y - h + mmToPx(2.8)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4" font-weight="bold" fill="${C_BLACK}">STAMP & SEAL AREA</text>`
+    svg += `<text x="${x + w/2}" y="${y - h + mmToPx(2.8)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="4" font-weight="bold" fill="${C_BLACK}">STAMP & SEAL AREA</text>`
 
     // Left side: ISK Association Rubber Stamp area
     const iskX = x + mmToPx(1)
@@ -347,12 +347,12 @@ export class SurveyPlanRenderer {
     const iskW = mmToPx(28)
     const iskH = mmToPx(12)
     svg += `<rect x="${iskX}" y="${iskY}" width="${iskW}" height="${iskH}" fill="none" stroke="#999" stroke-width="0.3" stroke-dasharray="2,1"/>`
-    svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(3)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">ISK ASSOCIATION</text>`
-    svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(5.5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">RUBBER STAMP</text>`
+    svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(3)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">ISK ASSOCIATION</text>`
+    svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(5.5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">RUBBER STAMP</text>`
     if (firmName) {
-      svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(8)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="2.5" fill="#bbb">${escapeXml(firmName)}</text>`
+      svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(8)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="2.5" fill="#bbb">${escapeXml(firmName)}</text>`
     }
-    svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(10.5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="2.5" fill="#ccc">Approved: ____________</text>`
+    svg += `<text x="${iskX + iskW/2}" y="${iskY + mmToPx(10.5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="2.5" fill="#ccc">Approved: ____________</text>`
 
     // Right side: Surveyor's Corporate Seal area
     const sealX = x + mmToPx(31)
@@ -361,8 +361,8 @@ export class SurveyPlanRenderer {
     const sealH = mmToPx(12)
     svg += `<rect x="${sealX}" y="${sealY}" width="${sealW}" height="${sealH}" fill="none" stroke="#999" stroke-width="0.3" stroke-dasharray="2,1"/>`
     svg += `<circle cx="${sealX + sealW/2}" cy="${sealY + sealH/2}" r="${mmToPx(4)}" fill="none" stroke="#ccc" stroke-width="0.3" stroke-dasharray="1.5,1"/>`
-    svg += `<text x="${sealX + sealW/2}" y="${sealY + sealH/2 - 1}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">SURVEYOR</text>`
-    svg += `<text x="${sealX + sealW/2}" y="${sealY + sealH/2 + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">SEAL</text>`
+    svg += `<text x="${sealX + sealW/2}" y="${sealY + sealH/2 - 1}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">SURVEYOR</text>`
+    svg += `<text x="${sealX + sealW/2}" y="${sealY + sealH/2 + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">SEAL</text>`
 
     // Signature line above surveyor credentials
     const sigY = y - h + mmToPx(17)
@@ -371,18 +371,18 @@ export class SurveyPlanRenderer {
     // Surveyor credentials below stamp area
     const credY = y - h + mmToPx(19)
     if (surveyorName) {
-      svg += `<text x="${x + mmToPx(1)}" y="${credY}" font-family="Share Tech Mono, Courier New" font-size="3.5" font-weight="bold" fill="${C_BLACK}">${escapeXml(surveyorName)}</text>`
+      svg += `<text x="${x + mmToPx(1)}" y="${credY}" font-family="JetBrains Mono, Courier New" font-size="3.5" font-weight="bold" fill="${C_BLACK}">${escapeXml(surveyorName)}</text>`
     }
     if (lsNo) {
-      svg += `<text x="${x + mmToPx(1)}" y="${credY + mmToPx(2.5)}" font-family="Share Tech Mono, Courier New" font-size="3" fill="#555">LS/${escapeXml(lsNo)}</text>`
+      svg += `<text x="${x + mmToPx(1)}" y="${credY + mmToPx(2.5)}" font-family="JetBrains Mono, Courier New" font-size="3" fill="#555">LS/${escapeXml(lsNo)}</text>`
     }
     if (iskRegNo) {
-      svg += `<text x="${x + mmToPx(1)}" y="${credY + mmToPx(5)}" font-family="Share Tech Mono, Courier New" font-size="3" fill="#555">ISK Reg. ${escapeXml(iskRegNo)}</text>`
+      svg += `<text x="${x + mmToPx(1)}" y="${credY + mmToPx(5)}" font-family="JetBrains Mono, Courier New" font-size="3" fill="#555">ISK Reg. ${escapeXml(iskRegNo)}</text>`
     }
 
     // Date line below surveyor credentials
     const dateY = credY + mmToPx(7)
-    svg += `<text x="${x + mmToPx(1)}" y="${dateY}" font-family="Share Tech Mono, Courier New" font-size="3" fill="#555">Date: ___________</text>`
+    svg += `<text x="${x + mmToPx(1)}" y="${dateY}" font-family="JetBrains Mono, Courier New" font-size="3" fill="#555">Date: ___________</text>`
 
     return svg
   }
@@ -403,7 +403,7 @@ export class SurveyPlanRenderer {
       let transform = ''
       if (isLeft) transform = `transform="translate(${px},${py}) rotate(-90)"`
       else if (!isTop) transform = `transform="translate(${px},${py}) rotate(90)"`
-      svg += `<text ${transform} x="${px}" y="${py}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="11" font-weight="bold" fill="${C_BLACK}" opacity="0.45">${escapeXml(lot.id)}</text>`
+      svg += `<text ${transform} x="${px}" y="${py}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="11" font-weight="bold" fill="${C_BLACK}" opacity="0.45">${escapeXml(lot.id)}</text>`
     }
     return svg
   }
@@ -421,8 +421,8 @@ export class SurveyPlanRenderer {
         `<polygon points="0,${-mmToPx(15)} -3,${-mmToPx(15) + 5} 3,${-mmToPx(15) + 5}" fill="${C_BLACK}"/>`,
         `</g>`,
         `</g>`,
-        `<text x="${nx}" y="${ny + mmToPx(15) + 8}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="#555">${rotDeg.toFixed(1)}°</text>`,
-        `<text x="${nx}" y="${ny + mmToPx(15) + 14}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="9" font-weight="bold" fill="${C_BLACK}">N</text>`,
+        `<text x="${nx}" y="${ny + mmToPx(15) + 8}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="#555">${rotDeg.toFixed(1)}°</text>`,
+        `<text x="${nx}" y="${ny + mmToPx(15) + 14}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="9" font-weight="bold" fill="${C_BLACK}">N</text>`,
       ].join('')
     }
     return svg
@@ -442,7 +442,7 @@ export class SurveyPlanRenderer {
     const zone = `${p.utm_zone || 37}${p.hemisphere || 'S'}`
     const note = `Coordinates: UTM Zone ${zone}, ${datum} (Clarke 1880) — Survey Act Cap. 299 | RDM 1.1 §5.2`
     const y = this.margin + mmToPx(25)
-    return `<text x="${leftPad}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="4.5" font-style="italic" fill="#555">${escapeXml(note)}</text>`
+    return `<text x="${leftPad}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="4.5" font-style="italic" fill="#555">${escapeXml(note)}</text>`
   }
 
   private drawCoordinateSchedule(leftPad: number, panelInnerW: number): string {
@@ -459,26 +459,26 @@ export class SurveyPlanRenderer {
 
     let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
     const label = datum === 'ARC1960' ? `COORDINATE SCHEDULE (${datum} / UTM ${zone} EPSG:21037)` : `COORDINATE SCHEDULE (${datum})`
-    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`
+    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`
     const hY = startY + headerH
     svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
     const headers = ['Point', 'Easting', 'Northing', '']
     headers.forEach((h, i) => {
-      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
+      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
     })
     pts.slice(0, maxRows).forEach((pt, i) => {
       const ry = hY + rowH * (i + 1)
       if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
-      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(pt.name)}</text>`
-      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.easting.toFixed(3)}</text>`
-      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.northing.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(pt.name)}</text>`
+      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.easting.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.northing.toFixed(3)}</text>`
     })
     return svg
   }
 
   private drawMetricNote(leftPad: number, rightPad: number): string {
     const y = this.margin + mmToPx(30)
-    return `<text x="${leftPad}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="7" font-style="italic" fill="#555">Distances in metres. Divide by 0.3048 for feet.</text>`
+    return `<text x="${leftPad}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="7" font-style="italic" fill="#555">Distances in metres. Divide by 0.3048 for feet.</text>`
   }
 
   private drawBearingSchedule(leftPad: number, panelInnerW: number): string {
@@ -505,21 +505,21 @@ export class SurveyPlanRenderer {
     const tableH = headerH + Math.min(schedule.length, maxRows) * rowH
 
     let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">BEARING SCHEDULE</text>`
+    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">BEARING SCHEDULE</text>`
     const hY = startY + headerH
     svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
     const headers = ['From', 'To', 'Bearing', 'Dist (m)']
     headers.forEach((h, i) => {
-      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
+      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
     })
     const rows = schedule.slice(0, maxRows)
     rows.forEach((row, i) => {
       const ry = hY + rowH * (i + 1)
       if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
-      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.from)}</text>`
-      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.to)}</text>`
-      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.bearing)}</text>`
-      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${row.distance.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.from)}</text>`
+      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.to)}</text>`
+      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.bearing)}</text>`
+      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${row.distance.toFixed(3)}</text>`
     })
     return svg
   }
@@ -535,12 +535,12 @@ export class SurveyPlanRenderer {
     const tableH = headerH + maxRows * rowH
 
     let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">REVISIONS</text>`
+    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">REVISIONS</text>`
     const hY = startY + headerH
     svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
     const headers = ['Rev', 'Date', 'Description', 'By']
     headers.forEach((h, i) => {
-      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
+      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
     })
     const rows = revisions.slice(0, 10)
     if (rows.length === 0) {
@@ -554,11 +554,11 @@ export class SurveyPlanRenderer {
     rows.forEach((row, i) => {
       const ry = hY + rowH * (i + 1)
       if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
-      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.rev)}</text>`
-      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.date)}</text>`
+      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.rev)}</text>`
+      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.date)}</text>`
       const desc = row.description.length > 20 ? row.description.slice(0, 18) + '…' : row.description
-      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(desc)}</text>`
-      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.by)}</text>`
+      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(desc)}</text>`
+      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(row.by)}</text>`
     })
     return svg
   }
@@ -577,7 +577,7 @@ export class SurveyPlanRenderer {
     const panelRight = leftPad + panelInnerW
 
     svg += `<rect x="${leftPad}" y="${certY}" width="${panelInnerW}" height="${mmToPx(2)}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad}" y="${certY + mmToPx(4)}" font-family="Share Tech Mono, Courier New" font-size="5.5" font-weight="bold" fill="${C_BLACK}">CERTIFICATE</text>`
+    svg += `<text x="${leftPad}" y="${certY + mmToPx(4)}" font-family="JetBrains Mono, Courier New" font-size="5.5" font-weight="bold" fill="${C_BLACK}">CERTIFICATE</text>`
 
     const lines = [
       `I, ${surveyor || '_________________________________'}, Licensed Surveyor No. LS/${lsNo || '____________'},`,
@@ -603,38 +603,38 @@ export class SurveyPlanRenderer {
 
     const lineHeight = mmToPx(3.2)
     lines.forEach((line, i) => {
-      svg += `<text x="${leftPad}" y="${certY + mmToPx(7) + i * lineHeight}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(line)}</text>`
+      svg += `<text x="${leftPad}" y="${certY + mmToPx(7) + i * lineHeight}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(line)}</text>`
     })
 
     const authY = certY + mmToPx(7) + lines.length * lineHeight + mmToPx(4)
     const authH = mmToPx(35) // Expanded to include Letter No. and SoK Reference
     svg += `<rect x="${leftPad}" y="${authY}" width="${panelInnerW}" height="${authH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(4)}" font-family="Share Tech Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">AUTHENTICATION — FOR DIRECTOR OF SURVEYS</text>`
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(4)}" font-family="JetBrains Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">AUTHENTICATION — FOR DIRECTOR OF SURVEYS</text>`
     svg += `<line x1="${leftPad}" y1="${authY + mmToPx(5.5)}" x2="${leftPad + panelInnerW}" y2="${authY + mmToPx(5.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
 
     // Letter No. — reference number for the Director of Surveys' covering letter
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(9)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Letter No.: __________________________</text>`
-    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(9)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Ref: ${this.data.project.firNumber || '___________'}</text>`
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(9)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Letter No.: __________________________</text>`
+    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(9)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Ref: ${this.data.project.firNumber || '___________'}</text>`
 
     // Examined by — checks computations and field work
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(14)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Examined by: ________________________</text>`
-    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(14)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(14)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Examined by: ________________________</text>`
+    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(14)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
 
     // Approved by — verifies compliance with Survey Act Cap. 299
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(19)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Approved by: ________________________</text>`
-    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(19)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(19)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Approved by: ________________________</text>`
+    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(19)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
 
     // Authenticated by — applies the official Survey of Kenya seal
-    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(24)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Authenticated by: ____________________</text>`
-    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(24)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+    svg += `<text x="${leftPad + 2}" y="${authY + mmToPx(24)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Authenticated by: ____________________</text>`
+    svg += `<text x="${leftPad + panelInnerW - 2}" y="${authY + mmToPx(24)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
 
     // Official SoK Seal area — improved with circle and proper label
     const sealCx = leftPad + panelInnerW - mmToPx(12)
     const sealCy = authY + mmToPx(30)
     const sealR = mmToPx(4.5)
     svg += `<circle cx="${sealCx}" cy="${sealCy}" r="${sealR}" fill="none" stroke="${C_BLACK}" stroke-width="0.4" stroke-dasharray="1.5,1"/>`
-    svg += `<text x="${sealCx}" y="${sealCy - 1}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#888">OFFICIAL SEAL</text>`
-    svg += `<text x="${sealCx}" y="${sealCy + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#888">SURVEY OF KENYA</text>`
+    svg += `<text x="${sealCx}" y="${sealCy - 1}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#888">OFFICIAL SEAL</text>`
+    svg += `<text x="${sealCx}" y="${sealCy + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#888">SURVEY OF KENYA</text>`
 
     return svg
   }
@@ -647,7 +647,7 @@ export class SurveyPlanRenderer {
     const cx = this.drawingX + this.drawingAreaW / 2
     let svg = `<line x1="${this.drawingX}" y1="${y2}" x2="${this.drawingX + this.drawingAreaW}" y2="${y2}" stroke="${C_BLACK}" stroke-width="2"/>`
     svg += `<line x1="${this.drawingX}" y1="${y1}" x2="${this.drawingX + this.drawingAreaW}" y2="${y1}" stroke="${C_BLACK}" stroke-width="0.8"/>`
-    svg += `<text x="${cx}" y="${y1 + mmToPx(2.5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="12" font-weight="bold" fill="${C_BLACK}">${escapeXml(street.toUpperCase())}</text>`
+    svg += `<text x="${cx}" y="${y1 + mmToPx(2.5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="12" font-weight="bold" fill="${C_BLACK}">${escapeXml(street.toUpperCase())}</text>`
     return svg
   }
 
@@ -669,7 +669,7 @@ export class SurveyPlanRenderer {
       let transform = ''
       if (isLeft) transform = `transform="translate(${px},${py}) rotate(-90)"`
       else if (!isTop) transform = `transform="translate(${px},${py}) rotate(90)"`
-      svg += `<text ${transform} x="${px}" y="${py}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}" opacity="0.4">${escapeXml(ref)}</text>`
+      svg += `<text ${transform} x="${px}" y="${py}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}" opacity="0.4">${escapeXml(ref)}</text>`
     }
     return svg
   }
@@ -742,7 +742,7 @@ export class SurveyPlanRenderer {
       svg += `<g transform="translate(${px},${py})">`
       svg += `<g transform="rotate(${textAngle})">`
       svg += `<rect x="${-label.length * 2.8}" y="${-5}" width="${label.length * 5.6}" height="${10}" fill="white" opacity="0.75" stroke="none"/>`
-      svg += `<text x="0" y="3" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}" opacity="0.6">${escapeXml(label)}</text>`
+      svg += `<text x="0" y="3" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}" opacity="0.6">${escapeXml(label)}</text>`
       svg += `</g></g>`
     }
 
@@ -801,9 +801,9 @@ export class SurveyPlanRenderer {
     const x = this.drawingX + this.drawingAreaW - mmToPx(32)
     const y = this.drawingY + mmToPx(5)
     let svg = `<rect x="${x - mmToPx(1)}" y="${y - mmToPx(3)}" width="${mmToPx(30)}" height="${mmToPx(4 + types.length * 4.5)}" fill="white" fill-opacity="0.9" stroke="${C_BLACK}" stroke-width="0.3"/>`
-    svg += `<text x="${x}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">FENCE TYPES</text>`
+    svg += `<text x="${x}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">FENCE TYPES</text>`
     types.forEach((t, i) => {
-      svg += `<text x="${x}" y="${y + (i + 1) * mmToPx(4)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="#555">${t.replace(/_/g, ' ')}</text>`
+      svg += `<text x="${x}" y="${y + (i + 1) * mmToPx(4)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="#555">${t.replace(/_/g, ' ')}</text>`
     })
     return svg
   }
@@ -837,7 +837,7 @@ export class SurveyPlanRenderer {
     let y = this.margin + mmToPx(4)
     let svg = ''
     const text = (content: string, yPos: number, size: number, weight = 'normal', color = C_BLACK) =>
-      `<text x="${leftPad}" y="${yPos}" font-family="Share Tech Mono, Courier New" font-size="${size}" font-weight="${weight}" fill="${color}">${escapeXml(content)}</text>`
+      `<text x="${leftPad}" y="${yPos}" font-family="JetBrains Mono, Courier New" font-size="${size}" font-weight="${weight}" fill="${color}">${escapeXml(content)}</text>`
     const hline = (y1: number) =>
       `<line x1="${leftPad}" y1="${y1}" x2="${rightPad}" y2="${y1}" stroke="${C_BLACK}" stroke-width="0.5"/>`
     svg += text('SURVEYOR\'S REAL PROPERTY REPORT', y, 5)
@@ -862,9 +862,9 @@ export class SurveyPlanRenderer {
     const box = (yPos: number, h: number) =>
       `<rect x="${leftPad}" y="${yPos}" width="${panelInnerW}" height="${h}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
     const row = (label: string, value: string) =>
-      `<text x="${leftPad}" y="${y += mmToPx(4)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="#555">${escapeXml(label)}</text><text x="${leftPad + mmToPx(22)}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
+      `<text x="${leftPad}" y="${y += mmToPx(4)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="#555">${escapeXml(label)}</text><text x="${leftPad + mmToPx(22)}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
     svg += box(y, mmToPx(4))
-    svg += `<text x="${leftPad}" y="${y + mmToPx(3)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">PLAN INFORMATION</text>`
+    svg += `<text x="${leftPad}" y="${y + mmToPx(3)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">PLAN INFORMATION</text>`
     y += mmToPx(4)
     const info: Array<[string, string]> = [
       ['Title Ref:', p.reference || '\u2014'],
@@ -894,7 +894,7 @@ export class SurveyPlanRenderer {
     const box = (yPos: number, h: number) =>
       `<rect x="${leftPad}" y="${yPos}" width="${panelInnerW}" height="${h}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
     svg += box(y, mmToPx(4))
-    svg += `<text x="${leftPad}" y="${y + mmToPx(3)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">LEGEND</text>`
+    svg += `<text x="${leftPad}" y="${y + mmToPx(3)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">LEGEND</text>`
     const items = [
       { label: 'Subject boundary', symbol: `<line x1="0" y1="0" x2="20" y2="0" stroke="${C_BLACK}" stroke-width="2.5"/>` },
       { label: 'Adjacent boundary', symbol: `<line x1="0" y1="0" x2="20" y2="0" stroke="${C_BLACK}" stroke-width="1"/>` },
@@ -906,7 +906,7 @@ export class SurveyPlanRenderer {
     ]
     for (const item of items) {
       svg += `<g transform="translate(${leftPad}, ${y += mmToPx(4)})">${item.symbol}</g>`
-      svg += `<text x="${leftPad + mmToPx(10)}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(item.label)}</text>`
+      svg += `<text x="${leftPad + mmToPx(10)}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(item.label)}</text>`
     }
     return svg
   }
@@ -920,7 +920,7 @@ export class SurveyPlanRenderer {
     svg += `<rect x="${leftPad + 0.5}" y="${y + 0.5}" width="${panelInnerW - 1}" height="${mmToPx(12) - 1}" fill="${C_WARNING_BG}"/>`
     const lines = ['WARNING: Fence set-out pegs', 'must be verified on site.', 'Dimensions subject to', 'survey verification.']
     lines.forEach((line, i) => {
-      svg += `<text x="${leftPad + mmToPx(2)}" y="${y + mmToPx(3) + i * mmToPx(3)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="${i === 0 ? 'bold' : 'normal'}" fill="${C_BLACK}">${escapeXml(line)}</text>`
+      svg += `<text x="${leftPad + mmToPx(2)}" y="${y + mmToPx(3) + i * mmToPx(3)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="${i === 0 ? 'bold' : 'normal'}" fill="${C_BLACK}">${escapeXml(line)}</text>`
     })
     return svg
   }
@@ -931,9 +931,9 @@ export class SurveyPlanRenderer {
     const y = afterCert
     const p = this.data.project
     let svg = `<line x1="${leftPad}" y1="${y}" x2="${rightPad}" y2="${y}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    if (p.firm_phone) svg += `<text x="${leftPad}" y="${y + mmToPx(3)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(p.firm_phone)}</text>`
-    if (p.firm_email) svg += `<text x="${leftPad}" y="${y + mmToPx(6)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(p.firm_email)}</text>`
-    if (p.iskRegNo) svg += `<text x="${leftPad}" y="${y + mmToPx(9)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">ISK (Chapter of Land Surveyors) Membership No. ${escapeXml(p.iskRegNo)}</text>`
+    if (p.firm_phone) svg += `<text x="${leftPad}" y="${y + mmToPx(3)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(p.firm_phone)}</text>`
+    if (p.firm_email) svg += `<text x="${leftPad}" y="${y + mmToPx(6)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${escapeXml(p.firm_email)}</text>`
+    if (p.iskRegNo) svg += `<text x="${leftPad}" y="${y + mmToPx(9)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">ISK (Chapter of Land Surveyors) Membership No. ${escapeXml(p.iskRegNo)}</text>`
     return svg
   }
 
@@ -962,10 +962,10 @@ export class SurveyPlanRenderer {
       svg += `<line x1="${x}" y1="${footerY}" x2="${x}" y2="${footerY + footerH}" stroke="${C_BLACK}" stroke-width="0.5"/>`
       if (i === cols - 1) {
         svg += `<rect x="${x}" y="${footerY}" width="${colW}" height="${footerH}" fill="${C_BLACK}"/>`
-        svg += `<text x="${cx}" y="${footerY + footerH / 2 + 4}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="11" font-weight="bold" fill="white">${escapeXml(label)}</text>`
+        svg += `<text x="${cx}" y="${footerY + footerH / 2 + 4}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="11" font-weight="bold" fill="white">${escapeXml(label)}</text>`
       } else {
-        svg += `<text x="${cx}" y="${footerY + mmToPx(4)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="#555">${escapeXml(label)}</text>`
-        svg += `<text x="${cx}" y="${footerY + mmToPx(10)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
+        svg += `<text x="${cx}" y="${footerY + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="5" fill="#555">${escapeXml(label)}</text>`
+        svg += `<text x="${cx}" y="${footerY + mmToPx(10)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
       }
       x += colW
     }
@@ -978,7 +978,7 @@ export class SurveyPlanRenderer {
     const datum = p.datum || 'ARC1960'
     const y = this.pageH - mmToPx(6)
     const ref = `Prepared: Survey Act Cap. 299 | Survey Regulations 1994 | RDM 1.1 (2025) | RDM 1.3 (2023) | Ministry of Roads and Transport, Republic of Kenya | Coordinates: UTM Zone ${zone}, ${datum}`
-    return `<text x="${this.margin}" y="${y}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">${escapeXml(ref)}</text>`
+    return `<text x="${this.margin}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">${escapeXml(ref)}</text>`
   }
 
   /**
@@ -1089,7 +1089,7 @@ export class SurveyPlanRenderer {
         svg += `<g transform="translate(${lx},${ly})">`
         svg += `<g transform="rotate(${textAngle})">`
         svg += `<rect x="${-widthLabel.length * 2.5}" y="${-4}" width="${widthLabel.length * 5}" height="8" fill="white" opacity="0.8" stroke="none"/>`
-        svg += `<text x="0" y="2" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}" opacity="0.7">${widthLabel}</text>`
+        svg += `<text x="0" y="2" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}" opacity="0.7">${widthLabel}</text>`
         svg += `</g></g>`
       }
     }
@@ -1127,8 +1127,8 @@ export class SurveyPlanRenderer {
     const cx = this.pageW / 2
 
     let svg = ''
-    svg += `<text x="${cx}" y="${y}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3.5" fill="#999">Verification: ${verCode} | Generated: ${escapeXml(dateStr)} | Scale: 1:${scaleVal}</text>`
-    svg += `<text x="${cx}" y="${y + mmToPx(1.5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="2.5" fill="#bbb">Alteration of this plan invalidates verification — Per Survey Act Cap. 299, Sec. 23</text>`
+    svg += `<text x="${cx}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3.5" fill="#999">Verification: ${verCode} | Generated: ${escapeXml(dateStr)} | Scale: 1:${scaleVal}</text>`
+    svg += `<text x="${cx}" y="${y + mmToPx(1.5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="2.5" fill="#bbb">Alteration of this plan invalidates verification — Per Survey Act Cap. 299, Sec. 23</text>`
 
     return svg
   }
@@ -1139,9 +1139,9 @@ export class SurveyPlanRenderer {
     const cy = this.drawingY + this.drawingAreaH / 2
     return [
       `<g transform="translate(${cx},${cy}) rotate(-45)">`,
-      `<text x="0" y="-40" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="72" font-weight="bold" fill="#000" opacity="0.04">METARDU</text>`,
-      `<text x="0" y="10" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="28" fill="#000" opacity="0.04">Free Plan — Upgrade for Professional Plans</text>`,
-      `<text x="0" y="35" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="18" fill="#000" opacity="0.04">metardu.com/pricing</text>`,
+      `<text x="0" y="-40" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="72" font-weight="bold" fill="#000" opacity="0.04">METARDU</text>`,
+      `<text x="0" y="10" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="28" fill="#000" opacity="0.04">Free Plan — Upgrade for Professional Plans</text>`,
+      `<text x="0" y="35" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="18" fill="#000" opacity="0.04">metardu.com/pricing</text>`,
       `</g>`,
     ].join('')
   }
@@ -1181,7 +1181,7 @@ export class SurveyPlanRenderer {
     layers.push(this.drawSheetFooter())
     layers.push(this.drawPrintVerification())
     layers.push(this.drawLegalReferenceLine())
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'Share Tech Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'JetBrains Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
   }
 
   private renderMultiSheet(): string {
@@ -1233,12 +1233,12 @@ export class SurveyPlanRenderer {
       layers.push(this.drawSheetFooter())
       layers.push(this.drawPrintVerification())
       layers.push(this.drawLegalReferenceLine())
-      layers.push(`<text x="${this.drawingX + this.drawingAreaW / 2}" y="${this.margin + mmToPx(3)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`)
+      layers.push(`<text x="${this.drawingX + this.drawingAreaW / 2}" y="${this.margin + mmToPx(3)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`)
       layers.push('</g>')
       sheets.push(layers.join('\n'))
     }
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${sheetW}" height="${sheetH}" style="font-family: 'Share Tech Mono', 'Courier New', monospace; background: white;">${sheets.join('\n')}</svg>`
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${sheetW}" height="${sheetH}" style="font-family: 'JetBrains Mono', 'Courier New', monospace; background: white;">${sheets.join('\n')}</svg>`
   }
 
   getScale(): number { return this.scale }
@@ -1285,8 +1285,8 @@ export class SurveyPlanRenderer {
     const leftCentroid = centroid(leftPts)
     const rightCentroid = centroid(rightPts)
     const label = `ROAD RESERVE BOUNDARY (RDM 1.3 TABLE 2-3)`
-    svg += `<text x="${this.toSvgX(leftCentroid[0])}" y="${this.toSvgY(leftCentroid[1])}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}" transform="rotate(-45,${this.toSvgX(leftCentroid[0])},${this.toSvgY(leftCentroid[1])})">${escapeXml(label)}</text>`
-    svg += `<text x="${this.toSvgX(rightCentroid[0])}" y="${this.toSvgY(rightCentroid[1])}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}" transform="rotate(-45,${this.toSvgX(rightCentroid[0])},${this.toSvgY(rightCentroid[1])})">${escapeXml(label)}</text>`
+    svg += `<text x="${this.toSvgX(leftCentroid[0])}" y="${this.toSvgY(leftCentroid[1])}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}" transform="rotate(-45,${this.toSvgX(leftCentroid[0])},${this.toSvgY(leftCentroid[1])})">${escapeXml(label)}</text>`
+    svg += `<text x="${this.toSvgX(rightCentroid[0])}" y="${this.toSvgY(rightCentroid[1])}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}" transform="rotate(-45,${this.toSvgX(rightCentroid[0])},${this.toSvgY(rightCentroid[1])})">${escapeXml(label)}</text>`
 
     return svg
   }
@@ -1330,7 +1330,7 @@ export class SurveyPlanRenderer {
         const svgY = this.toSvgY(y)
 
         svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-        svg += `<text x="${svgX}" y="${svgY - 1.5}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4" fill="${C_BLACK}" font-weight="bold">${formatChainage(chainage)}</text>`
+        svg += `<text x="${svgX}" y="${svgY - 1.5}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="4" fill="${C_BLACK}" font-weight="bold">${formatChainage(chainage)}</text>`
       }
     }
 
@@ -1353,25 +1353,25 @@ export class SurveyPlanRenderer {
     const tableH = headerH + maxRows * rowH
 
     let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">CHAINAGE SCHEDULE — ${escapeXml(roadName)}</text>`
+    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">CHAINAGE SCHEDULE — ${escapeXml(roadName)}</text>`
 
     const hY = startY + headerH
     svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
     const headers = ['Chainage', 'Easting', 'Northing', 'Label']
     headers.forEach((h, i) => {
-      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
+      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="#555">${h}</text>`
     })
 
     chainagePts.slice(0, maxRows).forEach((pt, i) => {
       const ry = hY + rowH * (i + 1)
       if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
-      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}" font-weight="bold">${formatChainage(pt.chainage)}</text>`
-      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.easting.toFixed(3)}</text>`
-      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.northing.toFixed(3)}</text>`
-      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="Share Tech Mono, Courier New" font-size="5" fill="#555">km+m</text>`
+      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}" font-weight="bold">${formatChainage(pt.chainage)}</text>`
+      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.easting.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="${C_BLACK}">${pt.northing.toFixed(3)}</text>`
+      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="#555">km+m</text>`
     })
 
-    svg += `<text x="${leftPad}" y="${startY + tableH + 8}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="#555" font-style="italic">Chainage format: km+m (RDM 1.1 §5.6.4) · Interval: 100m markers</text>`
+    svg += `<text x="${leftPad}" y="${startY + tableH + 8}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="#555" font-style="italic">Chainage format: km+m (RDM 1.1 §5.6.4) · Interval: 100m markers</text>`
     return svg
   }
 }

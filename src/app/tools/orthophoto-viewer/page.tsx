@@ -39,7 +39,7 @@ interface TracedPolygon {
 }
 
 const POLYGON_COLORS = [
-  '#FF6B35',
+  '#D17B47',
   '#1B9AAA',
   '#E84855',
   '#3185FC',

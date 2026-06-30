@@ -28,7 +28,7 @@ export function svgMasonryNail(cx: number, cy: number, calloutText?: string): st
   const lines = calloutText.split('\n')
   const textEls = lines.map((line, i) => {
     const yOffset = (i - (lines.length - 1) / 2) * 4
-    return `<text x="${leaderEndX + 2}" y="${leaderY + yOffset}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_RED}">${escapeXml(line)}</text>`
+    return `<text x="${leaderEndX + 2}" y="${leaderY + yOffset}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_RED}">${escapeXml(line)}</text>`
   }).join('')
   return nail + leader + textEls
 }
@@ -55,7 +55,7 @@ export function svgNorthArrow(x: number, y: number, heightPx: number): string {
   const southBaseY = y + shaftH
   const southTipY = y + shaftH + arrowH
   const southArrow = `<polygon points="${x},${southTipY} ${x - arrowW / 2},${southBaseY} ${x + arrowW / 2},${southBaseY}" fill="none" stroke="${C_BLACK}" stroke-width="1.5"/>`
-  const nLabel = `<text x="${x}" y="${northTipY - 6}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="11" font-weight="bold" fill="${C_BLACK}">N</text>`
+  const nLabel = `<text x="${x}" y="${northTipY - 6}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="11" font-weight="bold" fill="${C_BLACK}">N</text>`
   return shaft + northArrow + southArrow + nLabel
 }
 
@@ -78,12 +78,12 @@ export function svgScaleBar(
       segments.push(`<rect x="${sx}" y="${y}" width="${segmentW}" height="${barH}" fill="white" stroke="${C_BLACK}" stroke-width="0.8"/>`)
     }
     if (i < numSegments) {
-      labels.push(`<text x="${sx}" y="${y - labelGap}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">${i * segmentMetres}</text>`)
+      labels.push(`<text x="${sx}" y="${y - labelGap}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">${i * segmentMetres}</text>`)
     }
   }
-  labels.push(`<text x="${x + barLengthPx}" y="${y - labelGap}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">${numSegments * segmentMetres}</text>`)
-  const scaleLabel = `<text x="${x}" y="${y + barH + 8}" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">SCALE</text>`
-  const metresLabel = `<text x="${x}" y="${y + barH + 14}" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">METRES</text>`
+  labels.push(`<text x="${x + barLengthPx}" y="${y - labelGap}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">${numSegments * segmentMetres}</text>`)
+  const scaleLabel = `<text x="${x}" y="${y + barH + 8}" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">SCALE</text>`
+  const metresLabel = `<text x="${x}" y="${y + barH + 14}" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">METRES</text>`
   return segments.join('') + labels.join('') + scaleLabel + metresLabel
 }
 
@@ -206,7 +206,7 @@ export function svgFenceCallout(
     `<polygon points="${ax3},${ay3} ${x1},${y1} ${x1 + 4 * Math.cos(a1)},${y1 + 4 * Math.sin(a1)}" fill="#000000" transform="translate(${x1 - midX},${y1 - midY})"/>`,
     `<g transform="translate(${midX},${midY}) rotate(${rot})">`,
     `<rect x="${-tw/2}" y="${-th/2}" width="${tw}" height="${th}" fill="white" stroke="none"/>`,
-    `<text x="0" y="3" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="#000000">${label}</text>`,
+    `<text x="0" y="3" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="#000000">${label}</text>`,
     `</g>`,
   ].join('')
 }
@@ -238,7 +238,7 @@ export function svgIndicatoryBeaconCallout(
     svgIndicatoryBeacon(cx, cy),
     `<g transform="translate(${cx},${cy}) rotate(${rot})">`,
     `<rect x="${tw/2}" y="${-th/2}" width="${tw}" height="${th}" fill="white" stroke="none" opacity="0.9"/>`,
-    `<text x="${tw/2 + 2}" y="3" font-family="Share Tech Mono, Courier New" font-size="3.5" fill="${C_GREEN}">${escapeXml(note)}</text>`,
+    `<text x="${tw/2 + 2}" y="3" font-family="JetBrains Mono, Courier New" font-size="3.5" fill="${C_GREEN}">${escapeXml(note)}</text>`,
     '</g>',
   ].join('')
 }

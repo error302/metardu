@@ -138,10 +138,10 @@ export interface AreaData {
 function docHeader(title: string, project: ProjectData, surveyorDetails: Record<string,string>): string {
   const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
   return `
-  <div style="border-bottom:2px solid #E8841A;padding-bottom:12px;margin-bottom:20px;">
+  <div style="border-bottom:2px solid #D17B47;padding-bottom:12px;margin-bottom:20px;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;">
       <div>
-        <div style="font-size:22px;font-weight:700;color:#E8841A;letter-spacing:1px;">METARDU</div>
+        <div style="font-size:22px;font-weight:700;color:#D17B47;letter-spacing:1px;">METARDU</div>
         <div style="font-size:11px;color:#666;margin-top:2px;">Professional Surveying Platform</div>
       </div>
       <div style="text-align:right;font-size:11px;color:#444;">
@@ -196,7 +196,7 @@ function pageStyles(): string {
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
     .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 12px 0; }
     .box { border: 1px solid #ddd; border-radius: 4px; padding: 10px 12px; }
-    .highlight { background: #fff8f0; border-left: 3px solid #E8841A; padding: 8px 12px; margin: 10px 0; font-size: 11px; }
+    .highlight { background: #fff8f0; border-left: 3px solid #D17B47; padding: 8px 12px; margin: 10px 0; font-size: 11px; }
     .pass { color: #16a34a; font-weight: 700; }
     .fail { color: #dc2626; font-weight: 700; }
     @media print { body { padding: 10px; } }
@@ -345,15 +345,15 @@ export function generateAreaCertificate(
   ${area ? `
   <div class="grid3" style="margin:20px 0;">
     <div class="box" style="text-align:center;">
-      <div style="font-size:22px;font-weight:700;color:#E8841A;">${area.squareMeters.toFixed(2)}</div>
+      <div style="font-size:22px;font-weight:700;color:#D17B47;">${area.squareMeters.toFixed(2)}</div>
       <div class="label">Square metres (m²)</div>
     </div>
     <div class="box" style="text-align:center;">
-      <div style="font-size:22px;font-weight:700;color:#E8841A;">${area.hectares.toFixed(4)}</div>
+      <div style="font-size:22px;font-weight:700;color:#D17B47;">${area.hectares.toFixed(4)}</div>
       <div class="label">Hectares (ha)</div>
     </div>
     <div class="box" style="text-align:center;">
-      <div style="font-size:22px;font-weight:700;color:#E8841A;">${area.acres.toFixed(4)}</div>
+      <div style="font-size:22px;font-weight:700;color:#D17B47;">${area.acres.toFixed(4)}</div>
       <div class="label">Acres</div>
     </div>
   </div>
@@ -512,7 +512,7 @@ export function generateCompletionCertificate(
     ${(extraFields.completionItems || 
       'All survey points established and recorded\nField observations independently checked\nComputations verified and within acceptable limits\nSurvey documents prepared and certified').split('\n').map((item: any) => `
     <div style="display:flex;align-items:flex-start;gap:8px;margin:6px 0;">
-      <span style="color:#E8841A;font-weight:700;font-size:14px;">✓</span>
+      <span style="color:#D17B47;font-weight:700;font-size:14px;">✓</span>
       <span>${item.trim()}</span>
     </div>`).join('')}
   </div>

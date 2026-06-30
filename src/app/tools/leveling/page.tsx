@@ -384,12 +384,12 @@ function LevelingProfile({ readings }: { readings: any[] }) {
         </pattern>
       </defs>
       <rect width={width} height={height} fill="url(#grid)"/>
-      <path d={pathData} stroke="#E8841A" strokeWidth={2} fill="none"/>
+      <path d={pathData} stroke="#D17B47" strokeWidth={2} fill="none"/>
       {validReadings.map((r, i) => {
         const rl = r.adjustedRL || r.reducedLevel;
         return (
           <g key={i}>
-            <circle cx={toX(i)} cy={toY(rl)} r={4} fill="#E8841A"/>
+            <circle cx={toX(i)} cy={toY(rl)} r={4} fill="#D17B47"/>
             <text x={toX(i)} y={height - 10} fill="white" fontSize={9} textAnchor="middle">{r.station}</text>
             <text x={toX(i)} y={toY(rl) - 8} fill="white" fontSize={7} textAnchor="middle">{rl.toFixed(2)}</text>
           </g>

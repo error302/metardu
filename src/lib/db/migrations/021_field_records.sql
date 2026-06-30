@@ -78,7 +78,7 @@ CREATE POLICY fr_read_all ON field_records
     FOR SELECT USING (true);
 
 CREATE POLICY fr_write_contributor ON field_records
-    FOR ALL USING (contributed_by = auth.uid() OR contributed_by = current_setting('app.current_user_id', true)::UUID);
+    FOR ALL USING (contributed_by = current_setting('app.current_user_id', true)::UUID);
 
 -- ─── Helper: find nearby field records ─────────────────────────────────────
 

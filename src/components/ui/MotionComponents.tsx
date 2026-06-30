@@ -183,20 +183,35 @@ export function GlassCard({
   className?: string;
   hover?: boolean;
 } & React.HTMLAttributes<HTMLDivElement>) {
+<<<<<<< HEAD
+=======
+  // v0.3: GlassCard is now an alias for PaperCard — flat, no glassmorphism.
+  // Kept the export name so existing imports don't break.
+>>>>>>> origin/redesign-v0.3
   return (
     <motion.div
       whileHover={
         hover
           ? {
+<<<<<<< HEAD
               y: -4,
+=======
+              y: -2,
+>>>>>>> origin/redesign-v0.3
               transition: springSmooth,
             }
           : undefined
       }
       className={cn(
+<<<<<<< HEAD
         "bg-white/[0.03] backdrop-blur-xl border border-white/[0.08] rounded-2xl",
         hover &&
           "transition-colors duration-300 hover:bg-white/[0.06] hover:border-white/[0.12] hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
+=======
+        "bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg",
+        hover &&
+          "transition-colors duration-200 hover:border-[var(--border-hover)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
+>>>>>>> origin/redesign-v0.3
         className
       )}
       {...(({ onDrag: _onDrag, ...rest }: any) => rest)(props) as any}
@@ -207,14 +222,27 @@ export function GlassCard({
 }
 
 /* ========================================================================
+<<<<<<< HEAD
    AnimatedGradientText – gradient text that shifts colors
+=======
+   AnimatedGradientText – now solid accent color, no gradient (v0.3)
+>>>>>>> origin/redesign-v0.3
    ======================================================================== */
 export function AnimatedGradientText({
   children,
   className,
+<<<<<<< HEAD
   from,
   via,
   to,
+=======
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  from: _from,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  via: _via,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  to: _to,
+>>>>>>> origin/redesign-v0.3
 }: {
   children: React.ReactNode;
   className?: string;
@@ -222,6 +250,7 @@ export function AnimatedGradientText({
   via?: string;
   to?: string;
 }) {
+<<<<<<< HEAD
   const gradientFrom = from || '#E8841A';
   const gradientVia = via || '#FF6B35';
   const gradientTo = to || '#FFB347';
@@ -246,6 +275,18 @@ export function AnimatedGradientText({
     >
       {children}
     </motion.span>
+=======
+  // v0.3: gradient text is banned by impeccable skill. Solid accent color instead.
+  return (
+    <span
+      className={cn(
+        "inline-block text-[var(--accent)]",
+        className
+      )}
+    >
+      {children}
+    </span>
+>>>>>>> origin/redesign-v0.3
   );
 }
 
@@ -254,6 +295,7 @@ export function GlowButton({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
+<<<<<<< HEAD
   return (
     <motion.div
       whileHover={{
@@ -268,6 +310,20 @@ export function GlowButton({
         "shadow-[0_2px_12px_rgba(232,132,26,0.25)]",
         "transition-all duration-200 ease-out",
         "hover:bg-[100%_50%] hover:shadow-[0_4px_30px_rgba(232,132,26,0.45)]",
+=======
+  // v0.3: GlowButton is now a flat primary button — no gradient, no glow.
+  // Kept the export name so existing imports don't break.
+  return (
+    <motion.div
+      whileHover={{ scale: 1.01, transition: springSmooth }}
+      whileTap={{ scale: 0.98 }}
+      transition={springBouncy}
+      className={cn(
+        "inline-flex items-center justify-center rounded-md",
+        "bg-[var(--accent)] text-[var(--bg-primary)] font-medium",
+        "transition-colors duration-200 ease-out",
+        "hover:bg-[var(--accent-dim)]",
+>>>>>>> origin/redesign-v0.3
         className
       )}
       {...(({ onDrag: _onDrag, ...rest }: any) => rest)(props) as any}

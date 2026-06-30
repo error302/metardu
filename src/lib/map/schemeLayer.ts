@@ -283,13 +283,13 @@ export async function createSchemeBlockLayer(
     olFeature.setStyle(new Style({
       image: new CircleStyle({
         radius: 10,
-        fill: new Fill({ color: 'rgba(232, 132, 26, 0.25)' }),
-        stroke: new Stroke({ color: '#E8841A', width: 2 }),
+        fill: new Fill({ color: 'rgba(209, 123, 71, 0.25)' }),
+        stroke: new Stroke({ color: '#D17B47', width: 2 }),
       }),
       text: new Text({
         text: countLabel ? `${labelText}\n${countLabel}` : labelText,
         font: 'bold 12px Calibri, sans-serif',
-        fill: new Fill({ color: '#E8841A' }),
+        fill: new Fill({ color: '#D17B47' }),
         stroke: new Stroke({ color: '#FFFFFF', width: 3.5 }),
         textAlign: 'center',
         textBaseline: 'middle',
@@ -437,7 +437,7 @@ export function renderSchemePopup(
   popupElement.className = ''
 
   const card = document.createElement('div')
-  card.className = 'bg-[#14141e]/95 border border-[#E8841A]/30 rounded-xl shadow-2xl backdrop-blur-xl p-4 min-w-[220px] max-w-[340px]'
+  card.className = 'bg-[#14141e]/95 border border-[#D17B47]/30 rounded-xl shadow-2xl backdrop-blur-xl p-4 min-w-[220px] max-w-[340px]'
 
   // Header
   const header = document.createElement('div')
@@ -446,7 +446,7 @@ export function renderSchemePopup(
   const labelWrap = document.createElement('div')
   labelWrap.className = 'flex items-center gap-2'
   const dot = document.createElement('div')
-  dot.className = 'w-1.5 h-1.5 rounded-full bg-[#E8841A]'
+  dot.className = 'w-1.5 h-1.5 rounded-full bg-[#D17B47]'
 
   const typeLabels: Record<string, string> = {
     parcel: 'Parcel',
@@ -481,7 +481,7 @@ export function renderSchemePopup(
   }
 
   if (featureType === 'parcel') {
-    addField('parcelNumber', properties.parcelNumber, 'Parcel No.', 'text-[#E8841A]')
+    addField('parcelNumber', properties.parcelNumber, 'Parcel No.', 'text-[#D17B47]')
     addField('lrNumber', properties.lrNumber, 'LR Number')
     addField('blockNumber', properties.blockNumber, 'Block')
     addField('areaHa', properties.areaHa != null ? `${Number(properties.areaHa).toFixed(4)} ha` : null, 'Area')
@@ -491,11 +491,11 @@ export function renderSchemePopup(
       properties.status === 'rejected' ? 'text-red-600' : 'text-gray-300'
     )
   } else if (featureType === 'beacon') {
-    addField('label', properties.label, 'Station', 'text-[#E8841A]')
+    addField('label', properties.label, 'Station', 'text-[#D17B47]')
     addField('parcelNumber', properties.parcelNumber, 'Parcel')
     addField('blockNumber', properties.blockNumber, 'Block')
   } else if (featureType === 'block') {
-    addField('blockName', properties.blockName, 'Block Name', 'text-[#E8841A]')
+    addField('blockName', properties.blockName, 'Block Name', 'text-[#D17B47]')
     addField('blockNumber', properties.blockNumber, 'Block No.')
     addField('parcelCount', properties.parcelCount ? `${properties.parcelCount} parcels` : null, 'Parcels')
   }
@@ -533,8 +533,8 @@ export async function addSchemeHoverInteraction(
   let originalStyle: any = null
 
   const highlightStyle = new Style({
-    stroke: new Stroke({ color: '#E8841A', width: 3.5 }),
-    fill: new Fill({ color: 'rgba(232, 132, 26, 0.18)' }),
+    stroke: new Stroke({ color: '#D17B47', width: 3.5 }),
+    fill: new Fill({ color: 'rgba(209, 123, 71, 0.18)' }),
   })
 
   let lastMoveTime = 0
@@ -822,13 +822,13 @@ async function buildBlockLayerFromData(
     olFeature.setStyle(new Style({
       image: new CircleStyle({
         radius: 10,
-        fill: new Fill({ color: 'rgba(232, 132, 26, 0.25)' }),
-        stroke: new Stroke({ color: '#E8841A', width: 2 }),
+        fill: new Fill({ color: 'rgba(209, 123, 71, 0.25)' }),
+        stroke: new Stroke({ color: '#D17B47', width: 2 }),
       }),
       text: new Text({
         text: countLabel ? `${labelText}\n${countLabel}` : labelText,
         font: 'bold 12px Calibri, sans-serif',
-        fill: new Fill({ color: '#E8841A' }),
+        fill: new Fill({ color: '#D17B47' }),
         stroke: new Stroke({ color: '#FFFFFF', width: 3.5 }),
         textAlign: 'center',
         textBaseline: 'middle',

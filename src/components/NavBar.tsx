@@ -90,7 +90,7 @@ function Dropdown({ label, children, isOpen, onToggle, align = 'left', buttonCla
       </button>
       {isOpen && (
         <div className={`absolute top-full ${align === 'right' ? 'right-0' : 'left-0'} pt-2 z-50`}>
-          <div className={`bg-[var(--bg-secondary)] border border-[#E8841A20] rounded-lg shadow-xl ${panelClassName ?? 'min-w-[200px] py-2'}`}>
+          <div className={`bg-[var(--bg-secondary)] border border-[#D17B4720] rounded-lg shadow-xl ${panelClassName ?? 'min-w-[200px] py-2'}`}>
             {children}
           </div>
         </div>
@@ -514,7 +514,7 @@ export default function NavBar() {
 
                 {openDropdown === 'user' && (
                   <div className="absolute top-full right-0 pt-2 z-50">
-                    <div className="bg-[var(--bg-secondary)] border border-[#E8841A20] rounded-lg shadow-xl min-w-[220px] py-2">
+                    <div className="bg-[var(--bg-secondary)] border border-[#D17B4720] rounded-lg shadow-xl min-w-[220px] py-2">
                       <div className="px-4 pb-2 flex items-center justify-between">
                         <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold">Account</div>
                         <SubscriptionBadge plan={userPlan} compact />

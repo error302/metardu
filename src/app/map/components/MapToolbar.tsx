@@ -54,7 +54,7 @@ function ToolButton({
         flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-200
         w-[52px] h-[52px] shrink-0
         ${isActive
-          ? 'bg-[#E8841A]/10 border border-[#E8841A]/30 text-[#E8841A] shadow-[0_0_12px_rgba(232,132,26,0.15)]'
+          ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47] shadow-[0_0_12px_rgba(209, 123, 71,0.15)]'
           : 'bg-white/[0.02] border border-white/[0.06] text-gray-400 hover:bg-white/[0.04] hover:text-gray-300'}
       `}
     >
@@ -85,7 +85,7 @@ function ActionButton({
         ${isDanger && isActive
           ? 'bg-red-500/10 border border-red-500/30 text-red-400'
           : isActive
-            ? 'bg-[#E8841A]/10 border border-[#E8841A]/30 text-[#E8841A]'
+            ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47]'
             : 'text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 border border-transparent'}
       `}
     >
@@ -148,7 +148,7 @@ function FeatureProperties({
         value={featureName}
         onChange={(e) => onUpdateName(e.target.value)}
         placeholder="Feature name..."
-        className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md px-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors"
+        className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md px-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/30 transition-colors"
       />
       <div className="text-[10px] text-gray-600 space-y-0.5">
         <div>Type: {type || 'unknown'}</div>
@@ -220,7 +220,7 @@ export const MapToolbar = memo(function MapToolbar() {
               title={`Draw ${mode === 'LineString' ? 'Line' : mode}`}
               className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${
                 drawMode === mode
-                  ? 'bg-[#E8841A]/10 text-[#E8841A] shadow-[0_0_12px_rgba(232,132,26,0.15)]'
+                  ? 'bg-[#D17B47]/10 text-[#D17B47] shadow-[0_0_12px_rgba(209, 123, 71,0.15)]'
                   : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
               }`}
             >
@@ -236,7 +236,7 @@ export const MapToolbar = memo(function MapToolbar() {
             title="Modify features"
             className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${
               editMode
-                ? 'bg-[#E8841A]/10 text-[#E8841A] shadow-[0_0_12px_rgba(232,132,26,0.15)]'
+                ? 'bg-[#D17B47]/10 text-[#D17B47] shadow-[0_0_12px_rgba(209, 123, 71,0.15)]'
                 : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
             }`}
           >
@@ -339,7 +339,7 @@ export const MapToolbar = memo(function MapToolbar() {
                 step={5}
                 value={layerOpacity}
                 onChange={(e) => handleOpacityChange(Number(e.target.value))}
-                className="flex-1 h-1 accent-[#E8841A] cursor-pointer"
+                className="flex-1 h-1 accent-[#D17B47] cursor-pointer"
               />
               <span className="text-[10px] text-gray-500 font-mono w-7 text-right">{layerOpacity}%</span>
             </div>
@@ -374,7 +374,7 @@ export const MapToolbar = memo(function MapToolbar() {
                   value={projectSearch}
                   onChange={(e) => setProjectSearch(e.target.value)}
                   placeholder="Filter projects..."
-                  className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md pl-7 pr-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors"
+                  className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md pl-7 pr-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/30 transition-colors"
                 />
                 <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
               </div>

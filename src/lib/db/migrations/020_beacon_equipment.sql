@@ -100,8 +100,7 @@ CREATE INDEX IF NOT EXISTS idx_calibration_user_dates
     ON equipment_calibration(user_id, next_calibration_date);
 
 CREATE INDEX IF NOT EXISTS idx_calibration_overdue
-    ON equipment_calibration(user_id, next_calibration_date)
-    WHERE next_calibration_date < NOW();
+    ON equipment_calibration(user_id, next_calibration_date);
 
 -- ─── Row Level Security ────────────────────────────────────────────────────
 
@@ -110,15 +109,15 @@ ALTER TABLE beacon_registry ENABLE ROW LEVEL SECURITY;
 CREATE POLICY beacon_read_all ON beacon_registry
     FOR SELECT USING (true);
 CREATE POLICY beacon_write_owner ON beacon_registry
-    FOR ALL USING (created_by = auth.uid() OR current_setting('app.current_user_id', true)::UUID = created_by);
+    FOR ALL USING (created_by = current_setting('app.current_user_id', true)::UUID);
 
 ALTER TABLE equipment ENABLE ROW LEVEL SECURITY;
 CREATE POLICY equipment_user_policy ON equipment
-    FOR ALL USING (user_id = auth.uid() OR user_id = current_setting('app.current_user_id', true)::UUID);
+    FOR ALL USING (user_id = current_setting('app.current_user_id', true)::UUID);
 
 ALTER TABLE equipment_calibration ENABLE ROW LEVEL SECURITY;
 CREATE POLICY calibration_user_policy ON equipment_calibration
-    FOR ALL USING (user_id = auth.uid() OR user_id = current_setting('app.current_user_id', true)::UUID);
+    FOR ALL USING (user_id = current_setting('app.current_user_id', true)::UUID);
 
 -- ─── Helper: find nearby beacons ───────────────────────────────────────────
 

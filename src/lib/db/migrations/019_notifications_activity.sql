@@ -47,7 +47,7 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY notifications_user_policy ON notifications
     FOR ALL
-    USING (user_id = auth.uid() OR user_id = current_setting('app.current_user_id', true)::UUID);
+    USING (user_id = current_setting('app.current_user_id', true)::UUID);
 
 -- ─── Activity Feed Table ───────────────────────────────────────────────────
 -- Tracks user actions for the dashboard activity feed
@@ -77,7 +77,7 @@ ALTER TABLE user_activity ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY activity_user_policy ON user_activity
     FOR ALL
-    USING (user_id = auth.uid() OR user_id = current_setting('app.current_user_id', true)::UUID);
+    USING (user_id = current_setting('app.current_user_id', true)::UUID);
 
 -- ─── Helper: create notification ───────────────────────────────────────────
 -- Usage: SELECT create_notification(
@@ -88,10 +88,10 @@ CREATE POLICY activity_user_policy ON user_activity
 
 CREATE OR REPLACE FUNCTION create_notification(
     p_user_id       UUID,
-    p_type          VARCHAR(50) DEFAULT 'info',
-    p_category      VARCHAR(50) DEFAULT 'general',
     p_title         TEXT,
     p_message       TEXT,
+    p_type          VARCHAR(50) DEFAULT 'info',
+    p_category      VARCHAR(50) DEFAULT 'general',
     p_action_url    TEXT DEFAULT NULL,
     p_action_label  VARCHAR(100) DEFAULT NULL,
     p_metadata      JSONB DEFAULT '{}'::JSONB

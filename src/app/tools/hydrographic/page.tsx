@@ -695,14 +695,14 @@ export default function HydrographicSurveyPage() {
                     const y = 20 + (m.depth / maxDepth) * 160;
                     return (
                       <g key={i}>
-                        <circle cx={x} cy={y} r="4" fill="#E8841A" />
+                        <circle cx={x} cy={y} r="4" fill="#D17B47" />
                         {i > 0 && (
                           <line 
                             x1={50 + (crossSectionResults.measurements[i-1].distance / maxDist) * 400} 
                             y1={20 + (crossSectionResults.measurements[i-1].depth / maxDepth) * 160}
                             x2={x} 
                             y2={y} 
-                            stroke="#E8841A" 
+                            stroke="#D17B47" 
                             strokeWidth="2"
                           />
                         )}

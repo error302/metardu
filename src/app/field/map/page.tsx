@@ -250,7 +250,11 @@ export default function FieldMapPage() {
           onMouseLeave={hideTooltip}
           onTouchStart={() => showTooltip('Reset to Kenya')}
           onTouchEnd={() => { hideTooltip(); }}
+<<<<<<< HEAD
           className="w-12 h-12 flex items-center justify-center rounded-xl bg-[#E8841A]/80 text-white backdrop-blur-md hover:bg-[#E8841A] active:scale-95 transition-all font-bold text-xs"
+=======
+          className="w-12 h-12 flex items-center justify-center rounded-xl bg-[#D17B47]/80 text-white backdrop-blur-md hover:bg-[#D17B47] active:scale-95 transition-all font-bold text-xs"
+>>>>>>> origin/redesign-v0.3
           aria-label="Reset to Kenya view"
         >
           KEN
@@ -296,7 +300,11 @@ export default function FieldMapPage() {
           onMouseLeave={hideTooltip}
           onTouchStart={() => showTooltip('Perimeter Walk')}
           onTouchEnd={() => { hideTooltip(); }}
+<<<<<<< HEAD
           className="w-12 h-12 flex items-center justify-center rounded-full bg-[#E8841A] text-white shadow-lg shadow-orange-900/30 hover:shadow-orange-800/40 active:scale-95 transition-all"
+=======
+          className="w-12 h-12 flex items-center justify-center rounded-full bg-[#D17B47] text-white shadow-lg shadow-orange-900/30 hover:shadow-orange-800/40 active:scale-95 transition-all"
+>>>>>>> origin/redesign-v0.3
           aria-label="Perimeter Walk"
         >
           <MapPin className="w-5 h-5" />

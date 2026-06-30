@@ -182,8 +182,8 @@ export async function createParcelLayerFromScheme(
   // The highlight style is applied on hover, restoring the original style
   // when the mouse moves away.
   const highlightStyle = new Style({
-    stroke: new Stroke({ color: '#E8841A', width: 3.5 }),
-    fill: new Fill({ color: 'rgba(232, 132, 26, 0.18)' }),
+    stroke: new Stroke({ color: '#D17B47', width: 3.5 }),
+    fill: new Fill({ color: 'rgba(209, 123, 71, 0.18)' }),
   })
 
   let hoveredFeature: any = null

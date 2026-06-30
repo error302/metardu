@@ -127,10 +127,10 @@ export function QuickCompute() {
       <button
         onClick={() => setOpen(true)}
         className="fixed right-4 z-[51] flex items-center gap-2.5
-                   bg-gradient-to-r from-[#FFB84D] to-[#E8841A] text-white
+                   bg-gradient-to-r from-[#FFB84D] to-[#D17B47] text-white
                    px-5 py-3 rounded-2xl font-semibold text-sm
-                   shadow-[0_0_20px_rgba(232,132,26,0.3)]
-                   hover:shadow-[0_0_30px_rgba(232,132,26,0.45)]
+                   shadow-[0_0_20px_rgba(209, 123, 71,0.3)]
+                   hover:shadow-[0_0_30px_rgba(209, 123, 71,0.45)]
                    transition-all duration-300 hover:scale-[1.02]
                    active:scale-[1.02]
                    bottom-20 md:bottom-6"
@@ -162,7 +162,7 @@ export function QuickCompute() {
           <div className="sticky top-0 z-10 p-4 bg-[#0d0d14]/95 backdrop-blur-xl border-b border-white/[0.06]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-[#E8841A]/10 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-[#D17B47]/10 flex items-center justify-center">
                   <BoltIcon className="w-4 h-4" active />
                 </div>
                 <h2 className="font-semibold text-white text-base tracking-wide">Quick Compute</h2>
@@ -175,7 +175,7 @@ export function QuickCompute() {
               </button>
             </div>
             <p className="mt-1.5 text-[11px] text-gray-500 leading-snug">
-              Fast access to all computation tools. Visit <a href="/tools" className="text-[#E8841A] hover:underline">Tools page</a> for full details &amp; favorites.
+              Fast access to all computation tools. Visit <a href="/tools" className="text-[#D17B47] hover:underline">Tools page</a> for full details &amp; favorites.
             </p>
           </div>
 
@@ -195,7 +195,7 @@ export function QuickCompute() {
                       className="flex items-center justify-between group px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all duration-200"
                     >
                       <span className="font-medium">{item.label}</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-gray-600 group-hover:text-[#E8841A] group-hover:translate-x-0.5 transition-all duration-200" />
+                      <ChevronRightIcon className="w-3.5 h-3.5 text-gray-600 group-hover:text-[#D17B47] group-hover:translate-x-0.5 transition-all duration-200" />
                     </Link>
                   ))}
                 </div>

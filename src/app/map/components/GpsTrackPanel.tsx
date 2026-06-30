@@ -130,7 +130,7 @@ export const GpsTrackPanel = memo(function GpsTrackPanel() {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2">
         <div className="flex items-center gap-2">
-          <MapPin className="w-3.5 h-3.5 text-[#E8841A]" />
+          <MapPin className="w-3.5 h-3.5 text-[#D17B47]" />
           <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
             GPS Track
           </span>
@@ -144,7 +144,7 @@ export const GpsTrackPanel = memo(function GpsTrackPanel() {
             <button
               onClick={startTracking}
               disabled={!gpsTracking}
-              className="flex-1 h-7 flex items-center justify-center gap-1.5 text-[10px] bg-[#E8841A]/20 text-[#E8841A] border border-[#E8841A]/30 rounded hover:bg-[#E8841A]/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 h-7 flex items-center justify-center gap-1.5 text-[10px] bg-[#D17B47]/20 text-[#D17B47] border border-[#D17B47]/30 rounded hover:bg-[#D17B47]/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               title={gpsTracking ? 'Start track logging' : 'Enable GPS first'}
             >
               <Play className="w-3 h-3" />

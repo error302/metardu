@@ -354,7 +354,7 @@ export default function DroneSurveyPage() {
                     const y = 230 - ((parseFloat(g.northing) - minN) / (maxN - minN)) * 210;
                     return (
                       <g key={g.id}>
-                        <circle cx={x} cy={y} r="8" fill={g.status === 'measured' ? '#22c55e' : g.status === 'placed' ? '#eab308' : '#E8841A'} />
+                        <circle cx={x} cy={y} r="8" fill={g.status === 'measured' ? '#22c55e' : g.status === 'placed' ? '#eab308' : '#D17B47'} />
                         <text x={x} y={y - 12} textAnchor="middle" fill="#fff" fontSize="8">{g.name}</text>
                       </g>
                     );

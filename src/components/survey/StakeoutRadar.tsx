@@ -169,7 +169,7 @@ export function StakeoutRadar({ targetE, targetN, onClose }: StakeoutRadarProps)
       {/* Header */}
       <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Target className="w-5 h-5 text-[#E8841A]" />
+          <Target className="w-5 h-5 text-[#D17B47]" />
           <span className="text-sm font-semibold text-white">Stakeout Radar</span>
         </div>
         <div className="flex items-center gap-2">

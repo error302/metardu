@@ -15,7 +15,7 @@ import {
   CounterAnimation,
   TypewriterText,
 } from '@/components/ui/MotionComponents'
-import { AnimatedOrbs, ConnectingLine } from './_components/LandingAnimations'
+import { AnimatedOrbs, ConnectingLine, SurveyorCrosshair } from './_components/LandingAnimations'
 
 /* ────────────────────────────────────────────────────────────── */
 /*  Inline SVG Icons (no react-icons / lucide-react)              */
@@ -366,140 +366,136 @@ export default function LandingPage() {
 
 function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex flex-col overflow-hidden bg-[var(--bg-primary)]">
       {/* Top navigation bar */}
-      <nav className="absolute top-0 left-0 right-0 z-50 px-4 sm:px-6 py-4">
+      <nav className="relative z-50 px-4 sm:px-6 py-4 border-b border-[var(--border-color)]">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <MetarduLogo size={32} showWordmark={true} color="var(--text-primary)" />
+          <Link href="/" className="flex items-center gap-2 no-underline">
+            <MetarduLogo size={28} showWordmark={true} color="var(--text-primary)" />
           </Link>
           <div className="hidden md:flex items-center gap-6">
-            <Link href="#features" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Features</Link>
-            <Link href="#demo" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Demo</Link>
-            <Link href="/pricing" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Pricing</Link>
-            <Link href="/login" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Sign In</Link>
-            <Link href="/register" className="px-4 py-2 bg-[var(--accent)] text-black font-semibold rounded-lg text-sm hover:brightness-110 transition-all">
-              Get Started
+            <Link href="#features" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors no-underline">Tools</Link>
+            <Link href="#how" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors no-underline">Workflow</Link>
+            <Link href="/pricing" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors no-underline">Pricing</Link>
+            <Link href="/docs" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors no-underline">Docs</Link>
+            <Link href="/login" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors no-underline">Sign in</Link>
+            <Link href="/register" className="px-4 py-2 bg-[var(--accent)] text-[var(--bg-primary)] font-medium rounded-md text-sm hover:bg-[var(--accent-dim)] transition-colors no-inline">
+              Start a project →
             </Link>
           </div>
-          <Link href="/login" className="md:hidden px-3 py-1.5 text-xs text-[var(--text-muted)] border border-[var(--border-color)] rounded-lg">
-            Sign In
+          <Link href="/login" className="md:hidden px-3 py-1.5 text-xs text-[var(--text-secondary)] border border-[var(--border-color)] rounded-md no-underline">
+            Sign in
           </Link>
         </div>
       </nav>
 
-      {/* Animated mesh gradient background */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[var(--bg-primary)]" />
-        <div
-          className="absolute inset-0 opacity-30"
-          style={{
-            background:
-              'radial-gradient(ellipse at 20% 50%, rgba(232,132,26,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(232,132,26,0.05) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(232,132,26,0.06) 0%, transparent 50%)',
-          }}
-        />
-        {/* Animated gradient orbs */}
-        <AnimatedOrbs />
-      </div>
+      {/* Hero — asymmetric editorial split */}
+      <div className="relative flex-1 grid lg:grid-cols-[1.3fr_1fr] gap-0 border-b border-[var(--border-color)]">
+        {/* Left: text */}
+        <div className="relative px-6 sm:px-10 lg:px-16 py-16 lg:py-24 flex flex-col justify-center overflow-hidden">
+          {/* Static surveyor crosshair decoration (positioned absolute in component) */}
+          <SurveyorCrosshair />
 
-      {/* Grid pattern overlay */}
-      <div className="absolute inset-0 -z-[5] opacity-[0.03]">
-        <svg width="100%" height="100%">
-          <defs>
-            <pattern id="hero-grid" width="48" height="48" patternUnits="userSpaceOnUse">
-              <path d="M 48 0 L 0 0 0 48" fill="none" stroke="white" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#hero-grid)" />
-        </svg>
-      </div>
+          <FadeUp>
+            <div className="font-mono text-[11px] text-[var(--accent)] tracking-[0.14em] uppercase mb-6 flex items-center gap-3">
+              <span className="text-[var(--text-muted)]">01</span>
+              <span className="w-6 h-px bg-[var(--accent)]" />
+              Cassini · UTM 36S · Kenya
+            </div>
+          </FadeUp>
 
-      {/* Content */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-20 md:pt-40 md:pb-28 text-center">
-        <FadeUp>
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/20 text-[var(--accent)] text-sm font-medium mb-8">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]" />
-            </span>
-            Built for African Surveyors
-          </div>
-        </FadeUp>
+          <FadeUp delay={0.1}>
+            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl xl:text-8xl leading-[0.98] tracking-[-0.035em] mb-7 text-[var(--text-primary)]">
+              Precise earth{' '}
+              <span className="text-[var(--accent)] italic">measurements,</span>
+              <br />
+              from field to deed plan.
+            </h1>
+          </FadeUp>
 
-        <FadeUp delay={0.1}>
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold leading-[1.05] tracking-tight mb-6">
-            <span className="block">Precision Land</span>
-            <span className="block">
-              <AnimatedGradientText
-                className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold"
-                from="rgb(232,132,26)"
-                via="rgb(255,180,80)"
-                to="rgb(232,132,26)"
+          <FadeUp delay={0.2}>
+            <p className="max-w-[52ch] text-base sm:text-lg text-[var(--text-secondary)] leading-relaxed mb-9">
+              A complete surveying workspace built in Nairobi for East African professionals.
+              Traverse adjustment, levelling, COGO, deed plans, NLIMS-ready exports — all in
+              one place, all in the field.
+            </p>
+          </FadeUp>
+
+          <FadeUp delay={0.3}>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--accent)] text-[var(--bg-primary)] font-medium rounded-md text-sm hover:bg-[var(--accent-dim)] hover:-translate-y-px transition-all no-underline"
               >
-                Surveying
-              </AnimatedGradientText>
-            </span>
-          </h1>
-        </FadeUp>
-
-        <FadeUp delay={0.2}>
-          <div className="h-10 md:h-12 flex items-center justify-center mb-8">
-            <span className="text-[var(--text-muted)] text-lg md:text-xl mr-3">Built for</span>
-            <TypewriterText
-              words={TYPEWRITER_WORDS}
-              className="text-lg md:text-xl font-semibold text-[var(--accent)]"
-            />
-          </div>
-        </FadeUp>
-
-        <FadeUp delay={0.3}>
-          <p className="max-w-2xl mx-auto text-base sm:text-lg text-[var(--text-secondary)] leading-relaxed mb-10">
-            METARDU is the professional surveying platform built from Kenya for Africa. Traverse adjustments,
-            deed plans, COGO, and field tools — all in one place, designed for the standards you work with every day.
-          </p>
-        </FadeUp>
-
-        <FadeUp delay={0.4}>
-          <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4 mb-16">
-            <GlowButton>
-              <Link href="/register" className="flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-black font-bold rounded-xl text-base hover:brightness-110 transition-all">
-                Get Started Free
-                {Icons.arrowRight}
+                Start a project
+                <span aria-hidden>→</span>
               </Link>
-            </GlowButton>
-            <Link
-              href="#demo"
-              className="flex items-center gap-2 px-8 py-4 bg-[var(--bg-secondary)] text-[var(--text-primary)] font-semibold rounded-xl border border-[var(--border-color)] hover:border-[var(--accent)]/50 transition-all text-base"
-            >
-              {Icons.play}
-              Watch Demo
-            </Link>
-          </div>
-        </FadeUp>
+              <Link
+                href="#demo"
+                className="inline-flex items-center gap-2 text-sm text-[var(--text-primary)] border-b border-[var(--text-secondary)] hover:border-[var(--accent)] pb-1 transition-colors no-underline"
+              >
+                Watch the 90-second tour
+              </Link>
+            </div>
+          </FadeUp>
+        </div>
 
-        {/* Stats bar */}
-        <FadeUp delay={0.6}>
-          <div className="max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 pt-10 border-t border-[var(--border-color)]">
+        {/* Right: image + coordinate overlay */}
+        <div className="relative bg-[var(--bg-secondary)] border-l border-[var(--border-color)] hidden lg:block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/landing/hero-topo.jpg"
+            alt="Vintage topographic contour map — the surveyor's working surface"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ filter: 'contrast(1.05) saturate(0.85)' }}
+            loading="eager"
+          />
+          {/* Gradient scrim for legibility */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'linear-gradient(to right, rgba(26,24,22,0.5) 0%, transparent 30%, transparent 70%, rgba(26,24,22,0.3) 100%)' }}
+          />
+          {/* Coordinate readout overlay */}
+          <div className="absolute bottom-8 left-8 right-8 bg-[rgba(247,246,243,0.94)] backdrop-blur-sm border border-[rgba(247,246,243,0.5)] p-4 font-mono text-[11px] text-[var(--bg-primary)] leading-[1.7]">
+            <div className="grid grid-cols-1 gap-2">
+              <div>
+                <div className="text-[9px] text-[var(--text-muted)] tracking-[0.1em] uppercase mb-1">Reference point</div>
+                <div>LR <span className="text-[var(--accent-dim)]">2090/42</span> · Nairobi Block 12/93</div>
+              </div>
+              <div>
+                <div className="text-[9px] text-[var(--text-muted)] tracking-[0.1em] uppercase mb-1">Grid coordinates</div>
+                <div>E <span className="text-[var(--accent-dim)]">274 812.403</span> · N <span className="text-[var(--accent-dim)]">9 856 214.778</span></div>
+              </div>
+              <div>
+                <div className="text-[9px] text-[var(--text-muted)] tracking-[0.1em] uppercase mb-1">Bearing · distance</div>
+                <div>87°14&apos;22&quot; · <span className="text-[var(--accent-dim)]">124.83 m</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats bar — moved below hero, still minimal */}
+      <div className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+        <FadeIn>
+          <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-8 grid grid-cols-2 md:grid-cols-4 gap-6">
             {STATS.map((stat, i) => (
-              <div key={i} className="text-center">
+              <div key={i}>
                 {stat.value !== null ? (
-                  <div className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] font-mono">
+                  <div className="font-display text-3xl text-[var(--text-primary)] tracking-[-0.02em]">
                     <CounterAnimation target={stat.value} suffix={stat.suffix} />
                   </div>
                 ) : (
-                  <div className="text-2xl md:text-3xl font-bold text-[var(--accent)]">[+]</div>
+                  <div className="font-display text-3xl text-[var(--accent)] tracking-[-0.02em]">[+]</div>
                 )}
-                <div className="text-xs md:text-sm text-[var(--text-muted)] mt-1 uppercase tracking-wider">
+                <div className="font-mono text-[10px] text-[var(--text-muted)] mt-1 tracking-[0.08em] uppercase">
                   {stat.label}
                 </div>
               </div>
             ))}
           </div>
-        </FadeUp>
+        </FadeIn>
       </div>
-
-      {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[var(--bg-primary)] to-transparent" />
     </section>
   )
 }
@@ -575,7 +571,7 @@ function FeaturesBento() {
               className={cn(
                 'group relative p-6 md:p-8 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)]',
                 'hover:border-[var(--accent)]/30 transition-all duration-300 hover:-translate-y-1',
-                'hover:shadow-[0_8px_40px_-12px_rgba(232,132,26,0.15)]',
+                'hover:shadow-[0_8px_40px_-12px_rgba(209, 123, 71,0.15)]',
                 feature.span,
                 feature.accent && 'border-[var(--accent)]/20 bg-gradient-to-br from-[var(--accent)]/5 to-transparent',
               )}
@@ -743,7 +739,7 @@ function PricingSection() {
               className={cn(
                 'relative p-6 md:p-8 rounded-2xl border transition-all duration-300',
                 plan.highlighted
-                  ? 'border-[var(--accent)] bg-[var(--bg-primary)] shadow-[0_0_60px_-15px_rgba(232,132,26,0.2)] scale-[1.02]'
+                  ? 'border-[var(--accent)] bg-[var(--bg-primary)] shadow-[0_0_60px_-15px_rgba(209, 123, 71,0.2)] scale-[1.02]'
                   : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--accent)]/20',
               )}
             >

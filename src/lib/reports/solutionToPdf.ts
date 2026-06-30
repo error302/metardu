@@ -36,7 +36,7 @@ export function appendSolutionToPdf(doc: jsPDF, solution: Solution, startY: numb
     body: solution.given.map((g: any) => [g.label, g.value]),
     margin: { left: MARGIN_X, right: MARGIN_X },
     styles: { fontSize: 8, cellPadding: 1.6, overflow: 'linebreak' },
-    headStyles: { fillColor: [15, 15, 20], textColor: [232, 132, 26], fontStyle: 'bold' },
+    headStyles: { fillColor: [15, 15, 20], textColor: [209, 123, 71], fontStyle: 'bold' },
     columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 'auto' } },
   })
   y = nextY(doc, y) + 2
@@ -48,7 +48,7 @@ export function appendSolutionToPdf(doc: jsPDF, solution: Solution, startY: numb
     body: solution.toFind.map((t: any) => [t]),
     margin: { left: MARGIN_X, right: MARGIN_X },
     styles: { fontSize: 8, cellPadding: 1.6, overflow: 'linebreak' },
-    headStyles: { fillColor: [15, 15, 20], textColor: [232, 132, 26], fontStyle: 'bold' },
+    headStyles: { fillColor: [15, 15, 20], textColor: [209, 123, 71], fontStyle: 'bold' },
   })
   y = nextY(doc, y) + 2
 
@@ -65,7 +65,7 @@ export function appendSolutionToPdf(doc: jsPDF, solution: Solution, startY: numb
     ]),
     margin: { left: MARGIN_X, right: MARGIN_X },
     styles: { fontSize: 7, cellPadding: 1.4, overflow: 'linebreak' },
-    headStyles: { fillColor: [15, 15, 20], textColor: [232, 132, 26], fontStyle: 'bold' },
+    headStyles: { fillColor: [15, 15, 20], textColor: [209, 123, 71], fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 22, fontStyle: 'bold' },
       1: { cellWidth: 36 },
@@ -85,7 +85,7 @@ export function appendSolutionToPdf(doc: jsPDF, solution: Solution, startY: numb
       body: solution.check.map((c: any) => [c.label, c.value]),
       margin: { left: MARGIN_X, right: MARGIN_X },
       styles: { fontSize: 8, cellPadding: 1.6, overflow: 'linebreak' },
-      headStyles: { fillColor: [15, 15, 20], textColor: [232, 132, 26], fontStyle: 'bold' },
+      headStyles: { fillColor: [15, 15, 20], textColor: [209, 123, 71], fontStyle: 'bold' },
       columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 'auto' } },
     })
     y = nextY(doc, y) + 2
@@ -99,7 +99,7 @@ export function appendSolutionToPdf(doc: jsPDF, solution: Solution, startY: numb
     body: solution.result.map((r: any) => [r.label, r.value]),
     margin: { left: MARGIN_X, right: MARGIN_X },
     styles: { fontSize: 8, cellPadding: 1.6, overflow: 'linebreak' },
-    headStyles: { fillColor: [15, 15, 20], textColor: [232, 132, 26], fontStyle: 'bold' },
+    headStyles: { fillColor: [15, 15, 20], textColor: [209, 123, 71], fontStyle: 'bold' },
     columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 'auto' } },
   })
 

@@ -25,10 +25,17 @@ export const MapStatusBar = memo(function MapStatusBar() {
               <span className="text-gray-600">Lat</span>
               <span className="text-gray-300 w-[60px] md:w-[76px] text-right">{mouseCoord.lat.toFixed(6)}</span>
               <span className="hidden md:block w-px h-3.5 bg-white/[0.06]" />
+<<<<<<< HEAD
               <span className="text-[#E8841A]/70">E</span>
               <span className="text-[#E8841A] font-medium w-[64px] md:w-[80px] text-right">{mouseCoord.e.toFixed(1)}</span>
               <span className="text-[#E8841A]/70">N</span>
               <span className="text-[#E8841A] font-medium w-[64px] md:w-[80px] text-right">{mouseCoord.n.toFixed(1)}</span>
+=======
+              <span className="text-[#D17B47]/70">E</span>
+              <span className="text-[#D17B47] font-medium w-[64px] md:w-[80px] text-right">{mouseCoord.e.toFixed(1)}</span>
+              <span className="text-[#D17B47]/70">N</span>
+              <span className="text-[#D17B47] font-medium w-[64px] md:w-[80px] text-right">{mouseCoord.n.toFixed(1)}</span>
+>>>>>>> origin/redesign-v0.3
               <span className="text-gray-600 text-[9px] md:text-[10px]">EPSG:21037</span>
             </div>
           ) : (

@@ -433,7 +433,7 @@ function CogoToolsPanelInner() {
           style: new Style({
             image: new Circle({
               radius: 6,
-              fill: new Fill({ color: '#E8841A' }),
+              fill: new Fill({ color: '#D17B47' }),
               stroke: new Stroke({ color: '#fff', width: 2 }),
             }),
           }),

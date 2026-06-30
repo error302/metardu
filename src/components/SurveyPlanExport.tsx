@@ -80,11 +80,11 @@ export default function SurveyPlanExport({ data, options, projectId, plan = 'fre
       const qrBlock = `
         <g transform="translate(1005, 785)">
           <rect x="0" y="0" width="160" height="40" fill="white" stroke="black" stroke-width="0.5"/>
-          <text x="5" y="10" font-family="Share Tech Mono, Courier New" font-size="6" font-weight="bold" fill="black">DIGITAL SIGNATURE</text>
-          <text x="5" y="18" font-family="Share Tech Mono, Courier New" font-size="5" fill="#333">Signed by: ${sigData.signerName}</text>
-          <text x="5" y="24" font-family="Share Tech Mono, Courier New" font-size="5" fill="#333">LS: LS/${sigData.iskNumber}</text>
-          <text x="5" y="30" font-family="Share Tech Mono, Courier New" font-size="5" fill="#333">Date: ${new Date(sigData.signedAt).toLocaleDateString()}</text>
-          <text x="5" y="36" font-family="Share Tech Mono, Courier New" font-size="4" fill="#666">Verify: ${verifyUrl.replace('https://', '')}</text>
+          <text x="5" y="10" font-family="JetBrains Mono, Courier New" font-size="6" font-weight="bold" fill="black">DIGITAL SIGNATURE</text>
+          <text x="5" y="18" font-family="JetBrains Mono, Courier New" font-size="5" fill="#333">Signed by: ${sigData.signerName}</text>
+          <text x="5" y="24" font-family="JetBrains Mono, Courier New" font-size="5" fill="#333">LS: LS/${sigData.iskNumber}</text>
+          <text x="5" y="30" font-family="JetBrains Mono, Courier New" font-size="5" fill="#333">Date: ${new Date(sigData.signedAt).toLocaleDateString()}</text>
+          <text x="5" y="36" font-family="JetBrains Mono, Courier New" font-size="4" fill="#666">Verify: ${verifyUrl.replace('https://', '')}</text>
           <g transform="translate(120, 2) scale(0.9)">
             ${qrSvg.replace(/<\/?svg[^>]*>/g, '')}
           </g>

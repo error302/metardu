@@ -290,30 +290,30 @@ export async function createStakeoutOverlay(target: StakeoutTarget): Promise<{
   const hLine = document.createElement('div')
   hLine.style.cssText = `
     position:absolute; top:50%; left:0; width:100%; height:2px;
-    background: #E8841A; transform: translateY(-50%);
-    box-shadow: 0 0 6px rgba(232,132,26,0.6);
+    background: #D17B47; transform: translateY(-50%);
+    box-shadow: 0 0 6px rgba(209, 123, 71,0.6);
   `
   // Vertical line
   const vLine = document.createElement('div')
   vLine.style.cssText = `
     position:absolute; left:50%; top:0; height:100%; width:2px;
-    background: #E8841A; transform: translateX(-50%);
-    box-shadow: 0 0 6px rgba(232,132,26,0.6);
+    background: #D17B47; transform: translateX(-50%);
+    box-shadow: 0 0 6px rgba(209, 123, 71,0.6);
   `
   // Center dot
   const center = document.createElement('div')
   center.style.cssText = `
     position:absolute; top:50%; left:50%; width:8px; height:8px;
-    background: #E8841A; border-radius: 50%;
+    background: #D17B47; border-radius: 50%;
     transform: translate(-50%, -50%);
-    box-shadow: 0 0 12px rgba(232,132,26,0.8);
+    box-shadow: 0 0 12px rgba(209, 123, 71,0.8);
     animation: stakeout-pulse 1.5s ease-in-out infinite;
   `
   // Outer ring
   const ring = document.createElement('div')
   ring.style.cssText = `
     position:absolute; top:50%; left:50%; width:32px; height:32px;
-    border: 2px solid rgba(232,132,26,0.5); border-radius: 50%;
+    border: 2px solid rgba(209, 123, 71,0.5); border-radius: 50%;
     transform: translate(-50%, -50%);
     animation: stakeout-ring 2s ease-in-out infinite;
   `
@@ -322,9 +322,9 @@ export async function createStakeoutOverlay(target: StakeoutTarget): Promise<{
   label.style.cssText = `
     position:absolute; top:100%; left:50%; transform:translateX(-50%);
     margin-top:8px; white-space:nowrap;
-    font-size:11px; font-family:monospace; color:#E8841A;
+    font-size:11px; font-family:monospace; color:#D17B47;
     background:rgba(20,20,30,0.9); padding:2px 6px; border-radius:4px;
-    border:1px solid rgba(232,132,26,0.3);
+    border:1px solid rgba(209, 123, 71,0.3);
   `
   label.textContent = target.name || `E:${target.easting.toFixed(1)} N:${target.northing.toFixed(1)}`
 
@@ -337,8 +337,8 @@ export async function createStakeoutOverlay(target: StakeoutTarget): Promise<{
     style.id = 'stakeout-animations'
     style.textContent = `
       @keyframes stakeout-pulse {
-        0%, 100% { box-shadow: 0 0 12px rgba(232,132,26,0.8); }
-        50% { box-shadow: 0 0 24px rgba(232,132,26,1); }
+        0%, 100% { box-shadow: 0 0 12px rgba(209, 123, 71,0.8); }
+        50% { box-shadow: 0 0 24px rgba(209, 123, 71,1); }
       }
       @keyframes stakeout-ring {
         0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
@@ -365,8 +365,8 @@ export async function createStakeoutOverlay(target: StakeoutTarget): Promise<{
     new Style({
       image: new CircleStyle({
         radius: 10,
-        fill: new Fill({ color: 'rgba(232,132,26,0.3)' }),
-        stroke: new Stroke({ color: '#E8841A', width: 2.5 }),
+        fill: new Fill({ color: 'rgba(209, 123, 71,0.3)' }),
+        stroke: new Stroke({ color: '#D17B47', width: 2.5 }),
       }),
     })
   )
@@ -383,7 +383,7 @@ export async function createStakeoutOverlay(target: StakeoutTarget): Promise<{
     source: directionSource,
     style: new Style({
       stroke: new Stroke({
-        color: 'rgba(232,132,26,0.6)',
+        color: 'rgba(209, 123, 71,0.6)',
         width: 2,
         lineDash: [8, 6],
       }),
@@ -423,7 +423,7 @@ export async function updateStakeoutDirection(
   let lineColor: string
   if (state.proximityColor === 'green') lineColor = 'rgba(34,197,94,0.8)'
   else if (state.proximityColor === 'amber') lineColor = 'rgba(245,158,11,0.8)'
-  else lineColor = 'rgba(232,132,26,0.6)'
+  else lineColor = 'rgba(209, 123, 71,0.6)'
 
   const { default: Style } = await import('ol/style/Style')
   const { default: Stroke } = await import('ol/style/Stroke')
@@ -456,7 +456,7 @@ export async function updateTargetProximityStyle(
   const colorMap = {
     green: { fill: 'rgba(34,197,94,0.3)', stroke: '#22c55e' },
     amber: { fill: 'rgba(245,158,11,0.3)', stroke: '#f59e0b' },
-    red: { fill: 'rgba(232,132,26,0.3)', stroke: '#E8841A' },
+    red: { fill: 'rgba(209, 123, 71,0.3)', stroke: '#D17B47' },
   }
   const colors = colorMap[proximityColor]
 

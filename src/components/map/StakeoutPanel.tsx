@@ -82,12 +82,12 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
       glow: 'shadow-amber-500/20',
     },
     red: {
-      bg: 'bg-[#E8841A]/15',
-      border: 'border-[#E8841A]/40',
-      text: 'text-[#E8841A]',
-      barBg: 'bg-[#E8841A]/20',
-      barFill: 'bg-[#E8841A]',
-      glow: 'shadow-[#E8841A]/20',
+      bg: 'bg-[#D17B47]/15',
+      border: 'border-[#D17B47]/40',
+      text: 'text-[#D17B47]',
+      barBg: 'bg-[#D17B47]/20',
+      barFill: 'bg-[#D17B47]',
+      glow: 'shadow-[#D17B47]/20',
     },
   }
 
@@ -126,7 +126,7 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
                   ? 'bg-green-500'
                   : stakeoutState?.proximityColor === 'amber'
                   ? 'bg-amber-500'
-                  : 'bg-[#E8841A]'
+                  : 'bg-[#D17B47]'
               }`}
             />
             <div
@@ -135,7 +135,7 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
                   ? 'bg-green-500'
                   : stakeoutState?.proximityColor === 'amber'
                   ? 'bg-amber-500'
-                  : 'bg-[#E8841A]'
+                  : 'bg-[#D17B47]'
               }`}
             />
           </div>

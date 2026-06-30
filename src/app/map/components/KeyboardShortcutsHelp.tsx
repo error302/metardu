@@ -55,7 +55,7 @@ export const KeyboardShortcutsHelp = memo(function KeyboardShortcutsHelp() {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Keyboard className="w-4 h-4 text-[#E8841A]" />
+            <Keyboard className="w-4 h-4 text-[#D17B47]" />
             <h3 className="text-sm font-semibold text-white">Keyboard Shortcuts</h3>
           </div>
           <button

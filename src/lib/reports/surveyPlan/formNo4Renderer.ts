@@ -102,7 +102,7 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     layers.push(this.drawLegalReferenceLine())
     layers.push(this.drawPrintVerification())
     
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'Share Tech Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'JetBrains Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
   }
 
   /**
@@ -158,7 +158,7 @@ svg += this.drawCoordinateTable(rightSideBeacons, 'right',
     let hx = x
     headers.forEach((h, i) => {
       svg += `<rect x="${hx}" y="${y}" width="${colWidths[i]}" height="${rowHeight}" fill="#f0f0f0" stroke="${C_BLACK}" stroke-width="0.3"/>`
-      svg += `<text x="${hx + colWidths[i]/2}" y="${y + rowHeight/2 + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}">${h}</text>`
+      svg += `<text x="${hx + colWidths[i]/2}" y="${y + rowHeight/2 + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}">${h}</text>`
       hx += colWidths[i]
     })
 
@@ -177,7 +177,7 @@ svg += this.drawCoordinateTable(rightSideBeacons, 'right',
       
       cells.forEach((cell, i) => {
         svg += `<rect x="${hx}" y="${rowY}" width="${colWidths[i]}" height="${rowHeight}" fill="white" stroke="${C_BLACK}" stroke-width="0.3"/>`
-        svg += `<text x="${hx + (i < 1 ? 2 : colWidths[i]/2)}" y="${rowY + rowHeight/2 + 2}" text-anchor="${i < 1 ? 'start' : 'middle'}" font-family="Share Tech Mono, Courier New" font-size="5.5" fill="${C_BLACK}">${escapeXml(cell)}</text>`
+        svg += `<text x="${hx + (i < 1 ? 2 : colWidths[i]/2)}" y="${rowY + rowHeight/2 + 2}" text-anchor="${i < 1 ? 'start' : 'middle'}" font-family="JetBrains Mono, Courier New" font-size="5.5" fill="${C_BLACK}">${escapeXml(cell)}</text>`
         hx += colWidths[i]
       })
     })
@@ -217,14 +217,14 @@ private drawLRNumbersOnParcels(): string {
     let svg = ''
     
     // LR Number label
-    svg += `<text x="${cx}" y="${cy - 10}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="11" font-weight="bold" fill="${C_BLACK}">LR No. ${escapeXml(p.lrNumber)}</text>`
+    svg += `<text x="${cx}" y="${cy - 10}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="11" font-weight="bold" fill="${C_BLACK}">LR No. ${escapeXml(p.lrNumber)}</text>`
     
     // Area label
-    svg += `<text x="${cx}" y="${cy + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="9" fill="${C_BLACK}">A=co=${areaHa} Ha</text>`
+    svg += `<text x="${cx}" y="${cy + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="9" fill="${C_BLACK}">A=co=${areaHa} Ha</text>`
     
     // DP Number if available
     if (p.plotParcelNumber) {
-      svg += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" fill="${C_BLACK}">D.P No. ${escapeXml(p.plotParcelNumber)}</text>`
+      svg += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="8" fill="${C_BLACK}">D.P No. ${escapeXml(p.plotParcelNumber)}</text>`
     }
 
     return svg
@@ -254,10 +254,10 @@ private drawLRNumbersOnParcels(): string {
     const widthText = roadWidth > 0 ? `All new roads are ${roadWidth.toFixed(2)}m Wide` : 'All new roads are 12.00m Wide'
     
     // Road width note with actual width value
-    svg += `<text x="${cx}" y="${cy}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">${widthText}</text>`
+    svg += `<text x="${cx}" y="${cy}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">${widthText}</text>`
     
     // Road truncation note
-    svg += `<text x="${cx}" y="${cy + mmToPx(5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" fill="${C_BLACK}">All road truncations ±6mm</text>`
+    svg += `<text x="${cx}" y="${cy + mmToPx(5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">All road truncations ±6mm</text>`
 
     return svg
   }
@@ -276,11 +276,11 @@ private drawFormNo4RightPanel(): string {
     let svg = `<g class="form-no-4-panel">`
 
     // Title
-    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">SURVEYOR'S PLAN</text>`
+    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">SURVEYOR'S PLAN</text>`
     y += mmToPx(6)
     
     // Form number
-    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="9" fill="${C_BLACK}">${d.formNumber}</text>`
+    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="9" fill="${C_BLACK}">${d.formNumber}</text>`
     y += mmToPx(8)
 
     // Plan info box
@@ -301,8 +301,8 @@ private drawFormNo4RightPanel(): string {
     let fieldY = y + mmToPx(5)
     infoFields.forEach(([label, value]) => {
       if (value) {
-        svg += `<text x="${panelX + margin}" y="${fieldY}" font-family="Share Tech Mono, Courier New" font-size="6" fill="#555">${escapeXml(label)}:</text>`
-        svg += `<text x="${panelX + panelW - margin}" y="${fieldY}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
+        svg += `<text x="${panelX + margin}" y="${fieldY}" font-family="JetBrains Mono, Courier New" font-size="6" fill="#555">${escapeXml(label)}:</text>`
+        svg += `<text x="${panelX + panelW - margin}" y="${fieldY}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
         fieldY += mmToPx(5)
       }
     })
@@ -326,7 +326,7 @@ private drawFormNo4RightPanel(): string {
 
   private drawFormNo4Legend(x: number, y: number, w: number): string {
     let svg = `<rect x="${x}" y="${y}" width="${w}" height="${mmToPx(35)}" fill="#fafafa" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">LEGEND</text>`
+    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">LEGEND</text>`
     
     const items = [
       { symbol: '■', color: C_GREEN, label: 'Found Monument' },
@@ -337,8 +337,8 @@ private drawFormNo4RightPanel(): string {
     
     let itemY = y + mmToPx(10)
     items.forEach(item => {
-      svg += `<text x="${x + mmToPx(3)}" y="${itemY}" font-family="Share Tech Mono, Courier New" font-size="10" fill="${item.color}">${item.symbol}</text>`
-      svg += `<text x="${x + mmToPx(8)}" y="${itemY}" font-family="Share Tech Mono, Courier New" font-size="6" fill="${C_BLACK}">${item.label}</text>`
+      svg += `<text x="${x + mmToPx(3)}" y="${itemY}" font-family="JetBrains Mono, Courier New" font-size="10" fill="${item.color}">${item.symbol}</text>`
+      svg += `<text x="${x + mmToPx(8)}" y="${itemY}" font-family="JetBrains Mono, Courier New" font-size="6" fill="${C_BLACK}">${item.label}</text>`
       itemY += mmToPx(6)
     })
     
@@ -357,7 +357,7 @@ private drawFormNo4RightPanel(): string {
     const h = mmToPx(20)
 
     let svg = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(4)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}">REVISION HISTORY</text>`
+    svg += `<text x="${x + w/2}" y="${y + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}">REVISION HISTORY</text>`
     svg += `<line x1="${x}" y1="${y + mmToPx(5.5)}" x2="${x + w}" y2="${y + mmToPx(5.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
 
     // Column headers
@@ -365,7 +365,7 @@ private drawFormNo4RightPanel(): string {
     const headers = ['Rev', 'Date', 'Description', 'By']
     let hx = x
     headers.forEach((h, i) => {
-      svg += `<text x="${hx + 1}" y="${y + mmToPx(8)}" font-family="Share Tech Mono, Courier New" font-size="4.5" font-weight="bold" fill="#555">${h}</text>`
+      svg += `<text x="${hx + 1}" y="${y + mmToPx(8)}" font-family="JetBrains Mono, Courier New" font-size="4.5" font-weight="bold" fill="#555">${h}</text>`
       hx += colWidths[i]
     })
 
@@ -381,7 +381,7 @@ private drawFormNo4RightPanel(): string {
       hx = x
       const cells = [row.rev, row.date, row.description.length > 25 ? row.description.slice(0, 23) + '..' : row.description, row.by]
       cells.forEach((cell, ci) => {
-        svg += `<text x="${hx + 1}" y="${rowY}" font-family="Share Tech Mono, Courier New" font-size="4" fill="${C_BLACK}">${escapeXml(cell)}</text>`
+        svg += `<text x="${hx + 1}" y="${rowY}" font-family="JetBrains Mono, Courier New" font-size="4" fill="${C_BLACK}">${escapeXml(cell)}</text>`
         hx += colWidths[ci]
       })
       rowY += mmToPx(3)
@@ -397,7 +397,7 @@ private drawFormNo4RightPanel(): string {
     let svg = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>`
 
     // ── DECLARATION ──
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">DECLARATION</text>`
+    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">DECLARATION</text>`
     svg += `<line x1="${x}" y1="${y + mmToPx(6.5)}" x2="${x + w}" y2="${y + mmToPx(6.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
 
     // Declaration text (wrapped at ~48 chars per line)
@@ -417,35 +417,35 @@ private drawFormNo4RightPanel(): string {
 
     let textY = y + mmToPx(12)
     lines.slice(0, 6).forEach(line => {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">${escapeXml(line)}</text>`
+      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">${escapeXml(line)}</text>`
       textY += mmToPx(4)
     })
 
     // Surveyor signature line with name and licence
     textY += mmToPx(2)
     svg += `<line x1="${x + mmToPx(2)}" y1="${textY}" x2="${x + w * 0.55}" y2="${textY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + mmToPx(2)}" y="${textY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Signature of Licensed Surveyor</text>`
+    svg += `<text x="${x + mmToPx(2)}" y="${textY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Signature of Licensed Surveyor</text>`
 
     // Date on the right side of signature line
     svg += `<line x1="${x + w * 0.6}" y1="${textY}" x2="${x + w - mmToPx(2)}" y2="${textY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w * 0.6}" y="${textY + mmToPx(3.5)}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ${escapeXml(d.declarationDate)}</text>`
+    svg += `<text x="${x + w * 0.6}" y="${textY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ${escapeXml(d.declarationDate)}</text>`
 
     // Surveyor credentials below signature
     textY += mmToPx(6)
     if (d.surveyorName) {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">${escapeXml(d.surveyorName)}</text>`
+      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="JetBrains Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">${escapeXml(d.surveyorName)}</text>`
       textY += mmToPx(3.5)
     }
     if (d.surveyorLicence) {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">LS/${escapeXml(d.surveyorLicence)}</text>`
+      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">LS/${escapeXml(d.surveyorLicence)}</text>`
       textY += mmToPx(3.5)
     }
     if (d.iskRegNo) {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">ISK Reg. ${escapeXml(d.iskRegNo)}</text>`
+      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">ISK Reg. ${escapeXml(d.iskRegNo)}</text>`
       textY += mmToPx(3.5)
     }
     if (d.firmName) {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">${escapeXml(d.firmName)}</text>`
+      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">${escapeXml(d.firmName)}</text>`
       textY += mmToPx(3.5)
     }
 
@@ -460,10 +460,10 @@ private drawFormNo4RightPanel(): string {
     const iskStampW = mmToPx(28)
     const iskStampH = mmToPx(12)
     svg += `<rect x="${iskStampX}" y="${stampRowY}" width="${iskStampW}" height="${iskStampH}" fill="none" stroke="#999" stroke-width="0.3" stroke-dasharray="2,1"/>`
-    svg += `<text x="${iskStampX + iskStampW/2}" y="${stampRowY + mmToPx(4)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">ISK ASSOCIATION</text>`
-    svg += `<text x="${iskStampX + iskStampW/2}" y="${stampRowY + mmToPx(7)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">RUBBER STAMP</text>`
+    svg += `<text x="${iskStampX + iskStampW/2}" y="${stampRowY + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">ISK ASSOCIATION</text>`
+    svg += `<text x="${iskStampX + iskStampW/2}" y="${stampRowY + mmToPx(7)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">RUBBER STAMP</text>`
     if (d.firmName) {
-      svg += `<text x="${iskStampX + iskStampW/2}" y="${stampRowY + mmToPx(10)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="2.5" fill="#bbb">${escapeXml(d.firmName)}</text>`
+      svg += `<text x="${iskStampX + iskStampW/2}" y="${stampRowY + mmToPx(10)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="2.5" fill="#bbb">${escapeXml(d.firmName)}</text>`
     }
 
     // Surveyor's Corporate Seal area
@@ -472,8 +472,8 @@ private drawFormNo4RightPanel(): string {
     const sealH = mmToPx(12)
     svg += `<rect x="${sealX}" y="${stampRowY}" width="${sealW}" height="${sealH}" fill="none" stroke="#999" stroke-width="0.3" stroke-dasharray="2,1"/>`
     svg += `<circle cx="${sealX + sealW/2}" cy="${stampRowY + sealH/2}" r="${mmToPx(4)}" fill="none" stroke="#ccc" stroke-width="0.3" stroke-dasharray="1.5,1"/>`
-    svg += `<text x="${sealX + sealW/2}" y="${stampRowY + sealH/2 - 1}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">SURVEYOR</text>`
-    svg += `<text x="${sealX + sealW/2}" y="${stampRowY + sealH/2 + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#aaa">SEAL</text>`
+    svg += `<text x="${sealX + sealW/2}" y="${stampRowY + sealH/2 - 1}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">SURVEYOR</text>`
+    svg += `<text x="${sealX + sealW/2}" y="${stampRowY + sealH/2 + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">SEAL</text>`
 
     textY += mmToPx(2)
 
@@ -487,35 +487,35 @@ private drawFormNo4RightPanel(): string {
     svg += `<rect x="${x}" y="${authY}" width="${w}" height="${authH}" fill="#fafafa" stroke="${C_BLACK}" stroke-width="0.5"/>`
 
     // Header
-    svg += `<text x="${x + w/2}" y="${authY + mmToPx(4)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">FOR DIRECTOR OF SURVEYS</text>`
+    svg += `<text x="${x + w/2}" y="${authY + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">FOR DIRECTOR OF SURVEYS</text>`
     svg += `<line x1="${x}" y1="${authY + mmToPx(5.5)}" x2="${x + w}" y2="${authY + mmToPx(5.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
 
     // Letter No. — reference number for the Director of Surveys' covering letter
-    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(9)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Letter No.: ${d.letterNo || '________________________'}</text>`
-    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(9)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Ref: ${d.firNumber || '___________'}</text>`
+    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(9)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Letter No.: ${d.letterNo || '________________________'}</text>`
+    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(9)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Ref: ${d.firNumber || '___________'}</text>`
 
     // Examined by — checks computations and field work
-    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(14)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Examined by: ________________________</text>`
-    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(14)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(14)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Examined by: ________________________</text>`
+    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(14)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
 
     // Approved by — verifies compliance with Survey Act Cap. 299
-    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(19)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Approved by: ________________________</text>`
-    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(19)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(19)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Approved by: ________________________</text>`
+    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(19)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
 
     // Authenticated by — applies the official Survey of Kenya seal
-    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(24)}" font-family="Share Tech Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Authenticated by: ____________________</text>`
-    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(24)}" text-anchor="end" font-family="Share Tech Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
+    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(24)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Authenticated by: ____________________</text>`
+    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(24)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
 
     // Official SoK Seal area — circle with proper label
     const sealCx = x + w - mmToPx(11)
     const sealCy = authY + mmToPx(30)
     const sealR = mmToPx(5)
     svg += `<circle cx="${sealCx}" cy="${sealCy}" r="${sealR}" fill="none" stroke="${C_BLACK}" stroke-width="0.4" stroke-dasharray="1.5,1"/>`
-    svg += `<text x="${sealCx}" y="${sealCy - 1}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#888">OFFICIAL SEAL</text>`
-    svg += `<text x="${sealCx}" y="${sealCy + 2}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#888">SURVEY OF KENYA</text>`
+    svg += `<text x="${sealCx}" y="${sealCy - 1}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#888">OFFICIAL SEAL</text>`
+    svg += `<text x="${sealCx}" y="${sealCy + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#888">SURVEY OF KENYA</text>`
 
     // Legal reference note at bottom of auth block
-    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(33)}" font-family="Share Tech Mono, Courier New" font-size="3" fill="#999">Per Survey Act Cap. 299, Sec. 22 — Authentication by Director of Surveys</text>`
+    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(33)}" font-family="JetBrains Mono, Courier New" font-size="3" fill="#999">Per Survey Act Cap. 299, Sec. 22 — Authentication by Director of Surveys</text>`
 
     return svg
   }
@@ -539,7 +539,7 @@ private drawFormNo4RightPanel(): string {
     
     headers.forEach((header, i) => {
       svg += `<rect x="${x}" y="${footerY}" width="${colW}" height="${footerH}" fill="#f8f8f8" stroke="${C_BLACK}" stroke-width="0.5"/>`
-      svg += `<text x="${x + colW/2}" y="${footerY + mmToPx(4)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${header}</text>`
+      svg += `<text x="${x + colW/2}" y="${footerY + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${header}</text>`
       x += colW
     })
 
@@ -547,15 +547,15 @@ private drawFormNo4RightPanel(): string {
     const folioY = footerY + footerH + mmToPx(3)
     
     if (d.folioNumber) {
-      svg += `<text x="${this.pageW/2 - mmToPx(40)}" y="${folioY}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="14" font-weight="bold" fill="${C_BLACK}">Folio No. ${escapeXml(d.folioNumber)}</text>`
+      svg += `<text x="${this.pageW/2 - mmToPx(40)}" y="${folioY}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="14" font-weight="bold" fill="${C_BLACK}">Folio No. ${escapeXml(d.folioNumber)}</text>`
     }
     
     if (d.registerNumber) {
-      svg += `<text x="${this.pageW/2 + mmToPx(40)}" y="${folioY}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="14" font-weight="bold" fill="${C_BLACK}">Register No. ${escapeXml(d.registerNumber)}</text>`
+      svg += `<text x="${this.pageW/2 + mmToPx(40)}" y="${folioY}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="14" font-weight="bold" fill="${C_BLACK}">Register No. ${escapeXml(d.registerNumber)}</text>`
     }
     
     if (d.firNumber) {
-      svg += `<text x="${this.pageW/2}" y="${folioY + mmToPx(6)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="10" fill="${C_BLACK}">FIR No. ${escapeXml(d.firNumber)}</text>`
+      svg += `<text x="${this.pageW/2}" y="${folioY + mmToPx(6)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">FIR No. ${escapeXml(d.firNumber)}</text>`
     }
 
     svg += '</g>'
@@ -572,7 +572,7 @@ private drawFormNo4RightPanel(): string {
   const y = mmToPx(8)
   const cx = this.pageW / 2
 
-    return `<text x="${cx}" y="${y}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}">Submission: ${escapeXml(d.submissionNumber)}</text>`
+    return `<text x="${cx}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}">Submission: ${escapeXml(d.submissionNumber)}</text>`
   }
 
   // drawRoadTruncationLines() — inherited from SurveyPlanRenderer base class
@@ -606,8 +606,8 @@ private drawFormNo4RightPanel(): string {
     const cx = this.pageW / 2
 
     let svg = ''
-    svg += `<text x="${cx}" y="${y}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="4" fill="#999">Verification: ${verCode} | Generated: ${escapeXml(dateStr)} | Scale: 1:${scaleVal}</text>`
-    svg += `<text x="${cx}" y="${y + mmToPx(2)}" text-anchor="middle" font-family="Share Tech Mono, Courier New" font-size="3" fill="#bbb">Alteration of this plan invalidates verification — Per Survey Act Cap. 299, Sec. 23</text>`
+    svg += `<text x="${cx}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="4" fill="#999">Verification: ${verCode} | Generated: ${escapeXml(dateStr)} | Scale: 1:${scaleVal}</text>`
+    svg += `<text x="${cx}" y="${y + mmToPx(2)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#bbb">Alteration of this plan invalidates verification — Per Survey Act Cap. 299, Sec. 23</text>`
 
     return svg
   }

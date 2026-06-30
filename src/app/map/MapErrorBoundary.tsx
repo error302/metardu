@@ -55,7 +55,7 @@ export default class MapErrorBoundary extends React.Component<
             )}
             <button
               onClick={this.handleReload}
-              className="mt-4 px-5 py-2 bg-[#E8841A] hover:bg-[#E8841A]/80 text-white text-sm rounded-lg transition-colors"
+              className="mt-4 px-5 py-2 bg-[#D17B47] hover:bg-[#D17B47]/80 text-white text-sm rounded-lg transition-colors"
             >
               Reload Page
             </button>

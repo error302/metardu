@@ -54,8 +54,7 @@ COPY docker-entrypoint.sh ./docker-entrypoint.sh
 # Worker output directory
 RUN mkdir -p /app/download/worker-output && chown -R nextjs:nodejs /app/download
 
-# Install postgresql-client for migration runner
-RUN apk add --no-cache postgresql-client
+
 
 # Strip Windows CRLF line endings and ensure entrypoint is executable
 RUN sed -i 's/\r//' ./docker-entrypoint.sh && \

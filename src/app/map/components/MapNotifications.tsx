@@ -15,7 +15,7 @@ export const MapNotifications = memo(function MapNotifications() {
   return (
     <div aria-live="polite" aria-atomic="true">
       {importMsg && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-[#E8841A] text-white px-5 py-2.5 rounded-xl shadow-2xl text-sm font-semibold" role="status">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-[#D17B47] text-white px-5 py-2.5 rounded-xl shadow-2xl text-sm font-semibold" role="status">
           {importMsg}
         </div>
       )}

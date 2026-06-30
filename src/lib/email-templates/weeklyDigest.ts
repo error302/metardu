@@ -91,7 +91,7 @@ function renderHighlightedProjects(projects: ProjectDigestEntry[]): string {
   const items = projects
     .slice(0, 3)
     .map((p) => {
-      const statusColor = p.status === 'completed' ? '#4ade80' : p.status === 'archived' ? '#8a8a96' : '#E8841A'
+      const statusColor = p.status === 'completed' ? '#4ade80' : p.status === 'archived' ? '#8a8a96' : '#D17B47'
       return `<tr>
         <td style="padding:10px 0;border-bottom:1px solid #1f1f2a;">
           <a href="${escapeOnce(p.projectUrl)}" style="color:#e5e5e5;text-decoration:none;font-size:14px;font-weight:500;">${escapeOnce(p.name)}</a>
@@ -99,7 +99,7 @@ function renderHighlightedProjects(projects: ProjectDigestEntry[]): string {
           <span style="color:#8a8a96;font-size:12px;">${p.newObservations} new observation${p.newObservations === 1 ? '' : 's'} this week</span>
         </td>
         <td style="padding:10px 0;border-bottom:1px solid #1f1f2a;text-align:right;vertical-align:top;">
-          <span style="display:inline-block;padding:3px 10px;border-radius:4px;background-color:rgba(232,132,26,0.1);color:${statusColor};font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">${escapeOnce(p.status)}</span>
+          <span style="display:inline-block;padding:3px 10px;border-radius:4px;background-color:rgba(209, 123, 71,0.1);color:${statusColor};font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">${escapeOnce(p.status)}</span>
         </td>
       </tr>`
     })

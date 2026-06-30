@@ -580,11 +580,11 @@ function ProfileChart({ points }: { points: ChainagePoint[] }) {
       <rect width={width} height={height} fill="#0b1020" />
       <rect width={width} height={height} fill="url(#grid)" />
       
-      <path d={pathData} stroke="#E8841A" strokeWidth={2} fill="none"/>
+      <path d={pathData} stroke="#D17B47" strokeWidth={2} fill="none"/>
       
       {points.map((p) => (
         <g key={p.id}>
-          <circle cx={toX(p.chainage)} cy={toY(p.elevation)} r={4} fill="#E8841A"/>
+          <circle cx={toX(p.chainage)} cy={toY(p.elevation)} r={4} fill="#D17B47"/>
           <text x={toX(p.chainage)} y={height - 10} fill="white" fontSize={9} textAnchor="middle">
             {Math.round(p.chainage)}
           </text>
@@ -604,7 +604,7 @@ function ProfileChart({ points }: { points: ChainagePoint[] }) {
         Elevation (m)
       </text>
       
-      <text x={width - padding} y={padding} fill="#E8841A" fontSize={10} fontWeight="bold">
+      <text x={width - padding} y={padding} fill="#D17B47" fontSize={10} fontWeight="bold">
         PROFILE
       </text>
     </svg>
