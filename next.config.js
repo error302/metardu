@@ -68,7 +68,6 @@ const nextConfig = {
       // when combined with output: "standalone".
       'lucide-react',
       'recharts',
-      'd3-array',
       'd3-contour',
       '@radix-ui/react-accordion',
       '@radix-ui/react-alert-dialog',
@@ -96,7 +95,6 @@ const nextConfig = {
       '@radix-ui/react-toggle-group',
       '@radix-ui/react-tooltip',
       'date-fns',
-      '@tanstack/react-table',
     ],
   },
 
