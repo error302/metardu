@@ -44,6 +44,8 @@ interface UseMapInteractionsParams {
   stakeoutActive: boolean
   stakeoutTarget: { e: number; n: number } | null
   gpsPos: { lon: number; lat: number; accuracy: number } | null
+  /** GPS position already transformed to EPSG:21037 (UTM 37S). Used for precise stakeout. */
+  gpsPos21037: { easting: number; northing: number; accuracy: number } | null
   hasFeature: (feature: string) => boolean
   setDrawMode: (m: DrawMode) => void
   setEditMode: (m: boolean) => void
@@ -571,36 +573,21 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     }
   }, [p.hasFeature, p.stakeoutTarget, activateStakeout, deactivateStakeout])
 
-  // ── STAKEOUT INFO (legacy, for backward compat) ──
+  // ── STAKEOUT INFO (uses pre-transformed UTM position — no require()) ──
   const stakeoutInfo = useCallback(() => {
-    if (!p.stakeoutTarget || !p.gpsPos) return null
-    // Approximate using already-known GPS position in EPSG:21037
-    // Note: This is a synchronous approximation. For precision, use updateStakeoutOnGPS.
-    let gpsE = 0, gpsN = 0
-    try {
-      // Use a cached transform if projections are registered
-      // Fallback: compute approximate metric distance from lon/lat
-      const latRad = (p.gpsPos.lat * Math.PI) / 180
-      const mPerDegLat = 111320
-      const mPerDegLon = 111320 * Math.cos(latRad)
-      gpsE = p.stakeoutTarget.e + (p.gpsPos.lon - 37.0) * mPerDegLon // rough approximation
-      gpsN = p.stakeoutTarget.n + (p.gpsPos.lat - 0.0) * mPerDegLat
-      // Better: use actual EPSG:21037 transform if available
-      try {
-        const { transform } = require('ol/proj')
-        const [e, n] = transform([p.gpsPos.lon, p.gpsPos.lat], 'EPSG:4326', 'EPSG:21037')
-        gpsE = e; gpsN = n
-      } catch {
-        // Keep the approximate values
-      }
-    } catch { return null }
+    if (!p.stakeoutTarget || !p.gpsPos21037) return null
+
+    // Use the already-transformed UTM coordinates (set by async import in MapClient)
+    const gpsE = p.gpsPos21037.easting
+    const gpsN = p.gpsPos21037.northing
+
     const dE = p.stakeoutTarget.e - gpsE
     const dN = p.stakeoutTarget.n - gpsN
     const dist = Math.sqrt(dE * dE + dN * dN)
     let bearing = (Math.atan2(dE, dN) * 180) / Math.PI
     if (bearing < 0) bearing += 360
     return { distance: dist, bearing, dE, dN }
-  }, [p.stakeoutTarget, p.gpsPos])
+  }, [p.stakeoutTarget, p.gpsPos21037])
 
   // ── SAVE TO PROJECT ──
   const saveToProject = useCallback(async () => {

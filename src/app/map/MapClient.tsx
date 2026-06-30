@@ -73,6 +73,7 @@ import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import { createSchemeLayers, zoomToSchemeExtent } from '@/lib/map/schemeLayer'
+import { createProjectPointsLayer } from '@/lib/map/projectPointsLayer'
 import { SchemeLayerPanel } from '@/app/map/components/SchemeLayerPanel'
 import type { StakeoutState } from '@/lib/map/stakeout'
 import type { MapCleanupRefs } from '@/lib/map/olTypes'
@@ -88,6 +89,7 @@ import { MapStatusBar } from '@/app/map/components/MapStatusBar'
 import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { RotationControl } from '@/app/map/components/RotationControl'
+import { NorthArrowOverlay } from '@/app/map/components/NorthArrowOverlay'
 import { MapPrintButton } from '@/app/map/components/MapPrintButton'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
@@ -231,6 +233,7 @@ export default function MapClient() {
   const [mouseCoord, setMouseCoord] = useState<{ lon: number; lat: number; e: number; n: number } | null>(null)
   const [gpsTracking, setGpsTracking] = useState(false)
   const [gpsPos, setGpsPos] = useState<{ lon: number; lat: number; accuracy: number } | null>(null)
+  const [gpsPos21037, setGpsPos21037] = useState<{ easting: number; northing: number; accuracy: number } | null>(null)
   const [featureCount, setFeatureCount] = useState(0)
   const [importMsg, setImportMsg] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
@@ -260,6 +263,14 @@ export default function MapClient() {
   const [showSchemeBeacons, setShowSchemeBeacons] = useState(true)
   const schemeCleanupRef = useRef<(() => void) | null>(null)
   const schemeLayersRef = useRef<{ parcelLayer: any; blockLayer: any; beaconLayer: any; extent: number[] | null } | null>(null)
+
+  // ── Project survey points state (the #1 map gap — show your field data) ──
+  const [projectPointsCount, setProjectPointsCount] = useState(0)
+  const [projectControlCount, setProjectControlCount] = useState(0)
+  const [projectPointsLoading, setProjectPointsLoading] = useState(false)
+  const [showProjectPoints, setShowProjectPoints] = useState(true)
+  const projectPointsCleanupRef = useRef<(() => void) | null>(null)
+  const projectPointsLayerRef = useRef<any>(null)
 
   // ── Traverse-to-parcel state ──
   const [traverseParcelPreviewActive, setTraverseParcelPreviewActive] = useState(false)
@@ -379,6 +390,7 @@ export default function MapClient() {
     stakeoutActive,
     stakeoutTarget,
     gpsPos,
+    gpsPos21037,
     hasFeature,
     setDrawMode,
     setEditMode,
@@ -621,6 +633,49 @@ export default function MapClient() {
     }
   }, [schemeProjectId, mapReady, schemeLoaded, schemeLoading, schemeError, loadSchemeData])
 
+  // ── Project survey points: load when projectId is available ──
+  const loadProjectPoints = useCallback(async () => {
+    if (!schemeProjectId || !mapInstance.current || projectPointsLoading) return
+
+    setProjectPointsLoading(true)
+    try {
+      // Clean up existing points layer
+      if (projectPointsCleanupRef.current) {
+        projectPointsCleanupRef.current()
+        projectPointsCleanupRef.current = null
+        projectPointsLayerRef.current = null
+      }
+
+      const result = await createProjectPointsLayer(schemeProjectId, mapInstance.current)
+      projectPointsCleanupRef.current = result.cleanup
+      projectPointsLayerRef.current = result.pointsLayer
+      setProjectPointsCount(result.pointCount)
+      setProjectControlCount(result.controlPointCount)
+    } catch (err) {
+      console.error('[MapClient] Failed to load project points:', err)
+      setProjectPointsCount(0)
+      setProjectControlCount(0)
+    } finally {
+      setProjectPointsLoading(false)
+    }
+  }, [schemeProjectId, projectPointsLoading])
+
+  // Auto-load when projectId is available
+  useEffect(() => {
+    if (schemeProjectId && mapReady && !projectPointsLoading && projectPointsCount === 0) {
+      loadProjectPoints()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schemeProjectId, mapReady])
+
+  // Toggle points layer visibility
+  const toggleProjectPointsVisibility = useCallback(() => {
+    if (!projectPointsLayerRef.current) return
+    const newVisible = !showProjectPoints
+    projectPointsLayerRef.current.setVisible(newVisible)
+    setShowProjectPoints(newVisible)
+  }, [showProjectPoints])
+
   // ── Scheme layer: toggle layer visibility ──
   const toggleSchemeParcelVisibility = useCallback(() => {
     if (!schemeLayersRef.current?.parcelLayer) return
@@ -809,7 +864,7 @@ export default function MapClient() {
   // ── GPS position in EPSG:21037 (for StakeoutPanel) ──
   // This replaces the synchronous require('ol/proj') that breaks ESM.
   // We compute it asynchronously in an effect and store the result.
-  const [gpsPos21037, setGpsPos21037] = useState<{ easting: number; northing: number; accuracy: number } | null>(null)
+  // (gpsPos21037 state declared at top with other GPS state)
 
   useEffect(() => {
     if (!gpsPos) {
@@ -1097,6 +1152,9 @@ export default function MapClient() {
 
                 {/* ── Rotation Control (north reset) ── */}
                 <RotationControl />
+
+                {/* ── Always-on North Arrow (rotates with map) ── */}
+                <NorthArrowOverlay mapInstance={mapInstance} />
               </div>
 
               {/* ── Vertex Edit Toolbar (top, near center when active) ── */}
