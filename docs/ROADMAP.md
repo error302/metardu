@@ -92,7 +92,28 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 **Effort:** 1-2 sessions
 **Status:** Not started
 
+#### Generative lot subdivision & road network allocator (cadastral)
+**Why:** Subdividing a 10ha parcel into 50×100 plots with road reserves takes days in CAD. Algorithmic generation in seconds + beacon list output is the highest-impact premium feature.
+**How:** Parent polygon input → road spine placement → sweeping-line slice perpendicular to spine → child polygons → beacon coordinates. NOT Voronoi (irregular plots) — must produce standard rectangular plots (50×100, 100×100).
+**Where:** New `/tools/subdivision-generator` or extend `/components/subdivision/SubdivisionPanel`
+**Effort:** 2-3 sessions for core engine
+**Status:** Not started. Math: sweeping-line + polygon clip. DB persistence deferred (localStorage first, same as workflow hubs).
+
 ### Tier 2 — build when needed (real but niche)
+
+#### Dual-surface TIN volume comparison (topographic/engineering)
+**Why:** Monitoring quarries, borrow pits, base excavations. Compare baseline surface vs current surface.
+**How:** Extend existing `src/lib/engine/contours.ts` `computeVolumeFromTIN` to accept two TIN surfaces. Prismoidal column equation: `V = A_base × (Δz1+Δz2+Δz3)/3`. Cut/fill heatmap overlay on OpenLayers.
+**Where:** Extend `/tools/earthworks` or new `/tools/volume-comparison` (route exists)
+**Effort:** 1 session (extends existing volume code)
+**Status:** Not started. Note: Metardu already has `crossSectionVolume.ts` and `buildTINSurface` — this is a dual-surface extension, not a new engine.
+
+#### Parabolic vertical curve profile designer (engineering)
+**Why:** Highway alignment audit — checking crest/sag curves against stopping sight distance (SSD).
+**How:** Parabolic curve equation `y = ((g2-g1)/2L)x² + g1·x + E_PVC`. K-factor check against design speed. Amber warning on failing curves.
+**Where:** New `/tools/vertical-curve` or fold into as-built deviation guard as "design compliance" mode
+**Effort:** 1 session
+**Status:** Defer — this is a design tool, not a survey tool. Build only if targeting KeNHA highway contracts. Surveyors set out curves; they don't design them.
 
 #### Web Worker TIN generator
 **Why:** Contour generation can freeze on large datasets.
