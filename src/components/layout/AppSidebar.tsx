@@ -27,6 +27,7 @@ interface NavItem {
 
 const userNavItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/cadastral-workflow', label: 'Cadastral', icon: Compass },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/process', label: 'Corrections', icon: Wrench },
   { href: '/tools/all', label: 'Toolbox', icon: Boxes },

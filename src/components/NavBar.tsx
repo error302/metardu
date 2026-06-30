@@ -22,6 +22,8 @@ const signoutMutationSchema = z.object({}).passthrough()
 
 /* ── Search index: all navigable pages for Ctrl+K ────────────────── */
 const searchablePages = [
+  // Cadastral workflow
+  { category: 'Cadastral', group: 'Workflow', href: '/cadastral-workflow', labelKey: 'Cadastral Workflow' },
   // Tools - Calculations
   { category: 'Tools', group: 'Calculations', href: '/tools/distance', labelKey: 'tools.distance' },
   { category: 'Tools', group: 'Calculations', href: '/tools/bearing', labelKey: 'tools.bearingCalc' },
