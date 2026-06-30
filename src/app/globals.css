@@ -976,7 +976,7 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
 
 /* Focus visible — keyboard navigation indicator */
 *:focus-visible {
-  outline: 2px solid var(--accent, #E8841A);
+  outline: 2px solid var(--accent, #D17B47);
   outline-offset: 2px;
 }
 

@@ -5,7 +5,7 @@ const MapClient = dynamic(() => import('./MapClient'), {
   loading: () => (
     <div className="h-[calc(100vh-4rem)] bg-[#0a0a0f] flex items-center justify-center">
       <div className="text-center">
-        <div className="w-10 h-10 border-2 border-[#E8841A] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <div className="w-10 h-10 border-2 border-[#D17B47] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
         <p className="text-sm text-gray-400">Loading map...</p>
       </div>
     </div>

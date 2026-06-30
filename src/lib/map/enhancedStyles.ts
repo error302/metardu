@@ -107,13 +107,13 @@ export function createParcelStyle(options: ParcelStyleOptions = {}): Style {
 
   return new Style({
     stroke: new Stroke({
-      color: isSelected ? '#E8841A' : SOK_COLORS.parcelBoundary,
+      color: isSelected ? '#D17B47' : SOK_COLORS.parcelBoundary,
       width: isSelected ? lineWidth * 2 : lineWidth,
       lineCap: 'round',
       lineJoin: 'round',
     }),
     fill: new Fill({
-      color: isSelected ? 'rgba(232, 132, 26, 0.15)' : fillColor + '20', // 20 = 12% opacity
+      color: isSelected ? 'rgba(209, 123, 71, 0.15)' : fillColor + '20', // 20 = 12% opacity
     }),
     text: showLabel && label ? new Text({
       text: label,
@@ -155,7 +155,7 @@ export function createBeaconStyle(options: BeaconStyleOptions = {}): Style {
       radius: isSelected ? radius + 2 : radius,
       fill: new Fill({ color: color }),
       stroke: new Stroke({
-        color: isSelected ? '#E8841A' : '#ffffff',
+        color: isSelected ? '#D17B47' : '#ffffff',
         width: isSelected ? 3 : 2,
       }),
     }),

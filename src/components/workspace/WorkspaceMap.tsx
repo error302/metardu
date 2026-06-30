@@ -40,7 +40,7 @@ class MapEB extends Component<{ children: React.ReactNode }, { err: Error | null
           <p className="text-sm text-red-400 mb-1">Map failed to load</p>
           <p className="text-[11px] text-gray-500">{(this.state.err as Error)?.message}</p>
           <button onClick={() => this.setState({ err: null })}
-            className="mt-3 px-4 py-1.5 text-xs bg-[#E8841A] hover:bg-[#E8841A]/80 text-white rounded transition-colors">
+            className="mt-3 px-4 py-1.5 text-xs bg-[#D17B47] hover:bg-[#D17B47]/80 text-white rounded transition-colors">
             Retry
           </button>
         </div>
@@ -190,7 +190,7 @@ export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMap
             return new Style({
               image: new CircleStyle({
                 radius: 7,
-                fill: new Fill({ color: '#E8841A' }),
+                fill: new Fill({ color: '#D17B47' }),
                 stroke: new Stroke({ color: '#fff', width: 2 }),
               }),
               text: new Text({
@@ -208,7 +208,7 @@ export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMap
         const lineLayer = new VectorLayer({
           source: lineSource,
           style: new Style({
-            stroke: new Stroke({ color: '#E8841A', width: 2, lineDash: [8, 4] }),
+            stroke: new Stroke({ color: '#D17B47', width: 2, lineDash: [8, 4] }),
           }),
           zIndex: 9,
         });
@@ -242,8 +242,8 @@ export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMap
                     throttleRef.current = now;
                     const bar = coordBarRef.current;
                     if (bar) bar.innerHTML =
-                      '<span class="text-gray-500">E</span> <span class="text-[#E8841A] font-mono">' + e.toFixed(1) + '</span>' +
-                      ' <span class="text-gray-500">N</span> <span class="text-[#E8841A] font-mono">' + n.toFixed(1) + '</span>' +
+                      '<span class="text-gray-500">E</span> <span class="text-[#D17B47] font-mono">' + e.toFixed(1) + '</span>' +
+                      ' <span class="text-gray-500">N</span> <span class="text-[#D17B47] font-mono">' + n.toFixed(1) + '</span>' +
                       ' <span class="text-gray-600 text-[9px]">EPSG:21037</span>';
                   }
                   return 'E: ' + e.toFixed(1) + '  N: ' + n.toFixed(1);
@@ -263,7 +263,7 @@ export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMap
         const { default: Select } = await import('ol/interaction/Select');
         const select = new Select({
           style: new Style({
-            image: new CircleStyle({ radius: 9, fill: new Fill({ color: '#E8841A' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
+            image: new CircleStyle({ radius: 9, fill: new Fill({ color: '#D17B47' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
           }),
           hitTolerance: 8, layers: [stationLayer],
         });
@@ -272,9 +272,9 @@ export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMap
             const f = evt.selected[0];
             const coord = f.getGeometry()?.getClosestPoint(evt.mapBrowserEvent.coordinate);
             const name = f.get('name') || 'Station';
-            popupEl.innerHTML = '<div style="background:rgba(20,20,30,0.95);border:1px solid rgba(232,132,26,0.3);border-radius:10px;padding:10px 14px;font-size:12px;color:#fff;min-width:160px;">' +
+            popupEl.innerHTML = '<div style="background:rgba(20,20,30,0.95);border:1px solid rgba(209, 123, 71,0.3);border-radius:10px;padding:10px 14px;font-size:12px;color:#fff;min-width:160px;">' +
               '<div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px;">Station</div>' +
-              '<div style="color:#E8841A;font-weight:600;">' + name + '</div></div>';
+              '<div style="color:#D17B47;font-weight:600;">' + name + '</div></div>';
             popupEl.className = '';
             if (coord) popup.setPosition(coord);
           } else {
@@ -344,7 +344,7 @@ export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMap
         {!ready && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0f]/80 z-10">
             <div className="text-center">
-              <div className="w-6 h-6 border-2 border-[#E8841A] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <div className="w-6 h-6 border-2 border-[#D17B47] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
               <p className="text-xs text-gray-500">Loading map...</p>
             </div>
           </div>
@@ -386,7 +386,7 @@ export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMap
             {stationCount > 0 && (
               <div className="absolute top-2 left-2 z-10">
                 <div className="bg-[#14141e]/90 border border-white/[0.08] rounded-full px-2.5 py-1">
-                  <span className="text-xs text-[#E8841A] font-semibold">{stationCount} beacon{stationCount > 1 ? 's' : ''}</span>
+                  <span className="text-xs text-[#D17B47] font-semibold">{stationCount} beacon{stationCount > 1 ? 's' : ''}</span>
                 </div>
               </div>
             )}

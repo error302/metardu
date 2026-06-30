@@ -133,12 +133,12 @@ async function flashFeature(mapInstance: MutableRefObject<any>, feature: any): P
 
     const originalStyle = feature.getStyle()
     const flashStyle = new Style({
-      stroke: new Stroke({ color: '#E8841A', width: 4 }),
-      fill: new Fill({ color: 'rgba(232, 132, 26, 0.3)' }),
+      stroke: new Stroke({ color: '#D17B47', width: 4 }),
+      fill: new Fill({ color: 'rgba(209, 123, 71, 0.3)' }),
       image: new CircleStyle({
         radius: 12,
-        fill: new Fill({ color: 'rgba(232, 132, 26, 0.5)' }),
-        stroke: new Stroke({ color: '#E8841A', width: 3 }),
+        fill: new Fill({ color: 'rgba(209, 123, 71, 0.5)' }),
+        stroke: new Stroke({ color: '#D17B47', width: 3 }),
       }),
     })
 

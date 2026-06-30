@@ -15,7 +15,7 @@ import {
   CounterAnimation,
   TypewriterText,
 } from '@/components/ui/MotionComponents'
-import { AnimatedOrbs, ConnectingLine } from './_components/LandingAnimations'
+import { AnimatedOrbs, ConnectingLine, SurveyorCrosshair } from './_components/LandingAnimations'
 
 /* ────────────────────────────────────────────────────────────── */
 /*  Inline SVG Icons (no react-icons / lucide-react)              */
@@ -395,11 +395,12 @@ function HeroSection() {
           className="absolute inset-0 opacity-30"
           style={{
             background:
-              'radial-gradient(ellipse at 20% 50%, rgba(232,132,26,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(232,132,26,0.05) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(232,132,26,0.06) 0%, transparent 50%)',
+              'radial-gradient(ellipse at 20% 50%, rgba(209,123,71,0.06) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(209,123,71,0.04) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(209,123,71,0.05) 0%, transparent 50%)',
           }}
         />
-        {/* Animated gradient orbs */}
+        {/* v0.3: AnimatedOrbs removed (banned). SurveyorCrosshair added as static decoration */}
         <AnimatedOrbs />
+        <SurveyorCrosshair />
       </div>
 
       {/* Grid pattern overlay */}
@@ -432,9 +433,9 @@ function HeroSection() {
             <span className="block">
               <AnimatedGradientText
                 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold"
-                from="rgb(232,132,26)"
+                from="rgb(209,123,71)"
                 via="rgb(255,180,80)"
-                to="rgb(232,132,26)"
+                to="rgb(209,123,71)"
               >
                 Surveying
               </AnimatedGradientText>
@@ -575,7 +576,7 @@ function FeaturesBento() {
               className={cn(
                 'group relative p-6 md:p-8 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)]',
                 'hover:border-[var(--accent)]/30 transition-all duration-300 hover:-translate-y-1',
-                'hover:shadow-[0_8px_40px_-12px_rgba(232,132,26,0.15)]',
+                'hover:shadow-[0_8px_40px_-12px_rgba(209, 123, 71,0.15)]',
                 feature.span,
                 feature.accent && 'border-[var(--accent)]/20 bg-gradient-to-br from-[var(--accent)]/5 to-transparent',
               )}
@@ -743,7 +744,7 @@ function PricingSection() {
               className={cn(
                 'relative p-6 md:p-8 rounded-2xl border transition-all duration-300',
                 plan.highlighted
-                  ? 'border-[var(--accent)] bg-[var(--bg-primary)] shadow-[0_0_60px_-15px_rgba(232,132,26,0.2)] scale-[1.02]'
+                  ? 'border-[var(--accent)] bg-[var(--bg-primary)] shadow-[0_0_60px_-15px_rgba(209, 123, 71,0.2)] scale-[1.02]'
                   : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--accent)]/20',
               )}
             >

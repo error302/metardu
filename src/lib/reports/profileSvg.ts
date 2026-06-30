@@ -218,7 +218,7 @@ export function generateLongitudinalProfileSvg(points: LongitudinalProfilePoint[
       const yy = y(p.elevation)
       const safeX = clampFinite(xx, plotX0)
       const safeY = clampFinite(yy, plotY0)
-      return `<circle cx="${safeX.toFixed(3)}" cy="${safeY.toFixed(3)}" r="0.9" fill="#E8841A" stroke="#111827" stroke-width="0.2" vector-effect="non-scaling-stroke" />`
+      return `<circle cx="${safeX.toFixed(3)}" cy="${safeY.toFixed(3)}" r="0.9" fill="#D17B47" stroke="#111827" stroke-width="0.2" vector-effect="non-scaling-stroke" />`
     })
     .join('\n')
 
@@ -237,7 +237,7 @@ export function generateLongitudinalProfileSvg(points: LongitudinalProfilePoint[
     `<g>\n` +
     `${gridMinor}\n${gridMinorY}\n${gridMajor}\n${gridMajorY}\n` +
     `<rect x="${plotX0.toFixed(3)}" y="${plotY0.toFixed(3)}" width="${plotW.toFixed(3)}" height="${plotH.toFixed(3)}" fill="none" stroke="#0F172A" stroke-width="0.5" vector-effect="non-scaling-stroke"/>\n` +
-    `<path d="${path}" fill="none" stroke="#E8841A" stroke-width="0.8" vector-effect="non-scaling-stroke"/>\n` +
+    `<path d="${path}" fill="none" stroke="#D17B47" stroke-width="0.8" vector-effect="non-scaling-stroke"/>\n` +
     `${pointMarks}\n` +
     `${xLabels}\n${yLabels}\n` +
     `<text x="${((plotX0 + plotX1) / 2).toFixed(3)}" y="${(plotY1 + 12).toFixed(3)}" text-anchor="middle" font-family="Arial" font-size="3.0" fill="#0F172A">Chainage (${escapeXml(u.chainage)})</text>\n` +

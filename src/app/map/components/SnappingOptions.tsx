@@ -131,7 +131,7 @@ export function SnappingOptions({
                 disabled={!enabled}
                 className={`px-2 py-1.5 rounded-lg text-[9px] font-medium transition-colors disabled:opacity-30 ${
                   localMode === m
-                    ? 'bg-[#E8841A]/10 border border-[#E8841A]/30 text-[#E8841A]'
+                    ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47]'
                     : 'bg-white/[0.02] border border-white/[0.06] text-gray-400 hover:text-gray-300'
                 }`}
               >
@@ -155,7 +155,7 @@ export function SnappingOptions({
             value={localTolerance}
             onChange={e => handleToleranceChange(parseFloat(e.target.value))}
             disabled={!enabled}
-            className="w-full h-1.5 accent-[#E8841A] cursor-pointer disabled:opacity-30"
+            className="w-full h-1.5 accent-[#D17B47] cursor-pointer disabled:opacity-30"
           />
           <div className="flex items-center justify-between mt-0.5 text-[8px] text-gray-600">
             <span>1cm</span>
@@ -180,7 +180,7 @@ export function SnappingOptions({
                   checked={localSnapTypes.has(type)}
                   onChange={() => handleSnapTypeToggle(type)}
                   disabled={!enabled}
-                  className="w-3.5 h-3.5 rounded border-gray-600 accent-[#E8841A]"
+                  className="w-3.5 h-3.5 rounded border-gray-600 accent-[#D17B47]"
                 />
                 <span className="text-[11px] text-gray-300">{SNAP_TYPE_LABELS[type]}</span>
               </label>

@@ -137,7 +137,7 @@ export function StyleManager({ onApplyStyle, currentStyleId }: StyleManagerProps
       id: crypto.randomUUID(),
       name: 'Custom Style',
       featureType: 'parcel',
-      fillColor: '#E8841A',
+      fillColor: '#D17B47',
       strokeColor: '#1a1a1a',
       strokeWidth: 0.3,
       fillOpacity: 20,
@@ -172,7 +172,7 @@ export function StyleManager({ onApplyStyle, currentStyleId }: StyleManagerProps
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
-          <Palette className="w-4 h-4 text-[#E8841A]" />
+          <Palette className="w-4 h-4 text-[#D17B47]" />
           <span className="text-xs font-semibold text-white">Style Manager</span>
         </div>
         <div className="flex items-center gap-1">
@@ -185,7 +185,7 @@ export function StyleManager({ onApplyStyle, currentStyleId }: StyleManagerProps
           </button>
           <button
             onClick={() => { setEditingPreset(null); setShowEditor(true) }}
-            className="w-6 h-6 flex items-center justify-center rounded text-[#E8841A] hover:bg-[#E8841A]/10"
+            className="w-6 h-6 flex items-center justify-center rounded text-[#D17B47] hover:bg-[#D17B47]/10"
             title="Add custom style"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -201,7 +201,7 @@ export function StyleManager({ onApplyStyle, currentStyleId }: StyleManagerProps
             onClick={() => setActiveType(type)}
             className={`px-2 py-0.5 rounded text-[9px] font-medium whitespace-nowrap transition-colors ${
               activeType === type
-                ? 'bg-[#E8841A]/10 border border-[#E8841A]/30 text-[#E8841A]'
+                ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47]'
                 : 'text-gray-400 hover:text-gray-300'
             }`}
           >
@@ -217,7 +217,7 @@ export function StyleManager({ onApplyStyle, currentStyleId }: StyleManagerProps
             key={preset.id}
             className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
               currentStyleId === preset.id
-                ? 'bg-[#E8841A]/5 border border-[#E8841A]/20'
+                ? 'bg-[#D17B47]/5 border border-[#D17B47]/20'
                 : 'hover:bg-white/[0.04] border border-transparent'
             }`}
             onClick={() => handleApply(preset)}
@@ -247,7 +247,7 @@ export function StyleManager({ onApplyStyle, currentStyleId }: StyleManagerProps
 
             {/* Actions */}
             {currentStyleId === preset.id && (
-              <Check className="w-3.5 h-3.5 text-[#E8841A] shrink-0" />
+              <Check className="w-3.5 h-3.5 text-[#D17B47] shrink-0" />
             )}
             {!preset.isBuiltIn && (
               <button
@@ -270,7 +270,7 @@ export function StyleManager({ onApplyStyle, currentStyleId }: StyleManagerProps
           <input
             type="text"
             value={editingPreset?.name || ''}
-            onChange={e => setEditingPreset(prev => ({ ...(prev || { id: crypto.randomUUID(), name: '', featureType: 'parcel', fillColor: '#E8841A', strokeColor: '#1a1a1a', strokeWidth: 0.3, fillOpacity: 20 }), name: e.target.value }))}
+            onChange={e => setEditingPreset(prev => ({ ...(prev || { id: crypto.randomUUID(), name: '', featureType: 'parcel', fillColor: '#D17B47', strokeColor: '#1a1a1a', strokeWidth: 0.3, fillOpacity: 20 }), name: e.target.value }))}
             placeholder="Style name"
             className="w-full h-7 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white"
           />
@@ -279,7 +279,7 @@ export function StyleManager({ onApplyStyle, currentStyleId }: StyleManagerProps
               <label className="block text-[8px] text-gray-500 uppercase mb-0.5">Fill Color</label>
               <input
                 type="color"
-                value={editingPreset?.fillColor || '#E8841A'}
+                value={editingPreset?.fillColor || '#D17B47'}
                 onChange={e => setEditingPreset(prev => ({ ...(prev || {}), fillColor: e.target.value } as StylePreset))}
                 className="w-full h-7 rounded cursor-pointer"
               />
@@ -326,7 +326,7 @@ export function StyleManager({ onApplyStyle, currentStyleId }: StyleManagerProps
             </button>
             <button
               onClick={handleSaveCustom}
-              className="flex-1 h-7 rounded bg-[#E8841A] text-black text-xs font-semibold"
+              className="flex-1 h-7 rounded bg-[#D17B47] text-black text-xs font-semibold"
             >
               Save
             </button>

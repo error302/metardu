@@ -32,7 +32,7 @@ export default async function Image() {
         >
           <defs>
             <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-              <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#E8841A" strokeWidth="0.8" />
+              <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#D17B47" strokeWidth="0.8" />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
@@ -47,7 +47,7 @@ export default async function Image() {
             width: 500,
             height: 500,
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(232,132,26,0.15) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(209, 123, 71,0.15) 0%, transparent 70%)',
           }}
         />
 
@@ -56,7 +56,7 @@ export default async function Image() {
           style={{
             fontSize: 72,
             fontWeight: 700,
-            color: '#E8841A',
+            color: '#D17B47',
             letterSpacing: '-1px',
             marginBottom: 16,
           }}
@@ -97,15 +97,15 @@ export default async function Image() {
               key={item.label}
               style={{
                 padding: '12px 24px',
-                background: 'rgba(232,132,26,0.08)',
-                border: '1px solid rgba(232,132,26,0.25)',
+                background: 'rgba(209, 123, 71,0.08)',
+                border: '1px solid rgba(209, 123, 71,0.25)',
                 borderRadius: 8,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
               }}
             >
-              <div style={{ color: '#E8841A', fontSize: 18, fontWeight: 600 }}>{item.label}</div>
+              <div style={{ color: '#D17B47', fontSize: 18, fontWeight: 600 }}>{item.label}</div>
               <div style={{ color: '#737373', fontSize: 13, marginTop: 2 }}>{item.sub}</div>
             </div>
           ))}

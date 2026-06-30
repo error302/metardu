@@ -168,9 +168,9 @@ export function useMapInit(params: UseMapInitParams) {
             }
             // Default style for points/lines being drawn
             return new Style({
-              fill: new Fill({ color: 'rgba(232, 132, 26, 0.15)' }),
-              stroke: new Stroke({ color: '#E8841A', width: 2.5 }),
-              image: new CircleStyle({ radius: 7, fill: new Fill({ color: '#E8841A' }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
+              fill: new Fill({ color: 'rgba(209, 123, 71, 0.15)' }),
+              stroke: new Stroke({ color: '#D17B47', width: 2.5 }),
+              image: new CircleStyle({ radius: 7, fill: new Fill({ color: '#D17B47' }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
             })
           },
           zIndex: 50,
@@ -205,7 +205,7 @@ export function useMapInit(params: UseMapInitParams) {
             return new Style({
               image: new CircleStyle({
                 radius: size > 1 ? 12 + Math.min(size * 2, 20) : 8,
-                fill: new Fill({ color: size > 1 ? 'rgba(232,132,26,0.8)' : '#E8841A' }),
+                fill: new Fill({ color: size > 1 ? 'rgba(209, 123, 71,0.8)' : '#D17B47' }),
                 stroke: new Stroke({ color: '#fff', width: 2 }),
               }),
               text: new Text({
@@ -366,9 +366,9 @@ export function useMapInit(params: UseMapInitParams) {
         // ── Select interaction ──
         const select = new Select({
           style: new Style({
-            fill: new Fill({ color: 'rgba(232,132,26,0.3)' }),
-            stroke: new Stroke({ color: '#E8841A', width: 3 }),
-            image: new CircleStyle({ radius: 10, fill: new Fill({ color: '#E8841A' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
+            fill: new Fill({ color: 'rgba(209, 123, 71,0.3)' }),
+            stroke: new Stroke({ color: '#D17B47', width: 3 }),
+            image: new CircleStyle({ radius: 10, fill: new Fill({ color: '#D17B47' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
           }),
           hitTolerance: 5,
           layers: [drawLayer],

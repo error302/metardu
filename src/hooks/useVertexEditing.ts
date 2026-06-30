@@ -260,7 +260,7 @@ export function useVertexEditing({
       const vertexStyle = new Style({
         image: new CircleStyle({
           radius: 7,
-          fill: new FillCls({ color: '#FF6B35' }),
+          fill: new FillCls({ color: '#D17B47' }),
           stroke: new StrokeCls({ color: '#FFFFFF', width: 2.5 }),
         }),
         text: new TextCls({

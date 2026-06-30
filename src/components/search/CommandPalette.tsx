@@ -345,13 +345,13 @@ function ResultRow({
       onClick={onClick}
       onMouseEnter={onHover}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
-        selected ? 'bg-[#E8841A]/10' : 'hover:bg-white/[0.03]'
+        selected ? 'bg-[#D17B47]/10' : 'hover:bg-white/[0.03]'
       }`}
     >
       <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
-        selected ? 'bg-[#E8841A]/15' : 'bg-white/[0.04]'
+        selected ? 'bg-[#D17B47]/15' : 'bg-white/[0.04]'
       }`}>
-        <Icon className={`w-4 h-4 ${selected ? 'text-[#E8841A]' : 'text-gray-400'}`} />
+        <Icon className={`w-4 h-4 ${selected ? 'text-[#D17B47]' : 'text-gray-400'}`} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium text-white truncate">{title}</div>
@@ -362,7 +362,7 @@ function ResultRow({
           {category}
         </span>
       )}
-      {selected && <ArrowRight className="w-3 h-3 text-[#E8841A] shrink-0" />}
+      {selected && <ArrowRight className="w-3 h-3 text-[#D17B47] shrink-0" />}
     </div>
   )
 }

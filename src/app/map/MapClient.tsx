@@ -134,7 +134,7 @@ function renderPopup(popupElement: HTMLDivElement, data: any, hidePopup: () => v
   popupElement.className = ''
 
   const card = document.createElement('div')
-  card.className = 'bg-[#14141e]/95 border border-[#E8841A]/30 rounded-xl shadow-2xl backdrop-blur-xl p-4 min-w-[220px] max-w-[320px]'
+  card.className = 'bg-[#14141e]/95 border border-[#D17B47]/30 rounded-xl shadow-2xl backdrop-blur-xl p-4 min-w-[220px] max-w-[320px]'
 
   const header = document.createElement('div')
   header.className = 'flex items-start justify-between mb-2'
@@ -142,7 +142,7 @@ function renderPopup(popupElement: HTMLDivElement, data: any, hidePopup: () => v
   const labelWrap = document.createElement('div')
   labelWrap.className = 'flex items-center gap-2'
   const dot = document.createElement('div')
-  dot.className = 'w-1.5 h-1.5 rounded-full bg-[#E8841A]'
+  dot.className = 'w-1.5 h-1.5 rounded-full bg-[#D17B47]'
   const label = document.createElement('span')
   label.className = 'text-[10px] text-gray-500 uppercase tracking-[0.15em] font-semibold'
   label.textContent = data.geometryType || 'Feature'
@@ -172,7 +172,7 @@ function renderPopup(popupElement: HTMLDivElement, data: any, hidePopup: () => v
     station.className = 'mb-1'
     station.innerHTML = '<span class="text-[10px] text-gray-600 uppercase tracking-wider">Station</span>'
     const value = document.createElement('p')
-    value.className = 'text-sm text-[#E8841A]'
+    value.className = 'text-sm text-[#D17B47]'
     value.textContent = data.stationName
     station.append(value)
     card.append(station)
@@ -181,7 +181,7 @@ function renderPopup(popupElement: HTMLDivElement, data: any, hidePopup: () => v
   if (data.projectId) {
     const link = document.createElement('a')
     link.href = `/project/${data.projectId}`
-    link.className = 'block mt-2 text-[11px] text-[#E8841A] hover:underline font-medium'
+    link.className = 'block mt-2 text-[11px] text-[#D17B47] hover:underline font-medium'
     link.textContent = 'Go to Project \u2192'
     card.append(link)
   }
@@ -1052,7 +1052,7 @@ export default function MapClient() {
                       }
                     }
                   }}
-                  className="absolute bottom-20 left-3 z-20 flex items-center justify-center w-12 h-12 rounded-xl bg-[#0d0d14]/70 backdrop-blur-xl border border-white/[0.06] text-gray-400 hover:text-[#E8841A] hover:border-[#E8841A]/30 transition-all shadow-lg"
+                  className="absolute bottom-20 left-3 z-20 flex items-center justify-center w-12 h-12 rounded-xl bg-[#0d0d14]/70 backdrop-blur-xl border border-white/[0.06] text-gray-400 hover:text-[#D17B47] hover:border-[#D17B47]/30 transition-all shadow-lg"
                   title="Launch stakeout radar for beacon recovery"
                   aria-label="Stakeout radar"
                 >

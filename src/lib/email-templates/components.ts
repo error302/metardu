@@ -20,7 +20,7 @@ export function escapeHtml(value: unknown): string {
 export function PrimaryButton(href: string, label: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
     <tr>
-      <td style="border-radius:6px;background-color:#E8841A;">
+      <td style="border-radius:6px;background-color:#D17B47;">
         <a href="${escapeHtml(href)}" style="display:inline-block;padding:14px 32px;color:#0a0a0f;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:0.01em;">${escapeHtml(label)}</a>
       </td>
     </tr>
@@ -70,12 +70,12 @@ export function List(items: string[]): string {
 
 /** Inline emphasis (orange). */
 export function Accent(text: string): string {
-  return `<strong style="color:#E8841A;font-weight:600;">${escapeHtml(text)}</strong>`
+  return `<strong style="color:#D17B47;font-weight:600;">${escapeHtml(text)}</strong>`
 }
 
 /** Inline link. */
 export function Link(href: string, label: string): string {
-  return `<a href="${escapeHtml(href)}" style="color:#E8841A;text-decoration:none;">${escapeHtml(label)}</a>`
+  return `<a href="${escapeHtml(href)}" style="color:#D17B47;text-decoration:none;">${escapeHtml(label)}</a>`
 }
 
 /** Divider line. */
@@ -87,7 +87,7 @@ export function Divider(): string {
 export function CalloutBox(title: string, bodyHtml: string, opts: { tone?: 'info' | 'warning' | 'danger' } = {}): string {
   const tone = opts.tone ?? 'info'
   const colors = {
-    info: { bg: 'rgba(232, 132, 26, 0.06)', border: 'rgba(232, 132, 26, 0.3)', title: '#E8841A' },
+    info: { bg: 'rgba(209, 123, 71, 0.06)', border: 'rgba(209, 123, 71, 0.3)', title: '#D17B47' },
     warning: { bg: 'rgba(250, 204, 21, 0.06)', border: 'rgba(250, 204, 21, 0.3)', title: '#facc15' },
     danger: { bg: 'rgba(248, 113, 113, 0.06)', border: 'rgba(248, 113, 113, 0.3)', title: '#f87171' },
   }[tone]

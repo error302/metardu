@@ -266,7 +266,7 @@ export default function AddPointModal({
               id="isControl"
               checked={isControl}
               onChange={(e) => setIsControl(e.target.checked)}
-              className="w-4 h-4 rounded bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--accent)] focus:ring-[#E8841A]"
+              className="w-4 h-4 rounded bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--accent)] focus:ring-[#D17B47]"
             />
             <label htmlFor="isControl" className="text-sm text-[var(--text-primary)]">
               This is a control point
@@ -293,7 +293,7 @@ export default function AddPointModal({
                   id="locked"
                   checked={locked}
                   onChange={(e) => setLocked(e.target.checked)}
-                  className="w-4 h-4 rounded bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--accent)] focus:ring-[#E8841A]"
+                  className="w-4 h-4 rounded bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--accent)] focus:ring-[#D17B47]"
                 />
                 <label htmlFor="locked" className="text-sm text-[var(--text-primary)]">
                   [Lock] Lock this point (prevent edit/delete)

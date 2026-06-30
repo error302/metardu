@@ -95,7 +95,7 @@ export const BookmarkPanel = memo(function BookmarkPanel() {
         onClick={() => setCollapsed(!collapsed)}
       >
         <div className="flex items-center gap-2">
-          <Bookmark className="w-3.5 h-3.5 text-[#E8841A]" />
+          <Bookmark className="w-3.5 h-3.5 text-[#D17B47]" />
           <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
             Bookmarks
           </span>
@@ -112,12 +112,12 @@ export const BookmarkPanel = memo(function BookmarkPanel() {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Bookmark name"
-              className="flex-1 h-7 px-2 text-[10px] bg-white/5 border border-white/[0.08] rounded text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/40"
+              className="flex-1 h-7 px-2 text-[10px] bg-white/5 border border-white/[0.08] rounded text-white placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/40"
               onKeyDown={(e) => { if (e.key === 'Enter') saveCurrentView() }}
             />
             <button
               onClick={saveCurrentView}
-              className="h-7 px-2 text-[10px] bg-[#E8841A]/20 text-[#E8841A] border border-[#E8841A]/30 rounded hover:bg-[#E8841A]/30 transition-colors"
+              className="h-7 px-2 text-[10px] bg-[#D17B47]/20 text-[#D17B47] border border-[#D17B47]/30 rounded hover:bg-[#D17B47]/30 transition-colors"
               title="Save current view"
             >
               Save

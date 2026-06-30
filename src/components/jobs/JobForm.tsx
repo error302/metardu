@@ -98,7 +98,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
           <div className="bg-[var(--bg-tertiary)]/50 p-4 rounded-lg border border-[var(--border-color)]">
             <div className="flex flex-wrap gap-2">
               {equipment.map((item, idx) => (
-                <span key={idx} className="text-xs bg-[#E8841A]/20 text-[#E8841A] px-2 py-1 rounded">
+                <span key={idx} className="text-xs bg-[#D17B47]/20 text-[#D17B47] px-2 py-1 rounded">
                   {item}
                 </span>
               ))}
@@ -150,7 +150,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
           value={formData.notes}
           onChange={(e) => setFormData({...formData, notes: e.target.value})}
           rows={3}
-          className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#E8841A] focus:outline-none text-gray-100 resize-vertical"
+          className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D17B47] focus:outline-none text-gray-100 resize-vertical"
           placeholder="Special instructions, weather concerns, etc."
         />
       </div>
@@ -158,7 +158,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-3 bg-[#E8841A] hover:bg-[#d67715] text-black font-semibold rounded-lg transition-colors disabled:opacity-50"
+        className="w-full py-3 bg-[#D17B47] hover:bg-[#d67715] text-black font-semibold rounded-lg transition-colors disabled:opacity-50"
       >
         {loading ? 'Creating Mission...' : 'Create Field Mission'}
       </button>

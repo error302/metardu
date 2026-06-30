@@ -91,7 +91,7 @@ export function BowditchApplyButton({
       <button
         onClick={handleCompute}
         disabled={computing}
-        className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-[#E8841A]/10 border border-[#E8841A]/30 text-[#E8841A] text-xs font-medium hover:bg-[#E8841A]/20 transition-colors disabled:opacity-50"
+        className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47] text-xs font-medium hover:bg-[#D17B47]/20 transition-colors disabled:opacity-50"
         title="Apply Bowditch adjustment to distribute misclosure"
       >
         {computing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calculator className="w-3.5 h-3.5" />}

@@ -130,14 +130,14 @@ export function DigitizingToolbar({
                 title={`${tool.label} (${tool.shortcut})`}
                 className={`relative flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 group ${
                   isActive
-                    ? 'bg-[#E8841A]/15 border border-[#E8841A]/30 text-[#E8841A]'
+                    ? 'bg-[#D17B47]/15 border border-[#D17B47]/30 text-[#D17B47]'
                     : 'border border-transparent text-gray-500 hover:bg-white/[0.04] hover:text-gray-300'
                 }`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-[8px] font-medium mt-0.5">{tool.label}</span>
                 {isActive && (
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#E8841A] animate-pulse" />
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#D17B47] animate-pulse" />
                 )}
               </button>
             )
@@ -185,9 +185,9 @@ export function DigitizingToolbar({
         {activeToolConfig && (
           <div className="px-4 py-2 border-t border-white/[0.06] bg-[#0d0d14]/60">
             <div className="flex items-start gap-2">
-              <Info className="w-3 h-3 text-[#E8841A] shrink-0 mt-0.5" />
+              <Info className="w-3 h-3 text-[#D17B47] shrink-0 mt-0.5" />
               <div>
-                <span className="text-[10px] font-semibold text-[#E8841A] uppercase tracking-wider">
+                <span className="text-[10px] font-semibold text-[#D17B47] uppercase tracking-wider">
                   {activeToolConfig.label}
                 </span>
                 <p className="text-[10px] text-gray-400 mt-0.5">{activeToolConfig.instructions}</p>

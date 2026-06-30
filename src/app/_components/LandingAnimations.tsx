@@ -1,55 +1,61 @@
 'use client';
 
 /**
- * Landing page animations — extracted from app/page.tsx so the parent can be
- * a server component. These are pure visual decoration (animated background
- * orbs + a scroll-reveal connecting line) and use framer-motion's <motion.*>
- * which is client-only.
+ * Landing page animations — v0.3 redesign.
  *
- * ponytail: extracting 3 motion.div usages keeps the 800-LOC landing page as
- * RSC. CounterAnimation and TypewriterText are already in MotionComponents.tsx
- * ('use client') so the parent can import them directly.
+ * AnimatedOrbs is GONE (banned by taste-skill as AI fingerprint).
+ * Replaced with SurveyorCrosshair — a static, SVG crosshair / coordinate
+ * grid decoration that evokes the surveyor's working surface without
+ * being a generic SaaS orb animation.
+ *
+ * ConnectingLine kept as a thin solid accent rule (no gradient).
+ *
+ * ponytail: extracting these keeps the 800-LOC landing page as RSC.
  */
 
 import { motion } from 'framer-motion'
 
-// ─── Animated background orbs (decorative) ──────────────────────────────────
+// ─── Surveyor crosshair (static, replaces AnimatedOrbs) ─────────────────────
 
 export function AnimatedOrbs() {
+  // v0.3: AnimatedOrbs is now a no-op — the orbs were banned by taste-skill.
+  // Kept the export name so the landing page import doesn't break.
+  // The visual decoration is now SurveyorCrosshair (see below).
+  return null
+}
+
+export function SurveyorCrosshair() {
   return (
-    <>
-      <motion.div
-        className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full opacity-20 blur-[120px]"
-        style={{ background: 'radial-gradient(circle, rgba(232,132,26,0.15), transparent 70%)' }}
-        animate={{
-          x: [0, 40, -20, 0],
-          y: [0, -30, 20, 0],
-        }}
-        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-      />
-      <motion.div
-        className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full opacity-15 blur-[100px]"
-        style={{ background: 'radial-gradient(circle, rgba(232,132,26,0.12), transparent 70%)' }}
-        animate={{
-          x: [0, -30, 20, 0],
-          y: [0, 20, -40, 0],
-        }}
-        transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-      />
-    </>
+    <svg
+      className="absolute right-0 top-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-[0.08] pointer-events-none"
+      viewBox="0 0 200 200"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <circle cx="100" cy="100" r="98" stroke="var(--accent)" strokeWidth="0.4" />
+      <circle cx="100" cy="100" r="80" stroke="var(--accent)" strokeWidth="0.4" strokeDasharray="2 3" />
+      <circle cx="100" cy="100" r="60" stroke="var(--accent)" strokeWidth="0.4" />
+      <circle cx="100" cy="100" r="40" stroke="var(--accent)" strokeWidth="0.4" strokeDasharray="1 2" />
+      <circle cx="100" cy="100" r="3" fill="var(--accent)" />
+      <line x1="0" y1="100" x2="200" y2="100" stroke="var(--accent)" strokeWidth="0.4" />
+      <line x1="100" y1="0" x2="100" y2="200" stroke="var(--accent)" strokeWidth="0.4" />
+      <line x1="29" y1="29" x2="171" y2="171" stroke="var(--accent)" strokeWidth="0.3" />
+      <line x1="171" y1="29" x2="29" y2="171" stroke="var(--accent)" strokeWidth="0.3" />
+    </svg>
   )
 }
 
-// ─── Scroll-reveal connecting line (decorative) ─────────────────────────────
+// ─── Scroll-reveal accent rule (no gradient) ────────────────────────────────
 
 export function ConnectingLine() {
   return (
     <motion.div
-      className="h-full bg-gradient-to-r from-[var(--accent)]/0 via-[var(--accent)]/30 to-[var(--accent)]/0"
+      className="h-px bg-[var(--accent)]/40"
       initial={{ scaleX: 0 }}
       whileInView={{ scaleX: 1 }}
       viewport={{ once: true }}
-      transition={{ duration: 1, delay: 0.5 }}
+      transition={{ duration: 0.8, delay: 0.3 }}
       style={{ transformOrigin: 'left' }}
     />
   )

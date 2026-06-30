@@ -32,7 +32,7 @@ export default function MapErrorPage({
         <div className="flex gap-3 justify-center">
           <button
             onClick={reset}
-            className="px-5 py-2 bg-[#E8841A] hover:bg-[#E8841A]/80 text-white text-sm rounded-lg transition-colors"
+            className="px-5 py-2 bg-[#D17B47] hover:bg-[#D17B47]/80 text-white text-sm rounded-lg transition-colors"
           >
             Try Again
           </button>

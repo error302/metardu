@@ -100,7 +100,7 @@ export default function DocsPage() {
           ))}
         </div>
 
-        <div className="mt-16 bg-gradient-to-r from-[#E8841A]/20 to-transparent border border-[var(--accent)]/30 rounded-xl p-8 text-center">
+        <div className="mt-16 bg-gradient-to-r from-[#D17B47]/20 to-transparent border border-[var(--accent)]/30 rounded-xl p-8 text-center">
           <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">Need More Help?</h2>
           <p className="text-[var(--text-secondary)] mb-6">
             Can't find what you're looking for? Join our WhatsApp community or contact support.

@@ -100,9 +100,9 @@ export default function AppSidebar({ variant, className, onNavigate }: AppSideba
               href={href}
               onClick={onNavigate}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors no-underline',
+                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors no-underline',
                 isActive
-                  ? 'bg-[var(--accent)]/10 text-[var(--accent)] font-medium'
+                  ? 'bg-[var(--accent)] text-[var(--bg-primary)] font-medium'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]',
               )}
             >

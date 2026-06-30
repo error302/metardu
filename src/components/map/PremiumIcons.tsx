@@ -7,7 +7,7 @@ import React from 'react'
  *
  *  Design system:
  *    - 20x20 viewBox with 2px stroke, stroke-linecap="round", stroke-linejoin="round"
- *    - Linear gradients with brand orange (#E8841A) → lighter (#FFB84D)
+ *    - Linear gradients with brand orange (#D17B47) → lighter (#FFB84D)
  *    - Fill icons use subtle gradient fills
  *    - All icons are 20x20 by default, accept className for sizing
  * ────────────────────────────────────────────────────────────────────── */
@@ -17,11 +17,11 @@ const GRADIENT_DEFS = (
     <defs>
       <linearGradient id="icon-gradient-primary" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#FFB84D" />
-        <stop offset="100%" stopColor="#E8841A" />
+        <stop offset="100%" stopColor="#D17B47" />
       </linearGradient>
       <linearGradient id="icon-gradient-orange" x1="0%" y1="0%" x2="0%" y2="100%">
         <stop offset="0%" stopColor="#FFB84D" />
-        <stop offset="100%" stopColor="#E8841A" />
+        <stop offset="100%" stopColor="#D17B47" />
       </linearGradient>
       <linearGradient id="icon-gradient-muted" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#6b7280" />
@@ -269,7 +269,7 @@ export function TargetIcon({ className = 'w-5 h-5', active }: IconProps) {
       {GRADIENT_DEFS}
       <circle cx="10" cy="10" r="7.5" stroke={stroke} {...sb} />
       <circle cx="10" cy="10" r="4" stroke={stroke} {...sb} />
-      <circle cx="10" cy="10" r="0.8" fill={active ? '#E8841A' : 'currentColor'} />
+      <circle cx="10" cy="10" r="0.8" fill={active ? '#D17B47' : 'currentColor'} />
     </svg>
   )
 }

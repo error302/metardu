@@ -15,7 +15,7 @@ import type {
   MobilisationData,
 } from './types'
 
-const AMBER: [number, number, number] = [232, 132, 26]
+const AMBER: [number, number, number] = [209, 123, 71]
 const DARK: [number, number, number] = [15, 15, 20]
 const WHITE: [number, number, number] = [255, 255, 255]
 const GRAY: [number, number, number] = [120, 120, 120]

@@ -186,7 +186,7 @@ export class CollaborationServer {
 
   // User colors for cursor display
   private readonly COLORS = [
-    '#E8841A', '#3B82F6', '#10B981', '#8B5CF6',
+    '#D17B47', '#3B82F6', '#10B981', '#8B5CF6',
     '#F59E0B', '#EF4444', '#06B6D4', '#EC4899',
   ]
 

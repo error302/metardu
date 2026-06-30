@@ -52,7 +52,7 @@ const ACTIVITY_COLORS: Record<string, string> = {
   document_generated: 'text-purple-400 bg-purple-500/10',
   fieldbook_saved: 'text-amber-400 bg-amber-500/10',
   computation_run: 'text-emerald-400 bg-emerald-500/10',
-  map_capture: 'text-[#E8841A] bg-[#E8841A]/10',
+  map_capture: 'text-[#D17B47] bg-[#D17B47]/10',
   peer_review_submitted: 'text-cyan-400 bg-cyan-500/10',
   peer_review_completed: 'text-cyan-400 bg-cyan-500/10',
   team_invite: 'text-pink-400 bg-pink-500/10',

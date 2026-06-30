@@ -89,10 +89,10 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
   return (
     <div className="absolute top-32 right-3 z-30 w-80 max-h-[calc(100%-200px)] bg-[#0d0d14]/95 backdrop-blur-2xl border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-right-2 duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-gradient-to-r from-[#E8841A]/5 to-transparent">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-gradient-to-r from-[#D17B47]/5 to-transparent">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#E8841A]/10 flex items-center justify-center">
-            <TypeIcon className="w-4 h-4 text-[#E8841A]" />
+          <div className="w-8 h-8 rounded-lg bg-[#D17B47]/10 flex items-center justify-center">
+            <TypeIcon className="w-4 h-4 text-[#D17B47]" />
           </div>
           <div>
             <span className="text-sm font-semibold text-white">Identify</span>
@@ -226,8 +226,8 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
                   key={i}
                   className="flex items-center gap-2 p-1.5 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors cursor-pointer"
                 >
-                  <div className="w-5 h-5 rounded bg-[#E8841A]/10 flex items-center justify-center shrink-0">
-                    <MapPin className="w-2.5 h-2.5 text-[#E8841A]" />
+                  <div className="w-5 h-5 rounded bg-[#D17B47]/10 flex items-center justify-center shrink-0">
+                    <MapPin className="w-2.5 h-2.5 text-[#D17B47]" />
                   </div>
                   <span className="text-[10px] font-mono text-gray-300 flex-1 truncate">{beacon.beaconNumber}</span>
                   <span className="text-[9px] text-gray-600 font-mono">
@@ -261,7 +261,7 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
         {onEdit && (
           <button
             onClick={() => onEdit(feature)}
-            className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-[#E8841A]/10 border border-[#E8841A]/30 text-xs text-[#E8841A] hover:bg-[#E8841A]/20 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-[#D17B47]/10 border border-[#D17B47]/30 text-xs text-[#D17B47] hover:bg-[#D17B47]/20 transition-colors"
           >
             <Edit3 className="w-3.5 h-3.5" />
             Edit

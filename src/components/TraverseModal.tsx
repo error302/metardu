@@ -102,7 +102,7 @@ function TraverseDiagram({ stations, closingError }: {
           key={i}
           x1={p.x} y1={p.y}
           x2={points[i+1].x} y2={points[i+1].y}
-          stroke="#E8841A"
+          stroke="#D17B47"
           strokeWidth={2}
         />
       ))}
@@ -125,7 +125,7 @@ function TraverseDiagram({ stations, closingError }: {
         <g key={i}>
           <circle
             cx={p.x} cy={p.y} r={6}
-            fill={i === 0 ? '#ef4444' : '#E8841A'}
+            fill={i === 0 ? '#ef4444' : '#D17B47'}
             stroke="white"
             strokeWidth={1.5}
           />

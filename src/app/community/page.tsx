@@ -541,7 +541,7 @@ export default function CommunityPage() {
 
               <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-[var(--text-primary)] tracking-tight leading-tight">
                 East Africa{' '}
-                <span className="bg-gradient-to-r from-[var(--accent)] to-[#ffb347] bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-[var(--accent)] to-[#D17B47] bg-clip-text text-transparent">
                   Surveyor Network
                 </span>
               </h1>

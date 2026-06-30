@@ -96,14 +96,14 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         <meta name="google" content="notranslate" />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#e8841a" />
+        <meta name="theme-color" content="#D17B47" />
         <meta name="application-name" content="METARDU" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="METARDU" />
         {/* description meta is set via metadata export above to avoid duplicates */}
         <meta name="format-detection" content="telephone=no" />
-        <meta name="msapplication-TileColor" content="#e8841a" />
+        <meta name="msapplication-TileColor" content="#D17B47" />
         <meta name="msapplication-tap-highlight" content="no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="color-scheme" content="dark light" />

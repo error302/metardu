@@ -204,7 +204,7 @@ export function MobileMeasurementCapture({ onCapture, stationName, surveyType }:
                   key={m}
                   onClick={() => { setMode(m); setShowForm(true) }}
                   className={`flex flex-col items-center gap-1 py-3 rounded-xl border transition-all min-h-[48px] ${
-                    mode === m ? 'bg-[#E8841A]/10 border-[#E8841A]/30 text-[#E8841A]' : 'bg-white/[0.02] border-white/[0.06] text-gray-400 hover:bg-white/[0.04]'
+                    mode === m ? 'bg-[#D17B47]/10 border-[#D17B47]/30 text-[#D17B47]' : 'bg-white/[0.02] border-white/[0.06] text-gray-400 hover:bg-white/[0.04]'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -232,11 +232,11 @@ export function MobileMeasurementCapture({ onCapture, stationName, surveyType }:
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Station</label>
-                <input type="text" value={station} onChange={e => setStation(e.target.value)} placeholder="A" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none" />
+                <input type="text" value={station} onChange={e => setStation(e.target.value)} placeholder="A" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none" />
               </div>
               <div>
                 <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Target</label>
-                <input type="text" value={target} onChange={e => setTarget(e.target.value)} placeholder="B" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none" />
+                <input type="text" value={target} onChange={e => setTarget(e.target.value)} placeholder="B" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none" />
               </div>
             </div>
 
@@ -262,15 +262,15 @@ export function MobileMeasurementCapture({ onCapture, stationName, surveyType }:
                   <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Bearing (DDD.MMSS format)</label>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="relative">
-                      <input type="number" value={bearingDeg} onChange={e => setBearingDeg(e.target.value)} placeholder="45" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none" />
+                      <input type="number" value={bearingDeg} onChange={e => setBearingDeg(e.target.value)} placeholder="45" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none" />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-600">DEG</span>
                     </div>
                     <div className="relative">
-                      <input type="number" value={bearingMin} onChange={e => setBearingMin(e.target.value)} placeholder="30" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none" />
+                      <input type="number" value={bearingMin} onChange={e => setBearingMin(e.target.value)} placeholder="30" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none" />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-600">MIN</span>
                     </div>
                     <div className="relative">
-                      <input type="number" value={bearingSec} onChange={e => setBearingSec(e.target.value)} placeholder="15" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none" />
+                      <input type="number" value={bearingSec} onChange={e => setBearingSec(e.target.value)} placeholder="15" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none" />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-600">SEC</span>
                     </div>
                   </div>
@@ -278,7 +278,7 @@ export function MobileMeasurementCapture({ onCapture, stationName, surveyType }:
                 </div>
                 <div>
                   <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Slope Distance (m)</label>
-                  <input type="number" step="0.001" value={distance} onChange={e => setDistance(e.target.value)} placeholder="125.456" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none" />
+                  <input type="number" step="0.001" value={distance} onChange={e => setDistance(e.target.value)} placeholder="125.456" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none" />
                 </div>
               </>
             )}
@@ -287,11 +287,11 @@ export function MobileMeasurementCapture({ onCapture, stationName, surveyType }:
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Face Left (°)</label>
-                  <input type="number" step="0.0001" value={faceLeft} onChange={e => setFaceLeft(e.target.value)} placeholder="45.3015" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none" />
+                  <input type="number" step="0.0001" value={faceLeft} onChange={e => setFaceLeft(e.target.value)} placeholder="45.3015" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Face Right (°)</label>
-                  <input type="number" step="0.0001" value={faceRight} onChange={e => setFaceRight(e.target.value)} placeholder="225.3020" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none" />
+                  <input type="number" step="0.0001" value={faceRight} onChange={e => setFaceRight(e.target.value)} placeholder="225.3020" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none" />
                 </div>
                 {faceLeft && faceRight && (
                   <div className="col-span-2 p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
@@ -313,11 +313,11 @@ export function MobileMeasurementCapture({ onCapture, stationName, surveyType }:
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Offset E (m)</label>
-                  <input type="number" step="0.001" value={offsetE} onChange={e => setOffsetE(e.target.value)} placeholder="0.000" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none" />
+                  <input type="number" step="0.001" value={offsetE} onChange={e => setOffsetE(e.target.value)} placeholder="0.000" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Offset N (m)</label>
-                  <input type="number" step="0.001" value={offsetN} onChange={e => setOffsetN(e.target.value)} placeholder="0.000" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none" />
+                  <input type="number" step="0.001" value={offsetN} onChange={e => setOffsetN(e.target.value)} placeholder="0.000" className="w-full h-11 px-3 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none" />
                 </div>
               </div>
             )}
@@ -325,7 +325,7 @@ export function MobileMeasurementCapture({ onCapture, stationName, surveyType }:
             <div>
               <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Remarks</label>
               <div className="relative">
-                <textarea value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Add notes about this observation..." rows={2} className="w-full px-3 py-2 pr-12 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white placeholder-gray-600 focus:border-[#E8841A]/30 focus:outline-none resize-none" />
+                <textarea value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Add notes about this observation..." rows={2} className="w-full px-3 py-2 pr-12 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white placeholder-gray-600 focus:border-[#D17B47]/30 focus:outline-none resize-none" />
                 <button onClick={toggleVoiceInput} className={`absolute right-2 top-2 w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${listening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-white/[0.06] text-gray-400 hover:text-white'}`} title={listening ? 'Stop voice input' : 'Start voice input'}>
                   {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
@@ -349,7 +349,7 @@ export function MobileMeasurementCapture({ onCapture, stationName, surveyType }:
               <button onClick={handlePhotoCapture} className="flex items-center justify-center gap-1.5 px-4 h-12 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-gray-300 hover:bg-white/[0.06] min-w-[48px]">
                 <Camera className="w-4 h-4" /><span className="hidden sm:inline">Photo</span>
               </button>
-              <button onClick={handleSubmit} disabled={mode === 'gps' && accuracyLevel === 'low'} className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl bg-[#E8841A] hover:bg-[#FFB84D] text-black font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={handleSubmit} disabled={mode === 'gps' && accuracyLevel === 'low'} className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl bg-[#D17B47] hover:bg-[#FFB84D] text-black font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <Check className="w-4 h-4" />Capture Reading
               </button>
             </div>

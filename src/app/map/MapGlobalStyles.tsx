@@ -32,7 +32,7 @@ export default function MapGlobalStyles() {
         left: 50% !important;
         right: auto !important;
         transform: translateX(-50%);
-        border: 1px solid rgba(232,132,26,0.3) !important;
+        border: 1px solid rgba(209, 123, 71,0.3) !important;
         border-radius: 10px !important;
         overflow: hidden !important;
         background: rgba(13,13,20,0.95) !important;
@@ -42,7 +42,7 @@ export default function MapGlobalStyles() {
       }
       .ol-overviewmap button {
         background: rgba(13,13,20,0.9) !important;
-        color: #E8841A !important;
+        color: #D17B47 !important;
         border-radius: 6px !important;
       }
 
@@ -61,12 +61,12 @@ export default function MapGlobalStyles() {
         background: rgba(13,13,20,1) !important;
       }
       .ol-zoomslider .ol-zoomslider-thumb {
-        background: #E8841A !important;
+        background: #D17B47 !important;
         border-radius: 6px !important;
         border: none !important;
       }
       .ol-zoomslider .ol-zoomslider-range {
-        background: rgba(232,132,26,0.2) !important;
+        background: rgba(209, 123, 71,0.2) !important;
       }
 
       /* ── Generic OL control buttons ── */
@@ -78,7 +78,7 @@ export default function MapGlobalStyles() {
       }
       .ol-control button:hover {
         background: rgba(13,13,20,1) !important;
-        color: #E8841A !important;
+        color: #D17B47 !important;
       }
 
       /* ── Custom scrollbar ── */

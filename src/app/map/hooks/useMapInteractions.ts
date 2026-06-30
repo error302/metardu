@@ -119,9 +119,9 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       source,
       type: geomType,
       style: new Style({
-        fill: new Fill({ color: 'rgba(232,132,26,0.3)' }),
-        stroke: new Stroke({ color: '#E8841A', width: 2, lineDash: [8, 4] }),
-        image: new CircleStyle({ radius: 6, fill: new Fill({ color: '#E8841A' }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
+        fill: new Fill({ color: 'rgba(209, 123, 71,0.3)' }),
+        stroke: new Stroke({ color: '#D17B47', width: 2, lineDash: [8, 4] }),
+        image: new CircleStyle({ radius: 6, fill: new Fill({ color: '#D17B47' }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
       }),
     })
 

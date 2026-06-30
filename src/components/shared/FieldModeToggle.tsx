@@ -24,9 +24,12 @@ function getStoredMode(): DisplayMode {
 
 function applyMode(mode: DisplayMode) {
   const html = document.documentElement
+  // v0.3: set data-theme for new theming system + keep field-mode class for backward compat
   if (mode === 'field') {
+    html.setAttribute('data-theme', 'field')
     html.classList.add('field-mode')
   } else {
+    html.setAttribute('data-theme', 'dark')
     html.classList.remove('field-mode')
   }
 }

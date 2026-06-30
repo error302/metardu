@@ -65,7 +65,7 @@ const CATEGORIES: CategoryDef[] = [
 // Map from category id to a display color for the glow accent
 const CATEGORY_ACCENT: Record<string, string> = {
   recon:   '#3B82F6', // blue
-  capture: '#E8841A', // orange (brand)
+  capture: '#D17B47', // orange (brand)
   compute: '#8B5CF6', // purple
   setout:  '#10B981', // emerald
   layers:  '#6366F1', // indigo
@@ -106,7 +106,7 @@ function ToolBtn({ label, icon, isActive, onClick, shortcut }: {
         flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-200
         w-[52px] h-[52px] shrink-0 relative
         ${isActive
-          ? 'bg-[#E8841A]/10 border border-[#E8841A]/30 text-[#E8841A] shadow-[0_0_12px_rgba(232,132,26,0.15)]'
+          ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47] shadow-[0_0_12px_rgba(209, 123, 71,0.15)]'
           : 'bg-white/[0.02] border border-white/[0.06] text-gray-400 hover:bg-white/[0.04] hover:text-gray-300'}
       `}
     >
@@ -142,7 +142,7 @@ function ActionBtn({ label, icon, isActive, onClick, danger, shortcut, disabled 
           : danger && isActive
             ? 'bg-red-500/10 border border-red-500/30 text-red-400'
             : isActive
-              ? 'bg-[#E8841A]/10 border border-[#E8841A]/30 text-[#E8841A]'
+              ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47]'
               : 'text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 border border-transparent'}
       `}
     >
@@ -168,7 +168,7 @@ const SurveyWorkflowBadge = memo(function SurveyWorkflowBadge({
 }) {
   if (!stage) return null
 
-  const accent = CATEGORY_ACCENT[stage] ?? '#E8841A'
+  const accent = CATEGORY_ACCENT[stage] ?? '#D17B47'
   const label = CATEGORIES.find(c => c.id === stage)?.label ?? ''
 
   return (
@@ -354,7 +354,7 @@ const CapturePanel = memo(function CapturePanel() {
             value={ctx.featureName}
             onChange={(e) => ctx.updateFeatureName(e.target.value)}
             placeholder="Feature name…"
-            className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md px-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors"
+            className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md px-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/30 transition-colors"
           />
         </div>
       )}
@@ -509,7 +509,7 @@ const LayersDockPanel = memo(function LayersDockPanel() {
           step={0.05}
           value={layerOpacity}
           onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
-          className="flex-1 h-1 accent-[#E8841A] cursor-pointer"
+          className="flex-1 h-1 accent-[#D17B47] cursor-pointer"
           aria-label="Layer opacity"
         />
         <span className="text-[10px] text-gray-500 font-mono w-8 text-right">
@@ -704,7 +704,7 @@ export const MapToolDock = memo(function MapToolDock() {
     }
   }
 
-  const activeAccent = activeCategory ? CATEGORY_ACCENT[activeCategory] : '#E8841A'
+  const activeAccent = activeCategory ? CATEGORY_ACCENT[activeCategory] : '#D17B47'
 
   // ── Mobile layout ──
   if (isMobile) {
@@ -768,7 +768,7 @@ export const MapToolDock = memo(function MapToolDock() {
             const Icon = cat.icon
             const active = isCategoryActive(cat.id)
             const isOpen = activeCategory === cat.id
-            const accent = CATEGORY_ACCENT[cat.id ?? ''] ?? '#E8841A'
+            const accent = CATEGORY_ACCENT[cat.id ?? ''] ?? '#D17B47'
             return (
               <button
                 key={cat.id}
@@ -817,7 +817,7 @@ export const MapToolDock = memo(function MapToolDock() {
           const Icon = cat.icon
           const active = isCategoryActive(cat.id)
           const isOpen = activeCategory === cat.id
-          const accent = CATEGORY_ACCENT[cat.id ?? ''] ?? '#E8841A'
+          const accent = CATEGORY_ACCENT[cat.id ?? ''] ?? '#D17B47'
           return (
             <button
               key={cat.id}

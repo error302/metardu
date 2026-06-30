@@ -163,11 +163,11 @@ export function OnboardingTour() {
 
       {/* Tour card */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9991] w-[440px] max-w-[calc(100vw-2rem)]">
-        <div className="bg-[#0d0d14]/95 backdrop-blur-2xl border border-[#E8841A]/30 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="bg-[#0d0d14]/95 backdrop-blur-2xl border border-[#D17B47]/30 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
           {/* Progress bar */}
           <div className="h-1 bg-white/[0.06]">
             <div
-              className="h-full bg-[#E8841A] transition-all duration-300"
+              className="h-full bg-[#D17B47] transition-all duration-300"
               style={{ width: `${((step + 1) / TOUR_STEPS.length) * 100}%` }}
             />
           </div>
@@ -191,8 +191,8 @@ export function OnboardingTour() {
           {/* Content */}
           <div className="px-5 pb-5 space-y-3">
             <div className="flex items-start gap-3">
-              <div className="shrink-0 w-12 h-12 rounded-xl bg-[#E8841A]/10 border border-[#E8841A]/20 flex items-center justify-center">
-                <Icon className="w-6 h-6 text-[#E8841A]" />
+              <div className="shrink-0 w-12 h-12 rounded-xl bg-[#D17B47]/10 border border-[#D17B47]/20 flex items-center justify-center">
+                <Icon className="w-6 h-6 text-[#D17B47]" />
               </div>
               <div className="flex-1 pt-1">
                 <h3 className="text-base font-bold text-white">{currentStep.title}</h3>
@@ -206,7 +206,7 @@ export function OnboardingTour() {
                 <div
                   key={i}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === step ? 'w-6 bg-[#E8841A]' : i < step ? 'w-1.5 bg-[#E8841A]/50' : 'w-1.5 bg-white/10'
+                    i === step ? 'w-6 bg-[#D17B47]' : i < step ? 'w-1.5 bg-[#D17B47]/50' : 'w-1.5 bg-white/10'
                   }`}
                 />
               ))}
@@ -232,7 +232,7 @@ export function OnboardingTour() {
                 )}
                 <button
                   onClick={handleNext}
-                  className="flex items-center gap-1 px-4 h-8 rounded-lg bg-[#E8841A] hover:bg-[#FFB84D] text-black text-xs font-semibold transition-colors"
+                  className="flex items-center gap-1 px-4 h-8 rounded-lg bg-[#D17B47] hover:bg-[#FFB84D] text-black text-xs font-semibold transition-colors"
                 >
                   {isLast ? (
                     <>

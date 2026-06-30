@@ -236,7 +236,7 @@ export default function GuidePage() {
               <Link
                 key={guide.id}
                 href={`/guide/${guide.id}`}
-                className="block bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[var(--accent)]/50 rounded-xl p-6 transition-all hover:shadow-lg hover:shadow-[#E8841A]/10"
+                className="block bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[var(--accent)]/50 rounded-xl p-6 transition-all hover:shadow-lg hover:shadow-[#D17B47]/10"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="text-4xl">{guide.icon}</div>

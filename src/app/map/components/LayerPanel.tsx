@@ -104,7 +104,7 @@ export function LayerPanel({
     <div className="bg-[#0d0d14]/95 backdrop-blur-xl border border-white/[0.06] rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/[0.06]">
-        <Layers className="w-4 h-4 text-[#E8841A]" />
+        <Layers className="w-4 h-4 text-[#D17B47]" />
         <span className="text-xs font-semibold text-white">Layers</span>
       </div>
 
@@ -130,7 +130,7 @@ export function LayerPanel({
                     <div
                       className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-colors ${
                         layer.active
-                          ? 'bg-[#E8841A]/5 border border-[#E8841A]/20'
+                          ? 'bg-[#D17B47]/5 border border-[#D17B47]/20'
                           : 'hover:bg-white/[0.04] border border-transparent'
                       }`}
                       onClick={() => toggleExpand(layer.id)}
@@ -139,7 +139,7 @@ export function LayerPanel({
                       <button
                         onClick={(e) => { e.stopPropagation(); handleToggleVisibility(layer.id) }}
                         className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition-colors ${
-                          layer.visible ? 'text-[#E8841A]' : 'text-gray-600'
+                          layer.visible ? 'text-[#D17B47]' : 'text-gray-600'
                         }`}
                       >
                         {layer.visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -182,7 +182,7 @@ export function LayerPanel({
                             max="100"
                             value={layer.opacity}
                             onChange={(e) => handleOpacityChange(layer.id, parseInt(e.target.value))}
-                            className="w-full h-1 accent-[#E8841A] cursor-pointer"
+                            className="w-full h-1 accent-[#D17B47] cursor-pointer"
                           />
                         </div>
 
