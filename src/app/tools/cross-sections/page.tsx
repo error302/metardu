@@ -1,12 +1,17 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation'
 import { PageHeader } from '@/components/shared/PageHeader'
 import CrossSectionInput from '@/components/earthworks/CrossSectionInput'
+import ProjectCrossSections from '@/components/earthworks/ProjectCrossSections'
 import { RDM_DETAIL_TOLERANCES } from '@/lib/standards/rdm11'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function CrossSectionsPage() {
   const { t } = useLanguage()
+  const searchParams = useSearchParams()
+  const projectId = searchParams.get('project')
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
@@ -40,7 +45,11 @@ export default function CrossSectionsPage() {
           </table>
         </div>
       </div>
-      <CrossSectionInput />
+      {projectId && projectId !== 'new' ? (
+        <ProjectCrossSections projectId={projectId} />
+      ) : (
+        <CrossSectionInput />
+      )}
     </div>
   )
 }

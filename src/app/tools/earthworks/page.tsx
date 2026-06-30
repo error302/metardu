@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { PageHeader } from '@/components/shared/PageHeader'
 import CrossSectionInput from '@/components/earthworks/CrossSectionInput'
+import ProjectCrossSections from '@/components/earthworks/ProjectCrossSections'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 /**
@@ -51,6 +53,8 @@ function computeVolumes(sections: { station: string; cutArea: number; fillArea: 
 
 export default function EarthworksPage() {
   const { t } = useLanguage()
+  const searchParams = useSearchParams()
+  const projectId = searchParams.get('project')
   // Example data for mass haul demonstration
   const exampleSections = useMemo(() => [
     { station: '0+000', cutArea: 0, fillArea: 45, distance: 20 },
@@ -192,7 +196,11 @@ export default function EarthworksPage() {
       {/* Full cross section calculator */}
       <div className="mt-8 border-t border-[var(--border-color)] pt-6">
         <h2 className="text-lg font-semibold mb-4">Cross Section Data Entry</h2>
-        <CrossSectionInput />
+        {projectId && projectId !== 'new' ? (
+          <ProjectCrossSections projectId={projectId} />
+        ) : (
+          <CrossSectionInput />
+        )}
       </div>
     </div>
   )
