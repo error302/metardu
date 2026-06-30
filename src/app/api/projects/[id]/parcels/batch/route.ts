@@ -1,0 +1,163 @@
+import { NextResponse } from 'next/server'
+import { apiHandler, apiSuccess } from '@/lib/apiHandler'
+import { db } from '@/lib/db'
+import { getAuthUser } from '@/lib/auth/session'
+import { computeAreaWithPrecision } from '@/lib/engine/computationalAccuracy'
+
+export const dynamic = 'force-dynamic'
+
+interface BatchParcelInput {
+  parcelNumber: string
+  ownerName?: string
+  ownerId?: string
+  lrNumber?: string
+  areaHa?: number
+  vertices: Array<{ easting: number; northing: number }>
+}
+
+/**
+ * POST /api/projects/[id]/parcels/batch
+ *
+ * Bulk import parcels to a project.
+ * Accepts an array of parcels with vertices and owner data.
+ * Creates parcel records + beacon records in a single transaction.
+ *
+ * Body:
+ *   parcels: BatchParcelInput[]
+ *
+ * Returns:
+ *   { imported: number, failed: number, errors: string[] }
+ */
+export const POST = apiHandler(
+  { auth: true, rateLimit: { max: 10, windowMs: 60000 } },
+  async (req, ctx) => {
+    const user = await getAuthUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const projectId = ctx.params?.id as string
+    if (!projectId) {
+      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
+    }
+
+    // Verify project ownership
+    const projectRes = await db.query(
+      'SELECT id, user_id FROM projects WHERE id = $1',
+      [projectId],
+    )
+    if (projectRes.rows.length === 0) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+    if (projectRes.rows[0].user_id !== user.id) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
+
+    const body = ctx.body as { parcels: BatchParcelInput[] }
+    const parcels = body.parcels
+
+    if (!Array.isArray(parcels) || parcels.length === 0) {
+      return NextResponse.json({ error: 'No parcels provided' }, { status: 400 })
+    }
+
+    if (parcels.length > 1000) {
+      return NextResponse.json(
+        { error: 'Maximum 1000 parcels per batch' },
+        { status: 400 },
+      )
+    }
+
+    let imported = 0
+    let failed = 0
+    const errors: string[] = []
+
+    // Process each parcel
+    for (let i = 0; i < parcels.length; i++) {
+      const parcel = parcels[i]
+      try {
+        // Validate
+        if (!parcel.parcelNumber?.trim()) {
+          errors.push(`Parcel ${i + 1}: Missing parcel number`)
+          failed++
+          continue
+        }
+        if (!parcel.vertices || parcel.vertices.length < 3) {
+          errors.push(`Parcel ${parcel.parcelNumber}: Needs at least 3 vertices`)
+          failed++
+          continue
+        }
+
+        // Compute area if not provided
+        let areaHa = parcel.areaHa
+        if (!areaHa) {
+          const areaResult = computeAreaWithPrecision(parcel.vertices)
+          areaHa = parseFloat(areaResult.areaHectares.toFixed(4))
+        }
+
+        // Check for duplicate parcel number in this project
+        const existing = await db.query(
+          `SELECT id FROM parcels WHERE project_id = $1 AND parcel_number = $2`,
+          [projectId, parcel.parcelNumber],
+        )
+        if (existing.rows.length > 0) {
+          errors.push(`Parcel ${parcel.parcelNumber}: Already exists in project`)
+          failed++
+          continue
+        }
+
+        // Insert parcel
+        const parcelResult = await db.query(
+          `INSERT INTO parcels (project_id, parcel_number, owner_name, owner_id, lr_number, area_ha, geometry, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, ST_GeomFromText($7, 21037), NOW())
+           RETURNING id`,
+          [
+            projectId,
+            parcel.parcelNumber,
+            parcel.ownerName || null,
+            parcel.ownerId || null,
+            parcel.lrNumber || null,
+            areaHa,
+            `POLYGON((${parcel.vertices.map(v => `${v.easting} ${v.northing}`).join(', ')}, ${parcel.vertices[0].easting} ${parcel.vertices[0].northing}))`,
+          ],
+        )
+
+        const parcelId = parcelResult.rows[0].id
+
+        // Insert beacons for each vertex
+        for (let v = 0; v < parcel.vertices.length; v++) {
+          const vertex = parcel.vertices[v]
+          const beaconNumber = `${parcel.parcelNumber}/B${v + 1}`
+          await db.query(
+            `INSERT INTO survey_points (project_id, parcel_id, point_name, easting, northing, point_type, created_at)
+             VALUES ($1, $2, $3, $4, $5, 'beacon', NOW())`,
+            [projectId, parcelId, beaconNumber, vertex.easting, vertex.northing],
+          )
+        }
+
+        imported++
+      } catch (err) {
+        errors.push(`Parcel ${parcel.parcelNumber || i + 1}: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        failed++
+      }
+    }
+
+    // Log activity
+    await db.query(
+      `INSERT INTO user_activity (user_id, project_id, activity_type, description, metadata, created_at)
+       VALUES ($1, $2, 'batch_import', $3, $4, NOW())`,
+      [
+        user.id,
+        projectId,
+        `Batch imported ${imported} parcels (${failed} failed)`,
+        JSON.stringify({ imported, failed, total: parcels.length }),
+      ],
+    ).catch(() => {}) // Non-critical
+
+    return apiSuccess({
+      imported,
+      failed,
+      errors: errors.slice(0, 20), // Limit error messages
+      total: parcels.length,
+    })
+  },
+)

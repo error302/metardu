@@ -1,0 +1,59 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check:
+    name: Type Check, Lint, Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: ESLint (blocking — no warnings allowed on changed files)
+        run: npx eslint src/ --ext .ts,.tsx --max-warnings 0
+        continue-on-error: true
+        # ponytail: max-warnings 0 is the target. Set to continue-on-error for now
+        # because we have ~1300 existing 'any' warnings from Phase 6. Once those
+        # are resolved, remove continue-on-error to make lint blocking.
+        # TODO: Remove continue-on-error after any count drops below 50
+
+      - name: i18n integrity check
+        run: node scripts/i18n-sync.mjs --check
+
+      - name: Production build
+        env:
+          NEXT_PUBLIC_SENTRY_DSN: ''
+          DISABLE_PWA: 'true'
+        run: npx next build
+        timeout-minutes: 12
+
+      - name: Run tests
+        run: npx jest --silent --passWithNoTests
+        timeout-minutes: 5
+
+      - name: Verify mobile static export
+        env:
+          MOBILE_BUILD: 'true'
+          NEXT_PUBLIC_SENTRY_DSN: ''
+          DISABLE_PWA: 'true'
+        run: |
+          npx next build
+          test -d out && echo "✓ mobile static export OK"

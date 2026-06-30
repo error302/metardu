@@ -1,0 +1,170 @@
+import { NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
+import { generateBeaconDescriptionPdf } from '@/lib/compute/beaconDescriptionPdf'
+import type { BeaconDescriptionData } from '@/lib/compute/beaconDescriptionPdf'
+import { db } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
+
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const body = ctx.body as {
+    data?: unknown
+    projectId?: string
+    parcelId?: string
+  } | null
+
+  // Mode 1: DB-backed generation from projectId/parcelId
+  if (body?.projectId || body?.parcelId) {
+    const projectId = body.projectId as string
+    const parcelId = body.parcelId as string
+
+    // Load project + surveyor profile
+    const projectResult = await db.query(
+      `SELECT p.id, p.name, p.location, p.utm_zone, p.hemisphere, p.datum, p.surveyor_name,
+        sp.isk_number, sp.firm_name, sp.firm_address,
+        u.name as user_full_name
+       FROM projects p
+       LEFT JOIN surveyor_profiles sp ON sp.user_id = p.user_id
+       LEFT JOIN users u ON u.id = p.user_id
+       WHERE p.id = $1 AND p.user_id = $2`,
+      [projectId || null, ctx.userId]
+    )
+
+    if (projectResult.rows.length === 0 && projectId) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    const project = projectResult.rows[0] as Record<string, unknown> | undefined
+
+    // Load beacons from survey_points or traverse_coordinates
+    let beacons: Array<{
+      beaconNumber: string
+      description: string
+      easting: number
+      northing: number
+      elevation?: number
+      mark: string
+      foundStatus: 'ORIGINAL' | 'FOUND' | 'NOT FOUND' | 'REPLACED' | 'NEW'
+      Remarks: string
+    }> = []
+
+    if (parcelId) {
+      // Load traverse coordinates for the parcel
+      const traverseResult = await db.query(
+        `SELECT tc.station, tc.easting, tc.northing, tc.rl, tc.mark_type, tc.mark_status, tc.description
+         FROM traverse_coordinates tc
+         JOIN parcel_traverses pt ON pt.id = tc.traverse_id
+         WHERE pt.parcel_id = $1
+         ORDER BY tc.station`,
+        [parcelId]
+      )
+
+      beacons = traverseResult.rows.map((row: Record<string, unknown>) => ({
+        beaconNumber: String(row.station || ''),
+        description: String(row.description || 'Concrete beacon'),
+        easting: parseFloat(String(row.easting)) || 0,
+        northing: parseFloat(String(row.northing)) || 0,
+        elevation: row.rl != null ? parseFloat(String(row.rl)) : undefined,
+        mark: String(row.mark_type || 'PSC'),
+        foundStatus: normalizeFoundStatus(String(row.mark_status || 'FOUND')),
+        Remarks: String(row.description || ''),
+      }))
+    } else if (projectId) {
+      // Load survey points for the project
+      const pointsResult = await db.query(
+        `SELECT sp.name, sp.easting, sp.northing, sp.elevation, sp.code, sp.point_type, sp.description
+         FROM survey_points sp
+         WHERE sp.project_id = $1
+         ORDER BY sp.name`,
+        [projectId]
+      )
+
+      beacons = pointsResult.rows.map((row: Record<string, unknown>) => ({
+        beaconNumber: String(row.name || ''),
+        description: String(row.description || row.code || 'Survey point'),
+        easting: parseFloat(String(row.easting)) || 0,
+        northing: parseFloat(String(row.northing)) || 0,
+        elevation: row.elevation != null ? parseFloat(String(row.elevation)) : undefined,
+        mark: String(row.point_type || 'PSC'),
+        foundStatus: normalizeFoundStatus('FOUND'),
+        Remarks: String(row.code || ''),
+      }))
+    }
+
+    if (beacons.length === 0) {
+      return NextResponse.json({ error: 'No beacon data found. Add survey points or run traverse computation first.' }, { status: 400 })
+    }
+
+    const utmZone = (project?.utm_zone as number) || 37
+    const hemisphere = (project?.hemisphere as string) || 'S'
+    const datum = (project?.datum as string) || 'Arc 1960'
+
+    const data: BeaconDescriptionData = {
+      documentNumber: `BD/${new Date().getFullYear()}/${String(Date.now()).slice(-4)}`,
+      documentType: 'Beacon Description',
+      planNumber: projectId ? `DP-${projectId.slice(0, 8)}` : 'N/A',
+      surveyDate: new Date().toISOString().split('T')[0],
+      surveyorName: (project?.surveyor_name as string) || (project?.user_full_name as string) || '',
+      iskNumber: (project?.isk_number as string) || '',
+      firmName: (project?.firm_name as string) || '',
+      county: (project?.location as string) || '',
+      area: (project?.location as string) || '',
+      registrySection: '',
+      parcelNumber: parcelId || '',
+      datum,
+      projection: `UTM Zone ${utmZone}${hemisphere}`,
+      beacons,
+    }
+
+    const pdfBytes = generateBeaconDescriptionPdf(data)
+    const buffer = Buffer.from(pdfBytes)
+    const filename = `beacon_description_${projectId || parcelId || Date.now()}.pdf`
+
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': String(buffer.byteLength),
+      },
+    })
+  }
+
+  // Mode 2: Client-supplied data (backward compatible)
+  const data = body?.data
+
+  if (!data || typeof data !== 'object') {
+    return NextResponse.json({ error: 'Provide either projectId/parcelId for DB-backed generation, or a data object with beacons array.' }, { status: 400 })
+  }
+
+  const dataObj = data as Record<string, unknown>
+  if (!dataObj.beacons || !Array.isArray(dataObj.beacons) || dataObj.beacons.length === 0) {
+    return NextResponse.json({ error: 'Beacons array is required and must not be empty.' }, { status: 400 })
+  }
+
+  const pdfBytes = generateBeaconDescriptionPdf(data as BeaconDescriptionData)
+  const buffer = Buffer.from(pdfBytes)
+  const filename = `beacon_description_${Date.now()}.pdf`
+
+  return new NextResponse(buffer, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': String(buffer.byteLength),
+    },
+  })
+})
+
+/** Normalize various mark status strings to the PDF generator's expected enum */
+function normalizeFoundStatus(status: string): 'ORIGINAL' | 'FOUND' | 'NOT FOUND' | 'REPLACED' | 'NEW' {
+  const upper = status.toUpperCase().trim()
+  if (['ORIGINAL', 'FOUND', 'NOT FOUND', 'REPLACED', 'NEW'].includes(upper)) {
+    return upper as 'ORIGINAL' | 'FOUND' | 'NOT FOUND' | 'REPLACED' | 'NEW'
+  }
+  // Common aliases
+  if (upper.includes('SET') || upper.includes('NEW')) return 'NEW'
+  if (upper.includes('DESTROY') || upper.includes('NOT')) return 'NOT FOUND'
+  if (upper.includes('REF') || upper.includes('REPLAC')) return 'REPLACED'
+  return 'FOUND'
+}

@@ -1,0 +1,98 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { setCurrentUserId } from '@/lib/db'
+import db from '@/lib/db'
+import { callPythonCompute } from '@/lib/compute/pythonService'
+import type { ValidateRequest, ValidateResponse } from '@/types/cadastra'
+import { z } from 'zod'
+
+// ─── Zod Schemas ──────────────────────────────────────────────────────────────
+
+/** Schema for AI-assisted cadastral validation — validates data + type fields */
+const _AiValidateSchema = z.object({
+  data: z.record(z.unknown()),
+  type: z.enum(['parcel', 'traverse', 'leveling']),
+})
+
+const ValidateBodySchema = z.object({
+  boundary: z.object({
+    points: z.array(z.record(z.unknown())).min(3),
+  }),
+}).passthrough()
+
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
+  }
+  const userId = (session.user as { id?: string }).id
+  if (userId) setCurrentUserId(String(userId))
+
+  try {
+    const rawBody = await request.json()
+    const parsed = ValidateBodySchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', details: parsed.error.issues }, { status: 400 })
+    }
+    const body: ValidateRequest = rawBody
+    
+    const result = await callPythonCompute<ValidateResponse>(
+      '/cadastra-validate',
+      body,
+      { timeoutMs: 30000 }
+    )
+    
+    if (!result.ok) {
+      const err = result as { ok: false; status: number; error: string }
+      return NextResponse.json({ error: err.error }, { status: err.status })
+    }
+    
+    return NextResponse.json(result.value)
+  } catch (error) {
+    console.error('Cadastra validation error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, { status: 401 })
+  }
+  const userId = (session.user as { id?: string }).id
+  if (userId) setCurrentUserId(String(userId))
+
+  const { searchParams } = new URL(request.url)
+  const projectId = searchParams.get('project_id')
+  const validationId = searchParams.get('id')
+  
+  if (!projectId && !validationId) {
+    return NextResponse.json({ error: 'Missing project_id or id' }, { status: 400 })
+  }
+  
+  try {
+    if (validationId) {
+      const result = await db.query(
+        'SELECT * FROM cadastra_validations WHERE id = $1',
+        [validationId]
+      )
+      
+      if (result.rows.length === 0) {
+        return NextResponse.json({ error: 'Validation not found' }, { status: 404 })
+      }
+      
+      return NextResponse.json(result.rows[0])
+    }
+    
+    const result = await db.query(
+      'SELECT * FROM cadastra_validations WHERE project_id = $1 ORDER BY created_at DESC',
+      [projectId]
+    )
+    
+    return NextResponse.json(result.rows)
+  } catch (error) {
+    console.error('Cadastra validations GET error:', error)
+    return NextResponse.json({ error: 'Failed to fetch validations' }, { status: 500 })
+  }
+}

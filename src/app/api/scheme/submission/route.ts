@@ -1,0 +1,296 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
+import { db } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
+
+type DbRow = Record<string, unknown>
+
+interface StationPoint { station: string; easting: number; northing: number }
+interface ParcelCoord extends StationPoint { parcel_id: unknown; parcel_number: string }
+
+function toNum(v: unknown): number { return parseFloat(String(v ?? 0)) }
+function toStr(v: unknown): string { return String(v ?? '') }
+
+function bearingStr(dE: number, dN: number): string {
+  const wcbDeg = (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360
+  const D = Math.floor(wcbDeg)
+  const M = Math.floor((wcbDeg - D) * 60)
+  const S = ((wcbDeg - D) * 60 - M) * 60
+  return `${String(D).padStart(3, '0')}°${String(M).padStart(2, '0')}'${S.toFixed(1)}"`
+}
+
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
+  const projectId = request.nextUrl.searchParams.get('project_id')
+  if (!projectId) return NextResponse.json({ error: 'project_id is required' }, { status: 400 })
+
+  const projectCheck = await db.query(
+    'SELECT id, name, location, survey_type, project_type, surveyor_name FROM projects WHERE id = $1 AND user_id = $2',
+    [projectId, ctx.userId]
+  )
+  if (projectCheck.rows.length === 0) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+  const project = projectCheck.rows[0] as DbRow
+
+  let scheme: DbRow = {}
+  try {
+    const sd = await db.query('SELECT * FROM scheme_details WHERE project_id = $1', [projectId])
+    if (sd.rows.length > 0) scheme = sd.rows[0] as DbRow
+  } catch {}
+
+  const blocksResult = await db.query(
+    'SELECT id, block_number, block_name FROM blocks WHERE project_id = $1 ORDER BY block_number',
+    [projectId]
+  )
+
+  const parcelsResult = await db.query(
+    `SELECT p.id, p.parcel_number, p.lr_number_proposed, p.area_ha, p.status,
+            p.block_id, b.block_number, b.block_name
+     FROM parcels p JOIN blocks b ON b.id = p.block_id
+     WHERE p.project_id = $1 AND p.status IN ('computed','plan_generated','submitted','approved')
+     ORDER BY b.block_number, p.parcel_number`,
+    [projectId]
+  )
+
+  if (parcelsResult.rows.length === 0) {
+    return NextResponse.json({ error: 'No computed parcels found for submission package' }, { status: 400 })
+  }
+
+  const parcels = parcelsResult.rows as DbRow[]
+  const { jsPDF } = await import('jspdf')
+
+  type JSZipConstructor = new () => {
+    file: (name: string, content: Buffer | string) => void
+    generateAsync: (opts: { type: string }) => Promise<ArrayBuffer>
+  }
+  let JSZip: JSZipConstructor | null = null
+  try { JSZip = (await import('jszip')).default as JSZipConstructor } catch {}
+
+  const zipFiles: { path: string; content: Buffer | string }[] = []
+
+  // 1. Parcel summary CSV
+  const summaryLines = [
+    'Block,Parcel Number,Proposed LR,Area (Ha),Status',
+    ...parcels.map((p) =>
+      `${toStr(p.block_number)},${toStr(p.parcel_number)},${toStr(p.lr_number_proposed) || 'Pending'},${p.area_ha ? toNum(p.area_ha).toFixed(4) : 'N/A'},${toStr(p.status)}`
+    ),
+  ]
+  zipFiles.push({ path: 'Parcel_Summary.csv', content: summaryLines.join('\n') })
+
+  // 2. Deed plans
+  for (const parcel of parcels) {
+    try {
+      const traverseCheck = await db.query(
+        'SELECT id, accuracy_order, total_perimeter, computed_area_ha FROM parcel_traverses WHERE parcel_id = $1',
+        [parcel.id]
+      )
+      if (traverseCheck.rows.length === 0) continue
+      const traverse = traverseCheck.rows[0] as DbRow
+
+      const coordsResult = await db.query(
+        'SELECT station, easting, northing FROM traverse_coordinates WHERE traverse_id = $1 ORDER BY station',
+        [traverse.id]
+      )
+      if (coordsResult.rows.length < 3) continue
+
+      const stations: StationPoint[] = (coordsResult.rows as DbRow[]).map((c) => ({
+        station: toStr(c.station),
+        easting: toNum(c.easting),
+        northing: toNum(c.northing),
+      }))
+
+      const bearingSchedule = stations.map((from, i) => {
+        const to = stations[(i + 1) % stations.length]
+        const dE = to.easting - from.easting
+        const dN = to.northing - from.northing
+        const dist = Math.sqrt(dE * dE + dN * dN)
+        return { bearing: bearingStr(dE, dN), distance: dist.toFixed(3) }
+      })
+
+      const geom = {
+        stations: stations.map((s) => ({ ...s, beaconNo: s.station, monument: 'psc found' })),
+        bearingSchedule,
+        minE: Math.min(...stations.map((s) => s.easting)),
+        maxE: Math.max(...stations.map((s) => s.easting)),
+        minN: Math.min(...stations.map((s) => s.northing)),
+        maxN: Math.max(...stations.map((s) => s.northing)),
+      }
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pageW = doc.internal.pageSize.getWidth()
+      const pageH = doc.internal.pageSize.getHeight()
+
+      doc.setFontSize(10); doc.setFont('helvetica', 'bold')
+      doc.text('REPUBLIC OF KENYA', pageW / 2, 10, { align: 'center' })
+      doc.setFontSize(9)
+      doc.text('FORM NO. 4 — DEED PLAN', pageW / 2, 15, { align: 'center' })
+
+      const { renderBoundaryPlan } = await import('@/lib/generators/deedPlanRenderer')
+      renderBoundaryPlan(doc, geom as Parameters<typeof renderBoundaryPlan>[1], { x: 10, y: 20, width: pageW - 20, height: pageH - 75 })
+
+      const tableY = pageH - 52
+      doc.setDrawColor(0); doc.setLineWidth(0.4); doc.rect(10, tableY, pageW - 20, 48)
+
+      const areaStr = parcel.area_ha
+        ? `${toNum(parcel.area_ha).toFixed(4)} Ha`
+        : traverse.computed_area_ha ? `${toNum(traverse.computed_area_ha).toFixed(4)} Ha` : '—'
+
+      const infoPairs: [string, string][] = [
+        ['PARCEL:', toStr(parcel.parcel_number)],
+        ['LR NO.:', toStr(parcel.lr_number_proposed) || 'Pending'],
+        ['AREA:', areaStr],
+        ['BLOCK:', `${toStr(parcel.block_number)} — ${toStr(parcel.block_name) || 'N/A'}`],
+        ['ACCURACY:', toStr(traverse.accuracy_order) || '—'],
+        ['PERIMETER:', traverse.total_perimeter ? `${toNum(traverse.total_perimeter).toFixed(3)} m` : '—'],
+        ['DATUM:', 'ARC 1960'],
+        ['PROJECTION:', 'UTM Zone 37S'],
+      ]
+
+      const curY = tableY + 5
+      for (let i = 0; i < infoPairs.length; i++) {
+        const col = i < 4 ? 12 : pageW / 2 + 5
+        const row = i < 4 ? i : i - 4
+        doc.setFontSize(7); doc.setFont('helvetica', 'bold')
+        doc.text(infoPairs[i][0], col, curY + row * 6)
+        doc.setFont('helvetica', 'normal')
+        doc.text(infoPairs[i][1], col + 28, curY + row * 6)
+      }
+
+      const safeLR = (toStr(parcel.lr_number_proposed) || toStr(parcel.parcel_number)).replace(/[/\\]/g, '-')
+      zipFiles.push({ path: `DeedPlans/Block${toStr(parcel.block_number)}/${safeLR}_DeedPlan.pdf`, content: Buffer.from(doc.output('arraybuffer')) })
+    } catch (err) {
+      console.error(`Failed deed plan for parcel ${toStr(parcel.id)}:`, err)
+    }
+  }
+
+  // 3. PPA2 forms
+  try {
+    const { generatePPA2Form } = await import('@/lib/submission/generators/ppa2Form')
+    for (const parcel of parcels) {
+      const ppa2Buffer = generatePPA2Form({
+        lrNumber: toStr(parcel.lr_number_proposed) || `Proposed - ${toStr(parcel.parcel_number)}`,
+        parcelNumber: toStr(parcel.parcel_number),
+        county: toStr(scheme.county),
+        division: toStr(scheme.sub_county),
+        district: toStr(scheme.ward),
+        locality: toStr(parcel.location ?? scheme.ward),
+        areaHa: parcel.area_ha ? toNum(parcel.area_ha) : 0,
+        surveyType: 'Cadastral Survey - Subdivision',
+        applicantName: scheme.county ? `${toStr(scheme.county)} County Government` : 'N/A',
+        applicantAddress: '',
+        surveyorName: toStr(project.surveyor_name),
+        iskNumber: '',
+        firmName: '',
+        surveyDate: new Date().toISOString(),
+        referenceNumber: toStr(scheme.scheme_number) || `${toStr(parcel.block_number)}/${toStr(parcel.parcel_number)}`,
+      })
+      const safeLR = (toStr(parcel.lr_number_proposed) || toStr(parcel.parcel_number)).replace(/[/\\]/g, '-')
+      zipFiles.push({ path: `PPA2_Forms/PPA2_${safeLR}.pdf`, content: Buffer.from(ppa2Buffer) })
+    }
+  } catch (err) { console.error('Failed PPA2 forms:', err) }
+
+  // 4. RIM
+  try {
+    const allParcelCoords: ParcelCoord[] = []
+    for (const parcel of parcels) {
+      const tc = await db.query(
+        `SELECT tc.station, tc.easting, tc.northing FROM traverse_coordinates tc
+         JOIN parcel_traverses pt ON pt.id = tc.traverse_id
+         WHERE pt.parcel_id = $1 ORDER BY tc.station`,
+        [parcel.id]
+      )
+      if (tc.rows.length >= 3) {
+        allParcelCoords.push(...(tc.rows as DbRow[]).map((c) => ({
+          parcel_id: parcel.id, parcel_number: toStr(parcel.parcel_number),
+          station: toStr(c.station), easting: toNum(c.easting), northing: toNum(c.northing),
+        })))
+      }
+    }
+
+    if (allParcelCoords.length > 0) {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
+      const pageW = doc.internal.pageSize.getWidth()
+      const pageH = doc.internal.pageSize.getHeight()
+
+      doc.setFontSize(14); doc.setFont('helvetica', 'bold')
+      doc.text('REGISTRY INDEX MAP', pageW / 2, 12, { align: 'center' })
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal')
+      doc.text(`Scheme: ${toStr(scheme.scheme_number) || toStr(project.name)}  |  ${toStr(scheme.county)} ${toStr(scheme.sub_county)} ${toStr(scheme.ward)}`, pageW / 2, 18, { align: 'center' })
+
+      const margin = 15
+      const drawX = margin, drawY = 24
+      const drawW = pageW - margin * 2, drawH = pageH - 55
+      doc.setDrawColor(0); doc.setLineWidth(0.3); doc.rect(drawX, drawY, drawW, drawH)
+
+      const minE = Math.min(...allParcelCoords.map((c) => c.easting))
+      const maxE = Math.max(...allParcelCoords.map((c) => c.easting))
+      const minN = Math.min(...allParcelCoords.map((c) => c.northing))
+      const maxN = Math.max(...allParcelCoords.map((c) => c.northing))
+      const rawScale = Math.max((maxE - minE || 1) / (drawW / 1000), (maxN - minN || 1) / (drawH / 1000)) * 1.2
+      const scaleRatio = [100, 200, 250, 500, 1000, 1250, 2000, 2500, 5000, 10000].find((s) => s >= rawScale) ?? 20000
+      const centreE = (minE + maxE) / 2, centreN = (minN + maxN) / 2
+      const toMm = (e: number, n: number): [number, number] => [
+        drawX + drawW / 2 + ((e - centreE) / scaleRatio) * 1000,
+        drawY + drawH / 2 - ((n - centreN) / scaleRatio) * 1000,
+      ]
+
+      const drawn = new Set<unknown>()
+      for (const pc of allParcelCoords) {
+        if (drawn.has(pc.parcel_id)) continue
+        const pCoords = allParcelCoords.filter((c) => c.parcel_id === pc.parcel_id)
+        drawn.add(pc.parcel_id)
+        const pts = pCoords.map((c) => toMm(c.easting, c.northing))
+        doc.setDrawColor(60, 60, 60); doc.setLineWidth(0.6)
+        for (let i = 0; i < pts.length; i++) {
+          doc.line(...pts[i], ...pts[(i + 1) % pts.length])
+        }
+        const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length
+        const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length
+        doc.setFontSize(5); doc.setFont('helvetica', 'bold')
+        doc.text(pc.parcel_number, cx, cy - 1, { align: 'center' })
+      }
+
+      doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+      doc.text(`Total Parcels: ${parcels.length}  |  Blocks: ${blocksResult.rows.length}  |  Scale: 1:${scaleRatio}`, margin, pageH - 12)
+      doc.text(`Datum: ARC 1960  |  Projection: UTM Zone 37S  |  Date: ${new Date().toLocaleDateString('en-GB')}`, margin, pageH - 7)
+
+      zipFiles.push({ path: 'RIM_Registry_Index_Map.pdf', content: Buffer.from(doc.output('arraybuffer')) })
+    }
+  } catch (err) { console.error('Failed RIM:', err) }
+
+  // 5. README
+  zipFiles.push({
+    path: 'README.txt',
+    content: [
+      'PROJECT SUBMISSION PACKAGE', '',
+      `Project: ${toStr(project.name)}`,
+      `Scheme: ${toStr(scheme.scheme_number) || 'N/A'}`,
+      `County: ${toStr(scheme.county) || 'N/A'}`,
+      `Sub-County: ${toStr(scheme.sub_county) || 'N/A'}`,
+      `Ward: ${toStr(scheme.ward) || 'N/A'}`,
+      `Total Parcels: ${parcels.length}`,
+      `Generated: ${new Date().toISOString()}`,
+      'Generated by: Metardu Survey Platform',
+    ].join('\n'),
+  })
+
+  if (!JSZip) {
+    const first = zipFiles.find((f) => f.content instanceof Buffer)
+    if (first?.content instanceof Buffer) {
+      return new NextResponse(new Blob([new Uint8Array(first.content)]), { status: 200, headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="submission.pdf"' } })
+    }
+    return NextResponse.json({ error: 'ZIP library unavailable' }, { status: 500 })
+  }
+
+  const zip = new JSZip()
+  for (const f of zipFiles) zip.file(f.path, f.content)
+  const zipBuffer = Buffer.from(await zip.generateAsync({ type: 'arraybuffer' }))
+  const safeName = toStr(project.name).replace(/[^a-zA-Z0-9]/g, '_')
+
+  return new NextResponse(new Blob([new Uint8Array(zipBuffer)]), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="Submission_${safeName}_${parcels.length}parcels.zip"`,
+    },
+  })
+})

@@ -1,0 +1,115 @@
+import { NextResponse } from 'next/server'
+import { apiHandler, apiSuccess } from '@/lib/apiHandler'
+import { db } from '@/lib/db'
+import { getAuthUser } from '@/lib/auth/session'
+
+export const dynamic = 'force-dynamic'
+
+/**
+ * GET /api/equipment/[id]/calibration
+ * List calibration history for an equipment item.
+ */
+export const GET = apiHandler(
+  { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
+  async (req, ctx) => {
+    const user = await getAuthUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const equipId = ctx.params?.id as string
+    if (!equipId) return NextResponse.json({ error: 'Equipment ID is required' }, { status: 400 })
+
+    // Verify ownership
+    const ownership = await db.query(
+      `SELECT id FROM equipment WHERE id = $1 AND user_id = $2`,
+      [equipId, user.id],
+    )
+    if (ownership.rows.length === 0) {
+      return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
+    }
+
+    const result = await db.query(
+      `SELECT * FROM equipment_calibration WHERE equipment_id = $1 ORDER BY calibration_date DESC`,
+      [equipId],
+    )
+
+    // Get current status
+    const latest = result.rows[0]
+    let calStatus = 'never'
+    let daysUntilExpiry: number | null = null
+    if (latest) {
+      const next = new Date(latest.next_calibration_date)
+      const now = new Date()
+      const diffDays = Math.ceil((next.getTime() - now.getTime()) / 86400000)
+      daysUntilExpiry = diffDays
+      if (diffDays < 0) calStatus = 'overdue'
+      else if (diffDays <= 30) calStatus = 'expiring'
+      else calStatus = 'current'
+    }
+
+    return apiSuccess({
+      calibrations: result.rows,
+      currentStatus: calStatus,
+      daysUntilExpiry,
+    })
+  },
+)
+
+/**
+ * POST /api/equipment/[id]/calibration
+ * Add a new calibration record.
+ */
+export const POST = apiHandler(
+  { auth: true, rateLimit: { max: 30, windowMs: 60000 } },
+  async (req, ctx) => {
+    const user = await getAuthUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const equipId = ctx.params?.id as string
+    if (!equipId) return NextResponse.json({ error: 'Equipment ID is required' }, { status: 400 })
+
+    // Verify ownership
+    const ownership = await db.query(
+      `SELECT id FROM equipment WHERE id = $1 AND user_id = $2`,
+      [equipId, user.id],
+    )
+    if (ownership.rows.length === 0) {
+      return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
+    }
+
+    const body = ctx.body as Record<string, unknown>
+    const calDate = body.calibrationDate ? String(body.calibrationDate) : new Date().toISOString().split('T')[0]
+    const nextCalDate = body.nextCalibrationDate
+      ? String(body.nextCalibrationDate)
+      : new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0]
+
+    const result = await db.query(
+      `INSERT INTO equipment_calibration (equipment_id, user_id, calibration_date, next_calibration_date, calibrated_by, calibration_lab, certificate_number, results, notes, report_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [
+        equipId, user.id, calDate, nextCalDate,
+        body.calibratedBy || null, body.calibrationLab || null,
+        body.certificateNumber || null, body.results || 'pass',
+        body.notes || null, body.reportUrl || null,
+      ],
+    )
+
+    // Create a notification if calibration is expiring soon or overdue
+    const nextDate = new Date(nextCalDate)
+    const daysUntil = Math.ceil((nextDate.getTime() - Date.now()) / 86400000)
+    if (daysUntil <= 30) {
+      await db.query(
+        `INSERT INTO notifications (user_id, type, category, title, message, action_url, action_label)
+         VALUES ($1, 'warning', 'system', 'Calibration Expiring Soon',
+         'Your equipment calibration expires in ' + $2 + ' days. Schedule recalibration to stay compliant.',
+         '/equipment', 'View Equipment')`,
+        [user.id, daysUntil],
+      )
+    }
+
+    return apiSuccess({
+      calibration: result.rows[0],
+      message: 'Calibration record added',
+    })
+  },
+)

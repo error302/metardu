@@ -1,0 +1,59 @@
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { apiHandler } from '@/lib/apiHandler'
+import db from '@/lib/db'
+import { GenerateSubmissionSchema } from '@/lib/validation/apiSchemas'
+
+export const POST = apiHandler({ auth: true, schema: GenerateSubmissionSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  const { projectId, documentId } = ctx.body as z.infer<typeof GenerateSubmissionSchema>
+
+  const { rows } = await db.query(
+    'SELECT id, survey_type FROM projects WHERE id = $1 AND user_id = $2 LIMIT 1',
+    [projectId, ctx.userId]
+  )
+
+  if (rows.length === 0) {
+    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+  }
+
+  const project = rows[0] as { id: string; survey_type: string }
+
+  await db.query(
+    `INSERT INTO submission_documents (project_id, document_id, document_type, status, error_message)
+     VALUES ($1, $2, $2, 'generating', null)
+     ON CONFLICT (project_id, document_id)
+     DO UPDATE SET status = 'generating', error_message = null`,
+    [projectId, documentId]
+  )
+
+  try {
+    const { generateDocument } = await import('@/lib/submission/assembleDocument')
+    const result = await generateDocument({
+      projectId,
+      documentId,
+      surveyType: project.survey_type,
+    })
+
+    await db.query(
+      `INSERT INTO submission_documents (project_id, document_id, document_type, status, file_url, error_message, generated_at)
+       VALUES ($1, $2, $2, 'ready', $3, null, $4)
+       ON CONFLICT (project_id, document_id)
+       DO UPDATE SET status = 'ready', file_url = $3, error_message = null, generated_at = $4`,
+      [projectId, documentId, result.fileUrl, new Date().toISOString()]
+    )
+
+    return NextResponse.json({ success: true, fileUrl: result.fileUrl })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? (err as Error).message : 'Unknown error'
+
+    await db.query(
+      `INSERT INTO submission_documents (project_id, document_id, document_type, status, error_message)
+       VALUES ($1, $2, $2, 'error', $3)
+       ON CONFLICT (project_id, document_id)
+       DO UPDATE SET status = 'error', error_message = $3`,
+      [projectId, documentId, message]
+    )
+
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+})

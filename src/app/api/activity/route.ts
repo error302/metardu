@@ -1,0 +1,98 @@
+import { NextResponse } from 'next/server'
+import { apiHandler, apiSuccess } from '@/lib/apiHandler'
+import { db } from '@/lib/db'
+import { getAuthUser } from '@/lib/auth/session'
+import { validateBody, activitySchema } from '@/lib/validation/apiValidation'
+
+export const dynamic = 'force-dynamic'
+
+/**
+ * GET /api/activity
+ *
+ * Returns the current user's activity feed.
+ * Query params:
+ *   - project_id: filter by project
+ *   - limit: max results (default 20, max 50)
+ *   - offset: pagination offset
+ */
+export const GET = apiHandler(
+  { auth: true, rateLimit: { max: 120, windowMs: 60000 } },
+  async (req, ctx) => {
+    const user = await getAuthUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const url = new URL(req.url)
+    const projectId = url.searchParams.get('project_id')
+    const limit = Math.min(50, parseInt(url.searchParams.get('limit') || '20', 10))
+    const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10))
+
+    const params: unknown[] = [user.id, limit, offset]
+    let projectFilter = ''
+    if (projectId) {
+      projectFilter = ' AND project_id = $4'
+      params.push(projectId)
+    }
+
+    const result = await db.query(
+      `SELECT id, project_id, activity_type, entity_type, entity_id, description, metadata, created_at
+       FROM user_activity
+       WHERE user_id = $1${projectFilter}
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3`,
+      params,
+    )
+
+    return apiSuccess({
+      activities: result.rows,
+      pagination: { limit, offset, total: result.rows.length },
+    })
+  },
+)
+
+/**
+ * POST /api/activity
+ * Log a user activity (called internally by other actions).
+ * Body: { activityType, description, projectId?, entityType?, entityId?, metadata? }
+ */
+export const POST = apiHandler(
+  { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
+  async (req, ctx) => {
+    const user = await getAuthUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = validateBody(ctx.body, activitySchema)
+    const activityType = body.activityType
+    const description = String(body.description || '')
+
+    if (!activityType || !description) {
+      return NextResponse.json(
+        { error: 'activityType and description are required' },
+        { status: 400 },
+      )
+    }
+
+    const result = await db.query(
+      `INSERT INTO user_activity (user_id, project_id, activity_type, entity_type, entity_id, description, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, created_at`,
+      [
+        user.id,
+        body.projectId || null,
+        activityType,
+        body.entityType || null,
+        body.entityId || null,
+        description,
+        JSON.stringify(body.metadata || {}),
+      ],
+    )
+
+    return apiSuccess({
+      id: result.rows[0].id,
+      createdAt: result.rows[0].created_at,
+    })
+  },
+)

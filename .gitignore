@@ -1,0 +1,181 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+build/
+scripts/.out/
+
+# User uploads — should never be in the repo
+upload/
+
+# Local database files
+db/*.db
+db/*.db-journal
+db/*.db-wal
+db/*.db-shm
+
+# Misc
+.DS_Store
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# Debug
+npm-debug.log*
+*.log
+
+# Environment files with secrets - NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# Scripts with potential credentials (use env vars instead)
+scripts/create-tables.js
+scripts/migrate-db.js
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Test coverage
+coverage/
+
+# IDE
+.idea/
+.continue/
+.vscode/
+*.swp
+*.swo
+.cursorrules
+opencode.json
+
+# OS
+thumbs.db
+Thumbs.db
+
+# Build outputs
+dist/
+.turbo/
+
+# Capacitor (mobile builds are platform-specific)
+android/
+ios/
+capacitor.config.ts
+capacitor/
+
+# PDF/Blueprints - local reference files
+*.pdf
+
+# Worktrees
+.worktrees/
+worktrees/
+
+# Local docs and reference files
+docs/superpowers/
+docs/reference/
+manual/
+
+# Local scripts and generated assets
+scripts/generate-icons.js
+scripts/push_github.ps1
+scripts/public/
+
+# Backup files
+*.bak
+*.tmp
+
+# Binary CAD files
+*.dwg
+
+# Generated error logs
+ts_errors*.txt
+typescript_errors*.txt
+
+# Temp directories (recursive)
+tmp/
+**/tmp/
+**/pw*/
+
+# Opencode
+.opencode/
+
+# Lock files (use package-lock.json only)
+bun.lock
+yarn.lock
+pnpm-lock.yaml
+
+# Audit logs (data files, not API routes)
+/audit/
+/backups/
+/logs/
+
+# Tool configs
+skills-lock.json
+
+# Infrastructure configs (VM-specific)
+ecosystem.config.js
+ecosystem.config.cjs
+nginx-metardu
+env-metardu
+
+# SQL scratch files
+diagnostic.sql
+seed_test_data.sql
+tmp_enable_rls.sql
+create-table.sh
+temp/
+
+# Dead / artifact directories — never track these
+agent-ctx/
+artifacts/
+download/
+examples/
+live-test-results/
+scratch/
+screenshots/
+simulation-results/
+store-assets/
+test-data/
+test-downloads/
+verification/
+api/          # top-level api/ is NOT src/app/api
+mini-services/
+server/
+supabase/     # not used — self-hosted PostgreSQL
+sql/
+.kilo/
+graphify-out/
+.sixth/
+
+# User uploads - GDPR sensitive, never track
+uploads/
+
+# E2E test results
+e2e-results/
+test-results/
+
+# Junk shell fragments committed by accident
+ERROR
+FETCH_HEAD
+reading
+resolve
+transferring
+docker
+create_test_user.js
+Dockerfile.bak*
+sample_data.json
+debug.log
+
+# Cassini source workbooks — large binary data, regenerated via npm run cassini:rebuild
+# Keep the data/cassini-source/ committed for reproducibility (small ~200KB total)
+# but ignore any scratch outputs from the extractor
+data/cassini-source/_scratch/
+.env
+.env.local
+.env*.local

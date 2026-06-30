@@ -1,0 +1,895 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { computeTraverse, type RawObservation, type TraverseComputationResult } from '@/lib/computations/traverseEngine'
+import { parseTraverseCSV } from '@/lib/parsers/totalStation'
+import { bearingToString } from '@/lib/engine/angles'
+import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
+import { reduceEDMObservation, computeMeanAngleDMS as sharedMeanAngleDMS, processTraverseObservations, getAtmosphericDefaults, autoDetectUTMZone, findNearestPreset, findPresetByCounty, fetchRealtimeWeather, computeAtmosphericErrorImpact, validateAtmosphericDefaults, KENYA_LOCATION_PRESETS } from '@/lib/survey/adapter'
+import type { AdaptedEDMResult, ProcessedObservation, AtmosphericDefaults, KenyaLocationPreset } from '@/lib/survey/adapter'
+import { CorrectionAuditTrail } from '@/components/survey/CorrectionAuditTrail'
+import type { CorrectionObservationSummary } from '@/components/survey/CorrectionAuditTrail'
+import { TraverseStationInput } from '@/types/field'
+import { printTraverseSheet, type TraverseSheetInput } from '@/lib/print/traverseSheet'
+import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
+import { CoordinateCanvas, type CanvasPoint, type CanvasLine, type CanvasLeg } from '@/components/drawing/CoordinateCanvas'
+import DrawingExportToolbar from '@/components/drawing/DrawingExportToolbar'
+
+interface TraverseFieldBookProps {
+  projectId: string
+  onImport?: (data: RawObservation[]) => void
+}
+
+function openPrint(html: string, title: string) {
+  const win = window.open('', '_blank')
+  if (!win) return
+  win.document.write(html)
+  win.document.close()
+  win.document.title = title
+  setTimeout(() => { win.focus(); win.print() }, 400)
+}
+
+/**
+ * Compute mean angle from HCL/HCR readings.
+ * Now delegates to the shared survey adapter implementation.
+ */
+function computeMeanAngleDMS(obs: RawObservation): string {
+  return sharedMeanAngleDMS(obs.hclDeg, obs.hclMin, obs.hclSec, obs.hcrDeg, obs.hcrMin, obs.hcrSec)
+}
+
+export default function TraverseFieldBook({ projectId, onImport }: TraverseFieldBookProps) {
+  const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Traverse Field Book' })
+  const [observations, setObservations] = useState<RawObservation[]>([
+    { station: '', bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5' },
+  ])
+  const [openingName, setOpeningName] = useState('')
+  const [openingE, setOpeningE] = useState('')
+  const [openingN, setOpeningN] = useState('')
+  const [openingRL, setOpeningRL] = useState('')
+  const [bsDeg, setBsDeg] = useState('')
+  const [bsMin, setBsMin] = useState('')
+  const [bsSec, setBsSec] = useState('')
+  const [closingName, setClosingName] = useState('')
+  const [closingE, setClosingE] = useState('')
+  const [closingN, setClosingN] = useState('')
+  const [result, setResult] = useState<TraverseComputationResult | null>(null)
+  const [error, setError] = useState('')
+  const [activeTab, setActiveTab] = useState<'input' | 'compute' | 'print'>('input')
+  const [printMeta, setPrintMeta] = useState<PrintMeta>(defaultPrintMeta)
+  const [edmOpen, setEdmOpen] = useState(false)
+  const [showPlot, setShowPlot] = useState(false)
+  const [atmOpen, setAtmOpen] = useState(false)
+  const [weatherLoading, setWeatherLoading] = useState(false)
+  const [weatherFetchedAt, setWeatherFetchedAt] = useState<string | null>(null)
+
+  // Initialize atmospheric defaults using the 3-tier fallback system
+  // (project settings → location preset → default)
+  const [initialDefaults] = useState(() => getAtmosphericDefaults({}))
+  const [temperature, setTemperature] = useState(String(initialDefaults.temperature))
+  const [pressure, setPressure] = useState(String(initialDefaults.pressure))
+  const [humidity, setHumidity] = useState(String(initialDefaults.humidity))
+  const [meanElevation, setMeanElevation] = useState(String(initialDefaults.elevation))
+  const [utmProjection, setUtmProjection] = useState<'UTM36S' | 'UTM37S'>(initialDefaults.utmZone)
+  const [atmSource, setAtmSource] = useState<string>(initialDefaults.source)
+  const [atmVerified, setAtmVerified] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const raw = searchParams.get('field_import')
+    if (!raw) return
+    try {
+      const stations: TraverseStationInput[] = JSON.parse(decodeURIComponent(raw))
+      const mapped = stations.map(s => ({
+        station: s.label,
+        bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5'
+      }))
+      setObservations(mapped.length > 0 ? mapped : [
+        { station: '', bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5' }
+      ])
+      
+      if (stations.length > 0) {
+        setOpeningName(stations[0].label)
+        setOpeningE(stations[0].easting.toString())
+        setOpeningN(stations[0].northing.toString())
+        if (stations[0].elevation) setOpeningRL(stations[0].elevation.toString())
+      }
+    } catch {
+      console.error('Failed to parse field_import param')
+    }
+  }, [searchParams])
+
+  const addRow = () => setObservations(prev => [...prev, {
+    station: '', bs: '', fs: '',
+    hclDeg: '', hclMin: '', hclSec: '',
+    hcrDeg: '', hcrMin: '', hcrSec: '',
+    slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5',
+  }])
+
+  const removeRow = (i: number) => setObservations(prev => prev.filter((_, idx) => idx !== i))
+
+  const updateObs = (i: number, field: keyof RawObservation, value: string) => {
+    setObservations(prev => prev.map((o, idx) => idx === i ? { ...o, [field]: value } : o))
+  }
+
+  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const { headers, rows, errors } = parseTraverseCSV(text)
+      if (errors.length > 0) { setError(errors.join(', ')); return }
+      const stationIdx = headers.findIndex(h => h.includes('station'))
+      const sdIdx = headers.findIndex(h => h.includes('slope_dist') || h.includes('_dist') || h === 'sd')
+      const hclD = headers.findIndex(h => h.includes('hcl_deg') || h.includes('hcl_d'))
+      const hclM = headers.findIndex(h => h.includes('hcl_min') || h.includes('hcl_m'))
+      const hclS = headers.findIndex(h => h.includes('hcl_sec') || h.includes('hcl_s'))
+      const hcrD = headers.findIndex(h => h.includes('hcr_deg') || h.includes('hcr_d'))
+      const hcrM = headers.findIndex(h => h.includes('hcr_min') || h.includes('hcr_m'))
+      const hcrS = headers.findIndex(h => h.includes('hcr_sec') || h.includes('hcr_s'))
+      const vaD = headers.findIndex(h => h.includes('va_deg') || h.includes('va_d') || h.includes('vert_d'))
+      const vaM = headers.findIndex(h => h.includes('va_min') || h.includes('va_m') || h.includes('vert_m'))
+      const vaS = headers.findIndex(h => h.includes('va_sec') || h.includes('va_s') || h.includes('vert_s'))
+      const ihIdx = headers.findIndex(h => h.includes('ih'))
+      const thIdx = headers.findIndex(h => h.includes('th'))
+      const imported: RawObservation[] = rows.map((row: any) => ({
+        station: stationIdx >= 0 ? row[stationIdx] || '' : '',
+        bs: '', fs: '',
+        hclDeg: hclD >= 0 ? row[hclD] || '' : '',
+        hclMin: hclM >= 0 ? row[hclM] || '' : '',
+        hclSec: hclS >= 0 ? row[hclS] || '' : '',
+        hcrDeg: hcrD >= 0 ? row[hcrD] || '' : '',
+        hcrMin: hcrM >= 0 ? row[hcrM] || '' : '',
+        hcrSec: hcrS >= 0 ? row[hcrS] || '' : '',
+        slopeDist: sdIdx >= 0 ? row[sdIdx] || '' : '',
+        vaDeg: vaD >= 0 ? row[vaD] || '' : '',
+        vaMin: vaM >= 0 ? row[vaM] || '' : '',
+        vaSec: vaS >= 0 ? row[vaS] || '' : '',
+        ih: ihIdx >= 0 ? row[ihIdx] || '1.5' : '1.5',
+        th: thIdx >= 0 ? row[thIdx] || '1.5' : '1.5',
+      }))
+      if (imported.length > 0) { setObservations(imported); onImport?.(imported) }
+      else setError('No valid data rows found in CSV')
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  const handleCompute = () => {
+    setError('')
+    if (!openingE || !openingN) { setError('Enter opening point coordinates'); return }
+    if (!bsDeg) { setError('Enter backsight bearing'); return }
+    // FIX: Closing control coordinates are REQUIRED per Survey Regulations Reg. 60 & 67.
+    // Source: Basak Ch.10-11 — A cadastral traverse must close between two known points.
+    // Without closing control, this is a swinging/hanging traverse with no position check.
+    if (!closingE || !closingN) {
+      setError('Closing control coordinates are REQUIRED per Survey Regulations Reg. 60(2)(c) and Reg. 67. A cadastral traverse must close between two known control points. Without closing control, this is a swinging/hanging traverse — prohibited. Enter closing Easting and Northing above.')
+      return
+    }
+    // Validate: closing point must be DIFFERENT from opening point
+    const coordDiff = Math.abs(parseFloat(closingE) - parseFloat(openingE)) + Math.abs(parseFloat(closingN) - parseFloat(openingN))
+    if (coordDiff < 0.001) {
+      setError('Closing control point must be DIFFERENT from opening control point. A cadastral traverse requires minimum 2 distinct known control points for position verification per Survey Regulations Reg. 60 & 67. A 1-point traverse has no absolute position check.')
+      return
+    }
+    const validObs = observations.filter((o: any) => o.station && o.slopeDist)
+    if (validObs.length === 0) { setError('At least one valid observation required'); return }
+    try {
+      const res = computeTraverse({
+        openingEasting: parseFloat(openingE),
+        openingNorthing: parseFloat(openingN),
+        openingRL: openingRL ? parseFloat(openingRL) : undefined,
+        openingStation: openingName || 'CP1',
+        closingEasting: closingE ? parseFloat(closingE) : undefined,
+        closingNorthing: closingN ? parseFloat(closingN) : undefined,
+        closingStation: closingName,
+        observations: validObs,
+        backsightBearingDeg: parseInt(bsDeg) || 0,
+        backsightBearingMin: parseInt(bsMin) || 0,
+        backsightBearingSec: parseFloat(bsSec) || 0,
+      })
+      setResult(res)
+      setActiveTab('compute')
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Computation failed')
+    }
+  }
+
+  const handlePrint = () => {
+    if (!result) return
+    const inp: TraverseSheetInput = {
+      result,
+      meta: { ...printMeta, title: 'Traverse Computation Sheet' }
+    }
+    printTraverseSheet(inp)
+  }
+
+  const handlePrintDeed = () => {
+    if (!result) return
+    const r = result
+    
+    // Area Computation using Shoelace on adjusted coordinates
+    const coords = r.coordinates.filter(c => !c.station.startsWith('T'))
+    let areaSqM = 0
+    if (coords.length > 2) {
+      const pts = [...coords]
+      if (pts[0].station !== pts[pts.length - 1].station) pts.push(pts[0])
+      for (let i = 0; i < pts.length - 1; i++) {
+        areaSqM += pts[i].easting * pts[i+1].northing - pts[i+1].easting * pts[i].northing
+      }
+      areaSqM = Math.abs(areaSqM) / 2
+    }
+    const areaHa = areaSqM / 10000
+
+    const html = `
+<html><head><title>Final Surveyor's Report</title>
+<style>
+  body { font-family: 'Times New Roman', serif; font-size: 13px; margin: 40px; color: #000; }
+  .header { text-align: center; margin-bottom: 20px; }
+  .header h1 { font-size: 18px; text-decoration: underline; margin-bottom: 5px; }
+  .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+  .section-title { font-size: 15px; font-weight: bold; background: #eee; border: 1px solid #000; text-align: center; padding: 4px; margin-top: 20px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 5px; text-align: center; font-size: 12px; }
+  th, td { border: 1px solid #000; padding: 4px; }
+  th { background: #f9f9f9; }
+  .summary-box { border: 1px solid #000; padding: 10px; margin-top: 5px; display: flex; justify-content: space-between; }
+  .footer { margin-top: 60px; display: flex; justify-content: space-between; text-align: center; }
+  .line { border-bottom: 1px solid #000; width: 200px; display: inline-block; margin-bottom: 5px; }
+  @media print { body { margin: 20px; } }
+</style></head><body>
+
+<div class="header">
+  <h1>SURVEYOR'S REPORT</h1>
+</div>
+<div class="info-row">
+  <div>
+    <p><strong>Ref:</strong> Approval to Subdivide</p>
+    <p><strong>Letter Reference number:</strong> _________________</p>
+  </div>
+  <div>
+    <p><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB')}</p>
+  </div>
+</div>
+
+<hr style="border: 1px solid #000; margin-bottom: 20px;" />
+
+<div class="section-title">FINAL CO-ORDINATE LIST</div>
+<table>
+  <tr><th>STATION</th><th>Y(NORTHINGS)</th><th>-X(EASTINGS)</th><th>CLASS OF BEACON</th><th>DESCRIPTION</th></tr>
+  ${coords.map(c => `<tr>
+    <td><b>${c.station}</b></td>
+    <td>${c.northing.toFixed(3)}</td>
+    <td>${c.easting.toFixed(3)}</td>
+    <td>New</td>
+    <td>Iron Pin</td>
+  </tr>`).join('')}
+</table>
+
+<div class="section-title">THEORETICAL COMPUTATIONS</div>
+<table>
+  <tr><th>LINE</th><th>BEARING</th><th>DISTANCE</th><th>ΔN (Lat)</th><th>ΔE (Dep)</th></tr>
+  ${r.legs.map(l => `<tr>
+    <td>${l.from} - ${l.to}</td>
+    <td>${l.wcbDMS}</td>
+    <td>${l.hd.toFixed(3)}</td>
+    <td>${l.latitude.toFixed(3)}</td>
+    <td>${l.departure.toFixed(3)}</td>
+  </tr>`).join('')}
+</table>
+
+<div class="section-title">CONSISTENCY CHECKS & ADJUSTMENTS</div>
+<div class="summary-box">
+  <div>
+    <p><strong>Total Perimeter:</strong> ${r.totalPerimeter.toFixed(3)} m</p>
+    <p><strong>Linear Misclosure:</strong> ${r.linearError.toFixed(4)} m</p>
+    <p><strong>Precision Ratio:</strong> 1 : ${r.precisionRatio > 0 ? Math.round(r.precisionRatio).toLocaleString() : '—'}</p>
+  </div>
+  <div>
+    <p><strong>Sum Departures:</strong> ${r.sumDepartures.toFixed(4)}</p>
+    <p><strong>Sum Latitudes:</strong> ${r.sumLatitudes.toFixed(4)}</p>
+    <p><strong>Accuracy Class:</strong> ${r.accuracyOrder} (${r.C_mm <= r.allowable ? 'PASS' : 'FAIL'})</p>
+  </div>
+</div>
+
+<div class="section-title">AREA OF PARCELS</div>
+<div class="summary-box" style="justify-content: center; font-size: 14px;">
+  <b>Total Area Enclosed By Traverse: ${areaHa.toFixed(4)} Ha</b>
+</div>
+
+<div class="footer">
+  <div>
+    <span class="line"></span><br>Prepared By (Surveyor)
+  </div>
+  <div>
+    <span class="line"></span><br>Date
+  </div>
+</div>
+
+</body></html>`
+    openPrint(html, 'Final Surveyors Report')
+  }
+
+  return (
+
+    <div className="space-y-4">
+      <PrintHeader title="Traverse Field Book" />
+      <div className="flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
+        {(['input', 'compute', 'print'] as const).map((tab: any) => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-3 py-1.5 rounded text-sm font-medium capitalize transition-colors ${
+              activeTab === tab ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-hover)]'
+            }`}>
+            {tab === 'input' ? 'Field Book' : tab === 'compute' ? 'Results' : 'Print'}
+          </button>
+        ))}
+        <div className="flex-1" />
+        <button onClick={() => fileRef.current?.click()}
+          className="px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded text-xs">
+          Import CSV
+        </button>
+        <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleCSVImport} />
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">{error}</div>
+      )}
+
+      {activeTab === 'input' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-4 p-4 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border-color)]">
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Opening Station</label>
+              <input value={openingName} onChange={e => setOpeningName(e.target.value)} placeholder="CP1"
+                className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Opening Easting (m)</label>
+              <input value={openingE} onChange={e => setOpeningE(e.target.value)} type="number" step="0.001"
+                className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Opening Northing (m)</label>
+              <input value={openingN} onChange={e => setOpeningN(e.target.value)} type="number" step="0.001"
+                className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Opening RL (m)</label>
+              <input value={openingRL} onChange={e => setOpeningRL(e.target.value)} type="number" step="0.001" placeholder="Optional"
+                className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Backsight Bearing (DMS)</label>
+              <div className="flex gap-2">
+                <input value={bsDeg} onChange={e => setBsDeg(e.target.value)} type="number" placeholder="Deg" min="0" max="359"
+                  className="w-16 px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                <input value={bsMin} onChange={e => setBsMin(e.target.value)} type="number" placeholder="Min" min="0" max="59"
+                  className="w-14 px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                <input value={bsSec} onChange={e => setBsSec(e.target.value)} type="number" step="0.001" placeholder="Sec"
+                  className="flex-1 px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Station <span className="text-red-400 font-semibold">(Required)</span></label>
+              <input value={closingName} onChange={e => setClosingName(e.target.value)} placeholder="CP2"
+                className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Easting (m) <span className="text-red-400">*</span></label>
+              <input value={closingE} onChange={e => setClosingE(e.target.value)} type="number" step="0.001" placeholder="Required"
+                className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Northing (m) <span className="text-red-400">*</span></label>
+              <input value={closingN} onChange={e => setClosingN(e.target.value)} type="number" step="0.001" placeholder="Required"
+                className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+            </div>
+          </div>
+
+          {/* Atmospheric Conditions & EDM Settings — for the correction pipeline */}
+          <div className="border border-[var(--border-color)] rounded overflow-hidden">
+            <button onClick={() => setAtmOpen(!atmOpen)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-tertiary)]/50 text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
+              <span className="flex items-center gap-2">
+                <span>Atmospheric Conditions &amp; EDM Settings</span>
+                <span className="text-[var(--text-muted)] font-normal text-xs">
+                  (IAG/ISO · {atmSource === 'default' ? 'Nairobi defaults' : atmSource === 'location_preset' ? 'Location preset' : atmSource === 'weather_api' ? 'Live weather' : 'Custom'})
+                </span>
+                {atmVerified ? (
+                  <span className="bg-green-600/30 text-green-300 text-[10px] px-1.5 py-0.5 rounded-full">Verified</span>
+                ) : (
+                  <span className="bg-amber-600/30 text-amber-300 text-[10px] px-1.5 py-0.5 rounded-full">Unverified</span>
+                )}
+              </span>
+              <span className="text-[var(--text-muted)]">{atmOpen ? '▲' : '▼'}</span>
+            </button>
+            {atmOpen && (
+              <div className="space-y-3 p-4 bg-[var(--bg-tertiary)]/20">
+                {/* Location preset selector */}
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">Location Preset (auto-fills all fields)</label>
+                  <div className="flex gap-2">
+                    <select onChange={(e) => {
+                      const key = e.target.value;
+                      if (!key) return;
+                      const preset = KENYA_LOCATION_PRESETS[key];
+                      if (preset) {
+                        setTemperature(String(preset.temperature));
+                        setPressure(String(preset.pressure));
+                        setHumidity(String(preset.humidity));
+                        setMeanElevation(String(preset.elevation));
+                        setUtmProjection(preset.utmZone);
+                        setAtmSource('location_preset');
+                        setAtmVerified(false);
+                      }
+                    }} className="flex-1 px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm">
+                      <option value="">-- Select city/location --</option>
+                      {Object.entries(KENYA_LOCATION_PRESETS).map(([key, preset]) => (
+                        <option key={key} value={key}>{preset.name} ({preset.county}) — {preset.elevation}m</option>
+                      ))}
+                    </select>
+                    <button onClick={async () => {
+                      setWeatherLoading(true);
+                      try {
+                        // Use opening coordinates or Nairobi default
+                        const lat = openingN ? parseFloat(openingN) / 111000 : -1.2921;
+                        const lon = openingE ? (parseFloat(openingE) - 500000) / 111000 + 39 : 36.8219;
+                        const weather = await fetchRealtimeWeather(lat, lon);
+                        if (weather) {
+                          setTemperature(String(Math.round(weather.temperature * 10) / 10));
+                          setPressure(String(Math.round(weather.pressure * 10) / 10));
+                          setHumidity(String(Math.round(weather.humidity)));
+                          setAtmSource('weather_api');
+                          setWeatherFetchedAt(weather.fetchedAt);
+                          setAtmVerified(false);
+                        }
+                      } finally {
+                        setWeatherLoading(false);
+                      }
+                    }} disabled={weatherLoading}
+                      className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 disabled:bg-blue-900 text-white rounded text-xs whitespace-nowrap">
+                      {weatherLoading ? 'Loading...' : 'Fetch Live Weather'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Atmospheric input fields */}
+                <div className="grid grid-cols-5 gap-3">
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Temperature (&deg;C)</label>
+                    <input value={temperature} onChange={e => { setTemperature(e.target.value); setAtmVerified(false); }} type="number" step="0.1"
+                      className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Pressure (hPa)</label>
+                    <input value={pressure} onChange={e => { setPressure(e.target.value); setAtmVerified(false); }} type="number" step="0.1"
+                      className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Humidity (%)</label>
+                    <input value={humidity} onChange={e => { setHumidity(e.target.value); setAtmVerified(false); }} type="number" step="1" min="0" max="100"
+                      className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Mean Elevation (m)</label>
+                    <input value={meanElevation} onChange={e => { setMeanElevation(e.target.value); setAtmVerified(false); }} type="number" step="1"
+                      className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">UTM Zone</label>
+                    <select value={utmProjection} onChange={e => { setUtmProjection(e.target.value as 'UTM36S' | 'UTM37S'); setAtmVerified(false); }}
+                      className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm">
+                      <option value="UTM36S">UTM 36S (CM 33&deg;E)</option>
+                      <option value="UTM37S">UTM 37S (CM 39&deg;E)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Verification button & error impact */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setAtmVerified(true)}
+                      className={`px-3 py-1.5 rounded text-xs font-medium ${atmVerified ? 'bg-green-700 text-green-100' : 'bg-amber-700 hover:bg-amber-600 text-amber-100'}`}>
+                      {atmVerified ? '✓ Verified' : 'Verify These Readings'}
+                    </button>
+                    {weatherFetchedAt && (
+                      <span className="text-[10px] text-[var(--text-muted)]">
+                        Weather fetched: {new Date(weatherFetchedAt).toLocaleTimeString()}
+                      </span>
+                    )}
+                  </div>
+                  {(() => {
+                    const impact = computeAtmosphericErrorImpact({
+                      temperature: parseFloat(temperature) || 20,
+                      pressure: parseFloat(pressure) || 1013.25,
+                      humidity: parseFloat(humidity) || 50,
+                      elevation: parseFloat(meanElevation) || 0,
+                      utmZone: utmProjection,
+                      geoidUndulation: -12,
+                      refractionCoefficient: 0.13,
+                      source: atmSource as any,
+                      verified: atmVerified,
+                    });
+                    return (
+                      <span className="text-[10px] text-[var(--text-muted)]">
+                        Uncorrected error at these conditions: <span className="text-amber-400 font-mono">{impact.mmPerKm.toFixed(0)} mm/km</span>
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {!atmVerified && (
+                  <div className="p-2 bg-amber-900/20 border border-amber-700/30 rounded text-[10px] text-amber-300">
+                    Please verify these atmospheric readings match your field observations. Incorrect atmospheric data leads to systematic distance errors.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]/30">
+                  <th className="px-1.5 py-2 text-left text-[var(--text-secondary)] w-8">#</th>
+                  <th className="px-1.5 py-2 text-left text-[var(--text-secondary)]">Station</th>
+                  <th className="px-1.5 py-2 text-left text-[var(--text-secondary)]">BS</th>
+                  <th className="px-1.5 py-2 text-left text-[var(--text-secondary)]">FS</th>
+                  <th className="px-1.5 py-2 text-center text-[var(--text-secondary)]" colSpan={3}>HCL (DMS)</th>
+                  <th className="px-1.5 py-2 text-center text-[var(--text-secondary)]" colSpan={3}>HCR (DMS)</th>
+                  <th className="px-1.5 py-2 text-center text-[var(--text-secondary)]">Mean</th>
+                  <th className="px-1.5 py-2 text-right text-[var(--text-secondary)]">Slope Dist (m)</th>
+                  <th className="px-1.5 py-2 text-center text-[var(--text-secondary)]" colSpan={3}>VA (DMS)</th>
+                  <th className="px-1.5 py-2 text-right text-[var(--text-secondary)]">IH (m)</th>
+                  <th className="px-1.5 py-2 text-right text-[var(--text-secondary)]">TH (m)</th>
+                  <th className="w-6"></th>
+                </tr>
+                <tr className="border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]/30">
+                  <th></th><th></th><th></th><th></th>
+                  {[1,2,3,4,5,6,7,8,9,10].map((i: any) => <th key={i} className="px-1 py-1 text-[10px] text-[var(--text-muted)]">{['','Deg','Min','Sec','','Deg','Min','Sec','','','','Deg','Min','Sec','','',''][i-1]}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {observations.map((obs, i) => (
+                  <tr key={i} className="border-b border-[var(--border-color)]/30">
+                    <td className="px-1.5 py-1 text-[var(--text-muted)]">{i + 1}</td>
+                    <td className="px-1 py-1"><input value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)}
+                      className="w-full px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" placeholder="T1" /></td>
+                    <td className="px-1 py-1"><input value={obs.bs} onChange={e => updateObs(i, 'bs', e.target.value)}
+                      className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
+                    <td className="px-1 py-1"><input value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)}
+                      className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
+                    {(['hclDeg','hclMin','hclSec']).map((f: any) => (
+                      <td key={f} className="px-0.5 py-1"><input value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
+                        type="number" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
+                    ))}
+                    <td className="w-3"></td>
+                    {(['hcrDeg','hcrMin','hcrSec']).map((f: any) => (
+                      <td key={f} className="px-0.5 py-1"><input value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
+                        type="number" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
+                    ))}
+                    <td className="px-1 py-1 text-center font-mono text-[10px] text-[var(--accent)] whitespace-nowrap">{computeMeanAngleDMS(obs)}</td>
+                    <td className="px-1 py-1"><input value={obs.slopeDist} onChange={e => updateObs(i, 'slopeDist', e.target.value)}
+                      type="number" step="0.001" className="w-16 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
+                    {(['vaDeg','vaMin','vaSec']).map((f: any) => (
+                      <td key={f} className="px-0.5 py-1"><input value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
+                        type="number" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
+                    ))}
+                    <td className="px-1 py-1"><input value={obs.ih} onChange={e => updateObs(i, 'ih', e.target.value)}
+                      type="number" step="0.001" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
+                    <td className="px-1 py-1"><input value={obs.th} onChange={e => updateObs(i, 'th', e.target.value)}
+                      type="number" step="0.001" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
+                    <td><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-300 text-lg leading-none">×</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <button onClick={addRow}
+            className="px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-xs">
+            + Add Observation Row
+          </button>
+
+          {/* Regulatory warning when no closing control */}
+          {(!closingE || !closingN) && (
+            <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
+              [!] CLOSING CONTROL IS MANDATORY — Without closing control coordinates, this is a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A cadastral traverse must close between two previously fixed stations (minimum 2 distinct known control points). Enter closing control point coordinates above.
+            </div>
+          )}
+          {/* Warning when closing = opening (1-point traverse) */}
+          {closingE && closingN && openingE && openingN && (
+            Math.abs(parseFloat(closingE) - parseFloat(openingE)) + Math.abs(parseFloat(closingN) - parseFloat(openingN)) < 0.001
+          ) && (
+            <div className="p-3 bg-amber-900/30 border border-amber-600 rounded text-amber-400 text-sm">
+              [!] Closing point is the SAME as opening point — this is a 1-point traverse with no absolute position check. For cadastral surveys, minimum 2 DISTINCT known control points are required. The traverse could be shifted/rotated from true position undetected.
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <button onClick={handleCompute}
+              className="px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm">
+              Compute Traverse →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'compute' && result && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-[var(--bg-tertiary)]/50 rounded p-3">
+              <p className="text-xs text-[var(--text-secondary)]">Total Perimeter</p>
+              <p className="text-lg font-mono text-[var(--text-primary)]">{result.totalPerimeter.toFixed(3)} m</p>
+            </div>
+            <div className="bg-[var(--bg-tertiary)]/50 rounded p-3">
+              <p className="text-xs text-[var(--text-secondary)]">Linear Misclosure</p>
+              <p className="text-lg font-mono text-[var(--text-primary)]">{result.linearError.toFixed(4)} m</p>
+            </div>
+            <div className="bg-[var(--bg-tertiary)]/50 rounded p-3">
+              <p className="text-xs text-[var(--text-secondary)]">Precision</p>
+              <p className="text-lg font-mono text-[var(--text-primary)]">1 : {result.precisionRatio > 0 ? Math.round(result.precisionRatio).toLocaleString() : '—'}</p>
+            </div>
+            <div className={`rounded p-3 ${result.C_mm <= result.allowable ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+              <p className="text-xs text-[var(--text-secondary)]">Accuracy Order</p>
+              <p className={`text-lg font-semibold ${result.C_mm <= result.allowable ? 'text-green-400' : 'text-red-400'}`}>{result.accuracyOrder}</p>
+            </div>
+          </div>
+
+          <p className="text-xs text-[var(--text-muted)] font-mono">{result.formula}</p>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]/50">
+                  <th className="px-2 py-2 text-left">Line</th>
+                  <th className="px-2 py-2 text-center">WCB</th>
+                  <th className="px-2 py-2 text-right">SD (m)</th>
+                  <th className="px-2 py-2 text-right">HD (m)</th>
+                  <th className="px-2 py-2 text-right">Dep</th>
+                  <th className="px-2 py-2 text-right">Lat</th>
+                  <th className="px-2 py-2 text-right">Adj Dep</th>
+                  <th className="px-2 py-2 text-right">Adj Lat</th>
+                  <th className="px-2 py-2 text-right">Easting</th>
+                  <th className="px-2 py-2 text-right">Northing</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.legs.map((l, i) => (
+                  <tr key={i} className="border-b border-[var(--border-color)]/30">
+                    <td className="px-2 py-1.5 font-mono text-[var(--text-primary)]">{l.from} → {l.to}</td>
+                    <td className="px-2 py-1.5 text-center font-mono text-[var(--text-secondary)]">{l.wcbDMS}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{l.sd.toFixed(3)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{l.hd.toFixed(3)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{l.departure >= 0 ? '+' : ''}{l.departure.toFixed(4)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{l.latitude >= 0 ? '+' : ''}{l.latitude.toFixed(4)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-[var(--accent)]">{l.adjDep >= 0 ? '+' : ''}{l.adjDep.toFixed(4)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-[var(--accent)]">{l.adjLat >= 0 ? '+' : ''}{l.adjLat.toFixed(4)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-[var(--text-primary)]">{result.coordinates[i + 1]?.easting.toFixed(4)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-[var(--text-primary)]">{result.coordinates[i + 1]?.northing.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* EDM Corrections Panel */}
+          <div className="border border-[var(--border-color)] rounded overflow-hidden">
+            <button onClick={() => setEdmOpen(!edmOpen)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-tertiary)]/50 text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
+              <span>[Compass] EDM Corrections <span className="text-[var(--text-muted)] font-normal">(Survey Engine · IAG/ISO · UTM 37S)</span></span>
+              <span className="text-[var(--text-muted)]">{edmOpen ? '▲' : '▼'}</span>
+            </button>
+            {edmOpen && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]/30">
+                      <th className="px-2 py-2 text-left text-[var(--text-secondary)]">Line</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">SD (m)</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">HD (m)</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">C&R (mm)</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">Atm PPM</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">Scale Factor</th>
+                      <th className="px-2 py-2 text-right text-[var(--text-secondary)]">Grid Dist (m)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.legs.map((leg, i) => {
+                      const obs = result.observations[i]
+                      if (!obs) return null
+                      // Survey engine correction pipeline (IAG/ISO standard)
+                      // Now uses atmospheric conditions from the UI inputs
+                      const edmResult = reduceEDMObservation({
+                        slopeDistance: leg.sd,
+                        verticalAngle: obs.verticalAngle,
+                        fromEasting: result.coordinates[i]?.easting,
+                        fromNorthing: result.coordinates[i]?.northing,
+                        toEasting: result.coordinates[i + 1]?.easting,
+                        toNorthing: result.coordinates[i + 1]?.northing,
+                        instrumentHeight: obs.ih,
+                        targetHeight: obs.th,
+                        temperature: temperature ? parseFloat(temperature) : undefined,
+                        pressure: pressure ? parseFloat(pressure) : undefined,
+                        humidity: humidity ? parseFloat(humidity) : undefined,
+                        orthometricHeight: meanElevation ? parseFloat(meanElevation) : undefined,
+                        projection: utmProjection,
+                      })
+                      return (
+                        <tr key={i} className="border-b border-[var(--border-color)]/30">
+                          <td className="px-2 py-1.5 font-mono text-[var(--text-primary)]">{leg.from} → {leg.to}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{leg.sd.toFixed(3)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{edmResult.horizontalDistance.toFixed(3)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{(edmResult.crCorrection * 1000).toFixed(1)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{edmResult.atmosphericPPM.toFixed(1)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{edmResult.lineScaleFactor.toFixed(6)}</td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[var(--accent)]">{edmResult.gridDistance.toFixed(3)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Correction Pipeline Audit Trail — full stage-by-stage breakdown */}
+          {(() => {
+            const auditObs: CorrectionObservationSummary[] = result.legs.map((leg, i) => {
+              const obs = result.observations[i]
+              if (!obs) return null
+              const edmResult = reduceEDMObservation({
+                slopeDistance: leg.sd,
+                verticalAngle: obs.verticalAngle,
+                fromEasting: result.coordinates[i]?.easting,
+                fromNorthing: result.coordinates[i]?.northing,
+                toEasting: result.coordinates[i + 1]?.easting,
+                toNorthing: result.coordinates[i + 1]?.northing,
+                instrumentHeight: obs.ih,
+                targetHeight: obs.th,
+                temperature: temperature ? parseFloat(temperature) : undefined,
+                pressure: pressure ? parseFloat(pressure) : undefined,
+                humidity: humidity ? parseFloat(humidity) : undefined,
+                orthometricHeight: meanElevation ? parseFloat(meanElevation) : undefined,
+                projection: utmProjection,
+              })
+              return {
+                fromStation: leg.from,
+                toStation: leg.to,
+                rawSlopeDistance: leg.sd,
+                gridDistance: edmResult.gridDistance,
+                correctionLog: edmResult.correctionLog,
+                warnings: edmResult.warnings,
+                atmosphericPPM: edmResult.atmosphericPPM,
+                seaLevelPPM: edmResult.seaLevelPPM,
+                lineScaleFactor: edmResult.lineScaleFactor,
+                convergence: edmResult.convergence,
+              } as CorrectionObservationSummary
+            }).filter(Boolean) as CorrectionObservationSummary[]
+
+            return (
+              <CorrectionAuditTrail
+                observations={auditObs}
+                projection={utmProjection === 'UTM36S' ? 'UTM 36S' : 'UTM 37S'}
+              />
+            )
+          })()}
+
+          {/* Plot Traverse Section */}
+          <div className="border border-[var(--border-color)] rounded overflow-hidden">
+            <button onClick={() => setShowPlot(!showPlot)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-tertiary)]/50 text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
+              <span>[Map] Plot Traverse</span>
+              <span className="text-[var(--text-muted)]">{showPlot ? '▲ Hide' : '▼ Show'}</span>
+            </button>
+            {showPlot && result && (() => {
+              const canvasPoints: CanvasPoint[] = result.coordinates.map((c, i) => ({
+                id: `pt-${i}`,
+                name: c.station,
+                easting: c.easting,
+                northing: c.northing,
+                type: 'beacon' as const,
+              }))
+              const canvasLines: CanvasLine[] = result.legs.map(l => ({
+                from: l.from,
+                to: l.to,
+              }))
+              const canvasLegs: CanvasLeg[] = result.legs.map(l => {
+                const fromCoord = result.coordinates.find(c => c.station === l.from)
+                const toCoord = result.coordinates.find(c => c.station === l.to)
+                return {
+                  from: l.from,
+                  to: l.to,
+                  bearing: l.wcb,
+                  distance: l.hd,
+                  midX: fromCoord && toCoord ? (fromCoord.easting + toCoord.easting) / 2 : 0,
+                  midY: fromCoord && toCoord ? (fromCoord.northing + toCoord.northing) / 2 : 0,
+                }
+              })
+              return (
+                <div className="space-y-3">
+                  <div className="overflow-x-auto bg-[#111] rounded-b-lg p-4">
+                    <CoordinateCanvas
+                      points={canvasPoints}
+                      lines={canvasLines}
+                      legs={canvasLegs}
+                      width={800}
+                      height={600}
+                      showGrid={true}
+                      showNorthArrow={true}
+                      showScaleBar={true}
+                    />
+                  </div>
+                  <DrawingExportToolbar
+                    projectName={`Traverse_${openingName || 'traverse'}`}
+                    points={result.coordinates.map(c => ({
+                      name: c.station,
+                      easting: c.easting,
+                      northing: c.northing,
+                      elevation: c.rl ?? undefined,
+                    }))}
+                    legs={result.legs.map(l => ({
+                      from: l.from,
+                      to: l.to,
+                      bearing: l.wcb,
+                      distance: l.hd,
+                    }))}
+                    className="px-4 pb-3"
+                  />
+                </div>
+              )
+            })()}
+          </div>
+
+          <div className="flex justify-between">
+            <button onClick={() => setActiveTab('input')}
+              className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm">
+              ← Back to Input
+            </button>
+            <button onClick={() => setActiveTab('print')}
+              className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded text-sm">
+              Print Options →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'print' && (
+        <div className="space-y-4">
+          {!result && (
+            <div className="p-4 bg-amber-900/20 border border-amber-700 rounded text-amber-300 text-sm">
+              Compute the traverse first (Field Book tab) before printing.
+            </div>
+          )}
+
+          <PrintMetaPanel meta={printMeta} onChange={setPrintMeta} />
+
+          <div className="p-4 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border-color)] text-sm space-y-1.5">
+            <p className="font-semibold text-[var(--text-primary)]">Print Options:</p>
+            <ul className="text-[var(--text-muted)] text-xs space-y-0.5 list-disc list-inside">
+              <li><strong>Traverse Computation Sheet:</strong> Standard formal computation sheet with raw observations, Bowditch adjustment, and final coordinates. Includes Surveyor's Certificate block.</li>
+              <li><strong>Final Surveyor's Report:</strong> Simple format for subdivision approvals containing only the final coordinate list and area computation.</li>
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={handlePrint}
+              disabled={!result}
+              className="w-full py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded text-sm shadow-sm">
+              Print Traverse Computation Sheet
+            </button>
+            <button
+              onClick={handlePrintDeed}
+              disabled={!result}
+              className="w-full py-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--text-primary)] font-semibold rounded text-sm border border-[var(--border-color)]">
+              Print Final Surveyor's Report
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

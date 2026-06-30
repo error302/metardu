@@ -1,0 +1,893 @@
+'use client'
+/**
+ * MapToolDock — Floating tool dock for the METARDU map
+ *
+ * Redesigned around the cadastral survey workflow:
+ *   1. Recon    — Navigate & locate (coord search, fit, GPS, bookmarks)
+ *   2. Capture  — Draw & measure (draw tools, measure, bearing annotations)
+ *   3. Compute  — COGO computation (radiation, intersection, resection, traverse, parcel)
+ *   4. Set Out  — Stakeout & field (GPS stakeout, GPS track, setting-out export)
+ *   5. Layers   — Map layers (basemap, scheme, offline, opacity)
+ *   6. Export   — Save & share (project save, format export, print, clear)
+ *
+ * Design:
+ *   - Slim translucent icon bar (glass morphism, pill buttons)
+ *   - Active category glow accent
+ *   - Frosted glass drawer panels (slide-in from left / bottom on mobile)
+ *   - SurveyWorkflowBadge showing current stage
+ *   - METARDU watermark bottom-right
+ *   - Keyboard shortcut hints in panels
+ */
+
+import React, { memo, useState, useCallback, useEffect } from 'react'
+import {
+  Binoculars, Crosshair, Calculator, Target,
+  Layers, Download,
+  X,
+  MapPin, PenTool, Hexagon, Circle,
+  Undo2, Redo2, Trash2, Edit3,
+  Navigation, Search, Bookmark,
+  Ruler, Compass, Satellite, Globe, Mountain, Moon,
+  FileOutput, Printer, FileText,
+  Eye, MapPinned,
+} from 'lucide-react'
+import { useMapContext } from '@/app/map/MapReactContext'
+import { CogoInfoPanel } from '@/app/map/components/CogoInfoPanel'
+import { CogoToolsPanel } from '@/app/map/components/CogoToolsPanel'
+import { BookmarkPanel } from '@/app/map/components/BookmarkPanel'
+import { GpsTrackPanel } from '@/app/map/components/GpsTrackPanel'
+import { StakeoutPanel } from '@/components/map/StakeoutPanel'
+import { TopologyGuardrail } from '@/components/survey/TopologyGuardrail'
+import type { SurveyPoint } from '@/lib/map/turfHelpers'
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type DockCategory = 'recon' | 'capture' | 'compute' | 'setout' | 'layers' | 'export' | null
+
+interface CategoryDef {
+  id: DockCategory
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  shortcut: string
+}
+
+const CATEGORIES: CategoryDef[] = [
+  { id: 'recon',   icon: Binoculars,  label: 'Recon',   shortcut: '1' },
+  { id: 'capture', icon: Crosshair,   label: 'Capture', shortcut: '2' },
+  { id: 'compute', icon: Calculator,  label: 'Compute', shortcut: '3' },
+  { id: 'setout',  icon: Target,      label: 'Set Out', shortcut: '4' },
+  { id: 'layers',  icon: Layers,      label: 'Layers',  shortcut: '5' },
+  { id: 'export',  icon: Download,    label: 'Export',  shortcut: '6' },
+]
+
+// Map from category id to a display color for the glow accent
+const CATEGORY_ACCENT: Record<string, string> = {
+  recon:   '#3B82F6', // blue
+  capture: '#E8841A', // orange (brand)
+  compute: '#8B5CF6', // purple
+  setout:  '#10B981', // emerald
+  layers:  '#6366F1', // indigo
+  export:  '#F59E0B', // amber
+}
+
+// ---------------------------------------------------------------------------
+// Shared sub-components
+// ---------------------------------------------------------------------------
+
+function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
+  return (
+    <div className="flex items-center justify-between px-1 pt-3 pb-2 first:pt-1">
+      <span className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-semibold">
+        {children}
+      </span>
+      {hint && (
+        <kbd className="px-1 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-[8px] text-gray-600 font-mono">
+          {hint}
+        </kbd>
+      )}
+    </div>
+  )
+}
+
+function ToolBtn({ label, icon, isActive, onClick, shortcut }: {
+  label: string
+  icon: React.ReactNode
+  isActive: boolean
+  onClick: () => void
+  shortcut?: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={shortcut ? `${label} (${shortcut})` : label}
+      className={`
+        flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-200
+        w-[52px] h-[52px] shrink-0 relative
+        ${isActive
+          ? 'bg-[#E8841A]/10 border border-[#E8841A]/30 text-[#E8841A] shadow-[0_0_12px_rgba(232,132,26,0.15)]'
+          : 'bg-white/[0.02] border border-white/[0.06] text-gray-400 hover:bg-white/[0.04] hover:text-gray-300'}
+      `}
+    >
+      <span className="w-5 h-5">{icon}</span>
+      <span className="text-[10px] leading-tight font-medium">{label}</span>
+      {shortcut && (
+        <span className="absolute top-0.5 right-1 text-[7px] text-gray-600 font-mono opacity-50">
+          {shortcut}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function ActionBtn({ label, icon, isActive, onClick, danger, shortcut, disabled }: {
+  label: string
+  icon: React.ReactNode
+  isActive: boolean
+  onClick: () => void
+  danger?: boolean
+  shortcut?: string
+  disabled?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={shortcut ? `${label} (${shortcut})` : label}
+      className={`
+        flex items-center gap-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 text-xs font-medium
+        ${disabled
+          ? 'opacity-30 cursor-not-allowed text-gray-600 border border-transparent'
+          : danger && isActive
+            ? 'bg-red-500/10 border border-red-500/30 text-red-400'
+            : isActive
+              ? 'bg-[#E8841A]/10 border border-[#E8841A]/30 text-[#E8841A]'
+              : 'text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 border border-transparent'}
+      `}
+    >
+      <span className="w-4 h-4 shrink-0">{icon}</span>
+      <span className="flex-1 text-left">{label}</span>
+      {shortcut && !disabled && (
+        <kbd className="px-1 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-[8px] text-gray-600 font-mono">
+          {shortcut}
+        </kbd>
+      )}
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SurveyWorkflowBadge — Shows current workflow stage near top of map
+// ---------------------------------------------------------------------------
+
+const SurveyWorkflowBadge = memo(function SurveyWorkflowBadge({
+  stage,
+}: {
+  stage: DockCategory
+}) {
+  if (!stage) return null
+
+  const accent = CATEGORY_ACCENT[stage] ?? '#E8841A'
+  const label = CATEGORIES.find(c => c.id === stage)?.label ?? ''
+
+  return (
+    <div
+      className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+      role="status"
+      aria-label={`Workflow stage: ${label}`}
+    >
+      <div
+        className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-xl border border-white/[0.08] bg-[#0d0d14]/70"
+        style={{ boxShadow: `0 0 16px ${accent}20` }}
+      >
+        <div
+          className="w-2 h-2 rounded-full animate-pulse"
+          style={{ backgroundColor: accent }}
+        />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-300">
+          {label}
+        </span>
+      </div>
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// METARDU Watermark — Bottom-right corner of map
+// ---------------------------------------------------------------------------
+
+const MetarduWatermark = memo(function MetarduWatermark() {
+  return (
+    <div
+      className="absolute bottom-2 right-3 z-10 pointer-events-none select-none"
+      aria-hidden="true"
+    >
+      <span className="text-[10px] font-bold tracking-[0.25em] text-white/[0.06] uppercase">
+        METARDU
+      </span>
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// Panel: Recon (Navigate & Locate)
+// ---------------------------------------------------------------------------
+
+const ReconPanel = memo(function ReconPanel() {
+  const {
+    handleCoordSearch, fitToKenya, fitToDrawn,
+    gpsTracking, toggleGPS, featureCount,
+  } = useMapContext()
+  const [searchInput, setSearchInput] = useState('')
+
+  const handleSearch = useCallback(async () => {
+    if (!searchInput.trim()) return
+    await handleCoordSearch(searchInput)
+    setSearchInput('')
+  }, [searchInput, handleCoordSearch])
+
+  return (
+    <div className="space-y-1">
+      <SectionLabel hint="⌘F">Coordinate Search</SectionLabel>
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
+          placeholder="Coord, beacon, or parcel…"
+          className="w-full h-8 bg-white/[0.04] border border-white/[0.06] rounded-lg pl-8 pr-3 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#3B82F6]/40 transition-colors"
+        />
+      </div>
+
+      <SectionLabel hint="⌘⇧F">Fit View</SectionLabel>
+      <ActionBtn label="Fit to Kenya" icon={<Globe className="w-4 h-4" />} isActive={false} onClick={fitToKenya} shortcut="⌘⇧K" />
+      <ActionBtn label="Fit to Project" icon={<MapPinned className="w-4 h-4" />} isActive={false} onClick={fitToDrawn} shortcut="⌘⇧P" disabled={featureCount === 0} />
+
+      <SectionLabel hint="G">GPS</SectionLabel>
+      <ActionBtn
+        label={gpsTracking ? 'GPS Active' : 'Enable GPS'}
+        icon={<Navigation className="w-4 h-4" />}
+        isActive={gpsTracking}
+        onClick={toggleGPS}
+        shortcut="G"
+      />
+
+      <SectionLabel hint="B">Bookmarks</SectionLabel>
+      <BookmarkPanel />
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// Panel: Capture (Draw & Measure)
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Helper: Extract polygon vertices from an OL feature
+// ---------------------------------------------------------------------------
+
+function extractPolygonVertices(feature: any): SurveyPoint[] {
+  if (!feature) return []
+  try {
+    const geom = feature.getGeometry?.()
+    if (!geom) return []
+    const type = geom.getType?.()
+    if (type === 'Polygon') {
+      const coords = geom.getCoordinates?.()
+      const ring = coords?.[0] || []
+      // Drop the closing point if it duplicates the first
+      const vertices = ring.slice(0, -1).map((c: number[]) => ({
+        easting: c[0],
+        northing: c[1],
+      }))
+      return vertices
+    }
+    if (type === 'LineString') {
+      const coords = geom.getCoordinates?.() || []
+      return coords.map((c: number[]) => ({ easting: c[0], northing: c[1] }))
+    }
+  } catch {}
+  return []
+}
+
+// ---------------------------------------------------------------------------
+// Panel: Capture (Draw + Measure + Edit)
+// ---------------------------------------------------------------------------
+
+const CapturePanel = memo(function CapturePanel() {
+  const ctx = useMapContext()
+
+  // Extract vertices from the selected feature for topology checking
+  const polygonVertices: SurveyPoint[] = extractPolygonVertices(ctx.selectedFeature)
+
+  return (
+    <div className="space-y-1">
+      <SectionLabel hint="D">Draw</SectionLabel>
+      <div className="grid grid-cols-4 gap-1.5">
+        <ToolBtn label="Point" icon={<MapPin className="w-5 h-5" />} isActive={ctx.drawMode === 'Point'} onClick={() => ctx.toggleDraw('Point')} shortcut="1" />
+        <ToolBtn label="Line" icon={<PenTool className="w-5 h-5" />} isActive={ctx.drawMode === 'LineString'} onClick={() => ctx.toggleDraw('LineString')} shortcut="2" />
+        <ToolBtn label="Polygon" icon={<Hexagon className="w-5 h-5" />} isActive={ctx.drawMode === 'Polygon'} onClick={() => ctx.toggleDraw('Polygon')} shortcut="3" />
+        <ToolBtn label="Circle" icon={<Circle className="w-5 h-5" />} isActive={ctx.drawMode === 'Circle'} onClick={() => ctx.toggleDraw('Circle')} shortcut="4" />
+      </div>
+
+      <SectionLabel hint="M">Measure</SectionLabel>
+      <div className="grid grid-cols-2 gap-1.5">
+        <ToolBtn label="Distance" icon={<Ruler className="w-5 h-5" />} isActive={ctx.measureMode === 'distance'} onClick={() => ctx.toggleMeasure(ctx.measureMode === 'distance' ? 'none' : 'distance')} shortcut="M D" />
+        <ToolBtn label="Area" icon={<Hexagon className="w-5 h-5" />} isActive={ctx.measureMode === 'area'} onClick={() => ctx.toggleMeasure(ctx.measureMode === 'area' ? 'none' : 'area')} shortcut="M A" />
+      </div>
+      {ctx.measureResult && (
+        <div className="mt-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+          <span className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-semibold">Result</span>
+          <p className="text-sm text-white font-mono mt-1">{ctx.measureResult}</p>
+        </div>
+      )}
+
+      <SectionLabel hint="A">Annotations</SectionLabel>
+      <ActionBtn
+        label={ctx.showAnnotations ? 'Annotations On' : 'Bearing Annotations'}
+        icon={<Eye className="w-4 h-4" />}
+        isActive={ctx.showAnnotations}
+        onClick={ctx.toggleAnnotations}
+        shortcut="A"
+      />
+
+      <SectionLabel hint="E">Edit</SectionLabel>
+      <ActionBtn label="Modify Vertices" icon={<Edit3 className="w-4 h-4" />} isActive={ctx.editMode} onClick={ctx.toggleEdit} shortcut="V" />
+      <div className="flex gap-1.5">
+        <button onClick={ctx.undo} disabled={!ctx.canUndo} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.06] text-xs font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+          <Undo2 className="w-3.5 h-3.5" /> Undo
+        </button>
+        <button onClick={ctx.redo} disabled={!ctx.canRedo} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.06] text-xs font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+          <Redo2 className="w-3.5 h-3.5" /> Redo
+        </button>
+      </div>
+      <ActionBtn label="Delete Selected" icon={<Trash2 className="w-4 h-4" />} isActive={false} onClick={ctx.deleteSelected} danger shortcut="Del" />
+
+      {ctx.selectedFeature && (
+        <div className="mt-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-2">
+          <span className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-semibold">Feature</span>
+          <input
+            type="text"
+            value={ctx.featureName}
+            onChange={(e) => ctx.updateFeatureName(e.target.value)}
+            placeholder="Feature name…"
+            className="w-full h-7 bg-white/[0.04] border border-white/[0.06] rounded-md px-2 text-[11px] text-white placeholder-gray-600 focus:outline-none focus:border-[#E8841A]/30 transition-colors"
+          />
+        </div>
+      )}
+
+      {/* Topology Guardrail — real-time overlap/sliver/encroachment detection */}
+      {polygonVertices.length >= 3 && (
+        <>
+          <SectionLabel hint="T">Topology Check</SectionLabel>
+          <TopologyGuardrail vertices={polygonVertices} compact />
+        </>
+      )}
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// Panel: Compute (COGO)
+// ---------------------------------------------------------------------------
+
+const ComputePanel = memo(function ComputePanel() {
+  const {
+    hasTraverse, traverseParcelPreviewActive,
+    createParcelFromTraverse, confirmTraverseParcel, cancelTraverseParcel,
+  } = useMapContext()
+
+  return (
+    <div className="space-y-1">
+      <SectionLabel hint="C">COGO Computation</SectionLabel>
+      <CogoToolsPanel />
+
+      <SectionLabel hint="T">Traverse Readout</SectionLabel>
+      <CogoInfoPanel />
+
+      <SectionLabel hint="P">Traverse → Parcel</SectionLabel>
+      {hasTraverse && !traverseParcelPreviewActive ? (
+        <ActionBtn
+          label="Create Parcel from Traverse"
+          icon={<Hexagon className="w-4 h-4" />}
+          isActive={false}
+          onClick={createParcelFromTraverse}
+          shortcut="P"
+        />
+      ) : traverseParcelPreviewActive ? (
+        <div className="space-y-1.5">
+          <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400">
+            Preview active — confirm or cancel to continue
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              onClick={confirmTraverseParcel}
+              className="flex-1 py-1.5 rounded-lg bg-green-500/20 border border-green-500/30 text-[10px] font-semibold text-green-400 hover:bg-green-500/30 transition-colors"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={cancelTraverseParcel}
+              className="flex-1 py-1.5 rounded-lg bg-red-500/20 border border-red-500/30 text-[10px] font-semibold text-red-400 hover:bg-red-500/30 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[10px] text-gray-600 px-1">
+          Load a scheme with traverse data to create a parcel.
+        </p>
+      )}
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// Panel: Set Out (Stakeout & Field)
+// ---------------------------------------------------------------------------
+
+const SetOutPanel = memo(function SetOutPanel() {
+  const {
+    gpsTracking, toggleGPS, stakeoutActive, toggleStakeout,
+    exportFeatures,
+  } = useMapContext()
+
+  return (
+    <div className="space-y-1">
+      <SectionLabel hint="S">GPS Stakeout</SectionLabel>
+      <ActionBtn
+        label={stakeoutActive ? 'Stakeout Active' : 'Start Stakeout'}
+        icon={<Target className="w-4 h-4" />}
+        isActive={stakeoutActive}
+        onClick={toggleStakeout}
+        shortcut="S"
+      />
+      <StakeoutPanel />
+      <p className="text-[10px] text-gray-600 px-1 mt-2">
+        Set a target coordinate and navigate using GPS.
+      </p>
+
+      <SectionLabel hint="G">GPS Track</SectionLabel>
+      <ActionBtn
+        label={gpsTracking ? 'GPS Active' : 'Enable GPS'}
+        icon={<Navigation className="w-4 h-4" />}
+        isActive={gpsTracking}
+        onClick={toggleGPS}
+        shortcut="G"
+      />
+      <GpsTrackPanel />
+
+      <SectionLabel>Setting-Out Export</SectionLabel>
+      <ActionBtn
+        label="Export Setting-Out"
+        icon={<FileOutput className="w-4 h-4" />}
+        isActive={false}
+        onClick={() => exportFeatures('LandXML')}
+        shortcut="⌘⇧E"
+      />
+      <p className="text-[10px] text-gray-600 px-1">
+        Export setting-out data as LandXML for instrument upload.
+      </p>
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// Panel: Layers
+// ---------------------------------------------------------------------------
+
+const LayersDockPanel = memo(function LayersDockPanel() {
+  const {
+    basemap, toggleBasemap, setOfflineDialogOpen,
+    layerOpacity, handleOpacityChange,
+    showSchemeParcels, showSchemeBlocks, showSchemeBeacons,
+    toggleSchemeParcelVisibility, toggleSchemeBlockVisibility, toggleSchemeBeaconVisibility,
+    schemeLoaded, schemeParcelCount, schemeBlockCount, schemeBeaconCount,
+    zoomToScheme, removeScheme, loadSchemeData, schemeLoading,
+  } = useMapContext()
+
+  return (
+    <div className="space-y-1">
+      <SectionLabel hint="⌘B">Basemap</SectionLabel>
+      <div className="grid grid-cols-2 gap-1.5">
+        <ToolBtn label="OSM" icon={<Globe className="w-5 h-5" />} isActive={basemap === 'osm'} onClick={() => toggleBasemap('osm')} />
+        <ToolBtn label="Satellite" icon={<Satellite className="w-5 h-5" />} isActive={basemap === 'satellite'} onClick={() => toggleBasemap('satellite')} />
+        <ToolBtn label="Dark" icon={<Moon className="w-5 h-5" />} isActive={basemap === 'dark'} onClick={() => toggleBasemap('dark')} />
+        <ToolBtn label="Terrain" icon={<Mountain className="w-5 h-5" />} isActive={basemap === 'terrain'} onClick={() => toggleBasemap('terrain')} />
+      </div>
+
+      <SectionLabel>Opacity</SectionLabel>
+      <div className="flex items-center gap-2 px-1">
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={layerOpacity}
+          onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
+          className="flex-1 h-1 accent-[#E8841A] cursor-pointer"
+          aria-label="Layer opacity"
+        />
+        <span className="text-[10px] text-gray-500 font-mono w-8 text-right">
+          {Math.round(layerOpacity * 100)}%
+        </span>
+      </div>
+
+      <SectionLabel hint="⌘L">Scheme Layers</SectionLabel>
+      {!schemeLoaded ? (
+        <ActionBtn
+          label={schemeLoading ? 'Loading…' : 'Load Scheme Data'}
+          icon={<Layers className="w-4 h-4" />}
+          isActive={schemeLoading}
+          onClick={loadSchemeData}
+        />
+      ) : (
+        <div className="space-y-1">
+          <ActionBtn
+            label={`Parcels (${schemeParcelCount})`}
+            icon={<Hexagon className="w-4 h-4" />}
+            isActive={showSchemeParcels}
+            onClick={toggleSchemeParcelVisibility}
+          />
+          <ActionBtn
+            label={`Blocks (${schemeBlockCount})`}
+            icon={<Layers className="w-4 h-4" />}
+            isActive={showSchemeBlocks}
+            onClick={toggleSchemeBlockVisibility}
+          />
+          <ActionBtn
+            label={`Beacons (${schemeBeaconCount})`}
+            icon={<MapPin className="w-4 h-4" />}
+            isActive={showSchemeBeacons}
+            onClick={toggleSchemeBeaconVisibility}
+          />
+          <div className="flex gap-1.5 mt-1">
+            <button
+              onClick={zoomToScheme}
+              className="flex-1 py-1.5 rounded-lg border border-white/[0.06] text-[10px] text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all"
+            >
+              Zoom to Scheme
+            </button>
+            <button
+              onClick={removeScheme}
+              className="flex-1 py-1.5 rounded-lg border border-red-500/20 text-[10px] text-red-400 hover:bg-red-500/10 transition-all"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
+
+      <SectionLabel hint="⌘O">Offline</SectionLabel>
+      <ActionBtn label="Download Tiles" icon={<Download className="w-4 h-4" />} isActive={false} onClick={() => setOfflineDialogOpen(true)} shortcut="⌘O" />
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// Panel: Export
+// ---------------------------------------------------------------------------
+
+const ExportPanel = memo(function ExportPanel() {
+  const {
+    saveToProject, exportFeatures, clearDrawn, featureCount,
+    printMap, isPrinting,
+  } = useMapContext()
+
+  return (
+    <div className="space-y-1">
+      <SectionLabel hint="⌘S">Save</SectionLabel>
+      <ActionBtn label="Save to Project" icon={<Download className="w-4 h-4" />} isActive={false} onClick={saveToProject} shortcut="⌘S" />
+
+      <SectionLabel hint="⌘E">Export Format</SectionLabel>
+      <div className="grid grid-cols-3 gap-1 mt-1">
+        <button onClick={() => exportFeatures('GeoJSON')} className="px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all">GeoJSON</button>
+        <button onClick={() => exportFeatures('KML')} className="px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all">KML</button>
+        <button onClick={() => exportFeatures('DXF')} className="px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all">DXF</button>
+        <button onClick={() => exportFeatures('WKT')} className="px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all">WKT</button>
+        <button onClick={() => exportFeatures('LandXML')} className="col-span-2 px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-300 transition-all">LandXML</button>
+      </div>
+
+      <SectionLabel hint="⌘P">Print / PDF</SectionLabel>
+      <ActionBtn
+        label={isPrinting ? 'Generating…' : 'Print / PDF'}
+        icon={<Printer className="w-4 h-4" />}
+        isActive={isPrinting}
+        onClick={() => printMap()}
+        shortcut="⌘P"
+      />
+
+      {featureCount > 0 && (
+        <>
+          <SectionLabel>Clear</SectionLabel>
+          <ActionBtn
+            label={`Clear All (${featureCount})`}
+            icon={<Trash2 className="w-4 h-4" />}
+            isActive={false}
+            onClick={clearDrawn}
+            danger
+            shortcut="⌘⇧⌫"
+          />
+        </>
+      )}
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// Main: MapToolDock
+// ---------------------------------------------------------------------------
+
+export const MapToolDock = memo(function MapToolDock() {
+  const [activeCategory, setActiveCategory] = useState<DockCategory>(null)
+  const [drawerVisible, setDrawerVisible] = useState(false)
+  const {
+    drawMode, editMode, measureMode, gpsTracking, stakeoutActive,
+    hasTraverse, showAnnotations, isMobile,
+  } = useMapContext()
+
+  const toggleCategory = useCallback((cat: DockCategory) => {
+    setActiveCategory(prev => {
+      if (prev === cat) {
+        setDrawerVisible(false)
+        return null
+      }
+      setDrawerVisible(true)
+      return cat
+    })
+  }, [])
+
+  const closeDrawer = useCallback(() => {
+    setDrawerVisible(false)
+    // Delay category reset for slide-out animation
+    setTimeout(() => setActiveCategory(null), 200)
+  }, [])
+
+  // Keyboard shortcuts for category switching
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) return
+
+      const keyMap: Record<string, DockCategory> = {
+        '1': 'recon',
+        '2': 'capture',
+        '3': 'compute',
+        '4': 'setout',
+        '5': 'layers',
+        '6': 'export',
+      }
+
+      const cat = keyMap[e.key]
+      if (cat) {
+        e.preventDefault()
+        toggleCategory(cat)
+      }
+
+      if (e.key === 'Escape' && activeCategory) {
+        closeDrawer()
+      }
+    }
+
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [toggleCategory, closeDrawer, activeCategory])
+
+  const isCategoryActive = (cat: DockCategory): boolean => {
+    if (activeCategory === cat) return true
+    switch (cat) {
+      case 'recon': return gpsTracking
+      case 'capture': return drawMode !== 'none' || editMode || measureMode !== 'none' || showAnnotations
+      case 'compute': return hasTraverse
+      case 'setout': return stakeoutActive
+      case 'layers': return false
+      case 'export': return false
+      default: return false
+    }
+  }
+
+  const renderPanel = () => {
+    switch (activeCategory) {
+      case 'recon': return <ReconPanel />
+      case 'capture': return <CapturePanel />
+      case 'compute': return <ComputePanel />
+      case 'setout': return <SetOutPanel />
+      case 'layers': return <LayersDockPanel />
+      case 'export': return <ExportPanel />
+      default: return null
+    }
+  }
+
+  const activeAccent = activeCategory ? CATEGORY_ACCENT[activeCategory] : '#E8841A'
+
+  // ── Mobile layout ──
+  if (isMobile) {
+    return (
+      <>
+        {/* Workflow badge */}
+        <SurveyWorkflowBadge stage={activeCategory} />
+
+        {/* METARDU watermark */}
+        <MetarduWatermark />
+
+        {/* Bottom sheet drawer */}
+        {activeCategory && (
+          <div
+            className={`
+              fixed inset-x-0 bottom-0 z-40
+              bg-[#0d0d14]/95 backdrop-blur-2xl
+              border-t border-white/[0.08]
+              rounded-t-2xl
+              shadow-[0_-8px_40px_rgba(0,0,0,0.5)]
+              transition-transform duration-300 ease-out
+              ${drawerVisible ? 'translate-y-0' : 'translate-y-full'}
+            `}
+            style={{ maxHeight: '70vh' }}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-2 pb-1">
+              <div className="w-8 h-1 rounded-full bg-white/[0.12]" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pb-2 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: activeAccent }}
+                />
+                <span className="text-xs text-gray-300 font-semibold">
+                  {CATEGORIES.find(c => c.id === activeCategory)?.label}
+                </span>
+              </div>
+              <button
+                onClick={closeDrawer}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/[0.06] transition-colors"
+                aria-label="Close panel"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto px-3 pb-4 max-h-[55vh] custom-scrollbar">
+              {renderPanel()}
+            </div>
+          </div>
+        )}
+
+        {/* Bottom horizontal dock bar */}
+        <div className="fixed bottom-0 inset-x-0 z-50 flex items-center justify-center gap-1 px-2 py-2 bg-[#0d0d14]/90 backdrop-blur-2xl border-t border-white/[0.06]">
+          {CATEGORIES.map(cat => {
+            const Icon = cat.icon
+            const active = isCategoryActive(cat.id)
+            const isOpen = activeCategory === cat.id
+            const accent = CATEGORY_ACCENT[cat.id ?? ''] ?? '#E8841A'
+            return (
+              <button
+                key={cat.id}
+                onClick={() => toggleCategory(cat.id)}
+                title={cat.label}
+                aria-label={cat.label}
+                className={`
+                  flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all duration-200
+                  w-12 h-12 shrink-0 relative
+                  ${isOpen
+                    ? 'bg-white/[0.08] border border-white/[0.12] text-white'
+                    : active
+                      ? 'bg-white/[0.04] text-white/70'
+                      : 'text-gray-500 active:bg-white/[0.04]'}
+                `}
+                style={isOpen ? { boxShadow: `0 0 12px ${accent}30` } : undefined}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="text-[8px] leading-tight font-medium">{cat.label}</span>
+                {isOpen && (
+                  <div
+                    className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full"
+                    style={{ backgroundColor: accent }}
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </>
+    )
+  }
+
+  // ── Desktop layout ──
+  return (
+    <>
+      {/* Workflow badge */}
+      <SurveyWorkflowBadge stage={activeCategory} />
+
+      {/* METARDU watermark */}
+      <MetarduWatermark />
+
+      {/* Floating icon bar (left edge) */}
+      <div className="absolute top-3 left-3 z-20 flex flex-col gap-1">
+        {CATEGORIES.map(cat => {
+          const Icon = cat.icon
+          const active = isCategoryActive(cat.id)
+          const isOpen = activeCategory === cat.id
+          const accent = CATEGORY_ACCENT[cat.id ?? ''] ?? '#E8841A'
+          return (
+            <button
+              key={cat.id}
+              onClick={() => toggleCategory(cat.id)}
+              title={`${cat.label} (${cat.shortcut})`}
+              aria-label={cat.label}
+              className={`
+                w-10 h-10 lg:w-10 lg:h-10
+                min-w-[48px] min-h-[48px] lg:min-w-[40px] lg:min-h-[40px]
+                flex items-center justify-center rounded-full transition-all duration-200
+                backdrop-blur-xl
+                ${isOpen
+                  ? `bg-white/[0.10] border border-white/[0.15] text-white`
+                  : active
+                    ? 'bg-[#0d0d14]/60 border border-white/[0.08] text-white/70 hover:bg-[#0d0d14]/80'
+                    : 'bg-[#0d0d14]/40 border border-white/[0.04] text-gray-500 hover:bg-[#0d0d14]/60 hover:text-gray-300'}
+              `}
+              style={isOpen ? { boxShadow: `0 0 14px ${accent}30, inset 0 0 8px ${accent}10` } : undefined}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Sliding drawer panel */}
+      {activeCategory && (
+        <div
+          className={`
+            absolute top-3 left-14 z-20
+            w-[260px] sm:w-[280px]
+            max-h-[calc(100%-80px)]
+            bg-[#0d0d14]/90 backdrop-blur-2xl
+            border border-white/[0.06]
+            rounded-2xl
+            shadow-[0_8px_40px_rgba(0,0,0,0.4)]
+            flex flex-col overflow-hidden
+            transition-all duration-200 ease-out
+            ${drawerVisible
+              ? 'opacity-100 translate-x-0'
+              : 'opacity-0 -translate-x-3'}
+          `}
+          style={{ boxShadow: `0 8px 40px rgba(0,0,0,0.4), 0 0 20px ${activeAccent}08` }}
+        >
+          {/* Drawer header */}
+          <div className="h-10 flex items-center justify-between px-4 shrink-0 border-b border-white/[0.06]">
+            <div className="flex items-center gap-2">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: activeAccent }}
+              />
+              <span className="text-xs text-gray-300 font-semibold">
+                {CATEGORIES.find(c => c.id === activeCategory)?.label}
+              </span>
+            </div>
+            <button
+              onClick={closeDrawer}
+              className="w-6 h-6 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/[0.06] transition-colors"
+              aria-label="Close panel"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Drawer body */}
+          <div className="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
+            {renderPanel()}
+          </div>
+        </div>
+      )}
+    </>
+  )
+})

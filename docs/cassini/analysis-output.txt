@@ -1,0 +1,332 @@
+================================================================================
+KENYA CASSINI-TO-UTM COORDINATE CONVERSION FILE ANALYSIS
+================================================================================
+Generated: 2025
+Working directory: /home/z/my-project/upload/
+
+================================================================================
+1. NATIONAL FILE: UTM_Cassini_Cassini_UTM national.xls
+================================================================================
+Size: ~500KB
+Number of sheets: 7
+
+Sheet names and purposes:
+  [0] "step by step"         - 87x12   - Mathematical explanation by Hume F. Rainsford (p.199)
+  [1] "SAMPLE-UTM-CASSINI"   - 80x8    - Sample 4-point Helmert transformation (UTM→Cassini)
+  [2] "CASSINI-UTM (2)"      - 82x10   - Sample 4-point Helmert transformation (Cassini→UTM)
+  [3] "SHT CASN TO UTM (2)"  - 1421x9  - WHOLE-SHEET Cassini→UTM corners for ALL Kenya topo sheets
+  [4] "UTM TO CASSIN"        - 63x9    - Sample transformation data (UTM→Cassini, subset of sheet 6)
+  [5] "sheet corners"        - 383x10  - SUB-SHEET corner data for 75_3, 75_4, 88_2, 88_4
+  [6] "SHT UTM TO CASSIN"    - 1391x9  - WHOLE-SHEET UTM→Cassini corners for ALL Kenya topo sheets
+
+================================================================================
+2. SHEET 5 ("sheet corners") - SUB-SHEET CORNER DATA
+================================================================================
+Structure:
+  Row 0: blank
+  Row 1: Headers: ['', '', 'CASSINI (X)', 'CASSINI (Y)', 'UTM (E)', 'UTM (N)', '', '', '', '']
+  Row 2+: Data blocks
+
+Column Layout:
+  Col A: Topo sheet ID (e.g., "75_3", "88_2") - only on first row of each block
+  Col B: Sub-sheet number (1.0, 2.0, ... 25.0) - only on first row of each block
+  Col C: Cassini Easting (X) - in feet (Clarke 1858)
+  Col D: Cassini Northing (Y) - in feet (Clarke 1858)
+  Col E: UTM Easting (E) - in metres (Clarke 1880)
+  Col F: UTM Northing (N) - in metres (Clarke 1880)
+  Col G-J: Empty
+
+Data Block Format:
+  Each sub-sheet has 4 corner points arranged in this order:
+    Row 0: TopoID | SubSheet# | Corner1_X | Corner1_Y | Corner1_E | Corner1_N
+    Row 1:                      Corner2_X | Corner2_Y | Corner2_E | Corner2_N
+    Row 2:                      Corner3_X | Corner3_Y | Corner3_E | Corner3_N
+    Row 3:                      Corner4_X | Corner4_Y | Corner4_E | Corner4_N
+    Row 4: (blank separator)
+  
+  Corner arrangement appears to be:
+    Corner 1: Bottom-Left  (smallest E, largest N)
+    Corner 2: Bottom-Right (larger E, largest N)
+    Corner 3: Top-Right    (larger E, smaller N)
+    Corner 4: Top-Left     (smallest E, smaller N)
+
+Topo sheets covered (4 total):
+  75_3: 25 sub-sheets (1.0 through 25.0)
+  75_4: 1 sub-sheet (1.0 only - INCOMPLETE, only 2 corners instead of 4)
+  88_2: 25 sub-sheets (1.0 through 25.0)
+  88_4: 25 sub-sheets (1.0 through 25.0)
+
+Total sub-sheets: 76 (25+1+25+25)
+Total data rows: ~304 (76 × 4 corners)
+
+Sample data (75_3, sub-sheet 1.0):
+  SubSheet 1.0:
+    Cassini(-314.2, 452780.1)  → UTM(722546.7, 138234.8)
+    Cassini(17945.2, 452781.8) → UTM(728112.7, 138239.1)
+    Cassini(17947.0, 434642.5) → UTM(728117.0, 132709.5)
+    Cassini(-312.4, 434640.7)  → UTM(722550.8, 132705.4)
+
+================================================================================
+3. SHEET 3 ("SHT CASN TO UTM (2)") - WHOLE-SHEET CORNERS (Cassini→UTM)
+================================================================================
+Dimensions: 1421 rows × 9 columns
+Structure:
+  Row 0: Headers: ['', 'CASSINI (X)', 'CASSINI (Y)', 'UTM (E)', 'UTM (N)', '', '', '', '']
+  Row 1: blank
+  Row 2+: Data blocks (4 corners per topo sheet)
+
+Column Layout:
+  Col A: Topo sheet ID (e.g., "75_1", "88_2", "148_1") - only on first row of each block
+  Col B: Cassini Easting (X) - in feet
+  Col C: Cassini Northing (Y) - in feet
+  Col D: UTM Easting (E) - in metres
+  Col E: UTM Northing (N) - in metres
+  Col F: Cassini coords as comma-separated pair
+  Col G: (empty separator)
+  Col H: UTM coords as comma-separated pair
+  Col I: (empty separator)
+
+Data Block Format:
+  Each topo sheet has exactly 4 corner points followed by a separator row (comma values).
+
+Topo sheets covered (unique IDs): ~250+
+Includes ALL major series:
+  - 75 series: 75_1, 75_2, 75_3, 75_4
+  - 88 series: 88_1, 88_2, 88_3, 88_4, 88_4a
+  - 89 series: 89_1-89_4, 89_3a, 89_4a
+  - 90-93 series
+  - 101-109 series
+  - 115-122 series
+  - 130-138 series
+  - 144-146 series
+  - 148 series: 148_1, 148_II, 148_II_2, 148_III, 148_IV (5 entries using Roman numerals)
+  - 149-152 series
+  - 158-165 series
+  - 173-176 series
+  - 179-184 series
+  - 187-202 series
+
+148 Series entries in national file:
+  148_1:     Corners at Cassini(-182865.9,-363417.2) to (-182849.2,-454104.9)
+  148_II:    Corners at Cassini(-91574.9,-363407.3) to (-91567.5,-454089.0)
+  148_II_2:  Corners at Cassini(-91574.9,-363407.3) to (-91567.5,-454089.0)
+  148_III:   Corners at Cassini(-182848.4,-454102.1) to (-182828.2,-544786.5)
+  148_IV:    Corners at Cassini(-91576.5,-454089.0) to (-91559.2,-544770.8)
+
+================================================================================
+4. SHEET 6 ("SHT UTM TO CASSIN") - WHOLE-SHEET CORNERS (UTM→Cassini)
+================================================================================
+Dimensions: 1391 rows × 9 columns
+Same structure as Sheet 3 but reversed direction.
+Headers: ['', 'UTM (E)', 'UTM (N)', 'CASSINI (X)', 'CASSINI (Y)', '', '', '', '']
+Contains approximately the same topo sheets as Sheet 3 (slight differences).
+
+================================================================================
+5. INDIVIDUAL TOPO SHEET FILES
+================================================================================
+All 6 files follow an identical 3-sheet structure:
+
+File: CASSINI TO UTM 148_1 TOPO SHEET.xls
+File: CASSINI TO UTM 148_2 TOPO SHEET.xls
+File: CASSINI TO UTM 148_2_1 TOPO SHEET.xls
+File: CASSINI TO UTM 148_3 TOPO SHEET.xls
+File: CASSINI TO UTM 148_4 TOPO SHEET.xls
+File: CASSINI TO UTM 148_4_1 TOPO SHEET.xls
+
+Common Sheet Structure (3 sheets per file):
+
+=== Sheet 0: "Co-ordinates to be transformed" (158 rows × 6 cols) ===
+  Row 2: Title - "TRANSFORMATION OF CASSINI CO-ORDINATES TO UTM COORDINATES BY USE OF A FOUR PARAMETER"
+  Row 3: Topo sheet ID (e.g., "103/I and III", "148_2", "148_3", "148_4")
+  Row 4: Headers "UTM", "DOS", "CASSINI"
+  Rows 5-18: Projection parameters:
+    Row 5: "parameters" header
+    Row 6: flattening - Cassini: 0.003398355, UTM: 0.003407561378699334
+    Row 7: eccentricity
+    Row 8: semi major axis - Cassini: 20926348.0, UTM: 6378249.145
+    Row 9: semi minor axis
+    Row 10: spheroid - Cassini: Clarke 1858, UTM: Clarke 1880
+    Row 11: projection - UTM: TM
+    Row 12: unit - Cassini: Feet, UTM: metre
+    Row 13: Meridian of origin - Cassini: 37E, UTM: 39E
+    Row 14: Latitude of Origin - both: Equator
+    Row 15: Scale Factor origin - UTM: 0.9996
+    Row 16-17: False Origin - UTM: 500000W, 10000000S
+    Row 18: Datum - both: New(1960) arc
+  Rows 22-23: Column headers
+    Col A: Station name
+    Col B: Cassini Northings (feet)
+    Col C: Cassini Eastings (feet)
+    Col D: Conformal Cassini Eastings (computed correction applied)
+    Col E: UTM Northings (metres) - blank for non-control points
+    Col F: UTM Eastings (metres) - blank for non-control points
+  Row 24+: Station data
+    First 3 stations have UTM coordinates (control points used to derive parameters)
+    Remaining ~130 stations have only Cassini coordinates (to be transformed)
+
+  Conformal Easting formula (applied in col D):
+    x_c = x + x³/(6R²) + x⁵/(24R⁴) + ...
+    where R = sqrt(a*b) for the Clarke 1858 ellipsoid
+
+=== Sheet 1: "solution of four parameters" (40 rows × 8 cols) ===
+  Contains the matrix solution for the 6-parameter transformation (4+2 polynomial).
+  
+  Key rows:
+    Rows 3-8: L vector (6×1) - UTM coordinates of 3 control points (E,N pairs)
+    Rows 3-8: A matrix (6×6) - conformal Cassini coords [x, -y] + identity
+    Rows 13-18: AT matrix (6×6) - transpose of A
+    Rows 21-28: ATL vector (6×1) and ATA matrix (6×6)
+    Rows 31-38: Solution vector (6×1) and (ATA)⁻¹ matrix (6×6)
+    
+  Solution Parameters (rows 33-38):
+    Row 33: P (scale/rotation for eastings) ≈ 0.30483...
+    Row 34: Q (scale/rotation for northings) ≈ 0.00001... (very small)
+    Row 35: A (quadratic term) ≈ -2.5e-10
+    Row 36: B (quadratic term) ≈ 5e-11
+    Row 37: Cx (translation eastings) ≈ 277474-277484
+    Row 38: Cy (translation northings) ≈ 10000196-10000208
+
+  Transformation formula:
+    UTM_E = P * conformal_cass_E + Q * cassini_N + A * E² + B * E*N + Cx
+    UTM_N = P2 * conformal_cass_E + Q2 * cassini_N + A2 * E² + B2 * E*N + Cy
+    (where the full 6-parameter solution applies a 2nd-degree polynomial)
+
+  Actually the 4 parameters (P, Q, Cx, Cy) represent:
+    - P: scale factor for eastings (~0.3048, which is feet-to-metres conversion)
+    - Q: rotation/skew term (very small, ~0.00001)
+    - Cx: origin shift in eastings (~277475 metres)
+    - Cy: origin shift in northings (~10000198 metres)
+  
+  Plus 2 additional polynomial terms (A, B) for non-linearity correction.
+
+=== Sheet 2: "transformed coordinates" (94 rows × 5-6 cols) ===
+  Contains the transformed UTM coordinates for all stations.
+  
+  Headers (rows 2-3):
+    Col A: Station name
+    Col B: Cassini Northings (feet)
+    Col C: Cassini Eastings (feet)
+    Col D: Transformed UTM Northings (metres)
+    Col E: Transformed UTM Eastings (metres)
+    Col F: (sometimes present) Station name repeated
+
+================================================================================
+6. EXTRACTED PARAMETERS PER INDIVIDUAL FILE
+================================================================================
+
+File          | Label in R3   | Control Points         | P           | Q           | Cx          | Cy
+--------------|---------------|------------------------|-------------|-------------|-------------|-------------
+148_1         | 103/I and III | SKP209, 149S3, SKP208 | 0.30483433  | 4.86e-05    | 277474.60   | 10000198.35
+148_2         | 103/I and III | 149S3, SKP208, 134S3  | 0.30483332  | 1.03e-05    | 277484.83   | 10000197.00
+148_2_1       | 148_2         | SKP208, SKP216, SKP108 | 0.30485565  | 1.90e-05    | 277483.55   | 10000201.69
+148_3         | 148_3         | SKP208, SKP110, SKP216 | 0.30487306  | 2.26e-05    | 277482.62   | 10000205.91
+148_4         | 148_4         | 149S3, SKP208, 134S3  | 0.30483332  | 1.03e-05    | 277484.83   | 10000197.00
+148_4_1       | 148_4         | SKP209, SKP216, SKP39  | 0.30488488  | 2.19e-05    | 277482.62   | 10000207.77
+
+Key observations:
+  - 148_2 and 148_4 have IDENTICAL parameters (same control points: 149S3, SKP208, 134S3)
+  - P ≈ 0.3048 for all (consistent with feet-to-metres conversion factor)
+  - Q is very small but non-zero (rotation correction)
+  - Cx ≈ 277475-277485 (origin easting shift)
+  - Cy ≈ 10000197-10000208 (origin northing shift, ≈ equator + shift)
+  - A, B are tiny (~1e-10 to 1e-11) representing second-order polynomial corrections
+
+File          | A              | B              | Stations Transformed
+--------------|----------------|----------------|---------------------
+148_1         | -2.14e-10      | 5.45e-11       | ~130 stations
+148_2         | -2.51e-10      | 5.16e-11       | ~130 stations
+148_2_1       | -2.36e-10      | 2.74e-11       | ~130 stations
+148_3         | -2.32e-10      | 8.82e-12       | ~130 stations
+148_4         | -2.51e-10      | 5.16e-11       | ~130 stations
+148_4_1       | -2.35e-10      | -8.62e-12      | ~130 stations
+
+================================================================================
+7. PDF FILE: TS09E_thomas_gicira_9237.pdf
+================================================================================
+Title: "Polynomial Transformation Of Cassini Coordinates To UTM Coordinates On The Excel Spreadsheet"
+Author: T.G. Gacoki - Kenya National Highways Authority
+Published: FIG Congress 2018, Istanbul, Turkey, May 6–11, 2018
+Pages: 12
+
+Content Summary:
+  - Academic paper describing the exact methodology used in the XLS files
+  - Explains the 12-parameter polynomial transformation (2nd degree)
+  - Uses 7 common points (6 minimum) for least squares solution
+  - Three interconnected Excel worksheets approach (same as XLS files)
+  - Cassini→UTM conversion: conformal correction applied to Cassini eastings first
+  - General formula: X = Ao + A1*x + A2*y + A3*x² + A4*xy + A5*y²
+  - Includes conformal correction formula: x_c = x + x³/(6R²) + x⁵/(24R⁴)
+  - Uses Clarke 1858 (Cassini) and Clarke 1880 (UTM) ellipsoids
+  - Cassini origin: 37°E, Equator; UTM origin: 39°E, Equator, SF=0.9996
+  - 7-parameter (Helmert) alternative mentioned using ellipsoidal coordinates
+
+  The paper is a FIG conference proceeding that documents the spreadsheet methodology.
+  It does NOT contain specific topo sheet data or parameters - it's a methodology guide.
+
+================================================================================
+8. COMPLETE TOPO SHEET COVERAGE IN NATIONAL FILE
+================================================================================
+
+Sheet 3 (SHT CASN TO UTM) covers these topo sheet series:
+  75:  75_1, 75_2, 75_3, 75_4
+  88:  88_1, 88_2, 88_3, 88_4, 88_4a
+  89:  89_1, 89_2, 89_3, 89_3a, 89_4, 89_4a
+  90:  90_1, 90_2, 90_3, 90_4
+  91:  91_1, 91_2, 91_3, 91_4
+  92:  92_1, 92_2, 92_3, 92_4
+  93:  93_1, 93_2, 93_3, 93_4
+  101-109: Full sets plus some with 'a' suffixes
+  115-122: Full sets
+  130-138: Full sets (131-1 variant)
+  144-146: Partial sets
+  148: 148_1, 148_II, 148_II_2, 148_III, 148_IV (Roman numeral naming)
+  149: 149_I, 149_III, 149_IV
+  150-152: Partial sets
+  158-165: Partial sets
+  173-176: Full sets
+  179-184: Mostly full sets
+  187-202: Partial sets with Roman/Arabic numeral mixing
+
+Total unique topo sheet IDs: ~250+
+
+The national file DOES include 148 series sheets (5 entries: 148_1, 148_II, 148_II_2, 148_III, 148_IV)
+BUT these are whole-sheet corners only (4 corners each), NOT sub-sheet corners.
+
+Sub-sheet corners are ONLY available for: 75_3, 75_4, 88_2, 88_4
+
+================================================================================
+9. PROGRAMMATIC PARSING GUIDE
+================================================================================
+
+To parse sub-sheet corners from Sheet 5 ("sheet corners"):
+  1. Skip row 0 (blank), row 1 (headers)
+  2. Scan column A for non-empty values → this is the topo sheet ID
+  3. Scan column B for non-empty values → this is the sub-sheet number
+  4. The 4 data rows following the header row are the corners:
+     Row +0: Col C=Corner1_E, Col D=Corner1_N, Col E=Corner1_CasX, Col F=Corner1_CasY
+     Row +1: Col C=Corner2_E, Col D=Corner2_N, Col E=Corner2_CasX, Col F=Corner2_CasY
+     Row +2: Col C=Corner3_E, Col D=Corner3_N, Col E=Corner3_CasX, Col F=Corner3_CasY
+     Row +3: Col C=Corner4_E, Col D=Corner4_N, Col E=Corner4_CasX, Col F=Corner4_CasY
+  5. Skip the blank separator row
+  6. Repeat
+
+To parse whole-sheet corners from Sheet 3 ("SHT CASN TO UTM (2)"):
+  1. Skip row 0 (headers), row 1 (blank)
+  2. Scan column A for non-empty values → topo sheet ID
+  3. Next 4 rows: 4 corners
+     Col B=Cassini_X, Col C=Cassini_Y, Col D=UTM_E, Col E=UTM_N
+  4. Skip separator row (contains commas)
+  5. Repeat
+
+To parse whole-sheet corners from Sheet 6 ("SHT UTM TO CASSIN"):
+  1. Same as Sheet 3 but columns swapped:
+     Col B=UTM_E, Col C=UTM_N, Col D=Cassini_X, Col E=Cassini_Y
+
+To parse individual XLS files:
+  1. Sheet 0: Get control points (rows 24-26, columns E,F have UTM coords)
+  2. Sheet 1: Get parameters from rows 33-38 (P,Q,A,B,Cx,Cy)
+  3. Sheet 2: Get transformed coordinates (rows 4+)
+
+================================================================================
+END OF ANALYSIS
+================================================================================

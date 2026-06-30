@@ -1,0 +1,128 @@
+import { NextResponse } from 'next/server'
+import { apiHandler, apiSuccess } from '@/lib/apiHandler'
+import { db } from '@/lib/db'
+import { getAuthUser } from '@/lib/auth/session'
+import { validateBody, fieldRecordSchema } from '@/lib/validation/apiValidation'
+
+export const dynamic = 'force-dynamic'
+
+/**
+ * GET /api/field-records
+ *
+ * Search historic field records.
+ * Query params:
+ *   - q: text search (F/R number, locality, surveyor)
+ *   - easting, northing, radius: proximity search (meters)
+ *   - county: filter by county
+ *   - survey_year: filter by year
+ *   - limit: max results (default 50)
+ */
+export const GET = apiHandler(
+  { auth: true, rateLimit: { max: 120, windowMs: 60000 } },
+  async (req, ctx) => {
+    const user = await getAuthUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const url = new URL(req.url)
+    const q = url.searchParams.get('q') || ''
+    const easting = url.searchParams.get('easting')
+    const northing = url.searchParams.get('northing')
+    const radius = parseInt(url.searchParams.get('radius') || '5000', 10)
+    const county = url.searchParams.get('county')
+    const surveyYear = url.searchParams.get('survey_year')
+    const limit = Math.min(100, parseInt(url.searchParams.get('limit') || '50', 10))
+
+    // Proximity search
+    if (easting && northing) {
+      const e = parseFloat(easting)
+      const n = parseFloat(northing)
+      if (!isFinite(e) || !isFinite(n)) {
+        return NextResponse.json({ error: 'Invalid easting/northing' }, { status: 400 })
+      }
+      const result = await db.query(
+        `SELECT * FROM find_nearby_field_records($1, $2, $3, $4)`,
+        [e, n, radius, limit],
+      )
+      return apiSuccess({ records: result.rows, searchType: 'proximity' })
+    }
+
+    // Text search
+    let whereClause = 'WHERE 1=1'
+    const params: unknown[] = []
+    let paramIdx = 1
+
+    if (q) {
+      whereClause += ` AND search_vector @@ plainto_tsquery('english', $${paramIdx})`
+      params.push(q)
+      paramIdx++
+    }
+    if (county) {
+      whereClause += ` AND county ILIKE $${paramIdx}`
+      params.push(`%${county}%`)
+      paramIdx++
+    }
+    if (surveyYear) {
+      whereClause += ` AND survey_year = $${paramIdx}`
+      params.push(parseInt(surveyYear))
+      paramIdx++
+    }
+    params.push(limit)
+
+    const result = await db.query(
+      `SELECT id, fr_number, fr_type, easting, northing, county, sub_county, locality,
+              registry_block, sheet_number, survey_type, surveyor_name, survey_year,
+              parcel_numbers, description, source, is_verified, contributed_at
+       FROM field_records ${whereClause}
+       ORDER BY survey_year DESC NULLS LAST, fr_number ASC
+       LIMIT $${paramIdx}`,
+      params,
+    )
+
+    return apiSuccess({ records: result.rows, searchType: 'text', total: result.rows.length })
+  },
+)
+
+/**
+ * POST /api/field-records
+ * Contribute a new field record to the vault.
+ */
+export const POST = apiHandler(
+  { auth: true, rateLimit: { max: 30, windowMs: 60000 } },
+  async (req, ctx) => {
+    const user = await getAuthUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const body = validateBody(ctx.body, fieldRecordSchema)
+    const frNumber = body.frNumber
+    const easting = body.easting
+    const northing = body.northing
+
+    if (!frNumber) return NextResponse.json({ error: 'F/R number is required' }, { status: 400 })
+    if (!isFinite(easting) || !isFinite(northing)) {
+      return NextResponse.json({ error: 'Valid easting and northing required' }, { status: 400 })
+    }
+
+    const result = await db.query(
+      `INSERT INTO field_records (fr_number, fr_type, easting, northing, county, sub_county, locality,
+        registry_block, sheet_number, survey_type, surveyor_name, survey_year, parcel_numbers,
+        description, source, contributed_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       RETURNING id, fr_number, contributed_at`,
+      [
+        frNumber,
+        body.frType || 'cadastral',
+        easting, northing,
+        body.county || null, body.subCounty || null, body.locality || null,
+        body.registryBlock || null, body.sheetNumber || null,
+        body.surveyType || null, body.surveyorName || null,
+        body.surveyYear || null,
+        body.parcelNumbers || null,
+        body.description || null,
+        'crowdsourced',
+        user.id,
+      ],
+    )
+
+    return apiSuccess({ record: result.rows[0], message: 'F/R record added to vault' })
+  },
+)

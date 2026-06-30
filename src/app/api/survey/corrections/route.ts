@@ -1,0 +1,63 @@
+/**
+ * Corrections API Route
+ * 
+ * Apply corrections to a single observation or batch of observations.
+ * Returns corrected values with full audit trail.
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  processObservation,
+  processObservations,
+  generateCorrectionReport,
+  KENYA_DEFAULT_CONFIG,
+  type PipelineConfig,
+  type RawObservation,
+} from '@/lib/survey/pipeline/correction-pipeline';
+import { CorrectionsSchema } from '@/lib/validation/apiSchemas';
+
+export async function POST(request: NextRequest) {
+  try {
+    const rawBody = await request.json().catch(() => null)
+    const parsed = CorrectionsSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.issues },
+        { status: 422 }
+      )
+    }
+
+    const { observation, observations, config, report } = parsed.data
+
+    const pipelineConfig = { ...KENYA_DEFAULT_CONFIG, ...config } as PipelineConfig
+
+    if (observation) {
+      // Single observation
+      const result = processObservation(observation as RawObservation, pipelineConfig)
+      return NextResponse.json({ result })
+    }
+
+    if (observations && observations.length > 0) {
+      // Batch observations
+      const results = processObservations(observations as RawObservation[], pipelineConfig)
+
+      if (report) {
+        const correctionReport = generateCorrectionReport(results)
+        return NextResponse.json({ results, report: correctionReport })
+      }
+
+      return NextResponse.json({ results })
+    }
+
+    return NextResponse.json(
+      { error: 'Provide observation or observations' },
+      { status: 400 }
+    )
+  } catch (error) {
+    console.error('Corrections API error:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Correction failed' },
+      { status: 500 }
+    );
+  }
+}
