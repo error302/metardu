@@ -8,6 +8,7 @@ import {
   LayoutDashboard, Users, ShieldCheck, CreditCard,
   Settings2, Activity, ChevronLeft, BarChart3,
   Map, Building2, HelpCircle, LayoutTemplate, Boxes,
+  RoadIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OutdoorModeToggle } from '@/components/shared/OutdoorModeToggle'
@@ -28,6 +29,7 @@ interface NavItem {
 const userNavItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/cadastral-workflow', label: 'Cadastral', icon: Compass },
+  { href: '/engineering-workflow', label: 'Engineering', icon: RoadIcon },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/process', label: 'Corrections', icon: Wrench },
   { href: '/tools/all', label: 'Toolbox', icon: Boxes },

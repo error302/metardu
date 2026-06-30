@@ -24,6 +24,8 @@ const signoutMutationSchema = z.object({}).passthrough()
 const searchablePages = [
   // Cadastral workflow
   { category: 'Cadastral', group: 'Workflow', href: '/cadastral-workflow', labelKey: 'Cadastral Workflow' },
+  // Engineering workflow
+  { category: 'Engineering', group: 'Workflow', href: '/engineering-workflow', labelKey: 'Engineering Workflow' },
   // Tools - Calculations
   { category: 'Tools', group: 'Calculations', href: '/tools/distance', labelKey: 'tools.distance' },
   { category: 'Tools', group: 'Calculations', href: '/tools/bearing', labelKey: 'tools.bearingCalc' },
