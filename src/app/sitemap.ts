@@ -19,6 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/tools/as-built-deviation',
     '/tools/scale-factor',
     '/tools/site-calibration',
+    '/tools/orthometric-height',
     '/engineering-workflow',
     '/topographic-workflow',
     '/tools/all',

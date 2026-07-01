@@ -30,6 +30,7 @@ const searchablePages = [
   { category: 'Engineering', group: 'As-built', href: '/tools/as-built-deviation', labelKey: 'As-built Deviation Guard' },
   { category: 'Geodesy', group: 'Scale Factor', href: '/tools/scale-factor', labelKey: 'Combined Scale Factor' },
   { category: 'Geodesy', group: 'Calibration', href: '/tools/site-calibration', labelKey: 'Site Calibration' },
+  { category: 'Geodesy', group: 'Heights', href: '/tools/orthometric-height', labelKey: 'Orthometric Height' },
   // Engineering workflow
   { category: 'Engineering', group: 'Workflow', href: '/engineering-workflow', labelKey: 'Engineering Workflow' },
   // Topographic workflow
