@@ -55,9 +55,36 @@ export class QueryBuilder<T = Record<string, unknown>> {
   private upsertConflict: string = 'id'
   private returningColumns: string = '*'
 
+  /**
+   * Validate a SQL identifier (column or table name) against a strict
+   * allowlist pattern. Prevents SQL injection via column-name
+   * interpolation — e.g. an attacker posting
+   * `{"column":"x\" = \"y\" OR \"user_id"}` to /api/db would otherwise
+   * break out of the quoted identifier and inject arbitrary SQL.
+   *
+   * Allowed: letters, digits, underscores. Optionally a single dot
+   * for schema-qualified names (e.g. "public.users"). Rejects
+   * anything containing quotes, semicolons, spaces, or special chars.
+   *
+   * @throws {Error} if the identifier contains anything outside
+   *   [A-Za-z0-9_.]
+   */
+  private validateIdentifier(name: string, kind: 'column' | 'table'): string {
+    if (typeof name !== 'string' || name.length === 0) {
+      throw new Error(`Invalid ${kind} identifier: empty or non-string`)
+    }
+    // Allow schema.table (one dot max), alphanumeric + underscore only
+    if (!/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/.test(name)) {
+      throw new Error(
+        `Invalid ${kind} identifier "${name}": only letters, digits, underscores, and an optional schema-qualifying dot are allowed`
+      )
+    }
+    return name
+  }
+
   constructor(pool: Pool, table: string) {
     this.pool = pool
-    this.table = table
+    this.table = this.validateIdentifier(table, 'table')
   }
 
   select(columns: string = '*', options?: { count?: string; head?: boolean }): this {
@@ -83,7 +110,7 @@ export class QueryBuilder<T = Record<string, unknown>> {
   upsert(data: Record<string, unknown> | Record<string, unknown>[], options?: { onConflict?: string }): this {
     this.operation = 'upsert'
     this.insertPayload = data
-    if (options?.onConflict) this.upsertConflict = options.onConflict
+    if (options?.onConflict) this.upsertConflict = this.validateIdentifier(options.onConflict, 'column')
     return this
   }
 
@@ -94,82 +121,85 @@ export class QueryBuilder<T = Record<string, unknown>> {
 
   // ponytail: filter values are `unknown` — the builder just serializes them to SQL params
   eq(column: string, value: unknown): this {
-    this.filters.push({ column, op: '=', value })
+    this.filters.push({ column: this.validateIdentifier(column, 'column'), op: '=', value })
     return this
   }
 
   neq(column: string, value: unknown): this {
-    this.filters.push({ column, op: '!=', value })
+    this.filters.push({ column: this.validateIdentifier(column, 'column'), op: '!=', value })
     return this
   }
 
   gt(column: string, value: unknown): this {
-    this.filters.push({ column, op: '>', value })
+    this.filters.push({ column: this.validateIdentifier(column, 'column'), op: '>', value })
     return this
   }
 
   gte(column: string, value: unknown): this {
-    this.filters.push({ column, op: '>=', value })
+    this.filters.push({ column: this.validateIdentifier(column, 'column'), op: '>=', value })
     return this
   }
 
   lt(column: string, value: unknown): this {
-    this.filters.push({ column, op: '<', value })
+    this.filters.push({ column: this.validateIdentifier(column, 'column'), op: '<', value })
     return this
   }
 
   lte(column: string, value: unknown): this {
-    this.filters.push({ column, op: '<=', value })
+    this.filters.push({ column: this.validateIdentifier(column, 'column'), op: '<=', value })
     return this
   }
 
   like(column: string, pattern: string): this {
-    this.filters.push({ column, op: 'LIKE', value: pattern })
+    this.filters.push({ column: this.validateIdentifier(column, 'column'), op: 'LIKE', value: pattern })
     return this
   }
 
   ilike(column: string, pattern: string): this {
-    this.filters.push({ column, op: 'ILIKE', value: pattern })
+    this.filters.push({ column: this.validateIdentifier(column, 'column'), op: 'ILIKE', value: pattern })
     return this
   }
 
   in(column: string, values: unknown[]): this {
-    this.filters.push({ column, op: 'IN', value: values })
+    this.filters.push({ column: this.validateIdentifier(column, 'column'), op: 'IN', value: values })
     return this
   }
 
   is(column: string, value: unknown): this {
+    const col = this.validateIdentifier(column, 'column')
     if (value === null) {
-      this.filters.push({ column, op: 'IS', value: null })
+      this.filters.push({ column: col, op: 'IS', value: null })
     } else {
-      this.filters.push({ column, op: 'IS NOT', value: null })
+      this.filters.push({ column: col, op: 'IS NOT', value: null })
     }
     return this
   }
 
   not(column: string, op: string, value: unknown): this {
-    if (op === 'eq') this.filters.push({ column, op: '!=', value })
-    else if (op === 'is') this.filters.push({ column, op: 'IS NOT', value })
+    const col = this.validateIdentifier(column, 'column')
+    if (op === 'eq') this.filters.push({ column: col, op: '!=', value })
+    else if (op === 'is') this.filters.push({ column: col, op: 'IS NOT', value })
     else if (op === 'in') {
-      // ponytail: NOT_IN is now in the FilterOp union — no `as any` needed
-      this.filters.push({ column, op: 'NOT_IN', value })
+      this.filters.push({ column: col, op: 'NOT_IN', value })
     }
     return this
   }
 
   or(filter: string): this {
+    // NOTE: `filter` is a raw SQL fragment. Callers must not interpolate
+    // user input into it. This is the one escape hatch for complex OR
+    // conditions; use sparingly and never with untrusted column names.
     this.orFilters.push(filter)
     return this
   }
 
   contains(column: string, value: unknown): this {
-    // For JSONB contains or array contains
-    this.filters.push({ column, op: '@>', value })
+    this.filters.push({ column: this.validateIdentifier(column, 'column'), op: '@>', value })
     return this
   }
 
   order(column: string, options?: { ascending?: boolean }): this {
-    this.orderClauses.push({ column, ascending: options?.ascending ?? true })
+    this.orderClauses.push({ column: this.validateIdentifier(column, 'column'), ascending: options?.ascending ?? true })
     return this
   }
 
@@ -374,7 +404,7 @@ export class QueryBuilder<T = Record<string, unknown>> {
     const rows = Array.isArray(this.insertPayload) ? this.insertPayload : [this.insertPayload]
     if (rows.length === 0) return { data: null, error: null }
 
-    const columns = Object.keys(rows[0])
+    const columns = Object.keys(rows[0]).map((c) => this.validateIdentifier(c, 'column'))
     const params: unknown[] = []
     const valuesList: string[] = []
 
@@ -402,8 +432,9 @@ export class QueryBuilder<T = Record<string, unknown>> {
     const setClauses: string[] = []
 
     for (const [key, value] of Object.entries(this.updatePayload)) {
+      const col = this.validateIdentifier(key, 'column')
       params.push(value)
-      setClauses.push(`"${key}" = $${params.length}`)
+      setClauses.push(`"${col}" = $${params.length}`)
     }
 
     let sql = `UPDATE "${this.table}" SET ${setClauses.join(', ')}`

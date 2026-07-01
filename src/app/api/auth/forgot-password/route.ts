@@ -57,9 +57,9 @@ export async function POST(req: NextRequest) {
     })
 
     if (!result.success && result.error === 'Email service not configured') {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
-      const resetUrl = `${appUrl.replace(/\/+$/, '')}/auth/reset-password?token=${encodeURIComponent(token)}`
-      console.warn('[forgot-password] SMTP not configured. Reset link:', resetUrl)
+      // SECURITY: Do NOT log the reset URL or token. Anyone with log
+      // access could hijack the account. Log only a masked hint.
+      console.warn('[forgot-password] SMTP not configured. Reset token generated (length: %d).', token.length)
     }
 
     return okResponse()

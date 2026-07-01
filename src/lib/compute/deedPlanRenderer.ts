@@ -8,6 +8,25 @@ import { getBeaconSymbol } from './beaconSymbols'
  */
 
 // ============================================================
+// SECURITY: XML escaping for user-supplied strings
+// ============================================================
+// All user-supplied strings (surveyNumber, parcelNumber, county, etc.)
+// MUST pass through escapeXml() before being interpolated into SVG.
+// Without this, a malicious surveyor entering
+// `</text><script>fetch('/api/db',{method:'POST',body:...})</script><text>`
+// as a parcel number would execute arbitrary JS in every viewer's browser
+// (stored XSS via deed plan SVG rendered with dangerouslySetInnerHTML).
+function escapeXml(s: string): string {
+  if (typeof s !== 'string') return ''
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+// ============================================================
 // LAYOUT CONSTANTS (A1 Landscape: 841 x 594mm)
 // ============================================================
 const VB_W = 841
@@ -169,11 +188,11 @@ function buildTitleBlock(input: DeedPlanInput): string {
   <rect x="${x+2}" y="${y+2}" width="${w-4}" height="${TITLE_H-4}" fill="none" stroke="black" stroke-width="0.3"/>
   <text x="${x + w/2}" y="${y + 21}" class="tm" text-anchor="middle">DEED PLAN</text>
   <line x1="${x + w/2 - 85}" y1="${y + 24}" x2="${x + w/2 + 85}" y2="${y + 24}" stroke="black" stroke-width="0.6"/>
-  <text x="${x+10}" y="${y+12}" class="st">Survey No: <tspan font-weight="bold">${input.surveyNumber}</tspan></text>
+  <text x="${x+10}" y="${y+12}" class="st">Survey No: <tspan font-weight="bold">${escapeXml(input.surveyNumber)}</tspan></text>
   <text x="${x+10}" y="${y+22}" class="st">Drawing No: <tspan font-weight="bold">${input.drawingNumber}</tspan></text>
-  <text x="${x+10}" y="${y+31}" class="st">Parcel No: <tspan font-weight="bold">${input.parcelNumber}</tspan></text>
-  <text x="${x+w-10}" y="${y+12}" class="st" text-anchor="end">County: <tspan font-weight="bold">${input.county}</tspan></text>
-  <text x="${x+w-10}" y="${y+22}" class="st" text-anchor="end">Locality: <tspan font-weight="bold">${input.locality}</tspan></text>
+  <text x="${x+10}" y="${y+31}" class="st">Parcel No: <tspan font-weight="bold">${escapeXml(input.parcelNumber)}</tspan></text>
+  <text x="${x+w-10}" y="${y+12}" class="st" text-anchor="end">County: <tspan font-weight="bold">${escapeXml(input.county)}</tspan></text>
+  <text x="${x+w-10}" y="${y+22}" class="st" text-anchor="end">Locality: <tspan font-weight="bold">${escapeXml(input.locality)}</tspan></text>
   <text x="${x+w-10}" y="${y+31}" class="st" text-anchor="end">Date: <tspan font-weight="bold">${input.surveyDate}</tspan></text>`
 }
 
@@ -313,25 +332,25 @@ function buildAbuttals(
   const nPts = byN.slice(0, third)
   const nCx = nPts.reduce((a,p)=>a+toX(p.easting),0)/nPts.length
   const nCy = Math.min(...nPts.map(p=>toY(p.northing)))
-  s += `<text x="${nCx.toFixed(1)}" y="${(nCy-12).toFixed(1)}" class="at" text-anchor="middle">N: ${input.abuttalNorth}</text>\n`
+  s += `<text x="${nCx.toFixed(1)}" y="${(nCy-12).toFixed(1)}" class="at" text-anchor="middle">N: ${escapeXml(input.abuttalNorth)}</text>\n`
 
   // South abuttal
   const sPts = byN.slice(-third)
   const sCx = sPts.reduce((a,p)=>a+toX(p.easting),0)/sPts.length
   const sCy = Math.max(...sPts.map(p=>toY(p.northing)))
-  s += `<text x="${sCx.toFixed(1)}" y="${(sCy+15).toFixed(1)}" class="at" text-anchor="middle">S: ${input.abuttalSouth}</text>\n`
+  s += `<text x="${sCx.toFixed(1)}" y="${(sCy+15).toFixed(1)}" class="at" text-anchor="middle">S: ${escapeXml(input.abuttalSouth)}</text>\n`
 
   // East abuttal
   const ePts = byE.slice(0, third)
   const eCx = Math.max(...ePts.map(p=>toX(p.easting)))
   const eCy = ePts.reduce((a,p)=>a+toY(p.northing),0)/ePts.length
-  s += `<g transform="translate(${(eCx+14).toFixed(1)},${eCy.toFixed(1)}) rotate(-90)"><text class="at" text-anchor="middle">E: ${input.abuttalEast}</text></g>\n`
+  s += `<g transform="translate(${(eCx+14).toFixed(1)},${eCy.toFixed(1)}) rotate(-90)"><text class="at" text-anchor="middle">E: ${escapeXml(input.abuttalEast)}</text></g>\n`
 
   // West abuttal
   const wPts = byE.slice(-third)
   const wCx = Math.min(...wPts.map(p=>toX(p.easting)))
   const wCy = wPts.reduce((a,p)=>a+toY(p.northing),0)/wPts.length
-  s += `<g transform="translate(${(wCx-14).toFixed(1)},${wCy.toFixed(1)}) rotate(-90)"><text class="at" text-anchor="middle">W: ${input.abuttalWest}</text></g>\n`
+  s += `<g transform="translate(${(wCx-14).toFixed(1)},${wCy.toFixed(1)}) rotate(-90)"><text class="at" text-anchor="middle">W: ${escapeXml(input.abuttalWest)}</text></g>\n`
 
   return s
 }
@@ -389,10 +408,10 @@ function buildRightPanel(
 
   // --- PARCEL INFORMATION ---
   s += secHdr(le, y, 'PARCEL INFORMATION'); y += 12
-  s += row(le, y, 'Parcel No:', input.parcelNumber); y += 10
+  s += row(le, y, 'Parcel No:', escapeXml(input.parcelNumber)); y += 10
   s += row(le, y, 'Reg. Section:', input.registrationSection); y += 10
-  s += row(le, y, 'Locality:', input.locality); y += 10
-  s += row(le, y, 'County:', input.county); y += 10
+  s += row(le, y, 'Locality:', escapeXml(input.locality)); y += 10
+  s += row(le, y, 'County:', escapeXml(input.county)); y += 10
   if (input.titleDeedNumber) { s += row(le, y, 'Title Deed:', input.titleDeedNumber); y += 10 }
   if (input.firNumber) { s += row(le, y, 'FIR No:', input.firNumber); y += 10 }
   if (input.registryMapSheet) { s += row(le, y, 'Map Sheet:', input.registryMapSheet); y += 10 }
@@ -400,10 +419,10 @@ function buildRightPanel(
 
   // --- ABUTTALS ---
   s += secHdr(le, y, 'ABUTTALS'); y += 11
-  s += row(le, y, 'North:', input.abuttalNorth); y += 9
-  s += row(le, y, 'South:', input.abuttalSouth); y += 9
-  s += row(le, y, 'East:', input.abuttalEast); y += 9
-  s += row(le, y, 'West:', input.abuttalWest); y += 10
+  s += row(le, y, 'North:', escapeXml(input.abuttalNorth)); y += 9
+  s += row(le, y, 'South:', escapeXml(input.abuttalSouth)); y += 9
+  s += row(le, y, 'East:', escapeXml(input.abuttalEast)); y += 9
+  s += row(le, y, 'West:', escapeXml(input.abuttalWest)); y += 10
   s += hr(le, y, re); y += 6
 
   // --- AREA ---
@@ -473,9 +492,9 @@ function buildRightPanel(
 
   // --- SURVEYOR DETAILS ---
   s += secHdr(le, y, 'LICENSED SURVEYOR'); y += 11
-  s += row(le, y, 'Name:', input.surveyorName); y += 9
-  s += row(le, y, 'ISK No:', input.iskNumber); y += 9
-  s += row(le, y, 'Firm:', input.firmName); y += 9
+  s += row(le, y, 'Name:', escapeXml(input.surveyorName)); y += 9
+  s += row(le, y, 'ISK No:', escapeXml(input.iskNumber)); y += 9
+  s += row(le, y, 'Firm:', escapeXml(input.firmName)); y += 9
   if (input.firmAddress) { s += row(le, y, 'Address:', input.firmAddress); y += 9 }
   if (input.drawnBy) { s += row(le, y, 'Drawn By:', input.drawnBy); y += 9 }
   if (input.checkedBy) { s += row(le, y, 'Checked By:', input.checkedBy); y += 9 }

@@ -1,12 +1,23 @@
 import db from '@/lib/db'
+import { randomBytes } from 'crypto'
 import type { CPDRecord, CPDCertificate, CPDActivity } from '@/types/cpd'
 import { CPD_POINTS } from '@/types/cpd'
 
+/**
+ * Generate a cryptographically secure verification code for CPD certificates.
+ *
+ * SECURITY: Uses crypto.randomBytes (not Math.random) because CPD codes
+ * verify statutory compliance — predictable codes would allow forging
+ * continuing-professional-development hours. Math.random() is not
+ * cryptographically secure (predictions are possible).
+ */
 function generateVerificationCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const bytes = randomBytes(12)
   let code = ''
   for (let i = 0; i < 12; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length))
+    // bytes[i] is 0-255; modulo chars.length maps to a valid char index
+    code += chars.charAt(bytes[i] % chars.length)
   }
   return code
 }
