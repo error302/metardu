@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { requireProjectOwnership } from '@/lib/auth/ownership'
 import {
   queryAuditEntries,
   verifyChain,
@@ -37,7 +37,6 @@ export const GET = apiHandler(
   { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const { id } = ctx.params
-    const userId = ctx.userId
     const url = new URL(req.url)
     const entityType = url.searchParams.get('entityType') as AuditEntityType | null
     const entityId = url.searchParams.get('entityId')
@@ -45,21 +44,9 @@ export const GET = apiHandler(
     const newestFirst = url.searchParams.get('newestFirst') === 'true'
     const summaryOnly = url.searchParams.get('summary') === 'true'
 
-    // IDOR protection — verify the project belongs to the requesting user
-    const ownershipResult = await db.query(
-      'SELECT user_id FROM projects WHERE id = $1',
-      [id]
-    )
-    if (ownershipResult.rows.length === 0) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    const projectUserId = ownershipResult.rows[0].user_id
-    if (projectUserId && projectUserId !== userId) {
-      return NextResponse.json(
-        { error: 'Forbidden: project belongs to another user', code: 'FORBIDDEN' },
-        { status: 403 }
-      )
-    }
+    // IDOR protection — verify project ownership
+    const ownership = await requireProjectOwnership(id, ctx.userId)
+    if (!ownership.ok) return ownership.error!
 
     if (summaryOnly) {
       const summary = await getChainSummary({ projectId: id })

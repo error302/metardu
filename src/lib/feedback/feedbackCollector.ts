@@ -153,24 +153,9 @@ export async function captureScreenshot(): Promise<string | null> {
   return null
 }
 
-/** Log feedback to console (fallback when no backend is available) */
+/** Log feedback to console (fallback when no backend is available).
+ *  SECURITY: Does NOT log email or full user agent — those are PII.
+ *  Logs only type, id, message length, and timestamp. */
 export function logFeedbackToConsole(entry: FeedbackEntry) {
-  console.group(`[Clip] METARDU Feedback [${entry.type.toUpperCase()}]`)
-  console.log('ID:', entry.id)
-  console.log('Message:', entry.message)
-  console.log('Email:', entry.email || '(none)')
-  console.log('URL:', entry.pageUrl)
-  console.log('Time:', entry.timestamp)
-  if (entry.metadata) {
-    console.log('Device:', entry.metadata.userAgent.slice(0, 80))
-    console.log('Screen:', `${entry.metadata.screenWidth}x${entry.metadata.screenHeight}`)
-  }
-  if (entry.errorEntries?.length) {
-    console.log('Errors:', entry.errorEntries.length)
-    entry.errorEntries.forEach((e, i) => console.log(`  [${i}]`, e.message))
-  }
-  if (entry.screenshotDataUrl) {
-    console.log('Screenshot: captured (base64 JPEG)')
-  }
-  console.groupEnd()
+  console.warn(`[METARDU Feedback] type=${entry.type} id=${entry.id} msgLen=${entry.message.length} ts=${entry.timestamp}`)
 }
