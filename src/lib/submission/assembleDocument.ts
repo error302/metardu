@@ -202,6 +202,31 @@ export async function generateDocument(
       if (surveyType !== 'cadastral') {
         throw new Error('Deed Plan is only available for cadastral surveys.');
       }
+
+      // Statutory Validation Gate — refuse to produce a deed plan that
+      // ArdhiSasa will reject. See src/lib/validation/statutoryGate.ts.
+      const { loadGateInputForProject, mergeGateInput } = await import('../validation/statutoryGateLoader');
+      const { runStatutoryGate, formatGateResult } = await import('../validation/statutoryGate');
+      const profile = await fetchSurveyorProfile(projectId);
+      const loadedInput = await loadGateInputForProject(projectId);
+      if (loadedInput) {
+        const gateInput = mergeGateInput(loadedInput, {
+          surveyor: {
+            name: profile.surveyorName || loadedInput.surveyor.name,
+            licenseNumber: profile.iskNumber || loadedInput.surveyor.licenseNumber,
+          },
+          submissionType: 'mutation',
+        });
+        const gateResult = runStatutoryGate(gateInput);
+        if (!gateResult.passed) {
+          const blockCount = gateResult.summary.block;
+          const detail = formatGateResult(gateResult);
+          throw new Error(
+            `Statutory validation failed — ${blockCount} blocking violation(s) prevent deed plan generation.\n\n${detail}`
+          );
+        }
+      }
+
       const { generateDeedPlan } = await import('../generators/deedPlan');
       buffer = await generateDeedPlan(projectId);
       fileName = `deed-plan-${projectId}.pdf`;
