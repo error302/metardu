@@ -31,3 +31,21 @@ if (typeof globalThis.Response === 'undefined') {
     async json() { return JSON.parse(this._body) }
   } as any
 }
+
+// Polyfill crypto.subtle for jsdom environment (used by auditHash.ts SHA-256)
+// Node 18+ has crypto.subtle via node:crypto/webcrypto
+if (typeof globalThis.crypto === 'undefined' || !globalThis.crypto.subtle) {
+  const { webcrypto } = require('crypto')
+  Object.defineProperty(globalThis, 'crypto', {
+    value: webcrypto,
+    writable: true,
+    configurable: true,
+  })
+}
+
+// Polyfill TextEncoder/TextDecoder for jsdom (used by auditHash.ts)
+if (typeof globalThis.TextEncoder === 'undefined') {
+  const { TextEncoder, TextDecoder } = require('util')
+  globalThis.TextEncoder = TextEncoder
+  globalThis.TextDecoder = TextDecoder
+}

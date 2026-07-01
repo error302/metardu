@@ -231,6 +231,30 @@ export async function generateDocument(
       buffer = await generateDeedPlan(projectId);
       fileName = `deed-plan-${projectId}.pdf`;
       mimeType = 'application/pdf';
+
+      // Audit chain — record that a deed plan was generated.
+      // This is the tamper-evident log entry that proves the plan
+      // left the system in a known state. See src/lib/audit/auditLog.ts.
+      try {
+        const { appendAuditEntry } = await import('../audit/auditLog');
+        await appendAuditEntry({
+          projectId,
+          userId: undefined, // populated by caller from session if available
+          userName: profile.surveyorName || undefined,
+          entityType: 'document',
+          entityId: `deed-plan/${projectId}`,
+          action: 'generate',
+          payload: {
+            new: { fileName, mimeType, sizeBytes: buffer.length },
+            reason: 'Deed plan generated after statutory gate passed',
+            metadata: { gateRuleVersion: '1.1.0' },
+          },
+        });
+      } catch (auditErr) {
+        // Audit failure should NOT block the document generation —
+        // the surveyor needs their plan. Log and continue.
+        console.warn('[assembleDocument] Audit chain append failed:', auditErr);
+      }
       break;
     }
     case 'working-diagram': {

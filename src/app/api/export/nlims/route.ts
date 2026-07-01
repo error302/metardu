@@ -53,6 +53,35 @@ export const POST = apiHandler(
 
     const { payload, validation: val } = await exportToNLIMS(params)
 
+    // Audit chain — record the NLIMS submission.
+    // Tamper-evident proof that this payload left the system.
+    try {
+      const { appendAuditEntry } = await import('@/lib/audit/auditLog')
+      await appendAuditEntry({
+        projectId: undefined, // NLIMS payload may span projects
+        userId: undefined, // populated from session in future
+        userName: params.surveyor.name || undefined,
+        entityType: 'document',
+        entityId: `nlims/${payload.submissionId}`,
+        action: 'submit',
+        payload: {
+          new: {
+            submissionType: params.submissionType,
+            parcelCount: params.resultingParcels.length,
+            integrityHash: payload.integrity.hash,
+          },
+          reason: 'NLIMS/ArdhiSasa submission generated',
+          metadata: {
+            gateRuleVersion: gateResult.ruleVersion,
+            gatePassed: gateResult.passed,
+          },
+        },
+      })
+    } catch (auditErr) {
+      // Don't block the export on audit failure
+      console.warn('[nlims/export] Audit chain append failed:', auditErr)
+    }
+
     return apiSuccess({
       payload,
       validation: val,
