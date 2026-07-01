@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { requireProjectOwnership } from '@/lib/auth/ownership'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -50,7 +51,7 @@ interface GeoJSONFeature {
   }
 }
 
-export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, _ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('project_id')
 
@@ -58,6 +59,11 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   if (!queryParsed.success) {
     return NextResponse.json({ error: 'Invalid project_id', details: queryParsed.error.issues }, { status: 400 })
   }
+
+  // IDOR protection — verify project ownership before returning
+  // sensitive cadastral data (blocks, parcels, traverse coordinates)
+  const ownership = await requireProjectOwnership(projectId!, ctx.userId)
+  if (!ownership.ok) return ownership.error!
 
   // Get all blocks for the project
   const { rows: blocks } = await db.query(

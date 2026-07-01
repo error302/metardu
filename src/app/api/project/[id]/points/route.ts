@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { requireProjectOwnership } from '@/lib/auth/ownership'
 
 /**
  * GET /api/project/[id]/points
@@ -10,6 +11,8 @@ import { db } from '@/lib/db'
  * Fetch all survey points for a project, ordered by point name.
  * Used by the deed plan generator to auto-populate boundary points
  * from the project's traverse adjustment.
+ *
+ * SECURITY: Verifies project ownership before returning data.
  *
  * Returns: { data: SurveyPoint[] }
  *   where SurveyPoint = {
@@ -20,6 +23,9 @@ export const GET = apiHandler(
   { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
   async (_req, ctx) => {
     const { id } = ctx.params
+
+    const ownership = await requireProjectOwnership(id, ctx.userId)
+    if (!ownership.ok) return ownership.error!
 
     const { rows } = await db.query(
       `SELECT id, point_name, easting, northing, elevation, code, description, is_control

@@ -2,12 +2,68 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
+import { createHmac } from 'crypto'
+
+/**
+ * Verify Twilio webhook signature.
+ *
+ * Twilio sends an X-Twilio-Signature header that is the HMAC-SHA1 of
+ * the full URL + sorted POST parameters, using the Twilio auth token
+ * as the key. Without this check, anyone who guesses the webhook URL
+ * can spam the bot with compute requests.
+ *
+ * https://www.twilio.com/docs/usage/webhooks/webhooks-security
+ */
+function verifyTwilioSignature(req: NextRequest, body: string): boolean {
+  const authToken = process.env.TWILIO_AUTH_TOKEN
+  // If no auth token configured, skip verification (dev mode).
+  // In production, TWILIO_AUTH_TOKEN MUST be set or the webhook refuses all requests.
+  if (!authToken) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[whatsapp] TWILIO_AUTH_TOKEN not set — refusing all webhook requests in production')
+      return false
+    }
+    return true // dev mode — allow without verification
+  }
+
+  const signature = req.headers.get('x-twilio-signature')
+  if (!signature) return false
+
+  // Build the string to sign: URL + sorted params
+  const url = req.url
+  const params = new URLSearchParams(body)
+  const sortedKeys = Array.from(params.keys()).sort()
+  let data = url
+  for (const key of sortedKeys) {
+    data += key + (params.get(key) || '')
+  }
+
+  const expected = createHmac('sha1', authToken).update(Buffer.from(data)).digest('base64')
+  // Constant-time comparison to prevent timing attacks
+  if (expected.length !== signature.length) return false
+  let diff = 0
+  for (let i = 0; i < expected.length; i++) {
+    diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i)
+  }
+  return diff === 0
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const body = await req.text()
+
+    // SECURITY: Verify Twilio signature to prevent unauthorized requests
+    if (!verifyTwilioSignature(req, body)) {
+      return new NextResponse(
+        `<?xml version="1.0" encoding="UTF-8"?>
+<Response><Message>Unauthorized</Message></Response>`,
+        { status: 401, headers: { 'Content-Type': 'text/xml' } }
+      )
+    }
+
     const identifier = getClientIdentifier(req)
     const { allowed, remaining } = await rateLimit(identifier, 30, 60000)
-    
+
     if (!allowed) {
       return new NextResponse(
         `<?xml version="1.0" encoding="UTF-8"?>
@@ -16,7 +72,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const body = await req.text()
     const params = new URLSearchParams(body)
     
     const message = params.get('Body')?.trim().toLowerCase()

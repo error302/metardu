@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { requireProjectOwnership } from '@/lib/auth/ownership'
 
 /**
  * GET /api/project/[id]/deed-plans
@@ -10,6 +11,8 @@ import { db } from '@/lib/db'
  * Fetch all saved deed plans for a project, most recent first.
  * Used by the mutation plan generator to auto-populate boundary points
  * from the project's existing deed plan data.
+ *
+ * SECURITY: Verifies project ownership before returning data.
  *
  * Returns: { data: DeedPlanRecord[] }
  *   where DeedPlanRecord = {
@@ -21,6 +24,9 @@ export const GET = apiHandler(
   { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
   async (_req, ctx) => {
     const { id } = ctx.params
+
+    const ownership = await requireProjectOwnership(id, ctx.userId)
+    if (!ownership.ok) return ownership.error!
 
     const { rows } = await db.query(
       `SELECT id, survey_number, parcel_number, locality, area_sqm, scale,

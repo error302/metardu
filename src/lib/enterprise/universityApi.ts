@@ -4,6 +4,8 @@
  * Educational institution access to METARDU
  */
 
+import { randomBytes } from 'crypto'
+
 export interface UniversityLicense {
   id: string
   universityName: string
@@ -150,8 +152,10 @@ export function generateAPIKey(
   licenseId: string,
   name: string
 ): APIKey {
-  const key = `gnv_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`
-  
+  // SECURITY: Use crypto.randomBytes (not Math.random) — API keys grant
+  // data access. Math.random() is predictable and would allow key forgery.
+  const key = `gnv_${randomBytes(32).toString('hex')}`
+
   return {
     id: `key-${Date.now()}`,
     key,

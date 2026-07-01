@@ -5,6 +5,8 @@ import { apiSuccess, apiError } from '@/lib/api/response'
 import { join } from 'path'
 import { writeFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
+import { randomUUID } from 'crypto'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,6 +40,34 @@ const DEFAULT_CONFIG = {
   primaryColor: '#0EA5E9',
 }
 
+/**
+ * Sanitize custom CSS to prevent XSS / dangerous resource loads.
+ *
+ * Strips:
+ *   - <script> tags and javascript: URLs
+ *   - @import statements (can load external CSS with embedded JS)
+ *   - expression() and url() with javascript: protocol
+ *   - HTML tags (CSS should not contain < or >)
+ *
+ * This is defense-in-depth — the CSS is rendered in a <style> tag,
+ * not as HTML, so most XSS vectors don't apply. But @import and
+ * expression() can still load external resources or execute IE-only
+ * scripts. Strip them.
+ */
+function sanitizeCss(css: string): string {
+  return css
+    // Remove HTML tags (defensive — CSS shouldn't contain < or >)
+    .replace(/<[^>]*>/g, '')
+    // Remove @import statements
+    .replace(/@import\s+[^;]+;/gi, '')
+    // Remove javascript: URLs in url()
+    .replace(/url\s*\(\s*['"]?\s*javascript:/gi, 'url(')
+    // Remove expression() (IE-only, but strip anyway)
+    .replace(/expression\s*\(/gi, '(')
+    // Limit length to prevent abuse
+    .slice(0, 50000)
+}
+
 // ---------------------------------------------------------------------------
 // GET – fetch current user's white-label config (or defaults)
 // ---------------------------------------------------------------------------
@@ -56,47 +86,84 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 })
 
 // ---------------------------------------------------------------------------
-// PUT – upsert config fields (JSON body, no file upload)
+// PUT – upsert config fields (JSON body, validated via Zod)
 // ---------------------------------------------------------------------------
 
-export const PUT = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const body = ctx.body as Record<string, unknown>
-
-  const enabled = Boolean(body.enabled)
-  const organizationName = String(body.organizationName ?? 'METARDU').slice(0, 120)
-  const logoUrl = body.logoUrl ?? null
-  const faviconUrl = body.faviconUrl ?? null
-  const primaryColor = String(body.primaryColor ?? '#0EA5E9').slice(0, 7)
-  const customCss = body.customCss ?? null
-  const customDomain = body.customDomain ?? null
-  const emailFooter = body.emailFooter ?? null
-
-  const { rows } = await db.query(
-    `INSERT INTO white_label_configs
-       (user_id, enabled, organization_name, logo_url, favicon_url, primary_color, custom_css, custom_domain, email_footer)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-     ON CONFLICT (user_id) DO UPDATE SET
-       enabled        = EXCLUDED.enabled,
-       organization_name = EXCLUDED.organization_name,
-       logo_url       = EXCLUDED.logo_url,
-       favicon_url    = EXCLUDED.favicon_url,
-       primary_color  = EXCLUDED.primary_color,
-       custom_css     = EXCLUDED.custom_css,
-       custom_domain  = EXCLUDED.custom_domain,
-       email_footer   = EXCLUDED.email_footer,
-       updated_at     = NOW()
-     RETURNING *`,
-    [ctx.userId, enabled, organizationName, logoUrl, faviconUrl, primaryColor, customCss, customDomain, emailFooter]
-  )
-
-  return NextResponse.json(apiSuccess(rowToConfig(rows[0])))
+const WhiteLabelConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  organizationName: z.string().max(120).optional(),
+  logoUrl: z.string().url().nullable().optional(),
+  faviconUrl: z.string().url().nullable().optional(),
+  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  customCss: z.string().max(50000).nullable().optional(),
+  customDomain: z.string().max(253).regex(/^[a-zA-Z0-9.-]+$/).nullable().optional(),
+  emailFooter: z.string().max(2000).nullable().optional(),
 })
+
+export const PUT = apiHandler(
+  { auth: true, schema: WhiteLabelConfigSchema, rateLimit: { max: 60, windowMs: 60000 } },
+  async (req, ctx) => {
+    const body = ctx.body as z.infer<typeof WhiteLabelConfigSchema>
+
+    const enabled = Boolean(body.enabled)
+    const organizationName = String(body.organizationName ?? 'METARDU').slice(0, 120)
+    const logoUrl = body.logoUrl ?? null
+    const faviconUrl = body.faviconUrl ?? null
+    const primaryColor = String(body.primaryColor ?? '#0EA5E9').slice(0, 7)
+    // SECURITY: sanitize customCss before storing — strips @import,
+    // javascript: URLs, expression(), and HTML tags
+    const customCss = body.customCss ? sanitizeCss(body.customCss) : null
+    const customDomain = body.customDomain ?? null
+    const emailFooter = body.emailFooter ?? null
+
+    const { rows } = await db.query(
+      `INSERT INTO white_label_configs
+         (user_id, enabled, organization_name, logo_url, favicon_url, primary_color, custom_css, custom_domain, email_footer)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT (user_id) DO UPDATE SET
+         enabled        = EXCLUDED.enabled,
+         organization_name = EXCLUDED.organization_name,
+         logo_url       = EXCLUDED.logo_url,
+         favicon_url    = EXCLUDED.favicon_url,
+         primary_color  = EXCLUDED.primary_color,
+         custom_css     = EXCLUDED.custom_css,
+         custom_domain  = EXCLUDED.custom_domain,
+         email_footer   = EXCLUDED.email_footer,
+         updated_at     = NOW()
+       RETURNING *`,
+      [ctx.userId, enabled, organizationName, logoUrl, faviconUrl, primaryColor, customCss, customDomain, emailFooter]
+    )
+
+    return NextResponse.json(apiSuccess(rowToConfig(rows[0])))
+  }
+)
 
 // ---------------------------------------------------------------------------
 // POST – file upload (logo or favicon via FormData)
 // ---------------------------------------------------------------------------
 
 const UPLOAD_BASE = join(process.cwd(), 'public', 'uploads', 'white-label')
+
+/**
+ * Allowed file extensions for white-label uploads.
+ * SECURITY: SVG is intentionally EXCLUDED because Next.js serves
+ * .svg files with Content-Type: image/svg+xml, which browsers
+ * will execute as HTML/JS. An attacker uploading a malicious SVG
+ * would get script execution on the white-labelled domain.
+ */
+const ALLOWED_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico'])
+
+/**
+ * Allowed MIME types — must match the extension whitelist.
+ */
+const ALLOWED_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/x-icon',
+  'image/vnd.microsoft.icon',
+])
 
 export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ctx) => {
   const formData = await request.formData()
@@ -111,18 +178,31 @@ export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ct
     return NextResponse.json(apiError('Missing or invalid type field (must be "logo" or "favicon")'), { status: 400 })
   }
 
-  // Validate MIME type
-  const allowedMimePrefixes = ['image/', 'image/svg+xml', 'image/x-icon']
-  if (!allowedMimePrefixes.some((p) => file.type.startsWith(p))) {
-    return NextResponse.json(apiError('Only image files are allowed'), { status: 400 })
+  // Validate MIME type — strict allowlist, no SVG
+  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    return NextResponse.json(
+      apiError('Invalid file type. Allowed: PNG, JPEG, GIF, WebP, ICO. SVG is not allowed for security reasons.'),
+      { status: 400 }
+    )
   }
 
-  // Derive file extension from original name
-  const originalName = file.name || 'upload'
-  const ext = originalName.includes('.') ? originalName.split('.').pop() : 'png'
+  // SECURITY: derive extension from MIME type (not from user-supplied filename).
+  // Then generate a UUID filename — never trust user-supplied names.
+  const extByMime: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/x-icon': 'ico',
+    'image/vnd.microsoft.icon': 'ico',
+  }
+  const ext = extByMime[file.type]
+  if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
+    return NextResponse.json(apiError('Could not determine safe file extension'), { status: 400 })
+  }
 
-  const timestamp = Date.now()
-  const fileName = `${ctx.userId}_${timestamp}.${ext}`
+  // UUID filename — prevents path traversal and filename collisions
+  const fileName = `${ctx.userId}_${randomUUID()}.${ext}`
   const filePath = join(UPLOAD_BASE, fileName)
 
   // Ensure upload directory exists
@@ -137,7 +217,8 @@ export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ct
   const dbColumn = type === 'logo' ? 'logo_url' : 'favicon_url'
   const fileKeyColumn = type === 'logo' ? 'logo_file_key' : 'favicon_file_key'
 
-  // Upsert the URL into the config row
+  // Upsert the URL into the config row.
+  // dbColumn is from a hardcoded set above, not user input — safe to interpolate.
   await db.query(
     `INSERT INTO white_label_configs (user_id, ${dbColumn}, ${fileKeyColumn})
      VALUES ($1, $2, $3)

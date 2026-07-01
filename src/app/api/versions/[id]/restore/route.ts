@@ -4,6 +4,12 @@ export const dynamic = 'force-dynamic'
  * /api/versions/[id]/restore — Restore an entity to a previous version
  * POST: restore entity to a specific snapshot
  *
+ * SECURITY:
+ *   - IDOR protection: verifies the version's project belongs to the
+ *     requesting user before restoring.
+ *   - SQL injection protection: validates column names from the snapshot
+ *     against a strict identifier pattern before interpolating into UPDATE.
+ *
  * IMPORTANT: This creates a NEW version (doesn't delete history).
  * The restored state is captured as the latest version for full traceability.
  */
@@ -11,14 +17,31 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { requireVersionOwnership } from '@/lib/auth/ownership'
 import { z } from 'zod'
 
 const RestoreSchema = z.object({
   version_id: z.string().uuid('version_id must be a valid UUID'),
 })
 
+/**
+ * Validate a SQL identifier (column or table name) against a strict
+ * allowlist pattern. Prevents SQL injection via column-name interpolation
+ * in the snapshot restore path.
+ */
+function validateIdentifier(name: string): string {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new Error(`Invalid SQL identifier: "${name}"`)
+  }
+  return name
+}
+
 export const POST = apiHandler({ auth: true, schema: RestoreSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { version_id } = ctx.body as z.infer<typeof RestoreSchema>
+
+  // IDOR protection — verify the version belongs to the requesting user
+  const ownership = await requireVersionOwnership(version_id, ctx.userId)
+  if (!ownership.ok) return ownership.error!
 
   // Get the version to restore
   const { rows: versionRows } = await db.query(
@@ -67,7 +90,9 @@ export const POST = apiHandler({ auth: true, schema: RestoreSchema, rateLimit: {
     )
   }
 
-  // Build the UPDATE from the snapshot, excluding immutable fields
+  // Build the UPDATE from the snapshot, excluding immutable fields.
+  // SECURITY: validate each column name to prevent SQL injection via
+  // crafted snapshot keys.
   const immutableFields = new Set(['id', 'created_at', 'user_id', 'created_by'])
   const updates: string[] = []
   const values: unknown[] = []
@@ -75,7 +100,8 @@ export const POST = apiHandler({ auth: true, schema: RestoreSchema, rateLimit: {
 
   for (const [key, value] of Object.entries(snapshot)) {
     if (immutableFields.has(key)) continue
-    updates.push(`${key} = $${paramIdx}`)
+    const safeCol = validateIdentifier(key)
+    updates.push(`"${safeCol}" = $${paramIdx}`)
     values.push(value)
     paramIdx++
   }

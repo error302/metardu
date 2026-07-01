@@ -3,9 +3,14 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { requireProjectOwnership } from '@/lib/auth/ownership'
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
+
+  // IDOR protection — verify project ownership
+  const ownership = await requireProjectOwnership(id, ctx.userId)
+  if (!ownership.ok) return ownership.error!
 
   const { rows } = await db.query(
     `SELECT * FROM project_fieldbook_entries

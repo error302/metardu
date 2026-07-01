@@ -2,12 +2,17 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Corrections API Route
- * 
+ *
  * Apply corrections to a single observation or batch of observations.
  * Returns corrected values with full audit trail.
+ *
+ * SECURITY: Requires authentication. Previously unauthenticated —
+ * pure math so no data leak, but unauthenticated CPU-heavy work
+ * was a DoS vector.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/requireAuth';
 import {
   processObservation,
   processObservations,
@@ -19,6 +24,10 @@ import {
 import { CorrectionsSchema } from '@/lib/validation/apiSchemas';
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Require authentication to prevent DoS via unauthenticated compute
+  const { error } = await requireAuth()
+  if (error) return error
+
   try {
     const rawBody = await request.json().catch(() => null)
     const parsed = CorrectionsSchema.safeParse(rawBody)

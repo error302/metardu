@@ -2,25 +2,23 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Area Computation API Route
+ *
+ * SECURITY: Requires authentication. Previously unauthenticated —
+ * pure math so no data leak, but unauthenticated CPU-heavy work
+ * was a DoS vector.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { computeAreaByShoelace, computeAreaByDMD, convertArea, type AreaResult } from '@/lib/survey/area/computation';
-import type { Point } from '@/lib/survey/cogo/engine';
-import { AreaOperationSchema } from '@/lib/validation/apiSchemas';
+import { NextResponse } from 'next/server'
+import type { z } from 'zod'
+import { apiHandler } from '@/lib/apiHandler'
+import { computeAreaByShoelace, computeAreaByDMD, convertArea } from '@/lib/survey/area/computation'
+import type { Point } from '@/lib/survey/cogo/engine'
+import { AreaOperationSchema } from '@/lib/validation/apiSchemas'
 
-export async function POST(request: NextRequest) {
-  try {
-    const rawBody = await request.json().catch(() => null)
-    const parsed = AreaOperationSchema.safeParse(rawBody)
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: parsed.error.issues },
-        { status: 422 }
-      )
-    }
-
-    const body = parsed.data
+export const POST = apiHandler(
+  { auth: true, schema: AreaOperationSchema, rateLimit: { max: 100, windowMs: 60000 } },
+  async (req, ctx) => {
+    const body = ctx.body as z.infer<typeof AreaOperationSchema>
     switch (body.operation) {
       case 'shoelace': {
         const result = computeAreaByShoelace(body.points as Point[])
@@ -40,11 +38,5 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
     }
-  } catch (error) {
-    console.error('Area API error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Computation failed' },
-      { status: 500 }
-    );
   }
-}
+)

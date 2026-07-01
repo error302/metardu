@@ -3,11 +3,15 @@ export const dynamic = 'force-dynamic'
 /**
  * /api/versions/[id]/diff — Compare two versions of an entity
  * GET: get diff between two versions
+ *
+ * SECURITY: IDOR protection — verifies the version's project belongs
+ * to the requesting user before returning snapshot field values.
  */
 
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { requireVersionOwnership } from '@/lib/auth/ownership'
 import { z } from 'zod'
 
 const DiffQuerySchema = z.object({
@@ -16,6 +20,11 @@ const DiffQuerySchema = z.object({
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
+
+  // IDOR protection — verify the version belongs to the requesting user
+  const ownership = await requireVersionOwnership(id, ctx.userId)
+  if (!ownership.ok) return ownership.error!
+
   const { searchParams } = new URL(req.url)
 
   // Validate query params via Zod

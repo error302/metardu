@@ -2,12 +2,17 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Traverse Computation API Route
- * 
+ *
  * Accepts raw observations, runs them through the correction pipeline,
  * performs traverse adjustment, and returns adjusted coordinates.
+ *
+ * SECURITY: Requires authentication. Previously unauthenticated —
+ * pure math so no data leak, but unauthenticated CPU-heavy work
+ * was a DoS vector.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/requireAuth';
 import {
   processObservation,
   KENYA_DEFAULT_CONFIG,
@@ -27,6 +32,10 @@ import {
 import { TraverseComputeSchema } from '@/lib/validation/apiSchemas';
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Require authentication to prevent DoS via unauthenticated compute
+  const { error } = await requireAuth()
+  if (error) return error
+
   try {
     const rawBody = await request.json().catch(() => null)
     const parsed = TraverseComputeSchema.safeParse(rawBody)

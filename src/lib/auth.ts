@@ -48,8 +48,13 @@ async function findOrCreateOAuthUser(params: {
 
     // Determine role (reuse the same hierarchy logic as credentials)
     let role = user.role || 'user'
-    const platformOwnerEmail = (process.env.PLATFORM_OWNER_EMAIL || 'mohameddosho20@gmail.com').toLowerCase()
-    if (user.email.toLowerCase() === platformOwnerEmail) {
+    // SECURITY: Platform owner email MUST be set via env var.
+    // Previously hardcoded 'mohameddosho20@gmail.com' as default —
+    // anyone controlling that Google account would get permanent
+    // super_admin. Now: if env var is unset, no one gets super_admin
+    // via this path (must be granted manually in DB).
+    const platformOwnerEmail = process.env.PLATFORM_OWNER_EMAIL?.toLowerCase()
+    if (platformOwnerEmail && user.email.toLowerCase() === platformOwnerEmail) {
       role = 'super_admin'
     }
     const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean)
@@ -225,8 +230,9 @@ export const authOptions: AuthOptions = {
           let role = user.role || 'surveyor'
 
           // Platform owner always gets super_admin regardless of env var or DB state
-          const platformOwnerEmail = (process.env.PLATFORM_OWNER_EMAIL || 'mohameddosho20@gmail.com').toLowerCase()
-          if (user.email.toLowerCase() === platformOwnerEmail) {
+          // SECURITY: env var required — see comment above
+          const platformOwnerEmail = process.env.PLATFORM_OWNER_EMAIL?.toLowerCase()
+          if (platformOwnerEmail && user.email.toLowerCase() === platformOwnerEmail) {
             role = 'super_admin'
           }
 

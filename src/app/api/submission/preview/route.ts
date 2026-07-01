@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
+import { requireProjectOwnership } from '@/lib/auth/ownership'
 import db from '@/lib/db'
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile'
 import { generateSubmissionRef } from '@/lib/submission/revisionNumber'
@@ -21,6 +22,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
+    // IDOR protection — verify project ownership before returning
+    // full project data (survey points, traverse, parcel info)
+    const userId = (session?.user as { id?: string })?.id
+    const ownership = await requireProjectOwnership(projectId, userId)
+    if (!ownership.ok) return ownership.error!
+
     const { rows: projectRows } = await db.query(
       'SELECT * FROM projects WHERE id = $1 LIMIT 1',
       [projectId]
@@ -31,13 +38,13 @@ export async function GET(req: NextRequest) {
     }
 
     const project = projectRows[0]
-    
+
     // Simulate joined relations for survey_points (supporting_docs doesn't exist on projects table usually, mock if needed)
     const { rows: pointsRows } = await db.query(
       'SELECT * FROM survey_points WHERE project_id = $1',
       [projectId]
     )
-    
+
     project.survey_points = pointsRows
     project.supporting_documents = [] // Fallback since it's not a standard table
 

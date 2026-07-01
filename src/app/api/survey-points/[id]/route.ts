@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { requireSurveyPointOwnership } from '@/lib/auth/ownership'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -9,6 +10,10 @@ export const dynamic = 'force-dynamic'
  * PATCH /api/survey-points/[id]
  *
  * Update a survey point's mutable fields with optimistic locking.
+ *
+ * SECURITY: IDOR protection — verifies the survey point's project
+ * belongs to the requesting user before allowing update.
+ *
  * Frontend MUST send `updated_at` in the request body — the value should be
  * the `updated_at` timestamp from the most recent GET/fetch of this point.
  * If the DB row's `updated_at` differs (another surveyor edited it), returns 409.
@@ -29,6 +34,10 @@ export const PATCH = apiHandler(
   async (_req, ctx) => {
     const { id } = ctx.params
     const body = ctx.body as z.infer<typeof patchSurveyPointSchema>
+
+    // IDOR protection — verify the survey point's project belongs to the user
+    const ownership = await requireSurveyPointOwnership(id, ctx.userId)
+    if (!ownership.ok) return ownership.error!
 
     // Fetch current row for optimistic lock check
     const { rows } = await db.query(

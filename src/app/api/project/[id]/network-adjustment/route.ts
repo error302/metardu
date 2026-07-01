@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import db from '@/lib/db'
+import { requireProjectOwnership } from '@/lib/auth/ownership'
 
 export const dynamic = 'force-dynamic'
 
 export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
+
+  // IDOR protection — verify project ownership before allowing overwrite
+  const ownership = await requireProjectOwnership(id, ctx.userId)
+  if (!ownership.ok) return ownership.error!
+
   const body = ctx.body as Record<string, unknown>
 
   await db.query(
@@ -35,6 +41,10 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
+
+  // IDOR protection — verify project ownership before returning data
+  const ownership = await requireProjectOwnership(id, ctx.userId)
+  if (!ownership.ok) return ownership.error!
 
   const res = await db.query(
     'SELECT * FROM network_adjustments WHERE project_id = $1',

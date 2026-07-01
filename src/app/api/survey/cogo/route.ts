@@ -2,11 +2,16 @@ export const dynamic = 'force-dynamic'
 
 /**
  * COGO API Route
- * 
+ *
  * Coordinate geometry computations: inverse, forward, intersections.
+ *
+ * SECURITY: Requires authentication. Previously unauthenticated —
+ * pure math so no data leak, but unauthenticated CPU-heavy work
+ * was a DoS vector.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/requireAuth';
 import {
   computeBearingAndDistance,
   computePoint,
@@ -18,6 +23,10 @@ import {
 import { CogoOperationSchema } from '@/lib/validation/apiSchemas';
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Require authentication to prevent DoS via unauthenticated compute
+  const { error } = await requireAuth()
+  if (error) return error
+
   try {
     const rawBody = await request.json().catch(() => null)
     const parsed = CogoOperationSchema.safeParse(rawBody)
