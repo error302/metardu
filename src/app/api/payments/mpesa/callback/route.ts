@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'M-Pesa not configured' }, { status: 500 })
   }
 
+  try {
   const paymentId = request.nextUrl.searchParams.get('paymentId') || ''
   const planId = request.nextUrl.searchParams.get('planId') || ''
 
@@ -116,17 +117,17 @@ export async function POST(request: NextRequest) {
 
   if (existingSub.rows.length > 0) {
     await db.query(
-      `UPDATE user_subscriptions SET 
+      `UPDATE user_subscriptions SET
        plan_id = $1, status = $2, payment_method = $3, currency = $4,
        current_period_start = $5, current_period_end = $6
        WHERE id = $7`,
       [subscriptionPayload.plan_id, subscriptionPayload.status, subscriptionPayload.payment_method,
-       subscriptionPayload.currency, subscriptionPayload.current_period_start, 
+       subscriptionPayload.currency, subscriptionPayload.current_period_start,
        subscriptionPayload.current_period_end, existingSub.rows[0].id]
     )
   } else {
     await db.query(
-      `INSERT INTO user_subscriptions 
+      `INSERT INTO user_subscriptions
        (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [subscriptionPayload.user_id, subscriptionPayload.plan_id, subscriptionPayload.status,
@@ -136,4 +137,14 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true })
+  } catch (err) {
+    // SECURITY: Log the error for debugging but return 200 to M-Pesa
+    // to prevent retry storms. The payment status update may have
+    // partially succeeded; manual reconciliation is needed.
+    console.error('[mpesa/callback] Error processing callback:', err)
+    return NextResponse.json(
+      { ok: false, error: 'Callback processing failed — manual reconciliation may be needed' },
+      { status: 500 }
+    )
+  }
 }
