@@ -1,5 +1,6 @@
 'use client';
 
+import { ToolExportButtons } from '@/components/shared/ToolExportButtons'
 import { useState } from 'react';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'

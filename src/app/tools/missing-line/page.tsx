@@ -1,5 +1,6 @@
 'use client';
 
+import { ToolExportButtons } from '@/components/shared/ToolExportButtons'
 import { useState } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
@@ -62,6 +63,7 @@ export default function MissingLineCalculator() {
         </div>
 
         {steps ? <SolutionStepsRenderer title={solutionTitle} steps={steps} /> : null}
+      {steps && <ToolExportButtons title="missing-line" rows={steps.map(s => ({ label: s.label, value: s.result || s.computation || "" }))} csvRows={steps.map(s => [s.label, s.result || ""])} disabled={!steps} />}
       </div>
     </div>
   );
