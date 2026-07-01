@@ -574,12 +574,162 @@ describe('Statutory Validation Gate', () => {
     })
   })
 
+  // ─── Engineering design rules (KeNHA / KeRRA / RDM 1.1 §2.3) ────────
+
+  describe('engineering rules', () => {
+    it('blocks when horizontal curve radius is below minimum for design speed', () => {
+      // At 80 km/h, e=0.07, f=0.15: R_min = 80²/(127×0.22) = 6400/27.94 ≈ 229 m
+      // Provide 150 m — below minimum
+      const input = makeBaseInput({
+        surveyType: 'engineering',
+        engineering: {
+          designSpeedKph: 80,
+          horizontalCurveRadiusM: 150,
+        },
+      })
+      const result = runStatutoryGate(input)
+      const curveViolation = result.violations.find(
+        (v) => v.rule === 'rdm_1_1.min_curve_radius'
+      )
+      expect(curveViolation).toBeDefined()
+      expect(curveViolation!.severity).toBe('block')
+      expect(curveViolation!.actual).toBe(150)
+      expect(curveViolation!.allowable).toBeGreaterThan(200)
+      expect(result.passed).toBe(false)
+    })
+
+    it('passes when horizontal curve radius exceeds minimum', () => {
+      // At 80 km/h: R_min ≈ 229 m. Provide 300 m — above minimum
+      const input = makeBaseInput({
+        surveyType: 'engineering',
+        engineering: {
+          designSpeedKph: 80,
+          horizontalCurveRadiusM: 300,
+        },
+      })
+      const result = runStatutoryGate(input)
+      expect(
+        result.violations.some((v) => v.rule === 'rdm_1_1.min_curve_radius')
+      ).toBe(false)
+    })
+
+    it('blocks when available sight distance is below SSD', () => {
+      // At 80 km/h, grade 0: SSD = 0.278×80×2.5 + 80²/(254×0.35) = 55.6 + 71.9 ≈ 127 m
+      // Provide 80 m — below SSD
+      const input = makeBaseInput({
+        surveyType: 'engineering',
+        engineering: {
+          designSpeedKph: 80,
+          availableSightDistanceM: 80,
+        },
+      })
+      const result = runStatutoryGate(input)
+      const ssdViolation = result.violations.find(
+        (v) => v.rule === 'rdm_1_1.sight_distance'
+      )
+      expect(ssdViolation).toBeDefined()
+      expect(ssdViolation!.severity).toBe('block')
+      expect(ssdViolation!.actual).toBe(80)
+      expect(ssdViolation!.allowable).toBeGreaterThan(100)
+      expect(result.passed).toBe(false)
+    })
+
+    it('passes when available sight distance exceeds SSD', () => {
+      // At 80 km/h: SSD ≈ 127 m. Provide 200 m — above SSD
+      const input = makeBaseInput({
+        surveyType: 'engineering',
+        engineering: {
+          designSpeedKph: 80,
+          availableSightDistanceM: 200,
+        },
+      })
+      const result = runStatutoryGate(input)
+      expect(
+        result.violations.some((v) => v.rule === 'rdm_1_1.sight_distance')
+      ).toBe(false)
+    })
+
+    it('warns (does not block) when superelevation exceeds 7% normal max', () => {
+      // 8% superelevation — above 7% normal but below 10% absolute
+      const input = makeBaseInput({
+        surveyType: 'engineering',
+        engineering: {
+          designSpeedKph: 80,
+          superelevation: 0.08,
+        },
+      })
+      const result = runStatutoryGate(input)
+      const superViolation = result.violations.find(
+        (v) => v.rule === 'kenha.superelevation_high'
+      )
+      expect(superViolation).toBeDefined()
+      expect(superViolation!.severity).toBe('warn')
+      // Should not produce a block-level superelevation violation
+      expect(
+        result.violations.some((v) => v.rule === 'kenha.superelevation_absolute_max')
+      ).toBe(false)
+    })
+
+    it('blocks when superelevation exceeds 10% absolute max', () => {
+      // 12% superelevation — above 10% absolute cap
+      const input = makeBaseInput({
+        surveyType: 'engineering',
+        engineering: {
+          designSpeedKph: 80,
+          superelevation: 0.12,
+        },
+      })
+      const result = runStatutoryGate(input)
+      const superViolation = result.violations.find(
+        (v) => v.rule === 'kenha.superelevation_absolute_max'
+      )
+      expect(superViolation).toBeDefined()
+      expect(superViolation!.severity).toBe('block')
+      expect(result.passed).toBe(false)
+    })
+
+    it('does not fire engineering rules when engineering field is absent', () => {
+      // No engineering data — rules should be skipped, not fail
+      const input = makeBaseInput({ surveyType: 'engineering' })
+      const result = runStatutoryGate(input)
+      expect(
+        result.violations.some((v) => v.rule === 'rdm_1_1.min_curve_radius')
+      ).toBe(false)
+      expect(
+        result.violations.some((v) => v.rule === 'rdm_1_1.sight_distance')
+      ).toBe(false)
+      expect(
+        result.violations.some((v) => v.rule === 'kenha.superelevation_high')
+      ).toBe(false)
+    })
+
+    it('respects custom superelevation and side friction in curve radius calc', () => {
+      // At 80 km/h with e=0.10, f=0.10: R_min = 80²/(127×0.20) = 6400/25.4 ≈ 252 m
+      // Provide 240 m — below this custom minimum
+      const input = makeBaseInput({
+        surveyType: 'engineering',
+        engineering: {
+          designSpeedKph: 80,
+          horizontalCurveRadiusM: 240,
+          superelevation: 0.10,
+          sideFriction: 0.10,
+        },
+      })
+      const result = runStatutoryGate(input)
+      const curveViolation = result.violations.find(
+        (v) => v.rule === 'rdm_1_1.min_curve_radius'
+      )
+      expect(curveViolation).toBeDefined()
+      expect(curveViolation!.allowable).toBeGreaterThan(240)
+    })
+  })
+
   // ─── Rule registry ───────────────────────────────────────────────────
 
   describe('listRules', () => {
     it('returns all registered rules with required fields', () => {
       const rules = listRules()
-      expect(rules.length).toBeGreaterThanOrEqual(10)
+      expect(rules.length).toBeGreaterThanOrEqual(13)
       for (const rule of rules) {
         expect(rule.id).toMatch(/^[a-z0-9_]+\.[a-z0-9_]+$/)
         expect(rule.description).toBeTruthy()

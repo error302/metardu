@@ -326,6 +326,7 @@ export function mergeGateInput(
     leveling: override.leveling ?? base.leveling,
     parcels: override.parcels ?? base.parcels,
     parentParcel: override.parentParcel ?? base.parentParcel,
+    engineering: override.engineering ?? base.engineering,
     submissionType: override.submissionType ?? base.submissionType,
     toleranceProfileOverride: override.toleranceProfileOverride ?? base.toleranceProfileOverride,
     areaToleranceHectares: override.areaToleranceHectares ?? base.areaToleranceHectares,

@@ -91,13 +91,26 @@ const responseSchema = z.object({
 
 interface Props {
   projectId: string;
+  /**
+   * Called whenever the gate result changes (including on initial load
+   * and on every Re-run). Parent components can use this to disable
+   * export buttons when `result.summary.block > 0`.
+   */
+  onResult?: (result: GateResult | null) => void;
 }
 
-export function StatutoryGatePanel({ projectId }: Props) {
+export function StatutoryGatePanel({ projectId, onResult }: Props) {
   const [result, setResult] = useState<GateResult | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+
+  // Keep the parent informed whenever the result changes.
+  // useCallback wraps the setter so it's stable across renders.
+  const updateResult = useCallback((next: GateResult | null) => {
+    setResult(next);
+    if (onResult) onResult(next);
+  }, [onResult]);
 
   const runValidation = useCallback(async () => {
     setStatus('loading');
@@ -110,7 +123,7 @@ export function StatutoryGatePanel({ projectId }: Props) {
         responseSchema,
         { ttlMs: 0 } // never cache — surveyor wants fresh result on each click
       );
-      setResult(res.gate);
+      updateResult(res.gate);
       setStatus('ready');
       // Auto-expand if there are block violations
       if (res.gate.summary.block > 0) {
@@ -124,8 +137,10 @@ export function StatutoryGatePanel({ projectId }: Props) {
           : 'Unknown error';
       setError(msg);
       setStatus('error');
+      // On error, clear the result so the parent doesn't keep stale block state
+      updateResult(null);
     }
-  }, [projectId]);
+  }, [projectId, updateResult]);
 
   useEffect(() => {
     runValidation();

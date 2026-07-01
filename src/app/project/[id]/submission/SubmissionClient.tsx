@@ -76,6 +76,10 @@ interface SubmissionPackage {
 export default function SubmissionClient({ project, existingDocs, projectId }: Props) {
   const dbClient = createClient();
   const [previewPkg, setPreviewPkg] = useState<SubmissionPackage | null>(null);
+  // Statutory gate block state — when true, Generate buttons are disabled
+  // because the project would fail ArdhiSasa pre-flight. Lifted up from
+  // StatutoryGatePanel via the onResult callback.
+  const [gateBlocked, setGateBlocked] = useState(false);
   const [docStates, setDocStates] = useState<Record<string, DocState>>(() => {
     const initial: Record<string, DocState> = {};
     getDocumentsForSurveyType(project.survey_type).forEach((doc) => {
@@ -256,8 +260,13 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
       {/* Statutory Validation Gate — pre-export compliance check.
           Shows blocking violations before the surveyor hits Generate,
           so they can fix issues in the field book or traverse adjustment
-          instead of getting a rejection at export time. */}
-      <StatutoryGatePanel projectId={project.id} />
+          instead of getting a rejection at export time.
+          onResult lifts the block state up so Generate buttons can be
+          disabled client-side when the gate is blocked. */}
+      <StatutoryGatePanel
+        projectId={project.id}
+        onResult={(result) => setGateBlocked(result ? result.summary.block > 0 : false)}
+      />
 
       {documents.length === 0 ? (
         <p className="text-[var(--text-muted)] text-sm">
@@ -333,14 +342,15 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
                     {!isReady && (
                       <button
                         onClick={() => generateDocument(doc.id)}
-                        disabled={isGenerating}
+                        disabled={isGenerating || gateBlocked}
+                        title={gateBlocked ? 'Statutory validation is blocking — fix violations and re-run validation first' : undefined}
                         className={`px-4 py-2 text-sm font-medium rounded transition ${
-                          isGenerating
+                          isGenerating || gateBlocked
                             ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                             : 'bg-blue-600 text-white hover:bg-blue-700'
                         }`}
                       >
-                        {isGenerating ? 'Generating...' : 'Generate'}
+                        {isGenerating ? 'Generating...' : gateBlocked ? 'Blocked' : 'Generate'}
                       </button>
                     )}
 
@@ -384,9 +394,15 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
                 }
               });
             }}
-            className="mt-3 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded hover:bg-amber-700 transition"
+            disabled={gateBlocked}
+            title={gateBlocked ? 'Statutory validation is blocking — fix violations and re-run validation first' : undefined}
+            className={`mt-3 px-4 py-2 text-white text-sm font-medium rounded transition ${
+              gateBlocked
+                ? 'bg-gray-700 cursor-not-allowed'
+                : 'bg-amber-600 hover:bg-amber-700'
+            }`}
           >
-            Generate All Missing
+            {gateBlocked ? 'Blocked — fix violations first' : 'Generate All Missing'}
           </button>
         </div>
       )}

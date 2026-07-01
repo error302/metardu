@@ -67,6 +67,7 @@ import {
 } from './toleranceEngine'
 import { validateTraverse } from './traverseValidation'
 import { validateLevelingClosure } from './levelingValidation'
+import { stoppingSightDistance, minimumRadius } from '@/lib/engineering/compute'
 
 // ─── Rule versioning ────────────────────────────────────────────────────
 
@@ -75,12 +76,16 @@ import { validateLevelingClosure } from './levelingValidation'
  * Record the change in CHANGELOG below.
  *
  * CHANGELOG:
+ *   1.1.0 (2026-07) — Added KeNHA/KeRRA engineering design rules:
+ *     minimum horizontal curve radius, stopping sight distance,
+ *     superelevation rate cap. Rules sourced from RDM 1.1 §2.3,
+ *     AASHTO Green Book, KeNHA Road Design Manual.
  *   1.0.0 (2026-07) — Initial gate. Consolidates toleranceEngine +
  *     traverseValidation + levelingValidation + nlimsExporter schema
  *     checks into a single pre-export gate. Rules sourced from
  *     Cap 299, RDM 1.1 (2023), ArdhiSasa spec (2024).
  */
-export const RULE_VERSION = '1.0.0'
+export const RULE_VERSION = '1.1.0'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -156,6 +161,23 @@ export interface StatutoryGateInput {
   surveyor: {
     name: string
     licenseNumber: string
+  }
+
+  /** Engineering design parameters — required for engineering surveyType.
+   *  Used by KeNHA/KeRRA design rules (curve radius, sight distance). */
+  engineering?: {
+    /** Design speed in km/h (e.g. 80 for rural highway, 50 for urban) */
+    designSpeedKph: number
+    /** Horizontal curve radius in metres (the actual designed radius) */
+    horizontalCurveRadiusM?: number
+    /** Road grade in percent (positive uphill). Used for SSD adjustment. */
+    gradePercent?: number
+    /** Available sight distance in metres (the actual measured/available SSD) */
+    availableSightDistanceM?: number
+    /** Superelevation rate as decimal (e.g. 0.07 for 7%) */
+    superelevation?: number
+    /** Side friction factor (default 0.15 per AASHTO) */
+    sideFriction?: number
   }
 
   /** Submission type — affects which rules apply */
@@ -581,6 +603,133 @@ function ruleMinStationCount(
   }
 }
 
+// ─── Engineering design rules (KeNHA / KeRRA / RDM 1.1 §2.3) ───────────
+
+/**
+ * Rule: Horizontal curve radius meets minimum for design speed.
+ * Source: RDM 1.1 §2.3.2; AASHTO Green Book; KeNHA Road Design Manual.
+ *
+ * R_min = V² / (127 × (e + f))
+ *   V = design speed km/h
+ *   e = superelevation (default 0.07)
+ *   f = side friction (default 0.15)
+ *
+ * Fires only when input.engineering.horizontalCurveRadiusM is provided.
+ */
+function ruleMinHorizontalCurveRadius(
+  input: StatutoryGateInput,
+  _profile: ToleranceProfile,
+  violations: Violation[]
+): void {
+  if (!input.engineering) return
+  const { designSpeedKph, horizontalCurveRadiusM, superelevation, sideFriction } = input.engineering
+  if (horizontalCurveRadiusM === undefined || designSpeedKph <= 0) return
+
+  const e = superelevation ?? 0.07
+  const f = sideFriction ?? 0.15
+  const minR = minimumRadius(designSpeedKph, e, f)
+
+  if (horizontalCurveRadiusM < minR) {
+    violations.push({
+      rule: 'rdm_1_1.min_curve_radius',
+      source: 'rdm_1_1',
+      severity: 'block',
+      message: `Horizontal curve radius ${horizontalCurveRadiusM.toFixed(1)} m is below the minimum ${minR.toFixed(1)} m for design speed ${designSpeedKph} km/h (e=${(e * 100).toFixed(0)}%, f=${f}). Per RDM 1.1 §2.3.2 — vehicles cannot safely negotiate this curve at design speed.`,
+      actual: horizontalCurveRadiusM,
+      allowable: minR,
+      unit: 'm',
+      field: 'engineering.horizontalCurveRadiusM',
+    })
+  }
+}
+
+/**
+ * Rule: Available sight distance meets stopping sight distance (SSD).
+ * Source: RDM 1.1 §2.3.3; AASHTO Green Book; KeNHA Road Design Manual.
+ *
+ * SSD = 0.278 × V × T + V² / (254 × (f + G))
+ *   T = 2.5s perception-reaction
+ *   f = 0.35 friction
+ *   G = grade percent
+ *
+ * Fires only when input.engineering.availableSightDistanceM is provided.
+ */
+function ruleStoppingSightDistance(
+  input: StatutoryGateInput,
+  _profile: ToleranceProfile,
+  violations: Violation[]
+): void {
+  if (!input.engineering) return
+  const { designSpeedKph, availableSightDistanceM, gradePercent } = input.engineering
+  if (availableSightDistanceM === undefined || designSpeedKph <= 0) return
+
+  const grade = gradePercent ?? 0
+  const requiredSSD = stoppingSightDistance(designSpeedKph, grade)
+
+  if (availableSightDistanceM < requiredSSD) {
+    violations.push({
+      rule: 'rdm_1_1.sight_distance',
+      source: 'rdm_1_1',
+      severity: 'block',
+      message: `Available sight distance ${availableSightDistanceM.toFixed(1)} m is below the required stopping sight distance ${requiredSSD.toFixed(1)} m for design speed ${designSpeedKph} km/h${grade !== 0 ? ` at ${grade}% grade` : ''}. Per RDM 1.1 §2.3.3 — unsafe stopping distance.`,
+      actual: availableSightDistanceM,
+      allowable: requiredSSD,
+      unit: 'm',
+      field: 'engineering.availableSightDistanceM',
+    })
+  }
+}
+
+/**
+ * Rule: Superelevation rate within Kenyan maximum.
+ * Source: KeNHA Road Design Manual §3.4; AASHTO Green Book.
+ *
+ * Maximum superelevation:
+ *   - 7% for rural highways (default)
+ *   - 4% for urban areas (lower due to slow traffic and turning vehicles)
+ *   - 10% absolute maximum (rare, only on private toll roads)
+ *
+ * Fires only when input.engineering.superelevation is provided.
+ * Warns above 7%, blocks above 10%.
+ */
+function ruleSuperelevationRate(
+  input: StatutoryGateInput,
+  _profile: ToleranceProfile,
+  violations: Violation[]
+): void {
+  if (!input.engineering) return
+  const { superelevation } = input.engineering
+  if (superelevation === undefined) return
+
+  const ePercent = superelevation * 100
+  const MAX_NORMAL = 7 // 7% rural
+  const MAX_ABSOLUTE = 10 // 10% hard cap
+
+  if (ePercent > MAX_ABSOLUTE) {
+    violations.push({
+      rule: 'kenha.superelevation_absolute_max',
+      source: 'ardhisasa', // reuse source enum — KeNHA isn't separately enumerated
+      severity: 'block',
+      message: `Superelevation ${(ePercent).toFixed(1)}% exceeds the absolute maximum ${MAX_ABSOLUTE}% per KeNHA Road Design Manual §3.4. Vehicles may slide sideways on wet pavement.`,
+      actual: ePercent,
+      allowable: MAX_ABSOLUTE,
+      unit: '%',
+      field: 'engineering.superelevation',
+    })
+  } else if (ePercent > MAX_NORMAL) {
+    violations.push({
+      rule: 'kenha.superelevation_high',
+      source: 'ardhisasa',
+      severity: 'warn',
+      message: `Superelevation ${(ePercent).toFixed(1)}% exceeds the normal maximum ${MAX_NORMAL}% for rural highways. Acceptable only with explicit KeNHA approval.`,
+      actual: ePercent,
+      allowable: MAX_NORMAL,
+      unit: '%',
+      field: 'engineering.superelevation',
+    })
+  }
+}
+
 // ─── Rule registry ─────────────────────────────────────────────────────
 
 interface RuleDef {
@@ -661,6 +810,27 @@ const RULES: RuleDef[] = [
     source: 'sok_standard',
     severity: 'warn',
     run: ruleBeaconNomenclature,
+  },
+  {
+    id: 'rdm_1_1.min_curve_radius',
+    description: 'Horizontal curve radius ≥ R_min for design speed (RDM 1.1 §2.3.2)',
+    source: 'rdm_1_1',
+    severity: 'block',
+    run: ruleMinHorizontalCurveRadius,
+  },
+  {
+    id: 'rdm_1_1.sight_distance',
+    description: 'Available sight distance ≥ stopping sight distance (RDM 1.1 §2.3.3)',
+    source: 'rdm_1_1',
+    severity: 'block',
+    run: ruleStoppingSightDistance,
+  },
+  {
+    id: 'kenha.superelevation_rate',
+    description: 'Superelevation within KeNHA max (7% normal, 10% absolute)',
+    source: 'ardhisasa',
+    severity: 'warn',
+    run: ruleSuperelevationRate,
   },
 ]
 
