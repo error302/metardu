@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { bowditchAdjustment, transitAdjustment } from '@/lib/engine/traverse'
 import { trackEvent } from '@/lib/analytics/events'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
@@ -98,6 +99,58 @@ export default function TraverseCalculator() {
 
   // Print
   const [printMeta, setPrintMeta] = useState<PrintMeta>(defaultPrintMeta)
+
+  // ── Project integration: auto-load survey points as traverse legs ──
+  const searchParams = useSearchParams()
+  const projectId = searchParams.get('project')
+  const [projectLoaded, setProjectLoaded] = useState(false)
+
+  useEffect(() => {
+    if (!projectId || projectLoaded) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/project/${projectId}/points`)
+        if (!res.ok) return
+        const json = await res.json()
+        const points = json.data || []
+        if (points.length < 2 || cancelled) return
+
+        // Convert survey points to traverse legs
+        // First point gets known E/N, rest get empty (to be computed)
+        const projectLegs: Leg[] = points.map((p: any, i: number) => ({
+          id: i + 1,
+          name: p.point_name || String.fromCharCode(65 + i),
+          n: i === 0 ? String(p.northing) : '',
+          e: i === 0 ? String(p.easting) : '',
+          dist: '',
+          bearingD: '',
+          bearingM: '',
+          bearingS: '',
+        }))
+
+        // If there's a closing point (last point has same name as first or is_control),
+        // give it known coordinates too
+        if (points.length > 1) {
+          const last = points[points.length - 1]
+          if (last.is_control || last.point_name === points[0].point_name) {
+            projectLegs[projectLegs.length - 1].n = String(last.northing)
+            projectLegs[projectLegs.length - 1].e = String(last.easting)
+          }
+        }
+
+        if (!cancelled && projectLegs.length >= 2) {
+          setLegs(projectLegs)
+        }
+      } catch {
+        // silent fail — user can enter manually
+      } finally {
+        if (!cancelled) setProjectLoaded(true)
+      }
+    })()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, projectLoaded])
 
   // ── Leg management ───────────────────────────────────────────────────────
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Download, BarChart3, Clock, CheckCircle2, AlertTriangle, PlayCircle } from 'lucide-react'
 import ProgressMonitorPanel from '@/components/engineering/ProgressMonitorPanel'
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
@@ -119,8 +120,12 @@ const STATUS_CONFIG: Record<PhaseProgress['status'], { icon: React.ReactNode; co
 export default function ProgressMonitorPage() {
   const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<'overview' | 'inspections'>('overview')
-  const phases = DEMO_PHASES
-  const timeline = DEMO_TIMELINE
+  const searchParams = useSearchParams()
+  const projectId = searchParams.get('project') || undefined
+
+  // If project is linked, don't show demo data — let ProgressMonitorPanel load real data
+  const phases = projectId ? [] : DEMO_PHASES
+  const timeline = projectId ? [] : DEMO_TIMELINE
 
   const overallProgress = useMemo(() => {
     const total = phases.reduce((sum, p) => sum + p.progress, 0)
@@ -320,7 +325,7 @@ export default function ProgressMonitorPage() {
 
       {/* ── INSPECTIONS TAB (delegate to existing panel) ──────────────────────── */}
       {activeTab === 'inspections' && (
-        <ProgressMonitorPanel projectId="demo" />
+        <ProgressMonitorPanel projectId={projectId || ''} />
       )}
     </div>
   )
