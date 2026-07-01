@@ -2,6 +2,8 @@
 // Source: Ghilani & Wolf, Elementary Surveying 16th Ed., Chapter 26
 // Source: Merritt, Ricketts & Loftin, Standard Handbook for Civil Engineers 5th Ed., Section 21
 
+import { shoelaceArea } from '@/lib/engine/area'
+
 // ─── PART 1: DATA TYPES ────────────────────────────────────────────────────────
 
 export interface GroundShot {
@@ -60,19 +62,8 @@ export function getHalfFormationWidth(template: RoadTemplate): number {
 
 // ─── PART 3: POLYGON GEOMETRY ─────────────────────────────────────────────────
 
-function shoelaceArea(points: Array<{ x: number; y: number }>): number {
-  // Source: Ghilani & Wolf, Elementary Surveying 16th Ed., Chapter 12
-  // Source: N.N. Basak, Surveying and Levelling, Chapter 4
-  if (points.length < 3) return 0
-  let sum = 0
-  // Loop to points.length (NOT -1): includes the closing edge (last->first)
-  for (let i = 0; i < points.length; i++) {
-    const j = (i + 1) % points.length
-    sum += points[i].x * points[j].y
-    sum -= points[j].x * points[i].y
-  }
-  return Math.abs(sum) / 2
-}
+// shoelaceArea is imported from @/lib/engine/area (canonical implementation)
+// Local callers map {x, y} → {easting, northing} at the call site.
 
 function linearInterpolate(x: number, x1: number, y1: number, x2: number, y2: number): number {
   if (Math.abs(x2 - x1) < 1e-9) return y1
@@ -240,7 +231,7 @@ export function computeCrossSection(
 
   // Add closure: last point back to first
   const groundWithClose = [...allGroundPts, allGroundPts[0]]
-  const totalGroundArea = shoelaceArea(groundWithClose)
+  const totalGroundArea = shoelaceArea(groundWithClose.map(p => ({ easting: p.x, northing: p.y })))
 
   // Formation trapezoid area
   const formationPolygon: Array<{ x: number; y: number }> = [
@@ -249,7 +240,7 @@ export function computeCrossSection(
     { x: rightFormationEdgeOffset, y: rightFormationEdgeRL },
     { x: leftFormationEdgeOffset, y: leftFormationEdgeRL },
   ]
-  const formationArea = shoelaceArea(formationPolygon)
+  const formationArea = shoelaceArea(formationPolygon.map(p => ({ easting: p.x, northing: p.y })))
 
   // Cut and fill: trapezoidal integration along ground surface
   // Source: Ghilani & Wolf, Ch.26 — area between ground line and formation line

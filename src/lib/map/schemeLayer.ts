@@ -14,6 +14,8 @@
  * @see projection.ts — EPSG:21037 registration
  */
 
+import type { OLMap, OLFeature, OLLayer, OLEvent, OLOverlay } from './olTypes'
+
 import { registerProjections } from '@/lib/map/projection'
 import {
   createParcelStyleFunction,
@@ -516,7 +518,7 @@ export function renderSchemePopup(
  * @returns Cleanup function to remove the interaction
  */
 export async function addSchemeHoverInteraction(
-  map: any,
+  map: OLMap,
   parcelLayer: import('ol/layer/Vector').default,
 ): Promise<() => void> {
   const [
@@ -529,8 +531,8 @@ export async function addSchemeHoverInteraction(
     import('ol/style/Fill'),
   ])
 
-  let hoveredFeature: any = null
-  let originalStyle: any = null
+  let hoveredFeature: OLFeature | null = null
+  let originalStyle: unknown = null
 
   const highlightStyle = new Style({
     stroke: new Stroke({ color: '#D17B47', width: 3.5 }),
@@ -539,7 +541,7 @@ export async function addSchemeHoverInteraction(
 
   let lastMoveTime = 0
 
-  const onMouseMove = (evt: any) => {
+  const onMouseMove = (evt: OLEvent) => {
     const target = map.getTarget()
     if (!target) return
 
@@ -549,10 +551,10 @@ export async function addSchemeHoverInteraction(
     if (now - lastMoveTime < 50) return
     lastMoveTime = now
 
-    const pixel = map.getEventPixel(evt.originalEvent)
+    const pixel = map.getEventPixel(evt.originalEvent ?? new Event('mousemove'))
     const hit = map.forEachFeatureAtPixel(
       pixel,
-      (f: any, layer: any) => {
+      (f: OLFeature, layer: OLLayer) => {
         if (layer === parcelLayer && f.get('type') === 'scheme-parcel') {
           return f
         }
@@ -563,15 +565,16 @@ export async function addSchemeHoverInteraction(
 
     const viewport = map.getViewport()
     if (hit) {
+      const hitFeature = hit as OLFeature
       viewport.style.cursor = 'pointer'
-      if (hoveredFeature !== hit) {
+      if (hoveredFeature !== hitFeature) {
         // Restore previous
         if (hoveredFeature && originalStyle != null) {
           hoveredFeature.setStyle(originalStyle)
         }
-        hoveredFeature = hit
-        originalStyle = hit.getStyle()
-        hit.setStyle(highlightStyle)
+        hoveredFeature = hitFeature
+        originalStyle = hitFeature.getStyle() ?? null
+        hitFeature.setStyle(highlightStyle)
       }
     } else {
       viewport.style.cursor = ''
@@ -618,7 +621,7 @@ export async function addSchemeHoverInteraction(
  * @returns Cleanup function to remove the interaction
  */
 export function addSchemeClickInteraction(
-  map: any,
+  map: OLMap,
   layers: {
     parcelLayer: import('ol/layer/Vector').default
     blockLayer: import('ol/layer/Vector').default
@@ -628,11 +631,11 @@ export function addSchemeClickInteraction(
   popupElement: HTMLDivElement,
   hidePopup: () => void,
 ): () => void {
-  const onClick = (evt: any) => {
+  const onClick = (evt: OLEvent) => {
     // Check if we hit a scheme feature
     const feature = map.forEachFeatureAtPixel(
       evt.pixel,
-      (f: any, layer: any) => {
+      (f: OLFeature, layer: OLLayer) => {
         if (
           layer === layers.parcelLayer ||
           layer === layers.blockLayer ||
@@ -647,7 +650,7 @@ export function addSchemeClickInteraction(
 
     if (!feature) return
 
-    const { feature: f, layer } = feature
+    const { feature: f, layer } = feature as { feature: OLFeature; layer: OLLayer }
     const featureType = f.get('type')
 
     let popupType: 'parcel' | 'beacon' | 'block' = 'parcel'
@@ -685,7 +688,7 @@ export function addSchemeClickInteraction(
  * @param padding - Padding around the extent (default: [80, 80, 80, 80])
  */
 export async function zoomToSchemeExtent(
-  map: any,
+  map: OLMap,
   extent: number[] | null,
   padding: [number, number, number, number] = [80, 80, 80, 80],
 ): Promise<void> {
@@ -933,7 +936,7 @@ async function buildBeaconLayerFromData(
  */
 export async function createSchemeLayers(
   projectId: string,
-  map: any,
+  map: OLMap,
   options: SchemeLayerOptions = {},
 ): Promise<{
   parcelLayer: import('ol/layer/Vector').default
@@ -962,13 +965,13 @@ export async function createSchemeLayers(
   ])
 
   // Add layers to map
-  map.addLayer(parcelLayer)
-  map.addLayer(blockLayer)
-  map.addLayer(beaconLayer)
+  map.addLayer(parcelLayer as unknown as OLLayer)
+  map.addLayer(blockLayer as unknown as OLLayer)
+  map.addLayer(beaconLayer as unknown as OLLayer)
 
   // Create popup overlay
   const popup = await createSchemePopup()
-  map.addOverlay(popup.overlay)
+  map.addOverlay(popup.overlay as unknown as OLOverlay)
 
   // Add interactions
   const removeHover = await addSchemeHoverInteraction(map, parcelLayer)
@@ -1007,9 +1010,9 @@ export async function createSchemeLayers(
   const cleanup = () => {
     removeHover()
     removeClick()
-    map.removeLayer(parcelLayer)
-    map.removeLayer(blockLayer)
-    map.removeLayer(beaconLayer)
+    map.removeLayer(parcelLayer as unknown as OLLayer)
+    map.removeLayer(blockLayer as unknown as OLLayer)
+    map.removeLayer(beaconLayer as unknown as OLLayer)
     map.removeOverlay(popup.overlay)
   }
 

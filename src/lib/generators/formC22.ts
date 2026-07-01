@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPageFooter } from './pdfTitleBlock';
+import { shoelaceArea as computePolygonArea } from '@/lib/engine/area';
 
 // ---------------------------------------------------------------------------
 // Input interface
@@ -70,19 +71,8 @@ function decimalToWCB(deg: number): string {
   }
 }
 
-/** Compute area via Shoelace formula from adjusted coordinates. Returns m². */
-function computeShoelaceArea(stations: FormC22Input['stations']): number {
-  const n = stations.length;
-  if (n < 3) return 0;
-  let sum = 0;
-  for (let i = 0; i < n; i++) {
-    const curr = stations[i];
-    const next = stations[(i + 1) % n];
-    sum += curr.adjustedEasting * next.adjustedNorthing;
-    sum -= curr.adjustedNorthing * next.adjustedEasting;
-  }
-  return Math.abs(sum) / 2;
-}
+// computeShoelaceArea removed — now uses canonical shoelaceArea from @/lib/engine/area
+// Call sites map adjustedEasting/adjustedNorthing → easting/northing.
 
 /** Format a precision ratio like "1:12500" */
 function formatPrecisionRatio(ratio: number): string {
@@ -485,7 +475,7 @@ function drawAreaComputationTable(doc: jsPDF, input: FormC22Input, startY: numbe
     ]);
   }
 
-  const shoelaceArea = computeShoelaceArea(stations);
+  const shoelaceArea = computePolygonArea(stations.map(s => ({ easting: s.adjustedEasting, northing: s.adjustedNorthing })));
 
   autoTable(doc, {
     startY,

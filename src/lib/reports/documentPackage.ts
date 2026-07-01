@@ -230,7 +230,7 @@ export function generateCoverLetter(
 
   <p>The following documents are enclosed:</p>
   <ol style="font-size:12px;line-height:1.8;">
-    ${(extraFields.enclosures || 'Survey plan\nField notes\nComputation sheet').split('\n').map((e: any) => `<li>${e.trim()}</li>`).join('')}
+    ${(extraFields.enclosures || 'Survey plan\nField notes\nComputation sheet').split('\n').map((e: string) => `<li>${e.trim()}</li>`).join('')}
   </ol>
 
   <p>The survey was carried out in accordance with the applicable national standards and regulations. 
@@ -259,7 +259,7 @@ export function generateComputationSheet(
       <th>Pt</th><th>Easting (m)</th><th>Northing (m)</th><th>Elevation (m)</th><th>Type</th>
     </tr></thead>
     <tbody>
-      ${points.map((p: any) => `<tr>
+      ${points.map((p: PointData) => `<tr>
         <td><strong>${p.name}</strong></td>
         <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
         <td style="font-family:monospace">${p.northing.toFixed(4)}</td>
@@ -379,8 +379,8 @@ export function generateFieldNotes(
   extraFields: Record<string,string>
 ): string {
   const typeLabel = (project.survey_type || 'Survey').charAt(0).toUpperCase() + (project.survey_type || 'survey').slice(1)
-  const controlPts = points.filter((p: any) => p.is_control)
-  const detailPts  = points.filter((p: any) => !p.is_control)
+  const controlPts = points.filter((p: PointData) => p.is_control)
+  const detailPts  = points.filter((p: PointData) => !p.is_control)
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Field Notes</title>${pageStyles()}</head><body>
   ${docHeader('Field Notes Summary', project, surveyorDetails)}
@@ -404,7 +404,7 @@ export function generateFieldNotes(
     <thead><tr><th>Point</th><th>Easting (m)</th><th>Northing (m)</th><th>Description</th></tr></thead>
     <tbody>
       ${controlPts.length > 0
-        ? controlPts.map((p: any) => `<tr>
+        ? controlPts.map((p: PointData) => `<tr>
             <td><strong>${p.name}</strong></td>
             <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
             <td style="font-family:monospace">${p.northing.toFixed(4)}</td>
@@ -419,7 +419,7 @@ export function generateFieldNotes(
     <thead><tr><th>Point</th><th>Easting (m)</th><th>Northing (m)</th><th>Elevation (m)</th><th>Remarks</th></tr></thead>
     <tbody>
       ${detailPts.length > 0
-        ? detailPts.map((p: any) => `<tr>
+        ? detailPts.map((p: PointData) => `<tr>
             <td>${p.name}</td>
             <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
             <td style="font-family:monospace">${p.northing.toFixed(4)}</td>
@@ -442,7 +442,7 @@ export function generateBeaconDescriptions(
   points: PointData[],
   extraFields: Record<string,string>
 ): string {
-  const beacons = points.filter((p: any) => p.is_control)
+  const beacons = points.filter((p: PointData) => p.is_control)
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Beacon Descriptions</title>${pageStyles()}</head><body>
   ${docHeader('Beacon Descriptions', project, surveyorDetails)}
 
@@ -510,7 +510,7 @@ export function generateCompletionCertificate(
 
   <div style="margin:16px 0;">
     ${(extraFields.completionItems || 
-      'All survey points established and recorded\nField observations independently checked\nComputations verified and within acceptable limits\nSurvey documents prepared and certified').split('\n').map((item: any) => `
+      'All survey points established and recorded\nField observations independently checked\nComputations verified and within acceptable limits\nSurvey documents prepared and certified').split('\n').map((item: string) => `
     <div style="display:flex;align-items:flex-start;gap:8px;margin:6px 0;">
       <span style="color:#D17B47;font-weight:700;font-size:14px;">✓</span>
       <span>${item.trim()}</span>
@@ -543,7 +543,7 @@ export function generateMutationForm(
   extraFields?: Record<string,string>
 ): string {
   const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
-  const beacons = points.filter((p: any) => p.is_control)
+  const beacons = points.filter((p: PointData) => p.is_control)
   const ex = extraFields || {}
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Mutation Form</title>${pageStyles()}</head><body>
@@ -573,7 +573,7 @@ export function generateMutationForm(
   <table>
     <thead><tr><th>Beacon No.</th><th>Easting (m)</th><th>Northing (m)</th><th>Beacon Description</th></tr></thead>
     <tbody>
-      ${beacons.map((p: any) => `<tr>
+      ${beacons.map((p: PointData) => `<tr>
         <td><strong>${p.name}</strong></td>
         <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
         <td style="font-family:monospace">${p.northing.toFixed(4)}</td>
@@ -611,7 +611,7 @@ export function generateLevelingSummary(
   extraFields?: Record<string,string>
 ): string {
   const ex = extraFields || {}
-  const elevationPoints = points.filter((p: any) => p.elevation != null)
+  const elevationPoints = points.filter((p: PointData) => p.elevation != null)
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Levelling Summary</title>${pageStyles()}</head><body>
   ${docHeader('Levelling Summary / Level Book Abstract', project, surveyorDetails)}
@@ -639,7 +639,7 @@ export function generateLevelingSummary(
   <table>
     <thead><tr><th>Station</th><th>Easting (m)</th><th>Northing (m)</th><th>Reduced Level (m)</th><th>Adjusted RL (m)</th><th>Remarks</th></tr></thead>
     <tbody>
-      ${elevationPoints.map((p: any) => `<tr>
+      ${elevationPoints.map((p: PointData) => `<tr>
         <td><strong>${p.name}</strong></td>
         <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
         <td style="font-family:monospace">${p.northing.toFixed(4)}</td>
@@ -682,7 +682,7 @@ export function generateControlSubmission(
   extraFields?: Record<string,string>
 ): string {
   const ex = extraFields || {}
-  const controlPts = points.filter((p: any) => p.is_control)
+  const controlPts = points.filter((p: PointData) => p.is_control)
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Control Survey Report</title>${pageStyles()}</head><body>
   ${docHeader('Control Survey Report — Form C22', project, surveyorDetails)}
@@ -709,7 +709,7 @@ export function generateControlSubmission(
       <th>Position Accuracy</th><th>Monument Type</th>
     </tr></thead>
     <tbody>
-      ${controlPts.map((p: any) => `<tr>
+      ${controlPts.map((p: PointData) => `<tr>
         <td><strong>${p.name}</strong></td>
         <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
         <td style="font-family:monospace">${p.northing.toFixed(4)}</td>

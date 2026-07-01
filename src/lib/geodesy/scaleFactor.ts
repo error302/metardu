@@ -23,6 +23,8 @@
  *   Zone 37S: central meridian = 39°E
  */
 
+import { shoelaceArea } from '@/lib/engine/area'
+
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const EARTH_RADIUS_M = 6_371_000 // Mean Earth radius (spherical approximation)
@@ -186,24 +188,11 @@ export function computeAreaWithScaleFactor(
   coords: [number, number][],
   csf: number,
 ): AreaConversionResult {
-  const gridAreaSqM = computeShoelaceArea(coords)
+  const gridAreaSqM = shoelaceArea(coords.map(([e, n]) => ({ easting: e, northing: n })))
   return convertGridAreaToGround(gridAreaSqM, csf)
 }
 
-/**
- * Shoelace formula for polygon area.
- */
-function computeShoelaceArea(coords: [number, number][]): number {
-  if (coords.length < 3) return 0
-
-  let sum = 0
-  for (let i = 0; i < coords.length; i++) {
-    const [x1, y1] = coords[i]
-    const [x2, y2] = coords[(i + 1) % coords.length]
-    sum += x1 * y2 - x2 * y1
-  }
-  return Math.abs(sum / 2)
-}
+// computeShoelaceArea removed — now uses canonical shoelaceArea from @/lib/engine/area
 
 // ─── Kenya-specific presets ─────────────────────────────────────────────────
 

@@ -9,6 +9,24 @@
  * that match the OL API surface we actually use.
  */
 
+// ─── OL Event Type ───────────────────────────────────────────────────────
+
+/** Generic OpenLayers event — carries pixel, coordinate, and optional feature. */
+export interface OLEvent {
+  pixel: [number, number]
+  coordinate: number[]
+  feature?: OLFeature
+  type: string
+  target: unknown
+  originalEvent?: Event
+  [key: string]: unknown
+}
+
+/** OpenLayers style — either a style object or a style function. */
+export type OLStyle =
+  | Record<string, unknown>
+  | ((feature: OLFeature, resolution: number) => Record<string, unknown>)
+
 // ─── OL Map & View ────────────────────────────────────────────────────────
 
 export interface OLMap {
@@ -18,20 +36,20 @@ export interface OLMap {
   removeLayer(layer: OLLayer): void
   addOverlay(overlay: OLOverlay): void
   removeOverlay(overlay: OLOverlay): void
-  addInteraction(interaction: any): void
-  removeInteraction(interaction: any): void
+  addInteraction(interaction: OLInteraction): void
+  removeInteraction(interaction: OLInteraction): void
   getOverlays(): { getArray(): OLOverlay[] }
   getTarget(): HTMLElement | undefined
   getViewport(): HTMLElement
   getSize(): [number, number] | undefined
   setTarget(target: HTMLElement | undefined): void
-  on(type: string, listener: (evt: any) => void): void
-  un(type: string, listener: (evt: any) => void): void
+  on(type: string, listener: (evt: OLEvent) => void): void
+  un(type: string, listener: (evt: OLEvent) => void): void
   forEachFeatureAtPixel(
     pixel: [number, number],
-    callback: (feature: OLFeature, layer: OLLayer) => any,
+    callback: (feature: OLFeature, layer: OLLayer) => unknown,
     options?: { hitTolerance?: number; layerFilter?: (layer: OLLayer) => boolean }
-  ): any
+  ): unknown
   getEventPixel(event: Event): [number, number]
 }
 
@@ -42,7 +60,7 @@ export interface OLView {
   setZoom(zoom: number): void
   getExtent(): number[]
   fit(extent: number[] | OLLayer, options?: { padding?: number[]; maxZoom?: number; duration?: number }): void
-  animate(...animations: Array<Record<string, any>>): void
+  animate(...animations: Array<Record<string, unknown>>): void
   calculateExtent(size: [number, number]): number[]
 }
 
@@ -52,14 +70,14 @@ export interface OLLayer {
   setVisible(visible: boolean): void
   getVisible(): boolean
   setOpacity(opacity: number): void
-  get(key: string): any
-  set(key: string, value: any): void
+  get(key: string): unknown
+  set(key: string, value: unknown): void
   getSource(): OLSource | null
 }
 
 export interface OLVectorLayer extends OLLayer {
   getSource(): OLVectorSource | null
-  setStyle(style: any): void
+  setStyle(style: unknown): void
 }
 
 export interface OLTileLayer extends OLLayer {}
@@ -77,8 +95,8 @@ export interface OLVectorSource extends OLSource {
   removeFeature(feature: OLFeature): void
   getFeatureById(id: string | number): OLFeature | null
   clear(): void
-  on(type: string, listener: (evt: any) => void): void
-  un(type: string, listener: (evt: any) => void): void
+  on(type: string, listener: (evt: OLEvent) => void): void
+  un(type: string, listener: (evt: OLEvent) => void): void
 }
 
 export interface OLClusterSource extends OLSource {
@@ -90,18 +108,18 @@ export interface OLClusterSource extends OLSource {
 export interface OLFeature {
   getGeometry(): OLGeometry | null
   setGeometry(geom: OLGeometry): void
-  get(key: string): any
-  set(key: string, value: any): void
+  get(key: string): unknown
+  set(key: string, value: unknown): void
   getKeys(): string[]
-  getProperties(): Record<string, any>
-  setStyle(style: any): void
-  getStyle(): any
+  getProperties(): Record<string, unknown>
+  setStyle(style: unknown): void
+  getStyle(): unknown
   setId(id: string | number): void
 }
 
 export interface OLGeometry {
   getType(): string
-  getCoordinates(): any
+  getCoordinates(): number[] | number[][] | number[][][]
   getClosestPoint(point: number[]): number[]
   getExtent(): number[]
 }
@@ -131,7 +149,7 @@ export interface OLCircle extends OLGeometry {
 export interface OLOverlay {
   setPosition(position: number[] | undefined): void
   getPosition(): number[] | undefined
-  getElement(): HTMLElement
+  getElement(): HTMLElement | undefined
 }
 
 // ─── OL Interactions ──────────────────────────────────────────────────────
@@ -139,8 +157,8 @@ export interface OLOverlay {
 export interface OLInteraction {
   setActive(active: boolean): void
   getActive(): boolean
-  on(type: string, listener: (evt: any) => void): void
-  un(type: string, listener: (evt: any) => void): void
+  on(type: string, listener: (evt: OLEvent) => void): void
+  un(type: string, listener: (evt: OLEvent) => void): void
 }
 
 export interface OLSelect extends OLInteraction {
@@ -162,9 +180,9 @@ export interface OLGeolocation {
   getAccuracy(): number
   setTracking(tracking: boolean): void
   getTracking(): boolean
-  on(type: string, listener: (evt: any) => void): void
-  un(type: string, listener: (evt: any) => void): void
-  once(type: string, listener: (evt: any) => void): void
+  on(type: string, listener: (evt: OLEvent) => void): void
+  un(type: string, listener: (evt: OLEvent) => void): void
+  once(type: string, listener: (evt: OLEvent) => void): void
 }
 
 // ─── Cleanup Refs (replaces _cleanup hack) ────────────────────────────────

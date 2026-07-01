@@ -33,6 +33,7 @@ import type {
   IFCControlPoint,
   IFCEquipmentRecord,
 } from '@/types/ifc';
+import { shoelaceArea } from '@/lib/engine/area';
 
 // ─── STEP String helpers ──────────────────────────────────────────────────
 
@@ -120,18 +121,7 @@ function toMM(
 
 // ─── Polygon utilities ────────────────────────────────────────────────────
 
-/** Shoelace area in m². */
-function shoelaceArea(verts: Array<{ easting: number; northing: number }>): number {
-  const n = verts.length;
-  if (n < 3) return 0;
-  let a = 0;
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n;
-    a += verts[i].easting * verts[j].northing;
-    a -= verts[j].easting * verts[i].northing;
-  }
-  return Math.abs(a) / 2;
-}
+// shoelaceArea is imported from @/lib/engine/area (canonical implementation)
 
 /** Centroid of polygon vertices in model-mm. Returns [x, y] as strings. */
 function centroidMM(
