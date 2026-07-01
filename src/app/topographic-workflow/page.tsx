@@ -290,7 +290,7 @@ export default function TopographicWorkflowPage() {
       </div>
 
       {/* Bottom: contextual info */}
-      <div className="mt-8 grid md:grid-cols-2 gap-4">
+      <div className="mt-8 grid md:grid-cols-3 gap-4">
         <div className="border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
           <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.08em] uppercase mb-3">
             Survey scale → point density
@@ -311,6 +311,18 @@ export default function TopographicWorkflowPage() {
             <li className="font-mono">UTM Zone 37S (EPSG:32737) — eastern Kenya</li>
             <li className="font-mono">Arc 1960 datum — legacy cadastral</li>
             <li className="font-mono">WGS84 — GNSS / drone / satellite imagery</li>
+          </ul>
+        </div>
+        <div className="border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+          <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.08em] uppercase mb-3">
+            Geodesy & volume tools
+          </div>
+          <ul className="space-y-2 text-xs">
+            <li><Link href="/tools/orthometric-height" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Orthometric height (h → H)</Link></li>
+            <li><Link href="/tools/scale-factor" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Scale factor (grid → ground)</Link></li>
+            <li><Link href="/tools/volume-comparison" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Dual-surface volume comparison</Link></li>
+            <li><Link href="/tools/site-calibration" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Site calibration (datum shift)</Link></li>
+            <li><Link href="/tools/cassini-utm" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Cassini ↔ UTM converter</Link></li>
           </ul>
         </div>
       </div>

@@ -35,6 +35,31 @@ const searchablePages = [
   { category: 'Engineering', group: 'Workflow', href: '/engineering-workflow', labelKey: 'Engineering Workflow' },
   // Topographic workflow
   { category: 'Topographic', group: 'Workflow', href: '/topographic-workflow', labelKey: 'Topographic Workflow' },
+  // Topographic - additional
+  { category: 'Topographic', group: 'Volumes', href: '/tools/volume-comparison', labelKey: 'Dual-Surface Volume Comparison' },
+  { category: 'Topographic', group: 'Point Cloud', href: '/tools/point-cloud-import', labelKey: 'Point Cloud Import' },
+  { category: 'Topographic', group: 'Orthophoto', href: '/tools/orthophoto-viewer', labelKey: 'Orthophoto Viewer' },
+  // Engineering - additional
+  { category: 'Engineering', group: 'Control', href: '/tools/lsa', labelKey: 'Least Squares Adjustment' },
+  { category: 'Engineering', group: 'GNSS', href: '/tools/gnss-baseline', labelKey: 'GNSS Baseline' },
+  { category: 'Engineering', group: 'GNSS', href: '/tools/gnss-observation-log', labelKey: 'GNSS Observation Log' },
+  { category: 'Engineering', group: 'Roads', href: '/tools/road-design', labelKey: 'Road Design' },
+  { category: 'Engineering', group: 'Roads', href: '/tools/superelevation', labelKey: 'Superelevation' },
+  { category: 'Engineering', group: 'Roads', href: '/tools/sight-distance', labelKey: 'Sight Distance' },
+  { category: 'Engineering', group: 'Earthworks', href: '/tools/cut-fill', labelKey: 'Cut and Fill' },
+  { category: 'Engineering', group: 'Piling', href: '/tools/pile-grid', labelKey: 'Pile Grid Setting Out' },
+  { category: 'Engineering', group: 'Machine', href: '/tools/machine-control', labelKey: 'Machine Control Export' },
+  { category: 'Engineering', group: 'Progress', href: '/tools/progress-monitor', labelKey: 'Progress Monitor' },
+  // Cadastral - additional
+  { category: 'Cadastral', group: 'Documents', href: '/tools/statutory-workbook', labelKey: 'Statutory Workbook' },
+  { category: 'Cadastral', group: 'Documents', href: '/tools/survey-plan-demo', labelKey: 'Survey Plan Viewer' },
+  { category: 'Cadastral', group: 'Documents', href: '/tools/billable-documents', labelKey: 'Billable Documents' },
+  { category: 'Cadastral', group: 'Reference', href: '/tools/control-marks-register', labelKey: 'Control Marks Register' },
+  // Geodesy - additional
+  { category: 'Geodesy', group: 'Cassini', href: '/tools/cassini-utm', labelKey: 'Cassini UTM Converter' },
+  // Field
+  { category: 'Field', group: 'Field Book', href: '/tools/level-book', labelKey: 'Level Book' },
+  { category: 'Field', group: 'Field Book', href: '/tools/traverse-field-book', labelKey: 'Traverse Field Book' },
   // Tools - Calculations
   { category: 'Tools', group: 'Calculations', href: '/tools/distance', labelKey: 'tools.distance' },
   { category: 'Tools', group: 'Calculations', href: '/tools/bearing', labelKey: 'tools.bearingCalc' },

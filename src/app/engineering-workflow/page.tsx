@@ -309,7 +309,7 @@ export default function EngineeringWorkflowPage() {
       </div>
 
       {/* Bottom: contextual info */}
-      <div className="mt-8 grid md:grid-cols-2 gap-4">
+      <div className="mt-8 grid md:grid-cols-3 gap-4">
         <div className="border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
           <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.08em] uppercase mb-3">
             Accuracy standards — RDM 1.1
@@ -332,6 +332,18 @@ export default function EngineeringWorkflowPage() {
             <li className="font-mono">KeRRA — Kenya Rural Roads Authority</li>
             <li className="font-mono">KURA — Kenya Urban Roads Authority</li>
             <li className="font-mono">Survey Act Cap 299 — legal framework</li>
+          </ul>
+        </div>
+        <div className="border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+          <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.08em] uppercase mb-3">
+            Geodesy & precision tools
+          </div>
+          <ul className="space-y-2 text-xs">
+            <li><Link href="/tools/orthometric-height" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Orthometric height (h → H)</Link></li>
+            <li><Link href="/tools/scale-factor" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Scale factor (grid → ground)</Link></li>
+            <li><Link href="/tools/site-calibration" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Site calibration (datum shift)</Link></li>
+            <li><Link href="/tools/lsa" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Least squares adjustment</Link></li>
+            <li><Link href="/tools/as-built-deviation" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">As-built deviation guard</Link></li>
           </ul>
         </div>
       </div>

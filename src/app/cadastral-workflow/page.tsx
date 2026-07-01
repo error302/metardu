@@ -289,7 +289,7 @@ export default function CadastralWorkflowPage() {
       </div>
 
       {/* Bottom: contextual info */}
-      <div className="mt-8 grid md:grid-cols-2 gap-4">
+      <div className="mt-8 grid md:grid-cols-3 gap-4">
         <div className="border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
           <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.08em] uppercase mb-3">
             Regulatory framework
@@ -312,6 +312,18 @@ export default function CadastralWorkflowPage() {
             <li className="font-mono">Form LRA 67 — beacon certificate</li>
             <li className="font-mono">CLA forms — computation workbook schedules</li>
             <li className="font-mono">Mutation form — subdivision / amalgamation</li>
+          </ul>
+        </div>
+        <div className="border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+          <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.08em] uppercase mb-3">
+            Geodesy tools
+          </div>
+          <ul className="space-y-2 text-xs">
+            <li><Link href="/tools/scale-factor" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Scale factor (grid → ground area)</Link></li>
+            <li><Link href="/tools/site-calibration" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Site calibration (WGS84 → Arc 1960)</Link></li>
+            <li><Link href="/tools/cassini-utm" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Cassini ↔ UTM converter</Link></li>
+            <li><Link href="/tools/topology-check" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Topology pre-flight validator</Link></li>
+            <li><Link href="/tools/cogo-reconstruct" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">COGO deed plan reconstructor</Link></li>
           </ul>
         </div>
       </div>
