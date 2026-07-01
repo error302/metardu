@@ -8,8 +8,9 @@ import { compoundCurveSolved, reverseCurveSolved, simpleCurveSolved } from '@/li
 import { PageHeader } from '@/components/shared/PageHeader'
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { SpiralAlignmentTab } from '@/components/tools/SpiralAlignmentTab'
 
-type CurveType = 'simple' | 'compound' | 'reverse' | 'vertical';
+type CurveType = 'simple' | 'compound' | 'reverse' | 'vertical' | 'spiral-alignment';
 
 export default function CurvesCalculator() {
   const { t } = useLanguage()
@@ -190,8 +191,12 @@ export default function CurvesCalculator() {
         <button onClick={() => { setCurveType('compound'); setResult(null); setVResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'compound' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Compound Curve</button>
         <button onClick={() => { setCurveType('reverse'); setResult(null); setVResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'reverse' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Reverse Curve</button>
         <button onClick={() => { setCurveType('vertical'); setResult(null); setVResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'vertical' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Vertical Curve</button>
+        <button onClick={() => { setCurveType('spiral-alignment'); setResult(null); setVResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'spiral-alignment' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`} title="Tier 2: Spiral-to-curve alignment engine (clothoid transitions)">Spiral Alignment</button>
       </div>
 
+      {curveType === 'spiral-alignment' ? (
+        <SpiralAlignmentTab />
+      ) : (
       <div className="grid md:grid-cols-2 gap-8">
         <div className="space-y-6">
           <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-xl p-6">
@@ -463,6 +468,7 @@ export default function CurvesCalculator() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

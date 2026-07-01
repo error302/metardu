@@ -61,6 +61,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Area', href: '/tools/area', icon: LandPlot, group: 'CORE_TOOLS', description: 'Area calculations' },
   { label: 'Grade', href: '/tools/grade', icon: TrendingUp, group: 'CORE_TOOLS', description: 'Grade and gradient calculations' },
   { label: 'Curves', href: '/tools/curves', icon: Spline, group: 'CORE_TOOLS', description: 'Horizontal and vertical curves' },
+  { label: 'Vertical Curve Designer', href: '/tools/vertical-curve-designer', icon: TrendingUp, group: 'CORE_TOOLS', badge: 'NEW', description: 'Multi-VIP parabolic alignment with AASHTO K-factor compliance' },
   { label: 'Chainage', href: '/tools/chainage', icon: Milestone, group: 'CORE_TOOLS', description: 'Chainage calculations' },
   { label: 'Tacheometry', href: '/tools/tacheometry', icon: ScanLine, group: 'CORE_TOOLS', description: 'Tacheometric survey calculations' },
   { label: 'Cross Sections', href: '/tools/cross-sections', icon: ChartSpline, group: 'CORE_TOOLS', description: 'Cross section analysis' },

@@ -105,6 +105,7 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '/tools/road-design': Construction,
   '/tools/earthworks': Mountain,
   '/tools/curves': Spline,
+  '/tools/vertical-curve-designer': TrendingUp,
   '/tools/tacheometry': ScanLine,
   '/tools/drone': Drone,
   '/tools/orthophoto-viewer': Eye,
@@ -232,6 +233,7 @@ const TOOL_DEFS: ToolDef[] = [
   { href: '/tools/road-design', title: 'Road Design', description: 'Full road design workflow | RDM 1.1 (2025)', section: 'Road Design', keywords: 'road design workflow rdm' },
   { href: '/tools/earthworks', title: 'Earthworks', description: 'Cut/fill volumes | Prismoidal formula | RDM 1.1', section: 'Road Design', keywords: 'earthworks cut fill volumes prismoidal formula rdm' },
   { href: '/tools/curves', title: 'Horizontal Curves', description: 'Horizontal/vertical curve elements | RDM 1.1', section: 'Road Design', keywords: 'curves horizontal vertical elements rdm' },
+  { href: '/tools/vertical-curve-designer', title: 'Vertical Curve Designer', description: 'Multi-VIP parabolic alignment with AASHTO K-factor & SSD compliance checking | Tier 2', badge: 'NEW', section: 'Road Design', keywords: 'vertical curve parabolic k factor ssd aashto alignment vip' },
   { href: '/tools/tacheometry', title: 'Tacheometry', description: 'Stadia/EDM distance & elevation | RDM 1.1 Section 5.6', section: 'Road Design', keywords: 'tacheometry stadia edm distance elevation rdm 5.6' },
   { href: '/tools/superelevation', title: 'Superelevation', description: 'e = V²/127R calculator per KRDM', section: 'Road Design', keywords: 'superelevation v2 127r krdm calculator' },
   { href: '/tools/sight-distance', title: 'Sight Distance', description: 'SSD & OSD calculator per KRDM/KeRRA', section: 'Road Design', keywords: 'sight distance ssd osd krdm kerra calculator' },
@@ -304,6 +306,7 @@ const NEW_BADGE_START: Record<string, string> = {
   '/tools/point-cloud-import': '2026-06-01',
   '/tools/contour-generator': '2026-06-01',
   '/tools/volume-comparison': '2026-06-01',
+  '/tools/vertical-curve-designer': '2026-07-02',
   '/tools/cassini-utm': '2026-06-02',
 }
 

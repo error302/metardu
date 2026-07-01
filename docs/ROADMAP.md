@@ -142,22 +142,22 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 **How:** Parabolic curve equation `y = ((g2-g1)/2L)x² + g1·x + E_PVC`. K-factor check against design speed. Amber warning on failing curves.
 **Where:** New `/tools/vertical-curve` or fold into as-built deviation guard as "design compliance" mode
 **Effort:** 1 session
-**Status:** Defer — this is a design tool, not a survey tool. Build only if targeting KeNHA highway contracts. Surveyors set out curves; they don't design them.
+**Status:** ✅ SHIPPED — `/tools/vertical-curve-designer`, multi-VIP alignment engine, AASHTO K-factor + SSD compliance, SVG profile diagram, station table, CSV export. Engine: `src/lib/survey/curves/verticalCurveDesigner.ts` (31 tests passing).
 
 #### Web Worker TIN generator
 **Why:** Contour generation can freeze on large datasets.
 **How:** Move Delaunay triangulation + contour interpolation to Web Worker.
-**Status:** Premature unless users report freezing. Current contour gen works for typical datasets.
+**Status:** ✅ SHIPPED — `src/lib/workers/tinWorker.ts` + `tinWorkerClient.ts` with auto-fallback to sync engine when Workers unavailable. Promise-based API (`triangulateAsync`, `buildTINSurfaceAsync`, `generateContoursAsync`) with progress callbacks. 13 tests passing.
 
 #### Automated breakline extraction
 **Why:** Auto-draw toe-of-slope, top-of-bank from TIN mesh.
 **How:** Compute triangle normal vectors, flag sharp angle changes, stitch into MultiLineString.
-**Status:** Nice-to-have. Most surveyors digitize breaklines in the field.
+**Status:** ✅ SHIPPED — `src/lib/engine/breaklineExtraction.ts` (triangle-normal dihedral algorithm, polyline stitching, ridge/slope-change/minor classification, GeoJSON + Breakline[] export). Integrated into `BreaklineEditor` as a new "Auto" tab with threshold slider and live preview. 20 tests passing.
 
 #### Spiral-to-curve alignment engine
 **Why:** KeNHA highway design uses clothoid spirals.
 **How:** Custom OpenLayers geometry for transition spirals. Dynamic chainage stationing.
-**Status:** Niche. Build when you have a KeNHA highway contract.
+**Status:** ✅ SHIPPED — `src/lib/survey/curves/spiralAlignment.ts` (TS→SC→CS→ST stationing, clothoid series expansion, world-coordinate output, station interpolation). UI: new "Spiral Alignment" tab on `/tools/curves` with SVG plan diagram and station table. 29 tests passing.
 
 ### Tier 3 — don't build (flawed or trap)
 
