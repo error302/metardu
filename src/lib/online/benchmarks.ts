@@ -37,7 +37,7 @@ export interface BenchmarkSearchParams {
   longitude?: number
 }
 
-const BENCHMARK_DATABASE: Benchmark[] = [
+export const BENCHMARK_DATABASE: Benchmark[] = [
   {
     id: 'KE-BM-001',
     name: 'Nairobi Primary BM',

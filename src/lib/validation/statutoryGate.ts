@@ -76,6 +76,10 @@ import { stoppingSightDistance, minimumRadius } from '@/lib/engineering/compute'
  * Record the change in CHANGELOG below.
  *
  * CHANGELOG:
+ *   1.2.0 (2026-07) — Added ardhisasa.rim_overlap rule: blocks
+ *     submission when the new parcel overlaps existing RIM parcels.
+ *     Overlap detection is async (turf geometry), pre-computed by
+ *     the loader and passed in via input.rimOverlaps.
  *   1.1.0 (2026-07) — Added KeNHA/KeRRA engineering design rules:
  *     minimum horizontal curve radius, stopping sight distance,
  *     superelevation rate cap. Rules sourced from RDM 1.1 §2.3,
@@ -85,7 +89,7 @@ import { stoppingSightDistance, minimumRadius } from '@/lib/engineering/compute'
  *     checks into a single pre-export gate. Rules sourced from
  *     Cap 299, RDM 1.1 (2023), ArdhiSasa spec (2024).
  */
-export const RULE_VERSION = '1.1.0'
+export const RULE_VERSION = '1.2.0'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -200,6 +204,20 @@ export interface StatutoryGateInput {
    * Per ArdhiSasa spec, subdivisions must reconcile to within this tolerance.
    */
   areaToleranceHectares?: number
+
+  /**
+   * RIM overlap detection results — pre-computed by the loader (since
+   * the geometry check is async and the gate is pure-sync). When
+   * present, the ardhisasa.rim_overlap rule fires.
+   *
+   * Use loadRimOverlaps() from rim/overlapDetection.ts to populate
+   * this field before calling runStatutoryGate().
+   */
+  rimOverlaps?: Array<{
+    existingParcelNumber: string
+    overlapAreaSqm: number
+    overlapPercent: number
+  }>
 }
 
 export interface StatutoryGateResult {
@@ -730,6 +748,38 @@ function ruleSuperelevationRate(
   }
 }
 
+// ─── RIM overlap rule (ArdhiSasa pre-flight) ────────────────────────────
+
+/**
+ * Rule: New parcel must not overlap existing RIM parcels.
+ * Source: ArdhiSasa portal submission spec §4.2 — overlapping parcels
+ * are rejected on first submission.
+ *
+ * The overlap detection itself is async (turf geometry), so it's
+ * pre-computed by the loader and passed in via input.rimOverlaps.
+ * This rule just checks the results and emits violations.
+ */
+function ruleRimOverlap(
+  input: StatutoryGateInput,
+  _profile: ToleranceProfile,
+  violations: Violation[]
+): void {
+  if (!input.rimOverlaps || input.rimOverlaps.length === 0) return
+
+  for (const overlap of input.rimOverlaps) {
+    violations.push({
+      rule: 'ardhisasa.rim_overlap',
+      source: 'ardhisasa',
+      severity: 'block',
+      message: `New parcel overlaps existing parcel "${overlap.existingParcelNumber}" by ${overlap.overlapAreaSqm.toFixed(1)} m² (${overlap.overlapPercent.toFixed(2)}% of the new parcel). ArdhiSasa will reject this submission — resolve the boundary conflict first.`,
+      actual: overlap.overlapAreaSqm,
+      allowable: 0,
+      unit: 'm²',
+      field: 'parcels',
+    })
+  }
+}
+
 // ─── Rule registry ─────────────────────────────────────────────────────
 
 interface RuleDef {
@@ -831,6 +881,13 @@ const RULES: RuleDef[] = [
     source: 'ardhisasa',
     severity: 'warn',
     run: ruleSuperelevationRate,
+  },
+  {
+    id: 'ardhisasa.rim_overlap',
+    description: 'New parcel must not overlap existing RIM parcels',
+    source: 'ardhisasa',
+    severity: 'block',
+    run: ruleRimOverlap,
   },
 ]
 
