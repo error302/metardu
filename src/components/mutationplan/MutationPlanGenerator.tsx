@@ -200,10 +200,26 @@ function parsePlotsCSV(csvText: string): MutationPlot[] {
 
 type Step = 1 | 2 | 3 | 4;
 
-export default function MutationPlanGenerator() {
-  const [step, setStep] = useState<Step>(1);
+export interface MutationPlanGeneratorProps {
+  /**
+   * Optional pre-loaded plot(s) to seed the generator with. Used by the
+   * project integration (`ProjectMutationPlan`) to inject a parent
+   * parcel's boundary directly from the project's most recent deed plan,
+   * avoiding the sessionStorage bridge that was previously used.
+   *
+   * When supplied, the generator initialises with these plots on step 2
+   * (Plot Definition) so the surveyor can immediately subdivide or
+   * amalgamate them.
+   */
+  initialPlots?: MutationPlot[];
+}
+
+export default function MutationPlanGenerator({
+  initialPlots,
+}: MutationPlanGeneratorProps = {}) {
+  const [step, setStep] = useState<Step>(initialPlots && initialPlots.length > 0 ? 2 : 1);
   const [projectInfo, setProjectInfo] = useState(DEFAULT_PROJECT);
-  const [plots, setPlots] = useState<MutationPlot[]>([]);
+  const [plots, setPlots] = useState<MutationPlot[]>(initialPlots ?? []);
   const [roads, setRoads] = useState<RoadCorridor[]>([]);
   const [monuments, setMonuments] = useState<SurveyMonument[]>([]);
   const [bearingSchedule, setBearingSchedule] = useState<BearingScheduleEntry[]>([]);

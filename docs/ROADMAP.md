@@ -61,9 +61,11 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
   - `/tools/earthworks?project=<id>` auto-populates existing ground profiles via `ProjectCrossSections`
 
 ### Mutation plan deep integration
-- [ ] Refactor `MutationPlanGenerator` to accept `initialPlots` prop
-  - Currently uses sessionStorage bridge (works but fragile)
-  - Clean prop injection is the right pattern
+- [x] Refactor `MutationPlanGenerator` to accept `initialPlots` prop
+  - `MutationPlanGenerator` now accepts `initialPlots?: MutationPlot[]`
+  - `ProjectMutationPlan` passes deed plan boundary directly as prop
+  - Removed sessionStorage bridge entirely — clean prop injection
+  - Generator auto-advances to step 2 when initialPlots supplied
 
 ---
 
@@ -176,9 +178,11 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 
 ### Tool page deep refits
 - PageHeader + card CSS updated globally (shipped)
-- Individual tool pages still use old internal layouts
-- Priority: traverse, levelling, COGO, deed plan (highest traffic)
-- Pattern: field-book table + output diagram (from v0.1 preview)
+- [x] Traverse page refit — added SVG `TraverseDiagram` component showing
+      adjusted vs raw traverse, closing error vector, station markers,
+      north arrow, scale bar. Pattern: field-book table + output diagram.
+      Other pages (levelling, COGO, deed plan) can replicate this pattern.
+- [ ] Levelling, COGO, deed plan page refits — same pattern, lower priority
 
 ### OKLCH color migration
 - Current tokens are hex
@@ -186,9 +190,14 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 - Low priority — current palette works
 
 ### Prisma schema cleanup
-- SurveyType union still includes 'mining' | 'hydrographic' (backward compat)
-- DB tables for hydro/mining may still exist (no migration run)
-- Clean up after confirming no old projects reference them
+- [x] Schema updated — `MINING` and `HYDROGRAPHIC` removed from `SurveyType`
+      enum in `prisma/schema.prisma`
+- [x] Migration SQL written — `prisma/migrations/20260702000000_drop_mining_hydrographic_survey_types/migration.sql`
+      with pre-flight check queries, PostgreSQL enum-swap pattern, and
+      post-migration verification queries
+- [ ] Migration NOT YET APPLIED — user must run pre-flight queries against
+      production DB, reassign any existing MINING/HYDROGRAPHIC projects,
+      then `npm run migrate`. See migration SQL header for full procedure.
 
 ---
 

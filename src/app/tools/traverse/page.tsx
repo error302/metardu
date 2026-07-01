@@ -12,6 +12,7 @@ import { buildPrintDocument, openPrint } from '@/lib/print/buildPrintDocument'
 import { PrintMetaPanel, defaultPrintMeta, type PrintMeta } from '@/components/shared/PrintMetaPanel'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { TraverseDiagram } from '@/components/traverse/TraverseDiagram'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -473,6 +474,19 @@ ${azmSection}`
       {/* ── Results ────────────────────────────────────────────────────── */}
       {result && (
         <div className="grid md:grid-cols-2 gap-6">
+
+          {/* Traverse Diagram — full width */}
+          <div className="md:col-span-2 card">
+            <div className="card-header flex justify-between items-center">
+              <span className="label">Traverse Diagram — Adjusted vs Raw</span>
+              <span className="text-xs text-[var(--text-muted)] font-mono">
+                Closing error: {result.linearError.toFixed(4)} m · Precision 1:{Math.round(1 / result.precisionRatio)}
+              </span>
+            </div>
+            <div className="p-4">
+              <TraverseDiagram result={result} />
+            </div>
+          </div>
 
           {/* Linear Misclosure */}
           <div className="card">
