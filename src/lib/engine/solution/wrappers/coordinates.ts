@@ -1,4 +1,4 @@
-import { geographicToUTM, utmToGeographic } from '@/lib/engine/coordinates'
+import { geographicToUTM, utmToGeographic } from '@/lib/geodesy/coordinates'
 import { decimalToDMS, dmsToDecimal } from '@/lib/engine/angles'
 import type { DMS } from '@/lib/engine/types'
 import { createSolutionV1, solveWithSteps, type Solved, type Solution } from '@/lib/engine/solution/solutionBuilder'

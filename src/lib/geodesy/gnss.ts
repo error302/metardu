@@ -7,8 +7,8 @@
 
 // METARDU Engine - GNSS Baseline Processing
 
-import { Point2D, Point3D } from './types';
-import { toRadians, toDegrees } from './angles';
+import { Point2D, Point3D } from '@/lib/engine/types';
+import { toRadians, toDegrees } from '@/lib/engine/angles';
 
 export interface GNSSBaseStation {
   name: string

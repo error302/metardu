@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/api-client/client'
-import { geographicToUTM } from '@/lib/engine/coordinates'
+import { geographicToUTM } from '@/lib/geodesy/coordinates'
 
 interface AddPointModalProps {
   isOpen: boolean

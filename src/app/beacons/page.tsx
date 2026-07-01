@@ -3,7 +3,7 @@ import React from 'react'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/api-client/client'
-import { utmToGeographic } from '@/lib/engine/coordinates'
+import { utmToGeographic } from '@/lib/geodesy/coordinates'
 import Link from 'next/link'
 import { BeaconRegistryPanel } from '@/components/beacons/BeaconRegistryPanel'
 import { ControlPointRegistry } from '@/components/survey/ControlPointRegistry'

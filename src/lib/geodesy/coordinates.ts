@@ -12,8 +12,8 @@
 
 // METARDU Engine - Coordinate conversions
 
-import { LatLon, UTMCoord, DMS } from './types';
-import { decimalToDMS } from './angles';
+import { LatLon, UTMCoord, DMS } from '@/lib/engine/types';
+import { decimalToDMS } from '@/lib/engine/angles';
 import { getUTMZoneFromLatLng } from './utmZones';
 
 // WGS84 ellipsoid

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { getUTMZoneFromLatLng } from '@/lib/engine/utmZones'
+import { getUTMZoneFromLatLng } from '@/lib/geodesy/utmZones'
 import { useCountry, ALL_COUNTRIES } from '@/lib/country'
 import type { SurveyingCountry } from '@/lib/country'
 import { SURVEY_TYPE_LABELS, SurveyType } from '@/types/project'

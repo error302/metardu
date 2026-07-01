@@ -1,4 +1,4 @@
-import { utmToGeographic } from '@/lib/engine/coordinates'
+import { utmToGeographic } from '@/lib/geodesy/coordinates'
 import type { SurveyPoint } from '@/types/surveyPoint'
 
 // Re-export for backwards compatibility with callers that import

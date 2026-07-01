@@ -4,8 +4,8 @@
  * Transforms coordinates between different CRS in real-time
  */
 
-import { DATUM_REGISTRY, DatumParameters } from '../engine/datums'
-import { geographicToUTM, utmToGeographic } from '../engine/coordinates'
+import { DATUM_REGISTRY, DatumParameters } from '@/lib/geodesy/datums'
+import { geographicToUTM, utmToGeographic } from '@/lib/geodesy/coordinates'
 
 const COORD_TO_DATUM: Record<CoordinateSystem, string> = {
   WGS84: 'WGS84',

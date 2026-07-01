@@ -4,7 +4,7 @@
  * Coordinates are converted to WGS84 lat/lon as required by most drone platforms.
  */
 
-import { utmToGeographic } from '@/lib/engine/coordinates'
+import { utmToGeographic } from '@/lib/geodesy/coordinates'
 
 export interface GCPPoint {
   name: string

@@ -10,7 +10,7 @@ import {
   computeBaseline, 
   processGNSSNetwork,
   utmToGeodetic
-} from '@/lib/engine/gnss';
+} from '@/lib/geodesy/gnss';
 
 interface Observation {
   id: number;

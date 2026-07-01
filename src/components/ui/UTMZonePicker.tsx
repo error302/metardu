@@ -1,5 +1,5 @@
 'use client';
-import { getUTMZoneFromLatLng } from '@/lib/engine/utmZones'
+import { getUTMZoneFromLatLng } from '@/lib/geodesy/utmZones'
 
 interface UTMZonePickerProps {
   value: number

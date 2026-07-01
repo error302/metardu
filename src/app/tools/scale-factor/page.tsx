@@ -9,7 +9,7 @@ import {
   KENYA_LOCATIONS,
   type ScaleFactorResult,
   type AreaConversionResult,
-} from '@/lib/engine/scaleFactor'
+} from '@/lib/geodesy/scaleFactor'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface CoordRow {
