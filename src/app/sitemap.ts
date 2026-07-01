@@ -18,6 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/tools/cogo-reconstruct',
     '/tools/as-built-deviation',
     '/tools/scale-factor',
+    '/tools/site-calibration',
     '/engineering-workflow',
     '/topographic-workflow',
     '/tools/all',

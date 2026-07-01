@@ -29,6 +29,7 @@ const searchablePages = [
   { category: 'Cadastral', group: 'COGO', href: '/tools/cogo-reconstruct', labelKey: 'COGO Deed Reconstructor' },
   { category: 'Engineering', group: 'As-built', href: '/tools/as-built-deviation', labelKey: 'As-built Deviation Guard' },
   { category: 'Geodesy', group: 'Scale Factor', href: '/tools/scale-factor', labelKey: 'Combined Scale Factor' },
+  { category: 'Geodesy', group: 'Calibration', href: '/tools/site-calibration', labelKey: 'Site Calibration' },
   // Engineering workflow
   { category: 'Engineering', group: 'Workflow', href: '/engineering-workflow', labelKey: 'Engineering Workflow' },
   // Topographic workflow
