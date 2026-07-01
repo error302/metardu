@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { requireProjectOwnership } from '@/lib/auth/ownership'
 
 export const dynamic = 'force-dynamic'

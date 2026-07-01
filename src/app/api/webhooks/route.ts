@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { WEBHOOK_SECRET_PREFIX } from '@/lib/webhooks/types'
 
 export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {

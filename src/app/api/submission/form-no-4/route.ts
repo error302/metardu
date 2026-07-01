@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { generateFormNo4DXF } from '@/lib/submission/generators/formNo4'
 import { generateFormNo4PDF } from '@/lib/submission/generators/formNo4PDF'
 import type { SubmissionPackage } from '@/lib/submission/types'

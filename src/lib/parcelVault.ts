@@ -1,4 +1,4 @@
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import type { NLIMSParcel } from '@/types/nlims'
 
 export type VaultFreshness = 'FRESH' | 'VERIFY' | 'STALE'

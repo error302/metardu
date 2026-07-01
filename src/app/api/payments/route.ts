@@ -7,7 +7,7 @@ import { getStripeService } from '@/lib/payments/stripe'
 import { getPayPalService } from '@/lib/payments/paypal'
 import { getMpesaService } from '@/lib/payments/mpesa'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import type { CurrencyCode, PlanId } from '@/lib/subscription/catalog'
 import { getPlan } from '@/lib/subscription/catalog'
 

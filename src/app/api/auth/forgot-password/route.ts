@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { z } from 'zod'
 import { sendTemplatedEmail } from '@/lib/email-templates'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 
 const forgotSchema = z.object({

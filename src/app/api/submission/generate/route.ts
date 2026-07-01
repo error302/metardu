@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { GenerateSubmissionSchema } from '@/lib/validation/apiSchemas'
 
 export const POST = apiHandler({ auth: true, schema: GenerateSubmissionSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {

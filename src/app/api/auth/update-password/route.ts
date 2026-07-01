@@ -5,7 +5,7 @@ import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 
 const updateSchema = z.object({

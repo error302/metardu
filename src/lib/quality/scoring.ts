@@ -42,8 +42,7 @@
  *   console.log(`Pass rate: ${metrics.gatePassRate.toFixed(1)}%`)
  */
 
-import db from '@/lib/db'
-
+import { db } from '@/lib/db'
 // ─── Types ──────────────────────────────────────────────────────────────
 
 export interface SurveyorMetricsQuery {

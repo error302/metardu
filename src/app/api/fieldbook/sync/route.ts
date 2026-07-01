@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { apiHandler, checkOptimisticLock } from '@/lib/api/handler'
 import { z } from 'zod'
-import db from '@/lib/db'
-
+import { db } from '@/lib/db'
 export const dynamic = 'force-dynamic'
 
 // ponytail: sync endpoint receives observations from the offline field book

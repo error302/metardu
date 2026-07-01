@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayPalService } from '@/lib/payments/paypal'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import type { PlanId, CurrencyCode } from '@/lib/subscription/catalog'
 import { createVerify, createPublicKey } from 'crypto'
 import { crc32 } from 'zlib'

@@ -27,7 +27,7 @@
  *   )
  */
 
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 
 export interface OwnershipResult {

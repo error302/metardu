@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { transformCoordinates, TransformInput } from '@/lib/geo/transform'
 import { GeoTransformSchema } from '@/lib/validation/apiSchemas'
 

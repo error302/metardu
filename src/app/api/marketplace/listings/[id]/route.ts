@@ -9,8 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
 import { apiSuccess, apiError } from '@/lib/api/response'
-import db from '@/lib/db'
-
+import { db } from '@/lib/db'
 export const dynamic = 'force-dynamic'
 
 function rowToListing(row: Record<string, unknown>) {

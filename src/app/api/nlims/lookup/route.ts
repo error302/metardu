@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import type { NLIMSSearchResult, NLIMSParcel } from '@/types/nlims'
 
 export const dynamic = 'force-dynamic'

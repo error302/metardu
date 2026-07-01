@@ -168,3 +168,28 @@ export function averageOrdinateArea(ordinates: number[], totalLength: number): A
     method: 'Average-Ordinate Rule'
   };
 }
+
+/**
+ * Simple shoelace polygon area — returns just the number (m²).
+ *
+ * This is the canonical implementation. Previously duplicated in 7+
+ * files across the codebase (statutoryGate, overlapDetection,
+ * statutoryGateLoader, deedPlanRenderer, etc.). All local copies
+ * should import from here.
+ *
+ * @param vertices Array of {easting, northing} points (minimum 3)
+ * @returns Area in square metres (always positive)
+ */
+export function shoelaceArea(
+  vertices: Array<{ easting: number; northing: number }>
+): number {
+  if (vertices.length < 3) return 0
+  let sum = 0
+  const n = vertices.length
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n
+    sum += vertices[i].easting * vertices[j].northing
+    sum -= vertices[j].easting * vertices[i].northing
+  }
+  return Math.abs(sum) / 2
+}

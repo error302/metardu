@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { requireProjectOwnership } from '@/lib/auth/ownership'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile'
 import { generateSubmissionRef } from '@/lib/submission/revisionNumber'
 

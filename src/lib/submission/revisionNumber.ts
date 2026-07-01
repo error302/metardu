@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/api-client/server'
-import db from '@/lib/db'
-
+import { db } from '@/lib/db'
 export async function generateSubmissionRef(
   projectId: string,
   iskNumber: string

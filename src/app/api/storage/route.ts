@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { promises as fs } from 'fs'
 import path from 'path'
 import crypto from 'crypto'

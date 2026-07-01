@@ -12,8 +12,7 @@
  *   3. Empty strings (the gate will block on missing name/license)
  */
 
-import db from '@/lib/db'
-
+import { db } from '@/lib/db'
 export interface SurveyorProfile {
   surveyorName: string
   iskNumber: string

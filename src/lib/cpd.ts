@@ -1,4 +1,4 @@
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { randomBytes } from 'crypto'
 import type { CPDRecord, CPDCertificate, CPDActivity } from '@/types/cpd'
 import { CPD_POINTS } from '@/types/cpd'

@@ -3,8 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
-import db from '@/lib/db'
-
+import { db } from '@/lib/db'
 const cleanedDatasetSchema = z.object({
   project_id: z.string().min(1),
   raw_data: z.any().optional(),

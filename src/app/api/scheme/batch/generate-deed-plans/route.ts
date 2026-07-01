@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { generateDeedPlan } from '@/lib/generators/deedPlan'
 import JSZip from 'jszip'
 import { BatchDeedPlanSchema } from '@/lib/validation/apiSchemas'

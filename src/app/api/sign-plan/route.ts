@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { log } from '@/lib/logger'
 import { generateSignedPdf, type SignedPdfResult } from '@/lib/reports/surveyPlan/signedPdfExport'
 import type { SurveyPlanData, MonumentType, FenceOffset, AdjacentLot, ControlPoint } from '@/lib/reports/surveyPlan/types'

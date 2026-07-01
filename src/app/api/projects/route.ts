@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { apiHandler, AppError } from '@/lib/api/handler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { z } from 'zod'
 
 const createProjectSchema = z.object({

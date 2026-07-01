@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { generateAllSections } from '@/lib/compute/surveyReportSections'
 import { computeReportCompleteness } from '@/lib/compute/reportCompleteness'
 import { riseAndFall } from '@/lib/engine/leveling'

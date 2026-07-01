@@ -21,10 +21,11 @@
  *   }
  */
 
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import type { SurveyPoint } from '@/types/surveyPoint'
 import type { SurveyType } from '@/types/project'
 import type { StatutoryGateInput } from './statutoryGate'
+import { shoelaceArea } from '@/lib/engine/area'
 
 // ─── Types matching DB row shapes ───────────────────────────────────────
 
@@ -126,17 +127,7 @@ function parseBoundaryPoints(raw: unknown, fallbackAreaSqm: number | null): {
   return { vertices, areaHectares }
 }
 
-function shoelaceArea(vertices: SurveyPoint[]): number {
-  if (vertices.length < 3) return 0
-  let sum = 0
-  const n = vertices.length
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n
-    sum += vertices[i].easting * vertices[j].northing
-    sum -= vertices[j].easting * vertices[i].northing
-  }
-  return Math.abs(sum) / 2
-}
+// shoelaceArea is imported from @/lib/engine/area (canonical implementation)
 
 // ─── Public API ─────────────────────────────────────────────────────────
 

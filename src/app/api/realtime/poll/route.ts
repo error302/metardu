@@ -2,8 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
-
+import { db } from '@/lib/db'
 // Only allow specific tables to be queried, and require auth
 const ALLOWED_TABLES = [
   'projects',

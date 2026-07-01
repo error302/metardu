@@ -48,6 +48,7 @@
  */
 
 import { calculateIntersection } from '@/lib/map/turfHelpers'
+import { shoelaceArea } from '@/lib/engine/area'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -95,23 +96,7 @@ export interface OverlapDetectionResult {
  */
 const MIN_OVERLAP_AREA_SQM = 0.01
 
-// ─── Geometry helpers (pure, no turf dependency) ────────────────────────
-
-/**
- * Shoelace polygon area in m². Used for the new parcel's total area
- * and for sanity-checking the turf intersection result.
- */
-function shoelaceArea(vertices: Array<{ easting: number; northing: number }>): number {
-  if (vertices.length < 3) return 0
-  let sum = 0
-  const n = vertices.length
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n
-    sum += vertices[i].easting * vertices[j].northing
-    sum -= vertices[j].easting * vertices[i].northing
-  }
-  return Math.abs(sum) / 2
-}
+// shoelaceArea is imported from @/lib/engine/area (canonical implementation)
 
 // ─── Public API ─────────────────────────────────────────────────────────
 

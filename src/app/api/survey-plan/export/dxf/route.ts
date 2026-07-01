@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { log } from '@/lib/logger'
 import { generateCadastralPlanDXF } from '@/lib/export/cadastralPlanDXF'
 import type { SurveyPlanData, MonumentType, FenceOffset, AdjacentLot, ControlPoint } from '@/lib/reports/surveyPlan/types'

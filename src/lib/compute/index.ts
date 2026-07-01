@@ -5,6 +5,8 @@
  * Native TS implementations (no Python dependency):
  *   - generateTIN, interpolateElevation       → ./tin
  *   - computeRasterAnalysis                   → ./rasterAnalysis
+ *   - computeEDMCorrection                    → ./edmCorrection (atmospheric)
+ *   - generateVerificationQR                  → ./qrCode (document auth)
  *
  * Existing compute runners:
  *   - runTraverseComputation                  → ./traverseRunner
@@ -25,6 +27,8 @@
 // Native TypeScript compute modules
 export { generateTIN, interpolateElevation, computeSurfaceArea, computeTINVolume, type TINPoint, type TINTriangle } from './tin'
 export { computeRasterAnalysis, validateRasterRequest, type RasterAnalysisType, type RasterAnalysisParams, type RasterAnalysisResult } from './rasterAnalysis'
+export { computeEDMCorrection, fetchWeatherData } from './edmCorrection'
+export { generateVerificationQR, getVerificationUrl } from './qrCode'
 
 // Existing compute runners
 export { runTraverseComputation, runForwardTraverse, runBowditchAdjustment, getTraversePrecisionStatus, type TraverseComputeInput, type TraverseComputationResult } from './traverseRunner'

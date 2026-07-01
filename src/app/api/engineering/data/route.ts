@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import type { EngineeringSubtype } from '@/lib/engine/engineering'
 import { SaveEngineeringDataSchema } from '@/lib/validation/apiSchemas'
 

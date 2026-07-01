@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import db from '@/lib/db'
+import { db } from '@/lib/db'
 import { generateFormC22Pdf } from '@/lib/generators/formC22'
 import type { FormC22Input } from '@/lib/generators/formC22'
 
