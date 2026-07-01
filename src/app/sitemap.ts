@@ -17,6 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/tools/subdivision-generator',
     '/tools/cogo-reconstruct',
     '/tools/as-built-deviation',
+    '/tools/scale-factor',
     '/engineering-workflow',
     '/topographic-workflow',
     '/tools/all',

@@ -28,6 +28,7 @@ const searchablePages = [
   { category: 'Cadastral', group: 'Subdivision', href: '/tools/subdivision-generator', labelKey: 'Generative Subdivision' },
   { category: 'Cadastral', group: 'COGO', href: '/tools/cogo-reconstruct', labelKey: 'COGO Deed Reconstructor' },
   { category: 'Engineering', group: 'As-built', href: '/tools/as-built-deviation', labelKey: 'As-built Deviation Guard' },
+  { category: 'Geodesy', group: 'Scale Factor', href: '/tools/scale-factor', labelKey: 'Combined Scale Factor' },
   // Engineering workflow
   { category: 'Engineering', group: 'Workflow', href: '/engineering-workflow', labelKey: 'Engineering Workflow' },
   // Topographic workflow
