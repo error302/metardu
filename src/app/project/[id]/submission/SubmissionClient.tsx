@@ -10,6 +10,7 @@ import { SurveyType } from '@/types/project';
 import { SupportingDocUpload } from '@/components/submission/SupportingDocUpload';
 import { FormNo4Preview } from '@/components/drawing/FormNo4Preview';
 import { NLIMSExportPanel } from '@/components/submission/NLIMSExportPanel';
+import { StatutoryGatePanel } from '@/components/validation/StatutoryGatePanel';
 
 // ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
 
@@ -251,6 +252,12 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
           </p>
         )}
       </div>
+
+      {/* Statutory Validation Gate — pre-export compliance check.
+          Shows blocking violations before the surveyor hits Generate,
+          so they can fix issues in the field book or traverse adjustment
+          instead of getting a rejection at export time. */}
+      <StatutoryGatePanel projectId={project.id} />
 
       {documents.length === 0 ? (
         <p className="text-[var(--text-muted)] text-sm">
