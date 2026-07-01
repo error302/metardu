@@ -147,30 +147,39 @@ export default function ImportPage() {
   return (
     <div className="min-h-screen py-12">
       <div className="max-w-4xl mx-auto px-6">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Total Station Import</h1>
-        <p className="text-[var(--text-secondary)] mb-8">
-          Import data directly from your total station
-        </p>
+        <div className="mb-8 pb-5 border-b border-[var(--border-color)]">
+          <div className="font-mono text-[11px] text-[var(--accent)] tracking-[0.12em] uppercase mb-2">
+            Field data → Metardu
+          </div>
+          <h1 className="font-display text-3xl text-[var(--text-primary)] tracking-[-0.025em]">Import field data</h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-2">
+            Import from any total station, GNSS rover, or drone software. Metardu auto-detects the format.
+          </p>
+        </div>
 
         {imported !== null ? (
-          <div className="bg-green-900/20 border border-green-500 rounded-xl p-8 text-center">
-            <div className="text-4xl mb-4">✓</div>
-            <h2 className="text-xl font-bold text-green-400 mb-2">
+          <div className="bg-[var(--success)]/10 border border-[var(--success)]/30 rounded-lg p-8 text-center">
+            <div className="w-12 h-12 mx-auto mb-4 border border-[var(--success)] flex items-center justify-center">
+              <svg className="w-7 h-7 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </div>
+            <h2 className="font-display text-2xl text-[var(--success)] tracking-[-0.02em] mb-2">
               {imported} points imported
             </h2>
-            <p className="text-[var(--text-secondary)] mb-6">
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
               Successfully imported to {projectName}
             </p>
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-3 justify-center">
               <a
                 href={`/project/${selectedProject}`}
-                className="px-6 py-2 bg-amber-500 text-black font-bold rounded hover:bg-amber-400"
+                className="px-5 py-2.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium rounded-md hover:bg-[var(--accent-dim)] transition-colors text-sm no-underline"
               >
-                Open Project
+                Open project →
               </a>
               <button
                 onClick={() => { setFile(null); setPoints([]); setImported(null); }}
-                className="px-6 py-2 border border-amber-500 text-amber-500 font-bold rounded hover:bg-amber-500/10"
+                className="px-5 py-2.5 border border-[var(--border-color)] text-[var(--text-primary)] font-medium rounded-md hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
               >
                 Import More
               </button>
@@ -178,29 +187,44 @@ export default function ImportPage() {
           </div>
         ) : (
           <>
-            <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-8 mb-8">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Supported Formats</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <FormatBadge color="blue" name="Leica GSI" />
-                <FormatBadge color="red" name="Trimble JobXML" />
-                <FormatBadge color="yellow" name="Topcon GTS" />
-                <FormatBadge color="green" name="Sokkia SDR" />
+            <div className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] p-6 mb-8">
+              <h2 className="font-display text-xl text-[var(--text-primary)] tracking-[-0.015em] mb-4">Supported formats</h2>
+              <p className="text-sm text-[var(--text-secondary)] mb-4">
+                Import data directly from your total station, GNSS rover, or drone processing software.
+                Metardu auto-detects the format.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <FormatBadge color="var(--accent)" name="Leica GSI (.gsi)" />
+                <FormatBadge color="var(--accent)" name="Trimble JobXML (.job, .jxl)" />
+                <FormatBadge color="var(--accent)" name="Trimble RW5 (.rw5)" />
+                <FormatBadge color="var(--accent)" name="Sokkia SDR (.sdr)" />
+                <FormatBadge color="var(--accent)" name="Topcon GTS (.gtl, .raw)" />
+                <FormatBadge color="var(--accent)" name="South NTS (.dat)" />
+                <FormatBadge color="var(--accent)" name="CSV / TXT (.csv, .txt)" />
+                <FormatBadge color="var(--accent)" name="DXF (.dxf)" />
+                <FormatBadge color="var(--accent)" name="GeoJSON (.geojson)" />
+                <FormatBadge color="var(--accent)" name="KML (.kml)" />
+                <FormatBadge color="var(--accent)" name="XYZ Point Cloud (.xyz)" />
+                <FormatBadge color="var(--accent)" name="LAS / LAZ (.las, .laz)" />
+                <FormatBadge color="var(--accent)" name="RINEX (.rnx, .obs)" />
+                <FormatBadge color="var(--accent)" name="Pix4D (.p4d)" />
+                <FormatBadge color="var(--accent)" name="PLY Mesh (.ply)" />
+                <FormatBadge color="var(--accent)" name="XML (.xml)" />
               </div>
 
               <div className="mt-8">
                 <label className="block">
-                  <div className="border-2 border-dashed border-amber-500/50 rounded-xl p-12 text-center cursor-pointer hover:border-amber-500 transition-colors">
-                    <div className="text-4xl mb-4">[Folder]</div>
-                    <p className="text-[var(--text-primary)] font-medium mb-2">
+                  <div className="border-2 border-dashed border-[var(--border-hover)] rounded-lg p-12 text-center cursor-pointer hover:border-[var(--accent)] transition-colors">
+                    <div className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.1em] uppercase mb-4">
                       {file ? file.name : 'Drop your file here or click to browse'}
-                    </p>
-                    <p className="text-[var(--text-muted)] text-sm">
-                      Supported: .gsi, .job, .jxl, .sdr, .csv
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)] font-mono">
+                      .gsi · .job · .jxl · .rw5 · .sdr · .csv · .txt · .dxf · .geojson · .kml · .xyz · .las · .laz · .rnx · .p4d · .ply · .xml
                     </p>
                   </div>
                   <input
                     type="file"
-                    accept=".gsi,.job,.jxl,.sdr,.csv"
+                    accept=".gsi,.job,.jxl,.rw5,.sdr,.gtl,.raw,.dat,.csv,.txt,.dxf,.geojson,.json,.kml,.xyz,.las,.laz,.rnx,.obs,.p4d,.ply,.xml"
                     onChange={handleFileChange}
                     className="hidden"
                   />
@@ -303,14 +327,15 @@ export default function ImportPage() {
 }
 
 function FormatBadge({ color, name }: { color: string; name: string }) {
-  const colors: Record<string, string> = {
-    blue: 'bg-blue-900/30 text-blue-400 border-blue-500',
-    red: 'bg-red-900/30 text-red-400 border-red-500',
-    yellow: 'bg-yellow-900/30 text-yellow-400 border-yellow-500',
-    green: 'bg-green-900/30 text-green-400 border-green-500',
-  }
   return (
-    <div className={`p-3 rounded-lg border ${colors[color]} text-center text-sm font-medium`}>
+    <div
+      className="p-3 rounded-md border text-center font-mono text-xs"
+      style={{
+        background: `${color}15`,
+        color: color,
+        borderColor: `${color}40`,
+      }}
+    >
       {name}
     </div>
   )
