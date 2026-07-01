@@ -99,10 +99,39 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 **Effort:** 2-3 sessions for core engine
 **Status:** ✅ SHIPPED — `/tools/subdivision-generator`, Kenya plot presets, beacon CSV export
 
+### Geodesy features (from Gemini "deep tech" analysis)
+
+#### Combined Scale Factor (grid-to-ground area conversion)
+**Why:** At Nairobi (1,798m elevation), a 100ha parcel has ~0.03ha discrepancy between grid area (UTM coordinates) and true ground area (physical surface). The deed plan must state ground area.
+**How:** CSF = k × Fh (grid scale factor × elevation factor). Ground Area = Grid Area / CSF².
+**Where:** `/tools/scale-factor`
+**Effort:** 1 session
+**Status:** ✅ SHIPPED — Kenya location presets, two conversion modes (direct + polygon), legal note
+
+#### Helmert 7-Parameter Site Calibration (WGS84 ↔ Arc 1960)
+**Why:** RTK rovers output WGS84. Survey of Kenya registry uses Arc 1960 (Clarke 1880 ellipsoid). Horizontal shift is 100-200m without transformation. This is Kenya's "silent killer."
+**How:** 7-parameter similarity transformation (Tx, Ty, Tz, Rx, Ry, Rz, Scale) from 3+ control point pairs. Least squares for 4+ points.
+**Where:** `/tools/site-calibration`
+**Effort:** 2 sessions
+**Status:** ✅ SHIPPED — Helmert engine, RMS residual analysis, batch transform, color-coded border inputs
+
+#### Orthometric Height Conversion (EGM96 geoid)
+**Why:** GNSS gives ellipsoidal height (above WGS84 ellipsoid). Engineering needs orthometric height (above sea level / geoid). Water flows by gravity (geoid), not ellipsoid. At Nairobi, correction is ~10m.
+**How:** H = h - N. EGM96 5° grid with bilinear interpolation. Client-side, no external file.
+**Where:** `/tools/orthometric-height`
+**Effort:** 1 session
+**Status:** ✅ SHIPPED — Single + batch modes, Kenya geoid reference table, CSV export, engineering note
+
+#### Error Ellipse Visualization (95% confidence)
+**Why:** LSA engine already computes error ellipses (semi-major, semi-minor, orientation). Surveyors need to see them visually to assess network quality. Military-grade software rejects circular error approximations.
+**How:** SVG ellipse rendering in LSA results, scaled to fit, color-coded by threshold (green ≤20mm, amber 20-40mm, red >40mm). North arrow for orientation reference.
+**Where:** `/tools/lsa` (inline in results)
+**Effort:** 1 session
+**Status:** ✅ SHIPPED — SVG ellipses with 95% confidence, per-station visualization, legend
+
 ### Tier 2 — build when needed (real but niche)
 
 #### Dual-surface TIN volume comparison (topographic/engineering)
-**Why:** Monitoring quarries, borrow pits, base excavations. Compare baseline surface vs current surface.
 **How:** Extend existing `src/lib/engine/contours.ts` `computeVolumeFromTIN` to accept two TIN surfaces. Prismoidal column equation: `V = A_base × (Δz1+Δz2+Δz3)/3`. Cut/fill heatmap overlay on OpenLayers.
 **Where:** Extend `/tools/earthworks` or new `/tools/volume-comparison` (route exists)
 **Effort:** 1 session (extends existing volume code)

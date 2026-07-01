@@ -348,6 +348,78 @@ export default function LeastSquaresPage() {
                 </div>
               </div>
 
+              {/* Error Ellipses Visualization */}
+              <div className="card">
+                <div className="card-header">
+                  <span className="label">Error ellipses (95% confidence)</span>
+                  <span className="font-mono text-[10px] text-[var(--text-muted)]">scale: 1px = 0.1mm</span>
+                </div>
+                <div className="card-body">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {result.adjustedStations.filter(s => !s.id.startsWith('CP') && !s.id.startsWith('control')).map(s => {
+                      const maxR = Math.max(...result.adjustedStations
+                        .filter(a => !a.id.startsWith('CP') && !a.id.startsWith('control'))
+                        .map(a => a.errorEllipse.semiMajor), 0.001)
+                      const scale = 60 / (maxR * 1000) // scale to fit in ~120px box
+                      const a = Math.max(s.errorEllipse.semiMajor * 1000 * scale, 4)
+                      const b = Math.max(s.errorEllipse.semiMinor * 1000 * scale, 2)
+                      const rot = s.errorEllipse.orientation
+                      const color = a > 40 ? 'var(--error)' : a > 20 ? 'var(--warning)' : 'var(--success)'
+
+                      return (
+                        <div key={s.id} className="flex flex-col items-center p-3 border border-[var(--border-color)] rounded-md">
+                          <svg width="80" height="80" viewBox="-40 -40 80 80">
+                            {/* North arrow */}
+                            <line x1="0" y1="-35" x2="0" y2="-28" stroke="var(--text-muted)" strokeWidth="1" />
+                            <text x="0" y="-38" textAnchor="middle" fontSize="7" fill="var(--text-muted)" fontFamily="monospace">N</text>
+                            {/* Ellipse */}
+                            <ellipse
+                              cx="0" cy="0"
+                              rx={b} ry={a}
+                              transform={`rotate(${rot})`}
+                              fill={`${color}20`}
+                              stroke={color}
+                              strokeWidth="1.5"
+                            />
+                            {/* Center point */}
+                            <circle cx="0" cy="0" r="2" fill={color} />
+                            {/* Axes labels */}
+                            <text x="0" y="36" textAnchor="middle" fontSize="7" fill="var(--text-secondary)" fontFamily="monospace">
+                              {s.name}
+                            </text>
+                          </svg>
+                          <div className="mt-1 text-center">
+                            <div className="font-mono text-[10px] text-[var(--text-primary)]">
+                              a={(s.errorEllipse.semiMajor * 1000).toFixed(2)}mm
+                            </div>
+                            <div className="font-mono text-[10px] text-[var(--text-muted)]">
+                              b={(s.errorEllipse.semiMinor * 1000).toFixed(2)}mm
+                            </div>
+                            <div className="font-mono text-[9px] text-[var(--text-muted)]">
+                              θ={s.errorEllipse.orientation.toFixed(1)}°
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="mt-4 flex gap-4 text-[10px] font-mono">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full" style={{ background: 'var(--success)' }} />
+                      <span className="text-[var(--text-muted)]">≤ 20mm (pass)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full" style={{ background: 'var(--warning)' }} />
+                      <span className="text-[var(--text-muted)]">20-40mm (marginal)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full" style={{ background: 'var(--error)' }} />
+                      <span className="text-[var(--text-muted)]">&gt; 40mm (fail)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Residuals */}
               <div className="card">
                 <div className="card-header"><span className="label">Residuals</span></div>
