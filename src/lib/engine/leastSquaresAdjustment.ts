@@ -337,17 +337,19 @@ export function adjustTraverseLSA(observations: TraverseObservations): LSAResult
   const residuals: Residual[] = []
   let sumPVV = 0
 
+  // AUDIT FIX (M7, 2026-07-02): Standardized residual computation.
+  // Previously: v / √(1/P) = v·√P — this is the a priori standardized
+  // residual, which does NOT account for the adjustment's effect on the
+  // observation. The correct form is:
+  //   w_i = v_i / √(q_vv_i · σ₀²)
+  // where q_vv_i is the i-th diagonal of the residual cofactor matrix
+  //   Q_vv = Q_ll - A · Q_xx · Aᵀ
+  // and σ₀² is the a posteriori reference variance.
+  // This requires computing A · Ninv · Aᵀ for each observation.
+
+  // First pass: compute sumPVV and raw residuals
   for (let i = 0; i < L.length; i++) {
     const v = computedL[i] - L[i]
-    const stdDev = Math.sqrt(1 / P[i])
-    residuals.push({
-      observationId: i < angles.length ? angles[i].id : distances[i - angles.length].id,
-      type: i < angles.length ? 'angle' : 'distance',
-      observed: L[i],
-      computed: L[i] + v,
-      residual: v,
-      standardized: v / stdDev,
-    })
     sumPVV += P[i] * v * v
   }
 
@@ -355,10 +357,51 @@ export function adjustTraverseLSA(observations: TraverseObservations): LSAResult
   const referenceVariance = sumPVV / degreesOfFreedom
   const standardError = Math.sqrt(referenceVariance)
 
+  // Compute Q_vv diagonal: q_vv_i = 1/P_i - (A · Ninv · Aᵀ)_ii
+  // For efficiency, compute (A · Ninv) once, then for each row i,
+  // q_vv_i = 1/P_i - Σ_j (A·Ninv)[i][j] · A[i][j]
+  const ANinv: number[][] = []
+  for (let i = 0; i < A.length; i++) {
+    const row: number[] = new Array(A[i].length).fill(0)
+    for (let j = 0; j < A[i].length; j++) {
+      let sum = 0
+      for (let k = 0; k < A[i].length; k++) {
+        sum += A[i][k] * (Ninv[k]?.[j] ?? 0)
+      }
+      row[j] = sum
+    }
+    ANinv.push(row)
+  }
+
+  for (let i = 0; i < L.length; i++) {
+    const v = computedL[i] - L[i]
+
+    // Compute q_vv_i = 1/P_i - A[i] · Ninv · A[i]ᵀ
+    let qvv = 1 / P[i]
+    for (let j = 0; j < A[i].length; j++) {
+      qvv -= ANinv[i][j] * A[i][j]
+    }
+
+    // Standardized residual: w = v / √(q_vv · σ₀²)
+    // Clamp q_vv to avoid division by zero (can happen for fully constrained obs)
+    const qvvClamped = Math.max(qvv, 1e-15)
+    const standardized = v / Math.sqrt(qvvClamped * referenceVariance)
+
+    residuals.push({
+      observationId: i < angles.length ? angles[i].id : distances[i - angles.length].id,
+      type: i < angles.length ? 'angle' : 'distance',
+      observed: L[i],
+      computed: L[i] + v,
+      residual: v,
+      standardized,
+    })
+  }
+
   // Chi-square test
   const chiSquareValue = sumPVV
-  // Critical value at 5% significance (approximate)
-  const chiSquareCritical = degreesOfFreedom + 2 * Math.sqrt(2 * degreesOfFreedom)
+  // Critical value at 5% significance (Wilson-Hilferty approximation — more
+  // accurate than the old μ+2σ approximation)
+  const chiSquareCritical = chiSquareQuantileWH(0.95, degreesOfFreedom)
   const passed = chiSquareValue <= chiSquareCritical
 
   // Build adjusted stations with error ellipses
@@ -423,4 +466,53 @@ export function adjustTraverseLSA(observations: TraverseObservations): LSAResult
     chiSquareCritical,
     report,
   }
+}
+
+/**
+ * Chi-square quantile function using the Wilson-Hilferty approximation.
+ *
+ * AUDIT FIX (M7, 2026-07-02): Replaced the crude μ+2σ approximation
+ * (dof + 2·√(2·dof)) with the Wilson-Hilferty transformation, which
+ * is accurate to ~0.1% for dof ≥ 3.
+ *
+ * Reference: Wilson, E.B. & Hilferty, M.M. (1931)
+ */
+function invNormalCDF(p: number): number {
+  // Inverse normal CDF (Acklam's algorithm — same as in leastSquares.ts)
+  const a = [-3.969683028665376e+01, 2.209460984245205e+02,
+             -2.759285104469687e+02, 1.383577518672690e+02,
+             -3.066479806614716e+01, 2.506628277459239e+00]
+  const b = [-5.447609879822406e+01, 1.615858368580409e+02,
+             -1.556989798598866e+02, 6.680131188771972e+01,
+             -1.328068155288572e+01]
+  const c = [-7.784894002430293e-03, -3.223964580411365e-01,
+             -2.400758277161838e+00, -2.549732539343734e+00,
+              4.374664141464968e+00, 2.938163982698783e+00]
+  const d = [7.784695709041462e-03, 3.224671290700398e-01,
+             2.445134137142996e+00, 3.754408661907416e+00]
+  const pLow = 0.02425
+  const pHigh = 1 - pLow
+  let q: number
+  if (p < pLow) {
+    q = Math.sqrt(-2 * Math.log(p))
+    return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+           ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)
+  } else if (p <= pHigh) {
+    q = p - 0.5
+    const r = q * q
+    return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q /
+           (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1)
+  } else {
+    q = Math.sqrt(-2 * Math.log(1 - p))
+    return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+            ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)
+  }
+}
+
+// Wilson-Hilferty transformation: χ²_p ≈ dof · (z_p · √(2/(9·dof)) + 1 - 1/(9·dof))³
+function chiSquareQuantileWH(p: number, dof: number): number {
+  if (dof <= 0) return 0
+  const z = invNormalCDF(p)
+  const t = z * Math.sqrt(2 / (9 * dof)) + 1 - 1 / (9 * dof)
+  return dof * t * t * t
 }

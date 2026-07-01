@@ -26,9 +26,24 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
   collectCoverageFrom: [
-    'src/lib/engineering/*.ts',       // Kenya RDM 1.1 engineering computations
-    '!src/lib/engineering/__tests__/*.test.ts',
+    // AUDIT FIX (M11, 2026-07-02): Expanded coverage collection from
+    // just src/lib/engineering/ to include all critical lib modules.
+    'src/lib/engineering/*.ts',
+    'src/lib/engine/**/*.ts',
+    'src/lib/survey/**/*.ts',
+    'src/lib/geodesy/**/*.ts',
+    'src/lib/validation/**/*.ts',
+    'src/lib/auth/**/*.ts',
+    'src/lib/offline/**/*.ts',
+    'src/lib/audit/**/*.ts',
+    'src/lib/security/**/*.ts',
+    'src/lib/workers/**/*.ts',
+    // Excludes
+    '!src/**/*.test.ts',
+    '!src/**/*.test.tsx',
+    '!src/**/__tests__/**',
     '!src/**/*.d.ts',
+    '!src/**/__mocks__/**',
   ],
   coverageThreshold: {
     global: {

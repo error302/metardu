@@ -39,7 +39,7 @@
     "select": "Sélectionner",
     "noResults": "Aucun résultat trouvé",
     "station": "Station",
-    "easting": "Estimation (E)",
+    "easting": "Coordonnée Est (E)",
     "northing": "Coordonnée Nord (N)",
     "elevation": "Altitude",
     "pointId": "ID du point",

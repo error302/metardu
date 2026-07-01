@@ -1,0 +1,61 @@
+# Dependabot configuration for METARDU
+# AUDIT FIX (M13, 2026-07-02): Automated dependency update PRs.
+# Runs weekly (Monday) for npm + Docker + GitHub Actions.
+# Security updates are generated immediately (not weekly).
+
+version: 2
+updates:
+  # npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Africa/Nairobi"
+    open-pull-requests-limit: 10
+    # Group minor/patch updates to reduce PR noise
+    groups:
+      eslint:
+        patterns: ["eslint", "eslint-*"]
+      radix-ui:
+        patterns: ["@radix-ui/*"]
+      types:
+        patterns: ["@types/*"]
+      next:
+        patterns: ["next", "eslint-config-next"]
+      testing:
+        patterns: ["jest", "jest-*", "ts-jest", "@testing-library/*"]
+    # Don't auto-update major versions — those need manual review
+    ignore:
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "next-auth"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "zod"
+        update-types: ["version-update:semver-major"]
+    labels: ["dependencies", "automated"]
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "docker", "automated"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "ci", "automated"]
