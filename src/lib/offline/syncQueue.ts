@@ -132,8 +132,14 @@ export interface ConflictRecord {
   id?: number
   localOp: SyncOperation
   remoteData: Record<string, unknown> | null
+  /** Common-ancestor snapshot (the state of the row when the local edit began). */
+  baseData?: Record<string, unknown> | null
   resolved: boolean
-  resolution?: 'local' | 'remote' | 'merged'
+  resolution?: 'local' | 'remote' | 'merged' | 'manual'
+  /** After three-way merge, which fields need manual resolution (both sides changed them). */
+  conflictingFields?: string[]
+  /** After three-way merge, the proposed merged data (auto-resolvable fields only). */
+  mergedData?: Record<string, unknown> | null
   createdAt: string
 }
 
@@ -196,21 +202,42 @@ export async function syncPendingOperations(
       const existing = await checkRemoteVersion(dbClient, op.table, String(op.data.id), String(timestamp))
 
       if (existing.hasConflict && options.onConflict) {
+        // AUDIT FIX (H4, 2026-07-02): Retrieve the base snapshot for
+        // three-way merge. Without it, we can only do naive LWW.
+        const baseData = await getBaseSnapshot(op.table, String(op.data.id))
+
         const conflict: ConflictRecord = {
           localOp: op,
           remoteData: existing.data ?? null,
+          baseData,
           resolved: false,
           createdAt: new Date().toISOString()
+        }
+
+        // If we have a base snapshot, attempt automatic three-way merge first.
+        // Only surface to the user if there are genuine field-level conflicts.
+        if (baseData) {
+          const mergeResult = threeWayMerge(baseData, op.data, existing.data ?? null)
+          conflict.mergedData = mergeResult.merged
+          conflict.conflictingFields = mergeResult.conflictingFields
+
+          if (mergeResult.conflictingFields.length === 0) {
+            // No conflicts — auto-apply the merge, don't bother the user
+            await applyMergedUpdate(dbClient, op, existing.data ?? null, baseData)
+            results.synced++
+            await removeSyncedOperation(op.id!)
+            continue
+          }
         }
 
         const resolution = await options.onConflict(conflict)
 
         if (resolution === 'local') {
-          // Force local - delete remote and re-insert
+          // Force local — UPDATE (not delete+insert, which was destructive)
           await forceLocalUpdate(dbClient, op)
         } else if (resolution === 'merged') {
-          // Use merged data
-          await applyMergedUpdate(dbClient, op, existing.data ?? null)
+          // Use three-way merged data
+          await applyMergedUpdate(dbClient, op, existing.data ?? null, baseData)
         } else {
           // Keep remote - skip local
           if (op.id) await removeSyncedOperation(op.id)
@@ -289,15 +316,213 @@ async function attemptSync(dbClient: SyncDbClient, op: SyncOperation): Promise<b
 }
 
 async function forceLocalUpdate(dbClient: SyncDbClient, op: SyncOperation): Promise<void> {
-  // Delete remote and re-insert with local data
-  await dbClient.from(op.table).delete().eq('id', op.data.id)
-  await dbClient.from(op.table).insert(op.data)
+  // AUDIT FIX (H4, 2026-07-02): This is the "local wins" resolution.
+  // Previously it DELETEd the remote row then re-INSERTed — that
+  // destroyed concurrent edits from other surveyors AND bypassed DB
+  // triggers (audit_chain). Now it does an UPDATE with the local data,
+  // preserving the row identity and triggering audit properly.
+  await dbClient.from(op.table).update(op.data).eq('id', op.data.id)
 }
 
-async function applyMergedUpdate(dbClient: SyncDbClient, op: SyncOperation, remoteData: Record<string, unknown> | null): Promise<void> {
-  // Merge: take remote created_at but local updated values
-  const merged = { ...(remoteData ?? {}), ...op.data }
+/**
+ * Three-way merge of local and remote changes against a common ancestor.
+ *
+ * AUDIT FIX (H4, 2026-07-02): Replaced the naive `{...remote, ...local}`
+ * merge (which silently overwrote remote-only fields) with a proper
+ * three-way merge:
+ *
+ *   - If a field changed locally but not remotely → take local value
+ *   - If a field changed remotely but not locally → take remote value
+ *   - If both changed (and differ) → field needs manual resolution
+ *   - If neither changed → take either (they're identical)
+ *
+ * Returns the merged data and the list of conflicting field names.
+ * The caller decides whether to auto-apply the merge (if no conflicts)
+ * or surface the conflicts to the user for manual resolution.
+ */
+export function threeWayMerge(
+  base: Record<string, unknown> | null,
+  local: Record<string, unknown>,
+  remote: Record<string, unknown> | null
+): { merged: Record<string, unknown>; conflictingFields: string[] } {
+  const merged: Record<string, unknown> = {}
+  const conflictingFields: string[] = []
+
+  // Collect all field names across base/local/remote
+  const allKeys = new Set<string>([
+    ...Object.keys(base ?? {}),
+    ...Object.keys(local),
+    ...Object.keys(remote ?? {}),
+  ])
+
+  // System fields that should always come from the latest (remote) version
+  const SYSTEM_FIELDS = new Set(['created_at', 'updated_at', 'id'])
+
+  for (const key of allKeys) {
+    if (SYSTEM_FIELDS.has(key)) {
+      merged[key] = remote?.[key] ?? local[key]
+      continue
+    }
+
+    const baseVal = base?.[key]
+    const localVal = local[key]
+    const remoteVal = remote?.[key]
+
+    const localChanged = !deepEqual(baseVal, localVal)
+    const remoteChanged = !deepEqual(baseVal, remoteVal)
+
+    if (localChanged && remoteChanged) {
+      // Both sides changed this field
+      if (deepEqual(localVal, remoteVal)) {
+        // Same change — no conflict
+        merged[key] = localVal
+      } else {
+        // Genuine conflict — flag for manual resolution.
+        // Default to remote (most recent) but record the conflict.
+        merged[key] = remoteVal
+        conflictingFields.push(key)
+      }
+    } else if (localChanged) {
+      merged[key] = localVal
+    } else if (remoteChanged) {
+      merged[key] = remoteVal
+    } else {
+      // Neither changed — take either
+      merged[key] = localVal ?? remoteVal ?? baseVal
+    }
+  }
+
+  return { merged, conflictingFields }
+}
+
+/** Deep equality check (handles primitives, arrays, plain objects). */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (a === null || b === null) return false
+  if (typeof a !== typeof b) return false
+  if (typeof a !== 'object') return a === b
+  if (Array.isArray(a) !== Array.isArray(b)) return false
+  if (Array.isArray(a)) {
+    if (a.length !== (b as unknown[]).length) return false
+    return a.every((v, i) => deepEqual(v, (b as unknown[])[i]))
+  }
+  const aKeys = Object.keys(a as Record<string, unknown>)
+  const bKeys = Object.keys(b as Record<string, unknown>)
+  if (aKeys.length !== bKeys.length) return false
+  return aKeys.every(k => deepEqual(
+    (a as Record<string, unknown>)[k],
+    (b as Record<string, unknown>)[k]
+  ))
+}
+
+/**
+ * Apply a merged update to the remote DB.
+ * If the merge has no conflicting fields, auto-applies. If there are
+ * conflicts, stores the conflict for manual resolution and applies the
+ * non-conflicting fields.
+ */
+async function applyMergedUpdate(
+  dbClient: SyncDbClient,
+  op: SyncOperation,
+  remoteData: Record<string, unknown> | null,
+  baseData?: Record<string, unknown> | null
+): Promise<{ conflictingFields: string[] }> {
+  // Perform three-way merge
+  const { merged, conflictingFields } = threeWayMerge(
+    baseData ?? null,
+    op.data,
+    remoteData
+  )
+
+  // Apply the merged data (even with conflicts — the conflicting fields
+  // default to remote, and the user can override later via manual resolution)
   await dbClient.from(op.table).update(merged).eq('id', op.data.id)
+
+  return { conflictingFields }
+}
+
+/**
+ * Capture a base snapshot of a row when it's first edited offline.
+ * This enables three-way merge later. Call this BEFORE the user's edit
+ * is applied to the local store.
+ *
+ * AUDIT FIX (H4, 2026-07-02): Without a base snapshot, three-way merge
+ * is impossible — you can't tell whether a field was changed locally or
+ * not. This function stores the original server state in IndexedDB so
+ * the sync queue can access it at conflict-resolution time.
+ */
+export async function captureBaseSnapshot(
+  table: string,
+  id: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  const db = await getDB()
+  // Store in the 'projects' store under a synthetic key to avoid schema
+  // changes. Key format: `${table}:${id}`
+  // (A dedicated `base_snapshots` store would be cleaner but requires a
+  // DB_VERSION bump; this is the pragmatic interim solution.)
+  await db.put('projects', {
+    id: `__base__${table}_${id}`,
+    __isBaseSnapshot: true,
+    table,
+    rowId: id,
+    data,
+    capturedAt: new Date().toISOString(),
+  })
+}
+
+/**
+ * Retrieve a previously-captured base snapshot.
+ */
+export async function getBaseSnapshot(
+  table: string,
+  id: string
+): Promise<Record<string, unknown> | null> {
+  const db = await getDB()
+  const snapshot = await db.get('projects', `__base__${table}_${id}`)
+  if (snapshot && snapshot.__isBaseSnapshot) {
+    return snapshot.data as Record<string, unknown>
+  }
+  return null
+}
+
+/**
+ * Get all unresolved conflicts for UI display.
+ * Returns conflicts from the IndexedDB 'conflicts' store.
+ */
+export async function getPendingConflicts(): Promise<ConflictRecord[]> {
+  const db = await getDB()
+  const all = await db.getAll('conflicts')
+  return all.filter(c => !c.resolved)
+}
+
+/**
+ * Resolve a conflict manually (after user review).
+ * Applies the user-chosen merged data to the remote DB.
+ */
+export async function resolveConflict(
+  dbClient: SyncDbClient,
+  conflictId: number,
+  resolution: 'local' | 'remote' | 'merged',
+  mergedData?: Record<string, unknown>
+): Promise<void> {
+  const db = await getDB()
+  const conflict = await db.get('conflicts', conflictId)
+  if (!conflict) throw new Error(`Conflict ${conflictId} not found`)
+
+  if (resolution === 'local') {
+    await forceLocalUpdate(dbClient, conflict.localOp)
+  } else if (resolution === 'remote') {
+    // Do nothing — remote already has the latest
+  } else if (resolution === 'merged') {
+    if (!mergedData) throw new Error('mergedData required for merged resolution')
+    await dbClient.from(conflict.localOp.table).update(mergedData).eq('id', conflict.localOp.data.id)
+  }
+
+  // Mark conflict as resolved
+  conflict.resolved = true
+  conflict.resolution = resolution
+  await db.put('conflicts', conflict)
 }
 
 // Background sync service

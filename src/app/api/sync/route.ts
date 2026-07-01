@@ -23,9 +23,9 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { batchCreateObservations } from '@/lib/db/queries/observations'
+import { batchCreateObservations, getObservations } from '@/lib/db/queries/observations'
 import { createAuditLog } from '@/lib/db/queries/audit'
-import prisma from '@/lib/db/client'
+import { db } from '@/lib/db'
 import { FieldSyncSchema } from '@/lib/validation/apiSchemas'
 import { appendAuditEntry } from '@/lib/audit/auditLog'
 
@@ -54,27 +54,45 @@ export async function POST(request: NextRequest) {
     // surveyorId/surveyorName from body are IGNORED — identity comes from session.
     const { surveyId, observations } = parsed.data
 
-    // Verify the survey exists AND the user has access to it
-    const survey = await prisma.survey.findUnique({
-      where: { id: surveyId },
-    })
+    // AUDIT FIX (H1, 2026-07-02): Replaced prisma.survey.findUnique with
+    // raw SQL against the real `projects` table. The Prisma `Survey`
+    // model never existed in the SQL schema. `surveyId` is treated as
+    // a project ID (the caller's convention).
+    const surveyResult = await db.query(
+      `SELECT id, user_id, organization_id FROM projects WHERE id = $1`,
+      [surveyId]
+    )
 
-    if (!survey) {
+    if (surveyResult.rows.length === 0) {
       return NextResponse.json(
-        { error: 'Survey not found' },
+        { error: 'Project not found' },
         { status: 404 }
       )
     }
 
-    // TODO: proper survey-access check once Prisma schema is reconciled (H1).
-    // For now, reject if the survey's userId doesn't match the session user.
-    // (survey as any).userId avoids TS error on the Prisma type mismatch.
-    const surveyOwner = (survey as unknown as { userId?: string }).userId
-    if (surveyOwner && surveyOwner !== userId) {
-      return NextResponse.json(
-        { error: 'Forbidden: survey belongs to another user' },
-        { status: 403 }
-      )
+    const project = surveyResult.rows[0]
+    // Ownership check: the session user must own the project OR be a
+    // member of the project's organization.
+    if (project.user_id && project.user_id !== userId) {
+      // Check org membership if the project belongs to an org
+      if (project.organization_id) {
+        const orgMemberResult = await db.query(
+          `SELECT 1 FROM organization_members
+           WHERE user_id = $1 AND organization_id = $2 AND is_active = TRUE`,
+          [userId, project.organization_id]
+        )
+        if (orgMemberResult.rows.length === 0) {
+          return NextResponse.json(
+            { error: 'Forbidden: project belongs to another user' },
+            { status: 403 }
+          )
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'Forbidden: project belongs to another user' },
+          { status: 403 }
+        )
+      }
     }
 
     // Batch create all observations
@@ -111,7 +129,7 @@ export async function POST(request: NextRequest) {
     // Tamper-evident audit chain (audit C3 — wire into more routes)
     try {
       await appendAuditEntry({
-        projectId: (survey as unknown as { projectId?: string }).projectId ?? surveyId,
+        projectId: surveyId,
         userId,
         entityType: 'custom',
         entityId: surveyId,
@@ -165,10 +183,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'surveyId required' }, { status: 400 })
     }
 
-    const observations = await prisma.observation.findMany({
-      where: { surveyId },
-      orderBy: { createdAt: 'asc' },
-    })
+    const observations = await getObservations(surveyId)
 
     return NextResponse.json({ observations, count: observations.length })
   } catch (error) {

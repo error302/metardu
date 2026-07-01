@@ -109,6 +109,17 @@ export interface ApiHandlerOptions {
    * response. See AuditChainConfig for details.
    */
   auditChain?: AuditChainConfig
+  /**
+   * Attach an X-Request-Id header to the response for distributed tracing.
+   * Defaults to true (audit H3 fix, 2026-07-02). Set to false to opt out.
+   */
+  requestId?: boolean
+  /**
+   * Emit structured JSON log lines for errors (level, message, timestamp,
+   * requestId, userId, path, method). Defaults to true. Set to false to
+   * keep the legacy `console.error('[apiHandler] ...')` format.
+   */
+  structuredLogs?: boolean
 }
 
 type HandlerFn = (
@@ -120,9 +131,26 @@ export function apiHandler(
   options: ApiHandlerOptions,
   handler: HandlerFn
 ): (req: NextRequest, context?: { params?: Record<string, string | string[]> }) => Promise<NextResponse> {
-  const { auth = true, schema, rateLimit: rlConfig, audit: auditAction, roles, rawBody, auditChain } = options
+  const {
+    auth = true,
+    schema,
+    rateLimit: rlConfig,
+    audit: auditAction,
+    roles,
+    rawBody,
+    auditChain,
+    requestId: enableRequestId = true,
+    structuredLogs = true,
+  } = options
+
+  // AUDIT FIX (H3, 2026-07-02): Generate a per-request ID for distributed
+  // tracing. Added to the response as X-Request-Id header and to error logs.
+  const generateRequestId = (): string => {
+    return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
+  }
 
   return async (req, context) => {
+    const reqId = enableRequestId ? generateRequestId() : undefined
     let userId = 'anonymous'
     try {
       if (rlConfig) {
@@ -287,41 +315,57 @@ export function apiHandler(
         }
       }
 
+      // AUDIT FIX (H3, 2026-07-02): Attach X-Request-Id to successful
+      // responses too (not just errors) for end-to-end tracing.
+      if (reqId && result.headers) {
+        result.headers.set('X-Request-Id', reqId)
+      }
+
       return result
     } catch (err: unknown) {
-      console.error('[apiHandler] Unhandled error:', err)
+      // AUDIT FIX (H3, 2026-07-02): Structured JSON logging (opt-in by default).
+      // Includes requestId, userId, path, method for distributed tracing.
+      if (structuredLogs) {
+        console.error(JSON.stringify({
+          level: 'error',
+          message: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+          requestId: reqId,
+          userId,
+          path: req.nextUrl.pathname,
+          method: req.method,
+          stack: err instanceof Error ? err.stack : undefined,
+        }))
+      } else {
+        console.error('[apiHandler] Unhandled error:', err)
+      }
 
       // Send to Sentry (only in production, key scrubbed by beforeSend)
       captureError(err instanceof Error ? err : new Error(String(err)), {
         path: req.nextUrl.pathname,
         method: req.method,
         userId,
+        requestId: reqId,
       })
 
       const pgCode = (err as { code?: string })?.code
-      if (pgCode === '23505') {
-        return NextResponse.json(
-          { error: 'This record already exists', code: 'DUPLICATE' },
-          { status: 409 }
-        )
-      }
-      if (pgCode === '23503') {
-        return NextResponse.json(
-          { error: 'Referenced record not found', code: 'FOREIGN_KEY_VIOLATION' },
-          { status: 400 }
-        )
-      }
-      if (pgCode === '42501') {
-        return NextResponse.json(
-          { error: 'Permission denied', code: 'PERMISSION_DENIED' },
-          { status: 403 }
-        )
+      const errorResponse = (status: number, error: string, code: string) => {
+        const headers: Record<string, string> = {}
+        if (reqId) headers['X-Request-Id'] = reqId
+        return NextResponse.json({ error, code, ...(reqId ? { requestId: reqId } : {}) }, { status, headers })
       }
 
-      return NextResponse.json(
-        { error: 'Internal server error', code: 'INTERNAL_ERROR' },
-        { status: 500 }
-      )
+      if (pgCode === '23505') {
+        return errorResponse(409, 'This record already exists', 'DUPLICATE')
+      }
+      if (pgCode === '23503') {
+        return errorResponse(400, 'Referenced record not found', 'FOREIGN_KEY_VIOLATION')
+      }
+      if (pgCode === '42501') {
+        return errorResponse(403, 'Permission denied', 'PERMISSION_DENIED')
+      }
+
+      return errorResponse(500, 'Internal server error', 'INTERNAL_ERROR')
     }
   }
 }

@@ -1,46 +1,72 @@
 'use client';
 
 import { useState, useEffect } from 'react'
-import { createClient, type BrowserSession } from '@/lib/api-client/client'
 import {
   getCPDRequirements,
-  getUserActivities,
-  calculateCPDSummary,
   getActivityTypes,
-  CPDActivity,
-  CPDSummary
+  type CPDActivity,
+  type CPDSummary
 } from '@/lib/marketplace/cpdCertificates'
+import type { CPDRecord } from '@/types/cpd'
+
+/**
+ * AUDIT FIX (H9, 2026-07-02): Rewired to call the real CPD API
+ * (/api/cpd) instead of the stub cpdCertificates.getUserActivities()
+ * which always returned []. The stub is still imported for
+ * getCPDRequirements + getActivityTypes (static reference data that
+ * doesn't need the DB), but all user-data fetches now go through
+ * the API which calls lib/cpd.ts → cpd_records table.
+ */
 
 export default function CPDPage() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
-  const [activities, setActivities] = useState<CPDActivity[]>([])
+  const [activities, setActivities] = useState<CPDRecord[]>([])
   const [summary, setSummary] = useState<CPDSummary | null>(null)
   const [country, setCountry] = useState('Kenya')
   const [requirements, setRequirements] = useState<any[]>([])
   const [activityTypes, setActivityTypes] = useState<any[]>([])
   const [userId, setUserId] = useState<string | null>(null)
+  const [totalPoints, setTotalPoints] = useState(0)
 
   useEffect(() => {
-    const loadUser = async () => {
-      const dbClient = createClient()
-      const { data: { session } } = await dbClient.auth.getSession()
-      const user = (session as BrowserSession | null)?.user
-      const uid = user?.id ?? null
-      setUserId(uid)
+    const loadData = async () => {
       setRequirements(getCPDRequirements(country))
       setActivityTypes(getActivityTypes())
-      if (uid) {
-        setActivities(getUserActivities(uid))
-        setSummary(calculateCPDSummary(uid, country))
-      } else {
-        setActivities(getUserActivities('guest'))
-        setSummary(calculateCPDSummary('guest', country))
+
+      try {
+        // Fetch real CPD data from the API (which calls lib/cpd.ts → DB)
+        const year = new Date().getFullYear()
+        const res = await fetch(`/api/cpd?year=${year}`, { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          setActivities(data.records ?? [])
+          setTotalPoints(data.total ?? 0)
+        } else if (res.status === 401) {
+          // Not logged in — show empty state
+          setActivities([])
+          setTotalPoints(0)
+        } else {
+          setFetchError('Failed to load CPD records')
+        }
+      } catch {
+        setFetchError('Network error loading CPD records')
       }
+
+      // Build summary from the real total
+      const req = getCPDRequirements(country)[0]
+      const requiredHours = req?.yearlyHours ?? 40
+      setSummary({
+        totalHours: totalPoints, // CPD points map roughly to hours
+        requirementHours: requiredHours,
+        compliancePercentage: requiredHours > 0 ? Math.min(100, (totalPoints / requiredHours) * 100) : 0,
+        status: totalPoints >= requiredHours ? 'compliant' : totalPoints >= requiredHours * 0.75 ? 'at_risk' : 'non_compliant',
+      } as CPDSummary)
+
       setLoading(false)
     }
-    loadUser()
-  }, [country])
+    loadData()
+  }, [country, totalPoints])
 
   const getStatusColor = (status: string) => {
     switch (status) {
