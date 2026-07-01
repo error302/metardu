@@ -77,7 +77,15 @@ export interface Residual {
   observed: number
   computed: number
   residual: number  // observed - computed
-  standardized: number  // residual / (stdDev * referenceVar)
+  standardized: number  // v / √(q_vv · σ₀²)
+  /** AUDIT FIX (H13, 2026-07-02): Baarda redundancy number r_i = q_vv_i × P_i.
+   * Range [0, 1]. r_i = 0 means fully controlled (no check), r_i = 1 means
+   * fully redundant. Observations with r_i < 0.1 are weakly controlled. */
+  redundancy?: number
+  /** AUDIT FIX (H13, 2026-07-02): Minimal Detectable Bias (MDB).
+   * The smallest blunder that can be detected at the chosen α/β.
+   * In the same units as the observation (metres for distance, degrees for angle). */
+  mdb?: number
 }
 
 export interface LSAResult {
@@ -387,6 +395,20 @@ export function adjustTraverseLSA(observations: TraverseObservations): LSAResult
     const qvvClamped = Math.max(qvv, 1e-15)
     const standardized = v / Math.sqrt(qvvClamped * referenceVariance)
 
+    // AUDIT FIX (H13, 2026-07-02): Baarda reliability analysis.
+    // Redundancy number: r_i = q_vv_i × P_i
+    // Range [0, 1]. Low r_i means the observation is weakly controlled.
+    const redundancy = qvvClamped * P[i]
+
+    // Minimal Detectable Bias (MDB): the smallest blunder detectable
+    // at significance level α and power β.
+    //   ∇₀l = δ₀ × σ_l / √(r_i)
+    // where δ₀ is the non-centrality parameter (4.13 for α=0.001, β=0.80),
+    // σ_l = √(1/P_i) is the a priori standard deviation of the observation.
+    const delta0 = 4.13  // Baarda's non-centrality parameter (α=0.001, β=0.80)
+    const sigmaL = Math.sqrt(1 / P[i])  // a priori σ of the observation
+    const mdb = delta0 * sigmaL / Math.sqrt(Math.max(redundancy, 1e-15))
+
     residuals.push({
       observationId: i < angles.length ? angles[i].id : distances[i - angles.length].id,
       type: i < angles.length ? 'angle' : 'distance',
@@ -394,6 +416,8 @@ export function adjustTraverseLSA(observations: TraverseObservations): LSAResult
       computed: L[i] + v,
       residual: v,
       standardized,
+      redundancy,
+      mdb,
     })
   }
 
