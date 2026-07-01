@@ -455,7 +455,9 @@ export default function DocumentsPage({ params }: PageProps) {
         name: p.name,
         easting: p.easting,
         northing: p.northing,
-        elevation: p.elevation,
+        // Canonical SurveyPoint.elevation is `number | null | undefined`;
+        // ControlPoint.elevation is `number | undefined`. Coerce null to undefined.
+        elevation: p.elevation ?? undefined,
         monumentType: 'found' as const,
       }))
     const boundaryPts = controlPts.length >= 3

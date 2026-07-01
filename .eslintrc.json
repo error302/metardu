@@ -38,6 +38,13 @@
     "no-redeclare": "warn",
     "no-undef": "off",
     "no-unreachable": "warn",
-    "no-useless-escape": "warn"
+    "no-useless-escape": "warn",
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "TSInterfaceDeclaration[id.name='SurveyPoint']",
+        "message": "Do not declare a local 'SurveyPoint' interface. Import it from '@/types/surveyPoint' instead. If you need a different shape, use Point2D / Point3D / SurveyPointWithCode / SurveyPoint3D, or name your interface differently (e.g. 'SurveyPointRow')."
+      }
+    ]
   }
 }

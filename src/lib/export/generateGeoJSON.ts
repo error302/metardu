@@ -1,14 +1,10 @@
 import { utmToGeographic } from '@/lib/engine/coordinates'
+import type { SurveyPoint } from '@/types/surveyPoint'
 
-export interface SurveyPoint {
-  id?: string
-  name: string
-  easting: number
-  northing: number
-  elevation?: number | null
-  is_control?: boolean
-  control_order?: string
-}
+// Re-export for backwards compatibility with callers that import
+// `{ SurveyPoint }` from this module. New code should import the type
+// directly from '@/types/surveyPoint'.
+export type { SurveyPoint }
 
 /**
  * Generate a GeoJSON FeatureCollection.

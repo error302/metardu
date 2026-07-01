@@ -6,12 +6,10 @@
 
 import { distanceBearing } from '@/lib/engine/distance'
 import { coordinateArea } from '@/lib/engine/area'
+import type { SurveyPoint } from '@/types/surveyPoint'
 
-export interface SurveyPoint {
-  name: string
-  easting: number
-  northing: number
-}
+// Re-export for backwards compatibility.
+export type { SurveyPoint }
 
 export interface SurveyBoundary {
   points: SurveyPoint[]

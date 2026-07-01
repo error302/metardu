@@ -86,14 +86,15 @@ export interface FeatureCodeGroup {
 
 /**
  * A survey point that carries a feature code.
+ *
+ * Re-exported from the canonical `SurveyPointWithCode` interface. New code
+ * should import from `@/types/surveyPoint` directly.
  */
-export interface SurveyPointWithCode {
-  easting: number;
-  northing: number;
-  elevation?: number;
-  code: string;
-  pointNumber?: string;
-}
+export type { SurveyPointWithCode } from '@/types/surveyPoint'
+
+// Re-export for internal use within this module
+import type { SurveyPointWithCode } from '@/types/surveyPoint'
+
 
 /**
  * Coordinate pair used in polyline vertex arrays.

@@ -2,6 +2,10 @@
 
 import { createClient } from '@/lib/api-client/client'
 import { callAI, isProError } from '@/lib/api/ai-client'
+import type { SurveyPoint } from '@/types/surveyPoint'
+
+// Re-export for backwards compatibility.
+export type { SurveyPoint }
 
 interface Project {
   id: string
@@ -9,15 +13,6 @@ interface Project {
   location: string | null
   utm_zone: number
   hemisphere: string
-}
-
-interface SurveyPoint {
-  id: string
-  name: string
-  easting: number
-  northing: number
-  elevation: number | null
-  is_control: boolean
 }
 
 interface TraverseObservation {

@@ -4,7 +4,14 @@
  * For larger datasets, consider chunked processing.
  */
 
-export interface SurveyPoint {
+import type { SurveyPoint } from '@/types/surveyPoint'
+
+/**
+ * Numeric sample used by the IDW kernel. Distinct from `SurveyPoint` because
+ * the kernel only needs three floats — callers may pass `SurveyPoint[]`
+ * directly via the overloaded `runIDW` entrypoint below.
+ */
+export interface IDWSample {
   x: number
   y: number
   z: number
@@ -33,8 +40,12 @@ export interface IDWProgress {
 
 type ProgressCallback = (progress: IDWProgress) => void
 
+/**
+ * Run IDW interpolation. Accepts either canonical `SurveyPoint[]`
+ * (using `easting`/`northing`/`elevation`) or pre-shaped `IDWSample[]`.
+ */
 export function runIDW(
-  points: SurveyPoint[], 
+  points: SurveyPoint[] | IDWSample[],
   options: IDWOptions = {},
   onProgress?: ProgressCallback
 ): IDWGrid {
@@ -42,20 +53,31 @@ export function runIDW(
 }
 
 export function runIDWSync(
-  points: SurveyPoint[], 
+  points: SurveyPoint[] | IDWSample[],
   options: IDWOptions = {},
   onProgress?: ProgressCallback
 ): IDWGrid {
+  // Normalise to IDWSample so the kernel below only deals with one shape.
+  const samples: IDWSample[] = (points as Array<SurveyPoint | IDWSample>).map(
+    (p) =>
+      'x' in p && 'y' in p && 'z' in p
+        ? (p as IDWSample)
+        : {
+            x: (p as SurveyPoint).easting,
+            y: (p as SurveyPoint).northing,
+            z: (p as SurveyPoint).elevation ?? 0,
+          }
+  )
   const power = options.power ?? 2
   const resolution = options.resolution ?? 100
   const noData = options.noDataValue ?? -9999
 
-  if (points.length === 0) {
+  if (samples.length === 0) {
     throw new Error('IDW requires at least one survey point.')
   }
 
-  const xs = points.map(p => p.x)
-  const ys = points.map(p => p.y)
+  const xs = samples.map(p => p.x)
+  const ys = samples.map(p => p.y)
   const rawMinX = Math.min(...xs)
   const rawMaxX = Math.max(...xs)
   const rawMinY = Math.min(...ys)
@@ -85,7 +107,7 @@ export function runIDWSync(
       let weightTotal = 0
       let exactHit = false
 
-      for (const pt of points) {
+      for (const pt of samples) {
         const dx = gx - pt.x
         const dy = gy - pt.y
         const d2 = dx * dx + dy * dy

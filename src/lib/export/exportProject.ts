@@ -1,12 +1,7 @@
-export interface SurveyPoint {
-  id: string
-  name: string
-  easting: number
-  northing: number
-  elevation?: number | null
-  is_control: boolean
-  control_order?: string
-}
+import type { SurveyPoint } from '@/types/surveyPoint'
+
+// Re-export for backwards compatibility.
+export type { SurveyPoint }
 
 export interface METARDUProjectExport {
   version: '1.0'

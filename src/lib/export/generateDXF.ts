@@ -12,14 +12,12 @@
 
 import Drawing from 'dxf-writer'
 import { initialiseDXFLayers } from '@/lib/drawing/dxfLayers'
+import type { SurveyPoint } from '@/types/surveyPoint'
 
-export interface SurveyPoint {
-  name: string
-  easting: number
-  northing: number
-  elevation?: number
-  is_control?: boolean
-}
+// Re-export for backwards compatibility with callers that import
+// `{ SurveyPoint }` from this module. New code should import the type
+// directly from '@/types/surveyPoint'.
+export type { SurveyPoint }
 
 export interface TraverseLeg {
   from: string

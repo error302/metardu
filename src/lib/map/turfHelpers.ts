@@ -17,11 +17,16 @@
 // Types
 // ---------------------------------------------------------------------------
 
-/** A survey point on the Kenya cadastral grid (Arc 1960 / UTM 37 S). */
-export interface SurveyPoint {
-  easting: number;
-  northing: number;
-}
+import type { Point2D } from '@/types/surveyPoint'
+
+/**
+ * A survey point on the Kenya cadastral grid (Arc 1960 / UTM 37 S).
+ *
+ * Re-exported from the canonical `Point2D` for backwards compatibility with
+ * existing call sites that import `{ SurveyPoint }` from this module. New
+ * code should import `Point2D` directly from `@/types/surveyPoint`.
+ */
+export type SurveyPoint = Point2D
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded turf & proj4 singletons

@@ -18,7 +18,15 @@ export interface ProjectPointsLayerResult {
   controlPointCount: number
 }
 
-interface SurveyPoint {
+/**
+ * Raw database row shape for `survey_points` as returned by the
+ * `/api/project/[id]/points` endpoint. Column names use snake_case.
+ *
+ * This is intentionally distinct from the canonical `SurveyPoint` interface
+ * (which uses `name`, not `point_name`) — API/DB boundaries should map
+ * between the two explicitly rather than pretending they're the same shape.
+ */
+interface SurveyPointRow {
   id: string
   point_name: string
   easting: number
@@ -46,7 +54,7 @@ export async function createProjectPointsLayer(
     throw new Error(`Failed to load project points (${res.status})`)
   }
   const json = await res.json()
-  const points: SurveyPoint[] = json.data || []
+  const points: SurveyPointRow[] = json.data || []
 
   if (points.length === 0) {
     // Return empty layer
