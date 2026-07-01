@@ -229,3 +229,109 @@ export async function requirePermissionAsync(
     ),
   }
 }
+
+// ─── Organization-level helpers (audit C6 fix, 2026-07-02) ────────────────
+
+/**
+ * Get the user's role within a specific organization.
+ * Returns the role from `organization_members`, or null if the user is
+ * not a member of the org.
+ *
+ * A user with role 'org_admin' in an org can manage its members and
+ * projects. 'project_manager' can create/edit projects. 'surveyor' can
+ * read/write project data. 'viewer' is read-only.
+ */
+export async function getOrgRole(
+  userId: string,
+  organizationId: string,
+): Promise<Role | null> {
+  try {
+    const { rows } = await db.query(
+      `SELECT role FROM organization_members
+       WHERE user_id = $1 AND organization_id = $2 AND is_active = TRUE`,
+      [userId, organizationId],
+    )
+    return (rows[0]?.role as Role) ?? null
+  } catch {
+    // organization_members table may not exist yet (pre-migration 028)
+    return null
+  }
+}
+
+/**
+ * Check if a user can access a project — either as the project owner
+ * (user_id match) or as a member of the project's organization.
+ *
+ * Returns the access level: 'owner', 'org_admin', 'project_manager',
+ * 'surveyor', 'viewer', or null (no access).
+ *
+ * Usage:
+ * ```ts
+ * const access = await canAccessProject(userId, projectId)
+ * if (!access) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+ * if (access === 'viewer' && req.method !== 'GET') {
+ *   return NextResponse.json({ error: 'Read-only' }, { status: 403 })
+ * }
+ * ```
+ */
+export async function canAccessProject(
+  userId: string,
+  projectId: string,
+): Promise<Role | 'owner' | null> {
+  // 1. Check if user is the project owner
+  const { rows: projectRows } = await db.query(
+    `SELECT user_id, organization_id FROM projects WHERE id = $1`,
+    [projectId],
+  )
+  if (projectRows.length === 0) return null
+
+  const project = projectRows[0]
+  if (project.user_id === userId) return 'owner'
+
+  // 2. Check org membership if the project belongs to an org
+  if (project.organization_id) {
+    const orgRole = await getOrgRole(userId, project.organization_id)
+    if (orgRole) return orgRole
+  }
+
+  // 3. Check project_members table (legacy per-project membership)
+  const { rows: memberRows } = await db.query(
+    `SELECT role FROM project_members WHERE user_id = $1 AND project_id = $2`,
+    [userId, projectId],
+  )
+  return (memberRows[0]?.role as Role) ?? null
+}
+
+/**
+ * Get all organizations the user is a member of.
+ * Useful for the org-switcher UI.
+ */
+export async function getUserOrganizations(userId: string): Promise<
+  Array<{
+    organization_id: string
+    organization_name: string
+    organization_slug: string
+    role: Role
+    is_active: boolean
+  }>
+> {
+  try {
+    const { rows } = await db.query(
+      `SELECT
+         om.organization_id,
+         o.name AS organization_name,
+         o.slug AS organization_slug,
+         om.role,
+         om.is_active
+       FROM organization_members om
+       JOIN organizations o ON o.id = om.organization_id
+       WHERE om.user_id = $1 AND om.is_active = TRUE AND o.is_active = TRUE
+       ORDER BY om.accepted_at DESC NULLS LAST, om.invited_at DESC`,
+      [userId],
+    )
+    return rows
+  } catch {
+    // organizations table may not exist yet
+    return []
+  }
+}

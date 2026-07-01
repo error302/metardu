@@ -57,6 +57,12 @@ interface SurveyPoint {
   elevation: number | null
   code: string | null
   description: string | null
+  // CRS fields (migration 027) — nullable for backward compat
+  datum?: string | null
+  utm_zone?: number | null
+  hemisphere?: string | null
+  source?: string | null
+  is_control?: boolean
 }
 
 /**
@@ -89,8 +95,11 @@ export const GET = apiHandler(
     const url = new URL(req.url)
     const interval = parseFloat(url.searchParams.get('interval') || '0')
 
+    // AUDIT FIX (C5, 2026-07-02): Include CRS columns so consumers know
+    // the datum/zone of the returned coordinates.
     const { rows } = await db.query(
-      `SELECT id, point_name, easting, northing, elevation, code, description
+      `SELECT id, point_name, easting, northing, elevation, code, description,
+              datum, utm_zone, hemisphere, source, is_control
        FROM survey_points
        WHERE project_id = $1
          AND easting IS NOT NULL

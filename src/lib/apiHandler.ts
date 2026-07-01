@@ -24,7 +24,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 import { auditLog } from '@/lib/logger'
-import { setCurrentUserId } from '@/lib/db'
+import { setCurrentUserId, setCurrentOrgId } from '@/lib/db'
+import { db } from '@/lib/db'
 import { captureError } from '@/lib/monitoring/sentry'
 import { appendAuditEntry } from '@/lib/audit/auditLog'
 import type { AuditEntityType, AuditAction } from '@/lib/audit/auditHash'
@@ -150,6 +151,28 @@ export function apiHandler(
         const uid = (s.user as { id?: string }).id
         if (uid) {
           setCurrentUserId(String(uid))
+
+          // AUDIT FIX (C6, 2026-07-02): Look up the user's active organization
+          // and set the org RLS context. A user can be a member of multiple
+          // orgs; we pick the most recently active one. Routes can override
+          // this by calling setCurrentOrgId() explicitly (e.g. after the
+          // user switches orgs via the UI).
+          try {
+            const orgResult = await db.query(
+              `SELECT om.organization_id
+               FROM organization_members om
+               WHERE om.user_id = $1 AND om.is_active = TRUE
+               ORDER BY om.accepted_at DESC NULLS LAST, om.invited_at DESC
+               LIMIT 1`,
+              [uid]
+            )
+            if (orgResult.rows.length > 0) {
+              setCurrentOrgId(String(orgResult.rows[0].organization_id))
+            }
+          } catch {
+            // Organizations table may not exist yet (pre-migration 028).
+            // Silent fail — org context stays null, RLS falls back to user_id.
+          }
         }
 
         if (roles && roles.length > 0) {

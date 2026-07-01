@@ -4,24 +4,42 @@ import { env } from '@/lib/env'
 let pool: Pool | null = null
 
 /**
- * Per-request storage for the current user ID.
+ * Per-request storage for the current user ID and organization ID.
  * Set by API routes after authentication, read by db.query() to
- * configure the PostgreSQL session variable used by RLS policies.
+ * configure the PostgreSQL session variables used by RLS policies.
  *
  * Uses AsyncLocalStorage so it's safe across concurrent requests.
+ *
+ * AUDIT FIX (C6, 2026-07-02): Added orgIdStore for org-level RLS.
+ * Routes that operate on org-scoped resources should call
+ * setCurrentOrgId() after authentication. When not set, RLS policies
+ * fall back to user_id-only checks (legacy personal projects).
  */
 import { AsyncLocalStorage } from 'async_hooks'
 
 const userIdStore = new AsyncLocalStorage<string>()
+const orgIdStore = new AsyncLocalStorage<string>()
 
 /** Set the current user ID for RLS (call this in API routes after auth) */
 export function setCurrentUserId(userId: string) {
   userIdStore.enterWith(userId)
 }
 
+/** Set the current organization ID for org-level RLS (call after auth) */
+export function setCurrentOrgId(orgId: string | null) {
+  if (orgId) {
+    orgIdStore.enterWith(orgId)
+  }
+}
+
 /** Get the current user ID (used internally by db.query) */
 function getCurrentUserId(): string | undefined {
   return userIdStore.getStore()
+}
+
+/** Get the current organization ID (used internally by db.query) */
+function getCurrentOrgId(): string | undefined {
+  return orgIdStore.getStore()
 }
 
 function getPoolConfig() {
@@ -90,6 +108,17 @@ async function _setRlsContext(client: PoolClient | Pool) {
       throw new Error(`Invalid userId format for RLS context: ${userId}`)
     }
     await client.query(`SET LOCAL request.user_id = '${userId}'`)
+  }
+  // AUDIT FIX (C6, 2026-07-02): Set org context for org-level RLS policies.
+  const orgId = getCurrentOrgId()
+  if (orgId) {
+    if (!UUID_RE.test(orgId)) {
+      throw new Error(`Invalid orgId format for RLS context: ${orgId}`)
+    }
+    await client.query(`SET LOCAL request.organization_id = '${orgId}'`)
+  } else {
+    // Explicitly clear (in case the connection was reused from the pool)
+    await client.query(`SET LOCAL request.organization_id = ''`)
   }
 }
 

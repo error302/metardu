@@ -56,6 +56,11 @@ export interface Point3D extends Point2D {
  * - `is_control` defaults to `false`; `control_order` only applies when
  *   `is_control` is true.
  * - `code` and `description` are nullable topo feature attributes.
+ *
+ * AUDIT FIX (C5, 2026-07-02): Added CRS, accuracy, and provenance fields
+ * to match migration 027. All new fields are optional for backward
+ * compatibility, but new code SHOULD populate them — especially `datum`,
+ * `utm_zone`, and `source` — so the chain-of-custody is preserved.
  */
 export interface SurveyPoint {
   /** UUID; optional for points not yet persisted */
@@ -82,6 +87,46 @@ export interface SurveyPoint {
   lon?: number
   /** Whether the point is locked from editing (e.g. imported control) */
   locked?: boolean
+
+  // ─── CRS metadata (migration 027) ──────────────────────────────────────
+  /** Coordinate datum (Arc 1960, WGS84). Defaults to project datum. */
+  datum?: string | null
+  /** Map projection (UTM, Cassini-Soldner). Default UTM. */
+  projection?: string | null
+  /** UTM zone (1-60). Defaults to project utm_zone. */
+  utm_zone?: number | null
+  /** Hemisphere: 'N' or 'S'. Defaults to project hemisphere. */
+  hemisphere?: 'N' | 'S' | null
+  /** Coordinate epoch year (for time-dependent reference frames). */
+  epoch_year?: number | null
+
+  // ─── Accuracy metadata (migration 027) ─────────────────────────────────
+  /** Standard deviation of easting (metres). Null = unknown. */
+  std_dev_e?: number | null
+  /** Standard deviation of northing (metres). Null = unknown. */
+  std_dev_n?: number | null
+  /** Standard deviation of elevation (metres). Null = unknown. */
+  std_dev_z?: number | null
+  /** Semi-major axis of error ellipse at confidence_level (metres). */
+  error_ellipse_major?: number | null
+  /** Semi-minor axis of error ellipse at confidence_level (metres). */
+  error_ellipse_minor?: number | null
+  /** Orientation of error ellipse major axis (degrees from North). */
+  error_ellipse_orient?: number | null
+  /** Confidence level for the error ellipse (95 = 95%). Default 95. */
+  confidence_level?: number | null
+
+  // ─── Provenance metadata (migration 027) ───────────────────────────────
+  /** Origin of the coordinate: manual, gnss, total_station, imported, adjusted. */
+  source?: 'manual' | 'gnss' | 'total_station' | 'imported' | 'adjusted' | 'unknown' | null
+  /** FK to equipment table. Null if instrument not recorded. */
+  instrument_id?: string | null
+  /** FK to users table — who observed this point. Null if unknown. */
+  observer_id?: string | null
+  /** UUID of the import session that loaded this point (if source = imported). */
+  import_session_id?: string | null
+  /** Date the point was observed in the field. */
+  observation_date?: string | null
 }
 
 // ─── Specialised variants ──────────────────────────────────────────────
