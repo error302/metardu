@@ -19,7 +19,7 @@ import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Bluetooth, MapPin, Ruler, Compass, Mountain, Waves, Pickaxe,
+  Bluetooth, MapPin, Ruler, Compass, Mountain,
   ChevronRight, RefreshCw, Wifi, WifiOff, Camera, Plus,
   ArrowLeft, Check, X, Satellite, Settings,
 } from 'lucide-react'
@@ -40,8 +40,6 @@ const SURVEY_TYPES: Record<MobileSurveyType, { label: string; icon: typeof Compa
   leveling:     { label: 'Leveling',     icon: Ruler,    color: 'bg-sky-500' },
   traverse:     { label: 'Traverse',     icon: Compass,  color: 'bg-amber-500' },
   control:      { label: 'Control',      icon: MapPin,   color: 'bg-emerald-500' },
-  hydrographic: { label: 'Hydrographic', icon: Waves,    color: 'bg-cyan-500' },
-  mining:       { label: 'Mining',       icon: Pickaxe,  color: 'bg-orange-500' },
 }
 
 // ─── Main Component ─────────────────────────────────────────────

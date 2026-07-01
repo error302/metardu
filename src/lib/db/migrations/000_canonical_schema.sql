@@ -354,31 +354,6 @@ CREATE TABLE IF NOT EXISTS network_adjustments (
   updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS mining_surveys (
-  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  project_id          UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  mine_type           VARCHAR(100),
-  sections            JSONB,
-  grid_points         JSONB,
-  material_density_tm3 DOUBLE PRECISION DEFAULT 1.8,
-  material_type       VARCHAR(100),
-  volume_result       JSONB,
-  status              VARCHAR(50),
-  created_at          TIMESTAMPTZ DEFAULT NOW(),
-  updated_at          TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS hydro_surveys (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  project_id      UUID UNIQUE NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  sounding_data   JSONB,
-  water_level     DOUBLE PRECISION,
-  chart_datum     DOUBLE PRECISION,
-  survey_date     TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ DEFAULT NOW(),
-  updated_at      TIMESTAMPTZ DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS gnss_sessions (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -801,7 +776,6 @@ CREATE INDEX IF NOT EXISTS idx_road_reserve_parcels_alignment_id  ON road_reserv
 -- Project direct children
 CREATE INDEX IF NOT EXISTS idx_fieldbook_project_id          ON project_fieldbook_entries(project_id);
 CREATE INDEX IF NOT EXISTS idx_survey_points_project_id      ON survey_points(project_id);
-CREATE INDEX IF NOT EXISTS idx_mining_surveys_project_id     ON mining_surveys(project_id);
 CREATE INDEX IF NOT EXISTS idx_gnss_sessions_project_id      ON gnss_sessions(project_id);
 CREATE INDEX IF NOT EXISTS idx_import_sessions_project_id    ON import_sessions(project_id);
 CREATE INDEX IF NOT EXISTS idx_signatures_project_id         ON signatures(project_id);
@@ -934,14 +908,6 @@ CREATE TRIGGER trg_survey_points_updated_at
 DROP TRIGGER IF EXISTS trg_network_adjustments_updated_at ON network_adjustments;
 CREATE TRIGGER trg_network_adjustments_updated_at
   BEFORE UPDATE ON network_adjustments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS trg_mining_surveys_updated_at ON mining_surveys;
-CREATE TRIGGER trg_mining_surveys_updated_at
-  BEFORE UPDATE ON mining_surveys FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS trg_hydro_surveys_updated_at ON hydro_surveys;
-CREATE TRIGGER trg_hydro_surveys_updated_at
-  BEFORE UPDATE ON hydro_surveys FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 DROP TRIGGER IF EXISTS trg_gnss_sessions_updated_at ON gnss_sessions;
 CREATE TRIGGER trg_gnss_sessions_updated_at

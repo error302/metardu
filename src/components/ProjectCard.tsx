@@ -151,8 +151,6 @@ export default function ProjectCard({ project, openLabel }: { project: any; open
       case 'boundary': return 'BOUNDARY'
       case 'topographic': return 'TOPO'
       case 'control': return 'CONTROL'
-      case 'hydrographic': return 'HYDRO'
-      case 'mining': return 'MINING'
       case 'construction': return 'CONSTRUCTION'
       case 'leveling': return 'LEVELING'
       case 'drone': return 'DRONE'

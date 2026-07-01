@@ -64,10 +64,6 @@ const TOOLS: Tool[] = [
   // Volumes
   { id: 'volume-comparison', name: 'Volume Comparison', description: 'Compare two surface volumes', category: 'Volumes', href: '/tools/volume-comparison', icon: Mountain, keywords: ['volume', 'comparison', 'surface'] },
 
-  // Mining
-
-  // Hydrographic
-
   // Documents
   { id: 'beacon-certificate', name: 'Beacon Certificate', description: 'Generate beacon certificate PDF', category: 'Documents', href: '/tools/beacon-certificate', icon: FileText, keywords: ['beacon', 'certificate', 'pdf'] },
   { id: 'survey-report', name: 'Survey Report Builder', description: 'Build comprehensive survey report', category: 'Documents', href: '/tools/survey-report-builder', icon: FileText, keywords: ['report', 'survey', 'document'] },
@@ -84,13 +80,13 @@ const TOOLS: Tool[] = [
 
   // Advanced
   { id: 'cut-fill', name: 'Cut & Fill Engine', description: 'Earthwork volume with heat map', category: 'Engineering', href: '/tools/cut-fill', icon: Mountain, keywords: ['cut', 'fill', 'earthwork', 'volume', 'grid'] },
-  { id: 'deformation', name: 'Deformation Monitor', description: 'Epoch tracking + displacement', category: 'Validation', href: '/tools/deformation', icon: Activity, keywords: ['deformation', 'monitoring', 'epoch', 'displacement', 'mining', 'dam'] },
+  { id: 'deformation', name: 'Deformation Monitor', description: 'Epoch tracking + displacement', category: 'Validation', href: '/tools/deformation', icon: Activity, keywords: ['deformation', 'monitoring', 'epoch', 'displacement', 'dam', 'settlement'] },
   { id: 'gcp-optimizer', name: 'GCP Optimizer', description: 'Drone GCP planning + Pix4D export', category: 'Engineering', href: '/tools/gcp-optimizer', icon: MapPin, keywords: ['gcp', 'drone', 'pix4d', 'webodm', 'ground', 'control'] },
   { id: 'lsa', name: 'Least Squares', description: 'Parametric adjustment + error ellipses', category: 'Calculations', href: '/tools/lsa', icon: Calculator, keywords: ['least', 'squares', 'adjustment', 'lsa', 'control', 'network'] },
   { id: 'field-records', name: 'F/R Vault', description: 'Historic field record search', category: 'Documents', href: '/field-records', icon: FileText, keywords: ['field', 'record', 'fr', 'historic', 'archive', 'vault'] },
 ]
 
-const CATEGORIES = ['All', 'Calculations', 'Coordinates', 'Engineering', 'Volumes', 'Mining', 'Hydrographic', 'Documents', 'Field Books', 'Validation']
+const CATEGORIES = ['All', 'Calculations', 'Coordinates', 'Engineering', 'Volumes', 'Documents', 'Field Books', 'Validation']
 
 const CATEGORY_ICONS: Record<string, typeof Calculator> = {
   All: Layers,
@@ -98,8 +94,6 @@ const CATEGORY_ICONS: Record<string, typeof Calculator> = {
   Coordinates: Compass,
   Engineering: Building2,
   Volumes: Mountain,
-  Mining: Mountain,
-  Hydrographic: Waves,
   Documents: FileText,
   'Field Books': FileText,
   Validation: Ruler,

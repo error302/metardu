@@ -120,7 +120,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
 
   const handleCompute = useCallback(() => {
     try {
-      if (surveyType === 'engineering' || surveyType === 'mining') {
+      if (surveyType === 'engineering') {
         if (openingRL) {
           const result = runLevelingComputation({
             rows,
@@ -159,8 +159,6 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
         }
       } else if (surveyType === 'geodetic') {
         setComputeResult('Geodetic baseline processing — enter control points and observed baselines to compute adjustments');
-      } else if (surveyType === 'hydrographic') {
-        setComputeResult('Hydrographic computation — import sounding data and apply tidal reductions');
       } else if (surveyType === 'drone') {
         setComputeResult('Drone survey processing — import ground control points and process aerial imagery');
       } else if (surveyType === 'deformation') {
@@ -235,9 +233,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
       case 'cadastral': return 'Adjust Traverse (Bowditch)';
       case 'engineering': return 'Reduce Levels';
       case 'topographic': return 'Generate DTM';
-      case 'mining': return 'Calculate Volume';
       case 'geodetic': return 'Process Baselines';
-      case 'hydrographic': return 'Generate Sounding Chart';
       case 'drone': return 'Process GCPs';
       case 'deformation': return 'Compare Epochs';
       default: return 'Compute';

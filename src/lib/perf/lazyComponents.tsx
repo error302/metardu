@@ -29,10 +29,6 @@ export const LazyLayerControl = lazy(
 
 // ─── 3D / Visualization Components ────────────────────────────────────────────
 
-export const LazyMineViewer3D = lazy(
-  () => import('@/components/minetwin/MineViewer3D')
-)
-
 export const LazyImageryViewer = lazy(
   () => import('@/components/online/ImageryViewer')
 )
@@ -83,11 +79,7 @@ export const LazyGNSSProcessor = lazy(
   () => import('@/components/online/GNSSProcessor')
 )
 
-// ─── Mining / Heavy Engineering ───────────────────────────────────────────────
-
-export const LazyVolumePanel = lazy(
-  () => import('@/components/minetwin/VolumePanel')
-)
+// ─── Earthworks / Heavy Engineering ───────────────────────────────────────────
 
 export const LazyEarthworkQuantitiesTable = lazy(
   () => import('@/components/earthworks/EarthworkQuantitiesTable')

@@ -3,8 +3,6 @@ export type SurveyType =
   | 'engineering'
   | 'topographic'
   | 'geodetic'
-  | 'mining'
-  | 'hydrographic'
   | 'drone'
   | 'deformation';
 
@@ -13,8 +11,6 @@ export const SURVEY_TYPE_LABELS: Record<SurveyType, string> = {
   engineering: 'Engineering Survey',
   topographic: 'Topographic Survey',
   geodetic: 'Geodetic / Control Survey',
-  mining: 'Mining Survey',
-  hydrographic: 'Hydrographic Survey',
   drone: 'Drone / UAV Photogrammetry',
   deformation: 'Deformation / Monitoring Survey',
 };
@@ -23,7 +19,6 @@ export const LEVELLING_SURVEY_TYPES: SurveyType[] = [
   'engineering',
   'topographic',
   'geodetic',
-  'mining',
   'deformation',
 ];
 
@@ -35,8 +30,6 @@ export const ALL_SURVEY_TYPES: SurveyType[] = [
   'engineering',
   'topographic',
   'geodetic',
-  'mining',
-  'hydrographic',
   'drone',
   'deformation',
 ];

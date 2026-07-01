@@ -12,14 +12,19 @@
  *   hydrographic, mining, etc.  Field surveyors on phones
  *   needed ONE quick-entry surface that works for every
  *   survey type METARDU supports.
+ *
+ *   Note: mining + hydrographic were removed in v1 scope narrowing.
+ *   They live in the separate `metardu-industrial` repo. The mobile
+ *   form now supports the big three mobile-relevant types: leveling,
+ *   traverse, control.
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import { X, Check, MapPin, Ruler, Compass, Mountain, Waves, Pickaxe, Bluetooth, RefreshCw } from 'lucide-react'
+import { X, Check, MapPin, Ruler, Compass, Bluetooth, RefreshCw } from 'lucide-react'
 import { BeaconPhotoCapture, type CapturedBeaconPhoto } from './BeaconPhotoCapture'
 import { VoiceDictationButton } from '@/components/shared/VoiceDictationButton'
 
-export type MobileSurveyType = 'leveling' | 'traverse' | 'control' | 'hydrographic' | 'mining'
+export type MobileSurveyType = 'leveling' | 'traverse' | 'control'
 
 interface FieldDef {
   key: string
@@ -59,29 +64,12 @@ const FIELD_SETS: Record<MobileSurveyType, FieldDef[]> = {
     { key: 'targetHeight', label: 'TH (m)', placeholder: '1.500', inputMode: 'decimal', step: '0.001', default: '1.500' },
     { key: 'remarks', label: 'Remarks', placeholder: 'Wall corner beacon' },
   ],
-  hydrographic: [
-    { key: 'soundingId', label: 'Sounding ID', placeholder: 'S01', station: true, required: true },
-    { key: 'easting', label: 'Easting', placeholder: '275640.123', inputMode: 'decimal', step: '0.001' },
-    { key: 'northing', label: 'Northing', placeholder: '9854321.456', inputMode: 'decimal', step: '0.001' },
-    { key: 'depth', label: 'Depth (m)', placeholder: '4.250', inputMode: 'decimal', step: '0.001', required: true },
-    { key: 'tide', label: 'Tide Correction (m)', placeholder: '+0.320', inputMode: 'decimal', step: '0.001' },
-    { key: 'remarks', label: 'Remarks', placeholder: 'Sandy bottom' },
-  ],
-  mining: [
-    { key: 'pointId', label: 'Point ID', placeholder: 'M01', station: true, required: true },
-    { key: 'bearing', label: 'Bearing', placeholder: '235°45\'00"', inputMode: 'decimal' },
-    { key: 'verticalAngle', label: 'Vert. Angle (°)', placeholder: '88.5000', inputMode: 'decimal', step: '0.0001' },
-    { key: 'slopeDistance', label: 'Slope Dist (m)', placeholder: '42.150', inputMode: 'decimal', step: '0.001', required: true },
-    { key: 'remarks', label: 'Remarks', placeholder: 'Tunnel wall, NW drive' },
-  ],
 }
 
 const TYPE_META: Record<MobileSurveyType, { label: string; icon: typeof Compass; accent: string }> = {
   leveling:     { label: 'Leveling',     icon: Ruler,    accent: 'text-sky-400' },
   traverse:     { label: 'Traverse',     icon: Compass,  accent: 'text-amber-400' },
   control:      { label: 'Control',      icon: MapPin,   accent: 'text-emerald-400' },
-  hydrographic: { label: 'Hydrographic', icon: Waves,    accent: 'text-cyan-400' },
-  mining:       { label: 'Mining',       icon: Pickaxe,  accent: 'text-orange-400' },
 }
 
 export interface UniversalMobileObservationFormProps {

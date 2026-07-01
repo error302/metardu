@@ -65,28 +65,6 @@ const WORKFLOWS: Record<SurveyType, SurveyWorkflow> = {
       SUBMISSION_STEP,
     ],
   },
-  mining: {
-    type: 'mining',
-    label: 'Mining Survey',
-    steps: [
-      step(1, 'setup', 'Setup', 'Enter mine name, permit number, and survey area.'),
-      step(2, 'fieldbook', 'Field Book', 'Record traverse, levelling, and stockpile observations.'),
-      step(3, 'compute', 'Compute', 'Compute traverse, volumes, and setting-out data.'),
-      step(4, 'review', 'Review', 'Inspect volume quantities and working diagram.'),
-      SUBMISSION_STEP,
-    ],
-  },
-  hydrographic: {
-    type: 'hydrographic',
-    label: 'Hydrographic Survey',
-    steps: [
-      step(1, 'setup', 'Setup', 'Enter water body name, tide gauge reference, and sounding grid.'),
-      step(2, 'fieldbook', 'Field Book', 'Record sounding data and tide gauge readings.'),
-      step(3, 'compute', 'Compute', 'Apply tidal corrections and reduce soundings to chart datum.'),
-      step(4, 'review', 'Review', 'Preview sounding chart and depth distribution.'),
-      SUBMISSION_STEP,
-    ],
-  },
   drone: {
     type: 'drone',
     label: 'Drone / UAV Photogrammetry',

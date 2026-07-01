@@ -257,13 +257,6 @@ export async function generateDocument(
       mimeType = 'application/pdf';
       break;
     }
-    case 'sounding-chart': {
-      const { generateSoundingChart } = await import('../generators/soundingChart');
-      buffer = await generateSoundingChart(projectId);
-      fileName = `sounding-chart-${projectId}.pdf`;
-      mimeType = 'application/pdf';
-      break;
-    }
     case 'deformation-report': {
       const { generateDeformationReport } = await import('../generators/deformationReport');
       buffer = await generateDeformationReport(projectId);

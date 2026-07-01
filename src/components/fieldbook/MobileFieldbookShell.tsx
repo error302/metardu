@@ -74,17 +74,13 @@ interface MobileFieldbookShellProps {
   controlStation: { name: string; e: string; n: string; z: string }
   setControlStation: (val: any) => void
 
-  // --- Mining setup props ---
-  miningStation: { name: string; e: string; n: string; z: string }
-  setMiningStation: (val: any) => void
+  // --- Mining setup props removed in v1 scope narrowing (see metardu-industrial repo) ---
 }
 
 const TYPE_LABELS: Record<MobileSurveyType, { label: string; icon: string }> = {
   leveling:     { label: 'Leveling',     icon: '[Ruler]' },
   traverse:     { label: 'Traverse',     icon: '[Compass]' },
   control:      { label: 'Control',      icon: '[Pin]' },
-  hydrographic: { label: 'Hydrographic', icon: '[Water]' },
-  mining:       { label: 'Mining',       icon: '[Mountain]' },
 }
 
 /** Per-survey-type primary fields to display on each card (in order). */
@@ -102,18 +98,6 @@ const CARD_FIELDS: Record<MobileSurveyType, { key: string; label: string; mono?:
     { key: 'vaDeg', label: 'VA', mono: true },
   ],
   control: [
-    { key: 'pointId', label: 'Point' },
-    { key: 'bearing', label: 'Bearing', mono: true },
-    { key: 'slopeDistance', label: 'Dist', mono: true },
-    { key: 'verticalAngle', label: 'VA', mono: true },
-  ],
-  hydrographic: [
-    { key: 'soundingId', label: 'Sounding' },
-    { key: 'depth', label: 'Depth', mono: true },
-    { key: 'easting', label: 'E', mono: true },
-    { key: 'northing', label: 'N', mono: true },
-  ],
-  mining: [
     { key: 'pointId', label: 'Point' },
     { key: 'bearing', label: 'Bearing', mono: true },
     { key: 'slopeDistance', label: 'Dist', mono: true },
@@ -161,8 +145,6 @@ export function MobileFieldbookShell({
   setActiveControlSetupId,
   controlStation,
   setControlStation,
-  miningStation,
-  setMiningStation,
 }: MobileFieldbookShellProps) {
   const [showForm, setShowForm] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -170,7 +152,7 @@ export function MobileFieldbookShell({
   const [resultsOpen, setResultsOpen] = useState(true)
 
   const lastStation = rows.length > 0
-    ? (rows[rows.length - 1].station || rows[rows.length - 1].pointId || rows[rows.length - 1].soundingId || '')
+    ? (rows[rows.length - 1].station || rows[rows.length - 1].pointId || '')
     : ''
 
   const cardFields = CARD_FIELDS[surveyType]
@@ -517,56 +499,6 @@ export function MobileFieldbookShell({
                   </div>
                 </div>
               )}
-
-              {surveyType === 'mining' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="col-span-2">
-                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Mining Station Name</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] uppercase focus:outline-none focus:border-[var(--accent)]"
-                      value={miningStation.name}
-                      onChange={(e) => setMiningStation((p: any) => ({ ...p, name: e.target.value.toUpperCase() }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station E (m)</label>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
-                      value={miningStation.e}
-                      onChange={(e) => setMiningStation((p: any) => ({ ...p, e: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station N (m)</label>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
-                      value={miningStation.n}
-                      onChange={(e) => setMiningStation((p: any) => ({ ...p, n: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Elevation Z (m)</label>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
-                      value={miningStation.z}
-                      onChange={(e) => setMiningStation((p: any) => ({ ...p, z: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {surveyType === 'hydrographic' && (
-                <p className="text-xs text-[var(--text-muted)]">
-                  Hydrographic soundings: tide and depth values are recorded for each point. Coordinates represent localized GPS or total station readings.
-                </p>
-              )}
             </div>
           )}
         </div>
@@ -744,7 +676,7 @@ export function MobileFieldbookShell({
                       </>
                     )}
 
-                    {(surveyType === 'control' || surveyType === 'mining' || surveyType === 'hydrographic') && (
+                    {(surveyType === 'control') && (
                       <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-lg text-xs text-emerald-300">
                         ✓ All {rows.length} points calculated successfully via 3D polar computations.
                       </div>

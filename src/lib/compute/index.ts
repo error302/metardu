@@ -4,7 +4,6 @@
  *
  * Native TS implementations (no Python dependency):
  *   - generateTIN, interpolateElevation       → ./tin
- *   - processSeabedSurvey, detectHazards      → ./seabed
  *   - computeRasterAnalysis                   → ./rasterAnalysis
  *
  * Existing compute runners:
@@ -17,11 +16,14 @@
  *   - validateGeometry                        → ./pythonService
  *   - generateContours                        → ./pythonService
  *   - computeVolumes                          → ./pythonService
+ *
+ * Note: mining (MineTwin) and marine (seabed, depth sounder, sounding chart)
+ * modules were removed in v1 scope narrowing. They live in the separate
+ * `metardu-industrial` repo.
  */
 
 // Native TypeScript compute modules
 export { generateTIN, interpolateElevation, computeSurfaceArea, computeTINVolume, type TINPoint, type TINTriangle } from './tin'
-export { processSeabedSurvey, applyTideCorrection, reduceToChartDatum, detectHazards, SeabedObservationSchema, type SeabedObservation, type SeabedSurveyResult } from './seabed'
 export { computeRasterAnalysis, validateRasterRequest, type RasterAnalysisType, type RasterAnalysisParams, type RasterAnalysisResult } from './rasterAnalysis'
 
 // Existing compute runners

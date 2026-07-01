@@ -9,32 +9,29 @@ export default function EnterprisePage() {
         Join the waitlist to be notified when these products launch.
       </p>
 
-      {[
-        {
-          name: 'MineTwin 3D',
-          description: 'Real-time 3D digital twin for mining surveys. Volume tracking, deformation monitoring, and safety reporting in one surface model.'
-        },
-        {
-          name: 'MineScan Safety',
-          description: 'AI-powered mine safety scanning. Void detection, crown pillar stability assessment, and automated hazard flagging.'
-        },
-        {
-          name: 'USV Orchestrator',
-          description: 'Unmanned surface vessel control and data acquisition for hydrographic surveys. Mission planning, real-time sounder integration, and automated sounding reduction.'
-        }
-      ].map(product => (
-        <div key={product.name} className="border border-[var(--border-color)] rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-2">{product.name}</h2>
-          <p className="text-[var(--text-muted)] mb-4">{product.description}</p>
-          
+      <div className="border border-[var(--border-color)] rounded-lg p-6 mb-6 bg-[var(--bg-secondary)]">
+        <h2 className="text-xl font-semibold mb-2">Metardu Industrial</h2>
+        <p className="text-[var(--text-muted)] mb-4">
+          Mining and marine survey operations — including 3D digital twins,
+          bathymetric processing, and stockpile volumetrics — live in a
+          dedicated desktop application. Visit{' '}
           <a
-            href="mailto:enterprise@metardu.com"
-            className="inline-block bg-orange-500 text-white px-4 py-2 rounded font-medium hover:bg-orange-600"
+            href="https://github.com/error302/metardu-industrial"
+            className="text-orange-500 hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            Join Waitlist
-          </a>
-        </div>
-      ))}
+            github.com/error302/metardu-industrial
+          </a>{' '}
+          for details.
+        </p>
+        <a
+          href="mailto:enterprise@metardu.com"
+          className="inline-block bg-orange-500 text-white px-4 py-2 rounded font-medium hover:bg-orange-600"
+        >
+          Join Waitlist
+        </a>
+      </div>
     </main>
   )
 }

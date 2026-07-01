@@ -90,7 +90,6 @@ export function applyAutoCalculations(
 ): FieldBookRow[] {
   switch (surveyType) {
     case 'engineering':
-    case 'mining':
       return calculateEngineeringRL(rows, changedRowIndex);
     case 'topographic':
       return calculateTopographicRL(rows, changedRowIndex);
@@ -120,8 +119,7 @@ export function validateFieldBook(
       break;
     }
 
-    case 'engineering':
-    case 'mining': {
+    case 'engineering': {
       rows.forEach((row, idx) => {
         const bs = parseNumber(row.bs);
         const is = parseNumber(row.is);
@@ -147,16 +145,6 @@ export function validateFieldBook(
       if (epochs.size < 2) {
         warnings.push({ message: 'Minimum 2 epochs required for comparison', severity: 'warning' });
       }
-      break;
-    }
-
-    case 'hydrographic': {
-      rows.forEach((row, idx) => {
-        const tide = parseNumber(row.tide_reading);
-        if (tide !== null && (tide < -5 || tide > 5)) {
-          warnings.push({ rowIndex: idx, column: 'tide_reading', message: 'Tide correction unrealistic (-5 to +5m)', severity: 'warning' });
-        }
-      });
       break;
     }
   }

@@ -1058,8 +1058,6 @@ export default function DigitalFieldBookPage() {
             setActiveControlSetupId={setActiveControlSetupId}
             controlStation={controlStation}
             setControlStation={setControlStation}
-            miningStation={{ name: '', e: '', n: '', z: '' }}
-            setMiningStation={() => {}}
           />
         </div>
         {/* Mobile Measurement Capture Bar — take readings directly on mobile */}

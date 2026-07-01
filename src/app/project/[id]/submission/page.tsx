@@ -14,8 +14,6 @@ function normalizeSurveyType(subtype: string | null | undefined): SurveyType {
   if (value.includes('cadastral') || value.includes('boundary')) return 'cadastral';
   if (value.includes('engineering') || value.includes('road') || value.includes('construction')) return 'engineering';
   if (value.includes('geodetic') || value.includes('control')) return 'geodetic';
-  if (value.includes('mining')) return 'mining';
-  if (value.includes('hydro')) return 'hydrographic';
   if (value.includes('drone') || value.includes('uav')) return 'drone';
   if (value.includes('deformation') || value.includes('monitor')) return 'deformation';
   return 'topographic';

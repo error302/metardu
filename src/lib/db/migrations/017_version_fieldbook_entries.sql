@@ -116,7 +116,7 @@ DROP TRIGGER IF EXISTS version_traverse_observations ON traverse_observations;
 CREATE TRIGGER version_traverse_observations AFTER INSERT OR UPDATE OR DELETE ON traverse_observations
   FOR EACH ROW EXECUTE FUNCTION entity_version_trigger_func();
 
--- Project fieldbook entries (level/traverse/control/hydro/mining rows)
+-- Project fieldbook entries (level/traverse/control rows)
 DROP TRIGGER IF EXISTS version_project_fieldbook_entries ON project_fieldbook_entries;
 CREATE TRIGGER version_project_fieldbook_entries AFTER INSERT OR UPDATE OR DELETE ON project_fieldbook_entries
   FOR EACH ROW EXECUTE FUNCTION entity_version_trigger_func();

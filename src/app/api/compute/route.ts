@@ -11,17 +11,6 @@ const TINPayloadSchema = z.object({
   query_points: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
 })
 
-const SeabedPayloadSchema = z.object({
-  project_id: z.string().uuid().optional(),
-  observations: z.array(z.object({
-    point_id: z.string(),
-    latitude: z.number(),
-    longitude: z.number(),
-    depth: z.number(),
-  })).min(1).max(10000),
-  chart_datum_offset_m: z.number(),
-})
-
 const volumeCrossSchema = z.object({
   kind: z.literal('cross_section'),
   method: z.enum(['end_area', 'prismoidal', 'cut_fill']),
@@ -65,23 +54,6 @@ export const POST = apiHandler({
         triangles: triangles.slice(0, 1000),
         interpolations,
       })
-    }
-
-    if (task === 'seabed') {
-      const parsed = SeabedPayloadSchema.safeParse(payload)
-      if (parsed.success) {
-        const { processSeabedSurvey } = await import('@/lib/compute/seabed')
-        try {
-          const result = await processSeabedSurvey(
-            parsed.data.project_id ?? 'unknown',
-            parsed.data.observations as any[],
-            parsed.data.chart_datum_offset_m
-          )
-          return NextResponse.json({ ...result, python_required: false })
-        } catch (err) {
-          throw err instanceof Error ? err : new Error('Seabed processing failed')
-        }
-      }
     }
 
     if (task === 'volume') {
@@ -202,8 +174,8 @@ export const GET = apiHandler({
     return NextResponse.json({
       endpoint: '/api/compute',
       description: 'Compute Gateway: routes heavy tasks to Python, keeps deterministic survey math in TS.',
-      tasks: ['volume', 'tin', 'contours', 'raster_analysis', 'seabed', 'export_dxf', 'export_geojson'],
-      native_tasks: ['volume', 'tin', 'seabed', 'export_dxf', 'export_geojson'],
+      tasks: ['volume', 'tin', 'contours', 'raster_analysis', 'export_dxf', 'export_geojson'],
+      native_tasks: ['volume', 'tin', 'export_dxf', 'export_geojson'],
     })
   },
 })

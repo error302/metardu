@@ -79,7 +79,6 @@ export const NAV_ITEMS: NavItem[] = [
   // AI MODULES
   { label: 'FieldGuard AI', href: '/fieldguard', icon: ShieldCheck, group: 'AI_MODULES', badge: 'AI', description: 'GNSS/total-station data cleaner and outlier detection', requiresSubscription: 'pro' },
   { label: 'CadastraAI', href: '/cadastra', icon: LandPlot, group: 'AI_MODULES', badge: 'AI', description: 'Boundary dispute detection, overlap and gap analysis', requiresSubscription: 'pro' },
-  { label: 'MineTwin 3D', href: '/minetwin', icon: Mountain, group: 'AI_MODULES', badge: 'NEW', description: 'WebGL digital twin viewer for mining operations', requiresSubscription: 'pro' },
   { label: 'SurveyFlow', href: '/automator', icon: Workflow, group: 'AI_MODULES', badge: 'NEW', description: 'Drag-and-drop workflow automation builder', requiresSubscription: 'pro' },
 
   // DATA

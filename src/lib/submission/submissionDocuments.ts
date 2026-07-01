@@ -7,7 +7,7 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     label: 'Traverse Computation Report',
     description: 'Bowditch-adjusted traverse with angular and linear closure.',
     format: 'pdf',
-    surveyTypes: ['cadastral', 'engineering', 'topographic', 'mining', 'geodetic'],
+    surveyTypes: ['cadastral', 'engineering', 'topographic', 'geodetic'],
     requiredData: ['traverse observations', 'starting coordinates'],
   },
   {
@@ -17,7 +17,7 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     format: 'xlsx',
     surveyTypes: [
       'cadastral', 'engineering', 'topographic', 'geodetic',
-      'mining', 'hydrographic', 'drone', 'deformation',
+      'drone', 'deformation',
     ],
     requiredData: ['field book entries'],
   },
@@ -26,7 +26,7 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     label: 'Levelling Report',
     description: 'Rise & fall / HPC reduction with 10√K mm closure check per RDM 1.1 Table 5.1.',
     format: 'pdf',
-    surveyTypes: ['engineering', 'topographic', 'geodetic', 'mining', 'deformation'],
+    surveyTypes: ['engineering', 'topographic', 'geodetic', 'deformation'],
     requiredData: ['levelling observations', 'benchmark RL'],
   },
   {
@@ -34,7 +34,7 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     label: 'Working Diagram',
     description: 'Scaled traverse diagram with beacon annotations.',
     format: 'pdf',
-    surveyTypes: ['cadastral', 'engineering', 'topographic', 'mining'],
+    surveyTypes: ['cadastral', 'engineering', 'topographic'],
     requiredData: ['adjusted traverse coordinates', 'beacon data'],
   },
   {
@@ -50,7 +50,7 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     label: 'Boundary Shapefile',
     description: 'Parcel boundary as zipped shapefile for GIS use.',
     format: 'shp',
-    surveyTypes: ['cadastral', 'mining'],
+    surveyTypes: ['cadastral'],
     requiredData: ['adjusted coordinates'],
   },
   {
@@ -58,7 +58,7 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     label: 'Setting-Out DXF',
     description: 'Setting-out data in DXF format for AutoCAD import.',
     format: 'dxf',
-    surveyTypes: ['engineering', 'mining'],
+    surveyTypes: ['engineering'],
     requiredData: ['setting-out observations', 'design coordinates'],
   },
   {
@@ -74,7 +74,7 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     label: 'Volumetric / Earthworks Report',
     description: 'Cut and fill volumes with prismoidal correction.',
     format: 'pdf',
-    surveyTypes: ['mining', 'engineering', 'drone'],
+    surveyTypes: ['engineering', 'drone'],
     requiredData: ['cross-section data or point cloud', 'design surface'],
   },
   {
@@ -94,14 +94,6 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     requiredData: ['orthophoto image or imagery overlay', 'parcel boundary', 'project extent'],
   },
   {
-    id: 'sounding-chart',
-    label: 'Hydrographic Sounding Chart',
-    description: 'Bathymetric sounding chart with tide corrections applied.',
-    format: 'pdf',
-    surveyTypes: ['hydrographic'],
-    requiredData: ['sounding data', 'tide gauge records'],
-  },
-  {
     id: 'deformation-report',
     label: 'Deformation / Monitoring Report',
     description: 'Epoch comparison with displacement vectors and statistical analysis.',
@@ -114,7 +106,7 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     label: 'Coordinate Schedule',
     description: 'Final adjusted coordinates of all control points.',
     format: 'xlsx',
-    surveyTypes: ['geodetic', 'cadastral', 'engineering', 'mining'],
+    surveyTypes: ['geodetic', 'cadastral', 'engineering'],
     requiredData: ['adjusted coordinates'],
   },
   {
@@ -164,7 +156,7 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     format: 'zip',
     surveyTypes: [
       'cadastral', 'engineering', 'topographic', 'geodetic',
-      'mining', 'hydrographic', 'drone', 'deformation',
+      'drone', 'deformation',
     ],
     requiredData: ['all documents above must be generated first'],
   },

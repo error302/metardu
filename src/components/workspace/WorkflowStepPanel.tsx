@@ -49,8 +49,6 @@ function SetupPanel({ surveyType }: { surveyType: SurveyType }) {
     engineering: ['Road / structure reference', 'Chainage start and end', 'Design authority', 'Contract number'],
     topographic: ['Drawing scale', 'Contour interval', 'Datum', 'Area boundary'],
     geodetic: ['Network order', 'Datum', 'Control point references', 'GNSS equipment'],
-    mining: ['Mine name', 'Permit number', 'Survey area', 'Mineral type'],
-    hydrographic: ['Water body name', 'Tide gauge', 'Chart datum', 'Sounder'],
     drone: ['Mission ID', 'Aircraft', 'Camera', 'Target GSD'],
     deformation: ['Structure name', 'Monitoring frequency', 'Reference epoch', 'Alert threshold'],
   };
@@ -79,21 +77,10 @@ function ComputeStepPanel({ surveyType, projectId }: { surveyType: SurveyType; p
     engineering: ['Rise & fall reduction', '10√K mm closure (RDM 1.1)', 'Cross-section volumes'],
     topographic: ['Coordinate reduction', 'DTM generation', 'Contour extraction'],
     geodetic: ['Network adjustment', 'Baseline processing', 'Accuracy classification'],
-    mining: ['Traverse adjustment', 'End-of-month volumes', 'Mine plan DXF'],
-    hydrographic: ['Tidal correction', 'Depth reduction', 'Bathymetric surface', 'Report of Survey'],
     drone: ['GCP residuals', 'Point cloud volumes', 'Orthophoto check'],
     deformation: ['Epoch comparison', 'Displacement vectors', 'Statistical test'],
     cadastral: []
   };
-
-  if (surveyType === 'hydrographic' || surveyType === 'mining') {
-    return (
-      <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
-        <h2 className="font-semibold text-[var(--text-primary)] mb-1">Step 3 — Compute</h2>
-        <p className="text-sm text-[var(--text-muted)]">This survey type is no longer supported. Use the computation engine for available tools.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">

@@ -251,7 +251,7 @@ export const CreateLevelingObservationSchema = z.object({
 
 export const ComputeRequestSchema = z.object({
   task: z.enum([
-    'volume', 'tin', 'contours', 'raster_analysis', 'seabed',
+    'volume', 'tin', 'contours', 'raster_analysis',
     'export_dxf', 'export_geojson',
   ]),
   payload: z.unknown().optional(),
