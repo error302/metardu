@@ -40,7 +40,9 @@ const nextConfig = {
     ignoreDuringBuilds: true,  // ESLint still has ~1300 any warnings; run via CI separately
   },
   typescript: {
-    ignoreBuildErrors: process.env.IGNORE_TYPE_ERRORS === 'true',
+    // AUDIT FIX (C10, 2026-07-02): Was `ignoreBuildErrors: process.env.IGNORE_TYPE_ERRORS === 'true'`.
+    // Type errors now block the build — tsc --noEmit passes clean.
+    ignoreBuildErrors: false,
   },
 
   // ─── Performance settings ───

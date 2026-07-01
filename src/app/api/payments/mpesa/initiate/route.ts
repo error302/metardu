@@ -2,8 +2,26 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
+import { z } from 'zod'
 import db from '@/lib/db'
 import { MpesaService } from '@/lib/payments/mpesa'
+
+// AUDIT FIX (C4, 2026-07-02):
+//   - Removed columns (amount_kes, purpose, reference_id) that don't exist
+//     in payment_intents table
+//   - Added plan_id column (added via migration 026)
+//   - Pass callbackUrl with paymentId + planId query params so the
+//     callback can look up the payment intent without relying on
+//     CheckoutRequestID-only matching
+
+const InitiateSchema = z.object({
+  amount: z.number().positive(),
+  phoneNumber: z.string().min(10),
+  planId: z.enum(['free', 'pro', 'team']).default('free'),
+  purpose: z.string().max(200).optional(),
+  referenceId: z.string().max(200).optional(),
+  currency: z.string().length(3).default('KES'),
+})
 
 const mpesa = new MpesaService({
   consumerKey: process.env.MPESA_CONSUMER_KEY || '',
@@ -11,63 +29,81 @@ const mpesa = new MpesaService({
   shortCode: process.env.MPESA_SHORT_CODE || process.env.MPESA_SHORTCODE || '',
   initiatorName: process.env.MPESA_INITIATOR_NAME || '',
   securityCredential: process.env.MPESA_SECURITY_CREDENTIAL || '',
-  environment: (process.env.MPESA_ENV as 'sandbox' | 'production') || 'sandbox'
+  environment: (process.env.MPESA_ENV as 'sandbox' | 'production') || 'sandbox',
 })
 
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
-  const { amount, phoneNumber, purpose, referenceId, currency = 'KES' } = ctx.body as {
-    amount?: number
-    phoneNumber?: string
-    purpose?: string
-    referenceId?: string
-    currency?: string
-  }
+export const POST = apiHandler(
+  { auth: true, rateLimit: { max: 60, windowMs: 60000 }, schema: InitiateSchema },
+  async (_req, ctx) => {
+    const { amount, phoneNumber, planId, purpose, referenceId, currency } = ctx.body as z.infer<
+      typeof InitiateSchema
+    >
 
-  if (!amount || !phoneNumber) {
-    return NextResponse.json({ error: 'Amount and phone number required' }, { status: 400 })
-  }
-
-  const paymentResult = await db.query(
-    `INSERT INTO payment_intents (user_id, amount, currency, amount_kes, purpose, reference_id, method, status)
-     VALUES ($1, $2, $3, $4, $5, $6, 'MPESA', 'PENDING')
-     RETURNING id`,
-    [ctx.userId, amount, currency, amount, purpose, referenceId]
-  )
-
-  if (paymentResult.rows.length === 0) {
-    return NextResponse.json({ error: 'Failed to create payment' }, { status: 500 })
-  }
-
-  const paymentIntent = paymentResult.rows[0]
-
-  try {
-    const mpesaResponse = await mpesa.initiateSTKPush({
-      phoneNumber,
-      amount,
-      reference: `METARDU-${paymentIntent.id.slice(0, 8)}`,
-      description: `Metardu ${purpose}`
-    })
-
-    await db.query(
-      `UPDATE payment_intents SET provider_ref = $1, status = 'PROCESSING' WHERE id = $2`,
-      [mpesaResponse.checkoutRequestId, paymentIntent.id]
+    // 1. Create payment intent with the correct columns
+    const paymentResult = await db.query(
+      `INSERT INTO payment_intents
+         (user_id, amount, currency, payment_method, status, plan_id, metadata)
+       VALUES ($1, $2, $3, 'mpesa', 'pending', $4, $5)
+       RETURNING id`,
+      [
+        ctx.userId,
+        amount,
+        currency,
+        planId,
+        JSON.stringify({ purpose, referenceId }),
+      ]
     )
 
-    return NextResponse.json({
-      paymentIntentId: paymentIntent.id,
-      checkoutRequestId: mpesaResponse.checkoutRequestId
-    })
+    if (paymentResult.rows.length === 0) {
+      return NextResponse.json({ error: 'Failed to create payment' }, { status: 500 })
+    }
 
-  } catch (mpesaError) {
-    console.error('M-Pesa error:', mpesaError)
+    const paymentIntentId = paymentResult.rows[0].id as string
 
-    await db.query(
-      `UPDATE payment_intents SET status = 'FAILED' WHERE id = $1`,
-      [paymentIntent.id]
-    )
+    // 2. Build callback URL with paymentId + planId as query params.
+    //    Safaricom preserves query params when POSTing to the CallBackURL,
+    //    so the callback route can look up the payment intent directly.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const callbackUrl = `${appUrl}/api/payments/mpesa/callback?paymentId=${encodeURIComponent(
+      paymentIntentId
+    )}&planId=${encodeURIComponent(planId)}`
 
-    return NextResponse.json({
-      error: mpesaError instanceof Error ? mpesaError.message : 'M-Pesa payment failed'
-    }, { status: 500 })
+    try {
+      const mpesaResponse = await mpesa.initiateSTKPush({
+        phoneNumber,
+        amount,
+        reference: `METARDU-${paymentIntentId.slice(0, 8)}`,
+        description: purpose || 'METARDU subscription',
+        callbackUrl,
+      })
+
+      // 3. Update payment intent with provider ref + processing status
+      await db.query(
+        `UPDATE payment_intents
+         SET checkout_request_id = $1, status = 'processing', updated_at = NOW()
+         WHERE id = $2`,
+        [mpesaResponse.checkoutRequestId, paymentIntentId]
+      )
+
+      return NextResponse.json({
+        paymentIntentId,
+        checkoutRequestId: mpesaResponse.checkoutRequestId,
+      })
+    } catch (mpesaError) {
+      console.error('M-Pesa error:', mpesaError)
+
+      await db.query(
+        `UPDATE payment_intents SET status = 'failed', updated_at = NOW() WHERE id = $1`,
+        [paymentIntentId]
+      )
+
+      return NextResponse.json(
+        {
+          error:
+            mpesaError instanceof Error ? mpesaError.message : 'M-Pesa payment failed',
+        },
+        { status: 500 }
+      )
+    }
   }
-})
+)

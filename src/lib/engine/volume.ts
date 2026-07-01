@@ -117,9 +117,22 @@ export function volumeFromSections(sections: VolumeSection[], method: VolumeMeth
 }
 
 /**
- * Simple cut/fill summarization from signed cross-section areas.
+ * Cut/fill summarization from signed cross-section areas.
  * Convention: +area = cut, -area = fill.
- * This matches the existing UI behaviour (does not attempt to split sign-changing segments).
+ *
+ * AUDIT FIX (M4, 2026-07-02):
+ *   The previous implementation silently dropped segments where the
+ *   signed area crossed zero (e.g., s1.area = +5, s2.area = -3),
+ *   understating both cut and fill volumes. The fix splits such
+ *   segments at the zero-crossing chainage (linear interpolation) and
+ *   attributes the partial volumes to cut and fill respectively.
+ *
+ *   Zero-crossing chainage:
+ *     ch_zero = ch1 + (0 - A1) / (A2 - A1) × L = ch1 - A1·L / (A2 - A1)
+ *
+ *   Partial volumes (trapezoidal):
+ *     V_cut  = (L1 / 2) × |A1|     where L1 = ch_zero - ch1
+ *     V_fill = (L2 / 2) × |A2|     where L2 = ch2 - ch_zero
  */
 export function cutFillVolumeFromSignedSections(sections: VolumeSection[]): CutFillVolumeResult {
   const sorted = sortByChainage(sections)
@@ -131,11 +144,58 @@ export function cutFillVolumeFromSignedSections(sections: VolumeSection[]): CutF
     const s1 = sorted[i - 1]
     const s2 = sorted[i]
     const L = s2.chainage - s1.chainage
-    const v = (L / 2) * (s1.area + s2.area)
-    segments.push({ from: s1.chainage, to: s2.chainage, L, A1: s1.area, A2: s2.area, volume: v })
+    const A1 = s1.area
+    const A2 = s2.area
 
-    if (s1.area >= 0 && s2.area >= 0) cutVolume += v
-    else if (s1.area <= 0 && s2.area <= 0) fillVolume += Math.abs(v)
+    if (L <= 0) continue // skip duplicate/zero-length segments
+
+    // Case 1: same sign (or one is zero) — single segment, no split needed
+    if (A1 * A2 >= 0) {
+      const v = (L / 2) * (A1 + A2)
+      segments.push({ from: s1.chainage, to: s2.chainage, L, A1, A2, volume: v })
+      if (v >= 0) cutVolume += v
+      else fillVolume += Math.abs(v)
+      continue
+    }
+
+    // Case 2: sign change — split at the zero-crossing
+    // Linear interpolation: ch_zero = ch1 - A1·L / (A2 - A1)
+    // Avoid divide-by-zero (already handled by A1·A2 >= 0 above, but defensive)
+    const denom = A2 - A1
+    if (Math.abs(denom) < 1e-12) continue
+    const chZero = s1.chainage - (A1 * L) / denom
+    const L1 = chZero - s1.chainage // length of first partial segment
+    const L2 = s2.chainage - chZero // length of second partial segment
+
+    // First partial segment: from (ch1, A1) to (chZero, 0)
+    //   Trapezoid area = (A1 + 0) / 2 = A1 / 2
+    //   Volume = L1 × A1 / 2 — sign matches A1
+    const v1 = (L1 / 2) * A1
+    if (v1 > 0) cutVolume += v1
+    else if (v1 < 0) fillVolume += Math.abs(v1)
+    segments.push({
+      from: s1.chainage,
+      to: chZero,
+      L: L1,
+      A1,
+      A2: 0,
+      volume: v1,
+    })
+
+    // Second partial segment: from (chZero, 0) to (ch2, A2)
+    //   Trapezoid area = (0 + A2) / 2 = A2 / 2
+    //   Volume = L2 × A2 / 2 — sign matches A2
+    const v2 = (L2 / 2) * A2
+    if (v2 > 0) cutVolume += v2
+    else if (v2 < 0) fillVolume += Math.abs(v2)
+    segments.push({
+      from: chZero,
+      to: s2.chainage,
+      L: L2,
+      A1: 0,
+      A2,
+      volume: v2,
+    })
   }
 
   return { cutVolume, fillVolume, netVolume: cutVolume - fillVolume, segments }

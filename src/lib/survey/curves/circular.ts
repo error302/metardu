@@ -180,8 +180,12 @@ function computeCurveCoordinates(
   stations[0].northing = pcN;
   
   // Subsequent stations — compute from PC using deflection angles
-  const tangentBearing = backBearing + 180; // Forward tangent from PC
-  if (tangentBearing >= 360) tangentBearing - 360;
+  // AUDIT FIX (M6, 2026-07-02): original code was a no-op —
+  // `if (tangentBearing >= 360) tangentBearing - 360;` computed the
+  // subtraction but discarded the result. Replaced with modulo to wrap
+  // to [0, 360). Also changed const → let.
+  let tangentBearing = (backBearing + 180) % 360;
+  if (tangentBearing < 0) tangentBearing += 360;
   
   for (let i = 1; i < stations.length; i++) {
     const deflRad = stations[i].deflectionAngle * Math.PI / 180;
