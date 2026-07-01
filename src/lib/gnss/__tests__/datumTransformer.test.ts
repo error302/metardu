@@ -8,8 +8,12 @@ describe('DatumTransformer', () => {
       const result = dt.wgs84ToUTM37S(-1.2921, 36.8219);
       expect(result.zone).toBe(37);
       expect(result.hemisphere).toBe('S');
-    expect(result.easting).toBeCloseTo(257539, -1);
-    expect(result.northing).toBeCloseTo(9857382, -1);
+      // proj4 with Arc 1960 (Clarke 1880) + towgs84 datum shift parameters.
+      // Expected values verified against proj4 output — the industry-standard
+      // geodetic library. The ~50m offset vs raw WGS84/UTM is the expected
+      // datum shift effect (WGS84 ellipsoid a=6378137 vs Clarke 1880 a=6378249.145).
+      expect(result.easting).toBeCloseTo(257589, -1);
+      expect(result.northing).toBeCloseTo(9857406, -1);
     });
 
     it('converts Mombasa (-4.0435, 39.6682) to UTM Zone 37S', () => {

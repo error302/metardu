@@ -15,7 +15,7 @@ module.exports = {
     }],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(delaunator|robust-predicates)/)',
+    'node_modules/(?!(delaunator|robust-predicates|ol|ol/)/)',
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

@@ -2,7 +2,8 @@
  * Extended Test Suite — Curves, Volumes, and Integration
  */
 
-import { describe, it, expect } from 'vitest';
+// Jest globals (describe, it, expect) are available without import.
+// Previously imported from 'vitest' — converted for Jest compatibility.
 
 // ─── Circular Curves ─────────────────────────────────────────────
 import {

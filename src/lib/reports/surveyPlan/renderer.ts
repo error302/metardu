@@ -846,6 +846,9 @@ export class SurveyPlanRenderer {
     svg += text(`SCALE ${calcScaleLabel(this.scale)}`, y + mmToPx(hasMun ? 18 : 12), 8, 'bold')
     svg += hline(y + mmToPx(hasMun ? 21 : 15))
     svg += text(p.firm_name || '', y + mmToPx(hasMun ? 25 : 19), 8, 'bold')
+    if (p.firm_name) {
+      svg += text('SURVEYORS ASSOCIATION STAMP', y + mmToPx(hasMun ? 27 : 21), 5, 'normal', '#888')
+    }
     svg += text(`\u00A9 ${new Date().getFullYear()}`, y + mmToPx(hasMun ? 28.5 : 22.5), 6)
     svg += text('Survey Act Cap. 299 | Survey Regulations 1994 | RDM 1.3 (2023)', y + mmToPx(hasMun ? 32 : 26), 4.5, 'normal', '#888')
     svg += text('Distances shown are in metres.', y + mmToPx(hasMun ? 33 : 27), 7, 'normal', '#555')

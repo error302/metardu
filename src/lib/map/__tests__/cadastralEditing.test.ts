@@ -4,7 +4,32 @@
  * HistoryManager is tested directly — it only depends on a mock source.
  * createHistoryManager factory is tested for its return contract.
  * Orthogonal constraint logic is tested indirectly via the editing stack.
+ *
+ * OpenLayers modules are mocked because they require a browser DOM
+ * and can't run in Jest's Node environment. The HistoryManager class
+ * itself doesn't call OL at import time — it only uses OL types
+ * for method signatures, which are erased at runtime.
  */
+
+// Mock all OpenLayers imports — cadastralEditing.ts imports these at the
+// top level, but the test only exercises HistoryManager which is pure JS.
+jest.mock('ol/Map', () => ({ default: class Map {} }))
+jest.mock('ol/Feature', () => ({ default: class Feature {} }))
+jest.mock('ol/geom/Polygon', () => ({ default: class Polygon {} }))
+jest.mock('ol/geom/Point', () => ({ default: class Point {} }))
+jest.mock('ol/source/Vector', () => ({ default: class VectorSource {} }))
+jest.mock('ol/layer/Vector', () => ({ default: class VectorLayer {} }))
+jest.mock('ol/interaction/Snap', () => ({ default: class Snap {} }))
+jest.mock('ol/interaction/Modify', () => ({ default: class Modify {} }))
+jest.mock('ol/interaction/Draw', () => ({ default: class Draw {} }))
+jest.mock('ol/interaction/Select', () => ({ default: class Select {} }))
+jest.mock('ol/style/Style', () => ({ default: class Style {} }))
+jest.mock('ol/style/Fill', () => ({ default: class Fill {} }))
+jest.mock('ol/style/Stroke', () => ({ default: class Stroke {} }))
+jest.mock('ol/style/Text', () => ({ default: class Text {} }))
+jest.mock('ol/proj', () => ({ transform: jest.fn() }))
+jest.mock('ol/Observable', () => ({ unByKey: jest.fn() }))
+jest.mock('proj4', () => ({ default: { defs: jest.fn(), fromProj4: jest.fn() } }))
 
 import { HistoryManager } from '../cadastralEditing'
 

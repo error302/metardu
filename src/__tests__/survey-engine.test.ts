@@ -3,11 +3,10 @@
  * 
  * Validates all P0 corrections against known values and published formulas.
  * Every test case uses independently verifiable reference data.
- * 
- * Run with: npx vitest run
  */
 
-import { describe, it, expect } from 'vitest';
+// Jest globals (describe, it, expect) are available without import.
+// Previously imported from 'vitest' — converted for Jest compatibility.
 
 // ─── Atmospheric Corrections ─────────────────────────────────────
 import {
