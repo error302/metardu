@@ -262,7 +262,11 @@
     "leveling": "Calculateur de Nivellement",
     "traverse": "Calcul de Cheminement",
     "usSurveyReference": "Référence des Normes Américaines",
-    "usSurveyReferenceDesc": "Référence des normes de l'US Fish & Wildlife Service et du BLM"
+    "usSurveyReferenceDesc": "Référence des normes de l'US Fish & Wildlife Service et du BLM",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "Plan titré",

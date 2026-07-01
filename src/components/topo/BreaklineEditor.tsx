@@ -22,11 +22,12 @@ import { useState, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Trash2, Link2, Upload, Mountain, Wand2 } from 'lucide-react'
+import { Plus, Trash2, Link2, Upload, Mountain, Wand2, Download } from 'lucide-react'
 import type { SpotHeight } from '@/lib/engine/contours'
 import {
   extractBreaklinesFromPoints,
   toBreaklineArray,
+  toGeoJSON,
   type BreaklineExtractionResult,
 } from '@/lib/engine/breaklineExtraction'
 
@@ -158,6 +159,20 @@ export function BreaklineEditor({ points, breaklines, onChange }: BreaklineEdito
     ])
     setSelectedBreaklineIds(new Set())
   }, [extractionResult, selectedBreaklineIds, breaklines, onChange])
+
+  const exportAutoBreaklinesGeoJSON = useCallback(() => {
+    if (!extractionResult || extractionResult.breaklines.length === 0) return
+    const gj = toGeoJSON(extractionResult)
+    const blob = new Blob([JSON.stringify(gj, null, 2)], {
+      type: 'application/geo+json',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `auto-breaklines-${Date.now()}.geojson`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [extractionResult])
 
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 space-y-3">
@@ -404,17 +419,28 @@ export function BreaklineEditor({ points, breaklines, onChange }: BreaklineEdito
                           )
                         })}
                       </div>
-                      <Button
-                        onClick={addSelectedAutoBreaklines}
-                        disabled={selectedBreaklineIds.size === 0}
-                        size="sm"
-                        className="text-xs w-full"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Add {selectedBreaklineIds.size > 0
-                          ? `${selectedBreaklineIds.size} selected`
-                          : 'selected'} to breaklines
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={addSelectedAutoBreaklines}
+                          disabled={selectedBreaklineIds.size === 0}
+                          size="sm"
+                          className="text-xs flex-1"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add {selectedBreaklineIds.size > 0
+                            ? `${selectedBreaklineIds.size} selected`
+                            : 'selected'}
+                        </Button>
+                        <Button
+                          onClick={exportAutoBreaklinesGeoJSON}
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          title="Download all auto-detected breaklines as GeoJSON"
+                        >
+                          <Download className="w-3 h-3 mr-1" /> GeoJSON
+                        </Button>
+                      </div>
                     </>
                   )}
                 </>

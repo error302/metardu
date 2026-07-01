@@ -17,7 +17,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, Spline, AlertTriangle } from 'lucide-react';
+import { Download, Spline, AlertTriangle, MapPin, Copy } from 'lucide-react';
 import { downloadCSV } from '@/lib/export/helpers';
 import {
   computeSpiralAlignment,
@@ -69,6 +69,80 @@ export function SpiralAlignmentTab() {
   const exportCSV = () => {
     if (stations.length === 0) return;
     downloadCSV(spiralAlignmentToCSV(stations), `spiral-alignment-${Date.now()}.csv`);
+  };
+
+  const exportGeoJSON = () => {
+    if (!result) return;
+    const coords = alignmentToCoordinateArray(result, 2);
+    if (coords.length < 2) return;
+    const gj = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature' as const,
+          geometry: { type: 'LineString' as const, coordinates: coords },
+          properties: {
+            type: 'spiral-alignment',
+            radius: result.input.radius,
+            intersection_angle_deg: result.input.intersectionAngleDeg,
+            spiral_length: result.input.spiralLength,
+            total_length: result.totalLength,
+            ts_chainage: result.tsChainage,
+            sc_chainage: result.scChainage,
+            cs_chainage: result.csChainage,
+            st_chainage: result.stChainage,
+          },
+        },
+        // Key station points as separate Features
+        ...(
+          [
+            ['TS', result.tsChainage, result.tsCoord],
+            ['SC', result.scChainage, result.scCoord],
+            ['CS', result.csChainage, result.csCoord],
+            ['ST', result.stChainage, result.stCoord],
+            ['PI', result.input.piChainage, result.piCoord],
+          ] as const
+        )
+          .filter(([, , coord]) => coord !== null)
+          .map(([label, chainage, coord]) => ({
+            type: 'Feature' as const,
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [coord!.easting, coord!.northing],
+            },
+            properties: { label, chainage },
+          })),
+      ],
+    };
+    const blob = new Blob([JSON.stringify(gj, null, 2)], {
+      type: 'application/geo+json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `spiral-alignment-${Date.now()}.geojson`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const copyCoords = async () => {
+    if (!result) return;
+    const coords = alignmentToCoordinateArray(result, 2);
+    if (coords.length < 2) return;
+    // Format as JSON array for direct paste into OpenLayers code:
+    //   new LineString([[e, n], [e, n], ...])
+    const text = JSON.stringify(coords);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Fallback for browsers without clipboard API
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
   };
 
   return (
@@ -181,13 +255,21 @@ export function SpiralAlignmentTab() {
 
           {/* Station table */}
           <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-5">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h3 className="font-display text-lg text-[var(--text-primary)]">
                 Station Table ({stations.length} rows)
               </h3>
-              <Button variant="outline" size="sm" onClick={exportCSV}>
-                <Download className="w-3 h-3 mr-1" /> CSV
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={copyCoords} title="Copy coordinate array for OpenLayers LineString">
+                  <Copy className="w-3 h-3 mr-1" /> Coords
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportGeoJSON} title="Download as GeoJSON FeatureCollection (LineString + key stations)">
+                  <MapPin className="w-3 h-3 mr-1" /> GeoJSON
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportCSV}>
+                  <Download className="w-3 h-3 mr-1" /> CSV
+                </Button>
+              </div>
             </div>
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full text-xs">

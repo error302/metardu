@@ -262,7 +262,11 @@
     "leveling": "Ƙididdigar Ma'aunin Tsawo",
     "traverse": "Lissafin Jeri",
     "usSurveyReference": "Bayanin Ka'idojin Ma'aunin Amurka",
-    "usSurveyReferenceDesc": "Bayanin ka'idojin ma'aunin Sashen Kifi da Dabbobi na Amurka da BLM"
+    "usSurveyReferenceDesc": "Bayanin ka'idojin ma'aunin Sashen Kifi da Dabbobi na Amurka da BLM",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "Shirin Takarda",

@@ -262,7 +262,11 @@
     "leveling": "Calculadora de Nivelamento",
     "traverse": "Cálculo de Poligonal",
     "usSurveyReference": "Referência de Padrões de Levantamento dos EUA",
-    "usSurveyReferenceDesc": "Referência de padrões de levantamento do US Fish & Wildlife Service e BLM"
+    "usSurveyReferenceDesc": "Referência de padrões de levantamento do US Fish & Wildlife Service e BLM",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "Planta de Propriedade",

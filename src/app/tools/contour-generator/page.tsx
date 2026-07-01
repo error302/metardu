@@ -11,6 +11,11 @@ import {
   type ContourLine,
   type TINSurface,
 } from '@/lib/engine/contours';
+import {
+  generateContoursAsync,
+  buildTINSurfaceAsync,
+  isWorkerAvailable,
+} from '@/lib/workers/tinWorkerClient';
 
 import type { TabId, Bounds, ImportStats, ParseError, VolumeResult } from './types';
 import { MARGIN, SVG_HEIGHT, SVG_WIDTH } from './constants';
@@ -52,6 +57,8 @@ export default function ContourGeneratorPage() {
   const [indexMultiplier, setIndexMultiplier] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState('');
+  const [generateProgress, setGenerateProgress] = useState(0);
+  const [usingWorker, setUsingWorker] = useState(false);
 
   // Results
   const [contours, setContours] = useState<ContourLine[]>([]);
@@ -198,7 +205,7 @@ export default function ContourGeneratorPage() {
 
   // ─── Generate contours ───────────────────────────────────────────────────
 
-  const handleGenerate = useCallback(() => {
+  const handleGenerate = useCallback(async () => {
     if (points.length < 3) {
       setGenerateError('At least 3 points are required to generate contours.');
       return;
@@ -210,26 +217,38 @@ export default function ContourGeneratorPage() {
 
     setIsGenerating(true);
     setGenerateError('');
+    setGenerateProgress(0);
+    setUsingWorker(isWorkerAvailable());
 
-    setTimeout(() => {
-      try {
-        const indexInterval = contourInterval * indexMultiplier;
-        const result = generateContours(points, contourInterval, indexInterval);
-        setContours(result);
+    try {
+      const indexInterval = contourInterval * indexMultiplier;
 
-        const surface = buildTINSurface(points);
-        setTinSurface(surface);
+      // Use Web Worker with auto-fallback to sync engine.
+      // For large datasets (≥ 5000 pts) this keeps the UI responsive;
+      // for small datasets the worker overhead is negligible thanks to
+      // the 30 s timeout + sync fallback in tinWorkerClient.
+      const result = await generateContoursAsync(points, contourInterval, {
+        indexInterval,
+        onProgress: p => setGenerateProgress(p),
+      });
+      setContours(result);
 
-        // Compute volume relative to minimum elevation
-        const minElev = Math.min(...points.map(p => p.elevation));
-        const vol = computeVolumeFromTIN(surface, minElev);
-        setVolumeResult(vol);
-      } catch (err) {
-        setGenerateError(err instanceof Error ? err.message : 'Contour generation failed.');
-      } finally {
-        setIsGenerating(false);
-      }
-    }, 50);
+      const surface = await buildTINSurfaceAsync(points, undefined, {
+        onProgress: p => setGenerateProgress(p),
+      });
+      setTinSurface(surface);
+
+      // Compute volume relative to minimum elevation
+      const minElev = Math.min(...points.map(p => p.elevation));
+      const vol = computeVolumeFromTIN(surface, minElev);
+      setVolumeResult(vol);
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : 'Contour generation failed.');
+    } finally {
+      setIsGenerating(false);
+      setGenerateProgress(1);
+      setUsingWorker(false);
+    }
   }, [points, contourInterval, indexMultiplier]);
 
   // ─── Export handlers ─────────────────────────────────────────────────────
@@ -369,6 +388,8 @@ export default function ContourGeneratorPage() {
           contours={contours}
           tinSurface={tinSurface}
           volumeResult={volumeResult}
+          generateProgress={generateProgress}
+          usingWorker={usingWorker}
         />
       )}
 

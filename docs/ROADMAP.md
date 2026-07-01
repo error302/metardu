@@ -53,12 +53,12 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 ## Next up — integrations to finish
 
 ### Engineering integrations
-- [ ] Cross-sections tool auto-pulls from project levelling data
-  - Reuse `GET /api/project/[id]/points` (filter points with elevation along chainage)
-  - `/tools/cross-sections?project=<id>` auto-populates
-- [ ] Earthworks tool auto-pulls from cross-sections
-  - New API: `GET /api/project/[id]/cross-sections`
-  - `/tools/earthworks?project=<id>` auto-populates existing ground profiles
+- [x] Cross-sections tool auto-pulls from project levelling data
+  - Reuses `GET /api/project/[id]/points` (filter points with elevation along chainage)
+  - `/tools/cross-sections?project=<id>` auto-populates via `ProjectCrossSections` component
+- [x] Earthworks tool auto-pulls from cross-sections
+  - New API: `GET /api/project/[id]/cross-sections` — groups survey points by chainage (parsed from point name), supports optional `?interval=N` binning
+  - `/tools/earthworks?project=<id>` auto-populates existing ground profiles via `ProjectCrossSections`
 
 ### Mutation plan deep integration
 - [ ] Refactor `MutationPlanGenerator` to accept `initialPlots` prop
@@ -135,7 +135,7 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 **How:** Extend existing `src/lib/engine/contours.ts` `computeVolumeFromTIN` to accept two TIN surfaces. Prismoidal column equation: `V = A_base × (Δz1+Δz2+Δz3)/3`. Cut/fill heatmap overlay on OpenLayers.
 **Where:** Extend `/tools/earthworks` or new `/tools/volume-comparison` (route exists)
 **Effort:** 1 session (extends existing volume code)
-**Status:** Not started. Note: Metardu already has `crossSectionVolume.ts` and `buildTINSurface` — this is a dual-surface extension, not a new engine.
+**Status:** ✅ SHIPPED — `/tools/volume-comparison` is live with TIN and IDW grid methods, cut/fill volume computation via `computeVolumeBetweenSurfaces`, CSV export for both summary report and cut/fill grid, and a cut/fill heatmap visualization. Two-surface input via file upload (CSV/XYZ/TXT) with side-by-side comparison.
 
 #### Parabolic vertical curve profile designer (engineering)
 **Why:** Highway alignment audit — checking crest/sag curves against stopping sight distance (SSD).

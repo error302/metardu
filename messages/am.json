@@ -262,7 +262,11 @@
     "leveling": "የሌቭሊንግ ማስሊያ",
     "traverse": "የትራቨርስ ስሌት",
     "usSurveyReference": "የአሜሪካ ጥናት ደረጃዎች ማመሳከሪያ",
-    "usSurveyReferenceDesc": "የአሜሪካ አሳ እና ዱር አራዊት አገልግሎት እና BLM ጥናት ደረጃዎች ማመሳከሪያ"
+    "usSurveyReferenceDesc": "የአሜሪካ አሳ እና ዱር አራዊት አገልግሎት እና BLM ጥናት ደረጃዎች ማመሳከሪያ",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "የንብረት እቅድ",
