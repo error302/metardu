@@ -176,7 +176,7 @@ export default function SurveyReport({
   )
 
   const Input = ({ className = '', ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
-    <input
+    <input aria-label="Text input"
       className={`w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
       {...props}
     />

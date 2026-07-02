@@ -124,11 +124,11 @@ export default function TopoComputePanel({ projectId }: { projectId: string }) {
         <div className="flex gap-2">
           <div className="text-xs">
             <label className="text-zinc-500 mr-1">Grid:</label>
-            <input type="number" value={gridSize} onChange={e => setGridSize(Number(e.target.value))} className="w-14 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white text-xs" min={5} />m
+            <input aria-label="Grid:" type="number" value={gridSize} onChange={e => setGridSize(Number(e.target.value))} className="w-14 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white text-xs" min={5} />m
           </div>
           <div className="text-xs">
             <label className="text-zinc-500 mr-1">Contour:</label>
-            <input type="number" step="0.5" value={contourInterval} onChange={e => setContourInterval(Number(e.target.value))} className="w-14 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white text-xs" min={0.1} />m
+            <input aria-label="Contour:" type="number" step="0.5" value={contourInterval} onChange={e => setContourInterval(Number(e.target.value))} className="w-14 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white text-xs" min={0.1} />m
           </div>
         </div>
       </div>

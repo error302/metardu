@@ -371,7 +371,7 @@ export function LongitudinalSection({
                   <td className="py-1.5 px-3 text-right">{row.groundLevel.toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right">
                     {editable ? (
-                      <input
+                      <input aria-label="{row.groundLevel.toFixed(2)}"
                         type="number"
                         step={0.01}
                         value={designLevels[i]}

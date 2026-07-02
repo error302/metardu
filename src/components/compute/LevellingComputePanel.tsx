@@ -124,7 +124,7 @@ export default function LevellingComputePanel({ projectId }: { projectId: string
         <div className="flex gap-2">
           <div className="text-xs">
             <label className="text-zinc-500 mr-1">TBM RL:</label>
-            <input type="number" step="0.001" value={tbmRL} onChange={e => setTbmRL(Number(e.target.value))} className="w-24 bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-white text-xs" />
+            <input aria-label="TBM RL:" type="number" step="0.001" value={tbmRL} onChange={e => setTbmRL(Number(e.target.value))} className="w-24 bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-white text-xs" />
           </div>
           <button onClick={addRow} className="px-2 py-0.5 text-xs bg-zinc-800 border border-zinc-700 rounded text-zinc-400 hover:text-white">+ Row</button>
         </div>

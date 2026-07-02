@@ -96,7 +96,7 @@ export default function AccountPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-[var(--text-secondary)] mb-1">Email</label>
-                <input
+                <input aria-label="Email"
                   type="email"
                   value={user?.email || ''}
                   disabled

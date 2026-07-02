@@ -380,7 +380,7 @@ export default function PileGridPanel() {
 
             {/* Pile Diameter */}
             <FormField label="Pile Diameter (mm)">
-              <input
+              <input aria-label="Pile quantity"
                 type="number"
                 step="1"
                 min="0"
@@ -392,7 +392,7 @@ export default function PileGridPanel() {
 
             {/* Depth */}
             <FormField label="Design Depth (m)">
-              <input
+              <input aria-label="Pile length"
                 type="number"
                 step="0.1"
                 min="0"

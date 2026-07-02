@@ -192,7 +192,7 @@ export default function SuperelevationPanel({
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Curve Radius R (m)</label>
-          <input
+          <input aria-label="Curve Radius R (m)"
             type="number"
             min={30}
             max={2000}
@@ -204,7 +204,7 @@ export default function SuperelevationPanel({
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Design Speed V (km/h)</label>
-          <input
+          <input aria-label="Design Speed V (km/h)"
             type="number"
             min={20}
             max={120}

@@ -59,7 +59,7 @@ export default function SightDistanceChecker() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Design Speed (km/h)</label>
-          <input value={designSpeed} onChange={e => setDesignSpeed(e.target.value)} type="number" min="30" max="120"
+          <input aria-label="Design Speed (km/h)" value={designSpeed} onChange={e => setDesignSpeed(e.target.value)} type="number" min="30" max="120"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
@@ -73,13 +73,13 @@ export default function SightDistanceChecker() {
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Gradient (%)</label>
-          <input value={gradient} onChange={e => setGradient(e.target.value)} type="number" step="0.1"
+          <input aria-label="Gradient (%)" value={gradient} onChange={e => setGradient(e.target.value)} type="number" step="0.1"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
           <p className="text-[10px] text-[var(--text-muted)] mt-0.5">+ uphill, − downhill</p>
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Proposed SSD (m) — optional</label>
-          <input value={proposedSSD} onChange={e => setProposedSSD(e.target.value)} type="number" min="0"
+          <input aria-label="Proposed SSD (m) — optional" value={proposedSSD} onChange={e => setProposedSSD(e.target.value)} type="number" min="0"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
       </div>
@@ -131,7 +131,7 @@ export default function SightDistanceChecker() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Proposed Radius R (m)</label>
-          <input value={proposedRadius} onChange={e => setProposedRadius(e.target.value)} type="number" min="1"
+          <input aria-label="Proposed Radius R (m)" value={proposedRadius} onChange={e => setProposedRadius(e.target.value)} type="number" min="1"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>

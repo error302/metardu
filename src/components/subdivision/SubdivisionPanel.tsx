@@ -197,7 +197,7 @@ export default function SubdivisionPanel({
                 {/* Width input */}
                 <div>
                   <label className="text-[10px] text-gray-500 block mb-1">Width (m)</label>
-                  <input
+                  <input aria-label="Width (m)"
                     type="number"
                     min={1}
                     max={100}
@@ -258,7 +258,7 @@ export default function SubdivisionPanel({
                                 : 'bg-gray-50 border border-gray-200 text-gray-500 hover:bg-gray-100'
                             }`}
                           >
-                            <input
+                            <input aria-label="Road reserve"
                               type="checkbox"
                               checked={roadReserveEdges.includes(idx)}
                               onChange={() => toggleRoadReserveEdge(idx)}
@@ -345,7 +345,7 @@ export default function SubdivisionPanel({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-gray-500 block mb-1">Rows</label>
-                    <input
+                    <input aria-label="Rows"
                       type="number"
                       min={1}
                       max={20}
@@ -356,7 +356,7 @@ export default function SubdivisionPanel({
                   </div>
                   <div>
                     <label className="text-[10px] text-gray-500 block mb-1">Columns</label>
-                    <input
+                    <input aria-label="Columns"
                       type="number"
                       min={1}
                       max={20}
@@ -376,7 +376,7 @@ export default function SubdivisionPanel({
                 <div className="space-y-3">
                   <div>
                     <label className="text-[10px] text-gray-500 block mb-1">Number of Lots</label>
-                    <input
+                    <input aria-label="Number of Lots"
                       type="number"
                       min={2}
                       max={36}
@@ -410,7 +410,7 @@ export default function SubdivisionPanel({
                 <div className="space-y-3">
                   <div>
                     <label className="text-[10px] text-gray-500 block mb-1">Target Area (ha)</label>
-                    <input
+                    <input aria-label="Target Area (ha)"
                       type="number"
                       min={0.001}
                       step={0.01}

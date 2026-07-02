@@ -174,7 +174,7 @@ export function ControlPointRegistry() {
           </div>
           <div>
             <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1">Radius (m)</label>
-            <input type="number" value={radius} onChange={e => setRadius(e.target.value)} className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono focus:border-[var(--accent)]/30 focus:outline-none" />
+            <input aria-label="Radius (m)" type="number" value={radius} onChange={e => setRadius(e.target.value)} className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono focus:border-[var(--accent)]/30 focus:outline-none" />
           </div>
         </div>
 

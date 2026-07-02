@@ -347,7 +347,7 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Station Interval (m)</label>
-          <input
+          <input aria-label="Station Interval (m)"
             type="number"
             min={5}
             max={100}
@@ -378,7 +378,7 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
             {areas.map((area, i) => (
               <div key={i} className="flex items-center gap-1">
                 <span className="text-xs text-[var(--text-muted)] w-8">{i * stationInterval}</span>
-                <input
+                <input aria-label="Area"
                   type="number"
                   value={area}
                   onChange={(e) => updateArea(i, Number(e.target.value) || 0)}

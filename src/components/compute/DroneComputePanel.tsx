@@ -138,7 +138,7 @@ export default function DroneComputePanel({ projectId }: { projectId: string }) 
           <textarea value={gridPoints} onChange={e => setGridPoints(e.target.value)} rows={5} className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-xs font-mono" />
           <div className="flex gap-2 text-xs">
             <span className="text-zinc-500">Ref Plane:</span>
-            <input type="number" step="0.1" value={refPlane} onChange={e => setRefPlane(Number(e.target.value))} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" />
+            <input aria-label="Grid Points (X,Y,Z) — one per line" type="number" step="0.1" value={refPlane} onChange={e => setRefPlane(Number(e.target.value))} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" />
           </div>
         </div>
         <div className="p-3 bg-zinc-900 rounded border border-zinc-700 h-fit">

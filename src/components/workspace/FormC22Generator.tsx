@@ -438,7 +438,7 @@ function FormField({ label, value, onChange, disabled }: FormFieldProps) {
           {value || '—'}
         </div>
       ) : (
-        <input
+        <input aria-label="{label}"
           type="text"
           value={value}
           onChange={(e) => onChange?.(e.target.value)}

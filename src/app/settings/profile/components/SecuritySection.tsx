@@ -155,7 +155,7 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
         </div>
 
         <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-          <input
+          <input aria-label="Showpasswords"
             type="checkbox"
             checked={showPasswords}
             onChange={(e) => setShowPasswords(e.target.checked)}

@@ -140,7 +140,7 @@ function VertexEditToolbarInner({
                       {tolerance}px
                     </span>
                   </div>
-                  <input
+                  <input aria-label="Slider"
                     type="range"
                     min={5}
                     max={20}

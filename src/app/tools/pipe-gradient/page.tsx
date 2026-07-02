@@ -32,7 +32,7 @@ export default function PipeGradientPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-zinc-400 mb-2">Invert Level In (m)</label>
-              <input
+              <input aria-label="Invert Level In (m)"
                 type="number"
                 step="0.001"
                 value={invertIn}
@@ -42,7 +42,7 @@ export default function PipeGradientPage() {
             </div>
             <div>
               <label className="block text-sm text-zinc-400 mb-2">Invert Level Out (m)</label>
-              <input
+              <input aria-label="Invert Level Out (m)"
                 type="number"
                 step="0.001"
                 value={invertOut}
@@ -55,7 +55,7 @@ export default function PipeGradientPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-zinc-400 mb-2">Pipe Length (m)</label>
-              <input
+              <input aria-label="Pipe Length (m)"
                 type="number"
                 value={length}
                 onChange={e => setLength(Number(e.target.value))}

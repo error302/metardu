@@ -88,7 +88,7 @@ export default function AdversePossessionCalc() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Possession Start Date
               </label>
-              <input
+              <input aria-label="Possession Start Date"
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
@@ -99,7 +99,7 @@ export default function AdversePossessionCalc() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 End Date (if ended)
               </label>
-              <input
+              <input aria-label="End Date (if ended)"
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}

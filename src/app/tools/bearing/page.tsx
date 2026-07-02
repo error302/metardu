@@ -57,21 +57,21 @@ export default function BearingCalculator() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label">Point A Northing (m)</label>
-                    <input className="input" value={p1.n} onChange={e => setP1({...p1, n: e.target.value})} />
+                    <input aria-label="Point A Northing (m)" className="input" value={p1.n} onChange={e => setP1({...p1, n: e.target.value})} />
                   </div>
                   <div>
                     <label className="label">Point A Easting (m)</label>
-                    <input className="input" value={p1.e} onChange={e => setP1({...p1, e: e.target.value})} />
+                    <input aria-label="Point A Easting (m)" className="input" value={p1.e} onChange={e => setP1({...p1, e: e.target.value})} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label">Point B Northing (m)</label>
-                    <input className="input" value={p2.n} onChange={e => setP2({...p2, n: e.target.value})} />
+                    <input aria-label="Point B Northing (m)" className="input" value={p2.n} onChange={e => setP2({...p2, n: e.target.value})} />
                   </div>
                   <div>
                     <label className="label">Point B Easting (m)</label>
-                    <input className="input" value={p2.e} onChange={e => setP2({...p2, e: e.target.value})} />
+                    <input aria-label="Point B Easting (m)" className="input" value={p2.e} onChange={e => setP2({...p2, e: e.target.value})} />
                   </div>
                 </div>
               </div>

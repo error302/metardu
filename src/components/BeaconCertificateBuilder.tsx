@@ -128,7 +128,7 @@ export default function BeaconCertificateBuilder() {
           ] as [keyof typeof location, string, string][]).map(([key, label, ph]) => (
             <div key={key}>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{label}</label>
-              <input
+              <input aria-label="{label}"
                 className="input w-full"
                 value={location[key]}
                 placeholder={ph}

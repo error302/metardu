@@ -122,11 +122,11 @@ export default function CogoReconstructPage() {
             <div className="card-body grid grid-cols-2 gap-3">
               <div>
                 <label className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase">Easting (m)</label>
-                <input className="input font-mono text-sm" value={startE} onChange={e => setStartE(e.target.value)} />
+                <input aria-label="Easting (m)" className="input font-mono text-sm" value={startE} onChange={e => setStartE(e.target.value)} />
               </div>
               <div>
                 <label className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase">Northing (m)</label>
-                <input className="input font-mono text-sm" value={startN} onChange={e => setStartN(e.target.value)} />
+                <input aria-label="Northing (m)" className="input font-mono text-sm" value={startN} onChange={e => setStartN(e.target.value)} />
               </div>
             </div>
             <div className="card-body pt-0">
@@ -274,7 +274,7 @@ export default function CogoReconstructPage() {
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="font-mono text-[9px] text-[var(--text-muted)] tracking-[0.06em] uppercase">Anchor #</label>
-                      <input className="input font-mono text-xs px-1 py-1" type="number" value={anchorIndex} onChange={e => setAnchorIndex(e.target.value)} min="0" max={result.points.length - 1} />
+                      <input aria-label="Anchor #" className="input font-mono text-xs px-1 py-1" type="number" value={anchorIndex} onChange={e => setAnchorIndex(e.target.value)} min="0" max={result.points.length - 1} />
                     </div>
                     <div>
                       <label className="font-mono text-[9px] text-[var(--text-muted)] tracking-[0.06em] uppercase">Target E</label>

@@ -58,7 +58,7 @@ function CoordField({ label, value, onChange }: { label: string; value: string; 
   return (
     <div>
       <label className="block text-xs text-[var(--text-muted)] mb-1">{label}</label>
-      <input value={value} onChange={e => onChange(e.target.value)} type="number" step="0.001"
+      <input aria-label="{label}" value={value} onChange={e => onChange(e.target.value)} type="number" step="0.001"
         className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
     </div>
   )
@@ -519,7 +519,7 @@ export default function COGOCalculator({ compact = false }: Props) {
                 <CoordField label="Point 1 Northing (m)" value={invN1} onChange={setInvN1} />
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Point 1 Label</label>
-                  <input value={invL1} onChange={e => setInvL1(e.target.value)}
+                  <input aria-label="Point 1 Label" value={invL1} onChange={e => setInvL1(e.target.value)}
                     className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
                 </div>
               </div>
@@ -528,7 +528,7 @@ export default function COGOCalculator({ compact = false }: Props) {
                 <CoordField label="Point 2 Northing (m)" value={invN2} onChange={setInvN2} />
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Point 2 Label</label>
-                  <input value={invL2} onChange={e => setInvL2(e.target.value)}
+                  <input aria-label="Point 2 Label" value={invL2} onChange={e => setInvL2(e.target.value)}
                     className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
                 </div>
               </div>
@@ -582,19 +582,19 @@ export default function COGOCalculator({ compact = false }: Props) {
                 <div className="text-xs text-center font-semibold text-[var(--text-secondary)]">Easting</div>
                 <div className="text-xs text-center font-semibold text-[var(--text-secondary)]">Northing</div>
                 <div className="text-xs text-[var(--text-secondary)] flex items-center">Point A</div>
-                <input value={resEA} onChange={e => setResEA(e.target.value)} type="number" step="0.001"
+                <input aria-label="Result easting A" value={resEA} onChange={e => setResEA(e.target.value)} type="number" step="0.001"
                   className="px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-                <input value={resNA} onChange={e => setResNA(e.target.value)} type="number" step="0.001"
+                <input aria-label="Result northing A" value={resNA} onChange={e => setResNA(e.target.value)} type="number" step="0.001"
                   className="px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
                 <div className="text-xs text-[var(--text-secondary)] flex items-center">Point B</div>
-                <input value={resEB} onChange={e => setResEB(e.target.value)} type="number" step="0.001"
+                <input aria-label="Result easting B" value={resEB} onChange={e => setResEB(e.target.value)} type="number" step="0.001"
                   className="px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-                <input value={resNB} onChange={e => setResNB(e.target.value)} type="number" step="0.001"
+                <input aria-label="Result northing B" value={resNB} onChange={e => setResNB(e.target.value)} type="number" step="0.001"
                   className="px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
                 <div className="text-xs text-[var(--text-secondary)] flex items-center">Point C</div>
-                <input value={resEC} onChange={e => setResEC(e.target.value)} type="number" step="0.001"
+                <input aria-label="Result easting C" value={resEC} onChange={e => setResEC(e.target.value)} type="number" step="0.001"
                   className="px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-                <input value={resNC} onChange={e => setResNC(e.target.value)} type="number" step="0.001"
+                <input aria-label="Result northing C" value={resNC} onChange={e => setResNC(e.target.value)} type="number" step="0.001"
                   className="px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
               </div>
               <DMSField label="Angle α = ∠APB (DMS)" deg={resAlpha.d} min={resAlpha.m} sec={resAlpha.s}
@@ -674,7 +674,7 @@ export default function COGOCalculator({ compact = false }: Props) {
               </div>
               <CoordField label="Radius (m)" value={arcR} onChange={setArcR} />
               <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                <input type="checkbox" checked={arcCW} onChange={e => setArcCW(e.target.checked)} /> Clockwise arc
+                <input aria-label="Arccw" type="checkbox" checked={arcCW} onChange={e => setArcCW(e.target.checked)} /> Clockwise arc
               </label>
               <button onClick={handleArcBoundary} className="btn btn-primary w-full">Compute Arc →</button>
             </div>

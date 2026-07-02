@@ -220,7 +220,7 @@ export default function NewProjectPage() {
           {/* Project Name */}
           <div>
             <label className={labelClass}>Project Name <span className="text-[var(--accent)]">*</span></label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)}
+            <input aria-label="Project name" type="text" value={name} onChange={e => setName(e.target.value)}
               className={inputClass} required autoFocus
               placeholder={projectType === 'scheme' ? 'e.g., Mwavumbo Ward Cadastral Subdivision' : 'e.g., Karen Estate Boundary Survey'} />
           </div>
@@ -280,7 +280,7 @@ export default function NewProjectPage() {
           <div>
             <label className={labelClass}>UTM Zone (1–60)</label>
             <div className="grid grid-cols-2 gap-4">
-              <input type="number" value={utmZone} onChange={e => setUtmZone(e.target.value)}
+              <input aria-label="UTM Zone (1–60)" type="number" value={utmZone} onChange={e => setUtmZone(e.target.value)}
                 className={inputClass} min={1} max={60} required />
               <div className="flex rounded-lg border border-[var(--border-color)] overflow-hidden">
                 {(['N', 'S'] as const).map(h => (

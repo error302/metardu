@@ -206,7 +206,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="text-sm text-zinc-400">Number of Spans</label>
-              <input
+              <input aria-label="Number of Spans"
                 type="number"
                 min={1}
                 value={spanCount}
@@ -228,7 +228,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
             {spanLengths.map((len, i) => (
               <div key={i} className="flex gap-2">
                 <span className="text-sm text-zinc-400 w-20">Span {i + 1}:</span>
-                <input
+                <input aria-label="Total Bridge Length"
                   type="number"
                   value={len}
                   onChange={(e) => {
@@ -251,7 +251,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-zinc-400">Bridge Width (m)</label>
-              <input
+              <input aria-label="Bridge Width (m)"
                 type="number"
                 value={widthM}
                 onChange={(e) => setWidthM(parseFloat(e.target.value) || 0)}
@@ -260,7 +260,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Approach Length (m each)</label>
-              <input
+              <input aria-label="Approach Length (m each)"
                 type="number"
                 value={approachLength}
                 onChange={(e) => setApproachLength(parseFloat(e.target.value) || 0)}
@@ -269,7 +269,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Skew Angle (°)</label>
-              <input
+              <input aria-label="Skew Angle (°)"
                 type="number"
                 value={skewAngle}
                 onChange={(e) => setSkewAngle(parseFloat(e.target.value) || 0)}
@@ -278,7 +278,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Water Level (m)</label>
-              <input
+              <input aria-label="Water Level (m)"
                 type="number"
                 value={waterLevel || ''}
                 onChange={(e) => setWaterLevel(parseFloat(e.target.value) || undefined)}
@@ -287,7 +287,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Bed Level (m)</label>
-              <input
+              <input aria-label="Bed Level (m)"
                 type="number"
                 value={bedLevel || ''}
                 onChange={(e) => setBedLevel(parseFloat(e.target.value) || undefined)}
@@ -296,7 +296,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Vertical Clearance (m)</label>
-              <input
+              <input aria-label="Vertical Clearance (m)"
                 type="number"
                 value={clearanceM || ''}
                 onChange={(e) => setClearanceM(parseFloat(e.target.value) || undefined)}

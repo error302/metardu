@@ -152,7 +152,7 @@ export function FieldRecordVault() {
             </div>
             <div>
               <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Radius (m)</label>
-              <input type="number" value={radius} onChange={e => setRadius(e.target.value)} className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono" />
+              <input aria-label="Radius (m)" type="number" value={radius} onChange={e => setRadius(e.target.value)} className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono" />
             </div>
           </div>
         )}

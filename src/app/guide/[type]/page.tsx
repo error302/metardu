@@ -1368,7 +1368,7 @@ export default function GuideTypePage({ params }: PageProps) {
                     const checked = fieldChecklistDone.includes(idx)
                     return (
                       <label key={idx} className="flex items-start gap-3 text-sm text-[var(--text-primary)] cursor-pointer select-none">
-                        <input
+                        <input aria-label="Checked"
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleFieldChecklist(idx)}

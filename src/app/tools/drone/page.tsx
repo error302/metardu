@@ -288,7 +288,7 @@ export default function DroneSurveyPage() {
             <div className="flex gap-4 items-end mb-4">
               <div>
                 <label className="block text-sm text-[var(--text-secondary)] mb-1">Number of GCPs (min 5)</label>
-                <input 
+                <input aria-label="Number of GCPs (min 5)" 
                   className="input w-32" 
                   type="number"
                   min="5"

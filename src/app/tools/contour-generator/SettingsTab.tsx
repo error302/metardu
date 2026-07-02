@@ -47,7 +47,7 @@ export function SettingsTab({
             <label className="block text-sm text-[var(--text-secondary)] mb-1">
               Contour Interval (m)
             </label>
-            <input
+            <input aria-label="Contour Interval (m)"
               type="number"
               step="0.1"
               min="0.01"
@@ -61,7 +61,7 @@ export function SettingsTab({
             <label className="block text-sm text-[var(--text-secondary)] mb-1">
               Index Contour Multiplier
             </label>
-            <input
+            <input aria-label="Index Contour Multiplier"
               type="number"
               step="1"
               min="1"

@@ -153,7 +153,7 @@ export default function GCPExportPage() {
                         ? 'bg-[var(--accent)]/5 border-[var(--accent)]/20'
                         : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'
                     }`}>
-                      <input type="checkbox" checked={selectedPoints.has(pt.name)}
+                      <input aria-label="Select point" type="checkbox" checked={selectedPoints.has(pt.name)}
                         onChange={() => togglePoint(pt.name)} className="rounded flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-semibold text-[var(--text-primary)]">{pt.name}</span>

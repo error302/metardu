@@ -250,7 +250,7 @@ export default function RoadCompletionCertificatePanel({
                   <label className="block text-xs text-zinc-400 mb-1">
                     {f.label}{f.required && <span className="text-red-400 ml-0.5">*</span>}
                   </label>
-                  <input type="text"
+                  <input aria-label="Certificate field" type="text"
                     className={`w-full border rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       f.required && validationErrors.some(e => e.includes(f.label))
                         ? 'border-red-500'
@@ -339,7 +339,7 @@ export default function RoadCompletionCertificatePanel({
             <div className="space-y-2">
               {CERTIFICATION_ITEMS.map(item => (
                 <label key={item.key} className="flex items-start gap-3 cursor-pointer">
-                  <input type="checkbox" className="mt-0.5 rounded accent-blue-600" checked={data[CERTIFICATION_FIELD_BY_KEY[item.key]] as boolean}
+                  <input aria-label="Certification checkbox" type="checkbox" className="mt-0.5 rounded accent-blue-600" checked={data[CERTIFICATION_FIELD_BY_KEY[item.key]] as boolean}
                     onChange={e => update(CERTIFICATION_FIELD_BY_KEY[item.key], e.target.checked)} />
                   <div>
                     <div className="text-sm font-medium text-white">{item.label}</div>

@@ -27,7 +27,7 @@ export default function SightDistancePage() {
         <div className="space-y-6">
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Design Speed (km/h)</label>
-            <input
+            <input aria-label="Design Speed (km/h)"
               type="number"
               value={designSpeed}
               onChange={e => setDesignSpeed(Number(e.target.value))}
@@ -67,7 +67,7 @@ export default function SightDistancePage() {
             <div className="text-sm text-zinc-400 mb-2">Curve Radius Check</div>
             <div className="mb-3">
               <label className="block text-xs text-zinc-500 mb-1">Curve Radius (m)</label>
-              <input
+              <input aria-label="Curve Radius (m)"
                 type="number"
                 value={curveRadius}
                 onChange={e => setCurveRadius(Number(e.target.value))}

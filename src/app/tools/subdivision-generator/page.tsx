@@ -162,11 +162,11 @@ export default function SubdivisionGeneratorPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase">Width (m)</label>
-                    <input className="input font-mono text-sm" type="number" value={customWidth} onChange={e => setCustomWidth(e.target.value)} />
+                    <input aria-label="Width (m)" className="input font-mono text-sm" type="number" value={customWidth} onChange={e => setCustomWidth(e.target.value)} />
                   </div>
                   <div>
                     <label className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase">Depth (m)</label>
-                    <input className="input font-mono text-sm" type="number" value={customDepth} onChange={e => setCustomDepth(e.target.value)} />
+                    <input aria-label="Depth (m)" className="input font-mono text-sm" type="number" value={customDepth} onChange={e => setCustomDepth(e.target.value)} />
                   </div>
                 </div>
               )}

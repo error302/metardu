@@ -258,7 +258,7 @@ export default function FeedbackWidget() {
 
             {/* Include errors checkbox */}
             <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer">
-              <input
+              <input aria-label="Includeerrors"
                 type="checkbox"
                 checked={includeErrors}
                 onChange={(e) => setIncludeErrors(e.target.checked)}

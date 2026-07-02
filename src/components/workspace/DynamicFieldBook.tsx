@@ -214,7 +214,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
     }
 
     return (
-      <input
+      <input aria-label="Cell value"
         type={col.type === 'number' ? 'number' : col.type === 'date' ? 'date' : 'text'}
         value={value}
         placeholder={col.placeholder ?? ''}

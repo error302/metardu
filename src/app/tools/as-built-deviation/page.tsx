@@ -137,11 +137,11 @@ export default function AsBuiltDeviationPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase">Pass limit (mm)</label>
-                    <input className="input font-mono text-sm" type="number" value={customPass} onChange={e => setCustomPass(e.target.value)} />
+                    <input aria-label="Pass limit (mm)" className="input font-mono text-sm" type="number" value={customPass} onChange={e => setCustomPass(e.target.value)} />
                   </div>
                   <div>
                     <label className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase">Marginal limit (mm)</label>
-                    <input className="input font-mono text-sm" type="number" value={customMarginal} onChange={e => setCustomMarginal(e.target.value)} />
+                    <input aria-label="Marginal limit (mm)" className="input font-mono text-sm" type="number" value={customMarginal} onChange={e => setCustomMarginal(e.target.value)} />
                   </div>
                 </div>
               )}

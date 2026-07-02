@@ -143,7 +143,7 @@ function Field({
         {label}
         {required && <span className="text-red-500 ml-0.5" aria-hidden>*</span>}
       </label>
-      <input
+      <input aria-label="Profile field"
         id={label.toLowerCase().replace(/\s+/g, '_')}
         type={type}
         value={value}

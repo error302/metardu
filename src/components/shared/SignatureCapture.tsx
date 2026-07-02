@@ -237,7 +237,7 @@ export default function SignatureCapture({
             />
           </div>
           <label className="flex items-center gap-2">
-            <input
+            <input aria-label="ISK Number"
               type="checkbox"
               checked={confirmed}
               onChange={e => setConfirmed(e.target.checked)}

@@ -355,7 +355,7 @@ function LoginForm() {
 
                     <div className="flex items-center justify-between">
                       <label className="flex items-center gap-2 cursor-pointer group">
-                        <input
+                        <input aria-label="Rememberme"
                           type="checkbox"
                           checked={rememberMe}
                           onChange={(e) => setRememberMe(e.target.checked)}

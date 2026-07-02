@@ -138,7 +138,7 @@ function Field({
       >
         {label}
       </label>
-      <input
+      <input aria-label="{label}"
         id={label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}
         type="text"
         value={value}

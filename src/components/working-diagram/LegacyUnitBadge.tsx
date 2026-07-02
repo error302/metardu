@@ -33,7 +33,7 @@ export function LegacyUnitBadge({
   return (
     <div className="space-y-2 border p-2 rounded bg-gray-50">
       <label className="flex items-center gap-2 text-sm">
-        <input
+        <input aria-label="Showlegacy"
           type="checkbox"
           checked={showLegacy}
           onChange={(e) => onShowLegacyChange(e.target.checked)}
@@ -56,7 +56,7 @@ export function LegacyUnitBadge({
           
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-500">Legacy:</label>
-            <input
+            <input aria-label="Legacy:"
               type="number"
               step="0.01"
               value={legacyDistance ?? autoCalculated}

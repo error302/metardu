@@ -48,7 +48,7 @@ export default function UTMZonePicker({
       <div className="flex gap-4 items-end">
         <div>
           <label className="block text-sm text-[var(--text-secondary)] mb-1">UTM Zone</label>
-          <input
+          <input aria-label="UTM Zone"
             type="number"
             min={1}
             max={60}

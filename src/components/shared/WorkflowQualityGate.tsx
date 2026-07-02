@@ -153,7 +153,7 @@ export default function WorkflowQualityGate({
                     <p key={i} className="text-sm text-amber-400/90">{w.message}</p>
                   ))}
                   <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                    <input
+                    <input aria-label="Acknowledgewarnings"
                       type="checkbox"
                       checked={acknowledgeWarnings}
                       onChange={(e) => setAcknowledgeWarnings(e.target.checked)}

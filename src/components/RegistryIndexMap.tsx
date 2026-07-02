@@ -315,7 +315,7 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs font-semibold text-gray-600">Sheet No.</label>
-                    <input type="number" value={sheetNumber} onChange={e => setSheetNumber(e.target.value)}
+                    <input aria-label="Sheet No." type="number" value={sheetNumber} onChange={e => setSheetNumber(e.target.value)}
                       className="w-full px-2 py-1 border rounded text-sm" min={1} />
                   </div>
                   <div>

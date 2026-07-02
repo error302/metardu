@@ -210,7 +210,7 @@ export function DigitizingToolbar({
                 {activeTool === 'offset' && onOffsetDistanceChange && (
                   <div className="flex items-center gap-2 mt-2">
                     <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">Distance:</span>
-                    <input
+                    <input aria-label="Distance"
                       type="range"
                       min="1"
                       max="50"

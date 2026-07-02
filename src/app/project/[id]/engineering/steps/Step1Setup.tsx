@@ -120,7 +120,7 @@ export function Step1Setup({
 
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Start Chainage (m)</label>
-          <input
+          <input aria-label="Start Chainage (m)"
             type="number"
             value={startChainage}
             onChange={e => setStartChainage(Number(e.target.value))}
@@ -143,7 +143,7 @@ export function Step1Setup({
 
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Design Speed (km/h)</label>
-          <input
+          <input aria-label="Design Speed (km/h)"
             type="number"
             value={designSpeed}
             onChange={e => setDesignSpeed(Number(e.target.value))}
@@ -168,7 +168,7 @@ export function Step1Setup({
 
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Carriageway Width (m)</label>
-          <input
+          <input aria-label="Carriageway Width (m)"
             type="number"
             step="0.1"
             value={getCarriagewayWidth(standard, roadClass as any)}

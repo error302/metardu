@@ -53,7 +53,7 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
       <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider w-12 shrink-0">
         {label}
       </label>
-      <input
+      <input aria-label="{label}"
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}

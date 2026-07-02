@@ -79,9 +79,9 @@ export default function EngineeringComputePanel({ projectId }: { projectId: stri
       {activeTab === 'curves' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-3">
-            <div><label className="block text-xs text-zinc-500 mb-1">Radius (m)</label><input type="number" value={radius} onChange={e => setRadius(Number(e.target.value))} className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-white text-sm" /></div>
-            <div><label className="block text-xs text-zinc-500 mb-1">Deflection Angle (°)</label><input type="number" value={deflection} onChange={e => setDeflection(Number(e.target.value))} className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-white text-sm" /></div>
-            <div><label className="block text-xs text-zinc-500 mb-1">Design Speed (km/h)</label><input type="number" value={designSpeed} onChange={e => setDesignSpeed(Number(e.target.value))} className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-white text-sm" /></div>
+            <div><label className="block text-xs text-zinc-500 mb-1">Radius (m)</label><input aria-label="Radius (m)" type="number" value={radius} onChange={e => setRadius(Number(e.target.value))} className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-white text-sm" /></div>
+            <div><label className="block text-xs text-zinc-500 mb-1">Deflection Angle (°)</label><input aria-label="Deflection Angle (°)" type="number" value={deflection} onChange={e => setDeflection(Number(e.target.value))} className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-white text-sm" /></div>
+            <div><label className="block text-xs text-zinc-500 mb-1">Design Speed (km/h)</label><input aria-label="Design Speed (km/h)" type="number" value={designSpeed} onChange={e => setDesignSpeed(Number(e.target.value))} className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-white text-sm" /></div>
           </div>
           <div className="p-4 bg-zinc-900 rounded border border-zinc-700">
             <h4 className="text-xs font-semibold text-zinc-400 mb-3">Curve Parameters</h4>
@@ -98,7 +98,7 @@ export default function EngineeringComputePanel({ projectId }: { projectId: stri
       {activeTab === 'superelev' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-3">
-            <div><label className="block text-xs text-zinc-500 mb-1">Curve Radius (m)</label><input type="number" value={curveRadius} onChange={e => setCurveRadius(Number(e.target.value))} className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-white text-sm" /></div>
+            <div><label className="block text-xs text-zinc-500 mb-1">Curve Radius (m)</label><input aria-label="Curve Radius (m)" type="number" value={curveRadius} onChange={e => setCurveRadius(Number(e.target.value))} className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-white text-sm" /></div>
             <div><label className="block text-xs text-zinc-500 mb-1">Speed (km/h)</label><div className="bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-white text-sm">{speed}</div></div>
           </div>
           <div className="p-4 bg-zinc-900 rounded border border-zinc-700">

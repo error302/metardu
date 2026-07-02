@@ -214,7 +214,7 @@ export default function PavementDesignPanel({
             {/* Vehicle Damage Factor */}
             <div>
               <label className={labelCls}>Vehicle Damage Factor</label>
-              <input
+              <input aria-label="Vehicle Damage Factor"
                 type="number"
                 step="any"
                 className={inputCls}
@@ -268,7 +268,7 @@ export default function PavementDesignPanel({
             {/* Road Length — now editable */}
             <div>
               <label className={labelCls}>Road Length (m)</label>
-              <input
+              <input aria-label="Road Length (m)"
                 type="number"
                 className={`${inputCls}${errors.roadLength ? ' border-red-500' : ''}`}
                 value={roadLength}

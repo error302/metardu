@@ -571,7 +571,7 @@ function PlanOverrideModal({
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">
                   Number of days
                 </label>
-                <input
+                <input aria-label="Number of days"
                   type="number"
                   min={1}
                   max={3650}

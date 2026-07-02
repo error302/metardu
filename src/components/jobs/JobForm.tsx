@@ -111,7 +111,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
           <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 space-y-2">
             {checklist.map((task, idx) => (
               <label key={idx} className="flex items-center gap-2 text-sm text-gray-300">
-                <input type="checkbox" className="rounded" />
+                <input aria-label="Preparation Checklist" type="checkbox" className="rounded" />
                 {task}
               </label>
             ))}

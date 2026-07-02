@@ -119,7 +119,7 @@ export default function DataIntegrator({ projectId, layers, onIntegrationComplet
                 key={layer.id}
                 className="flex items-center gap-2 p-2 rounded hover:bg-[var(--bg-primary)] cursor-pointer"
               >
-                <input
+                <input aria-label="Select Layers ({selectedLayers.length} selected)"
                   type="checkbox"
                   checked={selectedLayers.includes(layer.id)}
                   onChange={() => toggleLayer(layer.id)}

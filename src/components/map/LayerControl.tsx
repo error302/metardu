@@ -648,7 +648,7 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
               Overlay Opacity
             </label>
             <div className="flex items-center gap-2">
-              <input
+              <input aria-label="Slider"
                 type="range"
                 min={0}
                 max={100}

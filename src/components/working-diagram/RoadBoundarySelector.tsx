@@ -43,7 +43,7 @@ export function RoadBoundarySelector({ value, onChange, roadLabel, onRoadLabelCh
       {(value === 'surveyed_road' || value === 'unsurveyed_road') && (
         <div className="mt-2">
           <label className="block text-xs text-gray-500">Road Label</label>
-          <input
+          <input aria-label="Road Label"
             type="text"
             value={roadLabel || ''}
             onChange={(e) => onRoadLabelChange?.(e.target.value)}

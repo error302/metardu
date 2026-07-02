@@ -191,9 +191,9 @@ export default function GNSSObservationLogBuilder() {
         </summary>
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div><label className={labelCls}>Receiver Model</label><input className={inputCls} value={receiverModel} onChange={e => setReceiverModel(e.target.value)} aria-label="Leica GS18 T" placeholder="Leica GS18 T" /></div>
-          <div><label className={labelCls}>Receiver S/N</label><input className={inputCls} value={receiverSerial} onChange={e => setReceiverSerial(e.target.value)} /></div>
-          <div><label className={labelCls}>Antenna Model</label><input className={inputCls} value={antennaModel} onChange={e => setAntennaModel(e.target.value)} /></div>
-          <div><label className={labelCls}>Antenna S/N</label><input className={inputCls} value={antennaSerial} onChange={e => setAntennaSerial(e.target.value)} /></div>
+          <div><label className={labelCls}>Receiver S/N</label><input aria-label="Receiver S/N" className={inputCls} value={receiverSerial} onChange={e => setReceiverSerial(e.target.value)} /></div>
+          <div><label className={labelCls}>Antenna Model</label><input aria-label="Antenna Model" className={inputCls} value={antennaModel} onChange={e => setAntennaModel(e.target.value)} /></div>
+          <div><label className={labelCls}>Antenna S/N</label><input aria-label="Antenna S/N" className={inputCls} value={antennaSerial} onChange={e => setAntennaSerial(e.target.value)} /></div>
           <div><label className={labelCls}>Base Station ID</label><input className={inputCls} value={baseStationId} onChange={e => setBaseStationId(e.target.value)} aria-label="CORS_NBI" placeholder="CORS_NBI" /></div>
           <div>
             <label className={labelCls}>Base Source</label>
@@ -201,12 +201,12 @@ export default function GNSSObservationLogBuilder() {
               {BASE_SOURCES.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
             </select>
           </div>
-          <div><label className={labelCls}>Datum</label><input className={inputCls} value={datum} onChange={e => setDatum(e.target.value)} /></div>
-          <div><label className={labelCls}>Projection</label><input className={inputCls} value={projection} onChange={e => setProjection(e.target.value)} /></div>
-          <div><label className={labelCls}>Geoid Model</label><input className={inputCls} value={geoidModel} onChange={e => setGeoidModel(e.target.value)} /></div>
-          <div><label className={labelCls}>Elevation Mask (°)</label><input type="number" className={inputCls} value={elevationMask} onChange={e => setElevationMask(Number(e.target.value))} /></div>
-          <div><label className={labelCls}>Epoch Interval (s)</label><input type="number" className={inputCls} value={epochInterval} onChange={e => setEpochInterval(Number(e.target.value))} /></div>
-          <div><label className={labelCls}>Processing Software</label><input className={inputCls} value={processingSoftware} onChange={e => setProcessingSoftware(e.target.value)} /></div>
+          <div><label className={labelCls}>Datum</label><input aria-label="Datum" className={inputCls} value={datum} onChange={e => setDatum(e.target.value)} /></div>
+          <div><label className={labelCls}>Projection</label><input aria-label="Projection" className={inputCls} value={projection} onChange={e => setProjection(e.target.value)} /></div>
+          <div><label className={labelCls}>Geoid Model</label><input aria-label="Geoid Model" className={inputCls} value={geoidModel} onChange={e => setGeoidModel(e.target.value)} /></div>
+          <div><label className={labelCls}>Elevation Mask (°)</label><input aria-label="Elevation Mask (°)" type="number" className={inputCls} value={elevationMask} onChange={e => setElevationMask(Number(e.target.value))} /></div>
+          <div><label className={labelCls}>Epoch Interval (s)</label><input aria-label="Epoch Interval (s)" type="number" className={inputCls} value={epochInterval} onChange={e => setEpochInterval(Number(e.target.value))} /></div>
+          <div><label className={labelCls}>Processing Software</label><input aria-label="Processing Software" className={inputCls} value={processingSoftware} onChange={e => setProcessingSoftware(e.target.value)} /></div>
         </div>
       </details>
 

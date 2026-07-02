@@ -195,7 +195,7 @@ export function AttributeTable({ rows, onSelectRow, onDeleteRow, onExport }: Att
           <thead className="sticky top-0 bg-[var(--bg-card)] z-10">
             <tr className="border-b border-[var(--border-color)]">
               <th className="px-2 py-2 w-8">
-                <input
+                <input aria-label="Select all rows"
                   type="checkbox"
                   checked={selectedRows.size === sortedRows.length && sortedRows.length > 0}
                   onChange={selectAll}
@@ -239,7 +239,7 @@ export function AttributeTable({ rows, onSelectRow, onDeleteRow, onExport }: Att
                   }`}
                 >
                   <td className="px-2 py-1.5" onClick={(e) => { e.stopPropagation(); toggleRowSelection(row.id) }}>
-                    <input
+                    <input aria-label="Select row"
                       type="checkbox"
                       checked={selectedRows.has(row.id)}
                       onChange={() => toggleRowSelection(row.id)}
@@ -255,7 +255,7 @@ export function AttributeTable({ rows, onSelectRow, onDeleteRow, onExport }: Att
                       onDoubleClick={() => handleCellEdit(row.id, col.key, String(row[col.key] || ''))}
                     >
                       {editingCell?.id === row.id && editingCell.field === col.key ? (
-                        <input
+                        <input aria-label="Search filter"
                           autoFocus
                           type="text"
                           value={editValue}

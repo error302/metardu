@@ -56,15 +56,15 @@ export function LevelingBook({
         <div className="grid md:grid-cols-3 gap-3">
           <div>
             <label className="label">{t('leveling.openingRl')}</label>
-            <input inputMode="decimal" className="input input-sm" value={openingRL} onChange={(e) => setOpeningRL(e.target.value)} />
+            <input aria-label="{t('leveling.openingRl')}" inputMode="decimal" className="input input-sm" value={openingRL} onChange={(e) => setOpeningRL(e.target.value)} />
           </div>
           <div>
             <label className="label">{t('leveling.closingRl')}</label>
-            <input inputMode="decimal" className="input input-sm" value={closingRL} onChange={(e) => setClosingRL(e.target.value)} placeholder={t('common.optional')} />
+            <input aria-label="{t('leveling.closingRl')}" inputMode="decimal" className="input input-sm" value={closingRL} onChange={(e) => setClosingRL(e.target.value)} placeholder={t('common.optional')} />
           </div>
           <div>
             <label className="label">{t('leveling.distanceKm')}</label>
-            <input inputMode="decimal" className="input input-sm" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} />
+            <input aria-label="{t('leveling.distanceKm')}" inputMode="decimal" className="input input-sm" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} />
           </div>
         </div>
 

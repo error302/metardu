@@ -347,12 +347,12 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Opening Easting (m)</label>
-              <input value={openingE} onChange={e => setOpeningE(e.target.value)} type="number" step="0.001"
+              <input aria-label="Opening Easting (m)" value={openingE} onChange={e => setOpeningE(e.target.value)} type="number" step="0.001"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Opening Northing (m)</label>
-              <input value={openingN} onChange={e => setOpeningN(e.target.value)} type="number" step="0.001"
+              <input aria-label="Opening Northing (m)" value={openingN} onChange={e => setOpeningN(e.target.value)} type="number" step="0.001"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
             <div>
@@ -459,22 +459,22 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                 <div className="grid grid-cols-5 gap-3">
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">Temperature (&deg;C)</label>
-                    <input value={temperature} onChange={e => { setTemperature(e.target.value); setAtmVerified(false); }} type="number" step="0.1"
+                    <input aria-label="Temperature (C)" value={temperature} onChange={e => { setTemperature(e.target.value); setAtmVerified(false); }} type="number" step="0.1"
                       className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">Pressure (hPa)</label>
-                    <input value={pressure} onChange={e => { setPressure(e.target.value); setAtmVerified(false); }} type="number" step="0.1"
+                    <input aria-label="Pressure (hPa)" value={pressure} onChange={e => { setPressure(e.target.value); setAtmVerified(false); }} type="number" step="0.1"
                       className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">Humidity (%)</label>
-                    <input value={humidity} onChange={e => { setHumidity(e.target.value); setAtmVerified(false); }} type="number" step="1" min="0" max="100"
+                    <input aria-label="Humidity (%)" value={humidity} onChange={e => { setHumidity(e.target.value); setAtmVerified(false); }} type="number" step="1" min="0" max="100"
                       className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">Mean Elevation (m)</label>
-                    <input value={meanElevation} onChange={e => { setMeanElevation(e.target.value); setAtmVerified(false); }} type="number" step="1"
+                    <input aria-label="Mean Elevation (m)" value={meanElevation} onChange={e => { setMeanElevation(e.target.value); setAtmVerified(false); }} type="number" step="1"
                       className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
                   </div>
                   <div>
@@ -562,19 +562,19 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                     <td className="px-1 py-1"><input aria-label="Fs" value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)}
                       className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     {(['hclDeg','hclMin','hclSec']).map((f: any) => (
-                      <td key={f} className="px-0.5 py-1"><input value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
+                      <td key={f} className="px-0.5 py-1"><input aria-label="Observation field" value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
                         type="number" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     ))}
                     <td className="w-3"></td>
                     {(['hcrDeg','hcrMin','hcrSec']).map((f: any) => (
-                      <td key={f} className="px-0.5 py-1"><input value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
+                      <td key={f} className="px-0.5 py-1"><input aria-label="Observation field" value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
                         type="number" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     ))}
                     <td className="px-1 py-1 text-center font-mono text-[10px] text-[var(--accent)] whitespace-nowrap">{computeMeanAngleDMS(obs)}</td>
                     <td className="px-1 py-1"><input aria-label="Slopedist" value={obs.slopeDist} onChange={e => updateObs(i, 'slopeDist', e.target.value)}
                       type="number" step="0.001" className="w-16 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     {(['vaDeg','vaMin','vaSec']).map((f: any) => (
-                      <td key={f} className="px-0.5 py-1"><input value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
+                      <td key={f} className="px-0.5 py-1"><input aria-label="Observation field" value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
                         type="number" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     ))}
                     <td className="px-1 py-1"><input aria-label="Ih" value={obs.ih} onChange={e => updateObs(i, 'ih', e.target.value)}

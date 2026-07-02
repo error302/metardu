@@ -114,7 +114,7 @@ export default function MonitoringComputePanel({ projectId }: { projectId: strin
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1">Alert Threshold (m)</label>
-          <input type="number" step="0.001" value={threshold} onChange={e => setThreshold(Number(e.target.value))} className="w-24 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-xs" />
+          <input aria-label="Alert Threshold (m)" type="number" step="0.001" value={threshold} onChange={e => setThreshold(Number(e.target.value))} className="w-24 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-xs" />
         </div>
       </div>
 

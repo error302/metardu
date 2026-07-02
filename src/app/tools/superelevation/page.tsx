@@ -25,7 +25,7 @@ export default function SuperelevationPage() {
         <div className="space-y-6">
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Design Speed (km/h)</label>
-            <input
+            <input aria-label="Design Speed (km/h)"
               type="number"
               value={designSpeed}
               onChange={e => setDesignSpeed(Number(e.target.value))}
@@ -37,7 +37,7 @@ export default function SuperelevationPage() {
 
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Curve Radius (m)</label>
-            <input
+            <input aria-label="Curve Radius (m)"
               type="number"
               value={radius}
               onChange={e => setRadius(Number(e.target.value))}

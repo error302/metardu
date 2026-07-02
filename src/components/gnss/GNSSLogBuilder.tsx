@@ -191,12 +191,12 @@ export default function GNSSLogBuilder() {
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Elevation Mask (°)</label>
-            <input value={elevationMask} onChange={e => setElevMask(e.target.value)}
+            <input aria-label="Elevation Mask (°)" value={elevationMask} onChange={e => setElevMask(e.target.value)}
               type="number" className="input w-full" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Epoch Interval (s)</label>
-            <input value={epochInterval} onChange={e => setEpoch(e.target.value)}
+            <input aria-label="Epoch Interval (s)" value={epochInterval} onChange={e => setEpoch(e.target.value)}
               type="number" className="input w-full" />
           </div>
           <div>

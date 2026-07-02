@@ -147,7 +147,7 @@ export function SnappingOptions({
             <label className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Tolerance</label>
             <span className="text-[10px] text-[var(--text-secondary)] font-mono">{localTolerance.toFixed(2)} m</span>
           </div>
-          <input
+          <input aria-label="Tolerance"
             type="range"
             min="0.01"
             max="5"
@@ -175,7 +175,7 @@ export function SnappingOptions({
                   enabled ? 'hover:bg-[var(--bg-card)]/[0.04]' : 'opacity-50'
                 }`}
               >
-                <input
+                <input aria-label="Snap type"
                   type="checkbox"
                   checked={localSnapTypes.has(type)}
                   onChange={() => handleSnapTypeToggle(type)}

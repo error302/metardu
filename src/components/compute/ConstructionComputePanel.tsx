@@ -111,8 +111,8 @@ export default function ConstructionComputePanel({ projectId }: { projectId: str
       {activeTab === 'asbuilt' && (
         <>
           <div className="flex gap-4 text-xs">
-            <div><label className="text-zinc-500">H Tol:</label> <input type="number" step="0.001" value={toleranceH} onChange={e => setToleranceH(Number(e.target.value))} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" />m</div>
-            <div><label className="text-zinc-500">V Tol:</label> <input type="number" step="0.001" value={toleranceV} onChange={e => setToleranceV(Number(e.target.value))} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" />m</div>
+            <div><label className="text-zinc-500">H Tol:</label> <input aria-label="H Tol:" type="number" step="0.001" value={toleranceH} onChange={e => setToleranceH(Number(e.target.value))} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" />m</div>
+            <div><label className="text-zinc-500">V Tol:</label> <input aria-label="V Tol:" type="number" step="0.001" value={toleranceV} onChange={e => setToleranceV(Number(e.target.value))} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" />m</div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

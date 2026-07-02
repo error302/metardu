@@ -77,7 +77,7 @@ export function RailwayPanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Design Speed (km/h)</label>
-              <input
+              <input aria-label="Design Speed (km/h)"
                 type="number"
                 value={designSpeedKmh}
                 onChange={(e) => setDesignSpeedKmh(parseInt(e.target.value) || 0)}
@@ -86,7 +86,7 @@ export function RailwayPanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Max Gradient (%)</label>
-              <input
+              <input aria-label="Max Gradient (%)"
                 type="number"
                 step={0.1}
                 value={maxGradientPercent}

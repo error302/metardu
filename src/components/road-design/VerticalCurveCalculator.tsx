@@ -42,22 +42,22 @@ export default function VerticalCurveCalculator() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">G₁ — Incoming Grade (%)</label>
-          <input value={g1} onChange={e => setG1(e.target.value)} type="number" step="0.001"
+          <input aria-label="G₁ — Incoming Grade (%)" value={g1} onChange={e => setG1(e.target.value)} type="number" step="0.001"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">G₂ — Outgoing Grade (%)</label>
-          <input value={g2} onChange={e => setG2(e.target.value)} type="number" step="0.001"
+          <input aria-label="G₂ — Outgoing Grade (%)" value={g2} onChange={e => setG2(e.target.value)} type="number" step="0.001"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">VPI Chainage (m)</label>
-          <input value={vpiCh} onChange={e => setVpiCh(e.target.value)} type="number" step="0.001"
+          <input aria-label="VPI Chainage (m)" value={vpiCh} onChange={e => setVpiCh(e.target.value)} type="number" step="0.001"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">VPI Reduced Level (m)</label>
-          <input value={vpiRL} onChange={e => setVpiRL(e.target.value)} type="number" step="0.001"
+          <input aria-label="VPI Reduced Level (m)" value={vpiRL} onChange={e => setVpiRL(e.target.value)} type="number" step="0.001"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
@@ -70,13 +70,13 @@ export default function VerticalCurveCalculator() {
         {lengthMode === 'L' ? (
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Curve Length L (m)</label>
-            <input value={L} onChange={e => setL(e.target.value)} type="number" min="1"
+            <input aria-label="Curve Length L (m)" value={L} onChange={e => setL(e.target.value)} type="number" min="1"
               className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
           </div>
         ) : (
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">K Value</label>
-            <input value={K} onChange={e => setK(e.target.value)} type="number" min="1"
+            <input aria-label="K Value" value={K} onChange={e => setK(e.target.value)} type="number" min="1"
               className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
           </div>
         )}
@@ -88,7 +88,7 @@ export default function VerticalCurveCalculator() {
         </button>
         <div>
           <label className="text-xs text-[var(--text-muted)] mr-1">RL Table Interval (m)</label>
-          <input value={interval} onChange={e => setInterval(e.target.value)} type="number" min="1"
+          <input aria-label="RL Table Interval (m)" value={interval} onChange={e => setInterval(e.target.value)} type="number" min="1"
             className="w-20 px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         {result && (

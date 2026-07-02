@@ -132,7 +132,7 @@ export function DrainageStep1Manholes({
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Depth (m)</label>
-                  <input
+                  <input aria-label="Depth (m)"
                     type="number"
                     step="0.01"
                     value={mh.coverLevel - mh.invertLevelOut}

@@ -781,7 +781,7 @@ export default function MutationPlanGenerator() {
                   <label className="block text-xs font-medium text-zinc-400 mb-1">
                     {f.label} {f.required && <span className="text-red-400">*</span>}
                   </label>
-                  <input
+                  <input aria-label="Project info field"
                     type="text"
                     value={(projectInfo as any)[f.key]}
                     onChange={(e) => setProjectInfo({ ...projectInfo, [f.key]: e.target.value })}

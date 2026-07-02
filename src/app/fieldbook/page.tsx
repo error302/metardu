@@ -1109,7 +1109,7 @@ export default function DigitalFieldBookPage() {
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('field.fieldBookNamePlaceholder')} />
+            <input aria-label="Field book name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('field.fieldBookNamePlaceholder')} />
             <div className="grid grid-cols-2 gap-2">
               <button onClick={handleSave} className="btn btn-primary" disabled={saveStatus.kind === 'saving'}>
                 {saveStatus.kind === 'saving' ? t('common.saving') : t('common.save')}

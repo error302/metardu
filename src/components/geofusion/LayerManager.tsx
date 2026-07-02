@@ -217,7 +217,7 @@ export default function LayerManager({ projectId, layers, onLayersChange }: Laye
                 <label className="block text-sm text-[var(--text-secondary)] mb-2">
                   Opacity: {Math.round(layer.opacity * 100)}%
                 </label>
-                <input
+                <input aria-label="Opacity: {Math.round(layer.opacity * 100)}%"
                   type="range"
                   min="0"
                   max="100"

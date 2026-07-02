@@ -536,7 +536,7 @@ Central meridian: 39°E, Scale: 0.9996`}
                 <label className="label text-xs text-[var(--text-muted)]">
                   Easting ({direction === 'cassini-to-utm' ? 'ft' : 'm'})
                 </label>
-                <input
+                <input aria-label="Easting ({direction === 'cassini-to-utm' ? 'ft' : 'm'})"
                   className="input font-mono"
                   value={singleE}
                   onChange={e => setSingleE(e.target.value)}
@@ -547,7 +547,7 @@ Central meridian: 39°E, Scale: 0.9996`}
                 <label className="label text-xs text-[var(--text-muted)]">
                   Northing ({direction === 'cassini-to-utm' ? 'ft' : 'm'})
                 </label>
-                <input
+                <input aria-label="Northing ({direction === 'cassini-to-utm' ? 'ft' : 'm'})"
                   className="input font-mono"
                   value={singleN}
                   onChange={e => setSingleN(e.target.value)}

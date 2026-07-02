@@ -166,7 +166,7 @@ export default function EarthworksCalculator() {
           ].map(({ label, key }) => (
             <div key={key}>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{label}</label>
-              <input
+              <input aria-label="{label}"
                 type="number"
                 step="0.01"
                 value={template[key] as number}
@@ -177,7 +177,7 @@ export default function EarthworksCalculator() {
           ))}
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Shrinkage Factor</label>
-            <input type="number" step="0.01" value={shrinkage} onChange={e => setShrinkage(e.target.value)}
+            <input aria-label="Shrinkage Factor" type="number" step="0.01" value={shrinkage} onChange={e => setShrinkage(e.target.value)}
               className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
           </div>
         </div>

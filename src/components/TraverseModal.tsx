@@ -944,7 +944,7 @@ export default function TraverseModal({
               
               <div className="flex gap-4 mb-4">
                 <label className="flex items-center gap-2 text-[var(--text-primary)]">
-                  <input
+                  <input aria-label="Use existing opening coordinates"
                     type="radio"
                     checked={openingUseExisting}
                     onChange={() => setOpeningUseExisting(true)}
@@ -953,7 +953,7 @@ export default function TraverseModal({
                   Select from project
                 </label>
                 <label className="flex items-center gap-2 text-[var(--text-primary)]">
-                  <input
+                  <input aria-label="Enter opening coordinates manually"
                     type="radio"
                     checked={!openingUseExisting}
                     onChange={() => setOpeningUseExisting(false)}
@@ -1104,7 +1104,7 @@ export default function TraverseModal({
                 <>
                   <div className="flex gap-4 mb-4">
                     <label className="flex items-center gap-2 text-[var(--text-primary)]">
-                      <input
+                      <input aria-label="Use existing closing coordinates"
                         type="radio"
                         checked={closingUseExisting}
                         onChange={() => setClosingUseExisting(true)}
@@ -1113,7 +1113,7 @@ export default function TraverseModal({
                       Select from project
                     </label>
                     <label className="flex items-center gap-2 text-[var(--text-primary)]">
-                      <input
+                      <input aria-label="Enter closing coordinates manually"
                         type="radio"
                         checked={!closingUseExisting}
                         onChange={() => setClosingUseExisting(false)}

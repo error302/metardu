@@ -117,7 +117,7 @@ function ResetPasswordContent() {
           <div>
             <label className="block text-sm text-[var(--text-primary)] mb-2">New password</label>
             <div className="relative">
-              <input
+              <input aria-label="New password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -146,7 +146,7 @@ function ResetPasswordContent() {
           <div>
             <label className="block text-sm text-[var(--text-primary)] mb-2">Confirm password</label>
             <div className="relative">
-              <input
+              <input aria-label="Confirm password"
                 type={showConfirm ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}

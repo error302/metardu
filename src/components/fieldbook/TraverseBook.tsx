@@ -167,25 +167,25 @@ export function TraverseBook({
         <div className="grid md:grid-cols-4 gap-3">
           <div>
             <label className="label">{t('common.startStation')}</label>
-            <input className="input input-sm" value={startStation} onChange={(e) => setStartStation(e.target.value)} />
+            <input aria-label="{t('common.startStation')}" className="input input-sm" value={startStation} onChange={(e) => setStartStation(e.target.value)} />
           </div>
           <div>
             <label className="label">{t('common.startEasting')}</label>
-            <input inputMode="decimal" className="input input-sm" value={startE} onChange={(e) => setStartE(e.target.value)} />
+            <input aria-label="{t('common.startEasting')}" inputMode="decimal" className="input input-sm" value={startE} onChange={(e) => setStartE(e.target.value)} />
           </div>
           <div>
             <label className="label">{t('common.startNorthing')}</label>
-            <input inputMode="decimal" className="input input-sm" value={startN} onChange={(e) => setStartN(e.target.value)} />
+            <input aria-label="{t('common.startNorthing')}" inputMode="decimal" className="input input-sm" value={startN} onChange={(e) => setStartN(e.target.value)} />
           </div>
           {travMode === 'link' ? (
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="label">{t('traverse.closeE')} <span className="text-red-400">*</span></label>
-                <input inputMode="decimal" className="input input-sm" value={closeE} onChange={(e) => setCloseE(e.target.value)} />
+                <input aria-label="{t('common.startNorthing')}" inputMode="decimal" className="input input-sm" value={closeE} onChange={(e) => setCloseE(e.target.value)} />
               </div>
               <div>
                 <label className="label">{t('traverse.closeN')} <span className="text-red-400">*</span></label>
-                <input inputMode="decimal" className="input input-sm" value={closeN} onChange={(e) => setCloseN(e.target.value)} />
+                <input aria-label="Closing northing" inputMode="decimal" className="input input-sm" value={closeN} onChange={(e) => setCloseN(e.target.value)} />
               </div>
             </div>
           ) : (

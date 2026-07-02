@@ -820,7 +820,7 @@ export default function OrthophotoViewerPage() {
               <div className="px-4 py-3 flex items-center gap-3 bg-[var(--bg-tertiary)]">
                 <Layers className="h-4 w-4 text-[var(--text-secondary)]" />
                 <span className="text-xs text-[var(--text-secondary)]">Orthophoto opacity:</span>
-                <input
+                <input aria-label="Orthophoto opacity"
                   type="range"
                   min="0"
                   max="100"

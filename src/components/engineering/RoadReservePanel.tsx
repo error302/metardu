@@ -797,7 +797,7 @@ export default function RoadReservePanel({
               <CardTitle>Wayleave / Utility Corridor</CardTitle>
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input
+              <input aria-label="Showwayleave"
                 type="checkbox"
                 checked={showWayleave}
                 onChange={(e) => setShowWayleave(e.target.checked)}

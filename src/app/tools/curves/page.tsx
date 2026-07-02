@@ -216,12 +216,12 @@ export default function CurvesCalculator() {
             {curveType === 'compound' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="label">Radius R1 (m)</label><input className="input" value={input.r1} onChange={e => setInput({...input, r1: e.target.value})} /></div>
-                  <div><label className="label">Radius R2 (m)</label><input className="input" value={input.r2} onChange={e => setInput({...input, r2: e.target.value})} /></div>
+                  <div><label className="label">Radius R1 (m)</label><input aria-label="Radius R1 (m)" className="input" value={input.r1} onChange={e => setInput({...input, r1: e.target.value})} /></div>
+                  <div><label className="label">Radius R2 (m)</label><input aria-label="Radius R2 (m)" className="input" value={input.r2} onChange={e => setInput({...input, r2: e.target.value})} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div><label className="label">Δ1 (degrees)</label><input className="input" value={input.delta1} onChange={e => setInput({...input, delta1: e.target.value})} /></div>
-                  <div><label className="label">Δ2 (degrees)</label><input className="input" value={input.delta2} onChange={e => setInput({...input, delta2: e.target.value})} /></div>
+                  <div><label className="label">Δ1 (degrees)</label><input aria-label="Δ1 (degrees)" className="input" value={input.delta1} onChange={e => setInput({...input, delta1: e.target.value})} /></div>
+                  <div><label className="label">Δ2 (degrees)</label><input aria-label="Δ2 (degrees)" className="input" value={input.delta2} onChange={e => setInput({...input, delta2: e.target.value})} /></div>
                 </div>
                 <div className="mt-4"><label className="label">Junction Chainage (m)</label><input aria-label="Commonchainage" className="input" value={input.commonChainage} onChange={e => setInput({...input, commonChainage: e.target.value})} /></div>
               </>
@@ -229,8 +229,8 @@ export default function CurvesCalculator() {
             {curveType === 'reverse' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="label">Radius R1 (m)</label><input className="input" value={input.r1_rev} onChange={e => setInput({...input, r1_rev: e.target.value})} /></div>
-                  <div><label className="label">Radius R2 (m)</label><input className="input" value={input.r2_rev} onChange={e => setInput({...input, r2_rev: e.target.value})} /></div>
+                  <div><label className="label">Radius R1 (m)</label><input aria-label="Radius R1 (m)" className="input" value={input.r1_rev} onChange={e => setInput({...input, r1_rev: e.target.value})} /></div>
+                  <div><label className="label">Radius R2 (m)</label><input aria-label="Radius R2 (m)" className="input" value={input.r2_rev} onChange={e => setInput({...input, r2_rev: e.target.value})} /></div>
                 </div>
                 <div className="mt-4"><label className="label">Distance AB (m)</label><input aria-label="Abdistance" className="input" value={input.abDistance} onChange={e => setInput({...input, abDistance: e.target.value})} /></div>
               </>
@@ -239,8 +239,8 @@ export default function CurvesCalculator() {
               <>
                 <p className="text-xs text-[var(--text-muted)] mb-3">Source: RDM 1.3 Kenya August 2023, Section 5.4 | Ghilani &amp; Wolf, Elementary Surveying 16th Ed., Chapter 25</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="label">G1 — Entry Grade (%)</label><input className="input" value={vInput.g1} onChange={e => setVInput({...vInput, g1: e.target.value})} /></div>
-                  <div><label className="label">G2 — Exit Grade (%)</label><input className="input" value={vInput.g2} onChange={e => setVInput({...vInput, g2: e.target.value})} /></div>
+                  <div><label className="label">G1 — Entry Grade (%)</label><input aria-label="G1 — Entry Grade (%)" className="input" value={vInput.g1} onChange={e => setVInput({...vInput, g1: e.target.value})} /></div>
+                  <div><label className="label">G2 — Exit Grade (%)</label><input aria-label="G2 — Exit Grade (%)" className="input" value={vInput.g2} onChange={e => setVInput({...vInput, g2: e.target.value})} /></div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   <div><label className="label">VPI km</label><input aria-label="Vpichainagekm" className="input" value={vInput.vpiChainageKm} onChange={e => setVInput({...vInput, vpiChainageKm: e.target.value})} /></div>

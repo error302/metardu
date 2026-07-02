@@ -1040,7 +1040,7 @@ function CheckpointListView({
                       {/* Set actual % */}
                       <div>
                         <span className="text-xs text-zinc-500 block mb-1">Set Actual Completion %</span>
-                        <input
+                        <input aria-label="Set Actual Completion %"
                           type="range"
                           min={0}
                           max={100}

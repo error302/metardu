@@ -188,7 +188,7 @@ export default function WorkingDiagramClient() {
               </div>
               <div>
                 <label className="block text-xs text-gray-500">Parcel Ref</label>
-                <input type="text" value={diagram.titleBlock.parcelRef || ''} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, parcelRef: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
+                <input aria-label="Parcel Ref" type="text" value={diagram.titleBlock.parcelRef || ''} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, parcelRef: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500">County</label>
@@ -196,7 +196,7 @@ export default function WorkingDiagramClient() {
               </div>
               <div>
                 <label className="block text-xs text-gray-500">Subcounty</label>
-                <input type="text" value={diagram.titleBlock.subcounty || ''} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, subcounty: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
+                <input aria-label="Subcounty" type="text" value={diagram.titleBlock.subcounty || ''} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, subcounty: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500">UTM Zone</label>

@@ -122,7 +122,7 @@ export default function CrossAnalyzer({ projectId, layers }: CrossAnalyzerProps)
                 key={layer.id}
                 className="flex items-center gap-2 p-2 rounded hover:bg-[var(--bg-primary)] cursor-pointer"
               >
-                <input
+                <input aria-label="Compare Layers ({selectedLayers.length} selected)"
                   type="checkbox"
                   checked={selectedLayers.includes(layer.id)}
                   onChange={() => toggleLayer(layer.id)}

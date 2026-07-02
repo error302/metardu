@@ -47,7 +47,7 @@ function Field({
   return (
     <label className="block">
       <span className="block text-xs text-[var(--text-muted)] mb-1">{label}</span>
-      <input
+      <input aria-label="Document value"
         className={inputClass('text-sm')}
         type={type}
         value={value}

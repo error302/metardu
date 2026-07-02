@@ -98,7 +98,7 @@ export function PrintMetaPanel({ meta, onChange }: PrintMetaPanelProps) {
                 <label className="block text-xs text-[var(--text-muted)] mb-1 font-medium">
                   {label}
                 </label>
-                <input
+                <input aria-label="{label}"
                   className="input w-full text-sm"
                   type={type || 'text'}
                   value={meta[key]}

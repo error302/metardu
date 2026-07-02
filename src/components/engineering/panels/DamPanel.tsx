@@ -221,7 +221,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-zinc-400">Crest Length (m)</label>
-              <input
+              <input aria-label="Crest Length (m)"
                 type="number"
                 value={crestLength}
                 onChange={(e) => setCrestLength(parseFloat(e.target.value) || 0)}
@@ -230,7 +230,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Crest Elevation (m)</label>
-              <input
+              <input aria-label="Crest Elevation (m)"
                 type="number"
                 value={crestElevation}
                 onChange={(e) => setCrestElevation(parseFloat(e.target.value) || 0)}
@@ -239,7 +239,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Crest Width (m)</label>
-              <input
+              <input aria-label="Crest Width (m)"
                 type="number"
                 value={crestWidthM}
                 onChange={(e) => setCrestWidthM(parseFloat(e.target.value) || 0)}
@@ -248,7 +248,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Foundation Level (m)</label>
-              <input
+              <input aria-label="Foundation Level (m)"
                 type="number"
                 value={foundationLevel}
                 onChange={(e) => setFoundationLevel(parseFloat(e.target.value) || 0)}
@@ -257,7 +257,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Upstream Slope (H:1V)</label>
-              <input
+              <input aria-label="Upstream Slope (H:1V)"
                 type="number"
                 step={0.1}
                 value={upstreamSlopeH}
@@ -267,7 +267,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Downstream Slope (H:1V)</label>
-              <input
+              <input aria-label="Downstream Slope (H:1V)"
                 type="number"
                 step={0.1}
                 value={downstreamSlopeH}
@@ -285,7 +285,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-zinc-400">Full Supply Level (m)</label>
-              <input
+              <input aria-label="Full Supply Level (m)"
                 type="number"
                 value={fullSupplyLevel}
                 onChange={(e) => setFullSupplyLevel(parseFloat(e.target.value) || 0)}
@@ -294,7 +294,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Dead Storage Level (m)</label>
-              <input
+              <input aria-label="Dead Storage Level (m)"
                 type="number"
                 value={deadStorageLevel}
                 onChange={(e) => setDeadStorageLevel(parseFloat(e.target.value) || 0)}
@@ -303,7 +303,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Catchment Area (km²)</label>
-              <input
+              <input aria-label="Catchment Area (km²)"
                 type="number"
                 value={catchmentAreaKm2}
                 onChange={(e) => setCatchmentAreaKm2(parseFloat(e.target.value) || 0)}

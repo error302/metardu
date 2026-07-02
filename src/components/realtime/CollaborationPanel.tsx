@@ -135,7 +135,7 @@ export function CollaborationPanel({
 
           {/* Input */}
           <div className="border-t border-[var(--border-color)] p-2 flex items-center gap-2">
-            <input
+            <input aria-label="Type a message"
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}

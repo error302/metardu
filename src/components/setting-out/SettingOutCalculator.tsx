@@ -160,7 +160,7 @@ export default function SettingOutCalculator() {
                   <tr key={i} className="hover:bg-[var(--bg-tertiary)]/30">
                     {pointFields.map(f => (
                       <td key={f} className="px-1 py-1 border border-[var(--border-color)]/50">
-                        <input value={p[f]} onChange={e => updatePoint(i, f, e.target.value)}
+                        <input aria-label="{h}" value={p[f]} onChange={e => updatePoint(i, f, e.target.value)}
                           className="w-full px-2 py-1 bg-transparent text-[var(--text-primary)]" />
                     </td>
                   ))}
@@ -310,7 +310,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
   return (
     <div>
       <label className="text-xs text-[var(--text-muted)] mb-1 block">{label}</label>
-      <input value={value} onChange={e => onChange(e.target.value)} type="number" step="0.001"
+      <input aria-label="{label}" value={value} onChange={e => onChange(e.target.value)} type="number" step="0.001"
         className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
     </div>
   )

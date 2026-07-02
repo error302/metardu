@@ -791,7 +791,7 @@ function PropertiesPanel({
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-[9px] text-gray-500 uppercase mb-0.5">X (mm)</label>
-          <input
+          <input aria-label="X (mm)"
             type="number"
             value={Math.round(element.x)}
             onChange={e => onUpdate({ x: parseFloat(e.target.value) || 0 })}
@@ -800,7 +800,7 @@ function PropertiesPanel({
         </div>
         <div>
           <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Y (mm)</label>
-          <input
+          <input aria-label="Y (mm)"
             type="number"
             value={Math.round(element.y)}
             onChange={e => onUpdate({ y: parseFloat(e.target.value) || 0 })}
@@ -813,7 +813,7 @@ function PropertiesPanel({
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Width (mm)</label>
-          <input
+          <input aria-label="Width (mm)"
             type="number"
             value={Math.round(element.width)}
             onChange={e => onUpdate({ width: parseFloat(e.target.value) || 10 })}
@@ -822,7 +822,7 @@ function PropertiesPanel({
         </div>
         <div>
           <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Height (mm)</label>
-          <input
+          <input aria-label="Height (mm)"
             type="number"
             value={Math.round(element.height)}
             onChange={e => onUpdate({ height: parseFloat(e.target.value) || 10 })}
@@ -846,7 +846,7 @@ function PropertiesPanel({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Font Size (mm)</label>
-              <input
+              <input aria-label="Font Size (mm)"
                 type="number"
                 step="0.5"
                 value={element.fontSize || 4}
@@ -874,7 +874,7 @@ function PropertiesPanel({
             >
               B
             </button>
-            <input
+            <input aria-label="Color picker"
               type="color"
               value={element.color || '#000000'}
               onChange={e => onUpdate({ color: e.target.value })}

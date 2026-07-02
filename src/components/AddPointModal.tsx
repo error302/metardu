@@ -227,7 +227,7 @@ export default function AddPointModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-[var(--text-primary)] mb-1">Easting (m) *</label>
-              <input
+              <input aria-label="Easting (m)"
                 type="number"
                 step="0.0001"
                 value={easting}
@@ -238,7 +238,7 @@ export default function AddPointModal({
             </div>
             <div>
               <label className="block text-sm text-[var(--text-primary)] mb-1">Northing (m) *</label>
-              <input
+              <input aria-label="Northing (m)"
                 type="number"
                 step="0.0001"
                 value={northing}
@@ -251,7 +251,7 @@ export default function AddPointModal({
 
           <div>
             <label className="block text-sm text-[var(--text-primary)] mb-1">Elevation (m)</label>
-            <input
+            <input aria-label="Elevation (m)"
               type="number"
               step="0.001"
               value={elevation}

@@ -66,7 +66,7 @@ export default function AnalysisTab({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
             <label className="block text-sm text-[var(--text-secondary)] mb-2">Grid Spacing (m)</label>
-            <input
+            <input aria-label="Grid Spacing (m)"
               type="number"
               min={0.1}
               max={5.0}

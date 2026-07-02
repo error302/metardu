@@ -425,11 +425,11 @@ function AddCalibrationForm({ equipmentId, onClose, onAdded }: { equipmentId: st
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-[9px] text-gray-500 uppercase mb-1">Calibration Date</label>
-          <input type="date" value={calDate} onChange={e => setCalDate(e.target.value)} className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)]" />
+          <input aria-label="Calibration Date" type="date" value={calDate} onChange={e => setCalDate(e.target.value)} className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)]" />
         </div>
         <div>
           <label className="block text-[9px] text-gray-500 uppercase mb-1">Next Calibration</label>
-          <input type="date" value={nextDate} onChange={e => setNextDate(e.target.value)} className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)]" />
+          <input aria-label="Next Calibration" type="date" value={nextDate} onChange={e => setNextDate(e.target.value)} className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)]" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">

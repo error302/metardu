@@ -164,7 +164,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
         <div className="space-y-6">
           <div>
             <label className="block text-sm text-[var(--text-primary)] mb-2">Project Name</label>
-            <input
+            <input aria-label="Project Name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -322,7 +322,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-[var(--text-primary)] mb-2">Client Name</label>
-              <input
+              <input aria-label="Client Name"
                 type="text"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
@@ -331,7 +331,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
             </div>
             <div>
               <label className="block text-sm text-[var(--text-primary)] mb-2">Surveyor Name</label>
-              <input
+              <input aria-label="Surveyor Name"
                 type="text"
                 value={surveyorName}
                 onChange={(e) => setSurveyorName(e.target.value)}

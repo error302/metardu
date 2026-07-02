@@ -243,7 +243,7 @@ export function UniversalMobileObservationForm({
                 {field.required && <span className="text-[var(--accent)] ml-1">*</span>}
               </label>
               <div className={field.key === 'remarks' ? 'flex items-start gap-2' : undefined}>
-                <input
+                <input aria-label="Field value"
                   type={field.inputMode === 'decimal' || field.inputMode === 'numeric' ? 'number' : 'text'}
                   inputMode={field.inputMode}
                   step={field.step}

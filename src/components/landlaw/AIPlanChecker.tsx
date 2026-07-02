@@ -196,7 +196,7 @@ export default function AIPlanChecker() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Area (m²)</label>
-              <input
+              <input aria-label="Area (m²)"
                 type="number"
                 value={planData.area || ''}
                 onChange={e => setPlanData({ ...planData, area: Number(e.target.value) })}
@@ -207,7 +207,7 @@ export default function AIPlanChecker() {
 
           <div className="flex gap-4">
             <label className="flex items-center gap-2">
-              <input
+              <input aria-label="Area (m²)"
                 type="checkbox"
                 checked={planData.northArrow || false}
                 onChange={e => setPlanData({ ...planData, northArrow: e.target.checked })}
@@ -216,7 +216,7 @@ export default function AIPlanChecker() {
               <span className="text-sm">North Arrow</span>
             </label>
             <label className="flex items-center gap-2">
-              <input
+              <input aria-label="North Arrow"
                 type="checkbox"
                 checked={planData.legend || false}
                 onChange={e => setPlanData({ ...planData, legend: e.target.checked })}

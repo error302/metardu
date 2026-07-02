@@ -175,7 +175,7 @@ export function BeaconRegistryPanel() {
             </div>
             <div>
               <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1">Radius (m)</label>
-              <input
+              <input aria-label="Radius (m)"
                 type="number"
                 value={radius}
                 onChange={e => setRadius(e.target.value)}

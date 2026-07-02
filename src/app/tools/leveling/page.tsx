@@ -121,7 +121,7 @@ export default function LevelingCalculator() {
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <div className="card p-4">
           <label className="label">Opening Benchmark (m)</label>
-          <input className="input" value={bm} onChange={e => setBm(e.target.value)} />
+          <input aria-label="Opening Benchmark (m)" className="input" value={bm} onChange={e => setBm(e.target.value)} />
         </div>
         <div className="card p-4">
           <label className="label">Closing Benchmark (m)</label>

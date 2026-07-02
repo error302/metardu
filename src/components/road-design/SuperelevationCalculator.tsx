@@ -29,22 +29,22 @@ export default function SuperelevationCalculator() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Design Speed (km/h)</label>
-          <input value={designSpeed} onChange={e => setDesignSpeed(e.target.value)} type="number" min="30" max="120"
+          <input aria-label="Design Speed (km/h)" value={designSpeed} onChange={e => setDesignSpeed(e.target.value)} type="number" min="30" max="120"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Curve Radius R (m)</label>
-          <input value={radius} onChange={e => setRadius(e.target.value)} type="number" min="1"
+          <input aria-label="Curve Radius R (m)" value={radius} onChange={e => setRadius(e.target.value)} type="number" min="1"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Number of Lanes</label>
-          <input value={numLanes} onChange={e => setNumLanes(e.target.value)} type="number" min="1" max="6"
+          <input aria-label="Number of Lanes" value={numLanes} onChange={e => setNumLanes(e.target.value)} type="number" min="1" max="6"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Lane Width (m)</label>
-          <input value={laneWidth} onChange={e => setLaneWidth(e.target.value)} type="number" step="0.01" min="2"
+          <input aria-label="Lane Width (m)" value={laneWidth} onChange={e => setLaneWidth(e.target.value)} type="number" step="0.01" min="2"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>

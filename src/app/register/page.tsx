@@ -132,7 +132,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-sm text-[var(--text-primary)] mb-2">Full name</label>
-                  <input
+                  <input aria-label="Full name"
                     type="text"
                     value={fullName}
                     onChange={e => setFullName(e.target.value)}
@@ -145,7 +145,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-sm text-[var(--text-primary)] mb-2">Email</label>
-                  <input
+                  <input aria-label="Email"
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
@@ -158,7 +158,7 @@ export default function RegisterPage() {
                 <div>
                   <label className="block text-sm text-[var(--text-primary)] mb-2">Password</label>
                   <div className="relative">
-                    <input
+                    <input aria-label="Password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
@@ -188,7 +188,7 @@ export default function RegisterPage() {
                 <div>
                   <label className="block text-sm text-[var(--text-primary)] mb-2">Confirm password</label>
                   <div className="relative">
-                    <input
+                    <input aria-label="Confirm password"
                       type={showConfirm ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={e => setConfirmPassword(e.target.value)}
@@ -210,7 +210,7 @@ export default function RegisterPage() {
                 </div>
 
                 <label className="flex items-start gap-3 cursor-pointer">
-                  <input
+                  <input aria-label="Agreeterms"
                     type="checkbox"
                     checked={agreeTerms}
                     onChange={e => setAgreeTerms(e.target.checked)}

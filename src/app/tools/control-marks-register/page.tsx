@@ -129,7 +129,7 @@ export default function ControlMarksRegisterPage() {
                 <tr key={index}>
                   {(Object.keys(row) as (keyof MarkRow)[]).map(field => (
                     <td key={field}>
-                      <input
+                      <input aria-label="{column}"
                         className={`input ${FIELD_WIDTHS[field]} text-xs`}
                         value={row[field]}
                         onChange={e => updateRow(index, field, e.target.value)}

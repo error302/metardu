@@ -122,7 +122,7 @@ export default function LevelBook({ projectId }: LevelBookProps) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 md:p-4 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border-color)]">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Opening BM RL (m)</label>
-              <input value={openingRL} onChange={e => setOpeningRL(e.target.value)}
+              <input aria-label="Opening BM RL (m)" value={openingRL} onChange={e => setOpeningRL(e.target.value)}
                 type="number" step="0.001"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
@@ -134,7 +134,7 @@ export default function LevelBook({ projectId }: LevelBookProps) {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Total Distance (km)</label>
-              <input value={distanceKm} onChange={e => setDistanceKm(e.target.value)}
+              <input aria-label="Total Distance (km)" value={distanceKm} onChange={e => setDistanceKm(e.target.value)}
                 type="number" step="0.001"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>

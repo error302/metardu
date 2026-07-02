@@ -47,27 +47,27 @@ export default function HorizontalCurveCalculator() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Radius R (m)</label>
-          <input value={radius} onChange={e => setRadius(e.target.value)} type="number" min="1"
+          <input aria-label="Radius R (m)" value={radius} onChange={e => setRadius(e.target.value)} type="number" min="1"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Δ Degrees</label>
-          <input value={deltaD} onChange={e => setDeltaD(e.target.value)} type="number" min="1" max="180"
+          <input aria-label="Δ Degrees" value={deltaD} onChange={e => setDeltaD(e.target.value)} type="number" min="1" max="180"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Δ Minutes</label>
-          <input value={deltaM} onChange={e => setDeltaM(e.target.value)} type="number" min="0" max="59"
+          <input aria-label="Δ Minutes" value={deltaM} onChange={e => setDeltaM(e.target.value)} type="number" min="0" max="59"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Δ Seconds</label>
-          <input value={deltaS} onChange={e => setDeltaS(e.target.value)} type="number" step="0.001" min="0" max="59.999"
+          <input aria-label="Δ Seconds" value={deltaS} onChange={e => setDeltaS(e.target.value)} type="number" step="0.001" min="0" max="59.999"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">IP Chainage (m)</label>
-          <input value={ipChainage} onChange={e => setIpChainage(e.target.value)} type="number" min="0"
+          <input aria-label="IP Chainage (m)" value={ipChainage} onChange={e => setIpChainage(e.target.value)} type="number" min="0"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
       </div>
@@ -135,7 +135,7 @@ export default function HorizontalCurveCalculator() {
       {tab === 'setout' && (
         <div className="mt-2">
           <label className="block text-xs text-[var(--text-muted)] mb-1">Peg Interval (m)</label>
-          <input value={interval} onChange={e => setInterval(e.target.value)} type="number" min="1" max="100"
+          <input aria-label="Peg Interval (m)" value={interval} onChange={e => setInterval(e.target.value)} type="number" min="1" max="100"
             className="w-24 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
         </div>
       )}

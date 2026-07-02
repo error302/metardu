@@ -188,7 +188,7 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Radius R (m)</label>
-          <input
+          <input aria-label="Radius R (m)"
             type="number"
             min={30}
             max={2000}
@@ -200,7 +200,7 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Deflection Angle Δ (°)</label>
-          <input
+          <input aria-label="Deflection Angle Δ (°)"
             type="number"
             min={1}
             max={180}
@@ -211,7 +211,7 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Chainage at IP (m)</label>
-          <input
+          <input aria-label="Chainage at IP (m)"
             type="number"
             min={0}
             value={chainageStart}

@@ -394,11 +394,11 @@ export default function ProfilesPage({ params }: PageProps) {
                             <div className="grid grid-cols-2 gap-2">
                               <label className="text-xs text-[var(--text-secondary)]">
                                 Horizontal (1:)
-                                <input inputMode="numeric" value={svgHScale} onChange={(e) => setSvgHScale(parseInt(e.target.value || '1000', 10) || 1000)} className="mt-1 w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] font-mono" />
+                                <input aria-label="Horizontal scale" inputMode="numeric" value={svgHScale} onChange={(e) => setSvgHScale(parseInt(e.target.value || '1000', 10) || 1000)} className="mt-1 w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] font-mono" />
                               </label>
                               <label className="text-xs text-[var(--text-secondary)]">
                                 Vertical (1:)
-                                <input inputMode="numeric" value={svgVScale} onChange={(e) => setSvgVScale(parseInt(e.target.value || '100', 10) || 100)} className="mt-1 w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] font-mono" />
+                                <input aria-label="Vertical scale" inputMode="numeric" value={svgVScale} onChange={(e) => setSvgVScale(parseInt(e.target.value || '100', 10) || 100)} className="mt-1 w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] font-mono" />
                               </label>
                             </div>
                             <p className="text-xs text-[var(--text-muted)] mt-2">If a scale won’t fit, METARDU will auto-fit to the nearest standard scale.</p>

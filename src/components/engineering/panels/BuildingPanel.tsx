@@ -173,7 +173,7 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-zinc-400">Number of Floors</label>
-              <input
+              <input aria-label="Number of Floors"
                 type="number"
                 min={1}
                 value={floorCount}
@@ -183,7 +183,7 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Floor Height (m)</label>
-              <input
+              <input aria-label="Floor Height (m)"
                 type="number"
                 step={0.1}
                 value={floorHeightM}

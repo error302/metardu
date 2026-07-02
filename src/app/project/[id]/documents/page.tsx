@@ -111,7 +111,7 @@ function SurveyorDetailsPanel({
           ].map(({ k, label, ph, span }) => (
             <div key={k} className={span ? 'col-span-2' : ''}>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{label}</label>
-              <input value={local[k] || ''} onChange={e => f(k, e.target.value)}
+              <input aria-label="{label}" value={local[k] || ''} onChange={e => f(k, e.target.value)}
                 placeholder={ph} className="input w-full text-sm" />
             </div>
           ))}
@@ -152,7 +152,7 @@ function ExtraFieldsForm({
         ].map(({k,label,ph}) => (
           <div key={k}>
             <label className="text-xs text-[var(--text-muted)] block mb-1">{label}</label>
-            <input value={extraFields[k]||''} onChange={e=>f(k,e.target.value)} placeholder={ph} className="input w-full text-sm" />
+            <input aria-label="{label}" value={extraFields[k]||''} onChange={e=>f(k,e.target.value)} placeholder={ph} className="input w-full text-sm" />
           </div>
         ))}
       </div>
@@ -223,7 +223,7 @@ function ExtraFieldsForm({
         ].map(({k,label,ph}) => (
           <div key={k}>
             <label className="text-xs text-[var(--text-muted)] block mb-1">{label}</label>
-            <input value={extraFields[k]||''} onChange={e=>onChange({...extraFields,[k]:e.target.value})} placeholder={ph} className="input w-full text-sm" />
+            <input aria-label="{label}" value={extraFields[k]||''} onChange={e=>onChange({...extraFields,[k]:e.target.value})} placeholder={ph} className="input w-full text-sm" />
           </div>
         ))}
       </div>
@@ -254,7 +254,7 @@ function ExtraFieldsForm({
         ].map(({k,label,ph}) => (
           <div key={k}>
             <label className="text-xs text-[var(--text-muted)] block mb-1">{label}</label>
-            <input value={extraFields[k]||''} onChange={e=>onChange({...extraFields,[k]:e.target.value})} placeholder={ph} className="input w-full text-sm" />
+            <input aria-label="{label}" value={extraFields[k]||''} onChange={e=>onChange({...extraFields,[k]:e.target.value})} placeholder={ph} className="input w-full text-sm" />
           </div>
         ))}
       </div>
@@ -278,7 +278,7 @@ function ExtraFieldsForm({
         ].map(({k,label,ph}) => (
           <div key={k}>
             <label className="text-xs text-[var(--text-muted)] block mb-1">{label}</label>
-            <input value={extraFields[k]||''} onChange={e=>onChange({...extraFields,[k]:e.target.value})} placeholder={ph} className="input w-full text-sm" />
+            <input aria-label="{label}" value={extraFields[k]||''} onChange={e=>onChange({...extraFields,[k]:e.target.value})} placeholder={ph} className="input w-full text-sm" />
           </div>
         ))}
       </div>

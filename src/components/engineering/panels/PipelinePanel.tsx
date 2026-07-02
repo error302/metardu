@@ -87,7 +87,7 @@ export function PipelinePanel({ projectId, subtype }: EngineeringPanelProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-zinc-400">Diameter (mm)</label>
-              <input
+              <input aria-label="Diameter (mm)"
                 type="number"
                 value={pipelineDiameterMM}
                 onChange={(e) => setPipelineDiameterMM(parseFloat(e.target.value) || 0)}
@@ -96,7 +96,7 @@ export function PipelinePanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Design Pressure (kPa)</label>
-              <input
+              <input aria-label="Design Pressure (kPa)"
                 type="number"
                 value={designPressureKPa}
                 onChange={(e) => setDesignPressureKPa(parseFloat(e.target.value) || 0)}
@@ -105,7 +105,7 @@ export function PipelinePanel({ projectId, subtype }: EngineeringPanelProps) {
             </div>
             <div>
               <label className="text-sm text-zinc-400">Min Depth of Cover (m)</label>
-              <input
+              <input aria-label="Min Depth of Cover (m)"
                 type="number"
                 step={0.1}
                 value={depthOfCoverM}
