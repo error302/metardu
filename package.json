@@ -185,6 +185,6 @@
     "serialize-javascript": "^7.0.5"
   },
   "optionalDependencies": {
-    "puppeteer": "^24.41.0"
+    "puppeteer": "^25.3.0"
   }
 }
