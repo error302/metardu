@@ -33,7 +33,7 @@ export async function middleware(request: NextRequest) {
     '/geofusion', '/equipment', '/cpd', '/jobs',
     '/registry', '/analytics', '/audit-logs', '/white-label',
     '/university', '/organization', '/account', '/checkout',
-    '/marketplace', '/community', '/land-law', '/admin',
+    '/community', '/land-law', '/admin',
     '/instruments', '/field', '/mobile/field', '/field/gnss',
   ]
 

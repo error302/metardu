@@ -88,6 +88,31 @@ export const GET = apiHandler({ auth: false, rateLimit: { max: 20, windowMs: 600
 // ── POST ───────────────────────────────────────────────────────────────────
 
 export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+  // AUDIT FIX: Server-side Pro subscription enforcement
+  // The UI checks isPro, but the API must also enforce it — otherwise
+  // any logged-in free user can POST via curl/Postman.
+  const { rows: subRows } = await db.query(
+    `SELECT plan_id, status FROM user_subscriptions WHERE user_id = $1 LIMIT 1`,
+    [ctx.userId]
+  )
+  const planId = subRows[0]?.plan_id ?? 'free'
+  const subStatus = subRows[0]?.status ?? 'inactive'
+  const isPro = ['pro', 'team', 'firm', 'enterprise'].includes(planId) && subStatus === 'active'
+
+  // Check if user is admin (bypass Pro requirement)
+  const { rows: userRows } = await db.query(
+    `SELECT role FROM users WHERE id = $1`,
+    [ctx.userId]
+  )
+  const isAdmin = userRows[0]?.role === 'admin' || userRows[0]?.role === 'super_admin'
+
+  if (!isPro && !isAdmin) {
+    return NextResponse.json(
+      apiError('Pro subscription required to post listings. Upgrade at /pricing.'),
+      { status: 403 }
+    )
+  }
+
   const body = ctx.body as Record<string, unknown>
 
   // Required fields

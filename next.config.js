@@ -24,6 +24,15 @@ const nextConfig = {
   // Use 'export' for Capacitor mobile builds (set MOBILE_BUILD=true)
   output: process.env.MOBILE_BUILD === 'true' ? 'export' : 'standalone',
 
+  // AUDIT FIX: Ensure the TIN Web Worker chunk + delaunator are included
+  // in the standalone Docker build. Without this, the worker URL resolves
+  // but the chunk is missing → Worker construction throws → silent sync
+  // fallback (still works, just blocks the UI thread on large datasets).
+  outputFileTracingIncludes: {
+    '/tools/contour-generator': ['./node_modules/delaunator/**/*', './src/lib/workers/**/*'],
+    '/tools/volume-comparison': ['./node_modules/delaunator/**/*', './src/lib/workers/**/*'],
+  },
+
   reactStrictMode: true,
 
   // Disabled — SWC minifier breaks OpenLayers tile rendering in production builds
