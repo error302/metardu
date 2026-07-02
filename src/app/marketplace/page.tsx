@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef, DragEvent } from 'react'
 import {
-  getListings, searchListings, postListing, deleteListing,
-  sendInquiry, getInquiriesFor,
   InstrumentListing, ListingType, InstrumentCategory, Currency, Condition,
   CATEGORIES, CONDITIONS, BRANDS, COUNTRIES, CURRENCIES, fmtPrice,
 } from '@/lib/marketplace/instruments'
+import {
+  fetchListings, createListing, deleteListing,
+  sendInquiry as apiSendInquiry, fetchInquiries,
+} from '@/lib/marketplace/apiClient'
 import { compressImage, isImageFile, MAX_IMAGES, base64Bytes } from '@/lib/marketplace/imageUtils'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import { createClient } from '@/lib/api-client/client'
@@ -346,7 +348,7 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
     setErr('')
     setSubmitting(true)
     try {
-      onSave(postListing({ ...form, price: Number(form.price), verified }))
+      createListing({ ...form, price: Number(form.price) }).then(newListing => { if (newListing) onSave(newListing) })
     } catch (e: unknown) {
       setErr((e as Error).message || 'Failed to save. Try removing some photos.')
       setSubmitting(false)
@@ -498,7 +500,7 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
 function ListingDetail({ listing, onClose, onRefresh }: {
   listing: InstrumentListing; onClose: () => void; onRefresh: () => void
 }) {
-  const [inquiries, setInquiries] = useState(getInquiriesFor(listing.id))
+  const [inquiries, setInquiries] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [sent, setSent] = useState(false)
   const [iqErr, setIqErr] = useState('')
@@ -512,9 +514,9 @@ function ListingDetail({ listing, onClose, onRefresh }: {
     if (!form.buyerName)      { setIqErr('Your name is required');    return }
     if (!form.buyerContact)   { setIqErr('Your contact is required'); return }
     if (!form.message.trim()) { setIqErr('Write a message to the seller'); return }
-    sendInquiry({ listingId: listing.id, ...form })
+    apiSendInquiry(listing.id, form)
     setSent(true)
-    setInquiries(getInquiriesFor(listing.id))
+    fetchInquiries(listing.id).then(setInquiries)
   }
 
   return (
@@ -747,22 +749,21 @@ export default function MarketplacePage() {
 
   const reload = useCallback(() => {
     if (search.trim()) {
-      setListings(searchListings(search))
+      fetchListings({ q: search }).then(setListings)
     } else {
-      setListings(getListings({
+      fetchListings({
         type: filterType || undefined,
         category: filterCat || undefined,
-        country: filterCountry || undefined,
-      }))
+      }).then(setListings)
     }
   }, [search, filterType, filterCat, filterCountry])
 
   useEffect(() => { reload() }, [reload])
 
   const counts = {
-    sale:   getListings({ type: 'sale'   }).length,
-    rent:   getListings({ type: 'rent'   }).length,
-    wanted: getListings({ type: 'wanted' }).length,
+    sale:   listings.filter(l => l.type === 'sale').length,
+    rent:   listings.filter(l => l.type === 'rent').length,
+    wanted: listings.filter(l => l.type === 'wanted').length,
   }
 
   return (

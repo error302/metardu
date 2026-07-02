@@ -70,6 +70,7 @@ const USER_SCOPED_TABLES = new Set([
   'job_reviews', 'payment_history', 'render_jobs', 'project_submissions',
   'submission_documents', 'import_sessions', 'online_service_logs',
   'surveyor_profiles', 'plan_usage', 'field_projects', 'fieldbooks',
+  'instrument_listings', 'listing_inquiries',
   'scheme_details', 'blocks', 'parcel_traverses',
   'traverse_observations', 'traverse_coordinates', 'block_assignments',
   'scheme_activity_log',
