@@ -130,7 +130,7 @@
     "react-resizable-panels": "^4.10.0",
     "react-window": "^1.8.11",
     "reactflow": "^11.10.1",
-    "recharts": "^2.15.4",
+    "recharts": "^3.9.1",
     "redis": "^5.12.1",
     "shp-write": "^0.3.2",
     "sonner": "^2.0.7",
