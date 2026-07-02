@@ -297,8 +297,34 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
           if (pay.status === 'completed') return NextResponse.json({ status: 'completed' })
           if (pay.status === 'failed') return NextResponse.json({ status: 'failed' })
 
-          // PayPal SDK types don't expose purchase_units — cast to our local interface
-          const capture = await paypal.captureOrder(s.data.orderId) as PayPalCapture
+          // AUDIT FIX (HIGH 8, 2026-07-02): Handle ORDER_ALREADY_CAPTURED
+          // gracefully. The PayPal webhook may auto-capture before the
+          // success page calls this endpoint. Previously the error was
+          // unhandled and marked the payment as 'failed' even though it
+          // was already captured successfully.
+          let capture: PayPalCapture
+          try {
+            capture = await paypal.captureOrder(s.data.orderId) as PayPalCapture
+          } catch (captureErr) {
+            const errMsg = captureErr instanceof Error ? captureErr.message : String(captureErr)
+            if (errMsg.includes('ORDER_ALREADY_CAPTURED') || errMsg.includes('ORDER_ALREADY_PAID')) {
+              // Order was already captured by the webhook — treat as success
+              // Verify the payment_history row was already marked completed
+              const { rows: recheck } = await db.query(
+                'SELECT status FROM payment_history WHERE id = $1',
+                [s.data.paymentId]
+              )
+              if (recheck[0]?.status === 'completed') {
+                return NextResponse.json({ status: 'completed' })
+              }
+              // If not yet completed, mark it now
+              await activateSubscription({ planId: s.data.planId, payment_method: 'paypal', currency: 'USD', amount: Number(pay.amount), transaction_id: s.data.orderId, status: 'completed', paymentId: s.data.paymentId })
+              return NextResponse.json({ status: 'completed' })
+            }
+            // Genuine error — mark as failed
+            await activateSubscription({ planId: s.data.planId, payment_method: 'paypal', currency: 'USD', amount: 0, transaction_id: s.data.orderId, status: 'failed', paymentId: s.data.paymentId })
+            return NextResponse.json({ status: 'failed', error: errMsg })
+          }
           if (capture.status?.toLowerCase() !== 'completed') {
             await activateSubscription({ planId: s.data.planId, payment_method: 'paypal', currency: 'USD', amount: 0, transaction_id: s.data.orderId, status: 'failed', paymentId: s.data.paymentId })
             return NextResponse.json({ status: 'failed' })
@@ -365,15 +391,17 @@ export const GET = apiHandler({ auth: false }, async () => {
   const stripe = isReal(process.env.STRIPE_SECRET_KEY)
   const paypal = isReal(process.env.PAYPAL_CLIENT_ID)
   const mpesa = isReal(process.env.MPESA_CONSUMER_KEY)
-  const airtel = isReal(process.env.AIRTEL_CLIENT_ID)
+  // AUDIT FIX (HIGH, 2026-07-02): Airtel Money service exists but has no
+  // route handler in the unified payments API. Don't advertise it until wired.
+  // const airtel = isReal(process.env.AIRTEL_CLIENT_ID)
 
   return NextResponse.json({
-    providers: { stripe, paypal, mpesa, airtel },
+    providers: { stripe, paypal, mpesa },
     currencies: ['USD', 'KES', 'UGX', 'TZS', 'EUR', 'GBP'],
     paymentMethods: [
       ...(stripe || paypal ? [{ id: 'card', name: 'Credit/Debit Card', providers: [stripe && 'stripe', paypal && 'paypal'].filter(Boolean) }] : []),
       ...(mpesa ? [{ id: 'mpesa', name: 'M-Pesa', providers: ['mpesa'] }] : []),
-      ...(airtel ? [{ id: 'airtel_money', name: 'Airtel Money', providers: ['airtel'] }] : []),
+      // ...(airtel ? [{ id: 'airtel_money', name: 'Airtel Money', providers: ['airtel'] }] : []),
       ...(paypal ? [{ id: 'paypal', name: 'PayPal', providers: ['paypal'] }] : []),
     ],
   })
