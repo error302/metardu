@@ -194,7 +194,7 @@ export default function ImportTab({
               </thead>
               <tbody>
                 {parseErrors.map((err, i) => (
-                  <tr key={i}>
+                  <tr key={`${err}-${i}`}>
                     <td className="font-mono">{err.row}</td>
                     <td className="text-red-400 text-sm">{err.message}</td>
                   </tr>

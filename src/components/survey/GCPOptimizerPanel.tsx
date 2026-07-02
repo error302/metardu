@@ -160,7 +160,7 @@ export function GCPOptimizerPanel() {
             <span className="text-xs font-semibold text-[var(--text-primary)] mb-2 block">Field Validation Checklist</span>
             <div className="space-y-1.5">
               {checklist.map((item, i) => (
-                <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                <div key={`${item}-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
                   {item.completed ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   ) : (

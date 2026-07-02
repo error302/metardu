@@ -169,7 +169,7 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
           <p className="text-red-400 text-sm font-semibold mb-1">Standards Violations</p>
           <ul className="text-red-400 text-xs space-y-0.5">
             {validations.issues.map((issue, i) => (
-              <li key={i}>[!] {issue}</li>
+              <li key={`${issue}-${i}`}>[!] {issue}</li>
             ))}
           </ul>
         </div>
@@ -179,7 +179,7 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
         <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
           <ul className="text-green-400 text-xs space-y-0.5">
             {validations.passes.map((pass, i) => (
-              <li key={i}>✓ {pass}</li>
+              <li key={`${pass}-${i}`}>✓ {pass}</li>
             ))}
           </ul>
         </div>
@@ -272,7 +272,7 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
               </thead>
               <tbody>
                 {result.settingOutTable.slice(0, 15).map((row, i) => (
-                  <tr key={i} className="border-b border-[var(--border-color)]/30">
+                  <tr key={`${row}-${i}`} className="border-b border-[var(--border-color)]/30">
                     <td className="py-1.5 px-4">{row.chainage.toFixed(3)}</td>
                     <td className="py-1.5 px-4 text-right">{row.deflectionFromTC.toFixed(4)}°</td>
                     <td className="py-1.5 px-4 text-right">{row.chordFromTC.toFixed(4)}</td>

@@ -983,7 +983,7 @@ export default function SlopeAnalysisPanel({ projectId }: SlopeAnalysisPanelProp
                       {cutFillSample.map((p, i) => {
                         const cls = p.difference > 0 ? 'Cut' : p.difference < 0 ? 'Fill' : 'On Grade';
                         return (
-                          <TableRow key={i} className="border-zinc-700/50">
+                          <TableRow key={`${p}-${i}`} className="border-zinc-700/50">
                             <TableCell className="font-mono text-xs text-zinc-300">
                               {p.easting.toFixed(3)}
                             </TableCell>
@@ -1114,7 +1114,7 @@ export default function SlopeAnalysisPanel({ projectId }: SlopeAnalysisPanelProp
                     </TableHeader>
                     <TableBody>
                       {polyPoints.map((p, i) => (
-                        <TableRow key={i} className="border-zinc-700/50">
+                        <TableRow key={`${p}-${i}`} className="border-zinc-700/50">
                           <TableCell className="font-mono text-xs text-zinc-500">{i + 1}</TableCell>
                           <TableCell className="font-mono text-xs text-zinc-300">{p.easting.toFixed(4)}</TableCell>
                           <TableCell className="font-mono text-xs text-zinc-300">{p.northing.toFixed(4)}</TableCell>

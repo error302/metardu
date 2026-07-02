@@ -40,7 +40,7 @@ export function DrainageStep3Outputs({
               </thead>
               <tbody>
                 {manholes.map((m, i) => (
-                  <tr key={i} className="border-t border-zinc-800">
+                  <tr key={m.name} className="border-t border-zinc-800">
                     <td className="py-1.5 text-white">{m.name}</td>
                     <td className="py-1.5 text-right text-zinc-400">{m.coverLevel.toFixed(3)}</td>
                     <td className="py-1.5 text-right text-zinc-400">{m.invertLevelOut.toFixed(3)}</td>
@@ -67,7 +67,7 @@ export function DrainageStep3Outputs({
               </thead>
               <tbody>
                 {pipes.map((p, i) => (
-                  <tr key={i} className="border-t border-zinc-800">
+                  <tr key={`${p}-${i}`} className="border-t border-zinc-800">
                     <td className="py-1.5 text-white">{p.fromMH}-{p.toMH}</td>
                     <td className="py-1.5 text-right text-zinc-400">{(p.fullBoreCapacity * 1000).toFixed(1)} L/s</td>
                     <td className="py-1.5 text-right text-zinc-400">{p.velocity.toFixed(2)} m/s</td>

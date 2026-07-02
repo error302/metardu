@@ -188,7 +188,7 @@ export function SectionalPlanEditor() {
             <span className="text-xs font-medium text-red-400">Validation Errors</span>
           </div>
           <ul className="text-[11px] text-red-400/80 list-disc list-inside">
-            {validation.errors.map((e, i) => <li key={i}>{e}</li>)}
+            {validation.errors.map((e, i) => <li key={`${e}-${i}`}>{e}</li>)}
           </ul>
         </div>
       )}
@@ -199,7 +199,7 @@ export function SectionalPlanEditor() {
             <span className="text-xs font-medium text-amber-400">Warnings</span>
           </div>
           <ul className="text-[11px] text-amber-400/80 list-disc list-inside">
-            {validation.warnings.map((w, i) => <li key={i}>{w}</li>)}
+            {validation.warnings.map((w, i) => <li key={`${w}-${i}`}>{w}</li>)}
           </ul>
         </div>
       )}

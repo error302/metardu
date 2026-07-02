@@ -204,7 +204,7 @@ export function OnboardingTour() {
             <div className="flex items-center justify-center gap-1.5 pt-2">
               {TOUR_STEPS.map((_, i) => (
                 <div
-                  key={i}
+                  key={`${_}-${i}`}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
                     i === step ? 'w-6 bg-[#D17B47]' : i < step ? 'w-1.5 bg-[#D17B47]/50' : 'w-1.5 bg-white/10'
                   }`}

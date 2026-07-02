@@ -196,7 +196,7 @@ export default function ChainageCalculator() {
                 </thead>
                 <tbody>
                   {results.map((r, idx) => (
-                    <tr key={idx} className="border-b border-[var(--border-color)]">
+                    <tr key={r.pointName} className="border-b border-[var(--border-color)]">
                       <td className="py-2 text-[var(--text-primary)] font-medium">{r.pointName}</td>
                       <td className="py-2 text-right font-mono text-[var(--text-primary)]">{r.easting.toFixed(3)}</td>
                       <td className="py-2 text-right font-mono text-[var(--text-primary)]">{r.northing.toFixed(3)}</td>

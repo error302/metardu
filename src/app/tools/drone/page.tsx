@@ -506,7 +506,7 @@ export default function DroneSurveyPage() {
                   </thead>
                   <tbody>
                     {accuracyResults.points.map((p: any, i: number) => (
-                      <tr key={i}>
+                      <tr key={`gcp-${p.name}-${i}`}>
                         <td className="font-semibold">{p.name}</td>
                         <td className="font-mono">{formatNumber(p.se, 4)}</td>
                         <td className="font-mono">{formatNumber(p.de, 4)}</td>

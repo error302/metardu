@@ -121,7 +121,7 @@ export default function EasementGuide() {
               <h5 className="font-medium text-gray-700 mb-3">Creation Methods</h5>
               <ul className="space-y-2">
                 {selectedEasement.creationMethods.map((method, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
+                  <li key={`${method}-${index}`} className="flex items-start gap-2 text-sm">
                     <Plus className="w-4 h-4 text-green-500 mt-0.5" />
                     <span>{method}</span>
                   </li>
@@ -133,7 +133,7 @@ export default function EasementGuide() {
               <h5 className="font-medium text-gray-700 mb-3">Termination Methods</h5>
               <ul className="space-y-2">
                 {selectedEasement.terminationMethods.map((method, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
+                  <li key={`${method}-${index}`} className="flex items-start gap-2 text-sm">
                     <X className="w-4 h-4 text-red-500 mt-0.5" />
                     <span>{method}</span>
                   </li>
@@ -146,7 +146,7 @@ export default function EasementGuide() {
             <h5 className="font-medium text-gray-700 mb-3">Typical Disputes</h5>
             <div className="flex flex-wrap gap-2">
               {selectedEasement.typicalDisputes.map((dispute, index) => (
-                <span key={index} className="px-3 py-1 text-sm bg-red-50 text-red-700 rounded-full">
+                <span key={`${dispute}-${index}`} className="px-3 py-1 text-sm bg-red-50 text-red-700 rounded-full">
                   {dispute}
                 </span>
               ))}
@@ -157,7 +157,7 @@ export default function EasementGuide() {
             <h5 className="font-medium text-gray-700 mb-3">Surveyor Tasks</h5>
             <ul className="space-y-2">
               {selectedEasement.surveyorTasks.map((task, index) => (
-                <li key={index} className="flex items-start gap-2 text-sm">
+                <li key={`${task}-${index}`} className="flex items-start gap-2 text-sm">
                   <MapPin className="w-4 h-4 text-blue-500 mt-0.5" />
                   <span>{task}</span>
                 </li>
@@ -169,7 +169,7 @@ export default function EasementGuide() {
             <h5 className="font-medium text-gray-700 mb-3">Legal Requirements</h5>
             <ul className="space-y-2">
               {selectedEasement.legalRequirements.map((req, index) => (
-                <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
+                <li key={`${req}-${index}`} className="flex items-start gap-2 text-sm text-gray-600">
                   <ChevronRight className="w-4 h-4 text-gray-400 mt-0.5" />
                   <span>{req}</span>
                 </li>

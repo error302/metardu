@@ -113,7 +113,7 @@ export default function SightDistanceChecker() {
             <summary className="cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium mb-2">Show Computation Steps</summary>
             <div className="space-y-1">
               {result.steps.map((step, i) => (
-                <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto] gap-x-2 font-mono py-1 border-b border-[var(--border-color)]/20">
+                <div key={step.value} className="grid grid-cols-[1fr_auto_1fr_auto] gap-x-2 font-mono py-1 border-b border-[var(--border-color)]/20">
                   <span className="text-[var(--text-secondary)]">{step.description}</span>
                   <span className="text-[var(--text-muted)]">=</span>
                   <span className="text-[var(--text-primary)]">{step.value}</span>
@@ -178,7 +178,7 @@ export default function SightDistanceChecker() {
             {pythonValidation.flags?.length > 0 && (
               <ul className="mt-3 space-y-1 text-sm text-[var(--text-muted)] list-disc pl-5">
                 {pythonValidation.flags.map((f: string, i: number) => (
-                  <li key={i} className={f.includes('RED') || f.includes('FAIL') || f.includes('DEPARTURE') ? 'text-red-400' : 'text-yellow-500'}>{f}</li>
+                  <li key={`item-${i}`} className={f.includes('RED') || f.includes('FAIL') || f.includes('DEPARTURE') ? 'text-red-400' : 'text-yellow-500'}>{f}</li>
                 ))}
               </ul>
             )}

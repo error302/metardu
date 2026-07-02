@@ -1067,7 +1067,7 @@ export default function OrthophotoViewerPage() {
                                   </thead>
                                   <tbody>
                                     {poly.coordinates.map(([lon, lat], i) => (
-                                      <tr key={i}>
+                                      <tr key={`item-${i}`}>
                                         <td className="font-mono text-[var(--text-muted)]">{i + 1}</td>
                                         <td className="font-mono">{lon.toFixed(8)}</td>
                                         <td className="font-mono">{lat.toFixed(8)}</td>

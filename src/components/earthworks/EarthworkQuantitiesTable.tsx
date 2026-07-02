@@ -69,7 +69,7 @@ export default function EarthworkQuantitiesTable({ result, sections }: Props) {
                 </tr>
               )}
               {result.legs.map((leg, i) => (
-                <tr key={i} className="border border-[var(--border-color)]/50 hover:bg-[var(--bg-tertiary)]/30">
+                <tr key={`${leg}-${i}`} className="border border-[var(--border-color)]/50 hover:bg-[var(--bg-tertiary)]/30">
                   <td className="px-1.5 py-1 text-[var(--text-primary)]">{fmtCh(leg.fromChainage)}</td>
                   <td className="px-1.5 py-1 text-[var(--text-primary)]">{fmtCh(leg.toChainage)}</td>
                   <td className="px-1.5 py-1 text-[var(--text-secondary)] text-right">{leg.distance.toFixed(3)}</td>

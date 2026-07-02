@@ -313,7 +313,7 @@ export default function BillableDocumentsBuilder() {
         onAdd={() => setRows([...rows, { parcelNo: '', ownerOrBeneficiary: '', areaHa: '', landUse: '', access: '', remarks: '' }])}
       >
         {rows.map((row, index) => (
-          <div key={index} className="grid grid-cols-1 md:grid-cols-[0.8fr_1.2fr_0.8fr_1fr_1fr_1.2fr_auto] gap-2">
+          <div key={`${row}-${index}`} className="grid grid-cols-1 md:grid-cols-[0.8fr_1.2fr_0.8fr_1fr_1fr_1.2fr_auto] gap-2">
             <Field label="Parcel" value={row.parcelNo} onChange={v => updateRow(rows, setRows, index, { ...row, parcelNo: v })} />
             <Field label="Beneficiary" value={row.ownerOrBeneficiary} onChange={v => updateRow(rows, setRows, index, { ...row, ownerOrBeneficiary: v })} />
             <Field label="Area ha" value={row.areaHa} onChange={v => updateRow(rows, setRows, index, { ...row, areaHa: v })} />
@@ -335,7 +335,7 @@ export default function BillableDocumentsBuilder() {
         onAdd={() => setRows([...rows, { chainage: '', easting: '', northing: '', offsetLeft: '', offsetRight: '', reserveWidth: '', feature: '', remarks: '' }])}
       >
         {rows.map((row, index) => (
-          <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <div key={`${row}-${index}`} className="grid grid-cols-1 md:grid-cols-4 gap-2">
             <Field label="Chainage" value={row.chainage} onChange={v => updateRow(rows, setRows, index, { ...row, chainage: v })} />
             <Field label="Easting" value={row.easting} onChange={v => updateRow(rows, setRows, index, { ...row, easting: v })} />
             <Field label="Northing" value={row.northing} onChange={v => updateRow(rows, setRows, index, { ...row, northing: v })} />
@@ -361,7 +361,7 @@ export default function BillableDocumentsBuilder() {
         onAdd={() => setRows([...rows, { parcelNo: '', tenure: '', registeredAreaHa: '', surveyedAreaHa: '', variance: '', encumbrance: '', valuationNote: '' }])}
       >
         {rows.map((row, index) => (
-          <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr_1.2fr_1.2fr_auto] gap-2">
+          <div key={`${row}-${index}`} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr_1.2fr_1.2fr_auto] gap-2">
             <Field label="Parcel" value={row.parcelNo} onChange={v => updateRow(rows, setRows, index, { ...row, parcelNo: v })} />
             <Field label="Tenure" value={row.tenure} onChange={v => updateRow(rows, setRows, index, { ...row, tenure: v })} />
             <Field label="Title ha" value={row.registeredAreaHa} onChange={v => updateRow(rows, setRows, index, { ...row, registeredAreaHa: v })} />
@@ -384,7 +384,7 @@ export default function BillableDocumentsBuilder() {
         onAdd={() => setRows([...rows, { feature: '', requiredSetback: '', observedSetback: '', status: 'review', affectedParcel: '', remarks: '' }])}
       >
         {rows.map((row, index) => (
-          <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_0.8fr_0.8fr_1fr_1fr_1.2fr_auto] gap-2">
+          <div key={`${row}-${index}`} className="grid grid-cols-1 md:grid-cols-[1fr_0.8fr_0.8fr_1fr_1fr_1.2fr_auto] gap-2">
             <Field label="Feature" value={row.feature} onChange={v => updateRow(rows, setRows, index, { ...row, feature: v })} />
             <Field label="Required" value={row.requiredSetback} onChange={v => updateRow(rows, setRows, index, { ...row, requiredSetback: v })} />
             <Field label="Observed" value={row.observedSetback} onChange={v => updateRow(rows, setRows, index, { ...row, observedSetback: v })} />

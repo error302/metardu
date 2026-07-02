@@ -649,7 +649,7 @@ function ElementRenderer({
             <table className="w-full h-full">
               <tbody>
                 {(element.tableData || []).map((row, i) => (
-                  <tr key={i} className={i === 0 ? 'bg-gray-200 font-bold' : ''}>
+                  <tr key={`${row}-${i}`} className={i === 0 ? 'bg-gray-200 font-bold' : ''}>
                     {row.map((cell, j) => (
                       <td key={j} className="border border-gray-300 px-1 text-[8px] text-black">
                         {cell}

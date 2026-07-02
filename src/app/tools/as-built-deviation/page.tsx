@@ -130,7 +130,7 @@ export default function AsBuiltDeviationPage() {
             <div className="card-body">
               <select value={toleranceIdx} onChange={e => setToleranceIdx(parseInt(e.target.value))} className="input text-sm mb-2">
                 {KENHA_TOLERANCES.map((opt, i) => (
-                  <option key={i} value={i}>{opt.label}</option>
+                  <option key={opt.label} value={i}>{opt.label}</option>
                 ))}
               </select>
               {toleranceIdx === KENHA_TOLERANCES.length - 1 && (

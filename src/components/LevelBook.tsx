@@ -157,7 +157,7 @@ export default function LevelBook({ projectId }: LevelBookProps) {
               </thead>
               <tbody>
                 {rows.map((row, i) => (
-                  <tr key={i} className="border-b border-[var(--border-color)]/30">
+                  <tr key={row.station} className="border-b border-[var(--border-color)]/30">
                     <td className="px-1.5 py-1 text-[var(--text-muted)]">{i + 1}</td>
                     <td className="px-1 py-1">
                       <input value={row.station} onChange={e => updateRow(i, 'station', e.target.value)}
@@ -261,7 +261,7 @@ export default function LevelBook({ projectId }: LevelBookProps) {
               </thead>
               <tbody>
                 {result.rows.map((row: any, i: number) => (
-                  <tr key={i} className="border-b border-[var(--border-color)]/30">
+                  <tr key={`item-${i}`} className="border-b border-[var(--border-color)]/30">
                     <td className="px-2 py-1.5 font-mono">{row.station}</td>
                     <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">
                       {row.bs !== undefined ? row.bs.toFixed(3) : ''}

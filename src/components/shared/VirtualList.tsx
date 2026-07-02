@@ -97,7 +97,7 @@ export function VirtualList<T>({
         >
           {visibleItems.map(({ item, index }) => (
             <div
-              key={index}
+              key={`vlist-${index}`}
               style={{
                 height: itemHeight,
                 overflow: 'hidden',

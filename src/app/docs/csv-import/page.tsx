@@ -89,7 +89,7 @@ export default function CSVImportPage() {
           <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Tips for Success</h2>
           <ul className="space-y-3">
             {tips.map((tip, i) => (
-              <li key={i} className="flex items-start gap-3 text-[var(--text-secondary)]">
+              <li key={`${tip}-${i}`} className="flex items-start gap-3 text-[var(--text-secondary)]">
                 <span className="text-[var(--accent)]">✓</span>
                 {tip}
               </li>

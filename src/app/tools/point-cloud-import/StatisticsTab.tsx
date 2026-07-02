@@ -114,7 +114,7 @@ export default function StatisticsTab({
                 const r = Math.round(t < 0.5 ? t * 2 * 255 : 255);
                 const g = Math.round(t < 0.5 ? 255 : (1 - (t - 0.5) * 2) * 255);
                 const color = `rgb(${r},${g},0)`;
-                return <circle key={i} cx={x} cy={y} r="2" fill={color} opacity="0.7" />;
+                return <circle key={`${p}-${i}`} cx={x} cy={y} r="2" fill={color} opacity="0.7" />;
               });
             })()}
             <text x="30" y="315" fill="var(--text-muted)" fontSize="10">E: {fmt(boundingBox.minE, 1)}</text>

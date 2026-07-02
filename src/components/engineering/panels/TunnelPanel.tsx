@@ -238,7 +238,7 @@ export function TunnelPanel({ projectId, subtype }: EngineeringPanelProps) {
                       strokeWidth={2}
                     />
                     {profileRows.map((r, i) => (
-                      <circle key={i} cx={xScale(r.chainage)} cy={yScale(r.elevation)} r={3} fill="#f59e0b" stroke="#18181b" strokeWidth={1} />
+                      <circle key={`${r}-${i}`} cx={xScale(r.chainage)} cy={yScale(r.elevation)} r={3} fill="#f59e0b" stroke="#18181b" strokeWidth={1} />
                     ))}
                     <text x={padX + plotW / 2} y={12} textAnchor="middle" fill="#a1a1aa" fontSize={9}>Design Profile</text>
                     <text x={svgW / 2} y={svgH - 0} textAnchor="middle" fill="#71717a" fontSize={8}>Chainage (m)</text>
@@ -256,7 +256,7 @@ export function TunnelPanel({ projectId, subtype }: EngineeringPanelProps) {
                   </thead>
                   <tbody>
                     {profileRows.map((row, i) => (
-                      <tr key={i} className="border-b border-zinc-800 hover:bg-zinc-800/50">
+                      <tr key={`${row}-${i}`} className="border-b border-zinc-800 hover:bg-zinc-800/50">
                         <td className="py-1.5">{row.chainage.toFixed(1)}</td>
                         <td className="py-1.5">{row.elevation.toFixed(3)}</td>
                         <td className="py-1.5">{row.chainage.toFixed(1)}</td>
@@ -284,7 +284,7 @@ export function TunnelPanel({ projectId, subtype }: EngineeringPanelProps) {
             </thead>
             <tbody>
               {convergencePoints.map((pt, i) => (
-                <tr key={i} className="border-b border-zinc-800">
+                <tr key={pt.label} className="border-b border-zinc-800">
                   <td className="py-2">{pt.chainage.toFixed(3)}</td>
                   <td className="py-2">{pt.label}</td>
                 </tr>

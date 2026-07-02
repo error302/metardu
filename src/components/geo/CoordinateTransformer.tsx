@@ -76,7 +76,7 @@ export default function CoordinateTransformer({ projectId }: { projectId?: strin
         </thead>
         <tbody>
           {rows.map((row: any, idx: any) => (
-            <tr key={idx}>
+            <tr key={`row-${row.id}-${idx}`}>
               <td className="border px-1"><input aria-label="Id" value={row.id} onChange={(e) => updateRow(idx, 'id', e.target.value)} className="w-full outline-none px-1" /></td>
               <td className="border px-1"><input value={row.x} onChange={(e) => updateRow(idx, 'x', e.target.value)} className="w-full outline-none px-1" aria-label="0.000" placeholder="0.000" /></td>
               <td className="border px-1"><input value={row.y} onChange={(e) => updateRow(idx, 'y', e.target.value)} className="w-full outline-none px-1" aria-label="0.000" placeholder="0.000" /></td>
@@ -112,7 +112,7 @@ export default function CoordinateTransformer({ projectId }: { projectId?: strin
             </thead>
             <tbody>
               {results.map((r, i) => (
-                <tr key={i} className={r.warning ? 'bg-yellow-50' : ''}>
+                <tr key={r.id} className={r.warning ? 'bg-yellow-50' : ''}>
                   <td className="border px-2 py-1">{r.id}</td>
                   <td className="border px-2 py-1">{r.x}</td>
                   <td className="border px-2 py-1">{r.y}</td>

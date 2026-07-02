@@ -385,7 +385,7 @@ export default function FieldPage() {
                 </div>
                 {batchErrors.length > 0 && (
                   <div className="text-[10px] text-red-400">
-                    {batchErrors.map((e, i) => <div key={i}>{e}</div>)}
+                    {batchErrors.map((e, i) => <div key={`${e}-${i}`}>{e}</div>)}
                   </div>
                 )}
                 {batchParseResults.length > 0 && (

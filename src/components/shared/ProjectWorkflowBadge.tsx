@@ -116,7 +116,7 @@ export default function ProjectWorkflowBadge({ project }: ProjectWorkflowBadgePr
           <div className="pt-1.5 border-t border-[var(--border-color)]">
             <p className="text-red-400 font-medium mb-0.5">Blockers:</p>
             {status.blockers.map((b, i) => (
-              <p key={i} className="text-red-400/80">{b}</p>
+              <p key={`${b}-${i}`} className="text-red-400/80">{b}</p>
             ))}
           </div>
         )}

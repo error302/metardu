@@ -63,7 +63,7 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
             </thead>
             <tbody>
               {controlPoints.map((pt, i) => (
-                <tr key={i} className="border-b border-zinc-800">
+                <tr key={`${pt}-${i}`} className="border-b border-zinc-800">
                   <td className="py-2">CP{i + 1}</td>
                   <td className="py-2">{pt.easting.toFixed(3)}</td>
                   <td className="py-2">{pt.northing.toFixed(3)}</td>
@@ -97,7 +97,7 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
             </thead>
             <tbody>
               {buildingCorners.map((corner, i) => (
-                <tr key={i} className="border-b border-zinc-800">
+                <tr key={corner.label} className="border-b border-zinc-800">
                   <td className="py-2">{corner.label}</td>
                   <td className="py-2">{corner.easting.toFixed(3)}</td>
                   <td className="py-2">{corner.northing.toFixed(3)}</td>
@@ -154,7 +154,7 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
               </thead>
               <tbody>
                 {buildingCorners.map((corner, i) => (
-                  <tr key={i} className="border-b border-zinc-800">
+                  <tr key={corner.label} className="border-b border-zinc-800">
                     <td className="py-2">{corner.label}</td>
                     <td className="py-2">CP1</td>
                     <td className="py-2">—</td>

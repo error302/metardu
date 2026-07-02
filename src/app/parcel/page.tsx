@@ -130,7 +130,7 @@ export default function ParcelSearchPage() {
               <div className="space-y-4">
                 <h3 className="font-medium text-[var(--text-muted)]">Found {parcels.length} Parcel(s)</h3>
                 {parcels.map((parcel, i) => (
-                  <div key={i} className="p-4 border rounded-lg hover:bg-[var(--bg-secondary)]">
+                  <div key={`${parcel}-${i}`} className="p-4 border rounded-lg hover:bg-[var(--bg-secondary)]">
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="font-medium text-lg">{parcel.parcelId}</h4>
@@ -207,7 +207,7 @@ export default function ParcelSearchPage() {
                     <h4 className="font-medium mb-2">Principles</h4>
                     <ul className="text-sm space-y-1">
                       {legalGuidance.principles.map((p: string, i: number) => (
-                        <li key={i} className="text-[var(--text-muted)]">• {p}</li>
+                        <li key={`item-${i}`} className="text-[var(--text-muted)]">• {p}</li>
                       ))}
                     </ul>
                   </div>
@@ -216,7 +216,7 @@ export default function ParcelSearchPage() {
                     <h4 className="font-medium mb-2">Recommendations</h4>
                     <ul className="text-sm space-y-1">
                       {legalGuidance.recommendations.map((r: string, i: number) => (
-                        <li key={i} className="text-[var(--text-muted)]">✓ {r}</li>
+                        <li key={`item-${i}`} className="text-[var(--text-muted)]">✓ {r}</li>
                       ))}
                     </ul>
                   </div>
@@ -224,7 +224,7 @@ export default function ParcelSearchPage() {
                   <div className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
                     <h4 className="font-medium mb-2 text-sm">References</h4>
                     {legalGuidance.references.map((ref: any, i: number) => (
-                      <p key={i} className="text-xs text-[var(--text-muted)]">
+                      <p key={`item-${i}`} className="text-xs text-[var(--text-muted)]">
                         {ref.book}, Chapter: {ref.chapter}
                       </p>
                     ))}

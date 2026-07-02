@@ -319,7 +319,7 @@ export default function AIPlanChecker() {
               <div className="space-y-2">
                 <h4 className="font-medium text-gray-700">Check Results</h4>
                 {report.checks.map((check, index) => (
-                  <div key={index} className="p-3 border rounded-lg">
+                  <div key={`${check}-${index}`} className="p-3 border rounded-lg">
                     <div className="flex items-start gap-2">
                       {getSeverityIcon(check.severity, check.passed)}
                       <div className="flex-1">
@@ -342,7 +342,7 @@ export default function AIPlanChecker() {
                   <h4 className="font-medium text-blue-900 text-sm mb-2">Suggestions</h4>
                   <ul className="space-y-1">
                     {report.suggestions.map((suggestion, index) => (
-                      <li key={index} className="text-xs text-blue-800 flex items-start gap-2">
+                      <li key={`${suggestion}-${index}`} className="text-xs text-blue-800 flex items-start gap-2">
                         <Info className="w-3 h-3 mt-0.5" />
                         {suggestion}
                       </li>

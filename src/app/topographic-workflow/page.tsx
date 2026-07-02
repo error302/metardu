@@ -275,7 +275,7 @@ export default function TopographicWorkflowPage() {
                     {/* Hints */}
                     <ul className="space-y-1.5">
                       {step.hints.map((hint, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-[var(--text-muted)]">
+                        <li key={`${hint}-${i}`} className="flex items-start gap-2 text-xs text-[var(--text-muted)]">
                           <span className="text-[var(--accent)] mt-0.5">·</span>
                           <span className="font-mono leading-relaxed">{hint}</span>
                         </li>

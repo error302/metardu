@@ -338,7 +338,7 @@ export default function MachineControlExportPanel() {
               <tbody>
                 {points.map((pt, idx) => (
                   <tr
-                    key={idx}
+                    key={pt.name}
                     className="border-b border-zinc-700/50 hover:bg-zinc-700/30 transition-colors"
                   >
                     <td className="px-3 py-1.5 text-zinc-500">{idx + 1}</td>

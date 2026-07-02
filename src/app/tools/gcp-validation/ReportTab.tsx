@@ -75,7 +75,7 @@ export function ReportTab({
               </thead>
               <tbody>
                 {validationSummary.points.map((p, i) => (
-                  <tr key={i}>
+                  <tr key={p.name}>
                     <td>{p.name}</td>
                     <td className="font-mono">{fmt(p.knownE)}</td>
                     <td className="font-mono">{fmt(p.softwareE)}</td>

@@ -126,7 +126,7 @@ export default function ControlMarksRegisterPage() {
             </thead>
             <tbody>
               {rows.map((row, index) => (
-                <tr key={index}>
+                <tr key={`${row}-${index}`}>
                   {(Object.keys(row) as (keyof MarkRow)[]).map(field => (
                     <td key={field}>
                       <input aria-label="{column}"

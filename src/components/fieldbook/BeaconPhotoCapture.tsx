@@ -166,7 +166,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
         <div className="grid grid-cols-2 gap-2">
           {photos.map((photo, idx) => (
             <div
-              key={idx}
+              key={`${photo}-${idx}`}
               className="relative rounded-lg overflow-hidden border border-[var(--border-color)] bg-[var(--bg-secondary)]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

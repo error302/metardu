@@ -68,7 +68,7 @@ export const PricingCard = ({
       <div className="card-divider w-full mb-5 h-px" style={{background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.22) 50%, transparent)"}}></div>
       <ul className="flex flex-col gap-2 text-[14px] text-foreground/90 mb-6 font-sans">
         {features.map((feature, index) => (
-          <li key={index} className="flex items-center gap-2">
+          <li key={`${feature}-${index}`} className="flex items-center gap-2">
             <CheckIcon className="text-cyan-400 w-4 h-4" /> {feature}
           </li>
         ))}
@@ -139,7 +139,7 @@ export const ModernPricingPage = ({
 
         <div className="grid grid-cols-1 divide-x divide-dashed divide-border border border-dashed border-border rounded-2xl sm:grid-cols-2 md:grid-cols-3 w-full max-w-5xl mb-16">
           {metarduFeatures.map((feature, i) => (
-            <FeatureCard key={i} feature={feature} />
+            <FeatureCard key={`${feature}-${i}`} feature={feature} />
           ))}
         </div>
 

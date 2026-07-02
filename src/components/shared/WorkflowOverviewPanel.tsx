@@ -197,7 +197,7 @@ export default function WorkflowOverviewPanel({
           <div className="px-5 py-3 border-t border-[var(--border-color)] bg-red-500/5">
             <p className="text-xs font-semibold text-red-400 mb-1">Blockers</p>
             {status.blockers.map((b, i) => (
-              <p key={i} className="text-xs text-red-400/80 flex items-start gap-1.5">
+              <p key={`${b}-${i}`} className="text-xs text-red-400/80 flex items-start gap-1.5">
                 <svg className="w-3 h-3 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                 </svg>

@@ -272,7 +272,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                     </thead>
                     <tbody>
                       {boundaryLines.map((line, idx) => (
-                        <tr key={idx} className="border-b border-[var(--border-color)]">
+                        <tr key={`${line}-${idx}`} className="border-b border-[var(--border-color)]">
                           <td className="py-2 text-[var(--text-primary)]">{line.from}→{line.to}</td>
                           <td className="py-2 text-right font-mono text-[var(--text-primary)]">{line.bearing}</td>
                           <td className="py-2 text-right font-mono text-[var(--text-primary)]">{line.distance.toFixed(3)} m</td>

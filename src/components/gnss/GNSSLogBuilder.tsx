@@ -235,7 +235,7 @@ export default function GNSSLogBuilder() {
             </thead>
             <tbody>
               {observations.map((obs, i) => (
-                <tr key={i} className={i % 2 === 0 ? '' : 'bg-[var(--bg-tertiary)]/20'}>
+                <tr key={`${obs}-${i}`} className={i % 2 === 0 ? '' : 'bg-[var(--bg-tertiary)]/20'}>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
                     <input aria-label="Pointid" value={obs.pointId} onChange={e => updateObs(i, 'pointId', e.target.value)}
                       className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)] font-bold" />
@@ -355,7 +355,7 @@ export default function GNSSLogBuilder() {
                   </thead>
                   <tbody>
                     {baselines.map((b, i) => (
-                      <tr key={i} className={i % 2 === 0 ? '' : 'bg-[var(--bg-tertiary)]/20'}>
+                      <tr key={`${b}-${i}`} className={i % 2 === 0 ? '' : 'bg-[var(--bg-tertiary)]/20'}>
                         <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="From" value={b.from} onChange={e => updateBsl(i, 'from', e.target.value)} className="w-16 px-1 py-1 bg-transparent text-[var(--text-primary)] font-bold" /></td>
                         <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="To" value={b.to} onChange={e => updateBsl(i, 'to', e.target.value)} className="w-16 px-1 py-1 bg-transparent text-[var(--text-primary)] font-bold" /></td>
                         <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="Deltae" type="number" step="0.001" value={b.deltaE} onChange={e => updateBsl(i, 'deltaE', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>

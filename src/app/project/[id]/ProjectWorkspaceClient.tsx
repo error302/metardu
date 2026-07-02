@@ -324,7 +324,7 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
               <div>
                 <p className="text-amber-400 font-medium mb-1">Workflow Blockers</p>
                 {workflowStatus.blockers.map((b, i) => (
-                  <p key={i} className="text-amber-400/80 text-xs">{b}</p>
+                  <p key={`${b}-${i}`} className="text-amber-400/80 text-xs">{b}</p>
                 ))}
               </div>
             </div>

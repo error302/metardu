@@ -169,12 +169,12 @@ export default function GNSSBaselinePage() {
             </h4>
             {validation.errors.length > 0 && (
               <ul className="text-sm text-red-400 space-y-1">
-                {validation.errors.map((e, i) => <li key={i}>• {e}</li>)}
+                {validation.errors.map((e, i) => <li key={`${e}-${i}`}>• {e}</li>)}
               </ul>
             )}
             {validation.warnings.length > 0 && (
               <ul className="text-sm text-yellow-400 space-y-1 mt-2">
-                {validation.warnings.map((w, i) => <li key={i}>[!] {w}</li>)}
+                {validation.warnings.map((w, i) => <li key={`${w}-${i}`}>[!] {w}</li>)}
               </ul>
             )}
           </div>
@@ -216,7 +216,7 @@ export default function GNSSBaselinePage() {
                 </thead>
                 <tbody>
                   {result.baselineVectors.map((v, i) => (
-                    <tr key={i} className="border-b">
+                    <tr key={`${v}-${i}`} className="border-b">
                       <td className="py-2">{v.from}</td>
                       <td className="py-2">{v.to}</td>
                       <td className="text-right font-mono">{v.deltaEasting.toFixed(4)}</td>

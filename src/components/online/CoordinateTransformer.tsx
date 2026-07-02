@@ -259,7 +259,7 @@ export default function CoordinateTransformer() {
               </thead>
               <tbody>
                 {results.map((r, i) => (
-                  <tr key={i} className="border-b border-[var(--border-color)]">
+                  <tr key={r.id} className="border-b border-[var(--border-color)]">
                     <td className="p-2">{r.id || i + 1}</td>
                     <td className="p-2 text-right font-mono">{r.x?.toFixed(4)}</td>
                     <td className="p-2 text-right font-mono">{r.y?.toFixed(4)}</td>

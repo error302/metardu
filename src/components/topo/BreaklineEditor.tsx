@@ -221,7 +221,7 @@ export function BreaklineEditor({ points, breaklines, onChange }: BreaklineEdito
           ) : (
             breaklines.map((b, i) => (
               <div
-                key={i}
+                key={`${b}-${i}`}
                 className="flex items-center justify-between text-xs px-2 py-1 rounded bg-[var(--bg-secondary)]"
               >
                 <span className="font-mono text-[var(--text-secondary)]">

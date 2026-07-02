@@ -265,7 +265,7 @@ function ContourMap({ points, contours }: { points: SpotHeight[]; contours: Cont
         {/* Grid lines */}
         {[...Array(5)].map((_, i) => {
           const y = padding + (i / 4) * (height - padding * 2)
-          return <line key={i} x1={padding} y1={y} x2={width - padding} y2={y}
+          return <line key={`${_}-${i}`} x1={padding} y1={y} x2={width - padding} y2={y}
             stroke="#1e1e1e" strokeWidth={0.5}/>
         })}
 
@@ -278,7 +278,7 @@ function ContourMap({ points, contours }: { points: SpotHeight[]; contours: Cont
             `${j === 0 ? 'M' : 'L'}${toX(p.easting).toFixed(1)},${toY(p.northing).toFixed(1)}`
           ).join(' ')
           return (
-            <path key={i} d={d} fill="none"
+            <path key={`contour-${contour.elevation}`} d={d} fill="none"
               stroke={elevColor(contour.elevation)}
               strokeWidth={isMajor ? 1.2 : 0.6}
               opacity={isMajor ? 0.9 : 0.6}
@@ -294,7 +294,7 @@ function ContourMap({ points, contours }: { points: SpotHeight[]; contours: Cont
             const p = contour.points[Math.floor(contour.points.length / 2)]
             if (!p) return null
             return (
-              <text key={i} x={toX(p.easting)} y={toY(p.northing)}
+              <text key={`${contour}-${i}`} x={toX(p.easting)} y={toY(p.northing)}
                 fill="rgba(255,255,255,0.7)" fontSize={8} textAnchor="middle"
                 style={{ paintOrder: 'stroke', stroke: '#0a0a0f', strokeWidth: 3 }}>
                 {contour.elevation}
@@ -321,7 +321,7 @@ function ContourMap({ points, contours }: { points: SpotHeight[]; contours: Cont
           <text x={40} y={16} fill="rgba(255,255,255,0.7)" fontSize={8}
             textAnchor="middle" fontWeight="600">Elevation</text>
           {[maxElev, (minElev + maxElev) / 2, minElev].map((elev, i) => (
-            <g key={i} transform={`translate(8, ${28 + i * 14})`}>
+            <g key={`${elev}-${i}`} transform={`translate(8, ${28 + i * 14})`}>
               <rect x={0} y={-6} width={12} height={8} rx={2} fill={elevColor(elev)}/>
               <text x={18} y={0} fill="rgba(255,255,255,0.6)" fontSize={7}>
                 {elev.toFixed(1)} m

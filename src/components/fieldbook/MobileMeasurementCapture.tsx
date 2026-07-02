@@ -335,7 +335,7 @@ export function MobileMeasurementCapture({ onCapture, stationName, surveyType }:
             {photos.length > 0 && (
               <div className="flex gap-2 overflow-x-auto">
                 {photos.map((photo, i) => (
-                  <div key={i} className="relative shrink-0">
+                  <div key={`${photo}-${i}`} className="relative shrink-0">
                     <img src={photo} alt={`Photo ${i + 1}`} className="w-16 h-16 rounded-lg object-cover" />
                     <button onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px]">
                       <X className="w-3 h-3" />

@@ -239,7 +239,7 @@ export default function EquipmentTracker() {
                     </thead>
                     <tbody>
                       {selectedEquipment.calibrationHistory.map((cal, i) => (
-                        <tr key={i} className="border-b">
+                        <tr key={`${cal}-${i}`} className="border-b">
                           <td className="py-2">{cal.date}</td>
                           <td className="py-2">{cal.certNumber}</td>
                           <td className="py-2">{cal.lab}</td>

@@ -89,7 +89,7 @@ export function RoadPanel({ projectId, subtype }: EngineeringPanelProps) {
             </thead>
             <tbody>
               {alignment.map((pt, i) => (
-                <tr key={i} className="border-b border-zinc-800">
+                <tr key={pt.label} className="border-b border-zinc-800">
                   <td className="py-2">{pt.chainage.toFixed(3)}</td>
                   <td className="py-2">{pt.easting.toFixed(3)}</td>
                   <td className="py-2">{pt.northing.toFixed(3)}</td>
@@ -112,7 +112,7 @@ export function RoadPanel({ projectId, subtype }: EngineeringPanelProps) {
         <div>
           <div className="text-lg font-medium mb-3">Horizontal Curves</div>
           {computedHorizontal.map((curve, i) => (
-            <div key={i} className="mb-4 p-3 bg-zinc-800 rounded-lg">
+            <div key={`${curve}-${i}`} className="mb-4 p-3 bg-zinc-800 rounded-lg">
               <div className="text-sm text-amber-500 mb-2">Curve {i + 1}</div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-zinc-400">Radius:</span> {horizontalCurves[i].radius}m</div>
@@ -178,7 +178,7 @@ export function RoadPanel({ projectId, subtype }: EngineeringPanelProps) {
         <div>
           <div className="text-lg font-medium mb-3">Vertical Curves</div>
           {computedVertical.map((vc, i) => (
-            <div key={i} className="mb-4 p-3 bg-zinc-800 rounded-lg">
+            <div key={`${vc}-${i}`} className="mb-4 p-3 bg-zinc-800 rounded-lg">
               <div className="text-sm text-amber-500 mb-2">Vertical Curve {i + 1}</div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-zinc-400">PVI Chainage:</span> {verticalCurves[i].pvIChainage.toFixed(3)}m</div>
@@ -247,7 +247,7 @@ export function RoadPanel({ projectId, subtype }: EngineeringPanelProps) {
               {crossSections.map((cs, i) => {
                 const { cutArea, fillArea } = crossSectionCutFill(cs.designLevel, cs.levels);
                 return (
-                  <tr key={i} className="border-b border-zinc-800">
+                  <tr key={`${cs}-${i}`} className="border-b border-zinc-800">
                     <td className="py-2">{cs.chainage.toFixed(3)}</td>
                     <td className="py-2">{cs.designLevel.toFixed(3)}</td>
                     <td className="py-2">{cutArea.toFixed(3)}</td>

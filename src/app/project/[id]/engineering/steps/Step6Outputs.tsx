@@ -101,7 +101,7 @@ export function Step6Outputs({
               </thead>
               <tbody>
                 {curves.map((c, i) => (
-                  <tr key={i} className="border-t border-zinc-800">
+                  <tr key={c.name} className="border-t border-zinc-800">
                     <td className="py-1.5 text-white">{c.name}</td>
                     <td className="py-1.5 text-right text-zinc-400">{c.radius}m</td>
                     <td className="py-1.5 text-right text-zinc-400">{c.deflection}°</td>
@@ -130,7 +130,7 @@ export function Step6Outputs({
               </thead>
               <tbody>
                 {earthworks.slice(0, 10).map((e, i) => (
-                  <tr key={i} className="border-t border-zinc-800">
+                  <tr key={`${e}-${i}`} className="border-t border-zinc-800">
                     <td className="py-1.5 text-white">{e.chainage}m</td>
                     <td className="py-1.5 text-right text-zinc-400">{e.groundLevel.toFixed(2)}</td>
                     <td className="py-1.5 text-right text-green-400">{e.cutArea.toFixed(1)}m²</td>

@@ -226,7 +226,7 @@ function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
     const filled = rating >= i
     const half = !filled && rating >= i - 0.5
     stars.push(
-      <svg key={i} width={size} height={size} viewBox="0 0 20 20" fill={filled ? 'var(--accent)' : half ? 'url(#halfStar)' : 'none'} stroke="var(--accent)" strokeWidth="1.2">
+      <svg key={`item-${i}`} width={size} height={size} viewBox="0 0 20 20" fill={filled ? 'var(--accent)' : half ? 'url(#halfStar)' : 'none'} stroke="var(--accent)" strokeWidth="1.2">
         {half && (
           <defs>
             <linearGradient id="halfStar">
@@ -740,7 +740,7 @@ export default function CommunityPage() {
           <div className="grid gap-4 md:grid-cols-3">
             {equipmentListings.map((item, i) => (
               <Link
-                key={i}
+                key={item.href}
                 href={item.href}
                 className="group rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 hover:border-[var(--accent)]/30 transition-all duration-300"
               >
@@ -847,7 +847,7 @@ export default function CommunityPage() {
               <div className="px-4 pb-4 space-y-3">
                 {equipmentListings.map((item, i) => (
                   <Link
-                    key={i}
+                    key={item.href}
                     href={item.href}
                     className="group flex items-start gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-tertiary)]/50 p-3 hover:border-[var(--accent)]/20 transition-all duration-300"
                   >

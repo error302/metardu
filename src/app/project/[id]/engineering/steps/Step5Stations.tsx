@@ -131,7 +131,7 @@ export function Step5Stations({
             </thead>
             <tbody>
               {stations.map((s, idx) => (
-                <tr key={idx} className="border-t border-zinc-800">
+                <tr key={`${s}-${idx}`} className="border-t border-zinc-800">
                   <td className="px-3 py-2 text-zinc-500">{idx + 1}</td>
                   <td className="px-3 py-2">
                     <input aria-label="Chainage"

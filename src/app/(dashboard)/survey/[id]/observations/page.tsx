@@ -83,7 +83,7 @@ export default function ObservationsPage() {
 
       {/* Observation entries */}
       {observations.map((obs, i) => (
-        <div key={i} className="card" style={{ marginBottom: '12px' }}>
+        <div key={`${obs}-${i}`} className="card" style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--accent)' }}>
               Observation {i + 1}

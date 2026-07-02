@@ -155,7 +155,7 @@ export default function SubdivisionGeneratorPage() {
             <div className="card-body">
               <select value={plotPreset} onChange={e => setPlotPreset(parseInt(e.target.value))} className="input text-sm mb-3">
                 {KENYA_PLOT_PRESETS.map((opt, i) => (
-                  <option key={i} value={i}>{opt.label}</option>
+                  <option key={opt.label} value={i}>{opt.label}</option>
                 ))}
               </select>
               {plotPreset === KENYA_PLOT_PRESETS.length - 1 && (
@@ -182,7 +182,7 @@ export default function SubdivisionGeneratorPage() {
             <div className="card-body">
               <select value={roadPreset} onChange={e => setRoadPreset(parseInt(e.target.value))} className="input text-sm mb-3">
                 {KENYA_ROAD_PRESETS.map((opt, i) => (
-                  <option key={i} value={i}>{opt.label}</option>
+                  <option key={opt.label} value={i}>{opt.label}</option>
                 ))}
               </select>
               <div className="flex gap-4">
@@ -253,7 +253,7 @@ export default function SubdivisionGeneratorPage() {
                   <div className="card-header bg-[var(--warning)]/5"><span className="label text-[var(--warning)]">Warnings</span></div>
                   <div className="card-body space-y-2">
                     {result.warnings.map((w, i) => (
-                      <p key={i} className="text-xs text-[var(--text-secondary)] font-mono">{w}</p>
+                      <p key={`${w}-${i}`} className="text-xs text-[var(--text-secondary)] font-mono">{w}</p>
                     ))}
                   </div>
                 </div>

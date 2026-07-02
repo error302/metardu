@@ -157,7 +157,7 @@ export default function SettingOutCalculator() {
               </thead>
               <tbody>
                 {points.map((p, i) => (
-                  <tr key={i} className="hover:bg-[var(--bg-tertiary)]/30">
+                  <tr key={`${p}-${i}`} className="hover:bg-[var(--bg-tertiary)]/30">
                     {pointFields.map(f => (
                       <td key={f} className="px-1 py-1 border border-[var(--border-color)]/50">
                         <input aria-label="{h}" value={p[f]} onChange={e => updatePoint(i, f, e.target.value)}
@@ -282,7 +282,7 @@ export default function SettingOutCalculator() {
                 )}
                 <div><span className="text-[var(--text-muted)]">Tolerance: </span><span>±{(checkResult.hTolerance * 1000).toFixed(0)}mm H / ±{(checkResult.vTolerance * 1000).toFixed(0)}mm V</span></div>
               </div>
-              {checkResult.messages.map((m, i) => <p key={i} className="text-xs mt-1 text-[var(--text-secondary)]">{m}</p>)}
+              {checkResult.messages.map((m, i) => <p key={`${m}-${i}`} className="text-xs mt-1 text-[var(--text-secondary)]">{m}</p>)}
             </div>
           )}
         </div>

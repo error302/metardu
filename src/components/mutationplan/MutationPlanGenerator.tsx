@@ -1384,7 +1384,7 @@ export default function MutationPlanGenerator() {
                   </thead>
                   <tbody>
                     {computedBearingSchedule.slice(0, 30).map((entry, i) => (
-                      <tr key={i} className="border-b border-zinc-800/50">
+                      <tr key={`${entry}-${i}`} className="border-b border-zinc-800/50">
                         <td className="py-1.5 px-2 text-xs">{entry.lineId}</td>
                         <td className="py-1.5 px-2 text-xs">{entry.from}</td>
                         <td className="py-1.5 px-2 text-xs">{entry.to}</td>
@@ -1640,7 +1640,7 @@ export default function MutationPlanGenerator() {
                   </thead>
                   <tbody>
                     {computedBearingSchedule.slice(0, 80).map((entry, i) => (
-                      <tr key={i} className="border-b border-zinc-800/50">
+                      <tr key={`${entry}-${i}`} className="border-b border-zinc-800/50">
                         <td className="py-1.5 px-2 text-xs">{entry.lineId}</td>
                         <td className="py-1.5 px-2 text-xs">{entry.from}</td>
                         <td className="py-1.5 px-2 text-xs">{entry.to}</td>

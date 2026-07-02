@@ -118,7 +118,7 @@ export function MeasurementTool({ map }: MeasurementToolProps) {
           {state.points.length > 0 && (
             <div className="mt-2 text-[10px] text-gray-500">
               {state.points.map((p, i) => (
-                <div key={i}>Pt {i + 1}: E {p.easting.toFixed(0)} N {p.northing.toFixed(0)}</div>
+                <div key={`${p}-${i}`}>Pt {i + 1}: E {p.easting.toFixed(0)} N {p.northing.toFixed(0)}</div>
               ))}
             </div>
           )}

@@ -126,7 +126,7 @@ export default function MassHaulDiagram({ result }: Props) {
 
           {/* X axis ticks */}
           {xTicks.map((ch, i) => (
-            <g key={i}>
+            <g key={`${ch}-${i}`}>
               <line x1={toSvgX(ch)} y1={svgH - padY} x2={toSvgX(ch)} y2={svgH - padY + 5} stroke="#333" strokeWidth="0.5" />
               <text x={toSvgX(ch)} y={svgH - padY + 15} fontSize="8" fill="#666" textAnchor="middle" fontFamily="monospace">
                 {fmtCh(ch)}
@@ -136,7 +136,7 @@ export default function MassHaulDiagram({ result }: Props) {
 
           {/* Y axis ticks */}
           {yTicks.map((ord, i) => (
-            <g key={i}>
+            <g key={`${ord}-${i}`}>
               <line x1={padX - 5} y1={toSvgY(ord)} x2={padX} y2={toSvgY(ord)} stroke="#333" strokeWidth="0.5" />
               <text x={padX - 8} y={toSvgY(ord) + 3} fontSize="8" fill="#666" textAnchor="end" fontFamily="monospace">
                 {ord >= 1000 ? `${(ord / 1000).toFixed(1)}k` : ord.toFixed(0)}

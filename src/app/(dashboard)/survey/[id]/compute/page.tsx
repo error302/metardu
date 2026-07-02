@@ -128,7 +128,7 @@ export default function ComputePage() {
                   </thead>
                   <tbody>
                     {result.correctionsApplied.map((c: any, i: number) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <tr key={`item-${i}`} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '8px' }}>{c.from} → {c.to}</td>
                         <td style={{ padding: '8px', textAlign: 'right' }}>{c.rawDistance?.toFixed(4)}</td>
                         <td style={{ padding: '8px', textAlign: 'right', color: 'var(--accent)' }}>{c.gridDistance?.toFixed(4)}</td>

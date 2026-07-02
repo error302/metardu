@@ -96,7 +96,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
           <div className="bg-[var(--bg-tertiary)]/50 p-4 rounded-lg border border-[var(--border-color)]">
             <div className="flex flex-wrap gap-2">
               {equipment.map((item, idx) => (
-                <span key={idx} className="text-xs bg-[#D17B47]/20 text-[#D17B47] px-2 py-1 rounded">
+                <span key={`${item}-${idx}`} className="text-xs bg-[#D17B47]/20 text-[#D17B47] px-2 py-1 rounded">
                   {item}
                 </span>
               ))}
@@ -110,7 +110,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
           <label className="block text-sm font-medium text-gray-300 mb-2">Preparation Checklist</label>
           <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 space-y-2">
             {checklist.map((task, idx) => (
-              <label key={idx} className="flex items-center gap-2 text-sm text-gray-300">
+              <label key={`${task}-${idx}`} className="flex items-center gap-2 text-sm text-gray-300">
                 <input aria-label="Preparation Checklist" type="checkbox" className="rounded" />
                 {task}
               </label>

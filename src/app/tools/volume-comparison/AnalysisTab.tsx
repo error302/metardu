@@ -117,7 +117,7 @@ export default function AnalysisTab({
         <div className="p-4 bg-red-900/20 border border-red-800/30 rounded-lg">
           <h4 className="text-sm font-medium text-red-400 mb-1">Computation Errors</h4>
           <ul className="text-xs text-red-300/80 space-y-0.5">
-            {computeErrors.map((err, i) => <li key={i}>{err}</li>)}
+            {computeErrors.map((err, i) => <li key={`${err}-${i}`}>{err}</li>)}
           </ul>
         </div>
       )}
@@ -127,7 +127,7 @@ export default function AnalysisTab({
         <div className="p-4 bg-amber-900/20 border border-amber-800/30 rounded-lg">
           <h4 className="text-sm font-medium text-amber-400 mb-1">Warnings</h4>
           <ul className="text-xs text-amber-300/80 space-y-0.5">
-            {computeWarnings.map((w, i) => <li key={i}>{w}</li>)}
+            {computeWarnings.map((w, i) => <li key={`${w}-${i}`}>{w}</li>)}
           </ul>
         </div>
       )}
@@ -281,7 +281,7 @@ export default function AnalysisTab({
                     else color = `rgba(128, 128, 128, 0.15)`;
 
                     return (
-                      <g key={i}>
+                      <g key={`${cell}-${i}`}>
                         <rect
                           x={cell.easting}
                           y={cell.northing}

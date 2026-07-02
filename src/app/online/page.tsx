@@ -467,7 +467,7 @@ export default function OnlineServicesPage() {
                       <h4 className="font-medium text-yellow-800 mb-2">Recommendations</h4>
                       <ul className="text-sm text-yellow-700 space-y-1">
                         {weatherResult.recommendations.map((rec: string, i: number) => (
-                          <li key={i}>• {rec}</li>
+                          <li key={`item-${i}`}>• {rec}</li>
                         ))}
                       </ul>
                     </div>

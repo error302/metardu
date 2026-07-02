@@ -93,7 +93,7 @@ export function DrainageStep2Pipes({
             </thead>
             <tbody>
               {pipes.map((p, idx) => (
-                <tr key={idx} className="border-t border-zinc-800">
+                <tr key={`${p}-${idx}`} className="border-t border-zinc-800">
                   <td className="px-3 py-2 text-white">{p.fromMH}</td>
                   <td className="px-3 py-2 text-white">{p.toMH}</td>
                   <td className="px-3 py-2 text-right text-zinc-400">{p.length.toFixed(1)}</td>

@@ -1367,7 +1367,7 @@ export default function GuideTypePage({ params }: PageProps) {
                   {guide.fieldChecklist.map((item, idx) => {
                     const checked = fieldChecklistDone.includes(idx)
                     return (
-                      <label key={idx} className="flex items-start gap-3 text-sm text-[var(--text-primary)] cursor-pointer select-none">
+                      <label key={`${item}-${idx}`} className="flex items-start gap-3 text-sm text-[var(--text-primary)] cursor-pointer select-none">
                         <input aria-label="Checked"
                           type="checkbox"
                           checked={checked}
@@ -1387,7 +1387,7 @@ export default function GuideTypePage({ params }: PageProps) {
                 <h2 className="text-lg font-semibold mb-3 text-red-300">Stop Rules</h2>
                 <ul className="list-disc pl-6 space-y-1 text-sm text-[var(--text-primary)]">
                   {guide.stopRules.map((rule, idx) => (
-                    <li key={idx}>{rule}</li>
+                    <li key={`${rule}-${idx}`}>{rule}</li>
                   ))}
                 </ul>
               </div>

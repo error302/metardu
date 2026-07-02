@@ -306,7 +306,7 @@ export function TraverseBook({
                   </thead>
                   <tbody>
                     {edmRows.map((row, i) => row && (
-                      <tr key={i} className="border-b border-[var(--border-color)]/30">
+                      <tr key={`${row}-${i}`} className="border-b border-[var(--border-color)]/30">
                         <td className="px-2 py-1.5 font-mono">{row.line}</td>
                         <td className="px-2 py-1.5 text-right font-mono">{row.sd.toFixed(3)}</td>
                         <td className="px-2 py-1.5 text-right font-mono">{row.hd.toFixed(3)}</td>

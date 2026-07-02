@@ -437,7 +437,7 @@ export function InputForm(props: InputFormProps) {
                 {calibrationErrors.length > 0 && (
                   <div className="space-y-1">
                     {calibrationErrors.map((err, i) => (
-                      <p key={i} className="text-[10px] text-[var(--warning)]">{err}</p>
+                      <p key={`${err}-${i}`} className="text-[10px] text-[var(--warning)]">{err}</p>
                     ))}
                   </div>
                 )}

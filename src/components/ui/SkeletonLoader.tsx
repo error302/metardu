@@ -30,7 +30,7 @@ export function SkeletonCard({ lines = 3 }: { lines?: number }) {
       <Skeleton className="h-5 w-3/4" />
       <Skeleton className="h-3 w-1/2" />
       {Array.from({ length: lines - 2 > 0 ? lines - 2 : 1 }).map((_, i) => (
-        <Skeleton key={i} className={`h-3 w-${i % 2 === 0 ? '5/6' : '2/3'}`} />
+        <Skeleton key={`${_}-${i}`} className={`h-3 w-${i % 2 === 0 ? '5/6' : '2/3'}`} />
       ))}
     </div>
   )
@@ -43,7 +43,7 @@ export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
       {/* Header */}
       <div className="flex gap-2">
         {Array.from({ length: cols }).map((_, i) => (
-          <Skeleton key={i} className="h-8 flex-1" />
+          <Skeleton key={`${_}-${i}`} className="h-8 flex-1" />
         ))}
       </div>
       {/* Rows */}
@@ -79,7 +79,7 @@ export function SkeletonList({ count = 5 }: { count?: number }) {
   return (
     <div className="animate-pulse space-y-3" aria-hidden="true">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="h-14 bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)]" />
+        <div key={`${_}-${i}`} className="h-14 bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)]" />
       ))}
     </div>
   )
@@ -93,7 +93,7 @@ export function SkeletonChart({ className = '' }: { className?: string }) {
       <div className="flex items-end gap-1.5" style={{ height: 160 }}>
         {[40, 65, 45, 80, 55, 70, 90, 60, 75, 50, 85, 65].map((h, i) => (
           <div
-            key={i}
+            key={`${h}-${i}`}
             className="flex-1 rounded-t bg-[var(--bg-tertiary)]"
             style={{ height: `${h}%` }}
           />
@@ -108,7 +108,7 @@ export function SkeletonMetrics({ count = 3 }: { count?: number }) {
   return (
     <div className="animate-pulse grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" aria-hidden="true">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-5">
+        <div key={`${_}-${i}`} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-5">
           <Skeleton className="h-3 w-20 mb-3" />
           <Skeleton className="h-8 w-24" />
         </div>
@@ -136,7 +136,7 @@ export function SkeletonText({ lines = 3, gap = 2 }: { lines?: number; gap?: num
     <div className={`animate-pulse space-y-${gap}`} aria-hidden="true">
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton
-          key={i}
+          key={`${_}-${i}`}
           className="h-3"
           style={{ width: i === lines - 1 ? '40%' : '100%' }}
         />

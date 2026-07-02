@@ -30,7 +30,7 @@ function StepBody({ step }: { step: SolutionStep }) {
     return items.length ? (
       <div className="grid md:grid-cols-2 gap-2">
         {items.map((it, idx) => (
-          <div key={idx} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
+          <div key={`${it}-${idx}`} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
             <div className="text-xs text-[var(--text-muted)]">{it.left}</div>
             <div className="font-mono text-sm text-[var(--text-primary)] text-right">{it.right}</div>
           </div>
@@ -50,7 +50,7 @@ function StepBody({ step }: { step: SolutionStep }) {
     return items.length ? (
       <ul className="list-disc pl-5 text-sm text-[var(--text-primary)] space-y-1">
         {items.map((x, idx) => (
-          <li key={idx}>{x}</li>
+          <li key={`${x}-${idx}`}>{x}</li>
         ))}
       </ul>
     ) : (
@@ -69,7 +69,7 @@ function StepBody({ step }: { step: SolutionStep }) {
           const ok = l.startsWith('✓') ? true : l.startsWith('[x]') ? false : null
           return (
             <div
-              key={idx}
+              key={`${l}-${idx}`}
               className={`flex items-baseline justify-between gap-3 p-2 rounded border ${
                 ok === true ? 'border-green-700 bg-green-900/10' : ok === false ? 'border-red-700 bg-red-900/10' : 'border-[var(--border-color)] bg-gray-950/30'
               }`}
@@ -89,7 +89,7 @@ function StepBody({ step }: { step: SolutionStep }) {
     return items.length ? (
       <div className="space-y-2">
         {items.map((it, idx) => (
-          <div key={idx} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
+          <div key={`${it}-${idx}`} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
             <div className="text-xs text-[var(--text-muted)]">{it.left}</div>
             <div className="font-mono text-sm text-amber-200 text-right">{it.right}</div>
           </div>

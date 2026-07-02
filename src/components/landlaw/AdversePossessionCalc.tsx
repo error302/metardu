@@ -136,7 +136,7 @@ export default function AdversePossessionCalc() {
 
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {evidence.map((ev, index) => (
-                <div key={index} className="p-3 bg-gray-50 rounded-lg border">
+                <div key={`${ev}-${index}`} className="p-3 bg-gray-50 rounded-lg border">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">{ev.type.replace('_', ' ')}</span>
                     <button
@@ -220,7 +220,7 @@ export default function AdversePossessionCalc() {
               <div className="space-y-2">
                 <h4 className="font-medium text-gray-700">Requirements Analysis</h4>
                 {analysis.requirements.map((req, index) => (
-                  <div key={index} className="p-3 border rounded-lg">
+                  <div key={req.name} className="p-3 border rounded-lg">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {req.met ? (
@@ -237,7 +237,7 @@ export default function AdversePossessionCalc() {
                     {req.evidence.length > 0 && (
                       <ul className="mt-2 ml-6 text-xs text-gray-600">
                         {req.evidence.map((ev, i) => (
-                          <li key={i}>• {ev}</li>
+                          <li key={`${ev}-${i}`}>• {ev}</li>
                         ))}
                       </ul>
                     )}
@@ -248,7 +248,7 @@ export default function AdversePossessionCalc() {
               <div className="space-y-2">
                 <h4 className="font-medium text-gray-700">Analysis Steps</h4>
                 {analysis.steps.map((step, index) => (
-                  <div key={index} className="flex items-start gap-3 p-2">
+                  <div key={step.title} className="flex items-start gap-3 p-2">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
                       step.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                     }`}>

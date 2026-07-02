@@ -98,7 +98,7 @@ export function CorrectionAuditTrail({
             )
 
             return (
-              <div key={i} className="text-xs">
+              <div key={`${obs}-${i}`} className="text-xs">
                 <button
                   onClick={() => toggleLeg(i)}
                   className="w-full flex items-center justify-between px-4 py-2 hover:bg-[var(--bg-primary)]/20 transition-colors"

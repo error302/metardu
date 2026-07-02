@@ -42,7 +42,7 @@ function StepsDisplay({ steps, title }: { steps: InverseStep[]; title?: string }
       {title && <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{title}</h3>}
       <div className="space-y-1">
         {steps.map((step, i) => (
-          <div key={i} className="grid grid-cols-[1fr_auto_1fr] md:grid-cols-[1fr_auto_1fr_auto] gap-x-1 md:gap-x-2 text-xs font-mono py-1 border-b border-[var(--border-color)]/20">
+          <div key={step.value} className="grid grid-cols-[1fr_auto_1fr] md:grid-cols-[1fr_auto_1fr_auto] gap-x-1 md:gap-x-2 text-xs font-mono py-1 border-b border-[var(--border-color)]/20">
             <span className="text-[var(--text-secondary)]">{step.description}</span>
             <span className="text-[var(--text-muted)]">=</span>
             <span className="text-[var(--text-primary)] text-right">{step.value}</span>
@@ -798,7 +798,7 @@ export default function COGOCalculator({ compact = false }: Props) {
                   </thead>
                   <tbody>
                     {areaResult.diagonalRows.map((row, i) => (
-                      <tr key={i} className="border-b border-[var(--border-color)]/20">
+                      <tr key={`${row}-${i}`} className="border-b border-[var(--border-color)]/20">
                         <td className="px-2 py-1 text-[var(--text-primary)]">{row.from}</td>
                         <td className="px-2 py-1 text-[var(--text-primary)]">{row.to}</td>
                         <td className="px-2 py-1 text-right text-[var(--text-secondary)]">{row.posProduct.toFixed(2)}</td>
@@ -847,7 +847,7 @@ export default function COGOCalculator({ compact = false }: Props) {
                   </thead>
                   <tbody>
                     {joinResult.rows.map((row, i) => (
-                      <tr key={i} className="border-b border-[var(--border-color)]/20">
+                      <tr key={`${row}-${i}`} className="border-b border-[var(--border-color)]/20">
                         <td className="px-2 py-1 text-[var(--text-primary)]">{row.from}</td>
                         <td className="px-2 py-1 text-[var(--text-primary)]">{row.to}</td>
                         <td className="px-2 py-1 text-right text-[var(--text-secondary)]">{row.deltaE >= 0 ? '+' : ''}{row.deltaE.toFixed(4)}</td>

@@ -174,7 +174,7 @@ export default function PerformanceDashboard() {
             <h2 className="text-xl font-semibold mb-4 text-red-400">Recent Errors ({report.errors.length})</h2>
             <div className="space-y-2 max-h-64 overflow-auto">
               {report.errors.map((error, idx) => (
-                <div key={idx} className="p-3 bg-red-900/30 rounded-lg text-sm">
+                <div key={`${error}-${idx}`} className="p-3 bg-red-900/30 rounded-lg text-sm">
                   <p className="text-red-300">{error.message}</p>
                   <p className="text-gray-500 text-xs mt-1">
                     {new Date(error.timestamp).toLocaleString()}

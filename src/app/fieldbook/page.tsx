@@ -1205,7 +1205,7 @@ export default function DigitalFieldBookPage() {
           {!currentComputed.ok && (
             <div className="p-3 bg-red-900/15 border border-red-700 rounded text-sm text-red-300">
               {currentComputed.errors.map((e: string, i: number) => (
-                <div key={i}>{e}</div>
+                <div key={`item-${i}`}>{e}</div>
               ))}
             </div>
           )}

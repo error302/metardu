@@ -146,7 +146,7 @@ export function ResultsTab({
                 <tbody>
                   {validationSummary.points.map((p, i) => (
                     <tr
-                      key={i}
+                      key={p.name}
                       className={p.overallPass
                         ? 'border-l-2 border-l-green-600'
                         : 'border-l-2 border-l-red-600'}

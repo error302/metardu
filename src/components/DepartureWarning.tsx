@@ -36,7 +36,7 @@ export default function DepartureWarning({ result, onDismiss }: Props) {
           </p>
           <ul className="space-y-1">
             {result.flags.map((flag, i) => (
-              <li key={i} className="text-xs text-red-300 flex items-start gap-2">
+              <li key={`${flag}-${i}`} className="text-xs text-red-300 flex items-start gap-2">
                 <span className="text-red-500 mt-0.5">•</span>
                 <span>{flag}</span>
               </li>

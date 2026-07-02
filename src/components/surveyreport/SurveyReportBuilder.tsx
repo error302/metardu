@@ -584,7 +584,7 @@ Firm: ___________________________    Stamp: _______________`
           <div className="space-y-4">
             <label className="block text-sm font-medium mb-1">Scope Items</label>
             {(reportInput.scopeItems || []).map((item, idx) => (
-              <div key={idx} className="flex gap-2">
+              <div key={`${item}-${idx}`} className="flex gap-2">
                 <input aria-label="Scopeitems"
                   type="text"
                   value={item}
@@ -621,7 +621,7 @@ Firm: ___________________________    Stamp: _______________`
             <div>
               <h4 className="text-sm font-medium mb-2">Equipment</h4>
               {(reportInput.equipment || []).map((eq, idx) => (
-                <div key={idx} className="grid grid-cols-6 gap-2 mb-2">
+                <div key={`${eq}-${idx}`} className="grid grid-cols-6 gap-2 mb-2">
                   <input
                     type="text"
                     aria-label="Type" placeholder="Type"
@@ -697,7 +697,7 @@ Firm: ___________________________    Stamp: _______________`
             <div>
               <h4 className="text-sm font-medium mb-2">Personnel</h4>
               {(reportInput.personnel || []).map((p, idx) => (
-                <div key={idx} className="grid grid-cols-4 gap-2 mb-2">
+                <div key={p.name} className="grid grid-cols-4 gap-2 mb-2">
                   <input
                     type="text"
                     aria-label="Name" placeholder="Name"
@@ -880,7 +880,7 @@ Firm: ___________________________    Stamp: _______________`
             <div>
               <label className="block text-sm font-medium mb-2">Conclusions</label>
               {(reportInput.conclusions || []).map((c, idx) => (
-                <div key={idx} className="flex gap-2 mb-2">
+                <div key={`${c}-${idx}`} className="flex gap-2 mb-2">
                   <textarea
                     value={c}
                     onChange={e => {
@@ -909,7 +909,7 @@ Firm: ___________________________    Stamp: _______________`
             <div>
               <label className="block text-sm font-medium mb-2">Recommendations</label>
               {(reportInput.recommendations || []).map((r, idx) => (
-                <div key={idx} className="flex gap-2 mb-2">
+                <div key={`${r}-${idx}`} className="flex gap-2 mb-2">
                   <textarea
                     value={r}
                     onChange={e => {

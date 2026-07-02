@@ -165,7 +165,7 @@ export default function EnhancedSplitLayout({
           <div className="flex items-center gap-2 sm:gap-4 min-w-0 overflow-x-auto scrollbar-none">
             {statusBarEntries.map((entry, idx) => (
               <div
-                key={idx}
+                key={entry.label}
                 className="flex items-center gap-1 text-xs whitespace-nowrap flex-shrink-0"
               >
                 <StatusIcon status={entry.status} />

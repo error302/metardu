@@ -103,13 +103,13 @@ export default function MonitoringComputePanel({ projectId }: { projectId: strin
         <div>
           <label className="block text-xs text-zinc-500 mb-1">Base Epoch</label>
           <select value={compareIndex1} onChange={e => setCompareIndex1(Number(e.target.value))} className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-xs">
-            {epochs.map((ep, i) => <option key={i} value={i}>{ep.epochName} ({ep.date})</option>)}
+            {epochs.map((ep, i) => <option key={`${ep}-${i}`} value={i}>{ep.epochName} ({ep.date})</option>)}
           </select>
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1">Latest Epoch</label>
           <select value={compareIndex2} onChange={e => setCompareIndex2(Number(e.target.value))} className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-xs">
-            {epochs.map((ep, i) => <option key={i} value={i}>{ep.epochName} ({ep.date})</option>)}
+            {epochs.map((ep, i) => <option key={`${ep}-${i}`} value={i}>{ep.epochName} ({ep.date})</option>)}
           </select>
         </div>
         <div>

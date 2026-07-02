@@ -8,7 +8,7 @@ export default function ToolsLoading() {
           <div className="card-header h-8 bg-[var(--bg-tertiary)]" />
           <div className="card-body space-y-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-10 rounded bg-[var(--bg-tertiary)]" />
+              <div key={`${_}-${i}`} className="h-10 rounded bg-[var(--bg-tertiary)]" />
             ))}
           </div>
         </div>

@@ -797,7 +797,7 @@ export default function PointCloudImportPage() {
                   </thead>
                   <tbody>
                     {parseErrors.map((err, i) => (
-                      <tr key={i}>
+                      <tr key={`${err}-${i}`}>
                         <td className="font-mono">{err.row}</td>
                         <td className="text-red-400 text-sm">{err.message}</td>
                       </tr>
@@ -900,7 +900,7 @@ export default function PointCloudImportPage() {
                     const r = Math.round(t < 0.5 ? t * 2 * 255 : 255);
                     const g = Math.round(t < 0.5 ? 255 : (1 - (t - 0.5) * 2) * 255);
                     const color = `rgb(${r},${g},0)`;
-                    return <circle key={i} cx={x} cy={y} r="2" fill={color} opacity="0.7" />;
+                    return <circle key={`${p}-${i}`} cx={x} cy={y} r="2" fill={color} opacity="0.7" />;
                   });
                 })()}
                 <text x="30" y="315" fill="var(--text-muted)" fontSize="10">E: {fmt(boundingBox.minE, 1)}</text>
@@ -1224,7 +1224,7 @@ export default function PointCloudImportPage() {
                           const b = Math.round(t < 0.5 ? 200 - t * 2 * 200 : 0);
                           const color = `rgb(${r},${g},${b})`;
                           const pts = `${toX(tri.a.x).toFixed(1)},${toY(tri.a.y).toFixed(1)} ${toX(tri.b.x).toFixed(1)},${toY(tri.b.y).toFixed(1)} ${toX(tri.c.x).toFixed(1)},${toY(tri.c.y).toFixed(1)}`;
-                          return <polygon key={i} points={pts} fill={color} fillOpacity="0.6" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />;
+                          return <polygon key={`${tri}-${i}`} points={pts} fill={color} fillOpacity="0.6" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />;
                         });
                     })()}
                     <text x="30" y="315" fill="var(--text-muted)" fontSize="10">E: {fmt(boundingBox.minE, 1)}</text>

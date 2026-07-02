@@ -516,7 +516,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
             <h4 className="font-medium text-red-400">QA Gate Failed</h4>
             <ul className="mt-2 text-sm text-red-300 list-disc list-inside">
               {packageResult.blockers.map((msg, i) => (
-                <li key={i}>{msg}</li>
+                <li key={`${msg}-${i}`}>{msg}</li>
               ))}
             </ul>
             {packageResult.warnings.length > 0 && (
@@ -524,7 +524,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
                 <p className="text-sm text-amber-300">Warnings:</p>
                 <ul className="text-sm text-amber-400 list-disc list-inside">
                   {packageResult.warnings.map((msg, i) => (
-                    <li key={i}>{msg}</li>
+                    <li key={`${msg}-${i}`}>{msg}</li>
                   ))}
                 </ul>
               </div>

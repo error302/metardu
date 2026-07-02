@@ -239,7 +239,7 @@ export default function GNSSObservationLogBuilder() {
             </thead>
             <tbody>
               {observations.map((o, i) => (
-                <tr key={i} className="border-b border-gray-700/50">
+                <tr key={`${o}-${i}`} className="border-b border-gray-700/50">
                   <td className="py-1 px-2"><input aria-label="Pointid" className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs font-mono" value={o.pointId} onChange={e => updateObs(i, 'pointId', e.target.value)} /></td>
                   <td className="py-1 px-2"><input aria-label="Starttime" type="datetime-local" className="w-36 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs" value={o.startTime.slice(0, 16)} onChange={e => updateObs(i, 'startTime', e.target.value)} /></td>
                   <td className="py-1 px-2"><input aria-label="Endtime" type="datetime-local" className="w-36 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs" value={o.endTime.slice(0, 16)} onChange={e => updateObs(i, 'endTime', e.target.value)} /></td>
@@ -295,7 +295,7 @@ export default function GNSSObservationLogBuilder() {
             </thead>
             <tbody>
               {baselines.map((b, i) => (
-                <tr key={i} className="border-b border-gray-700/50">
+                <tr key={`${b}-${i}`} className="border-b border-gray-700/50">
                   <td className="py-1 px-2"><input aria-label="From" className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs font-mono" value={b.from} onChange={e => updateBsl(i, 'from', e.target.value)} /></td>
                   <td className="py-1 px-2"><input aria-label="To" className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs font-mono" value={b.to} onChange={e => updateBsl(i, 'to', e.target.value)} /></td>
                   <td className="py-1 px-2"><input aria-label="Deltae" type="number" step="0.001" className="w-20 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.deltaE} onChange={e => updateBsl(i, 'deltaE', Number(e.target.value))} /></td>

@@ -81,7 +81,7 @@ export default function PricingCard({
       <ul className="space-y-3 mb-8 flex-1">
         {features.map((feature, i) => (
           <li
-            key={i}
+            key={`${feature}-${i}`}
             className={`flex items-center gap-3 text-sm ${
               feature.included ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
             }`}

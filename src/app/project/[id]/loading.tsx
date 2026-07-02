@@ -7,7 +7,7 @@ export default function ProjectLoading() {
         <div className="h-4 w-1/2 rounded bg-[var(--bg-tertiary)]" />
         <div className="mt-6 space-y-2">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="h-9 rounded bg-[var(--bg-tertiary)]" />
+            <div key={`${_}-${i}`} className="h-9 rounded bg-[var(--bg-tertiary)]" />
           ))}
         </div>
       </div>

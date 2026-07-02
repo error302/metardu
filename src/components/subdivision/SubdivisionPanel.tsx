@@ -251,7 +251,7 @@ export default function SubdivisionPanel({
                         const len = Math.sqrt(dx * dx + dy * dy)
                         return (
                           <label
-                            key={idx}
+                            key={`${_}-${idx}`}
                             className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] cursor-pointer transition-colors ${
                               roadReserveEdges.includes(idx)
                                 ? 'bg-amber-50 border border-amber-300 text-amber-800'

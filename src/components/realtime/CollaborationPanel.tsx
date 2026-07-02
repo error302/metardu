@@ -96,7 +96,7 @@ export function CollaborationPanel({
           {conflictWarnings.length > 0 && (
             <div className="p-2 bg-amber-500/5 border-b border-amber-500/10">
               {conflictWarnings.map((warning, i) => (
-                <div key={i} className="flex items-center gap-1.5 text-[10px] text-amber-400">
+                <div key={`${warning}-${i}`} className="flex items-center gap-1.5 text-[10px] text-amber-400">
                   <AlertTriangle className="w-3 h-3 shrink-0" />
                   {warning}
                 </div>

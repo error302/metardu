@@ -580,7 +580,7 @@ ${azmSection}`
                 </thead>
                 <tbody>
                   {result.legs.map((l: any, i: number) => (
-                    <tr key={i}>
+                    <tr key={`item-${i}`}>
                       <td className="font-semibold">{l.from} → {l.to}</td>
                       <td className="font-mono">{l.bearingDMS}</td>
                       <td className="text-right font-mono">{l.distance.toFixed(4)}</td>
@@ -619,7 +619,7 @@ ${azmSection}`
                 </thead>
                 <tbody>
                   {result.legs.map((l: any, i: number) => (
-                    <tr key={i}>
+                    <tr key={`item-${i}`}>
                       <td className="font-semibold">{l.from} → {l.to}</td>
                       <td className="text-right font-mono">{l.distance.toFixed(4)}</td>
                       <td className="text-right font-mono">{(l.correctedDeparture - l.departure).toFixed(4)}</td>
@@ -649,7 +649,7 @@ ${azmSection}`
                 </thead>
                 <tbody>
                   {result.legs.map((l: any, i: number) => (
-                    <tr key={i}>
+                    <tr key={`item-${i}`}>
                       <td className="font-semibold">{l.to}</td>
                       <td className="text-right font-mono font-semibold text-[var(--accent)]">{l.adjEasting.toFixed(4)}</td>
                       <td className="text-right font-mono font-semibold text-[var(--accent)]">{l.adjNorthing.toFixed(4)}</td>

@@ -168,7 +168,7 @@ export default function TopologyCheckPage() {
                 className="input text-sm mb-2"
               >
                 {KENYA_MIN_AREAS.map((opt, i) => (
-                  <option key={i} value={i}>
+                  <option key={opt.label} value={i}>
                     {opt.label} {opt.area > 0 ? `(${opt.area} m²)` : ''}
                   </option>
                 ))}

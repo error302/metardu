@@ -102,7 +102,7 @@ export default function DisputeGuide() {
                 <h5 className="font-medium text-gray-700 mb-3">Required Documents</h5>
                 <ul className="space-y-2">
                   {selectedProcedure.requiredDocuments.map((doc, index) => (
-                    <li key={index} className="flex items-start gap-2 text-sm">
+                    <li key={`${doc}-${index}`} className="flex items-start gap-2 text-sm">
                       <FileText className="w-4 h-4 text-gray-400 mt-0.5" />
                       <span>{doc}</span>
                     </li>
@@ -115,7 +115,7 @@ export default function DisputeGuide() {
                   <h5 className="font-medium text-blue-900 mb-3">Mediation Steps</h5>
                   <ol className="space-y-2">
                     {selectedProcedure.mediationSteps.map((step, index) => (
-                      <li key={index} className="flex items-start gap-2 text-sm text-blue-800">
+                      <li key={`${step}-${index}`} className="flex items-start gap-2 text-sm text-blue-800">
                         <span className="font-medium">{index + 1}.</span>
                         <span>{step.replace(/^\d+\.\s*/, '')}</span>
                       </li>
@@ -128,7 +128,7 @@ export default function DisputeGuide() {
                 <h5 className="font-medium text-gray-700 mb-3">Precedent Cases</h5>
                 <ul className="space-y-2">
                   {selectedProcedure.precedentCases.map((case_, index) => (
-                    <li key={index} className="flex items-start gap-2 text-sm">
+                    <li key={`${case_}-${index}`} className="flex items-start gap-2 text-sm">
                       <Gavel className="w-4 h-4 text-amber-500 mt-0.5" />
                       <span className="text-gray-700">{case_}</span>
                     </li>

@@ -363,7 +363,7 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
 
         <div className="space-y-3">
           {observations.map((obs, idx) => (
-            <div key={idx} className="grid grid-cols-7 gap-2 items-center bg-zinc-800 p-3 rounded-lg">
+            <div key={`${obs}-${idx}`} className="grid grid-cols-7 gap-2 items-center bg-zinc-800 p-3 rounded-lg">
               <select
                 className="bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-white"
                 value={obs.from}
@@ -459,7 +459,7 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
             </div>
             {result.warnings.length > 0 && (
               <ul className="mt-3 text-sm text-amber-400 list-disc list-inside space-y-1">
-                {result.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                {result.warnings.map((w, i) => <li key={`${w}-${i}`}>{w}</li>)}
               </ul>
             )}
           </div>

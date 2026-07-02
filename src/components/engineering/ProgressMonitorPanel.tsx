@@ -510,7 +510,7 @@ function DashboardView({
           <h4 className="font-medium text-white mb-4">Milestones</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {summary.milestones.map((m, i) => (
-              <div key={i} className="p-3 rounded-lg border border-zinc-800 bg-zinc-800/50">
+              <div key={m.name} className="p-3 rounded-lg border border-zinc-800 bg-zinc-800/50">
                 <div className="text-sm text-zinc-200 font-medium truncate">{m.name}</div>
                 <div className="flex items-center gap-2 mt-1.5 text-xs text-zinc-400">
                   <span>Plan: {m.planned}</span>
@@ -647,7 +647,7 @@ function SCurveChart({ chart }: { chart: ProgressChart }) {
         const parts = d.split('-')
         const label = `${parts[1]}/${parts[0]?.slice(2)}`
         return (
-          <text key={i} x={scaleX(i)} y={height - 10} textAnchor="middle" fill="#71717a" fontSize="10" fontFamily="monospace">
+          <text key={`${d}-${i}`} x={scaleX(i)} y={height - 10} textAnchor="middle" fill="#71717a" fontSize="10" fontFamily="monospace">
             {label}
           </text>
         )

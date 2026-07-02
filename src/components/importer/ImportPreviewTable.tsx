@@ -46,7 +46,7 @@ export default function ImportPreviewTable({ result, fileName, onCommit, onCance
       {result.warnings.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
           {result.warnings.map((w, i) => (
-            <p key={i} className="text-xs text-yellow-700">{w}</p>
+            <p key={`${w}-${i}`} className="text-xs text-yellow-700">{w}</p>
           ))}
         </div>
       )}
@@ -66,7 +66,7 @@ export default function ImportPreviewTable({ result, fileName, onCommit, onCance
           </thead>
           <tbody>
             {preview.map((point, i) => (
-              <tr key={i} className="border-t border-gray-100">
+              <tr key={`${point}-${i}`} className="border-t border-gray-100">
                 {PREVIEW_COLUMNS.map((col) => (
                   <td key={String(col)} className="px-3 py-1.5 text-gray-700">
                     {String(point[col] ?? '')}

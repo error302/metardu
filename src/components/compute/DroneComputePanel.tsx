@@ -118,7 +118,7 @@ export default function DroneComputePanel({ projectId }: { projectId: string }) 
           </thead>
           <tbody>
             {residuals.map((r, i) => (
-              <tr key={i} className="border-b border-zinc-800">
+              <tr key={r.name} className="border-b border-zinc-800">
                 <td className="px-2 py-1 font-mono">{r.name}</td>
                 <td className="px-2 py-1 font-mono">{r.dE >= 0 ? '+' : ''}{r.dE.toFixed(4)}</td>
                 <td className="px-2 py-1 font-mono">{r.dN >= 0 ? '+' : ''}{r.dN.toFixed(4)}</td>

@@ -272,7 +272,7 @@ export default function ProgressMonitorPage() {
                     {/* Task checklist */}
                     <div className="space-y-1">
                       {phase.tasks.map((task, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs">
+                        <div key={`${task}-${i}`} className="flex items-center gap-2 text-xs">
                           <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
                             task.done
                               ? 'bg-emerald-900/40 border-emerald-700 text-emerald-400'
@@ -297,7 +297,7 @@ export default function ProgressMonitorPage() {
             <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Project Timeline</h3>
             <div className="space-y-0">
               {timeline.map((event, i) => (
-                <div key={i} className="flex gap-3 relative">
+                <div key={`${event}-${i}`} className="flex gap-3 relative">
                   {/* Timeline line */}
                   <div className="flex flex-col items-center">
                     <div className={`w-3 h-3 rounded-full shrink-0 ${

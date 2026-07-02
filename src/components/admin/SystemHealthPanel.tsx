@@ -297,7 +297,7 @@ export default function SystemHealthPanel() {
               </h3>
               <div className="space-y-1.5 max-h-32 overflow-y-auto">
                 {data.recentErrors.map((err, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs">
+                  <div key={`${err}-${i}`} className="flex items-start gap-2 text-xs">
                     <AlertTriangle className="w-3 h-3 text-red-400 shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <p className="text-red-300 truncate">{err.message}</p>

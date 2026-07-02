@@ -275,7 +275,7 @@ export default function AsBuiltSurveyPanel({ roadClass, surfaceType = 'paved', d
               </div>
               {result.summary.issues.length > 0 && (
                 <ul className="text-xs text-zinc-300 mt-1">
-                  {result.summary.issues.map((issue, i) => <li key={i}>• {issue}</li>)}
+                  {result.summary.issues.map((issue, i) => <li key={`${issue}-${i}`}>• {issue}</li>)}
                 </ul>
               )}
             </div>
@@ -323,7 +323,7 @@ export default function AsBuiltSurveyPanel({ roadClass, surfaceType = 'paved', d
                 </thead>
                 <tbody>
                   {result.comparisons.map((row, i) => (
-                    <tr key={i} className={`border-t border-zinc-800 ${row.pass ? 'bg-zinc-900' : 'bg-red-900/15'}`}>
+                    <tr key={`${row}-${i}`} className={`border-t border-zinc-800 ${row.pass ? 'bg-zinc-900' : 'bg-red-900/15'}`}>
                       <td className="px-4 py-2 font-mono text-xs text-zinc-300">{row.chainage.toFixed(0)}</td>
                       <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{row.designLevel.toFixed(4)}</td>
                       <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{row.asBuiltLevel.toFixed(4)}</td>
@@ -386,7 +386,7 @@ function DeviationProfileSvg({ comparisons, tolerance }: { comparisons: Array<{ 
 
       {/* Points */}
       {sanitizedComparisons.map((c, i) => (
-        <circle key={i} cx={scaleX(c.chainage)} cy={scaleY(c.deviation)} r={3}
+        <circle key={`${c}-${i}`} cx={scaleX(c.chainage)} cy={scaleY(c.deviation)} r={3}
           fill={c.pass ? '#16a34a' : '#dc2626'} />
       ))}
 

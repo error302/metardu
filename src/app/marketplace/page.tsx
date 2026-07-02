@@ -97,7 +97,7 @@ function ImagePicker({
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
           {images.map((src, i) => (
-            <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[var(--border-color)] group">
+            <div key={`${src}-${i}`} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[var(--border-color)] group">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
               <button
@@ -204,7 +204,7 @@ function ImageGallery({ images }: { images: string[] }) {
             </button>
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
               {images.map((_, i) => (
-                <button key={i} onClick={e => { e.stopPropagation(); setActive(i) }}
+                <button key={`${_}-${i}`} onClick={e => { e.stopPropagation(); setActive(i) }}
                   className={`w-1.5 h-1.5 rounded-full transition-colors ${i === active ? 'bg-white' : 'bg-white/40'}`} />
               ))}
             </div>
@@ -219,7 +219,7 @@ function ImageGallery({ images }: { images: string[] }) {
       {images.length > 1 && (
         <div className="flex gap-2 mt-2">
           {images.map((src, i) => (
-            <button key={i} onClick={() => setActive(i)}
+            <button key={`${src}-${i}`} onClick={() => setActive(i)}
               className={`w-14 h-14 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-colors ${
                 i === active ? 'border-[var(--accent)]' : 'border-[var(--border-color)] hover:border-[var(--accent)]/50'
               }`}>

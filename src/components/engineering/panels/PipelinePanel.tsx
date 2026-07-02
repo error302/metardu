@@ -63,7 +63,7 @@ export function PipelinePanel({ projectId, subtype }: EngineeringPanelProps) {
             </thead>
             <tbody>
               {routePoints.map((pt, i) => (
-                <tr key={i} className="border-b border-zinc-800">
+                <tr key={`${pt}-${i}`} className="border-b border-zinc-800">
                   <td className="py-2">{pt.chainage.toFixed(3)}</td>
                   <td className="py-2">{pt.easting.toFixed(3)}</td>
                   <td className="py-2">{pt.northing.toFixed(3)}</td>

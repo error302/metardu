@@ -172,7 +172,7 @@ export default function CSVUploadModal({
               <div className="bg-yellow-900/30 border border-yellow-600 rounded p-3 max-h-24 overflow-y-auto">
                 <p className="text-yellow-400 text-sm font-semibold mb-1">Warnings:</p>
                 {warnings.slice(0, 5).map((w, i) => (
-                  <p key={i} className="text-yellow-300 text-xs">{w}</p>
+                  <p key={`${w}-${i}`} className="text-yellow-300 text-xs">{w}</p>
                 ))}
                 {warnings.length > 5 && (
                   <p className="text-yellow-300 text-xs">...and {warnings.length - 5} more</p>
@@ -192,7 +192,7 @@ export default function CSVUploadModal({
                 </thead>
                 <tbody>
                   {parsedPoints.slice(0, 50).map((point, idx) => (
-                    <tr key={idx} className="border-t border-[var(--border-color)]">
+                    <tr key={point.name} className="border-t border-[var(--border-color)]">
                       <td className="px-3 py-2 font-mono text-[var(--text-primary)]">{point.name}</td>
                       <td className="px-3 py-2 font-mono text-[var(--text-primary)]">{point.easting.toFixed(4)}</td>
                       <td className="px-3 py-2 font-mono text-[var(--text-primary)]">{point.northing.toFixed(4)}</td>

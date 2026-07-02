@@ -91,7 +91,7 @@ export default function RiskAnalyzer({ scanResult }: RiskAnalyzerProps) {
           <h3 className="text-sm font-semibold mb-4">Recommendations</h3>
           <ul className="space-y-2">
             {scanResult.recommendations.map((rec, index) => (
-              <li key={index} className="flex items-start gap-2 text-sm">
+              <li key={`${rec}-${index}`} className="flex items-start gap-2 text-sm">
                 <CheckCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
                 <span>{rec}</span>
               </li>

@@ -548,12 +548,12 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                 </tr>
                 <tr className="border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]/30">
                   <th></th><th></th><th></th><th></th>
-                  {[1,2,3,4,5,6,7,8,9,10].map((i: any) => <th key={i} className="px-1 py-1 text-[10px] text-[var(--text-muted)]">{['','Deg','Min','Sec','','Deg','Min','Sec','','','','Deg','Min','Sec','','',''][i-1]}</th>)}
+                  {[1,2,3,4,5,6,7,8,9,10].map((i: any) => <th key={`item-${i}`} className="px-1 py-1 text-[10px] text-[var(--text-muted)]">{['','Deg','Min','Sec','','Deg','Min','Sec','','','','Deg','Min','Sec','','',''][i-1]}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {observations.map((obs, i) => (
-                  <tr key={i} className="border-b border-[var(--border-color)]/30">
+                  <tr key={obs.station} className="border-b border-[var(--border-color)]/30">
                     <td className="px-1.5 py-1 text-[var(--text-muted)]">{i + 1}</td>
                     <td className="px-1 py-1"><input value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)}
                       className="w-full px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" aria-label="T1" placeholder="T1" /></td>
@@ -658,7 +658,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
               </thead>
               <tbody>
                 {result.legs.map((l, i) => (
-                  <tr key={i} className="border-b border-[var(--border-color)]/30">
+                  <tr key={`${l}-${i}`} className="border-b border-[var(--border-color)]/30">
                     <td className="px-2 py-1.5 font-mono text-[var(--text-primary)]">{l.from} → {l.to}</td>
                     <td className="px-2 py-1.5 text-center font-mono text-[var(--text-secondary)]">{l.wcbDMS}</td>
                     <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{l.sd.toFixed(3)}</td>
@@ -718,7 +718,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                         projection: utmProjection,
                       })
                       return (
-                        <tr key={i} className="border-b border-[var(--border-color)]/30">
+                        <tr key={`${leg}-${i}`} className="border-b border-[var(--border-color)]/30">
                           <td className="px-2 py-1.5 font-mono text-[var(--text-primary)]">{leg.from} → {leg.to}</td>
                           <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{leg.sd.toFixed(3)}</td>
                           <td className="px-2 py-1.5 text-right font-mono text-[var(--text-secondary)]">{edmResult.horizontalDistance.toFixed(3)}</td>

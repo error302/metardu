@@ -338,7 +338,7 @@ export function GNSSQualityReport({ externalPosition }: {
         ) : (
           checks.map((check, i) => (
             <div
-              key={i}
+              key={`${check}-${i}`}
               className={`flex items-start gap-3 p-2.5 rounded-lg border ${
                 check.status === 'pass' ? 'bg-emerald-500/5 border-emerald-500/20' :
                 check.status === 'warning' ? 'bg-amber-500/5 border-amber-500/20' :

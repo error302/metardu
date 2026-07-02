@@ -42,7 +42,7 @@ export function SubSheetCornerBanner({ activeSubSheet }: SubSheetCornerBannerPro
                 const absE = r ? Math.abs(r.residualE) : 0
                 const absN = r ? Math.abs(r.residualN) : 0
                 return (
-                  <tr key={i} className="border-b border-[var(--border-color)]/50">
+                  <tr key={`${c}-${i}`} className="border-b border-[var(--border-color)]/50">
                     <td className="py-1 px-1.5 font-medium">C{i + 1}</td>
                     <td className="py-1 px-1.5 text-right font-mono">{c.cassX.toFixed(1)}</td>
                     <td className="py-1 px-1.5 text-right font-mono">{c.cassY.toFixed(1)}</td>

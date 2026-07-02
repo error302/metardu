@@ -179,7 +179,7 @@ function TraverseSVG({
   return (
     <svg width={width} height={height} className="bg-white">
       {[-2, -1, 0, 1, 2].map((i) => (
-        <g key={i}>
+        <g key={`${i}-${i}`}>
           <line x1={0} y1={cy + i * 50} x2={width} y2={cy + i * 50} stroke="#e5e7eb" strokeWidth="0.5" />
           <line x1={cx + i * 50} y1={0} x2={cx + i * 50} y2={height} stroke="#e5e7eb" strokeWidth="0.5" />
         </g>
@@ -193,7 +193,7 @@ function TraverseSVG({
         const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
         const rot   = angle > 90 || angle < -90 ? angle + 180 : angle;
         return (
-          <text key={i} x={mx} y={my - 3} fontSize={8} fill="#1e5064" textAnchor="middle" transform={`rotate(${-rot}, ${mx}, ${my})`}>
+          <text key={`${row}-${i}`} x={mx} y={my - 3} fontSize={8} fill="#1e5064" textAnchor="middle" transform={`rotate(${-rot}, ${mx}, ${my})`}>
             {row.bearing}  {row.distance}m
           </text>
         );
@@ -201,7 +201,7 @@ function TraverseSVG({
       {data.rows.map((row, i) => {
         const [px, py] = pts[i];
         return (
-          <g key={i}>
+          <g key={row.station}>
             <circle cx={px} cy={py} r={5} fill="white" stroke="#1e5064" strokeWidth="1.5" />
             <circle cx={px} cy={py} r={1.5} fill="#1e5064" />
             <text x={px + 7} y={py - 4} fontSize={9} fontWeight="bold" fill="#111">{row.station}</text>
@@ -315,7 +315,7 @@ export default function WorkingDiagramClient({ project, entries, projectId }: Pr
               </thead>
               <tbody>
                 {data.rows.map((row, i) => (
-                  <tr key={i} className={i % 2 === 0 ? 'bg-[#f0f5f8]' : 'bg-white'}>
+                  <tr key={row.station} className={i % 2 === 0 ? 'bg-[#f0f5f8]' : 'bg-white'}>
                     <td className="px-1.5 py-1 font-medium">{row.station}</td>
                     <td className="px-1.5 py-1 font-mono text-[10px]">{row.bearing}</td>
                     <td className="px-1.5 py-1 text-right">{row.distance}</td>

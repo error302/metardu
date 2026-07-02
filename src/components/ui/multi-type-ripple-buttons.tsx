@@ -190,7 +190,7 @@ const RippleButton: React.FC<RippleButtonProps> = ({
             style={{ gridTemplateColumns: `repeat(${GRID_HOVER_NUM_COLS}, 0.25em)` }}
           >
             {Array.from({ length: GRID_HOVER_TOTAL_CELLS }, (_, index) => (
-              <span key={index} className="hover-variant-grid-cell relative flex justify-center items-center pointer-events-auto" />
+              <span key={`cell-193`} className="hover-variant-grid-cell relative flex justify-center items-center pointer-events-auto" />
             ))}
             <div className="hover-variant-visual-ripple pointer-events-none absolute w-0 h-0 rounded-full transform -translate-x-1/2 -translate-y-1/2 top-0 left-0 z-[-1]" />
           </div>
@@ -224,7 +224,7 @@ const RippleButton: React.FC<RippleButtonProps> = ({
           >
             {Array.from({ length: GRID_HOVER_TOTAL_CELLS }, (_, index) => (
               <span
-                key={index}
+                key={`cell-227`}
                 className="hoverborder-variant-grid-cell relative flex justify-center items-center pointer-events-auto"
               />
             ))}

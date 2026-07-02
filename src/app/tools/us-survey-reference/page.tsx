@@ -30,7 +30,7 @@ export default function USSurveyReferencePage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {LEGAL_DESCRIPTION_TYPES.map((type, i) => (
-              <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4">
+              <div key={type.name} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4">
                 <div className="font-semibold">{type.name}</div>
                 <div className="text-sm text-[var(--text-muted)] mt-1">{type.description}</div>
                 <div className="text-xs text-[var(--accent)] mt-2">Use: {type.use}</div>
@@ -54,7 +54,7 @@ export default function USSurveyReferencePage() {
               </thead>
               <tbody>
                 {LAND_STATUS_TYPES.map((status, i) => (
-                  <tr key={i} className="border-b border-[var(--border-color)] last:border-0">
+                  <tr key={`${status}-${i}`} className="border-b border-[var(--border-color)] last:border-0">
                     <td className="py-2 font-medium">{status.type}</td>
                     <td className="py-2 text-[var(--text-muted)]">{status.description}</td>
                   </tr>
@@ -72,7 +72,7 @@ export default function USSurveyReferencePage() {
           <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {CADASTRAL_SURVEY_STEPS.map((step, i) => (
-                <div key={i} className="flex gap-2 items-start">
+                <div key={step.step} className="flex gap-2 items-start">
                   <span className="w-6 h-6 rounded-full bg-[var(--accent)] text-black text-xs font-bold flex items-center justify-center flex-shrink-0">
                     {step.step}
                   </span>
@@ -90,7 +90,7 @@ export default function USSurveyReferencePage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {MONUMENT_TYPES.map((mon, i) => (
-              <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4">
+              <div key={mon.name} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4">
                 <div className="font-semibold">{mon.name}</div>
                 <div className="text-sm text-[var(--text-muted)] mt-1">{mon.description}</div>
               </div>
@@ -108,7 +108,7 @@ export default function USSurveyReferencePage() {
               <h3 className="font-semibold mb-2">General Exceptions</h3>
               <ul className="text-sm text-[var(--text-muted)] space-y-1">
                 {ENCUMBRANCE_TYPES.titleExceptions.slice(0, 3).map((e, i) => (
-                  <li key={i}>• {e}</li>
+                  <li key={`${e}-${i}`}>• {e}</li>
                 ))}
               </ul>
             </div>
@@ -116,7 +116,7 @@ export default function USSurveyReferencePage() {
               <h3 className="font-semibold mb-2">Special Exceptions</h3>
               <ul className="text-sm text-[var(--text-muted)] space-y-1">
                 {ENCUMBRANCE_TYPES.specialExceptions.slice(0, 3).map((e, i) => (
-                  <li key={i}>• {e}</li>
+                  <li key={`${e}-${i}`}>• {e}</li>
                 ))}
               </ul>
             </div>
@@ -124,7 +124,7 @@ export default function USSurveyReferencePage() {
               <h3 className="font-semibold mb-2">Riparian Issues</h3>
               <ul className="text-sm text-[var(--text-muted)] space-y-1">
                 {ENCUMBRANCE_TYPES.titleExceptions.slice(3).map((e, i) => (
-                  <li key={i}>• {e}</li>
+                  <li key={`${e}-${i}`}>• {e}</li>
                 ))}
               </ul>
             </div>
@@ -141,7 +141,7 @@ export default function USSurveyReferencePage() {
               <h3 className="font-semibold mb-2 text-green-600">Required Before Acquisition</h3>
               <ul className="text-sm space-y-2">
                 {DOJ_TITLE_STANDARDS.requiredBeforeAcquisition.map((s, i) => (
-                  <li key={i} className="flex gap-2">
+                  <li key={`${s}-${i}`} className="flex gap-2">
                     <span className="text-green-500">✓</span>
                     <span>{s}</span>
                   </li>
@@ -152,7 +152,7 @@ export default function USSurveyReferencePage() {
               <h3 className="font-semibold mb-2 text-amber-600">Required For Acquisition</h3>
               <ul className="text-sm space-y-2">
                 {DOJ_TITLE_STANDARDS.requiredForAcquisition.map((s, i) => (
-                  <li key={i} className="flex gap-2">
+                  <li key={`${s}-${i}`} className="flex gap-2">
                     <span className="text-amber-500">!</span>
                     <span>{s}</span>
                   </li>
@@ -180,7 +180,7 @@ export default function USSurveyReferencePage() {
               <h3 className="font-semibold mb-2">Field Notes Requirements</h3>
               <ul className="text-sm text-[var(--text-muted)] space-y-1">
                 {US_SURVEY_STANDARDS.fieldNotes.requirements.slice(0, 4).map((r, i) => (
-                  <li key={i}>• {r}</li>
+                  <li key={`${r}-${i}`}>• {r}</li>
                 ))}
               </ul>
             </div>

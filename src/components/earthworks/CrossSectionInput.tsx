@@ -226,7 +226,7 @@ export default function EarthworksCalculator() {
               <th className="border border-[var(--border-color)]"></th>
               <th className="border border-[var(--border-color)]"></th>
               {['L1 Off', 'L1 RL', 'L2 Off', 'L2 RL', 'L3 Off', 'L3 RL', 'L4 Off', 'L4 RL', 'R1 Off', 'R1 RL', 'R2 Off', 'R2 RL', 'R3 Off', 'R3 RL', 'R4 Off', 'R4 RL'].map((h, i) => (
-                <th key={i} className="px-2 py-1 border border-[var(--border-color)] text-[var(--text-muted)] font-medium text-[10px]">{h}</th>
+                <th key={`${h}-${i}`} className="px-2 py-1 border border-[var(--border-color)] text-[var(--text-muted)] font-medium text-[10px]">{h}</th>
               ))}
               <th className="border border-[var(--border-color)]"></th>
             </tr>
@@ -300,7 +300,7 @@ export default function EarthworksCalculator() {
             <div>
               <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
                 {computedSections.map((s, i) => (
-                  <button key={i} onClick={() => setActiveSection(i)}
+                  <button key={`${s}-${i}`} onClick={() => setActiveSection(i)}
                     className={`px-3 py-1.5 text-xs rounded whitespace-nowrap ${i === activeSection ? 'bg-[var(--accent)] text-white' : 'border border-[var(--border-color)] text-[var(--text-muted)]'}`}>
                     {fmtCh(s.chainage)}
                   </button>

@@ -84,7 +84,7 @@ export default function SurveyRegulationsPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {KENYA_UTM_ZONES.map((zone, i) => (
-              <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4">
+              <div key={`${zone}-${i}`} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4">
                 <div className="font-semibold">Zone {zone.zone}{zone.hemisphere}</div>
                 <div className="text-xs text-[var(--text-muted)] mt-1">{zone.region}</div>
               </div>
@@ -108,7 +108,7 @@ export default function SurveyRegulationsPage() {
               </thead>
               <tbody>
                 {TRAVERSE_ACCURACY_STANDARDS.map((std, i) => (
-                  <tr key={i} className="border-b border-[var(--border-color)] last:border-0">
+                  <tr key={std.name} className="border-b border-[var(--border-color)] last:border-0">
                     <td className="py-2">{std.name}</td>
                     <td className="py-2 font-mono">1 : {std.traversePrecision.toLocaleString()}</td>
                     <td className="py-2 text-[var(--text-muted)]">{std.description}</td>
@@ -135,7 +135,7 @@ export default function SurveyRegulationsPage() {
               </thead>
               <tbody>
                 {LEVELING_ACCURACY_STANDARDS.map((std, i) => (
-                  <tr key={i} className="border-b border-[var(--border-color)] last:border-0">
+                  <tr key={std.name} className="border-b border-[var(--border-color)] last:border-0">
                     <td className="py-2">{std.name}</td>
                     <td className="py-2 font-mono">{std.levelingAllowable}</td>
                     <td className="py-2 text-[var(--text-muted)]">{std.description}</td>
@@ -190,7 +190,7 @@ export default function SurveyRegulationsPage() {
               </thead>
               <tbody>
                 {SURVEY_REGULATIONS.slice(0, 20).map((reg, i) => (
-                  <tr key={i} className="border-b border-[var(--border-color)] last:border-0">
+                  <tr key={reg.title} className="border-b border-[var(--border-color)] last:border-0">
                     <td className="py-2 font-mono">{reg.number}</td>
                     <td className="py-2">{reg.part}</td>
                     <td className="py-2 font-medium">{reg.title}</td>

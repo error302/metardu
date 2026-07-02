@@ -319,7 +319,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
         <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 flex flex-wrap gap-2">
           {warnings.map((w, idx) => (
             <span
-              key={idx}
+              key={`${w}-${idx}`}
               className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${
                 w.severity === 'error' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
               }`}

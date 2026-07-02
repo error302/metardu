@@ -111,7 +111,7 @@ export default function HorizontalCurveCalculator() {
           <summary className="cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium mb-2">Show Computation Steps</summary>
           <div className="space-y-1">
             {result.steps.map((step, i) => (
-              <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto] gap-x-2 font-mono py-1 border-b border-[var(--border-color)]/20">
+              <div key={step.value} className="grid grid-cols-[1fr_auto_1fr_auto] gap-x-2 font-mono py-1 border-b border-[var(--border-color)]/20">
                 <span className="text-[var(--text-secondary)]">{step.description}</span>
                 <span className="text-[var(--text-muted)]">=</span>
                 <span className="text-[var(--text-primary)]">{step.value}</span>
@@ -191,7 +191,7 @@ function SetOutDisplay({ radius, T, tcChainage, interval, deltaD, deltaM, deltaS
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border border-[var(--border-color)]/50 hover:bg-[var(--bg-tertiary)]/50">
+            <tr key={`${row}-${i}`} className="border border-[var(--border-color)]/50 hover:bg-[var(--bg-tertiary)]/50">
               <td className="px-3 py-1.5 text-[var(--text-primary)]">{row.peg}</td>
               <td className="px-3 py-1.5 text-[var(--text-primary)]">{fmtCh(row.chainage)}</td>
               <td className="px-3 py-1.5 text-[var(--text-primary)] text-right">{row.chord > 0 ? row.chord.toFixed(3) : '—'}</td>

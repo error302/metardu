@@ -239,7 +239,7 @@ export function CrossSection({
           </thead>
           <tbody>
             {sections.map((s, i) => (
-              <tr key={i} 
+              <tr key={`${s}-${i}`} 
                 className="border-t border-[var(--border-color)] hover:bg-[var(--bg-secondary)] cursor-pointer"
                 onClick={() => setSelectedStation(i)}
               >

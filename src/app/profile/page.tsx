@@ -141,7 +141,7 @@ export default function ProfilePage() {
     return (
       <div className="max-w-3xl mx-auto px-6 py-8 animate-pulse">
         <div className="h-8 w-36 rounded bg-[var(--bg-tertiary)] mb-8" />
-        {[...Array(5)].map((_, i) => <div key={i} className="h-14 rounded-lg bg-[var(--bg-tertiary)] mb-4" />)}
+        {[...Array(5)].map((_, i) => <div key={`${_}-${i}`} className="h-14 rounded-lg bg-[var(--bg-tertiary)] mb-4" />)}
       </div>
     )
   }

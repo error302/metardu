@@ -99,7 +99,7 @@ function TraverseDiagram({ stations, closingError }: {
     <svg width={width} height={height} className="bg-[var(--bg-secondary)] rounded border border-amber-500/30 w-full">
       {points.slice(0, -1).map((p, i) => (
         <line
-          key={i}
+          key={`${p}-${i}`}
           x1={p.x} y1={p.y}
           x2={points[i+1].x} y2={points[i+1].y}
           stroke="#D17B47"
@@ -122,7 +122,7 @@ function TraverseDiagram({ stations, closingError }: {
       })()}
 
       {points.map((p, i) => (
-        <g key={i}>
+        <g key={p.name}>
           <circle
             cx={p.x} cy={p.y} r={6}
             fill={i === 0 ? '#ef4444' : '#D17B47'}
@@ -1257,7 +1257,7 @@ export default function TraverseModal({
                     const blunder = blunderResults[idx]
                     const isBlunderRow = blunder?.isBlunder || blunder?.distanceMismatch
                     return (
-                      <tr key={idx} className={`border-b border-[var(--border-color)]/50 ${isBlunderRow ? 'bg-red-900/30' : ''}`}>
+                      <tr key={`${leg}-${idx}`} className={`border-b border-[var(--border-color)]/50 ${isBlunderRow ? 'bg-red-900/30' : ''}`}>
                         <td className={`px-2 py-2 font-mono ${isBlunderRow ? 'text-red-400' : 'text-[var(--text-primary)]'}`}>
                           {leg.from} → {leg.to}
                           {isBlunderRow && <span className="ml-2 text-red-400">[!]</span>}
@@ -1296,7 +1296,7 @@ export default function TraverseModal({
                 <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Blunder Detection Analysis</h3>
                 <div className="space-y-2">
                   {blunderResults.map((b, i) => (
-                    <div key={i} className={`flex items-center gap-2 text-xs ${b.isBlunder || b.distanceMismatch ? 'text-red-400' : 'text-[var(--text-secondary)]'}`}>
+                    <div key={`${b}-${i}`} className={`flex items-center gap-2 text-xs ${b.isBlunder || b.distanceMismatch ? 'text-red-400' : 'text-[var(--text-secondary)]'}`}>
                       <span className="font-mono">{b.legName}</span>
                       <div className="flex-1 h-2 bg-[var(--bg-tertiary)] rounded overflow-hidden">
                         <div 
@@ -1314,7 +1314,7 @@ export default function TraverseModal({
                   <div className="mt-3 pt-2 border-t border-[var(--border-color)]">
                     <p className="text-xs text-[var(--text-secondary)] mb-1">Warnings:</p>
                     {blunderResults.filter((b) => b.warning).map((b, i) => (
-                      <p key={i} className="text-xs text-red-400">• {b.warning}</p>
+                      <p key={`${b}-${i}`} className="text-xs text-red-400">• {b.warning}</p>
                     ))}
                   </div>
                 )}

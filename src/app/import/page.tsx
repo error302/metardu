@@ -262,7 +262,7 @@ export default function ImportPage() {
                 {warnings.length > 0 && (
                   <div className="bg-amber-900/20 border border-amber-500/50 rounded p-3 mb-4">
                     {warnings.map((w, i) => (
-                      <p key={i} className="text-amber-400 text-sm">[!] {w}</p>
+                      <p key={`${w}-${i}`} className="text-amber-400 text-sm">[!] {w}</p>
                     ))}
                   </div>
                 )}
@@ -270,7 +270,7 @@ export default function ImportPage() {
                 <div className="max-h-64 overflow-y-auto space-y-2 mb-6">
                   {points.map((p, i) => (
                     <div
-                      key={i}
+                      key={`${p}-${i}`}
                       onClick={() => togglePoint(i)}
                       className={`flex items-center gap-3 p-2 rounded cursor-pointer ${
                         p.selected ? 'bg-amber-500/10' : 'bg-[var(--bg-card)]'

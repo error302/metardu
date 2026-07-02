@@ -248,7 +248,7 @@ export default function TeamPage() {
             ) : (
               <div className="space-y-2">
                 {activityLog.map((a: any, i: number) => (
-                  <div key={i} className="flex items-start gap-3 text-sm">
+                  <div key={`item-${i}`} className="flex items-start gap-3 text-sm">
                     <span className="text-gray-600 whitespace-nowrap text-xs">
                       {new Date(a.created_at).toLocaleString()}
                     </span>
@@ -294,7 +294,7 @@ export default function TeamPage() {
             ) : (
               <div className="space-y-4">
                 {team.map((member, idx) => (
-                  <div key={idx} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                  <div key={`${member}-${idx}`} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-sm font-bold">
@@ -374,7 +374,7 @@ export default function TeamPage() {
                       {team.length > 0 ? (
                         team.map((member, idx) => (
                           <button
-                            key={idx}
+                            key={`${member}-${idx}`}
                             onClick={() => handleAssign(block.id, member.user.id)}
                             disabled={assigning === block.id}
                             className="flex-1 flex items-center justify-center gap-1 text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg transition-colors truncate"

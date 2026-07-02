@@ -171,7 +171,7 @@ export function CutFillPanel() {
             >
               {result.cells.slice(0, 400).map((cell, i) => (
                 <div
-                  key={i}
+                  key={`${cell}-${i}`}
                   className="aspect-square"
                   style={{ backgroundColor: getHeatMapColor(cell.deltaZ) }}
                   title={`E:${cell.easting.toFixed(1)} N:${cell.northing.toFixed(1)} ΔZ:${cell.deltaZ.toFixed(2)}m`}

@@ -197,7 +197,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
             </thead>
             <tbody>
               {controlPoints.map((pt, i) => (
-                <tr key={i} className="border-b border-zinc-800">
+                <tr key={`${pt}-${i}`} className="border-b border-zinc-800">
                   <td className="py-2">BM{i + 1}</td>
                   <td className="py-2">{pt.easting.toFixed(3)}</td>
                   <td className="py-2">{pt.northing.toFixed(3)}</td>
@@ -373,7 +373,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
                     </thead>
                     <tbody>
                       {settingOut.stations.map((st, i) => (
-                        <tr key={i} className={i % 2 === 0 ? 'border-b border-zinc-800' : 'border-b border-zinc-800 bg-zinc-800/40'}>
+                        <tr key={st.label} className={i % 2 === 0 ? 'border-b border-zinc-800' : 'border-b border-zinc-800 bg-zinc-800/40'}>
                           <td className="py-1.5 pr-4 font-mono font-medium">{st.label}</td>
                           <td className="py-1.5 pr-4 text-right font-mono">{st.easting.toFixed(3)}</td>
                           <td className="py-1.5 pr-4 text-right font-mono">{st.northing.toFixed(3)}</td>
@@ -402,7 +402,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
                       </thead>
                       <tbody>
                         {settingOut.upstreamToe.map((pt, i) => (
-                          <tr key={i} className="border-b border-zinc-800">
+                          <tr key={pt.label} className="border-b border-zinc-800">
                             <td className="py-1 pr-3 font-mono text-xs">{pt.label}</td>
                             <td className="py-1 pr-3 text-right font-mono text-xs">{pt.easting.toFixed(3)}</td>
                             <td className="py-1 text-right font-mono text-xs">{pt.northing.toFixed(3)}</td>
@@ -427,7 +427,7 @@ export function DamPanel({ projectId, subtype }: EngineeringPanelProps) {
                       </thead>
                       <tbody>
                         {settingOut.downstreamToe.map((pt, i) => (
-                          <tr key={i} className="border-b border-zinc-800">
+                          <tr key={pt.label} className="border-b border-zinc-800">
                             <td className="py-1 pr-3 font-mono text-xs">{pt.label}</td>
                             <td className="py-1 pr-3 text-right font-mono text-xs">{pt.easting.toFixed(3)}</td>
                             <td className="py-1 text-right font-mono text-xs">{pt.northing.toFixed(3)}</td>

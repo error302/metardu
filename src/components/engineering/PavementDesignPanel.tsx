@@ -340,7 +340,7 @@ export default function PavementDesignPanel({
               </thead>
               <tbody>
                 {result.layers.map((layer, i) => (
-                  <tr key={i} className="border-t border-zinc-800">
+                  <tr key={layer.name} className="border-t border-zinc-800">
                     <td className="px-4 py-2 font-medium text-white">
                       <span className="inline-block w-3 h-3 rounded-sm mr-2" style={{ backgroundColor: layer.color }} />
                       {layer.name}
@@ -388,7 +388,7 @@ export default function PavementDesignPanel({
                 </thead>
                 <tbody>
                   {quantities.map((q, i) => (
-                    <tr key={i} className="border-t border-zinc-800">
+                    <tr key={`${q}-${i}`} className="border-t border-zinc-800">
                       <td className="px-4 py-2 font-medium text-white">{q.layer}</td>
                       <td className="px-4 py-2 text-right font-mono text-zinc-300">
                         {safeNum(q.volumeM3, '—') !== '—' ? q.volumeM3.toLocaleString() : '—'}
@@ -432,7 +432,7 @@ function PavementStructureDiagram({ layers }: { layers: PavementLayer[] }) {
         const currentY = y
         y += layerHeight
         return (
-          <g key={i}>
+          <g key={layer.name}>
             <rect x={padX} y={currentY} width={layerWidth} height={layerHeight} fill={layer.color} rx={i === 0 ? 6 : 0} />
             {i > 0 && <line x1={padX} y1={currentY} x2={padX + layerWidth} y2={currentY} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />}
             <text x={padX + layerWidth / 2} y={currentY + layerHeight / 2 + 4} textAnchor="middle" fill="white" fontSize="11" fontWeight="500">

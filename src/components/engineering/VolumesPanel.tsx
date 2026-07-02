@@ -140,7 +140,7 @@ function MassHaulDiagramSVG({ diagram, balancePoint }: { diagram: MassHaulPoint[
           {/* Data points */}
           {diagram.map((d, i) => (
             <circle
-              key={i}
+              key={d.station}
               cx={scaleX(d.station)} cy={scaleY(d.cumulative)}
               r="3"
               fill={d.cumulative >= 0 ? '#16a34a' : '#dc2626'}
@@ -376,7 +376,7 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
         <div className="p-4">
           <div className="flex flex-wrap gap-2">
             {areas.map((area, i) => (
-              <div key={i} className="flex items-center gap-1">
+              <div key={`${area}-${i}`} className="flex items-center gap-1">
                 <span className="text-xs text-[var(--text-muted)] w-8">{i * stationInterval}</span>
                 <input aria-label="Area"
                   type="number"
@@ -434,7 +434,7 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
                 </thead>
                 <tbody>
                   {result.volumeTable.slice(0, 15).map((row, i) => (
-                    <tr key={i} className="border-b border-[var(--border-color)]/30">
+                    <tr key={row.station} className="border-b border-[var(--border-color)]/30">
                       <td className="py-1.5 px-4">{row.station.toFixed(0)}</td>
                       <td className="py-1.5 px-4 text-right text-red-400">{row.cutArea.toFixed(2)}</td>
                       <td className="py-1.5 px-4 text-right text-green-400">{row.fillArea.toFixed(2)}</td>

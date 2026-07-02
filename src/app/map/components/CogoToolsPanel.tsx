@@ -283,7 +283,7 @@ function DistanceIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, la
           <div className="flex gap-2">
             {([0, 1] as const).map((idx) => (
               <button
-                key={idx}
+                key={`btn-${idx}`}
                 onClick={() => setSelectedIdx(idx)}
                 className={`flex-1 px-2 py-1 text-[10px] font-mono rounded border transition-colors ${
                   selectedIdx === idx

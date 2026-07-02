@@ -123,7 +123,7 @@ export default function GNSSProcessor({ projectId = '' }: { projectId?: string }
         <div className="space-y-2">
           <h3 className="font-semibold text-sm">Uploaded Files</h3>
           {files.map((f, i) => (
-            <div key={i} className="flex items-center gap-3 p-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg">
+            <div key={`${f}-${i}`} className="flex items-center gap-3 p-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg">
               <FileText className="w-5 h-5 text-[var(--text-muted)]" />
               <div className="flex-1">
                 <div className="text-sm font-medium">{f.file.name}</div>
@@ -220,7 +220,7 @@ export default function GNSSProcessor({ projectId = '' }: { projectId?: string }
               </thead>
               <tbody>
                 {results.map((r, i) => (
-                  <tr key={i} className={`border-b border-[var(--border-color)] ${r.fixed ? 'bg-green-50' : 'bg-amber-50'}`}>
+                  <tr key={`${r}-${i}`} className={`border-b border-[var(--border-color)] ${r.fixed ? 'bg-green-50' : 'bg-amber-50'}`}>
                     <td className="p-3">{r.fromStation}</td>
                     <td className="p-3">{r.toStation}</td>
                     <td className="p-3 text-right font-mono">{r.distance.toFixed(3)}</td>

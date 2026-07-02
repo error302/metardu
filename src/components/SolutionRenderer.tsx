@@ -13,7 +13,7 @@ export default function SolutionRenderer({ solution }: { solution: Solution }) {
         <Section title="Given">
           <div className="grid md:grid-cols-2 gap-2">
             {solution.given.map((g, i) => (
-              <div key={i} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
+              <div key={g.label} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
                 <div className="text-xs text-[var(--text-muted)]">{g.label}</div>
                 <div className="font-mono text-sm text-[var(--text-primary)] text-right">{g.value}</div>
               </div>
@@ -24,7 +24,7 @@ export default function SolutionRenderer({ solution }: { solution: Solution }) {
         <Section title="To Find">
           <ul className="list-disc pl-5 text-sm text-[var(--text-primary)] space-y-1">
             {solution.toFind.map((x, i) => (
-              <li key={i}>{x}</li>
+              <li key={`${x}-${i}`}>{x}</li>
             ))}
           </ul>
         </Section>
@@ -32,7 +32,7 @@ export default function SolutionRenderer({ solution }: { solution: Solution }) {
         <Section title="Solution">
           <div className="space-y-3">
             {solution.solution.map((s, i) => (
-              <div key={i} className="rounded-lg border border-[var(--border-color)] bg-gray-950/20 p-3">
+              <div key={s.title} className="rounded-lg border border-[var(--border-color)] bg-gray-950/20 p-3">
                 {s.title ? <div className="text-sm font-semibold text-amber-300 mb-2">{s.title}</div> : null}
                 <Row label="Formula" value={s.formula} />
                 {s.substitution ? <Row label="Substitution" value={s.substitution} /> : null}
@@ -48,7 +48,7 @@ export default function SolutionRenderer({ solution }: { solution: Solution }) {
             <div className="space-y-2">
               {solution.check.map((c, i) => (
                 <div
-                  key={i}
+                  key={c.label}
                   className={`flex items-baseline justify-between gap-3 p-2 rounded border ${
                     c.ok === true
                       ? 'border-green-700 bg-green-900/10'
@@ -68,7 +68,7 @@ export default function SolutionRenderer({ solution }: { solution: Solution }) {
         <Section title="Result">
           <div className="space-y-2">
             {solution.result.map((r, i) => (
-              <div key={i} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
+              <div key={r.label} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
                 <div className="text-xs text-[var(--text-muted)]">{r.label}</div>
                 <div className="font-mono text-sm text-amber-200 text-right">{r.value}</div>
               </div>

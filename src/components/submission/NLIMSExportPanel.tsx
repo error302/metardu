@@ -225,7 +225,7 @@ export function NLIMSExportPanel({ projectId }: NLIMSExportPanelProps) {
               </div>
               <ul className="text-[11px] text-red-400/80 space-y-0.5 list-disc list-inside">
                 {validation.errors.map((e, i) => (
-                  <li key={i}>{e.message}</li>
+                  <li key={`${e}-${i}`}>{e.message}</li>
                 ))}
               </ul>
               {validation.warnings.length > 0 && (
@@ -233,7 +233,7 @@ export function NLIMSExportPanel({ projectId }: NLIMSExportPanelProps) {
                   <span className="text-[10px] text-amber-400 font-medium">Warnings:</span>
                   <ul className="text-[10px] text-amber-400/70 space-y-0.5 list-disc list-inside mt-0.5">
                     {validation.warnings.map((w, i) => (
-                      <li key={i}>{w.message}</li>
+                      <li key={`${w}-${i}`}>{w.message}</li>
                     ))}
                   </ul>
                 </div>

@@ -156,7 +156,7 @@ export function ImportTab({
               </thead>
               <tbody>
                 {previewRows.map((p, i) => (
-                  <tr key={i} className="border-b border-zinc-800">
+                  <tr key={p.name} className="border-b border-zinc-800">
                     <td className="py-2 px-3 font-semibold text-white">{p.name}</td>
                     <td className="py-2 px-3 text-right font-mono text-zinc-300">{fmt(p.easting)}</td>
                     <td className="py-2 px-3 text-right font-mono text-zinc-300">{fmt(p.northing)}</td>
@@ -190,7 +190,7 @@ export function ImportTab({
               </thead>
               <tbody>
                 {parseErrors.map((err, i) => (
-                  <tr key={i} className="border-b border-zinc-800">
+                  <tr key={`${err}-${i}`} className="border-b border-zinc-800">
                     <td className="py-2 px-3 font-mono text-zinc-300">{err.row}</td>
                     <td className="py-2 px-3 text-red-400 text-sm">{err.message}</td>
                   </tr>

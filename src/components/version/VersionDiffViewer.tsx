@@ -166,7 +166,7 @@ export function VersionDiffViewer({ entityType, entityId, onRestore }: VersionDi
               <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Metadata Changes</h3>
               <div className="space-y-1">
                 {diff.metadataChanges.map((c, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs">
+                  <div key={c.field} className="flex items-center gap-2 text-xs">
                     <span className="text-gray-500 w-32">{c.field}:</span>
                     <span className="text-red-400 line-through">{c.oldValue || '—'}</span>
                     <ArrowRight className="w-3 h-3 text-gray-600" />

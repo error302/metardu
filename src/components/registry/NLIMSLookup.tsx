@@ -166,7 +166,7 @@ export default function NLIMSLookup({ initialParcel = '', onParcelVerified }: NL
                 <h4 className="font-medium text-amber-800 mb-2">Encumbrances</h4>
                 <ul className="space-y-2">
                   {result.parcel.encumbrances.map((enc, i) => (
-                    <li key={i} className="text-sm">
+                    <li key={`${enc}-${i}`} className="text-sm">
                       <span className="font-medium">{enc.type}:</span> {enc.description}
                     </li>
                   ))}

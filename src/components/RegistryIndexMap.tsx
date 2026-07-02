@@ -339,7 +339,7 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
                   <h4 className="text-xs font-bold text-gray-700 mb-2">Sheet Index (Adjacent Sheets)</h4>
                   <div className="grid grid-cols-3 gap-1 mb-2">
                     {[[0,0],[0,1],[0,2],[1,0],[1,1,'●'],[1,2],[2,0],[2,1],[2,2]].map(([r,c,label],i) => (
-                      <button key={i}
+                      <button key={`item-${i}`}
                         onClick={() => setSheetIndex(s => ({...s, currentRow: r as number, currentCol: c as number}))}
                         className={`h-8 text-xs rounded border ${r===sheetIndex.currentRow&&c===sheetIndex.currentCol?'bg-black text-white':'bg-gray-100 hover:bg-gray-200'}`}
                       >
@@ -480,7 +480,7 @@ function RIMSheetContent({
               const isCurrent = r === sheetIndex.currentRow && c === sheetIndex.currentCol
               const adjSheets = ['NW', 'N', 'NE', 'W', '●', 'E', 'SW', 'S', 'SE']
               return (
-                <div key={i}
+                <div key={`${_}-${i}`}
                   className={`flex items-center justify-center text-[6pt] ${isCurrent ? 'bg-black text-white font-bold' : 'bg-gray-100'}`}
                   title={adjSheets[i] ?? `${r+1}-${c+1}`}
                 >
@@ -627,7 +627,7 @@ function RIMSheetContent({
         <div className="text-[6pt] mb-0.5">Scale: {scale}</div>
         <div className="flex items-end">
           {[0, 10, 20, 30, 40].map((_, i) => (
-            <div key={i} className="flex items-end">
+            <div key={`${_}-${i}`} className="flex items-end">
               <div className={`h-3 ${i % 2 === 0 ? 'bg-black w-4' : 'bg-black/50 w-2'}`} />
             </div>
           ))}

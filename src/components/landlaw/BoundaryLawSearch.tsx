@@ -117,7 +117,7 @@ export default function BoundaryLawSearch() {
                   <p className="text-sm text-gray-600 line-clamp-2">{entry.description}</p>
                   <div className="flex gap-2 mt-2">
                     {entry.relevantActs.slice(0, 2).map((act: string, i: number) => (
-                      <span key={i} className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                      <span key={`item-${i}`} className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
                         {act}
                       </span>
                     ))}
@@ -146,7 +146,7 @@ export default function BoundaryLawSearch() {
                   <h5 className="font-medium text-gray-700 text-sm">Legal Framework</h5>
                   <ul className="mt-2 space-y-1">
                     {selectedEntry.legalFramework.map((item, i) => (
-                      <li key={i} className="text-sm text-gray-600 flex items-center gap-2">
+                      <li key={`${item}-${i}`} className="text-sm text-gray-600 flex items-center gap-2">
                         <FileText className="w-3 h-3" /> {item}
                       </li>
                     ))}
@@ -157,7 +157,7 @@ export default function BoundaryLawSearch() {
                   <h5 className="font-medium text-gray-700 text-sm">Relevant Acts</h5>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {selectedEntry.relevantActs.map((act, i) => (
-                      <span key={i} className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                      <span key={`${act}-${i}`} className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
                         {act}
                       </span>
                     ))}
@@ -168,7 +168,7 @@ export default function BoundaryLawSearch() {
                   <h5 className="font-medium text-gray-700 text-sm">Case Law</h5>
                   <ul className="mt-2 space-y-1">
                     {selectedEntry.caseLaw.map((case_, i) => (
-                      <li key={i} className="text-sm text-gray-600 flex items-center gap-2">
+                      <li key={`${case_}-${i}`} className="text-sm text-gray-600 flex items-center gap-2">
                         <Scale className="w-3 h-3 text-amber-500" /> {case_}
                       </li>
                     ))}
@@ -193,7 +193,7 @@ export default function BoundaryLawSearch() {
                   </h5>
                   <ul className="mt-2 space-y-1">
                     {selectedEntry.commonPitfalls.map((pitfall, i) => (
-                      <li key={i} className="text-sm text-red-600 flex items-start gap-2">
+                      <li key={`${pitfall}-${i}`} className="text-sm text-red-600 flex items-start gap-2">
                         <span className="text-red-400">•</span> {pitfall}
                       </li>
                     ))}

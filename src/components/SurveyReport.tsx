@@ -434,7 +434,7 @@ export default function SurveyReport({
                 <div>Linear error: <strong>{precisionValidation.linearError.toFixed(4)} m</strong></div>
                 <div className="col-span-2 text-gray-500">Regulation: {precisionValidation.regulation}</div>
                 {precisionValidation.warnings.map((w, i) => (
-                  <div key={i} className="col-span-2 text-amber-700 mt-1">[!] {w}</div>
+                  <div key={`${w}-${i}`} className="col-span-2 text-amber-700 mt-1">[!] {w}</div>
                 ))}
               </div>
             </div>
@@ -494,7 +494,7 @@ export default function SurveyReport({
               {areaResult.warnings.length > 0 && (
                 <div className="col-span-4">
                   {areaResult.warnings.map((w, i) => (
-                    <div key={i} className="text-xs text-amber-600">[!] {w}</div>
+                    <div key={`${w}-${i}`} className="text-xs text-amber-600">[!] {w}</div>
                   ))}
                 </div>
               )}
@@ -610,7 +610,7 @@ export default function SurveyReport({
             </div>
           ) : validationErrors.length > 0 ? (
             <div className="text-sm text-red-600">
-              {validationErrors.map((e, i) => <div key={i}>[x] {e}</div>)}
+              {validationErrors.map((e, i) => <div key={`${e}-${i}`}>[x] {e}</div>)}
             </div>
           ) : (
             <div className="text-xs text-gray-500">

@@ -168,7 +168,7 @@ function CogoInfoPanelInner() {
               <tbody>
                 {legs.map((leg, idx) => (
                   <tr
-                    key={idx}
+                    key={`${leg}-${idx}`}
                     className={idx % 2 === 0 ? 'bg-[var(--bg-card)]' : 'bg-[var(--bg-secondary)]/50'}
                   >
                     <td className="px-2 py-1 text-[var(--text-muted)] font-mono">
@@ -241,7 +241,7 @@ function CogoInfoPanelInner() {
                 <tbody>
                   {legs.map((leg, idx) => (
                     <tr
-                      key={idx}
+                      key={`${leg}-${idx}`}
                       className={idx % 2 === 0 ? 'bg-[var(--bg-card)]' : 'bg-[var(--bg-secondary)]/50'}
                     >
                       <td className="px-2 py-0.5 text-[var(--text-muted)] font-mono">

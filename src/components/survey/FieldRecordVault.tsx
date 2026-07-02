@@ -282,7 +282,7 @@ export function FieldRecordVault() {
                     {record.parcel_numbers && record.parcel_numbers.length > 0 && (
                       <div className="flex items-center gap-1 mt-1 flex-wrap">
                         {record.parcel_numbers.slice(0, 3).map((pn, i) => (
-                          <span key={i} className="text-[8px] px-1 py-0.5 rounded bg-white/[0.04] text-gray-400 font-mono">
+                          <span key={`${pn}-${i}`} className="text-[8px] px-1 py-0.5 rounded bg-white/[0.04] text-gray-400 font-mono">
                             {pn}
                           </span>
                         ))}

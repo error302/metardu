@@ -227,7 +227,7 @@ export default function RoadCompletionCertificatePanel({
           <h4 className="text-sm font-semibold text-red-400 mb-2">&#9888; Validation Errors</h4>
           <ul className="space-y-1">
             {validationErrors.map((err, i) => (
-              <li key={i} className="text-xs text-red-300">&#8226; {err}</li>
+              <li key={`${err}-${i}`} className="text-xs text-red-300">&#8226; {err}</li>
             ))}
           </ul>
         </div>
@@ -354,7 +354,7 @@ export default function RoadCompletionCertificatePanel({
           <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-4">
             <h4 className="font-medium text-white text-sm mb-3">Defects ({defects.length})</h4>
             {defects.map((d, i) => (
-              <div key={i} className="flex gap-2 mb-2 items-center">
+              <div key={`${d}-${i}`} className="flex gap-2 mb-2 items-center">
                 <select className="border border-zinc-600 rounded px-2 py-1 text-xs bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" value={d.severity}
                   onChange={e => { const nd = [...defects]; nd[i] = { ...d, severity: e.target.value as 'minor' | 'major' | 'critical' }; setDefects(nd) }}>
                   <option value="minor">Minor</option><option value="major">Major</option><option value="critical">Critical</option>
@@ -431,7 +431,7 @@ function CertificatePreview({ certificate }: { certificate: ReturnType<typeof ge
 
       {/* Sections */}
       {certificate.sections.map((section, i) => (
-        <div key={i}>
+        <div key={section.title}>
           <h4 className="font-bold text-xs text-zinc-400 uppercase tracking-wider border-b border-zinc-700 pb-1 mb-2">{section.title}</h4>
           <table className="w-full text-xs">
             <tbody>
@@ -451,7 +451,7 @@ function CertificatePreview({ certificate }: { certificate: ReturnType<typeof ge
         <h4 className="font-bold text-xs text-zinc-400 uppercase tracking-wider border-b border-zinc-700 pb-1 mb-2">CERTIFICATION CHECKLIST</h4>
         <div className="grid grid-cols-2 gap-1">
           {certificate.certificationChecklist.map((item, i) => (
-            <div key={i} className={`flex items-center gap-2 text-xs py-1 ${item.certified ? 'text-green-400' : 'text-red-400'}`}>
+            <div key={`${item}-${i}`} className={`flex items-center gap-2 text-xs py-1 ${item.certified ? 'text-green-400' : 'text-red-400'}`}>
               {item.certified ? '✓' : '[x]'} {item.item}
             </div>
           ))}
@@ -463,7 +463,7 @@ function CertificatePreview({ certificate }: { certificate: ReturnType<typeof ge
         <div className="bg-amber-950/50 border border-amber-800 rounded-lg p-3">
           <h4 className="font-bold text-xs text-amber-400 mb-1">COMPLIANCE NOTES</h4>
           {certificate.complianceNotes.map((note, i) => (
-            <p key={i} className="text-xs text-amber-500">&#8226; {note}</p>
+            <p key={`${note}-${i}`} className="text-xs text-amber-500">&#8226; {note}</p>
           ))}
         </div>
       )}

@@ -193,7 +193,7 @@ export default function CsvImportPanel({ projectId, blockId, blockName, onImport
                 </p>
                 <div className="max-h-24 overflow-y-auto space-y-0.5">
                   {result.errors.map((e, i) => (
-                    <p key={i} className="text-[10px] text-yellow-300/80">{e}</p>
+                    <p key={`${e}-${i}`} className="text-[10px] text-yellow-300/80">{e}</p>
                   ))}
                 </div>
               </div>

@@ -621,7 +621,7 @@ export function MobileFieldbookShell({
                   <div className="p-3 bg-red-950/20 border border-red-500/30 rounded-lg text-xs text-red-300 space-y-1">
                     <div className="font-semibold text-red-400">[!] Calculation Errors:</div>
                     {computed.errors.map((e: string, i: number) => (
-                      <div key={i} className="list-item ml-3">{e}</div>
+                      <div key={`item-${i}`} className="list-item ml-3">{e}</div>
                     ))}
                   </div>
                 ) : (

@@ -110,7 +110,7 @@ export default function SurveyTab({
           <div className="mt-3 p-3 bg-red-900/20 border border-red-800/30 rounded-lg">
             <h4 className="text-sm font-medium text-red-400 mb-1">Parse Errors</h4>
             <ul className="text-xs text-red-300/80 space-y-0.5">
-              {errors.map((err, i) => <li key={i}>{err}</li>)}
+              {errors.map((err, i) => <li key={`${err}-${i}`}>{err}</li>)}
             </ul>
           </div>
         )}
@@ -182,7 +182,7 @@ export default function SurveyTab({
                 </thead>
                 <tbody>
                   {points.slice(0, 10).map((p, i) => (
-                    <tr key={i} className="border-b border-[var(--border-color)]/30">
+                    <tr key={`${p}-${i}`} className="border-b border-[var(--border-color)]/30">
                       <td className="py-1.5 px-2 text-[var(--text-muted)]">{i + 1}</td>
                       <td className="py-1.5 px-2 text-right font-mono">{p.easting.toFixed(2)}</td>
                       <td className="py-1.5 px-2 text-right font-mono">{p.northing.toFixed(2)}</td>

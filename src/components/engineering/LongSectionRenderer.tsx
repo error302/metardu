@@ -477,7 +477,7 @@ export default function LongSectionRenderer({
             </thead>
             <tbody className="divide-y divide-gray-100">
               {tableRows.map((r, i) => (
-                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
+                <tr key={`${r}-${i}`} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
                   <td className="px-4 py-1.5 font-mono text-xs">{formatChainage(r.chainage)}</td>
                   <td className="px-4 py-1.5 font-mono text-xs">{r.groundRL}</td>
                   <td className="px-4 py-1.5 font-mono text-xs">{r.designRL}</td>

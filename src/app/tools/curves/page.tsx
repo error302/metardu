@@ -363,7 +363,7 @@ export default function CurvesCalculator() {
                     </thead>
                     <tbody>
                       {result.stakePoints.map((p: any, i: number) => (
-                        <tr key={i} className="border-t border-[var(--border-color)]">
+                        <tr key={`item-${i}`} className="border-t border-[var(--border-color)]">
                           <td className="px-3 py-2 font-mono">{p.chainage.toFixed(3)}</td>
                           <td className="px-3 py-2 text-right font-mono">{p.chordLength?.toFixed?.(3) ?? '—'}</td>
                           <td className="px-3 py-2 text-right font-mono">{p.totalDeflection ?? p.deflectionAngle ?? '—'}</td>
@@ -378,7 +378,7 @@ export default function CurvesCalculator() {
               <div className="mt-6 p-4 border rounded-lg" style={{ backgroundColor: rdmValidation.status === 'GREEN' ? '#10b98120' : rdmValidation.status === 'YELLOW' ? '#f59e0b20' : '#ef444420' }}>
                 <h4 className="font-bold mb-2">RDM 1.3 Compliance: <span style={{ color: rdmValidation.status === 'GREEN' ? '#10b981' : rdmValidation.status === 'YELLOW' ? '#f59e0b' : '#ef4444' }}>{rdmValidation.status}</span></h4>
                 {rdmValidation.flags.map((flag: string, i: number) => (
-                  <p key={i} className="text-sm mb-1">{flag}</p>
+                  <p key={`item-${i}`} className="text-sm mb-1">{flag}</p>
                 ))}
               </div>
             )}
@@ -448,7 +448,7 @@ export default function CurvesCalculator() {
                       const isEVC = i === vResult.tableRows.length - 1;
                       const isPeak = !!(vResult.peakPoint && Math.abs(r.chainage - vResult.peakPoint.chainage) < 1);
                       return (
-                        <tr key={i} className={`border-t border-[var(--border-color)]/30 ${isPeak ? 'bg-[var(--accent)]/10' : ''}`}>
+                        <tr key={`item-${i}`} className={`border-t border-[var(--border-color)]/30 ${isPeak ? 'bg-[var(--accent)]/10' : ''}`}>
                           <td className="px-3 py-1">{r.chainage.toFixed(3)}</td>
                           <td className="px-3 py-1">{r.x.toFixed(3)}</td>
                           <td className={`px-3 py-1 text-right font-semibold ${isBVC || isEVC || isPeak ? 'text-[var(--accent)]' : ''}`}>{r.RL.toFixed(4)}</td>

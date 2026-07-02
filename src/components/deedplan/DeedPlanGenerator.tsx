@@ -701,7 +701,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                 </thead>
                 <tbody>
                   {output.bearingSchedule.map((leg, i) => (
-                    <tr key={i} className="border-b">
+                    <tr key={`${leg}-${i}`} className="border-b">
                       <td className="py-2">{i + 1}</td>
                       <td className="py-2">{leg.fromPoint}</td>
                       <td className="py-2">{leg.toPoint}</td>

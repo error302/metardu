@@ -519,7 +519,7 @@ export default function PileGridPanel() {
                       </thead>
                       <tbody className="divide-y divide-zinc-800/60">
                         {gridResult.piles.map((p, i) => (
-                          <tr key={i} className="hover:bg-zinc-800/40 transition-colors">
+                          <tr key={p.label} className="hover:bg-zinc-800/40 transition-colors">
                             <td className="px-4 py-2 font-mono text-xs font-semibold text-blue-400">{p.label}</td>
                             <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{p.easting.toFixed(4)}</td>
                             <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{p.northing.toFixed(4)}</td>
@@ -624,7 +624,7 @@ export default function PileGridPanel() {
                         </thead>
                         <tbody className="divide-y divide-zinc-800/60">
                           {settingOutData.map((d, i) => (
-                            <tr key={i} className="hover:bg-zinc-800/40 transition-colors">
+                            <tr key={`${d}-${i}`} className="hover:bg-zinc-800/40 transition-colors">
                               <td className="px-4 py-2 font-mono text-xs font-semibold text-amber-400">{d.pile.label}</td>
                               <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{d.bearingDMS}</td>
                               <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{d.horizontalDistance.toFixed(4)}</td>
@@ -763,7 +763,7 @@ function PileGridSVG({ result }: { result: PileGridResult }) {
         const py = cy(pile.northing)
         const r = def.pileDiameter ? Math.max((def.pileDiameter / 2000) * scale * 0.5, 4) : 5
         return (
-          <g key={i}>
+          <g key={pile.label}>
             <circle cx={px} cy={py} r={r} fill="rgba(34,197,94,0.15)" stroke="#22c55e" strokeWidth={1.2} />
             <circle cx={px} cy={py} r={2} fill="#22c55e" />
             <text

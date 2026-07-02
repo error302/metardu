@@ -256,7 +256,7 @@ export default function GNSSProcessor() {
                       </thead>
                       <tbody>
                         {result.points.map((p: any, i: number) => (
-                          <tr key={i} className="border-t border-[var(--border)]">
+                          <tr key={`item-${i}`} className="border-t border-[var(--border)]">
                             <td className="py-2">{p.name}</td>
                             <td>{p.easting.toFixed(4)}</td>
                             <td>{p.northing.toFixed(4)}</td>

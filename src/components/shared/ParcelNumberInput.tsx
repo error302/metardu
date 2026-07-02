@@ -233,7 +233,7 @@ export default function ParcelNumberInput({
             </div>
             <ul className="text-xs text-red-600 space-y-1">
               {parsed.validationErrors.map((err, i) => (
-                <li key={i}>{err}</li>
+                <li key={`${err}-${i}`}>{err}</li>
               ))}
             </ul>
           </div>

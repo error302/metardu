@@ -115,7 +115,7 @@ export default function GeometryValidationPanel() {
       {result.flags.length > 0 && (
         <ul className="space-y-1">
           {result.flags.map((flag, i) => (
-            <li key={i} className={`text-xs px-2 py-1 rounded ${result.status === 'RED' ? 'bg-red-900/20 text-red-300' : result.status === 'YELLOW' ? 'bg-yellow-900/20 text-yellow-300' : 'bg-green-900/20 text-green-300'}`}>
+            <li key={`${flag}-${i}`} className={`text-xs px-2 py-1 rounded ${result.status === 'RED' ? 'bg-red-900/20 text-red-300' : result.status === 'YELLOW' ? 'bg-yellow-900/20 text-yellow-300' : 'bg-green-900/20 text-green-300'}`}>
               {flag}
             </li>
           ))}

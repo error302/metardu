@@ -173,7 +173,7 @@ export default function SuperelevationPanel({
           <p className="text-red-400 text-sm font-semibold mb-1">Standards Violations</p>
           <ul className="text-red-400 text-xs space-y-0.5">
             {validations.issues.map((issue, i) => (
-              <li key={i}>[!] {issue}</li>
+              <li key={`${issue}-${i}`}>[!] {issue}</li>
             ))}
           </ul>
         </div>
@@ -183,7 +183,7 @@ export default function SuperelevationPanel({
         <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
           <ul className="text-green-400 text-xs space-y-0.5">
             {validations.passes.map((pass, i) => (
-              <li key={i}>✓ {pass}</li>
+              <li key={`${pass}-${i}`}>✓ {pass}</li>
             ))}
           </ul>
         </div>
@@ -269,7 +269,7 @@ export default function SuperelevationPanel({
               </thead>
               <tbody>
                 {result.table.map((row, i) => (
-                  <tr key={i} className="border-b border-[var(--border-color)]/30">
+                  <tr key={`${row}-${i}`} className="border-b border-[var(--border-color)]/30">
                     <td className="py-1.5 pr-4">{row.chainageOffset.toFixed(2)}</td>
                     <td className="py-1.5 pr-4">{row.eApplied.toFixed(2)}</td>
                     <td className="py-1.5">

@@ -187,7 +187,7 @@ export default function NotificationsPage() {
         {loading && (
           <div className="space-y-3">
             {[1, 2, 3].map((i: any) => (
-              <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 animate-pulse">
+              <div key={`item-${i}`} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 animate-pulse">
                 <div className="flex gap-3">
                   <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)]" />
                   <div className="flex-1 space-y-2">

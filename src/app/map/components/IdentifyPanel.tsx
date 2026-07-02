@@ -223,7 +223,7 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
             <div className="space-y-1 max-h-[150px] overflow-y-auto">
               {feature.beacons.map((beacon, i) => (
                 <div
-                  key={i}
+                  key={`${beacon}-${i}`}
                   className="flex items-center gap-2 p-1.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.04] hover:bg-[var(--bg-card)]/[0.04] transition-colors cursor-pointer"
                 >
                   <div className="w-5 h-5 rounded bg-[#D17B47]/10 flex items-center justify-center shrink-0">

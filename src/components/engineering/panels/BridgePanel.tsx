@@ -182,7 +182,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
             </thead>
             <tbody>
               {centreLine.map((pt, i) => (
-                <tr key={i} className="border-b border-zinc-800">
+                <tr key={`${pt}-${i}`} className="border-b border-zinc-800">
                   <td className="py-2">CP{i + 1}</td>
                   <td className="py-2">{pt.easting.toFixed(3)}</td>
                   <td className="py-2">{pt.northing.toFixed(3)}</td>
@@ -226,7 +226,7 @@ export function BridgePanel({ projectId, subtype }: EngineeringPanelProps) {
           </div>
           <div className="space-y-2">
             {spanLengths.map((len, i) => (
-              <div key={i} className="flex gap-2">
+              <div key={`${len}-${i}`} className="flex gap-2">
                 <span className="text-sm text-zinc-400 w-20">Span {i + 1}:</span>
                 <input aria-label="Total Bridge Length"
                   type="number"
