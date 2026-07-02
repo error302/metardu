@@ -207,7 +207,7 @@ function LogForm({ equipment, onSave, onCancel }: { equipment: EquipmentWithStat
           <button onClick={onCancel} className="btn btn-secondary flex-1">Cancel</button>
           <button onClick={() => {
             if (!form.date) return
-            logCalibration({ equipmentId: equipment.id, ...form })
+            logCalibration({ equipmentId: equipment.id, ...form }).then(() => { onSave() })
             onSave()
           }} className="btn btn-primary flex-1">
             Save calibration record
@@ -227,7 +227,8 @@ function DetailDrawer({ equipment, onClose, onEdit, onLog, onDelete }: {
   onLog: () => void
   onDelete: () => void
 }) {
-  const logs = getLogsFor(equipment.id)
+  const [logs, setLogs] = useState<CalibrationLog[]>([])
+  useEffect(() => { getLogsFor(equipment.id).then(setLogs) }, [equipment.id])
   return (
     <div className="fixed inset-0 z-40 flex" onClick={onClose}>
       <div className="flex-1" />
@@ -321,7 +322,7 @@ export default function EquipmentPage() {
   const [logItem, setLogItem] = useState<EquipmentWithStatus | null>(null)
   const [detailItem, setDetailItem] = useState<EquipmentWithStatus | null>(null)
 
-  const reload = useCallback(() => setItems(getAll()), [])
+  const reload = useCallback(() => { getAll().then(setItems) }, [])
   useEffect(() => { reload() }, [reload])
 
   const filtered = view === 'all' ? items : items.filter((i: any) => i.status === view)
@@ -423,14 +424,14 @@ export default function EquipmentPage() {
       {/* Modals */}
       {showAdd && (
         <EquipmentForm
-          onSave={data => { addEquipment(data); reload(); setShowAdd(false) }}
+          onSave={data => { addEquipment(data).then(() => { reload(); setShowAdd(false) }) }}
           onCancel={() => setShowAdd(false)}
         />
       )}
       {editItem && (
         <EquipmentForm
           initial={editItem}
-          onSave={data => { updateEquipment(editItem.id, data); reload(); setEditItem(null); setDetailItem(null) }}
+          onSave={data => { updateEquipment(editItem.id, data).then(() => { reload(); setEditItem(null); setDetailItem(null) }) }}
           onCancel={() => setEditItem(null)}
         />
       )}
@@ -447,7 +448,7 @@ export default function EquipmentPage() {
           onClose={() => setDetailItem(null)}
           onEdit={() => { setEditItem(detailItem); setDetailItem(null) }}
           onLog={() => { setLogItem(detailItem); setDetailItem(null) }}
-          onDelete={() => { deleteEquipment(detailItem.id); reload(); setDetailItem(null) }}
+          onDelete={() => { deleteEquipment(detailItem.id).then(() => { reload(); setDetailItem(null) }) }}
         />
       )}
     </div>

@@ -40,34 +40,12 @@ export interface EquipmentWithStatus extends Equipment {
   percentUsed: number        // 0–100, how far through the interval
 }
 
-const STORAGE_KEY = 'metardu_equipment'
-const LOG_KEY = 'metardu_calibration_logs'
 
 // ── Storage helpers ──────────────────────────────────────────────────────────
 
-function load(): Equipment[] {
-  if (typeof window === 'undefined') return []
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
-  } catch { return [] }
-}
 
-function save(items: Equipment[]): void {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-}
 
-function loadLogs(): CalibrationLog[] {
-  if (typeof window === 'undefined') return []
-  try {
-    return JSON.parse(localStorage.getItem(LOG_KEY) || '[]')
-  } catch { return [] }
-}
 
-function saveLogs(logs: CalibrationLog[]): void {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(LOG_KEY, JSON.stringify(logs))
-}
 
 // ── Status calculation ───────────────────────────────────────────────────────
 
@@ -95,43 +73,122 @@ export function calcStatus(eq: Equipment): EquipmentWithStatus {
   }
 }
 
-// ── CRUD ─────────────────────────────────────────────────────────────────────
+// ── API Helpers ─────────────────────────────────────────────────────────────
 
-export function getAll(): EquipmentWithStatus[] {
-  return load().map(calcStatus).sort((a: any, b: any) => a.daysUntilDue - b.daysUntilDue)
+async function apiGet<T>(path: string): Promise<T> {
+  const res = await fetch(path, { credentials: 'include' })
+  if (!res.ok) return [] as unknown as T
+  const json = await res.json()
+  return json.equipment || json.data || json || []
 }
 
-export function addEquipment(data: Omit<Equipment, 'id' | 'createdAt'>): Equipment {
-  const items = load()
-  const item: Equipment = { ...data, id: `EQ_${Date.now()}`, createdAt: new Date().toISOString() }
-  save([...items, item])
-  return item
+async function apiPost<T>(path: string, body: unknown): Promise<T | null> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    credentials: 'include',
+  })
+  if (!res.ok) return null
+  const json = await res.json()
+  return json.equipment || json.data || json || null
 }
 
-export function updateEquipment(id: string, updates: Partial<Omit<Equipment, 'id' | 'createdAt'>>): boolean {
-  const items = load()
-  const idx = items.findIndex(e => e.id === id)
-  if (idx === -1) return false
-  items[idx] = { ...items[idx], ...updates }
-  save(items)
-  return true
+async function apiPatch<T>(path: string, body: unknown): Promise<T | null> {
+  const res = await fetch(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    credentials: 'include',
+  })
+  if (!res.ok) return null
+  const json = await res.json()
+  return json.equipment || json.data || json || null
 }
 
-export function deleteEquipment(id: string): void {
-  save(load().filter((e: any) => e.id !== id))
-  saveLogs(loadLogs().filter((l: any) => l.equipmentId !== id))
+async function apiDelete(path: string): Promise<boolean> {
+  const res = await fetch(path, { method: 'DELETE', credentials: 'include' })
+  return res.ok
 }
 
-export function logCalibration(data: Omit<CalibrationLog, 'id'>): CalibrationLog {
-  const log: CalibrationLog = { ...data, id: `LOG_${Date.now()}` }
-  saveLogs([...loadLogs(), log])
-  // Update the equipment's lastCalibrationDate
-  updateEquipment(data.equipmentId, { lastCalibrationDate: data.date })
-  return log
+// ── CRUD (API-backed) ─────────────────────────────────────────────────────────
+
+export async function getAll(): Promise<EquipmentWithStatus[]> {
+  const items = await apiGet<any[]>('/api/equipment?include_calibration=true')
+  return (items || []).map((item: any) => {
+    const eq: Equipment = {
+      id: item.id,
+      name: item.name,
+      type: item.type as EquipmentType,
+      brand: item.manufacturer || '',
+      model: item.model || '',
+      serialNumber: item.serial_number || '',
+      purchaseDate: item.purchase_date || '',
+      lastCalibrationDate: item.last_calibrated || '',
+      intervalDays: item.interval_days || 365,
+      location: item.location || '',
+      notes: item.notes || '',
+      createdAt: item.created_at || '',
+    }
+    return calcStatus(eq)
+  }).sort((a: any, b: any) => a.daysUntilDue - b.daysUntilDue)
 }
 
-export function getLogsFor(equipmentId: string): CalibrationLog[] {
-  return loadLogs().filter((l: any) => l.equipmentId === equipmentId).sort((a: any, b: any) => b.date.localeCompare(a.date))
+export async function addEquipment(data: Omit<Equipment, 'id' | 'createdAt'>): Promise<Equipment | null> {
+  return apiPost<Equipment>('/api/equipment', {
+    name: data.name,
+    type: data.type,
+    manufacturer: data.brand,
+    model: data.model,
+    serial_number: data.serialNumber,
+    purchase_date: data.purchaseDate,
+    last_calibration_date: data.lastCalibrationDate,
+    interval_days: data.intervalDays,
+    location: data.location,
+    notes: data.notes,
+  })
+}
+
+export async function deleteEquipment(id: string): Promise<boolean> {
+  return apiDelete(`/api/equipment/${id}`)
+}
+
+export async function updateEquipment(id: string, updates: Partial<Omit<Equipment, 'id' | 'createdAt'>>): Promise<boolean> {
+  const result = await apiPatch(`/api/equipment/${id}`, {
+    name: updates.name,
+    type: updates.type,
+    manufacturer: updates.brand,
+    model: updates.model,
+    serial_number: updates.serialNumber,
+    purchase_date: updates.purchaseDate,
+    last_calibration_date: updates.lastCalibrationDate,
+    interval_days: updates.intervalDays,
+    location: updates.location,
+    notes: updates.notes,
+  })
+  return result !== null
+}
+
+// deleteEquipment is defined below as async
+
+export async function logCalibration(data: Omit<CalibrationLog, 'id'>): Promise<CalibrationLog | null> {
+  const result = await apiPost<CalibrationLog>(`/api/equipment/${data.equipmentId}/calibrations`, {
+    calibration_date: data.date,
+    result: data.result,
+    technician: data.technician,
+    certificate: data.certificate,
+    notes: data.notes,
+  })
+  // Also update the equipment's last calibration date
+  if (result) {
+    await updateEquipment(data.equipmentId, { lastCalibrationDate: data.date })
+  }
+  return result
+}
+
+export async function getLogsFor(equipmentId: string): Promise<CalibrationLog[]> {
+  const logs = await apiGet<CalibrationLog[]>(`/api/equipment/${equipmentId}/calibrations`)
+  return (logs || []).sort((a: any, b: any) => b.date.localeCompare(a.date))
 }
 
 export function getEquipmentTypes(): { id: EquipmentType; label: string }[] {

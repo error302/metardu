@@ -676,6 +676,41 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               <Download className="h-5 w-5" />
               Download SVG
             </button>
+            {/* AUDIT FIX: Add Download PDF button */}
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/documents/deed-plan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      parcelNumber: input.parcelNumber,
+                      surveyNumber: input.surveyNumber,
+                      locality: input.locality,
+                      scale: input.scale,
+                      boundaryPoints: input.boundaryPoints,
+                      utmZone: input.utmZone,
+                      hemisphere: input.hemisphere,
+                    }),
+                    credentials: 'include',
+                  })
+                  if (!res.ok) throw new Error('PDF generation failed')
+                  const blob = await res.blob()
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `${input.parcelNumber || 'deed-plan'}.pdf`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                } catch (e) {
+                  alert('Failed to generate PDF. Try SVG or PNG instead.')
+                }
+              }}
+              className="flex items-center justify-center gap-2 px-6 py-4 bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg hover:border-[var(--accent)]"
+            >
+              <FileText className="h-5 w-5" />
+              Download PDF (A3)
+            </button>
             <button
               onClick={handleSave}
               className="flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-black rounded-lg hover:bg-[var(--accent-dim)] font-bold"

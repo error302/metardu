@@ -3,8 +3,8 @@ import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { FieldBeacon, FieldProject, MapLayer } from '@/types/field';
 import { getCurrentPosition } from '@/lib/field/gps';
-import { saveProjectLocally, generateProjectId } from '@/lib/field/storage';
-import { MapPin, Crosshair, Trash2, ArrowLeft } from 'lucide-react';
+import { saveProjectLocally, generateProjectId, syncProjectToServer } from '@/lib/field/storage';
+import { MapPin, Crosshair, Trash2, ArrowLeft, Cloud } from 'lucide-react';
 import Link from 'next/link';
 
 const MapViewer = dynamic(() => import('@/components/field/MapViewer'), { ssr: false });
@@ -16,7 +16,7 @@ function nextLabel(beacons: FieldBeacon[]): string {
 }
 
 export default function CollectPage() {
-  const [project] = useState<FieldProject>(() => ({
+  const [project, setProject] = useState<FieldProject>(() => ({
     id: generateProjectId(),
     name: `Field Session ${new Date().toLocaleDateString('en-KE')}`,
     countyCode: '030',
@@ -32,6 +32,30 @@ export default function CollectPage() {
   const [beacons, setBeacons] = useState<FieldBeacon[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastAccuracy, setLastAccuracy] = useState<number | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string>('');
+
+  // AUDIT FIX: Sync collected beacons to server
+  async function syncToServer() {
+    if (beacons.length === 0) return;
+    setSyncing(true);
+    setSyncResult('');
+    try {
+      const updatedProject = { ...project, beacons };
+      const result = await syncProjectToServer(updatedProject);
+      if (result.failed === 0) {
+        setSyncResult(`✓ Synced ${result.synced} beacons to server`);
+        setProject({ ...updatedProject, syncedToServer: true });
+      } else {
+        setSyncResult(`⚠ Synced ${result.synced}, failed ${result.failed}. Try again.`);
+      }
+    } catch {
+      setSyncResult('✗ Sync failed. Check your connection.');
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncResult(''), 5000);
+    }
+  }
 
   async function captureGPS() {
     setLoading(true);
@@ -104,7 +128,21 @@ export default function CollectPage() {
       {/* Beacon list */}
       {beacons.length > 0 && (
         <div className="bg-gray-800 border-t border-gray-700 px-4 py-3 max-h-48 overflow-y-auto">
-          <div className="text-xs text-gray-400 mb-2">{beacons.length} beacon(s) captured</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-gray-400">{beacons.length} beacon(s) captured</div>
+            {/* AUDIT FIX: Sync to server button */}
+            <button
+              onClick={syncToServer}
+              disabled={syncing || beacons.length === 0 || project.syncedToServer}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <Cloud className="w-3.5 h-3.5" />
+              {syncing ? 'Syncing…' : project.syncedToServer ? 'Synced ✓' : 'Sync to Server'}
+            </button>
+          </div>
+          {syncResult && (
+            <div className="text-xs text-[var(--accent)] mb-2 font-mono">{syncResult}</div>
+          )}
           {beacons.map(b => (
             <div key={b.id} className="flex items-center justify-between py-1 border-b border-gray-700 last:border-0">
               <div className="flex items-center gap-2">
