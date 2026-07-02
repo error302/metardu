@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
     '/dashboard', '/project', '/fieldbook', '/deed-plan',
     '/tools/survey-report-builder', '/fieldguard', '/cadastra',
     '/minetwin', '/automator', '/hydrolive', '/usv', '/minescan',
-    '/geofusion', '/equipment', '/cpd', '/jobs', '/peer-review',
+    '/geofusion', '/equipment', '/cpd', '/jobs',
     '/registry', '/analytics', '/audit-logs', '/white-label',
     '/university', '/organization', '/account', '/checkout',
     '/marketplace', '/community', '/land-law', '/admin',
