@@ -134,7 +134,7 @@ export function Step5Stations({
                 <tr key={idx} className="border-t border-zinc-800">
                   <td className="px-3 py-2 text-zinc-500">{idx + 1}</td>
                   <td className="px-3 py-2">
-                    <input
+                    <input aria-label="Chainage"
                       type="number"
                       value={s.chainage}
                       onChange={e => updateStation(idx, 'chainage', Number(e.target.value))}
@@ -142,7 +142,7 @@ export function Step5Stations({
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <input
+                    <input aria-label="Groundlevel"
                       type="number"
                       step="0.001"
                       value={s.groundLevel}

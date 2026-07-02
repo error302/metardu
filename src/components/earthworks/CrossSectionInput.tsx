@@ -234,10 +234,10 @@ export default function EarthworksCalculator() {
           <tbody>
             {sections.map((row) => (
               <tr key={row.id} className="hover:bg-[var(--bg-tertiary)]/30">
-                <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.chainageKm} onChange={e => updateRow(row.id, 'chainageKm', e.target.value)} type="number" min="0" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
-                <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.chainageM} onChange={e => updateRow(row.id, 'chainageM', e.target.value)} type="number" min="0" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
-                <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.clRL} onChange={e => updateRow(row.id, 'clRL', e.target.value)} type="number" step="0.001" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
-                <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.formRL} onChange={e => updateRow(row.id, 'formRL', e.target.value)} type="number" step="0.001" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                <td className="px-1 py-1 border border-[var(--border-color)]/50"><input aria-label="Chainagekm" value={row.chainageKm} onChange={e => updateRow(row.id, 'chainageKm', e.target.value)} type="number" min="0" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                <td className="px-1 py-1 border border-[var(--border-color)]/50"><input aria-label="Chainagem" value={row.chainageM} onChange={e => updateRow(row.id, 'chainageM', e.target.value)} type="number" min="0" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                <td className="px-1 py-1 border border-[var(--border-color)]/50"><input aria-label="Clrl" value={row.clRL} onChange={e => updateRow(row.id, 'clRL', e.target.value)} type="number" step="0.001" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                <td className="px-1 py-1 border border-[var(--border-color)]/50"><input aria-label="Formrl" value={row.formRL} onChange={e => updateRow(row.id, 'formRL', e.target.value)} type="number" step="0.001" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
                 {[0, 1, 2, 3].map((i) => (
                   <Fragment key={'ls' + i}>
                     <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.leftShots[i]?.off || ''} onChange={e => updateShot(row.id, 'left', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" aria-label="Off" placeholder="Off" /></td>

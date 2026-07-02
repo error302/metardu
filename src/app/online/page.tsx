@@ -399,7 +399,7 @@ export default function OnlineServicesPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Temperature (°C)</label>
-                  <input
+                  <input aria-label="Temperature"
                     type="number"
                     step="any"
                     value={weatherInput.temperature}
@@ -409,7 +409,7 @@ export default function OnlineServicesPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Pressure (hPa)</label>
-                  <input
+                  <input aria-label="Pressure"
                     type="number"
                     step="any"
                     value={weatherInput.pressure}
@@ -419,7 +419,7 @@ export default function OnlineServicesPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Humidity (%)</label>
-                  <input
+                  <input aria-label="Humidity"
                     type="number"
                     step="any"
                     value={weatherInput.humidity}

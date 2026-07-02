@@ -234,7 +234,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm text-[var(--text-secondary)] mb-2">Default UTM Zone</label>
-                <input
+                <input aria-label="Default utm zone"
                   type="number"
                   min={1}
                   max={60}

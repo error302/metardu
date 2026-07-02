@@ -88,14 +88,14 @@ export function LevelingBook({
                 const out = outRows[idx]
                 return (
                   <tr key={r.id}>
-                    <td className="text-left"><input className="input input-sm" value={r.station} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, station: e.target.value } : x)))} /></td>
-                    <td><input inputMode="decimal" className="input input-sm" value={r.bs} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, bs: e.target.value } : x)))} /></td>
-                    <td><input inputMode="decimal" className="input input-sm" value={r.is} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, is: e.target.value } : x)))} /></td>
-                    <td><input inputMode="decimal" className="input input-sm" value={r.fs} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, fs: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input aria-label="Station" className="input input-sm" value={r.station} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, station: e.target.value } : x)))} /></td>
+                    <td><input aria-label="Bs" inputMode="decimal" className="input input-sm" value={r.bs} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, bs: e.target.value } : x)))} /></td>
+                    <td><input aria-label="Is" inputMode="decimal" className="input input-sm" value={r.is} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, is: e.target.value } : x)))} /></td>
+                    <td><input aria-label="Fs" inputMode="decimal" className="input input-sm" value={r.fs} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, fs: e.target.value } : x)))} /></td>
                     <td className="font-mono text-right">{out?.rise !== undefined ? Number(out.rise).toFixed(3) : '—'}</td>
                     <td className="font-mono text-right">{out?.fall !== undefined ? Number(out.fall).toFixed(3) : '—'}</td>
                     <td className="font-mono text-right">{out?.reducedLevel !== undefined ? Number(out.reducedLevel).toFixed(4) : '—'}</td>
-                    <td className="text-left"><input className="input input-sm" value={r.remarks} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
+                    <td className="text-left"><input aria-label="Remarks" className="input input-sm" value={r.remarks} onChange={(e) => setLevelRows((p) => p.map((x) => (x.id === r.id ? { ...x, remarks: e.target.value } : x)))} /></td>
                     <td><button className="btn btn-secondary text-xs" onClick={() => setLevelRows((p) => p.filter((x) => x.id !== r.id))}>{t('common.remove')}</button></td>
                   </tr>
                 )

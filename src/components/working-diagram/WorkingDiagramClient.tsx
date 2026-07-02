@@ -176,15 +176,15 @@ export default function WorkingDiagramClient() {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-gray-500">Drawing Title</label>
-                <input type="text" value={diagram.titleBlock.drawingTitle} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, drawingTitle: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
+                <input aria-label="Drawingtitle" type="text" value={diagram.titleBlock.drawingTitle} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, drawingTitle: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500">Surveyor Name</label>
-                <input type="text" value={diagram.titleBlock.surveyorName} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, surveyorName: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
+                <input aria-label="Surveyorname" type="text" value={diagram.titleBlock.surveyorName} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, surveyorName: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500">Reg No.</label>
-                <input type="text" value={diagram.titleBlock.surveyorRegNo} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, surveyorRegNo: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
+                <input aria-label="Surveyorregno" type="text" value={diagram.titleBlock.surveyorRegNo} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, surveyorRegNo: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500">Parcel Ref</label>
@@ -192,7 +192,7 @@ export default function WorkingDiagramClient() {
               </div>
               <div>
                 <label className="block text-xs text-gray-500">County</label>
-                <input type="text" value={diagram.titleBlock.county} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, county: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
+                <input aria-label="County" type="text" value={diagram.titleBlock.county} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, county: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500">Subcounty</label>
@@ -200,11 +200,11 @@ export default function WorkingDiagramClient() {
               </div>
               <div>
                 <label className="block text-xs text-gray-500">UTM Zone</label>
-                <input type="text" value={diagram.titleBlock.utmZone} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, utmZone: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
+                <input aria-label="Utmzone" type="text" value={diagram.titleBlock.utmZone} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, utmZone: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500">Date</label>
-                <input type="date" value={diagram.titleBlock.date} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, date: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
+                <input aria-label="Date" type="date" value={diagram.titleBlock.date} onChange={e => setDiagram(d => ({ ...d, titleBlock: { ...d.titleBlock, date: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" />
               </div>
             </div>
           )}

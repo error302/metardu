@@ -115,11 +115,11 @@ export default function ChainageCalculator() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Easting (m)</label>
-                <input className="input" value={startStation.easting} onChange={e => setStartStation({...startStation, easting: e.target.value})} />
+                <input aria-label="Easting" className="input" value={startStation.easting} onChange={e => setStartStation({...startStation, easting: e.target.value})} />
               </div>
               <div>
                 <label className="label">Northing (m)</label>
-                <input className="input" value={startStation.northing} onChange={e => setStartStation({...startStation, northing: e.target.value})} />
+                <input aria-label="Northing" className="input" value={startStation.northing} onChange={e => setStartStation({...startStation, northing: e.target.value})} />
               </div>
             </div>
             <div className="mt-4">
@@ -136,7 +136,7 @@ export default function ChainageCalculator() {
             <div className="space-y-3">
               {alignmentPoints.map((point, idx) => (
                 <div key={point.id} className="flex gap-2 items-center">
-                  <input className="input w-16 text-center" value={point.name} onChange={e => updatePoint(point.id, 'name', e.target.value)} />
+                  <input aria-label="Name" className="input w-16 text-center" value={point.name} onChange={e => updatePoint(point.id, 'name', e.target.value)} />
                   <input className="input flex-1" value={point.easting} onChange={e => updatePoint(point.id, 'easting', e.target.value)} aria-label="Easting" placeholder="Easting" />
                   <input className="input flex-1" value={point.northing} onChange={e => updatePoint(point.id, 'northing', e.target.value)} aria-label="Northing" placeholder="Northing" />
                   {alignmentPoints.length > 2 && (

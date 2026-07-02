@@ -274,11 +274,11 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Field date *</label>
-                  <input type="date" min={TODAY} value={m.fieldDate} onChange={e => f('fieldDate', e.target.value)} className="input w-full" />
+                  <input aria-label="Fielddate" type="date" min={TODAY} value={m.fieldDate} onChange={e => f('fieldDate', e.target.value)} className="input w-full" />
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Report deadline</label>
-                  <input type="date" min={m.fieldDate || TODAY} value={m.reportDeadline} onChange={e => f('reportDeadline', e.target.value)} className="input w-full" />
+                  <input aria-label="Reportdeadline" type="date" min={m.fieldDate || TODAY} value={m.reportDeadline} onChange={e => f('reportDeadline', e.target.value)} className="input w-full" />
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Surveyor name</label>
@@ -292,7 +292,7 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Team size</label>
-                  <input type="number" min={1} max={20} value={m.teamSize} onChange={e => f('teamSize', Number(e.target.value))} className="input w-full" />
+                  <input aria-label="Teamsize" type="number" min={1} max={20} value={m.teamSize} onChange={e => f('teamSize', Number(e.target.value))} className="input w-full" />
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Status</label>
@@ -329,7 +329,7 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
                         const cp2 = [...m.controlPoints]; cp2[i] = { ...cp2[i], location: e.target.value }; f('controlPoints', cp2)
                       }} aria-label="Location" placeholder="Location" className="input flex-1 text-sm py-1.5" />
                       <label className="flex items-center gap-1 text-xs text-[var(--text-muted)] flex-shrink-0">
-                        <input type="checkbox" checked={cp.confirmed} onChange={e => {
+                        <input aria-label="Confirmed" type="checkbox" checked={cp.confirmed} onChange={e => {
                           const cp2 = [...m.controlPoints]; cp2[i] = { ...cp2[i], confirmed: e.target.checked }; f('controlPoints', cp2)
                         }} className="rounded" />
                         OK
@@ -414,13 +414,13 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
               <div className="space-y-2">
                 {m.equipment.map((eq, i) => (
                   <div key={`eq-${eq.item || i}`} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${eq.checked ? 'bg-green-900/10 border-green-700/20' : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'}`}>
-                    <input type="checkbox" checked={eq.checked} onChange={e => {
+                    <input aria-label="Checked" type="checkbox" checked={eq.checked} onChange={e => {
                       const eq2 = [...m.equipment]; eq2[i] = { ...eq2[i], checked: e.target.checked }; f('equipment', eq2)
                     }} className="rounded flex-shrink-0" />
-                    <input value={eq.item} onChange={e => {
+                    <input aria-label="Item" value={eq.item} onChange={e => {
                       const eq2 = [...m.equipment]; eq2[i] = { ...eq2[i], item: e.target.value }; f('equipment', eq2)
                     }} className={`flex-1 bg-transparent text-sm outline-none ${eq.checked ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`} />
-                    <input type="number" min={1} max={99} value={eq.quantity} onChange={e => {
+                    <input aria-label="Quantity" type="number" min={1} max={99} value={eq.quantity} onChange={e => {
                       const eq2 = [...m.equipment]; eq2[i] = { ...eq2[i], quantity: Number(e.target.value) }; f('equipment', eq2)
                     }} className="w-12 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-center text-[var(--text-primary)]" />
                     <button onClick={() => f('equipment', m.equipment.filter((_, j) => j !== i))}
@@ -445,10 +445,10 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
               <div className="space-y-2">
                 {m.preChecklist.map((c, i) => (
                   <div key={`chk-${c.item || i}`} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${c.done ? 'bg-green-900/10 border-green-700/20' : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'}`}>
-                    <input type="checkbox" checked={c.done} onChange={e => {
+                    <input aria-label="Done" type="checkbox" checked={c.done} onChange={e => {
                       const cl = [...m.preChecklist]; cl[i] = { ...cl[i], done: e.target.checked }; f('preChecklist', cl)
                     }} className="rounded flex-shrink-0" />
-                    <input value={c.item} onChange={e => {
+                    <input aria-label="Item" value={c.item} onChange={e => {
                       const cl = [...m.preChecklist]; cl[i] = { ...cl[i], item: e.target.value }; f('preChecklist', cl)
                     }} className={`flex-1 bg-transparent text-sm outline-none ${c.done ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`} />
                     <button onClick={() => f('preChecklist', m.preChecklist.filter((_, j) => j !== i))}

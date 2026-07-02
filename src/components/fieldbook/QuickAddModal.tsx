@@ -172,7 +172,7 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>HI (m)</label>
-              <input
+              <input aria-label="Instrument height"
                 type="number"
                 step="0.001"
                 value={form.instrument_height}
@@ -182,7 +182,7 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
             </div>
             <div>
               <label className={labelClass}>HT (m)</label>
-              <input
+              <input aria-label="Target height"
                 type="number"
                 step="0.001"
                 value={form.target_height}

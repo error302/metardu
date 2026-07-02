@@ -150,13 +150,13 @@ export default function LevellingComputePanel({ projectId }: { projectId: string
             {adjustedRows.map(r => (
               <tr key={r.id} className="border-b border-zinc-800">
                 <td className="px-2 py-1 font-mono text-zinc-300">{r.fromStation}</td>
-                <td className="px-2 py-1"><input type="number" step="0.001" value={r.bs ?? ''} onChange={e => updateRow(r.id, 'bs', e.target.value ? Number(e.target.value) : null)} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
-                <td className="px-2 py-1"><input type="number" step="0.001" value={r.is ?? ''} onChange={e => updateRow(r.id, 'is', e.target.value ? Number(e.target.value) : null)} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
-                <td className="px-2 py-1"><input type="number" step="0.001" value={r.fs ?? ''} onChange={e => updateRow(r.id, 'fs', e.target.value ? Number(e.target.value) : null)} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
+                <td className="px-2 py-1"><input aria-label="Bs" type="number" step="0.001" value={r.bs ?? ''} onChange={e => updateRow(r.id, 'bs', e.target.value ? Number(e.target.value) : null)} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
+                <td className="px-2 py-1"><input aria-label="Is" type="number" step="0.001" value={r.is ?? ''} onChange={e => updateRow(r.id, 'is', e.target.value ? Number(e.target.value) : null)} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
+                <td className="px-2 py-1"><input aria-label="Fs" type="number" step="0.001" value={r.fs ?? ''} onChange={e => updateRow(r.id, 'fs', e.target.value ? Number(e.target.value) : null)} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
                 <td className="px-2 py-1 font-mono">{r.rise ? r.rise.toFixed(3) : ''}</td>
                 <td className="px-2 py-1 font-mono">{r.fall ? r.fall.toFixed(3) : ''}</td>
                 <td className="px-2 py-1 font-mono text-white">{(r.rl ?? 0).toFixed(3)}</td>
-                <td className="px-2 py-1"><input type="number" step="0.001" value={r.distance} onChange={e => updateRow(r.id, 'distance', Number(e.target.value))} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
+                <td className="px-2 py-1"><input aria-label="Distance" type="number" step="0.001" value={r.distance} onChange={e => updateRow(r.id, 'distance', Number(e.target.value))} className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
                 <td className="px-2 py-1 font-mono text-blue-400">{(r.adjustment ?? 0).toFixed(4)}</td>
                 <td className="px-2 py-1 font-mono font-semibold text-amber-400">{(r.adjRL ?? 0).toFixed(3)}</td>
               </tr>

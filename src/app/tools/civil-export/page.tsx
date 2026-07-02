@@ -134,7 +134,7 @@ export default function CivilExportPage() {
               <div className="space-y-2">
                 {CIVIL_FORMATS.map((f: any) => (
                   <label key={f.id} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${format === f.id ? 'bg-[var(--accent)]/5 border-[var(--accent)]/30' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--accent)]/20'}`}>
-                    <input type="radio" name="fmt" value={f.id} checked={format === f.id} onChange={() => setFormat(f.id)} className="mt-0.5 flex-shrink-0" />
+                    <input aria-label="Fmt" type="radio" name="fmt" value={f.id} checked={format === f.id} onChange={() => setFormat(f.id)} className="mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-[var(--text-primary)]">{f.label}</p>
                       <p className="text-xs text-[var(--text-muted)]">{f.software}</p>

@@ -373,7 +373,7 @@ Firm: ___________________________    Stamp: _______________`
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Report Number</label>
-                <input
+                <input aria-label="Reportnumber"
                   type="text"
                   value={reportInput.reportNumber || ''}
                   onChange={e => updateInput('reportNumber', e.target.value)}
@@ -382,7 +382,7 @@ Firm: ___________________________    Stamp: _______________`
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Revision</label>
-                <input
+                <input aria-label="Revisionnumber"
                   type="text"
                   value={reportInput.revisionNumber || 'Rev 0'}
                   onChange={e => updateInput('revisionNumber', e.target.value)}
@@ -424,7 +424,7 @@ Firm: ___________________________    Stamp: _______________`
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Client Name</label>
-                <input
+                <input aria-label="Clientname"
                   type="text"
                   value={reportInput.clientName || ''}
                   onChange={e => updateInput('clientName', e.target.value)}
@@ -433,7 +433,7 @@ Firm: ___________________________    Stamp: _______________`
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Report Date</label>
-                <input
+                <input aria-label="Reportdate"
                   type="date"
                   value={reportInput.reportDate || ''}
                   onChange={e => updateInput('reportDate', e.target.value)}
@@ -453,7 +453,7 @@ Firm: ___________________________    Stamp: _______________`
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Firm Name</label>
-                <input
+                <input aria-label="Firmname"
                   type="text"
                   value={reportInput.firmName || ''}
                   onChange={e => updateInput('firmName', e.target.value)}
@@ -462,7 +462,7 @@ Firm: ___________________________    Stamp: _______________`
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">ISK Number</label>
-                <input
+                <input aria-label="Firmisknumber"
                   type="text"
                   value={reportInput.firmIskNumber || ''}
                   onChange={e => updateInput('firmIskNumber', e.target.value)}
@@ -473,7 +473,7 @@ Firm: ___________________________    Stamp: _______________`
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Surveyor Name</label>
-                <input
+                <input aria-label="Surveyorname"
                   type="text"
                   value={reportInput.surveyorName || ''}
                   onChange={e => updateInput('surveyorName', e.target.value)}
@@ -482,7 +482,7 @@ Firm: ___________________________    Stamp: _______________`
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Surveyor ISK Number</label>
-                <input
+                <input aria-label="Surveyorisknumber"
                   type="text"
                   value={reportInput.surveyorIskNumber || ''}
                   onChange={e => updateInput('surveyorIskNumber', e.target.value)}
@@ -519,7 +519,7 @@ Firm: ___________________________    Stamp: _______________`
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">County</label>
-                <input
+                <input aria-label="County"
                   type="text"
                   value={reportInput.county || ''}
                   onChange={e => updateInput('county', e.target.value)}
@@ -528,7 +528,7 @@ Firm: ___________________________    Stamp: _______________`
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Constituency (optional)</label>
-                <input
+                <input aria-label="Constituency"
                   type="text"
                   value={reportInput.constituency || ''}
                   onChange={e => updateInput('constituency', e.target.value)}
@@ -559,7 +559,7 @@ Firm: ___________________________    Stamp: _______________`
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Survey Start Date</label>
-                <input
+                <input aria-label="Surveyperiodstart"
                   type="date"
                   value={reportInput.surveyPeriodStart || ''}
                   onChange={e => updateInput('surveyPeriodStart', e.target.value)}
@@ -568,7 +568,7 @@ Firm: ___________________________    Stamp: _______________`
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Survey End Date</label>
-                <input
+                <input aria-label="Surveyperiodend"
                   type="date"
                   value={reportInput.surveyPeriodEnd || ''}
                   onChange={e => updateInput('surveyPeriodEnd', e.target.value)}
@@ -585,7 +585,7 @@ Firm: ___________________________    Stamp: _______________`
             <label className="block text-sm font-medium mb-1">Scope Items</label>
             {(reportInput.scopeItems || []).map((item, idx) => (
               <div key={idx} className="flex gap-2">
-                <input
+                <input aria-label="Scopeitems"
                   type="text"
                   value={item}
                   onChange={e => {
@@ -655,7 +655,7 @@ Firm: ___________________________    Stamp: _______________`
                     }}
                     className="col-span-1 px-2 py-1.5 bg-[var(--bg-tertiary)] border rounded text-xs"
                   />
-                  <input
+                  <input aria-label="Calibrationdate"
                     type="date"
                     value={eq.calibrationDate}
                     onChange={e => {
@@ -836,7 +836,7 @@ Firm: ___________________________    Stamp: _______________`
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Area (hectares)</label>
-                <input
+                <input aria-label="Areahectares"
                   type="number"
                   value={reportInput.areaHectares || ''}
                   onChange={e => updateInput('areaHectares', parseFloat(e.target.value) || undefined)}

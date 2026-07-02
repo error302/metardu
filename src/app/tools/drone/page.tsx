@@ -244,7 +244,7 @@ export default function DroneSurveyPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm text-[var(--text-secondary)] mb-1">Min Easting</label>
-                <input 
+                <input aria-label="Mine" 
                   className="input" 
                   type="number"
                   value={surveyArea.minE}
@@ -253,7 +253,7 @@ export default function DroneSurveyPage() {
               </div>
               <div>
                 <label className="block text-sm text-[var(--text-secondary)] mb-1">Max Easting</label>
-                <input 
+                <input aria-label="Maxe" 
                   className="input" 
                   type="number"
                   value={surveyArea.maxE}
@@ -262,7 +262,7 @@ export default function DroneSurveyPage() {
               </div>
               <div>
                 <label className="block text-sm text-[var(--text-secondary)] mb-1">Min Northing</label>
-                <input 
+                <input aria-label="Minn" 
                   className="input" 
                   type="number"
                   value={surveyArea.minN}
@@ -271,7 +271,7 @@ export default function DroneSurveyPage() {
               </div>
               <div>
                 <label className="block text-sm text-[var(--text-secondary)] mb-1">Max Northing</label>
-                <input 
+                <input aria-label="Maxn" 
                   className="input" 
                   type="number"
                   value={surveyArea.maxN}
@@ -321,8 +321,8 @@ export default function DroneSurveyPage() {
                     {gcps.map((g) => (
                       <tr key={g.id}>
                         <td className="font-semibold">{g.name}</td>
-                        <td><input className="input w-32 font-mono" value={g.easting} onChange={e => updateGCP(g.id, 'easting', e.target.value)} /></td>
-                        <td><input className="input w-32 font-mono" value={g.northing} onChange={e => updateGCP(g.id, 'northing', e.target.value)} /></td>
+                        <td><input aria-label="Easting" className="input w-32 font-mono" value={g.easting} onChange={e => updateGCP(g.id, 'easting', e.target.value)} /></td>
+                        <td><input aria-label="Northing" className="input w-32 font-mono" value={g.northing} onChange={e => updateGCP(g.id, 'northing', e.target.value)} /></td>
                         <td><input className="input w-24 font-mono" value={g.elevation} onChange={e => updateGCP(g.id, 'elevation', e.target.value)} aria-label="RL" placeholder="RL" /></td>
                         <td>
                           <select 
@@ -440,13 +440,13 @@ export default function DroneSurveyPage() {
                 <tbody>
                   {accuracyPoints.map((p) => (
                     <tr key={p.id}>
-                      <td><input className="input w-16" value={p.name} onChange={e => updateAccuracyPoint(p.id, 'name', e.target.value)} /></td>
-                      <td><input className="input w-28" value={p.surveyE} onChange={e => updateAccuracyPoint(p.id, 'surveyE', e.target.value)} /></td>
-                      <td><input className="input w-28" value={p.surveyN} onChange={e => updateAccuracyPoint(p.id, 'surveyN', e.target.value)} /></td>
-                      <td><input className="input w-24" value={p.surveyZ} onChange={e => updateAccuracyPoint(p.id, 'surveyZ', e.target.value)} /></td>
-                      <td><input className="input w-28" value={p.droneE} onChange={e => updateAccuracyPoint(p.id, 'droneE', e.target.value)} /></td>
-                      <td><input className="input w-28" value={p.droneN} onChange={e => updateAccuracyPoint(p.id, 'droneN', e.target.value)} /></td>
-                      <td><input className="input w-24" value={p.droneZ} onChange={e => updateAccuracyPoint(p.id, 'droneZ', e.target.value)} /></td>
+                      <td><input aria-label="Name" className="input w-16" value={p.name} onChange={e => updateAccuracyPoint(p.id, 'name', e.target.value)} /></td>
+                      <td><input aria-label="Surveye" className="input w-28" value={p.surveyE} onChange={e => updateAccuracyPoint(p.id, 'surveyE', e.target.value)} /></td>
+                      <td><input aria-label="Surveyn" className="input w-28" value={p.surveyN} onChange={e => updateAccuracyPoint(p.id, 'surveyN', e.target.value)} /></td>
+                      <td><input aria-label="Surveyz" className="input w-24" value={p.surveyZ} onChange={e => updateAccuracyPoint(p.id, 'surveyZ', e.target.value)} /></td>
+                      <td><input aria-label="Dronee" className="input w-28" value={p.droneE} onChange={e => updateAccuracyPoint(p.id, 'droneE', e.target.value)} /></td>
+                      <td><input aria-label="Dronen" className="input w-28" value={p.droneN} onChange={e => updateAccuracyPoint(p.id, 'droneN', e.target.value)} /></td>
+                      <td><input aria-label="Dronez" className="input w-24" value={p.droneZ} onChange={e => updateAccuracyPoint(p.id, 'droneZ', e.target.value)} /></td>
                     </tr>
                   ))}
                 </tbody>

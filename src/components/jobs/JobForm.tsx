@@ -51,7 +51,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label className="block text-sm font-medium text-gray-300 mb-2">Mission Name *</label>
-        <input
+        <input aria-label="Name"
           type="text"
           value={formData.name}
           onChange={(e) => setFormData({...formData, name: e.target.value})}
@@ -62,7 +62,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
 
       <div>
         <label className="block text-sm font-medium text-gray-300 mb-2">Client</label>
-        <input
+        <input aria-label="Client"
           type="text"
           value={formData.client}
           onChange={(e) => setFormData({...formData, client: e.target.value})}
@@ -122,7 +122,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
       <div className="grid grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">Crew Size</label>
-          <input
+          <input aria-label="Crew size"
             type="number"
             value={formData.crew_size}
             onChange={(e) => setFormData({...formData, crew_size: parseInt(e.target.value)})}
@@ -133,7 +133,7 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">Scheduled Date</label>
-          <input
+          <input aria-label="Scheduled date"
             type="date"
             value={formData.scheduled_date}
             onChange={(e) => setFormData({...formData, scheduled_date: e.target.value})}

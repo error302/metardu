@@ -118,7 +118,7 @@ export default function AccountPage() {
             >
               <div>
                 <label className="block text-sm text-[var(--text-secondary)] mb-1">New Password</label>
-                <input
+                <input aria-label="Newpassword"
                   name="newPassword"
                   type="password"
                   required

@@ -287,7 +287,7 @@ export default function WhiteLabelPage() {
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
-              <input
+              <input aria-label="Enabled"
                 type="checkbox"
                 checked={config.enabled}
                 onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
@@ -433,7 +433,7 @@ export default function WhiteLabelPage() {
               {/* ---- Primary Color ---- */}
               <FieldGroup label="Primary Color" hint="Used for accents, buttons, and links">
                 <div className="flex items-center gap-4">
-                  <input
+                  <input aria-label="Primarycolor"
                     type="color"
                     value={config.primaryColor}
                     onChange={(e) => setConfig({ ...config, primaryColor: e.target.value })}

@@ -69,7 +69,7 @@ export function Step2Horizontal({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Name</label>
-                  <input
+                  <input aria-label="Name"
                     type="text"
                     value={ip.name}
                     onChange={e => updateIP(idx, 'name', e.target.value)}
@@ -78,7 +78,7 @@ export function Step2Horizontal({
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Easting (m)</label>
-                  <input
+                  <input aria-label="Easting"
                     type="number"
                     value={ip.easting}
                     onChange={e => updateIP(idx, 'easting', Number(e.target.value))}
@@ -87,7 +87,7 @@ export function Step2Horizontal({
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Northing (m)</label>
-                  <input
+                  <input aria-label="Northing"
                     type="number"
                     value={ip.northing}
                     onChange={e => updateIP(idx, 'northing', Number(e.target.value))}
@@ -96,7 +96,7 @@ export function Step2Horizontal({
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Radius (m)</label>
-                  <input
+                  <input aria-label="Radius"
                     type="number"
                     value={ip.radius}
                     onChange={e => updateIP(idx, 'radius', Number(e.target.value))}

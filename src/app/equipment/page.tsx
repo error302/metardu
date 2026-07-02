@@ -106,11 +106,11 @@ function EquipmentForm({
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Purchase date</label>
-              <input type="date" max={today} value={form.purchaseDate} onChange={e => f('purchaseDate', e.target.value)} className="input w-full" />
+              <input aria-label="Purchasedate" type="date" max={today} value={form.purchaseDate} onChange={e => f('purchaseDate', e.target.value)} className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Last calibration date *</label>
-              <input type="date" max={today} value={form.lastCalibrationDate} onChange={e => f('lastCalibrationDate', e.target.value)} className="input w-full" />
+              <input aria-label="Lastcalibrationdate" type="date" max={today} value={form.lastCalibrationDate} onChange={e => f('lastCalibrationDate', e.target.value)} className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Calibration interval *</label>
@@ -171,7 +171,7 @@ function LogForm({ equipment, onSave, onCancel }: { equipment: EquipmentWithStat
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Calibration date *</label>
-            <input type="date" max={today} value={form.date} onChange={e => f('date', e.target.value)} className="input w-full" />
+            <input aria-label="Date" type="date" max={today} value={form.date} onChange={e => f('date', e.target.value)} className="input w-full" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Result *</label>

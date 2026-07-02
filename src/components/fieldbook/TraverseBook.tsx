@@ -241,7 +241,7 @@ export function TraverseBook({
 
                 return (
                   <tr key={r.id}>
-                    <td className="text-left"><input className="input input-sm" value={r.station} onChange={(e) => upd({ station: e.target.value })} /></td>
+                    <td className="text-left"><input aria-label="Station" className="input input-sm" value={r.station} onChange={(e) => upd({ station: e.target.value })} /></td>
                     {/* HCL */}
                     <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hclDeg} onChange={(e) => upd({ hclDeg: e.target.value })} aria-label="Deg" placeholder="Deg" /></td>
                     <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hclMin} onChange={(e) => upd({ hclMin: e.target.value })} aria-label="Min" placeholder="Min" /></td>
@@ -259,15 +259,15 @@ export function TraverseBook({
                     <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.vaMin} onChange={(e) => upd({ vaMin: e.target.value })} aria-label="Min" placeholder="Min" /></td>
                     <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.vaSec} onChange={(e) => upd({ vaSec: e.target.value })} aria-label="Sec" placeholder="Sec" /></td>
                     {/* IH / TH */}
-                    <td className="text-right"><input inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.ih} onChange={(e) => upd({ ih: e.target.value })} /></td>
-                    <td className="text-right"><input inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.th} onChange={(e) => upd({ th: e.target.value })} /></td>
+                    <td className="text-right"><input aria-label="Ih" inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.ih} onChange={(e) => upd({ ih: e.target.value })} /></td>
+                    <td className="text-right"><input aria-label="Th" inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.th} onChange={(e) => upd({ th: e.target.value })} /></td>
                     {/* Computed columns */}
                     <td className="font-mono text-right text-xs">{lat !== null ? Number(lat).toFixed(4) : '—'}</td>
                     <td className="font-mono text-right text-xs">{dep !== null ? Number(dep).toFixed(4) : '—'}</td>
                     <td className="font-mono text-right text-xs">{ee !== null ? Number(ee).toFixed(4) : '—'}</td>
                     <td className="font-mono text-right text-xs">{nn !== null ? Number(nn).toFixed(4) : '—'}</td>
                     {/* Remarks */}
-                    <td className="text-left"><input className="input input-sm" value={r.remarks} onChange={(e) => upd({ remarks: e.target.value })} /></td>
+                    <td className="text-left"><input aria-label="Remarks" className="input input-sm" value={r.remarks} onChange={(e) => upd({ remarks: e.target.value })} /></td>
                     <td><button className="btn btn-secondary text-xs" onClick={() => setTravRows((p) => p.filter((x) => x.id !== r.id))}>{t('common.remove')}</button></td>
                   </tr>
                 )

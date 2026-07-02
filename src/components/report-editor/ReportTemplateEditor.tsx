@@ -467,7 +467,7 @@ export function ReportTemplateEditor() {
         {/* Toolbar */}
         <div className="flex items-center justify-between mb-3 px-2">
           <div className="flex items-center gap-2">
-            <input
+            <input aria-label="Name"
               type="text"
               value={template.name}
               onChange={e => setTemplate(prev => ({ ...prev, name: e.target.value }))}

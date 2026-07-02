@@ -106,11 +106,11 @@ export default function ObservationsPage() {
             </div>
             <div>
               <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Slope Distance (m)</label>
-              <input className="input-field" type="number" step="0.001" value={obs.rawSlopeDistance} onChange={e => updateObs(i, 'rawSlopeDistance', parseFloat(e.target.value) || 0)} />
+              <input aria-label="Rawslopedistance" className="input-field" type="number" step="0.001" value={obs.rawSlopeDistance} onChange={e => updateObs(i, 'rawSlopeDistance', parseFloat(e.target.value) || 0)} />
             </div>
             <div>
               <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Vertical Angle (deg)</label>
-              <input className="input-field" type="number" step="0.0001" value={obs.rawVerticalAngle} onChange={e => updateObs(i, 'rawVerticalAngle', parseFloat(e.target.value))} />
+              <input aria-label="Rawverticalangle" className="input-field" type="number" step="0.0001" value={obs.rawVerticalAngle} onChange={e => updateObs(i, 'rawVerticalAngle', parseFloat(e.target.value))} />
             </div>
             <div>
               <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Temp (C)</label>

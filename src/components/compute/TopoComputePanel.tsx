@@ -168,11 +168,11 @@ export default function TopoComputePanel({ projectId }: { projectId: string }) {
           <tbody>
             {points.map(p => (
               <tr key={p.id} className="border-b border-zinc-800">
-                <td className="px-2 py-1"><input type="text" value={p.name} onChange={e => updatePoint(p.id, 'name', e.target.value)} className="w-14 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
-                <td className="px-2 py-1"><input type="number" step="0.1" value={p.easting} onChange={e => updatePoint(p.id, 'easting', Number(e.target.value))} className="w-20 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
-                <td className="px-2 py-1"><input type="number" step="0.1" value={p.northing} onChange={e => updatePoint(p.id, 'northing', Number(e.target.value))} className="w-20 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
-                <td className="px-2 py-1"><input type="number" step="0.01" value={p.elevation} onChange={e => updatePoint(p.id, 'elevation', Number(e.target.value))} className="w-20 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
-                <td className="px-2 py-1"><input type="text" value={p.code} onChange={e => updatePoint(p.id, 'code', e.target.value)} className="w-12 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
+                <td className="px-2 py-1"><input aria-label="Name" type="text" value={p.name} onChange={e => updatePoint(p.id, 'name', e.target.value)} className="w-14 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
+                <td className="px-2 py-1"><input aria-label="Easting" type="number" step="0.1" value={p.easting} onChange={e => updatePoint(p.id, 'easting', Number(e.target.value))} className="w-20 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
+                <td className="px-2 py-1"><input aria-label="Northing" type="number" step="0.1" value={p.northing} onChange={e => updatePoint(p.id, 'northing', Number(e.target.value))} className="w-20 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
+                <td className="px-2 py-1"><input aria-label="Elevation" type="number" step="0.01" value={p.elevation} onChange={e => updatePoint(p.id, 'elevation', Number(e.target.value))} className="w-20 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
+                <td className="px-2 py-1"><input aria-label="Code" type="text" value={p.code} onChange={e => updatePoint(p.id, 'code', e.target.value)} className="w-12 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-white" /></td>
               </tr>
             ))}
           </tbody>

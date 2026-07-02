@@ -68,7 +68,7 @@ export default function GNSSBaselinePage() {
             <div className="space-y-3">
               <div>
                 <label className="block text-sm text-[var(--text-muted)] mb-1">Easting (m)</label>
-                <input
+                <input aria-label="Easting"
                   type="number"
                   value={baseCoords.easting}
                   onChange={(e) => setBaseCoords({...baseCoords, easting: Number(e.target.value)})}
@@ -77,7 +77,7 @@ export default function GNSSBaselinePage() {
               </div>
               <div>
                 <label className="block text-sm text-[var(--text-muted)] mb-1">Northing (m)</label>
-                <input
+                <input aria-label="Northing"
                   type="number"
                   value={baseCoords.northing}
                   onChange={(e) => setBaseCoords({...baseCoords, northing: Number(e.target.value)})}
@@ -86,7 +86,7 @@ export default function GNSSBaselinePage() {
               </div>
               <div>
                 <label className="block text-sm text-[var(--text-muted)] mb-1">Elevation (m)</label>
-                <input
+                <input aria-label="Elevation"
                   type="number"
                   value={baseCoords.elevation}
                   onChange={(e) => setBaseCoords({...baseCoords, elevation: Number(e.target.value)})}

@@ -422,7 +422,7 @@ export function MobileFieldbookShell({
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-color)]/50">
                     <div className="col-span-2">
                       <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station Name</label>
-                      <input
+                      <input aria-label="Name"
                         type="text"
                         className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] uppercase focus:outline-none focus:border-[var(--accent)]"
                         value={controlStation.name}
@@ -431,7 +431,7 @@ export function MobileFieldbookShell({
                     </div>
                     <div>
                       <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station E (m)</label>
-                      <input
+                      <input aria-label="E"
                         type="number"
                         inputMode="decimal"
                         className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
@@ -441,7 +441,7 @@ export function MobileFieldbookShell({
                     </div>
                     <div>
                       <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station N (m)</label>
-                      <input
+                      <input aria-label="N"
                         type="number"
                         inputMode="decimal"
                         className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
@@ -451,7 +451,7 @@ export function MobileFieldbookShell({
                     </div>
                     <div className="col-span-2">
                       <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Elevation Z (m)</label>
-                      <input
+                      <input aria-label="Z"
                         type="number"
                         inputMode="decimal"
                         className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"

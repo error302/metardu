@@ -845,7 +845,7 @@ export default function MutationPlanGenerator() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1">Survey Date</label>
-                <input
+                <input aria-label="Date"
                   type="date"
                   value={projectInfo.date}
                   onChange={(e) => setProjectInfo({ ...projectInfo, date: e.target.value })}
@@ -940,7 +940,7 @@ export default function MutationPlanGenerator() {
                   {plots.map((plot, i) => (
                     <tr key={plot.id} className="border-b border-zinc-800 hover:bg-zinc-800/50">
                       <td className="py-2 px-2">
-                        <input
+                        <input aria-label="Id"
                           type="text"
                           value={plot.id}
                           onChange={(e) => updatePlot(i, 'id', e.target.value)}
@@ -987,7 +987,7 @@ export default function MutationPlanGenerator() {
                       </td>
                       <td className="py-2 px-2 text-right">
                         <div className="flex items-center gap-1 justify-end">
-                          <input
+                          <input aria-label="Area ha"
                             type="number"
                             step="0.0001"
                             value={plot.area_ha}
@@ -1009,7 +1009,7 @@ export default function MutationPlanGenerator() {
                         </div>
                       </td>
                       <td className="py-2 px-2 text-center">
-                        <input
+                        <input aria-label="Isapprox"
                           type="checkbox"
                           checked={plot.isApprox}
                           onChange={(e) => updatePlot(i, 'isApprox', e.target.checked)}
@@ -1303,7 +1303,7 @@ export default function MutationPlanGenerator() {
                   {monuments.map((mon, i) => (
                     <tr key={mon.id} className="border-b border-zinc-800">
                       <td className="py-2 px-2">
-                        <input
+                        <input aria-label="Id"
                           type="text"
                           value={mon.id}
                           onChange={(e) => updateMonument(i, 'id', e.target.value)}
@@ -1311,7 +1311,7 @@ export default function MutationPlanGenerator() {
                         />
                       </td>
                       <td className="py-2 px-2">
-                        <input
+                        <input aria-label="Easting"
                           type="number"
                           value={mon.easting}
                           onChange={(e) => updateMonument(i, 'easting', parseFloat(e.target.value) || 0)}
@@ -1319,7 +1319,7 @@ export default function MutationPlanGenerator() {
                         />
                       </td>
                       <td className="py-2 px-2">
-                        <input
+                        <input aria-label="Northing"
                           type="number"
                           value={mon.northing}
                           onChange={(e) => updateMonument(i, 'northing', parseFloat(e.target.value) || 0)}

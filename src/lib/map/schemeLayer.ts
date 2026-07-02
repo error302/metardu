@@ -211,7 +211,7 @@ export async function createSchemeParcelLayer(
 
   const layer = new VectorLayer({
     source,
-    style: parcelStyleFn as any,
+    style: parcelStyleFn as unknown as undefined,
     zIndex: 20,
     visible: true,
     properties: { name: 'scheme-parcels', projectId },
@@ -384,7 +384,7 @@ export async function createSchemeBeaconLayer(
 
   return new VectorLayer({
     source,
-    style: beaconStyleFn as any,
+    style: beaconStyleFn as unknown as undefined,
     zIndex: 30,
     visible: true,
     properties: { name: 'scheme-beacons', projectId },
@@ -764,7 +764,7 @@ async function buildParcelLayerFromData(
 
   return new VectorLayer({
     source,
-    style: parcelStyleFn as any,
+    style: parcelStyleFn as unknown as undefined,
     zIndex: 20,
     visible: true,
     properties: { name: 'scheme-parcels' },
@@ -912,7 +912,7 @@ async function buildBeaconLayerFromData(
 
   return new VectorLayer({
     source,
-    style: beaconStyleFn as any,
+    style: beaconStyleFn as unknown as undefined,
     zIndex: 30,
     visible: true,
     properties: { name: 'scheme-beacons' },

@@ -47,7 +47,7 @@ export default function LongitudinalSection({ projectId, points = [] }: Props) {
           {data.map((row: any, idx: any) => (
             <tr key={idx}>
               <td className="border px-1 py-1">
-                <input
+                <input aria-label="Chainage"
                   type="number"
                   value={row.chainage}
                   onChange={(e) => updateRow(idx, 'chainage', e.target.value)}
@@ -55,7 +55,7 @@ export default function LongitudinalSection({ projectId, points = [] }: Props) {
                 />
               </td>
               <td className="border px-1 py-1">
-                <input
+                <input aria-label="Rl"
                   type="number"
                   value={row.rl}
                   onChange={(e) => updateRow(idx, 'rl', e.target.value)}
@@ -63,7 +63,7 @@ export default function LongitudinalSection({ projectId, points = [] }: Props) {
                 />
               </td>
               <td className="border px-1 py-1">
-                <input
+                <input aria-label="Remark"
                   type="text"
                   value={row.remark ?? ''}
                   onChange={(e) => updateRow(idx, 'remark', e.target.value)}

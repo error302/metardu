@@ -202,7 +202,7 @@ export function BeaconPhotoCapture({ photos, onChange, maxPhotos = 4 }: BeaconPh
               </button>
 
               {/* Caption */}
-              <input
+              <input aria-label="Caption"
                 type="text"
                 value={photo.caption}
                 onChange={(e) => updateCaption(idx, e.target.value)}

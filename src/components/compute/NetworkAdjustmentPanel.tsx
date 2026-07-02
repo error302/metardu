@@ -327,7 +327,7 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
                 onChange={e => updateStation(s.id, 'northing', parseFloat(e.target.value) || 0)}
               />
               <label className="flex items-center gap-1 text-sm text-zinc-300">
-                <input
+                <input aria-label="Isfixed"
                   type="checkbox"
                   checked={s.isFixed}
                   onChange={e => updateStation(s.id, 'isFixed', e.target.checked)}

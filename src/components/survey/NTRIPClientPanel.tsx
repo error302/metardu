@@ -270,7 +270,7 @@ export function NTRIPClientPanel() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-[8px] text-gray-500 uppercase mb-0.5">Host</label>
-                <input
+                <input aria-label="Host"
                   type="text"
                   value={config.host}
                   onChange={e => setConfig(prev => ({ ...prev, host: e.target.value }))}
@@ -280,7 +280,7 @@ export function NTRIPClientPanel() {
               </div>
               <div>
                 <label className="block text-[8px] text-gray-500 uppercase mb-0.5">Port</label>
-                <input
+                <input aria-label="Port"
                   type="number"
                   value={config.port}
                   onChange={e => setConfig(prev => ({ ...prev, port: parseInt(e.target.value) || 2101 }))}
@@ -291,7 +291,7 @@ export function NTRIPClientPanel() {
             </div>
             <div>
               <label className="block text-[8px] text-gray-500 uppercase mb-0.5">Mountpoint</label>
-              <input
+              <input aria-label="Mountpoint"
                 type="text"
                 value={config.mountpoint}
                 onChange={e => setConfig(prev => ({ ...prev, mountpoint: e.target.value }))}
@@ -302,7 +302,7 @@ export function NTRIPClientPanel() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-[8px] text-gray-500 uppercase mb-0.5">Username</label>
-                <input
+                <input aria-label="Username"
                   type="text"
                   value={config.username}
                   onChange={e => setConfig(prev => ({ ...prev, username: e.target.value }))}
@@ -312,7 +312,7 @@ export function NTRIPClientPanel() {
               </div>
               <div>
                 <label className="block text-[8px] text-gray-500 uppercase mb-0.5">Password</label>
-                <input
+                <input aria-label="Password"
                   type="password"
                   value={config.password}
                   onChange={e => setConfig(prev => ({ ...prev, password: e.target.value }))}

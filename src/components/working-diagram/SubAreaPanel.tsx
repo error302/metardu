@@ -54,7 +54,7 @@ export function SubAreaPanel({ subAreas, beacons, onAdd, onUpdate, onRemove }: P
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-xs text-gray-500">Label</label>
-              <input
+              <input aria-label="Label"
                 type="text"
                 value={area.label}
                 onChange={(e) => onUpdate(area.id, { label: e.target.value })}
@@ -63,7 +63,7 @@ export function SubAreaPanel({ subAreas, beacons, onAdd, onUpdate, onRemove }: P
             </div>
             <div>
               <label className="block text-xs text-gray-500">Area (Ha)</label>
-              <input
+              <input aria-label="Areaha"
                 type="number"
                 step="0.0001"
                 value={area.areaHa}
@@ -109,7 +109,7 @@ export function SubAreaPanel({ subAreas, beacons, onAdd, onUpdate, onRemove }: P
             </div>
             <div>
               <label className="block text-xs text-gray-500">Fill Color</label>
-              <input
+              <input aria-label="Fillcolor"
                 type="color"
                 value={area.fillColor}
                 onChange={(e) => onUpdate(area.id, { fillColor: e.target.value })}

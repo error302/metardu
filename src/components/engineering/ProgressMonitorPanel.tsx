@@ -1194,7 +1194,7 @@ function AddCheckpointForm({
         {/* Planned Date */}
         <div>
           <label className="block text-xs text-zinc-400 mb-1">Planned Date</label>
-          <input
+          <input aria-label="Planneddate"
             type="date"
             value={form.plannedDate}
             onChange={e => setForm(prev => ({ ...prev, plannedDate: e.target.value }))}
@@ -1205,7 +1205,7 @@ function AddCheckpointForm({
         {/* Planned % */}
         <div>
           <label className="block text-xs text-zinc-400 mb-1">Planned Completion %</label>
-          <input
+          <input aria-label="Plannedpercentage"
             type="number"
             min={0}
             max={100}

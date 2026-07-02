@@ -400,11 +400,11 @@ ${azmSection}`
                       </div>
                     </td>
                     <td>
-                      <input className="input" value={l.n} placeholder={i === 0 ? 'required' : 'auto'}
+                      <input aria-label="N" className="input" value={l.n} placeholder={i === 0 ? 'required' : 'auto'}
                         onChange={e => updateLeg(l.id, 'n', e.target.value)} />
                     </td>
                     <td>
-                      <input className="input" value={l.e} placeholder={i === 0 ? 'required' : 'auto'}
+                      <input aria-label="E" className="input" value={l.e} placeholder={i === 0 ? 'required' : 'auto'}
                         onChange={e => updateLeg(l.id, 'e', e.target.value)} />
                     </td>
                   </tr>

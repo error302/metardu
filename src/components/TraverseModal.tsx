@@ -1029,7 +1029,7 @@ export default function TraverseModal({
                           />
                         </td>
                         <td className="px-2 py-2">
-                          <input
+                          <input aria-label="Distance"
                             type="number"
                             step="0.001"
                             value={leg.distance}

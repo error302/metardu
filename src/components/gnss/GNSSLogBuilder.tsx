@@ -237,16 +237,16 @@ export default function GNSSLogBuilder() {
               {observations.map((obs, i) => (
                 <tr key={i} className={i % 2 === 0 ? '' : 'bg-[var(--bg-tertiary)]/20'}>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input value={obs.pointId} onChange={e => updateObs(i, 'pointId', e.target.value)}
+                    <input aria-label="Pointid" value={obs.pointId} onChange={e => updateObs(i, 'pointId', e.target.value)}
                       className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)] font-bold" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input type="datetime-local" value={obs.startTime.slice(0, 16)}
+                    <input aria-label="Starttime" type="datetime-local" value={obs.startTime.slice(0, 16)}
                       onChange={e => handleTimeChange(i, 'startTime', e.target.value + ':00Z')}
                       className="w-36 px-1 py-1 bg-transparent text-[var(--text-primary)]" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input type="datetime-local" value={obs.endTime.slice(0, 16)}
+                    <input aria-label="Endtime" type="datetime-local" value={obs.endTime.slice(0, 16)}
                       onChange={e => handleTimeChange(i, 'endTime', e.target.value + ':00Z')}
                       className="w-36 px-1 py-1 bg-transparent text-[var(--text-primary)]" />
                   </td>
@@ -254,15 +254,15 @@ export default function GNSSLogBuilder() {
                     <span className="px-1 text-[var(--accent)] font-bold">{obs.durationMin}</span>
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input type="number" value={obs.satellites} onChange={e => updateObs(i, 'satellites', parseInt(e.target.value) || 0)}
+                    <input aria-label="Satellites" type="number" value={obs.satellites} onChange={e => updateObs(i, 'satellites', parseInt(e.target.value) || 0)}
                       className="w-10 px-1 py-1 bg-transparent text-[var(--text-primary)]" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input type="number" step="0.1" value={obs.pdop} onChange={e => updateObs(i, 'pdop', parseFloat(e.target.value) || 0)}
+                    <input aria-label="Pdop" type="number" step="0.1" value={obs.pdop} onChange={e => updateObs(i, 'pdop', parseFloat(e.target.value) || 0)}
                       className="w-12 px-1 py-1 bg-transparent text-[var(--text-primary)]" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input type="number" step="0.1" value={obs.hdop} onChange={e => updateObs(i, 'hdop', parseFloat(e.target.value) || 0)}
+                    <input aria-label="Hdop" type="number" step="0.1" value={obs.hdop} onChange={e => updateObs(i, 'hdop', parseFloat(e.target.value) || 0)}
                       className="w-12 px-1 py-1 bg-transparent text-[var(--text-primary)]" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
@@ -272,7 +272,7 @@ export default function GNSSLogBuilder() {
                     </select>
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input type="number" step="0.001" value={obs.antennaHeight} onChange={e => updateObs(i, 'antennaHeight', parseFloat(e.target.value) || 0)}
+                    <input aria-label="Antennaheight" type="number" step="0.001" value={obs.antennaHeight} onChange={e => updateObs(i, 'antennaHeight', parseFloat(e.target.value) || 0)}
                       className="w-16 px-1 py-1 bg-transparent text-[var(--text-primary)]" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
@@ -356,13 +356,13 @@ export default function GNSSLogBuilder() {
                   <tbody>
                     {baselines.map((b, i) => (
                       <tr key={i} className={i % 2 === 0 ? '' : 'bg-[var(--bg-tertiary)]/20'}>
-                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input value={b.from} onChange={e => updateBsl(i, 'from', e.target.value)} className="w-16 px-1 py-1 bg-transparent text-[var(--text-primary)] font-bold" /></td>
-                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input value={b.to} onChange={e => updateBsl(i, 'to', e.target.value)} className="w-16 px-1 py-1 bg-transparent text-[var(--text-primary)] font-bold" /></td>
-                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input type="number" step="0.001" value={b.deltaE} onChange={e => updateBsl(i, 'deltaE', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
-                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input type="number" step="0.001" value={b.deltaN} onChange={e => updateBsl(i, 'deltaN', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
-                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input type="number" step="0.001" value={b.deltaU} onChange={e => updateBsl(i, 'deltaU', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
-                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input type="number" step="0.001" value={b.distance} onChange={e => updateBsl(i, 'distance', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
-                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input type="number" step="0.001" value={b.azimuth} onChange={e => updateBsl(i, 'azimuth', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-secondary)]" /></td>
+                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="From" value={b.from} onChange={e => updateBsl(i, 'from', e.target.value)} className="w-16 px-1 py-1 bg-transparent text-[var(--text-primary)] font-bold" /></td>
+                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="To" value={b.to} onChange={e => updateBsl(i, 'to', e.target.value)} className="w-16 px-1 py-1 bg-transparent text-[var(--text-primary)] font-bold" /></td>
+                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="Deltae" type="number" step="0.001" value={b.deltaE} onChange={e => updateBsl(i, 'deltaE', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="Deltan" type="number" step="0.001" value={b.deltaN} onChange={e => updateBsl(i, 'deltaN', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="Deltau" type="number" step="0.001" value={b.deltaU} onChange={e => updateBsl(i, 'deltaU', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="Distance" type="number" step="0.001" value={b.distance} onChange={e => updateBsl(i, 'distance', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="Azimuth" type="number" step="0.001" value={b.azimuth} onChange={e => updateBsl(i, 'azimuth', parseFloat(e.target.value) || 0)} className="w-20 px-1 py-1 bg-transparent text-[var(--text-secondary)]" /></td>
                         <td className="px-1 py-1 border border-[var(--border-color)]/40">
                           <select value={b.solution} onChange={e => updateBsl(i, 'solution', e.target.value)}
                             className={`bg-transparent text-xs ${b.solution === 'FIX' ? 'text-green-400' : b.solution === 'FLOAT' ? 'text-yellow-400' : 'text-red-400'}`}>
@@ -370,7 +370,7 @@ export default function GNSSLogBuilder() {
                           </select>
                         </td>
                         <td className="px-1 py-1 border border-[var(--border-color)]/40"><input type="number" step="0.1" value={b.ratio ?? ''} aria-label="—" placeholder="—" onChange={e => updateBsl(i, 'ratio', e.target.value ? parseFloat(e.target.value) : undefined)} className="w-12 px-1 py-1 bg-transparent text-[var(--text-secondary)]" /></td>
-                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input type="number" step="0.0001" value={b.rms} onChange={e => updateBsl(i, 'rms', parseFloat(e.target.value) || 0)} className="w-16 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
+                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input aria-label="Rms" type="number" step="0.0001" value={b.rms} onChange={e => updateBsl(i, 'rms', parseFloat(e.target.value) || 0)} className="w-16 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
                         <td className="px-1 py-1 border border-[var(--border-color)]/40"><button onClick={() => removeBsl(i)} className="text-red-400 hover:text-red-300 text-lg leading-none px-1">×</button></td>
                       </tr>
                     ))}

@@ -240,21 +240,21 @@ export default function GNSSObservationLogBuilder() {
             <tbody>
               {observations.map((o, i) => (
                 <tr key={i} className="border-b border-gray-700/50">
-                  <td className="py-1 px-2"><input className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs font-mono" value={o.pointId} onChange={e => updateObs(i, 'pointId', e.target.value)} /></td>
-                  <td className="py-1 px-2"><input type="datetime-local" className="w-36 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs" value={o.startTime.slice(0, 16)} onChange={e => updateObs(i, 'startTime', e.target.value)} /></td>
-                  <td className="py-1 px-2"><input type="datetime-local" className="w-36 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs" value={o.endTime.slice(0, 16)} onChange={e => updateObs(i, 'endTime', e.target.value)} /></td>
-                  <td className="py-1 px-2"><input type="number" className="w-12 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={o.durationMin} onChange={e => updateObs(i, 'durationMin', Number(e.target.value))} /></td>
-                  <td className="py-1 px-2"><input type="number" className="w-10 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={o.satellites} onChange={e => updateObs(i, 'satellites', Number(e.target.value))} /></td>
-                  <td className="py-1 px-2"><input type="number" step="0.1" className="w-12 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={o.pdop} onChange={e => updateObs(i, 'pdop', Number(e.target.value))} /></td>
-                  <td className="py-1 px-2"><input type="number" step="0.1" className="w-12 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={o.hdop} onChange={e => updateObs(i, 'hdop', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Pointid" className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs font-mono" value={o.pointId} onChange={e => updateObs(i, 'pointId', e.target.value)} /></td>
+                  <td className="py-1 px-2"><input aria-label="Starttime" type="datetime-local" className="w-36 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs" value={o.startTime.slice(0, 16)} onChange={e => updateObs(i, 'startTime', e.target.value)} /></td>
+                  <td className="py-1 px-2"><input aria-label="Endtime" type="datetime-local" className="w-36 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs" value={o.endTime.slice(0, 16)} onChange={e => updateObs(i, 'endTime', e.target.value)} /></td>
+                  <td className="py-1 px-2"><input aria-label="Durationmin" type="number" className="w-12 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={o.durationMin} onChange={e => updateObs(i, 'durationMin', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Satellites" type="number" className="w-10 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={o.satellites} onChange={e => updateObs(i, 'satellites', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Pdop" type="number" step="0.1" className="w-12 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={o.pdop} onChange={e => updateObs(i, 'pdop', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Hdop" type="number" step="0.1" className="w-12 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={o.hdop} onChange={e => updateObs(i, 'hdop', Number(e.target.value))} /></td>
                   <td className="py-1 px-2">
                     <select className="w-20 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs" value={o.fixType} onChange={e => updateObs(i, 'fixType', e.target.value)}>
                       {FIX_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
                     </select>
                   </td>
-                  <td className="py-1 px-2"><input type="number" step="0.001" className="w-14 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={o.antennaHeight} onChange={e => updateObs(i, 'antennaHeight', Number(e.target.value))} /></td>
-                  <td className="py-1 px-2"><input type="number" step="0.001" className="w-20 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right font-mono" value={o.easting ?? ''} onChange={e => updateObs(i, 'easting', Number(e.target.value))} /></td>
-                  <td className="py-1 px-2"><input type="number" step="0.001" className="w-24 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right font-mono" value={o.northing ?? ''} onChange={e => updateObs(i, 'northing', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Antennaheight" type="number" step="0.001" className="w-14 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={o.antennaHeight} onChange={e => updateObs(i, 'antennaHeight', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Easting" type="number" step="0.001" className="w-20 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right font-mono" value={o.easting ?? ''} onChange={e => updateObs(i, 'easting', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Northing" type="number" step="0.001" className="w-24 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right font-mono" value={o.northing ?? ''} onChange={e => updateObs(i, 'northing', Number(e.target.value))} /></td>
                   <td className="py-1 px-1">
                     <button onClick={() => removeObservation(i)} className="p-1 text-red-400 hover:text-red-300"><Trash2 className="h-3.5 w-3.5" /></button>
                   </td>
@@ -296,12 +296,12 @@ export default function GNSSObservationLogBuilder() {
             <tbody>
               {baselines.map((b, i) => (
                 <tr key={i} className="border-b border-gray-700/50">
-                  <td className="py-1 px-2"><input className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs font-mono" value={b.from} onChange={e => updateBsl(i, 'from', e.target.value)} /></td>
-                  <td className="py-1 px-2"><input className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs font-mono" value={b.to} onChange={e => updateBsl(i, 'to', e.target.value)} /></td>
-                  <td className="py-1 px-2"><input type="number" step="0.001" className="w-20 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.deltaE} onChange={e => updateBsl(i, 'deltaE', Number(e.target.value))} /></td>
-                  <td className="py-1 px-2"><input type="number" step="0.001" className="w-20 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.deltaN} onChange={e => updateBsl(i, 'deltaN', Number(e.target.value))} /></td>
-                  <td className="py-1 px-2"><input type="number" step="0.001" className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.deltaU} onChange={e => updateBsl(i, 'deltaU', Number(e.target.value))} /></td>
-                  <td className="py-1 px-2"><input type="number" step="0.001" className="w-20 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.distance} onChange={e => updateBsl(i, 'distance', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="From" className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs font-mono" value={b.from} onChange={e => updateBsl(i, 'from', e.target.value)} /></td>
+                  <td className="py-1 px-2"><input aria-label="To" className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs font-mono" value={b.to} onChange={e => updateBsl(i, 'to', e.target.value)} /></td>
+                  <td className="py-1 px-2"><input aria-label="Deltae" type="number" step="0.001" className="w-20 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.deltaE} onChange={e => updateBsl(i, 'deltaE', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Deltan" type="number" step="0.001" className="w-20 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.deltaN} onChange={e => updateBsl(i, 'deltaN', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Deltau" type="number" step="0.001" className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.deltaU} onChange={e => updateBsl(i, 'deltaU', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Distance" type="number" step="0.001" className="w-20 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.distance} onChange={e => updateBsl(i, 'distance', Number(e.target.value))} /></td>
                   <td className="py-1 px-2">
                     <select className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs" value={b.solution} onChange={e => updateBsl(i, 'solution', e.target.value)}>
                       <option value="FIX">FIX</option>
@@ -309,8 +309,8 @@ export default function GNSSObservationLogBuilder() {
                       <option value="DGNSS">DGNSS</option>
                     </select>
                   </td>
-                  <td className="py-1 px-2"><input type="number" step="0.1" className="w-14 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.ratio ?? ''} onChange={e => updateBsl(i, 'ratio', Number(e.target.value))} /></td>
-                  <td className="py-1 px-2"><input type="number" step="0.0001" className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.rms} onChange={e => updateBsl(i, 'rms', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Ratio" type="number" step="0.1" className="w-14 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.ratio ?? ''} onChange={e => updateBsl(i, 'ratio', Number(e.target.value))} /></td>
+                  <td className="py-1 px-2"><input aria-label="Rms" type="number" step="0.0001" className="w-16 px-1 py-1 rounded border border-gray-600 bg-gray-900 text-white text-xs text-right" value={b.rms} onChange={e => updateBsl(i, 'rms', Number(e.target.value))} /></td>
                   <td className="py-1 px-1">
                     <button onClick={() => removeBaseline(i)} className="p-1 text-red-400 hover:text-red-300"><Trash2 className="h-3.5 w-3.5" /></button>
                   </td>

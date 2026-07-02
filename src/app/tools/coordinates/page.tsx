@@ -72,8 +72,8 @@ export default function CoordinatesCalculator() {
               <div className="card-header"><span className="label">UTM Coordinates</span></div>
               <div className="card-body space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="label">Easting (m)</label><input className="input" value={utm.e} onChange={e => setUtm({...utm, e: e.target.value})} /></div>
-                  <div><label className="label">Northing (m)</label><input className="input" value={utm.n} onChange={e => setUtm({...utm, n: e.target.value})} /></div>
+                  <div><label className="label">Easting (m)</label><input aria-label="E" className="input" value={utm.e} onChange={e => setUtm({...utm, e: e.target.value})} /></div>
+                  <div><label className="label">Northing (m)</label><input aria-label="N" className="input" value={utm.n} onChange={e => setUtm({...utm, n: e.target.value})} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div><label className="label">Zone</label><input className="input" value={utm.z} onChange={e => setUtm({...utm, z: e.target.value})} aria-label="37" placeholder="37" /></div>

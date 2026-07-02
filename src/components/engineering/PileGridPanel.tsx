@@ -232,7 +232,7 @@ export default function PileGridPanel() {
 
             {/* Origin Easting */}
             <FormField label="Origin Easting (m)">
-              <input
+              <input aria-label="Origineasting"
                 type="number"
                 step="0.001"
                 value={gridDef.originEasting}
@@ -243,7 +243,7 @@ export default function PileGridPanel() {
 
             {/* Origin Northing */}
             <FormField label="Origin Northing (m)">
-              <input
+              <input aria-label="Originnorthing"
                 type="number"
                 step="0.001"
                 value={gridDef.originNorthing}
@@ -254,7 +254,7 @@ export default function PileGridPanel() {
 
             {/* Origin RL */}
             <FormField label="Origin RL (m)">
-              <input
+              <input aria-label="Originrl"
                 type="number"
                 step="0.001"
                 value={gridDef.originRL}
@@ -265,7 +265,7 @@ export default function PileGridPanel() {
 
             {/* Rotation */}
             <FormField label="Rotation (degrees)">
-              <input
+              <input aria-label="Rotation"
                 type="number"
                 step="0.1"
                 value={gridDef.rotation}
@@ -276,7 +276,7 @@ export default function PileGridPanel() {
 
             {/* Rows */}
             <FormField label="Rows">
-              <input
+              <input aria-label="Rows"
                 type="number"
                 min="1"
                 max="100"
@@ -288,7 +288,7 @@ export default function PileGridPanel() {
 
             {/* Columns */}
             <FormField label="Columns">
-              <input
+              <input aria-label="Columns"
                 type="number"
                 min="1"
                 max="100"
@@ -300,7 +300,7 @@ export default function PileGridPanel() {
 
             {/* Row Spacing */}
             <FormField label="Row Spacing (m)">
-              <input
+              <input aria-label="Rowspacing"
                 type="number"
                 step="0.01"
                 min="0.1"
@@ -312,7 +312,7 @@ export default function PileGridPanel() {
 
             {/* Column Spacing */}
             <FormField label="Column Spacing (m)">
-              <input
+              <input aria-label="Columnspacing"
                 type="number"
                 step="0.01"
                 min="0.1"

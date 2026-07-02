@@ -111,17 +111,17 @@ function ScheduleFormModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Scheduled Date *</label>
-              <input type="date" min={TODAY} value={form.scheduled_date}
+              <input aria-label="Scheduled date" type="date" min={TODAY} value={form.scheduled_date}
                 onChange={e => f('scheduled_date', e.target.value)} className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Time</label>
-              <input type="time" value={form.scheduled_time || ''}
+              <input aria-label="Scheduled time" type="time" value={form.scheduled_time || ''}
                 onChange={e => f('scheduled_time', e.target.value || null)} className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Duration (hours)</label>
-              <input type="number" min={1} max={24} value={form.estimated_duration_hours}
+              <input aria-label="Estimated duration hours" type="number" min={1} max={24} value={form.estimated_duration_hours}
                 onChange={e => f('estimated_duration_hours', parseInt(e.target.value) || 1)} className="input w-full" />
             </div>
             <div>
@@ -147,11 +147,11 @@ function ScheduleFormModal({
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Client Name</label>
-              <input value={form.client_name ?? ''} onChange={e => f('client_name', e.target.value)} className="input w-full" />
+              <input aria-label="Client name" value={form.client_name ?? ''} onChange={e => f('client_name', e.target.value)} className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Client Contact</label>
-              <input value={form.client_contact ?? ''} onChange={e => f('client_contact', e.target.value)} className="input w-full" />
+              <input aria-label="Client contact" value={form.client_contact ?? ''} onChange={e => f('client_contact', e.target.value)} className="input w-full" />
             </div>
           </div>
           <div>

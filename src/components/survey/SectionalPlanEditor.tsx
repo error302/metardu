@@ -238,7 +238,7 @@ export function SectionalPlanEditor() {
                 return (
                   <tr key={unit.id} className="border-b border-[var(--border-color)]/50 hover:bg-white/[0.02]">
                     <td className="px-2 py-2">
-                      <input
+                      <input aria-label="Unitnumber"
                         type="text"
                         value={unit.unitNumber}
                         onChange={e => updateUnit(unit.id, { unitNumber: e.target.value })}
@@ -263,7 +263,7 @@ export function SectionalPlanEditor() {
                       </div>
                     </td>
                     <td className="px-2 py-2 text-center">
-                      <input
+                      <input aria-label="Floornumber"
                         type="number"
                         value={unit.floorNumber}
                         onChange={e => updateUnit(unit.id, { floorNumber: parseInt(e.target.value) || 0 })}
@@ -271,7 +271,7 @@ export function SectionalPlanEditor() {
                       />
                     </td>
                     <td className="px-2 py-2 text-right">
-                      <input
+                      <input aria-label="Floorareasqm"
                         type="number"
                         step="0.01"
                         value={unit.floorAreaSqM}

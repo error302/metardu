@@ -224,7 +224,7 @@ function CheckoutContent() {
                       method === pm.type ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[var(--border-color)]'
                     }`}
                   >
-                    <input
+                    <input aria-label="Paymentmethod"
                       type="radio"
                       name="paymentMethod"
                       value={pm.type}

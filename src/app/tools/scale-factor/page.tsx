@@ -146,11 +146,11 @@ export default function ScaleFactorPage() {
             <div className="card-body">
               <div className="flex gap-4 mb-4">
                 <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <input type="radio" checked={mode === 'simple'} onChange={() => setMode('simple')} />
+                  <input aria-label="Simple" type="radio" checked={mode === 'simple'} onChange={() => setMode('simple')} />
                   Enter area directly
                 </label>
                 <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <input type="radio" checked={mode === 'polygon'} onChange={() => setMode('polygon')} />
+                  <input aria-label="Polygon" type="radio" checked={mode === 'polygon'} onChange={() => setMode('polygon')} />
                   Enter polygon coordinates
                 </label>
               </div>

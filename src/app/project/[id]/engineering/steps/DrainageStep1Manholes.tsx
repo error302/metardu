@@ -72,7 +72,7 @@ export function DrainageStep1Manholes({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Name</label>
-                  <input
+                  <input aria-label="Name"
                     type="text"
                     value={mh.name}
                     onChange={e => updateManhole(idx, 'name', e.target.value)}
@@ -81,7 +81,7 @@ export function DrainageStep1Manholes({
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Chainage (m)</label>
-                  <input
+                  <input aria-label="Chainage"
                     type="number"
                     value={mh.chainage}
                     onChange={e => updateManhole(idx, 'chainage', Number(e.target.value))}
@@ -90,7 +90,7 @@ export function DrainageStep1Manholes({
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Cover Level (m)</label>
-                  <input
+                  <input aria-label="Coverlevel"
                     type="number"
                     step="0.001"
                     value={mh.coverLevel}
@@ -100,7 +100,7 @@ export function DrainageStep1Manholes({
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Invert Out (m)</label>
-                  <input
+                  <input aria-label="Invertlevelout"
                     type="number"
                     step="0.001"
                     value={mh.invertLevelOut}
@@ -110,7 +110,7 @@ export function DrainageStep1Manholes({
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Pipe Dia (mm)</label>
-                  <input
+                  <input aria-label="Pipediameterout"
                     type="number"
                     value={mh.pipeDiameterOut}
                     onChange={e => updateManhole(idx, 'pipeDiameterOut', Number(e.target.value))}

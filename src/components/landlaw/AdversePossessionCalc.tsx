@@ -147,7 +147,7 @@ export default function AdversePossessionCalc() {
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <input
+                    <input aria-label="Date"
                       type="date"
                       value={ev.date}
                       onChange={e => updateEvidence(index, 'date', e.target.value)}

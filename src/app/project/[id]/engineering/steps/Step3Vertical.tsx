@@ -67,7 +67,7 @@ export function Step3Vertical({
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Chainage (m)</label>
-                  <input
+                  <input aria-label="Chainage"
                     type="number"
                     value={vip.chainage}
                     onChange={e => updateVIP(idx, 'chainage', Number(e.target.value))}
@@ -76,7 +76,7 @@ export function Step3Vertical({
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Reduced Level (m)</label>
-                  <input
+                  <input aria-label="Reducedlevel"
                     type="number"
                     step="0.001"
                     value={vip.reducedLevel}

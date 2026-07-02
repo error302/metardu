@@ -77,7 +77,7 @@ export default function CoordinateTransformer({ projectId }: { projectId?: strin
         <tbody>
           {rows.map((row: any, idx: any) => (
             <tr key={idx}>
-              <td className="border px-1"><input value={row.id} onChange={(e) => updateRow(idx, 'id', e.target.value)} className="w-full outline-none px-1" /></td>
+              <td className="border px-1"><input aria-label="Id" value={row.id} onChange={(e) => updateRow(idx, 'id', e.target.value)} className="w-full outline-none px-1" /></td>
               <td className="border px-1"><input value={row.x} onChange={(e) => updateRow(idx, 'x', e.target.value)} className="w-full outline-none px-1" aria-label="0.000" placeholder="0.000" /></td>
               <td className="border px-1"><input value={row.y} onChange={(e) => updateRow(idx, 'y', e.target.value)} className="w-full outline-none px-1" aria-label="0.000" placeholder="0.000" /></td>
               <td className="border px-1"><input value={row.z} onChange={(e) => updateRow(idx, 'z', e.target.value)} className="w-full outline-none px-1" aria-label="optional" placeholder="optional" /></td>

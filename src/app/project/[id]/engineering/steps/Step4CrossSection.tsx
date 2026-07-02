@@ -38,7 +38,7 @@ export function Step4CrossSection({
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Carriageway Width (m)</label>
-          <input
+          <input aria-label="Carriagewaywidth"
             type="number"
             step="0.1"
             value={template.carriagewayWidth}
@@ -48,7 +48,7 @@ export function Step4CrossSection({
         </div>
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Shoulder Width (m)</label>
-          <input
+          <input aria-label="Shoulderwidth"
             type="number"
             step="0.1"
             value={template.shoulderWidth}
@@ -58,7 +58,7 @@ export function Step4CrossSection({
         </div>
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Camber (%)</label>
-          <input
+          <input aria-label="Camber"
             type="number"
             step="0.5"
             value={template.camber}
@@ -88,7 +88,7 @@ export function Step4CrossSection({
         </div>
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Subgrade Depth (m)</label>
-          <input
+          <input aria-label="Subgradedepth"
             type="number"
             step="0.1"
             value={template.subgradeDepth}

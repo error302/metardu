@@ -276,7 +276,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Drawing Number</label>
-                <input
+                <input aria-label="Drawingnumber"
                   type="text"
                   value={input.drawingNumber}
                   onChange={(e) => setInput({ ...input, drawingNumber: e.target.value })}
@@ -295,7 +295,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Locality</label>
-                <input
+                <input aria-label="Locality"
                   type="text"
                   value={input.locality}
                   onChange={(e) => setInput({ ...input, locality: e.target.value })}
@@ -304,7 +304,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Registration Section</label>
-                <input
+                <input aria-label="Registrationsection"
                   type="text"
                   value={input.registrationSection}
                   onChange={(e) => setInput({ ...input, registrationSection: e.target.value })}
@@ -313,7 +313,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">County</label>
-                <input
+                <input aria-label="County"
                   type="text"
                   value={input.county}
                   onChange={(e) => setInput({ ...input, county: e.target.value })}
@@ -362,7 +362,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Surveyor Name</label>
-                <input
+                <input aria-label="Surveyorname"
                   type="text"
                   value={input.surveyorName}
                   onChange={(e) => setInput({ ...input, surveyorName: e.target.value })}
@@ -371,7 +371,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">ISK Number</label>
-                <input
+                <input aria-label="Isknumber"
                   type="text"
                   value={input.iskNumber}
                   onChange={(e) => setInput({ ...input, iskNumber: e.target.value })}
@@ -390,7 +390,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Firm Name</label>
-                <input
+                <input aria-label="Firmname"
                   type="text"
                   value={input.firmName}
                   onChange={(e) => setInput({ ...input, firmName: e.target.value })}
@@ -399,7 +399,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Survey Date</label>
-                <input
+                <input aria-label="Surveydate"
                   type="date"
                   value={input.surveyDate}
                   onChange={(e) => setInput({ ...input, surveyDate: e.target.value })}
@@ -412,7 +412,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">North</label>
-                <input
+                <input aria-label="Abuttalnorth"
                   type="text"
                   value={input.abuttalNorth}
                   onChange={(e) => setInput({ ...input, abuttalNorth: e.target.value })}
@@ -421,7 +421,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">South</label>
-                <input
+                <input aria-label="Abuttalsouth"
                   type="text"
                   value={input.abuttalSouth}
                   onChange={(e) => setInput({ ...input, abuttalSouth: e.target.value })}
@@ -430,7 +430,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">East</label>
-                <input
+                <input aria-label="Abuttaleast"
                   type="text"
                   value={input.abuttalEast}
                   onChange={(e) => setInput({ ...input, abuttalEast: e.target.value })}
@@ -439,7 +439,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">West</label>
-                <input
+                <input aria-label="Abuttalwest"
                   type="text"
                   value={input.abuttalWest}
                   onChange={(e) => setInput({ ...input, abuttalWest: e.target.value })}
@@ -489,7 +489,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                   {input.boundaryPoints.map((point, i) => (
                     <tr key={point.id} className="border-b">
                       <td className="py-2">
-                        <input
+                        <input aria-label="Id"
                           type="text"
                           value={point.id}
                           onChange={(e) => {
@@ -501,7 +501,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                         />
                       </td>
                       <td className="py-2">
-                        <input
+                        <input aria-label="Easting"
                           type="number"
                           value={point.easting}
                           onChange={(e) => {
@@ -513,7 +513,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                         />
                       </td>
                       <td className="py-2">
-                        <input
+                        <input aria-label="Northing"
                           type="number"
                           value={point.northing}
                           onChange={(e) => {

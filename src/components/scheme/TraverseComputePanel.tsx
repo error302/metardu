@@ -234,7 +234,7 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
               <label className={labelClass}>Opening Station</label>
-              <input type="text" value={config.opening_station} onChange={e => setConfig(p => ({ ...p, opening_station: e.target.value }))} className={inputClass} />
+              <input aria-label="Opening station" type="text" value={config.opening_station} onChange={e => setConfig(p => ({ ...p, opening_station: e.target.value }))} className={inputClass} />
             </div>
             <div>
               <label className={labelClass}>Opening E (m)</label>
@@ -251,7 +251,7 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
           </div>
 
           <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer">
-            <input
+            <input aria-label="Is closed"
               type="checkbox"
               checked={config.is_closed}
               onChange={e => setConfig(p => ({ ...p, is_closed: e.target.checked }))}
@@ -271,15 +271,15 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-[var(--bg-tertiary)] rounded-lg">
               <div>
                 <label className={labelClass}>Closing Station</label>
-                <input type="text" value={config.closing_station} onChange={e => setConfig(p => ({ ...p, closing_station: e.target.value }))} className={inputClass} />
+                <input aria-label="Closing station" type="text" value={config.closing_station} onChange={e => setConfig(p => ({ ...p, closing_station: e.target.value }))} className={inputClass} />
               </div>
               <div>
                 <label className={labelClass}>Closing E</label>
-                <input type="number" step="0.0001" value={config.closing_easting} onChange={e => setConfig(p => ({ ...p, closing_easting: e.target.value }))} className={inputClass} />
+                <input aria-label="Closing easting" type="number" step="0.0001" value={config.closing_easting} onChange={e => setConfig(p => ({ ...p, closing_easting: e.target.value }))} className={inputClass} />
               </div>
               <div>
                 <label className={labelClass}>Closing N</label>
-                <input type="number" step="0.0001" value={config.closing_northing} onChange={e => setConfig(p => ({ ...p, closing_northing: e.target.value }))} className={inputClass} />
+                <input aria-label="Closing northing" type="number" step="0.0001" value={config.closing_northing} onChange={e => setConfig(p => ({ ...p, closing_northing: e.target.value }))} className={inputClass} />
               </div>
               <div>
                 <label className={labelClass}>BS Bearing (D M S)</label>
@@ -315,32 +315,32 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
                   <tr key={i} className="border-b border-[var(--border-color)]/30">
                     <td className="px-1 py-1 text-[var(--text-muted)]">{i + 1}</td>
                     <td className="px-1 py-1"><input type="text" value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)} className={inputClass} aria-label="T2" placeholder="T2" /></td>
-                    <td className="px-1 py-1"><input type="text" value={obs.bs} onChange={e => updateObs(i, 'bs', e.target.value)} className={inputClass} /></td>
-                    <td className="px-1 py-1"><input type="text" value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)} className={inputClass} /></td>
+                    <td className="px-1 py-1"><input aria-label="Bs" type="text" value={obs.bs} onChange={e => updateObs(i, 'bs', e.target.value)} className={inputClass} /></td>
+                    <td className="px-1 py-1"><input aria-label="Fs" type="text" value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)} className={inputClass} /></td>
                     <td className="px-1 py-1">
                       <div className="grid grid-cols-3 gap-0.5">
-                        <input type="number" value={obs.hcl_deg} onChange={e => updateObs(i, 'hcl_deg', parseInt(e.target.value)||0)} className={numClass} />
-                        <input type="number" value={obs.hcl_min} onChange={e => updateObs(i, 'hcl_min', parseInt(e.target.value)||0)} className={numClass} />
-                        <input type="number" step="0.1" value={obs.hcl_sec} onChange={e => updateObs(i, 'hcl_sec', parseFloat(e.target.value)||0)} className={numClass} />
+                        <input aria-label="Hcl deg" type="number" value={obs.hcl_deg} onChange={e => updateObs(i, 'hcl_deg', parseInt(e.target.value)||0)} className={numClass} />
+                        <input aria-label="Hcl min" type="number" value={obs.hcl_min} onChange={e => updateObs(i, 'hcl_min', parseInt(e.target.value)||0)} className={numClass} />
+                        <input aria-label="Hcl sec" type="number" step="0.1" value={obs.hcl_sec} onChange={e => updateObs(i, 'hcl_sec', parseFloat(e.target.value)||0)} className={numClass} />
                       </div>
                     </td>
                     <td className="px-1 py-1">
                       <div className="grid grid-cols-3 gap-0.5">
-                        <input type="number" value={obs.hcr_deg} onChange={e => updateObs(i, 'hcr_deg', parseInt(e.target.value)||0)} className={numClass} />
-                        <input type="number" value={obs.hcr_min} onChange={e => updateObs(i, 'hcr_min', parseInt(e.target.value)||0)} className={numClass} />
-                        <input type="number" step="0.1" value={obs.hcr_sec} onChange={e => updateObs(i, 'hcr_sec', parseFloat(e.target.value)||0)} className={numClass} />
+                        <input aria-label="Hcr deg" type="number" value={obs.hcr_deg} onChange={e => updateObs(i, 'hcr_deg', parseInt(e.target.value)||0)} className={numClass} />
+                        <input aria-label="Hcr min" type="number" value={obs.hcr_min} onChange={e => updateObs(i, 'hcr_min', parseInt(e.target.value)||0)} className={numClass} />
+                        <input aria-label="Hcr sec" type="number" step="0.1" value={obs.hcr_sec} onChange={e => updateObs(i, 'hcr_sec', parseFloat(e.target.value)||0)} className={numClass} />
                       </div>
                     </td>
                     <td className="px-1 py-1"><input type="number" step="0.001" value={obs.slope_dist} onChange={e => updateObs(i, 'slope_dist', e.target.value)} className={inputClass} aria-label="m" placeholder="m" /></td>
                     <td className="px-1 py-1">
                       <div className="grid grid-cols-3 gap-0.5">
-                        <input type="number" value={obs.va_deg} onChange={e => updateObs(i, 'va_deg', parseInt(e.target.value)||0)} className={numClass} />
-                        <input type="number" value={obs.va_min} onChange={e => updateObs(i, 'va_min', parseInt(e.target.value)||0)} className={numClass} />
-                        <input type="number" step="0.1" value={obs.va_sec} onChange={e => updateObs(i, 'va_sec', parseFloat(e.target.value)||0)} className={numClass} />
+                        <input aria-label="Va deg" type="number" value={obs.va_deg} onChange={e => updateObs(i, 'va_deg', parseInt(e.target.value)||0)} className={numClass} />
+                        <input aria-label="Va min" type="number" value={obs.va_min} onChange={e => updateObs(i, 'va_min', parseInt(e.target.value)||0)} className={numClass} />
+                        <input aria-label="Va sec" type="number" step="0.1" value={obs.va_sec} onChange={e => updateObs(i, 'va_sec', parseFloat(e.target.value)||0)} className={numClass} />
                       </div>
                     </td>
-                    <td className="px-1 py-1"><input type="number" step="0.001" value={obs.ih} onChange={e => updateObs(i, 'ih', e.target.value)} className={numClass} /></td>
-                    <td className="px-1 py-1"><input type="number" step="0.001" value={obs.th} onChange={e => updateObs(i, 'th', e.target.value)} className={numClass} /></td>
+                    <td className="px-1 py-1"><input aria-label="Ih" type="number" step="0.001" value={obs.ih} onChange={e => updateObs(i, 'ih', e.target.value)} className={numClass} /></td>
+                    <td className="px-1 py-1"><input aria-label="Th" type="number" step="0.001" value={obs.th} onChange={e => updateObs(i, 'th', e.target.value)} className={numClass} /></td>
                     <td className="px-1 py-1">
                       <button onClick={() => removeRow(i)} disabled={observations.length <= 2}
                         className="p-1 hover:bg-red-900/20 rounded text-[var(--text-muted)] hover:text-red-400 disabled:opacity-30 transition-colors">

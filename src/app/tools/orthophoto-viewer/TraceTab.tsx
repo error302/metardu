@@ -69,7 +69,7 @@ export default function TraceTab({
                       className="w-3 h-3 rounded-full flex-shrink-0"
                       style={{ backgroundColor: poly.color }}
                     />
-                    <input
+                    <input aria-label="Name"
                       className="input text-sm flex-1 py-0.5"
                       value={poly.name}
                       onChange={(e) => renamePolygon(poly.id, e.target.value)}

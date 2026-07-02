@@ -191,7 +191,7 @@ export default function GCPExportPage() {
                       ? 'bg-[var(--accent)]/5 border-[var(--accent)]/30'
                       : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--accent)]/20'
                   }`}>
-                    <input type="radio" name="format" value={f.id} checked={format === f.id}
+                    <input aria-label="Format" type="radio" name="format" value={f.id} checked={format === f.id}
                       onChange={() => setFormat(f.id)} className="mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-semibold text-[var(--text-primary)]">{f.label}</p>

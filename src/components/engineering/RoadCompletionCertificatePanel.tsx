@@ -261,12 +261,12 @@ export default function RoadCompletionCertificatePanel({
               ))}
               <div>
                 <label className="block text-xs text-zinc-400 mb-1">Chainage Start</label>
-                <input type="number" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <input aria-label="Chainagestart" type="number" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={data.chainageStart} onChange={e => update('chainageStart', parseFloat(e.target.value) || 0)} />
               </div>
               <div>
                 <label className="block text-xs text-zinc-400 mb-1">Chainage End</label>
-                <input type="number" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <input aria-label="Chainageend" type="number" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={data.chainageEnd} onChange={e => update('chainageEnd', parseFloat(e.target.value) || 0)} />
               </div>
             </div>
@@ -278,22 +278,22 @@ export default function RoadCompletionCertificatePanel({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-zinc-400 mb-1">Contractor</label>
-                <input type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <input aria-label="Contractorname" type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={data.contractorName} onChange={e => update('contractorName', e.target.value)} />
               </div>
               <div>
                 <label className="block text-xs text-zinc-400 mb-1">Client</label>
-                <input type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <input aria-label="Clientname" type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={data.clientName} onChange={e => update('clientName', e.target.value)} />
               </div>
               <div>
                 <label className="block text-xs text-zinc-400 mb-1">Completion Date</label>
-                <input type="date" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <input aria-label="Completiondate" type="date" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={data.completionDate} onChange={e => update('completionDate', e.target.value)} />
               </div>
               <div>
                 <label className="block text-xs text-zinc-400 mb-1">Design Speed (km/h)</label>
-                <input type="number" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <input aria-label="Designspeed" type="number" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={data.designSpeed} onChange={e => update('designSpeed', parseInt(e.target.value) || 0)} />
               </div>
             </div>
@@ -307,7 +307,7 @@ export default function RoadCompletionCertificatePanel({
                 <label className="block text-xs text-zinc-400 mb-1">
                   Name<span className="text-red-400 ml-0.5">*</span>
                 </label>
-                <input type="text"
+                <input aria-label="Surveyorname" type="text"
                   className={`w-full border rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     validationErrors.some(e => e.includes('Surveyor')) ? 'border-red-500' : 'border-zinc-600'
                   }`}
@@ -315,12 +315,12 @@ export default function RoadCompletionCertificatePanel({
               </div>
               <div>
                 <label className="block text-xs text-zinc-400 mb-1">ISK Registration</label>
-                <input type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <input aria-label="Surveyorregistration" type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={data.surveyorRegistration} onChange={e => update('surveyorRegistration', e.target.value)} />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs text-zinc-400 mb-1">Firm</label>
-                <input type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <input aria-label="Surveyorfirm" type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={data.surveyorFirm} onChange={e => update('surveyorFirm', e.target.value)} />
               </div>
               {/* FIX #5: Survey Method input */}

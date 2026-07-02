@@ -276,7 +276,7 @@ export default function ImportPage() {
                         p.selected ? 'bg-amber-500/10' : 'bg-[var(--bg-card)]'
                       }`}
                     >
-                      <input
+                      <input aria-label="Selected"
                         type="checkbox"
                         checked={p.selected}
                         onChange={() => togglePoint(i)}

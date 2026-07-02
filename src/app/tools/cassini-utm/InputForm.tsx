@@ -303,19 +303,19 @@ export function InputForm(props: InputFormProps) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label text-xs text-[var(--text-muted)]">P (scale factor)</label>
-                <input className="input font-mono text-xs opacity-75" value={activeSheet.P} readOnly />
+                <input aria-label="P" className="input font-mono text-xs opacity-75" value={activeSheet.P} readOnly />
               </div>
               <div>
                 <label className="label text-xs text-[var(--text-muted)]">Q (rotation factor)</label>
-                <input className="input font-mono text-xs opacity-75" value={activeSheet.Q} readOnly />
+                <input aria-label="Q" className="input font-mono text-xs opacity-75" value={activeSheet.Q} readOnly />
               </div>
               <div>
                 <label className="label text-xs text-[var(--text-muted)]">Cx (easting trans.)</label>
-                <input className="input font-mono text-xs opacity-75" value={activeSheet.Cx} readOnly />
+                <input aria-label="Cx" className="input font-mono text-xs opacity-75" value={activeSheet.Cx} readOnly />
               </div>
               <div>
                 <label className="label text-xs text-[var(--text-muted)]">Cy (northing trans.)</label>
-                <input className="input font-mono text-xs opacity-75" value={activeSheet.Cy} readOnly />
+                <input aria-label="Cy" className="input font-mono text-xs opacity-75" value={activeSheet.Cy} readOnly />
               </div>
             </div>
           )}

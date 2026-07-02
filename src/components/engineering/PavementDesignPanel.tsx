@@ -126,7 +126,7 @@ export default function PavementDesignPanel({
             {/* AADT */}
             <div>
               <label className={labelCls}>AADT (veh/day)</label>
-              <input
+              <input aria-label="Aadt"
                 type="number"
                 step="any"
                 className={`${inputCls}${errors.aadt ? ' border-red-500' : ''}`}
@@ -139,7 +139,7 @@ export default function PavementDesignPanel({
             {/* Heavy Vehicle % */}
             <div>
               <label className={labelCls}>Heavy Vehicles (%)</label>
-              <input
+              <input aria-label="Heavyvehiclepercentage"
                 type="number"
                 step="any"
                 className={`${inputCls}${errors.heavyVehiclePercentage ? ' border-red-500' : ''}`}
@@ -152,7 +152,7 @@ export default function PavementDesignPanel({
             {/* Growth Rate */}
             <div>
               <label className={labelCls}>Growth Rate (%/yr)</label>
-              <input
+              <input aria-label="Growthrate"
                 type="number"
                 step="any"
                 className={`${inputCls}${errors.growthRate ? ' border-red-500' : ''}`}
@@ -165,7 +165,7 @@ export default function PavementDesignPanel({
             {/* Design Period */}
             <div>
               <label className={labelCls}>Design Period (years)</label>
-              <input
+              <input aria-label="Designperiod"
                 type="number"
                 step="any"
                 className={`${inputCls}${errors.designPeriod ? ' border-red-500' : ''}`}
@@ -178,7 +178,7 @@ export default function PavementDesignPanel({
             {/* Directional Split */}
             <div>
               <label className={labelCls}>Directional Split</label>
-              <input
+              <input aria-label="Directionalsplit"
                 type="number"
                 step="any"
                 className={inputCls}
@@ -190,7 +190,7 @@ export default function PavementDesignPanel({
             {/* Lane Factor */}
             <div>
               <label className={labelCls}>Lane Factor</label>
-              <input
+              <input aria-label="Lanefactor"
                 type="number"
                 step="any"
                 className={inputCls}
@@ -202,7 +202,7 @@ export default function PavementDesignPanel({
             {/* Number of Lanes */}
             <div>
               <label className={labelCls}>No. of Lanes</label>
-              <input
+              <input aria-label="Numberoflanes"
                 type="number"
                 step="any"
                 className={inputCls}
@@ -232,7 +232,7 @@ export default function PavementDesignPanel({
             {/* CBR */}
             <div>
               <label className={labelCls}>CBR (%) — {classifySubgrade(subgrade.cbr)}</label>
-              <input
+              <input aria-label="Cbr"
                 type="range"
                 min={1}
                 max={100}

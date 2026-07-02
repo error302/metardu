@@ -105,7 +105,7 @@ export default function ParcelSearchPage() {
                 <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">
                   {searchParams.country === 'Tanzania' ? 'Region' : 'County/District'}
                 </label>
-                <input
+                <input aria-label="Tanzania"
                   type="text"
                   value={searchParams.country === 'Tanzania' ? searchParams.region : searchParams.county}
                   onChange={e => searchParams.country === 'Tanzania' 

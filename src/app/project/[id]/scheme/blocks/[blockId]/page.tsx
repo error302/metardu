@@ -274,7 +274,7 @@ export default function BlockDetailPage() {
             <form onSubmit={handleCreateParcel} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className={labelClass}>Parcel Number <span className="text-orange-400">*</span></label>
-                <input
+                <input aria-label="Parcel number"
                   type="text"
                   value={newParcel.parcel_number}
                   onChange={e => setNewParcel(prev => ({ ...prev, parcel_number: e.target.value }))}
@@ -384,22 +384,22 @@ export default function BlockDetailPage() {
                         {editingId === parcel.id ? (
                           <>
                             <td className="px-4 py-2">
-                              <input type="text" value={editForm.parcel_number}
+                              <input aria-label="Parcel number" type="text" value={editForm.parcel_number}
                                 onChange={e => setEditForm(p => ({ ...p, parcel_number: e.target.value }))}
                                 className={inputClass} required />
                             </td>
                             <td className="px-4 py-2">
-                              <input type="text" value={editForm.lr_number_proposed}
+                              <input aria-label="Lr number proposed" type="text" value={editForm.lr_number_proposed}
                                 onChange={e => setEditForm(p => ({ ...p, lr_number_proposed: e.target.value }))}
                                 className={inputClass} />
                             </td>
                             <td className="px-4 py-2">
-                              <input type="text" value={editForm.lr_number_confirmed}
+                              <input aria-label="Lr number confirmed" type="text" value={editForm.lr_number_confirmed}
                                 onChange={e => setEditForm(p => ({ ...p, lr_number_confirmed: e.target.value }))}
                                 className={inputClass} />
                             </td>
                             <td className="px-4 py-2">
-                              <input type="number" step="0.0001" value={editForm.area_ha}
+                              <input aria-label="Area ha" type="number" step="0.0001" value={editForm.area_ha}
                                 onChange={e => setEditForm(p => ({ ...p, area_ha: e.target.value }))}
                                 className={inputClass} />
                             </td>

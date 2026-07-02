@@ -187,11 +187,11 @@ export default function SubdivisionGeneratorPage() {
               </select>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <input type="radio" checked={roadPlacement === 'center'} onChange={() => setRoadPlacement('center')} />
+                  <input aria-label="Center" type="radio" checked={roadPlacement === 'center'} onChange={() => setRoadPlacement('center')} />
                   Center spine
                 </label>
                 <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <input type="radio" checked={roadPlacement === 'edge'} onChange={() => setRoadPlacement('edge')} />
+                  <input aria-label="Edge" type="radio" checked={roadPlacement === 'edge'} onChange={() => setRoadPlacement('edge')} />
                   Edge road
                 </label>
               </div>

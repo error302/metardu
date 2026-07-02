@@ -557,9 +557,9 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                     <td className="px-1.5 py-1 text-[var(--text-muted)]">{i + 1}</td>
                     <td className="px-1 py-1"><input value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)}
                       className="w-full px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" aria-label="T1" placeholder="T1" /></td>
-                    <td className="px-1 py-1"><input value={obs.bs} onChange={e => updateObs(i, 'bs', e.target.value)}
+                    <td className="px-1 py-1"><input aria-label="Bs" value={obs.bs} onChange={e => updateObs(i, 'bs', e.target.value)}
                       className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
-                    <td className="px-1 py-1"><input value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)}
+                    <td className="px-1 py-1"><input aria-label="Fs" value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)}
                       className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     {(['hclDeg','hclMin','hclSec']).map((f: any) => (
                       <td key={f} className="px-0.5 py-1"><input value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
@@ -571,15 +571,15 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                         type="number" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     ))}
                     <td className="px-1 py-1 text-center font-mono text-[10px] text-[var(--accent)] whitespace-nowrap">{computeMeanAngleDMS(obs)}</td>
-                    <td className="px-1 py-1"><input value={obs.slopeDist} onChange={e => updateObs(i, 'slopeDist', e.target.value)}
+                    <td className="px-1 py-1"><input aria-label="Slopedist" value={obs.slopeDist} onChange={e => updateObs(i, 'slopeDist', e.target.value)}
                       type="number" step="0.001" className="w-16 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     {(['vaDeg','vaMin','vaSec']).map((f: any) => (
                       <td key={f} className="px-0.5 py-1"><input value={(obs as any)[f]} onChange={e => updateObs(i, f as keyof RawObservation, e.target.value)}
                         type="number" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     ))}
-                    <td className="px-1 py-1"><input value={obs.ih} onChange={e => updateObs(i, 'ih', e.target.value)}
+                    <td className="px-1 py-1"><input aria-label="Ih" value={obs.ih} onChange={e => updateObs(i, 'ih', e.target.value)}
                       type="number" step="0.001" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
-                    <td className="px-1 py-1"><input value={obs.th} onChange={e => updateObs(i, 'th', e.target.value)}
+                    <td className="px-1 py-1"><input aria-label="Th" value={obs.th} onChange={e => updateObs(i, 'th', e.target.value)}
                       type="number" step="0.001" className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     <td><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-300 text-lg leading-none">×</button></td>
                   </tr>

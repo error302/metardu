@@ -372,7 +372,7 @@ function AddEquipmentModal({ onClose, onAdd }: { onClose: () => void; onAdd: () 
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Serial Number</label>
-            <input
+            <input aria-label="Serialnumber"
               type="text"
               value={form.serialNumber}
               onChange={e => setForm({ ...form, serialNumber: e.target.value })}
@@ -382,7 +382,7 @@ function AddEquipmentModal({ onClose, onAdd }: { onClose: () => void; onAdd: () 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Last Calibration</label>
-              <input
+              <input aria-label="Lastcalibrationdate"
                 type="date"
                 value={form.lastCalibrationDate}
                 onChange={e => setForm({ ...form, lastCalibrationDate: e.target.value })}
@@ -391,7 +391,7 @@ function AddEquipmentModal({ onClose, onAdd }: { onClose: () => void; onAdd: () 
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Certificate No.</label>
-              <input
+              <input aria-label="Calibrationcertnumber"
                 type="text"
                 value={form.calibrationCertNumber}
                 onChange={e => setForm({ ...form, calibrationCertNumber: e.target.value })}
@@ -401,7 +401,7 @@ function AddEquipmentModal({ onClose, onAdd }: { onClose: () => void; onAdd: () 
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Calibration Lab</label>
-            <input
+            <input aria-label="Calibrationlab"
               type="text"
               value={form.calibrationLab}
               onChange={e => setForm({ ...form, calibrationLab: e.target.value })}
@@ -468,7 +468,7 @@ function AddCalibrationModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Date</label>
-              <input
+              <input aria-label="Date"
                 type="date"
                 value={form.date}
                 onChange={e => setForm({ ...form, date: e.target.value })}
@@ -477,7 +477,7 @@ function AddCalibrationModal({
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Certificate No.</label>
-              <input
+              <input aria-label="Certnumber"
                 type="text"
                 value={form.certNumber}
                 onChange={e => setForm({ ...form, certNumber: e.target.value })}
@@ -488,7 +488,7 @@ function AddCalibrationModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Lab</label>
-              <input
+              <input aria-label="Lab"
                 type="text"
                 value={form.lab}
                 onChange={e => setForm({ ...form, lab: e.target.value })}
@@ -497,7 +497,7 @@ function AddCalibrationModal({
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Technician</label>
-              <input
+              <input aria-label="Technician"
                 type="text"
                 value={form.technician}
                 onChange={e => setForm({ ...form, technician: e.target.value })}
@@ -528,7 +528,7 @@ function AddCalibrationModal({
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Next Due Date</label>
-            <input
+            <input aria-label="Nextduedate"
               type="date"
               value={form.nextDueDate}
               onChange={e => setForm({ ...form, nextDueDate: e.target.value })}

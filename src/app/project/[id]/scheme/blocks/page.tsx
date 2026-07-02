@@ -315,7 +315,7 @@ export default function BlocksPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className={labelClass}>Block Number</label>
-                        <input
+                        <input aria-label="Block number"
                           type="text"
                           value={editForm.block_number}
                           onChange={(e) => setEditForm(prev => ({ ...prev, block_number: e.target.value }))}
@@ -325,7 +325,7 @@ export default function BlocksPage() {
                       </div>
                       <div>
                         <label className={labelClass}>Block Name</label>
-                        <input
+                        <input aria-label="Block name"
                           type="text"
                           value={editForm.block_name}
                           onChange={(e) => setEditForm(prev => ({ ...prev, block_name: e.target.value }))}
@@ -334,7 +334,7 @@ export default function BlocksPage() {
                       </div>
                       <div>
                         <label className={labelClass}>Description</label>
-                        <input
+                        <input aria-label="Description"
                           type="text"
                           value={editForm.description}
                           onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
