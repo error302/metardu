@@ -55,7 +55,14 @@ export function useCollaboration({
   userName,
   token,
   wsUrl,
-}: UseCollaborationProps): UseCollaborationReturn {
+  onFeatureEdit,
+  onFeatureDelete,
+  onChat,
+}: UseCollaborationProps & {
+  onFeatureEdit?: (feature: any, userId: string) => void
+  onFeatureDelete?: (featureId: string, userId: string) => void
+  onChat?: (message: string, userName: string, userId: string) => void
+}): UseCollaborationReturn {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [conflictWarnings, setConflictWarnings] = useState<string[]>([])
@@ -66,11 +73,17 @@ export function useCollaboration({
     onChat?: (message: string, userName: string, userId: string) => void
   }>({})
 
-  // Determine WebSocket URL
+  // AUDIT FIX: Update callbacks ref whenever they change
+  useEffect(() => {
+    callbacksRef.current = { onFeatureEdit, onFeatureDelete, onChat }
+  }, [onFeatureEdit, onFeatureDelete, onChat])
+
+  // AUDIT FIX: Use NEXT_PUBLIC_WS_URL or default to same-host /ws/collaboration
+  // (nginx reverse-proxies /ws/ to the collaboration container on port 3001)
   const finalWsUrl = wsUrl || (
     typeof window !== 'undefined'
       ? process.env.NEXT_PUBLIC_WS_URL ||
-        `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:3001/ws/collaboration`
+        `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/collaboration`
       : ''
   )
 

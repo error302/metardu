@@ -1,0 +1,43 @@
+# Dockerfile.collaboration — WebSocket collaboration server
+#
+# AUDIT FIX: The old Dockerfile used ts-node which isn't installed.
+# This Dockerfile compiles the TypeScript collaboration server to JS
+# during the build, then runs the compiled JS — no ts-node needed.
+
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm install --legacy-peer-deps --no-audit --no-fund
+
+COPY tsconfig.json ./
+COPY src/lib/realtime/ ./src/lib/realtime/
+
+# Compile only the realtime module to JS
+RUN npx tsc --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck \
+    --outDir dist src/lib/realtime/collaborationServer.ts
+
+# ── Runner ──────────────────────────────────────────────────────────────────
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install only ws (the WebSocket library)
+RUN npm install ws@^8.21.0 --no-audit --no-fund
+
+# Copy compiled JS
+COPY --from=builder /app/dist/lib/realtime/collaborationServer.js ./collaborationServer.js
+
+# Non-root user
+RUN addgroup --system --gid 1001 collab && \
+    adduser --system --uid 1001 --ingroup collab collab
+USER collab
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+  CMD wget -qO- http://localhost:3001/health || exit 1
+
+CMD ["node", "collaborationServer.js"]
