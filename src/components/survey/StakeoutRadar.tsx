@@ -57,7 +57,7 @@ export function StakeoutRadar({ targetE, targetN, onClose }: StakeoutRadarProps)
 
   // Start watching position
   const startWatch = useCallback(() => {
-    if (watching) return
+    if (watchIdRef.current != null) return // AUDIT FIX: use ref instead of state
     setWatching(true)
 
     if (!('geolocation' in navigator)) {
@@ -105,7 +105,7 @@ export function StakeoutRadar({ targetE, targetN, onClose }: StakeoutRadarProps)
       () => {},
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 1000 }
     )
-  }, [watching, targetE, targetN, transformToUTM, soundOn])
+  }, [targetE, targetN, transformToUTM, soundOn]) // AUDIT FIX: removed watching from deps
 
   const stopWatch = useCallback(() => {
     if (watchIdRef.current != null) {
@@ -115,10 +115,12 @@ export function StakeoutRadar({ targetE, targetN, onClose }: StakeoutRadarProps)
     setWatching(false)
   }, [])
 
+  // AUDIT FIX: Only start on mount — no infinite loop
   useEffect(() => {
     startWatch()
     return () => stopWatch()
-  }, [startWatch, stopWatch])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Audio beep
   const playBeep = useCallback((frequency: number) => {

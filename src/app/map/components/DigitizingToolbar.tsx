@@ -128,7 +128,7 @@ export function DigitizingToolbar({
   const activeToolConfig = TOOLS.find(t => t.id === activeTool)
 
   return (
-    <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20">
+    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 hidden lg:block">
       <div className="bg-[var(--bg-card)]/95 backdrop-blur-md border border-[var(--border-color)] rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.4)] overflow-hidden">
         {/* Toolbar */}
         <div className="flex items-center gap-0.5 p-1.5">

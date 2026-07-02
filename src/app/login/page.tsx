@@ -222,10 +222,12 @@ function LoginForm() {
         >
           <MetarduLogo size={36} showWordmark={true} color="#FFFFFF" />
         </a>
-        <div className="hidden sm:flex items-center gap-2 text-xs text-white/90 px-3 py-1.5 rounded-full bg-[#080e18]/50 border border-white/20 backdrop-blur-md drop-shadow-md">
-          <ShieldCheck className="w-3.5 h-3.5 text-[var(--accent)]" />
-          <span>East Africa Survey Platform</span>
-        </div>
+        <a
+          href="/register"
+          className="text-sm text-white/80 hover:text-white border border-white/20 px-4 py-2 rounded-lg backdrop-blur-md transition-colors"
+        >
+          Create account
+        </a>
       </header>
 
       {/* Main content */}

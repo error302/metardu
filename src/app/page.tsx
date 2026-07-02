@@ -5,7 +5,7 @@ import MetarduLogo from '@/components/MetarduLogo'
 import {
   Waypoints, FileBadge, Mountain, DraftingCompass,
   Satellite, FileChartColumn, MapPinned, Calculator,
-  ShieldCheck, Globe, Smartphone, Cloud,
+  ShieldCheck,
 } from 'lucide-react'
 
 /* ────────────────────────────────────────────────────────────── */
@@ -115,7 +115,6 @@ export default function LandingPage() {
       <WorkflowSection />
       <ToolsSection />
       <PricingSection />
-      <Footer />
     </div>
   )
 }
@@ -171,11 +170,6 @@ function HeroSection() {
       <div className="relative z-10 flex-1 flex items-center">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-20 w-full">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] mb-6">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-[var(--text-primary)]/60 font-mono tracking-wide">Built in Nairobi · Cassini · UTM 36S/37S · Arc 1960</span>
-            </div>
-
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.05] tracking-tight mb-6">
               Surveying software
               <br />
@@ -431,58 +425,3 @@ function PricingSection() {
 /* ============================================================= */
 /*  FOOTER                                                       */
 /* ============================================================= */
-
-function Footer() {
-  return (
-    <footer className="border-t border-[var(--border-color)] py-12 bg-[var(--bg-primary)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-          <div className="col-span-2">
-            <MetarduLogo size={28} showWordmark={true} color="#FFFFFF" />
-            <p className="text-sm text-[var(--text-primary)]/40 mt-4 max-w-xs">
-              Professional surveying software for East Africa. Built in Nairobi,
-              compliant with Survey Act Cap. 299 and RDM 1.1.
-            </p>
-            <div className="flex items-center gap-4 mt-4">
-              <span className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/30">
-                <Smartphone className="w-3.5 h-3.5" /> PWA
-              </span>
-              <span className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/30">
-                <Cloud className="w-3.5 h-3.5" /> Offline
-              </span>
-              <span className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/30">
-                <Globe className="w-3.5 h-3.5" /> 14 Languages
-              </span>
-            </div>
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-[var(--text-primary)]/80 mb-3">Product</h4>
-            <ul className="space-y-2 text-sm text-[var(--text-primary)]/40">
-              <li><Link href="/tools" className="hover:text-[var(--text-primary)] no-underline">Tools</Link></li>
-              <li><Link href="/pricing" className="hover:text-[var(--text-primary)] no-underline">Pricing</Link></li>
-              <li><Link href="/docs" className="hover:text-[var(--text-primary)] no-underline">Documentation</Link></li>
-              <li><Link href="/field" className="hover:text-[var(--text-primary)] no-underline">Field Mode</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-[var(--text-primary)]/80 mb-3">Company</h4>
-            <ul className="space-y-2 text-sm text-[var(--text-primary)]/40">
-              <li><Link href="/help" className="hover:text-[var(--text-primary)] no-underline">Help Center</Link></li>
-              <li><Link href="/community" className="hover:text-[var(--text-primary)] no-underline">Community</Link></li>
-              <li><Link href="/docs/data-protection" className="hover:text-[var(--text-primary)] no-underline">Privacy</Link></li>
-              <li><Link href="/docs/terms" className="hover:text-[var(--text-primary)] no-underline">Terms</Link></li>
-            </ul>
-          </div>
-        </div>
-        <div className="pt-8 border-t border-[var(--border-color)] flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-[var(--text-primary)]/30">
-            © {new Date().getFullYear()} METARDU. Survey Act Cap. 299 · RDM 1.1 compliant.
-          </p>
-          <p className="text-xs text-[var(--text-primary)]/30 font-mono">
-            Arc 1960 / UTM 37S · EPSG:21037
-          </p>
-        </div>
-      </div>
-    </footer>
-  )
-}
