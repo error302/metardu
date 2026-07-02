@@ -44,8 +44,10 @@ export default function SurveyPlanExport({ data, options, projectId, plan = 'fre
       const filename = `${data.project.name.replace(/\s+/g, '_')}_Survey_Plan_${date}.pdf`
       pdf.save(filename)
     } catch (err) {
+      // AUDIT FIX (M15, 2026-07-02): Actionable error message.
       console.error('PDF export error:', err)
-      alert('Failed to export PDF. Please try again.')
+      const msg = err instanceof Error ? err.message : String(err)
+      alert(`Could not export the survey plan as PDF. ${msg}. Common causes: the SVG element is not rendered yet (wait for the page to load), the browser blocked the download (check popup blocker settings), or the PDF library ran out of memory on very large plans. Try refreshing the page and exporting again.`)
     } finally {
       setExporting(false)
     }

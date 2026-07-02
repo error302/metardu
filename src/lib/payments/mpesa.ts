@@ -62,7 +62,15 @@ export class MpesaService {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to obtain M-Pesa access token')
+      // AUDIT FIX (M15, 2026-07-02): Actionable error message.
+      const errorBody = await response.text().catch(() => 'unknown')
+      throw new Error(
+        'Could not obtain M-Pesa access token from Safaricom Daraja API. ' +
+        'Check: (1) MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET are set correctly, ' +
+        '(2) MPESA_ENV is "sandbox" or "production" and matches your credentials, ' +
+        '(3) Safaricom Daraja API is reachable (check network/firewall). ' +
+        `HTTP ${response.status}: ${errorBody}`
+      )
     }
 
     const data = await response.json()
@@ -98,7 +106,17 @@ export class MpesaService {
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.errorMessage || 'STK Push failed')
+      // AUDIT FIX (M15, 2026-07-02): Translate Safaricom internal error codes.
+      const safaricomErrors: Record<string, string> = {
+        'DS090.301.BF00002': 'Invalid phone number — the phone must be a registered M-Pesa number in the format 2547XXXXXXXX',
+        'DS090.301.BF00003': 'Insufficient funds — the user does not have enough M-Pesa balance',
+        'DS090.301.BF00004': 'Transaction cancelled by user',
+        'DS090.301.BF00005': 'Transaction timed out — the user did not respond to the STK prompt within 60 seconds',
+      }
+      const translated = error.errorMessage
+        ? safaricomErrors[error.errorMessage] ?? `Safaricom error: ${error.errorMessage}`
+        : 'STK Push failed — Safaricom did not accept the payment request'
+      throw new Error(translated)
     }
 
     const data = await response.json()

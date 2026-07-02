@@ -76,7 +76,14 @@ export default function GenerateReportModal({ isOpen, onClose, surveyType, proje
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate report section.');
+        // AUDIT FIX (M15, 2026-07-02): Actionable error message.
+        const errBody = await response.text().catch(() => 'unknown')
+        throw new Error(
+          `Report generation failed (HTTP ${response.status}). ${errBody}. ` +
+          `Common causes: the AI service is unavailable, the project has insufficient ` +
+          `data for this section, or you've exceeded the rate limit. ` +
+          `Try again in a few minutes, or generate this section manually.`
+        )
       }
 
       const rawData = await response.json();
@@ -91,7 +98,11 @@ export default function GenerateReportModal({ isOpen, onClose, surveyType, proje
         setResult(JSON.stringify(finalContent, null, 2));
       }
     } catch (err: unknown) {
-      setError(((err as Error)?.message) || 'Failed to generate the report. Please try again.');
+      // AUDIT FIX (M15, 2026-07-02): Actionable error message.
+      setError(
+        (err as Error)?.message ||
+        'Could not generate the report. Check your network connection and try again. If the problem persists, the AI service may be temporarily unavailable.'
+      )
     } finally {
       setLoading(false);
     }
