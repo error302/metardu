@@ -282,24 +282,15 @@ const nextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(self)' },
           ...(isProd ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }] : []),
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              // 'unsafe-inline' required because next.config.js static headers override
-              // the middleware nonce-based CSP. Next.js RSC inline scripts
-              // (self.__next_f.push) need 'unsafe-inline' to execute.
-              `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"} 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com`,
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com",
-              `connect-src ${connectSrcParts.join(' ')}`,
-              "worker-src 'self' blob:",
-              "frame-ancestors 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-            ].join('; '),
-          },
+          // AUDIT FIX (M10, 2026-07-02): CSP removed from next.config.js.
+          // Previously this static CSP with 'unsafe-inline' for scripts
+          // overrode the middleware's nonce-based CSP, making the nonce
+          // useless. CSP is now set exclusively in middleware.ts via
+          // getCspHeaders() — which generates a per-request nonce AND
+          // includes 'unsafe-inline' (required for Next.js 14 RSC inline
+          // scripts). When upgrading to Next.js 15, 'unsafe-inline' can
+          // be removed from the middleware CSP since Next.js 15 properly
+          // injects nonces into RSC scripts.
         ],
       },
       {

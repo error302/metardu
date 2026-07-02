@@ -3,8 +3,20 @@ import { getToken } from 'next-auth/jwt'
 import { rateLimit, RATE_LIMITS, getClientIdentifier } from '@/lib/security/rateLimit'
 import type { RateLimitCategory } from '@/lib/security/rateLimit'
 import { generateNonce, getCspHeaders } from '@/lib/security/csp'
+import { corsHeaders } from '@/lib/cors'
 
 export async function middleware(request: NextRequest) {
+  // AUDIT FIX (M9, 2026-07-02): Handle CORS preflight (OPTIONS) globally
+  // so individual API routes don't need to. Returns 204 with CORS headers.
+  if (request.method === 'OPTIONS' && request.nextUrl.pathname.startsWith('/api/')) {
+    const origin = request.headers.get('origin')
+    const cors = corsHeaders(origin)
+    if (Object.keys(cors).length === 0) {
+      return new NextResponse(null, { status: 403 })
+    }
+    return new NextResponse(null, { status: 204, headers: cors })
+  }
+
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
@@ -179,6 +191,18 @@ export async function middleware(request: NextRequest) {
   }
   // Pass nonce to downstream pages / layouts via a response header
   response.headers.set('x-nonce', nonce)
+
+  // AUDIT FIX (M9, 2026-07-02): Apply CORS headers globally in middleware
+  // instead of requiring each API route to call corsHeaders() manually.
+  // Only applies to /api/ routes (where CORS is relevant). The corsHeaders()
+  // function checks the Origin against the allow-list internally.
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    const origin = request.headers.get('origin')
+    const cors = corsHeaders(origin)
+    for (const [key, value] of Object.entries(cors)) {
+      response.headers.set(key, value)
+    }
+  }
 
   // Add user ID to headers for downstream API route use
   if (isAuthenticated && userId) {
