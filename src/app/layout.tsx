@@ -107,8 +107,9 @@ export default function RootLayout({
         <meta name="msapplication-tap-highlight" content="no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="color-scheme" content="dark light" />
-        <link rel="icon" href="/metardu-logo.jpg" type="image/jpeg" />
-        <link rel="apple-touch-icon" href="/metardu-logo.jpg" />
+        <link rel="icon" href="/metardu-icon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="/metardu-icon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
