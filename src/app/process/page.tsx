@@ -405,7 +405,7 @@ export default function ProcessPage() {
                   </thead>
                   <tbody>
                     {interpretResult.dataset!.observations.slice(0, 5).map((obs: any, i: number) => (
-                      <tr key={i} className="border-t border-[var(--border-color)]">
+                      <tr key={obs.station || i} className="border-t border-[var(--border-color)]">
                         <td className="px-2 py-1">{obs.station}</td>
                         <td className="px-2 py-1 text-[var(--accent)]">{obs.type}</td>
                         <td className="px-2 py-1 text-right font-mono">{obs.value1}</td>
@@ -418,7 +418,7 @@ export default function ProcessPage() {
               {interpretResult.warnings.length > 0 && (
                 <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded">
                   {interpretResult.warnings.map((w, i) => (
-                    <p key={i} className="text-sm text-yellow-400">[!] {w}</p>
+                    <p key={`warn-${i}`} className="text-sm text-yellow-400">[!] {w}</p>
                   ))}
                 </div>
               )}
@@ -487,7 +487,7 @@ export default function ProcessPage() {
                 </div>
                 <div className="card-body">
                   {toleranceResult?.checks.map((check, i) => (
-                    <div key={i} className={`flex items-center justify-between py-2 border-b border-[var(--border-color)] last:border-0 ${check.passed ? 'text-green-400' : 'text-red-400'}`}>
+                    <div key={`check-${check.name || i}`} className={`flex items-center justify-between py-2 border-b border-[var(--border-color)] last:border-0 ${check.passed ? 'text-green-400' : 'text-red-400'}`}>
                       <span>{check.passed ? '✓' : '[x]'} {check.name}</span>
                       <span className="text-sm">{check.message}</span>
                     </div>
@@ -497,7 +497,7 @@ export default function ProcessPage() {
                     <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded">
                       <div className="text-sm text-yellow-400 mb-2">Recommendations:</div>
                       {toleranceResult.recommendations.map((rec, i) => (
-                        <p key={i} className="text-xs text-yellow-300">• {rec}</p>
+                        <p key={`rec-${i}`} className="text-xs text-yellow-300">• {rec}</p>
                       ))}
                     </div>
                   )}
@@ -507,7 +507,7 @@ export default function ProcessPage() {
               {workflowSolutions.length > 0 ? (
                 <div className="space-y-6">
                   {workflowSolutions.map((s, i) => (
-                    <SolutionStepsRenderer key={i} title={s.title} steps={s.steps} />
+                    <SolutionStepsRenderer key={`sol-${i}`} title={s.title} steps={s.steps} />
                   ))}
                 </div>
               ) : null}
@@ -531,7 +531,7 @@ export default function ProcessPage() {
                       </thead>
                       <tbody>
                         {workflowResult.results.legs.map((leg: any, i: number) => (
-                          <tr key={i} className="border-b border-[var(--border-color)]">
+                          <tr key={`leg-${leg.from}-${leg.to}-${i}`} className="border-b border-[var(--border-color)]">
                             <td className="px-2 py-2">{leg.from}</td>
                             <td className="px-2 py-2">{leg.to}</td>
                             <td className="px-2 py-2 text-right font-mono">{leg.distance?.toFixed(3)}</td>
@@ -566,7 +566,7 @@ export default function ProcessPage() {
                       </thead>
                       <tbody>
                         {workflowResult.results.readings.map((r: any, i: number) => (
-                          <tr key={i} className="border-b border-[var(--border-color)]">
+                          <tr key={`reading-${r.station}-${i}`} className="border-b border-[var(--border-color)]">
                             <td className="px-2 py-2">{r.station}</td>
                             <td className="px-2 py-2 text-right font-mono">{r.bs?.toFixed(3) || '—'}</td>
                             <td className="px-2 py-2 text-right font-mono">{r.is?.toFixed(3) || '—'}</td>
@@ -630,7 +630,7 @@ export default function ProcessPage() {
               {interpretResult?.error || 'Could not parse the uploaded file'}
             </p>
             {interpretResult?.warnings.map((w, i) => (
-              <p key={i} className="text-sm text-yellow-400">[!] {w}</p>
+              <p key={`warn2-${i}`} className="text-sm text-yellow-400">[!] {w}</p>
             ))}
             
             <div className="mt-6 p-4 bg-[var(--bg-tertiary)] rounded">

@@ -159,7 +159,7 @@ export function OnboardingTour() {
   return (
     <>
       {/* Backdrop overlay */}
-      <div className="fixed inset-0 z-[9990] bg-black/70 backdrop-blur-sm" onClick={handleSkip} />
+      <div role="button" tabIndex={0} aria-label="Skip tour" className="fixed inset-0 z-[9990] bg-black/70 backdrop-blur-sm" onClick={handleSkip} onKeyDown={(e) => { if (e.key === 'Escape') handleSkip() }} />
 
       {/* Tour card */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9991] w-[440px] max-w-[calc(100vw-2rem)]">

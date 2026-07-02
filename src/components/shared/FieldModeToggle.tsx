@@ -270,7 +270,7 @@ export default function FieldModeToggle() {
 
       {/* Click-away to dismiss tooltip */}
       {showTooltip && (
-        <div className="fixed inset-0 z-40" onClick={dismissTooltip} />
+        <div role="button" tabIndex={0} aria-label="Dismiss" className="fixed inset-0 z-40" onClick={dismissTooltip} onKeyDown={(e) => { if (e.key === 'Escape') dismissTooltip() }} />
       )}
     </div>
   )

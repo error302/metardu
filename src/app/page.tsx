@@ -480,7 +480,7 @@ function HeroSection() {
         <FadeIn>
           <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-8 grid grid-cols-2 md:grid-cols-4 gap-6">
             {STATS.map((stat, i) => (
-              <div key={i}>
+              <div key={stat.label}>
                 {stat.value !== null ? (
                   <div className="font-display text-3xl text-[var(--text-primary)] tracking-[-0.02em]">
                     <CounterAnimation target={stat.value} suffix={stat.suffix} />
@@ -520,7 +520,7 @@ function TrustBar() {
         <div className="flex animate-marquee whitespace-nowrap">
           {[...TRUST_COUNTRIES, ...TRUST_COUNTRIES].map((country, i) => (
             <span
-              key={i}
+              key={`country-${country}-${i}`}
               className="mx-6 text-[var(--text-muted)] text-sm font-medium flex items-center gap-2"
             >
               <span className="w-1 h-1 rounded-full bg-[var(--accent)] opacity-50" />
@@ -567,7 +567,7 @@ function FeaturesBento() {
         >
           {BENTO_FEATURES.map((feature, i) => (
             <GlassCard
-              key={i}
+              key={feature.title}
               className={cn(
                 'group relative p-6 md:p-8 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)]',
                 'hover:border-[var(--accent)]/30 transition-all duration-300 hover:-translate-y-1',
@@ -637,7 +637,7 @@ function HowItWorks() {
           </div>
 
           {HOW_IT_WORKS_STEPS.map((step, i) => (
-            <FadeUp key={i} delay={0.15 * i}>
+            <FadeUp key={step.title} delay={0.15 * i}>
               <div className="relative text-center md:text-left">
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-2xl mb-6 relative z-10">
                   {step.emoji}
@@ -686,7 +686,7 @@ function ProfessionalTools() {
         <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5" staggerDelay={0.06}>
           {PRO_TOOLS.map((tool, i) => (
             <GlassCard
-              key={i}
+              key={tool.title}
               className={cn(
                 'group p-5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]',
                 'hover:border-[var(--accent)]/30 transition-all duration-300 hover:-translate-y-0.5',
@@ -735,7 +735,7 @@ function PricingSection() {
         <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-start" staggerDelay={0.1}>
           {PRICING.map((plan, i) => (
             <GlassCard
-              key={i}
+              key={plan.tier}
               className={cn(
                 'relative p-6 md:p-8 rounded-2xl border transition-all duration-300',
                 plan.highlighted

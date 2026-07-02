@@ -364,7 +364,7 @@ export default function ProfilesPage({ params }: PageProps) {
                   <ProfileChart points={chainagePoints} />
 
                   {svgModalOpen && (
-                    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setSvgModalOpen(false)}>
+                    <div role="button" tabIndex={0} aria-label="Close preview" className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setSvgModalOpen(false)} onKeyDown={(e) => { if (e.key === 'Escape') setSvgModalOpen(false) }}>
                       <div className="w-full max-w-2xl rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                           <div className="text-lg font-semibold text-[var(--text-primary)]">Export profile SVG (to-scale)</div>

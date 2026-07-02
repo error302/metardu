@@ -318,7 +318,7 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
                 )}
                 <div className="space-y-2">
                   {m.controlPoints.map((cp, i) => (
-                    <div key={i} className="flex gap-2 items-center">
+                    <div key={`cp-${cp.name || i}`} className="flex gap-2 items-center">
                       <input value={cp.name} onChange={e => {
                         const cp2 = [...m.controlPoints]; cp2[i] = { ...cp2[i], name: e.target.value }; f('controlPoints', cp2)
                       }} placeholder="Name/ID" className="input flex-1 text-sm py-1.5" />
@@ -371,7 +371,7 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
                 <p className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-2">Required documents for submission</p>
                 <ul className="space-y-1.5">
                   {std.requiredDocs.map((doc, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                    <li key={`doc-${doc}`} className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
                       <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] flex-shrink-0" />
                       {doc}
                     </li>
@@ -413,7 +413,7 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
               </div>
               <div className="space-y-2">
                 {m.equipment.map((eq, i) => (
-                  <div key={i} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${eq.checked ? 'bg-green-900/10 border-green-700/20' : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'}`}>
+                  <div key={`eq-${eq.item || i}`} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${eq.checked ? 'bg-green-900/10 border-green-700/20' : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'}`}>
                     <input type="checkbox" checked={eq.checked} onChange={e => {
                       const eq2 = [...m.equipment]; eq2[i] = { ...eq2[i], checked: e.target.checked }; f('equipment', eq2)
                     }} className="rounded flex-shrink-0" />
@@ -444,7 +444,7 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
               </div>
               <div className="space-y-2">
                 {m.preChecklist.map((c, i) => (
-                  <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${c.done ? 'bg-green-900/10 border-green-700/20' : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'}`}>
+                  <div key={`chk-${c.item || i}`} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${c.done ? 'bg-green-900/10 border-green-700/20' : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'}`}>
                     <input type="checkbox" checked={c.done} onChange={e => {
                       const cl = [...m.preChecklist]; cl[i] = { ...cl[i], done: e.target.checked }; f('preChecklist', cl)
                     }} className="rounded flex-shrink-0" />

@@ -518,7 +518,7 @@ function ListingDetail({ listing, onClose, onRefresh }: {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex" onClick={onClose}>
+    <div role="button" tabIndex={0} aria-label="Close dialog" className="fixed inset-0 z-40 flex" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}>
       <div className="flex-1" />
       <div
         className="w-full max-w-md bg-[var(--bg-card)] border-l border-[var(--border-color)] h-full overflow-y-auto shadow-2xl"

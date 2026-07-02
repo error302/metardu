@@ -199,7 +199,7 @@ export default function AddPointModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/70" onClick={onClose}></div>
+      <div role="button" tabIndex={0} aria-label="Close" className="absolute inset-0 bg-black/70" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}></div>
       <div className="relative bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6 w-full max-w-md">
         <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">
           {isEditMode ? 'Edit Survey Point' : 'Add Survey Point'}

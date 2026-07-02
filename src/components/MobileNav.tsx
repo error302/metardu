@@ -105,7 +105,7 @@ export default function MobileNav() {
 
       {/* More Drawer */}
       {showMore && (
-        <div className="fixed inset-0 z-[60] flex md:hidden" onClick={() => setShowMore(false)}>
+        <div role="button" tabIndex={0} aria-label="Close menu" className="fixed inset-0 z-[60] flex md:hidden" onClick={() => setShowMore(false)} onKeyDown={(e) => { if (e.key === 'Escape') setShowMore(false) }}>
           {/* Backdrop */}
           <div className="flex-1 bg-black/60 backdrop-blur-sm" />
 
