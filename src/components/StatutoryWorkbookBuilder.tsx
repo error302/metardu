@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Search, BookOpen, FileDown, ChevronDown, ChevronRight, Scale, Landmark, FileText } from 'lucide-react'
 
-const surveyTypes = ['cadastral', 'engineering', 'topographic', 'leveling', 'control', 'mining', 'hydrographic', 'drone', 'gnss'] as const
+const surveyTypes = ['cadastral', 'engineering', 'topographic', 'leveling', 'control', 'drone', 'gnss'] as const
 
 // ── Kenya Survey Regulations Reference Data ─────────────────────────────────────
 

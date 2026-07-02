@@ -84,8 +84,6 @@ export default function JobForm({ surveyType, onSuccess }: JobFormProps): JSX.El
           <option value="road">Road Survey</option>
           <option value="construction">Construction Survey</option>
           <option value="control">Control Network</option>
-          <option value="mining">Mining Survey</option>
-          <option value="hydrographic">Hydrographic Survey</option>
           <option value="drone">Drone/UAV Survey</option>
           <option value="gnss">GNSS Survey</option>
           <option value="other">Other</option>

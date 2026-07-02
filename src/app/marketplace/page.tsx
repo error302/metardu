@@ -234,16 +234,16 @@ function ImageGallery({ images }: { images: string[] }) {
       {lightbox && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center"
           onClick={() => setLightbox(false)}>
-          <button className="absolute top-4 right-4 text-white/60 hover:text-white p-2">
+          <button aria-label="Close lightbox" onClick={() => setLightbox(false)} className="absolute top-4 right-4 text-white/60 hover:text-white p-2">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
           {images.length > 1 && (
             <>
-              <button onClick={e => { e.stopPropagation(); setActive(a => (a - 1 + images.length) % images.length) }}
+              <button aria-label="Previous image" onClick={e => { e.stopPropagation(); setActive(a => (a - 1 + images.length) % images.length) }}
                 className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
               </button>
-              <button onClick={e => { e.stopPropagation(); setActive(a => (a + 1) % images.length) }}
+              <button aria-label="Next image" onClick={e => { e.stopPropagation(); setActive(a => (a + 1) % images.length) }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
               </button>

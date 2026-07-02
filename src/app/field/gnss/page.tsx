@@ -22,7 +22,7 @@ export default function GNSSPage() {
       <div className="p-4 space-y-4">
         <GNSSConnectionPanel
           onPosition={setPosition}
-          onConnect={(device) => console.log('Connected:', device)}
+          onConnect={() => {}}
           onDisconnect={() => setPosition(null)}
         />
 
@@ -30,7 +30,7 @@ export default function GNSSPage() {
           <CoordinateDisplay
             position={position}
             showKenya={true}
-            onCopy={(coord) => console.log('Copied:', coord)}
+            onCopy={() => {}}
           />
         )}
 

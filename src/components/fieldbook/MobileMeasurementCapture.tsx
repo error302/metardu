@@ -45,7 +45,7 @@ export interface CapturedMeasurement {
 interface MobileMeasurementCaptureProps {
   onCapture: (measurement: CapturedMeasurement) => void
   stationName?: string
-  surveyType: 'leveling' | 'traverse' | 'control' | 'hydrographic' | 'mining'
+  surveyType: 'leveling' | 'traverse' | 'control'
 }
 
 type CaptureMode = 'gps' | 'bearing-distance' | 'angle' | 'offset'

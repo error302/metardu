@@ -18,8 +18,6 @@ const SURVEY_TYPES: { id: SurveyType; label: string }[] = [
   { id: 'stakeout',      label: 'Stakeout / Setting Out' },
   { id: 'gnss_baseline', label: 'GNSS Baseline' },
   { id: 'tacheometric',  label: 'Tacheometric' },
-  { id: 'mining',        label: 'Mine Survey' },
-  { id: 'hydrographic',  label: 'Hydrographic' },
 ]
 
 const COUNTRIES: { id: Country; label: string }[] = [

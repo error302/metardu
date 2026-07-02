@@ -147,6 +147,7 @@ export function CollaborationPanel({
             <button
               onClick={handleSend}
               disabled={!isConnected || !input.trim()}
+              aria-label="Send message"
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--accent)] text-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--accent-dim)]"
             >
               <Send className="w-3.5 h-3.5" />

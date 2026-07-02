@@ -775,13 +775,13 @@ function PropertiesPanel({
           {element.type.replace('_', ' ')} Properties
         </span>
         <div className="flex items-center gap-0.5">
-          <button onClick={onToggleLock} className="w-6 h-6 flex items-center justify-center hover:bg-white/[0.06] rounded">
+          <button onClick={onToggleLock} aria-label={element.locked ? 'Unlock element' : 'Lock element'} className="w-6 h-6 flex items-center justify-center hover:bg-white/[0.06] rounded">
             {element.locked ? <Lock className="w-3 h-3 text-gray-400" /> : <Unlock className="w-3 h-3 text-gray-400" />}
           </button>
-          <button onClick={onDuplicate} className="w-6 h-6 flex items-center justify-center hover:bg-white/[0.06] rounded">
+          <button onClick={onDuplicate} aria-label="Duplicate element" className="w-6 h-6 flex items-center justify-center hover:bg-white/[0.06] rounded">
             <Copy className="w-3 h-3 text-gray-400" />
           </button>
-          <button onClick={onDelete} className="w-6 h-6 flex items-center justify-center hover:bg-red-500/10 rounded">
+          <button onClick={onDelete} aria-label="Delete element" className="w-6 h-6 flex items-center justify-center hover:bg-red-500/10 rounded">
             <Trash2 className="w-3 h-3 text-red-400" />
           </button>
         </div>
