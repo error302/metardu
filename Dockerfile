@@ -1,6 +1,6 @@
 # METARDU Production Dockerfile
 # Multi-stage build: deps → build → minimal runtime
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 # Install node-gyp and canvas dependencies for Alpine
 RUN apk add --no-cache python3 make g++ cairo-dev pango-dev libjpeg-turbo-dev giflib-dev
@@ -8,7 +8,7 @@ COPY package.json package-lock.json* ./
 COPY scripts/ ./scripts/
 RUN npm ci --legacy-peer-deps
 
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 # Runtime canvas libs needed for static page generation
 RUN apk add --no-cache cairo pango libjpeg-turbo giflib
@@ -28,7 +28,7 @@ ENV AUTH_SECRET=$AUTH_SECRET
 RUN npx prisma generate
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
