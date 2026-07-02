@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import {
   getCPDRequirements,
   getActivityTypes,
-  type CPDActivity,
   type CPDSummary
 } from '@/lib/marketplace/cpdCertificates'
 import type { CPDRecord } from '@/types/cpd'
@@ -26,7 +25,6 @@ export default function CPDPage() {
   const [country, setCountry] = useState('Kenya')
   const [requirements, setRequirements] = useState<any[]>([])
   const [activityTypes, setActivityTypes] = useState<any[]>([])
-  const [userId, setUserId] = useState<string | null>(null)
   const [totalPoints, setTotalPoints] = useState(0)
 
   useEffect(() => {
@@ -38,10 +36,12 @@ export default function CPDPage() {
         // Fetch real CPD data from the API (which calls lib/cpd.ts → DB)
         const year = new Date().getFullYear()
         const res = await fetch(`/api/cpd?year=${year}`, { credentials: 'include' })
+        let fetchedTotal = 0
         if (res.ok) {
           const data = await res.json()
           setActivities(data.records ?? [])
-          setTotalPoints(data.total ?? 0)
+          fetchedTotal = data.total ?? 0
+          setTotalPoints(fetchedTotal)
         } else if (res.status === 401) {
           // Not logged in — show empty state
           setActivities([])
@@ -49,24 +49,26 @@ export default function CPDPage() {
         } else {
           setFetchError('Failed to load CPD records')
         }
+
+        // Build summary from the fetched total (not from state, which may be stale)
+        const req = getCPDRequirements(country)[0]
+        const requiredHours = req?.yearlyHours ?? 40
+        setSummary({
+          totalHours: fetchedTotal,
+          requirementHours: requiredHours,
+          compliancePercentage: requiredHours > 0 ? Math.min(100, (fetchedTotal / requiredHours) * 100) : 0,
+          status: fetchedTotal >= requiredHours ? 'compliant' : fetchedTotal >= requiredHours * 0.75 ? 'at_risk' : 'non_compliant',
+        } as CPDSummary)
       } catch {
         setFetchError('Network error loading CPD records')
       }
 
-      // Build summary from the real total
-      const req = getCPDRequirements(country)[0]
-      const requiredHours = req?.yearlyHours ?? 40
-      setSummary({
-        totalHours: totalPoints, // CPD points map roughly to hours
-        requirementHours: requiredHours,
-        compliancePercentage: requiredHours > 0 ? Math.min(100, (totalPoints / requiredHours) * 100) : 0,
-        status: totalPoints >= requiredHours ? 'compliant' : totalPoints >= requiredHours * 0.75 ? 'at_risk' : 'non_compliant',
-      } as CPDSummary)
-
       setLoading(false)
     }
     loadData()
-  }, [country, totalPoints])
+    // AUDIT FIX: Removed totalPoints from dependency array — it's SET inside
+    // the effect, so including it causes an infinite render loop.
+  }, [country])
 
   const getStatusColor = (status: string) => {
     switch (status) {

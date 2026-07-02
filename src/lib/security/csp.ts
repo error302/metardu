@@ -38,7 +38,7 @@ export function getCspHeaders(nonce: string) {
       // 'nonce-${nonce}' allows components that use <Script nonce> to
       // be more restrictive. Remove 'unsafe-inline' after Next.js 15 upgrade.
       `script-src 'self' 'unsafe-inline' 'nonce-${nonce}'${isDev ? " 'unsafe-eval'" : ''} 'wasm-unsafe-eval'`,
-      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net`,
       `font-src 'self' https://fonts.gstatic.com`,
       `img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com`,
       `connect-src 'self' ${isDev ? 'ws://localhost:* http://localhost:*' : ''} wss: https:`,
