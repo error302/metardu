@@ -108,7 +108,7 @@ const PRICING = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-x-hidden">
       <HeroSection />
       <StatsBar />
       <FeaturesSection />
@@ -136,7 +136,7 @@ function HeroSection() {
           className="w-full h-full object-cover"
           style={{ filter: 'brightness(0.35) contrast(1.1)' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A]/80 via-[#0A0A0A]/60 to-[#0A0A0A]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-primary)]/80 via-[var(--bg-primary)]/60 to-[var(--bg-primary)]" />
       </div>
 
       {/* Navigation */}
@@ -146,21 +146,21 @@ function HeroSection() {
             <MetarduLogo size={32} showWordmark={true} color="#FFFFFF" />
           </Link>
           <div className="hidden md:flex items-center gap-8">
-            <Link href="#features" className="text-sm text-white/70 hover:text-white transition-colors no-underline">Features</Link>
-            <Link href="#workflow" className="text-sm text-white/70 hover:text-white transition-colors no-underline">Workflow</Link>
-            <Link href="/pricing" className="text-sm text-white/70 hover:text-white transition-colors no-underline">Pricing</Link>
-            <Link href="/docs" className="text-sm text-white/70 hover:text-white transition-colors no-underline">Docs</Link>
-            <Link href="/login" className="text-sm text-white/70 hover:text-white transition-colors no-underline">Sign in</Link>
+            <Link href="#features" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Features</Link>
+            <Link href="#workflow" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Workflow</Link>
+            <Link href="/pricing" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Pricing</Link>
+            <Link href="/docs" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Docs</Link>
+            <Link href="/login" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Sign in</Link>
             <Link
               href="/register"
-              className="px-5 py-2 bg-white text-black font-medium rounded-lg text-sm hover:bg-white/90 transition-all no-underline"
+              className="px-5 py-2 bg-[var(--accent)] text-[var(--bg-primary)] font-medium rounded-lg text-sm hover:bg-[var(--accent-dim)] transition-all no-underline"
             >
               Get Started
             </Link>
           </div>
           <Link
             href="/login"
-            className="md:hidden px-4 py-2 text-sm text-white/80 border border-white/20 rounded-lg no-underline"
+            className="md:hidden px-4 py-2 text-sm text-[var(--text-primary)]/80 border border-[var(--border-color)] rounded-lg no-underline"
           >
             Sign in
           </Link>
@@ -171,21 +171,21 @@ function HeroSection() {
       <div className="relative z-10 flex-1 flex items-center">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-20 w-full">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] mb-6">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-white/60 font-mono tracking-wide">Built in Nairobi · Cassini · UTM 36S/37S · Arc 1960</span>
+              <span className="text-xs text-[var(--text-primary)]/60 font-mono tracking-wide">Built in Nairobi · Cassini · UTM 36S/37S · Arc 1960</span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.05] tracking-tight mb-6">
               Surveying software
               <br />
               built for{' '}
-              <span className="bg-gradient-to-r from-orange-400 to-amber-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dim)] bg-clip-text text-transparent">
                 East Africa.
               </span>
             </h1>
 
-            <p className="text-lg sm:text-xl text-white/60 leading-relaxed mb-8 max-w-2xl">
+            <p className="text-lg sm:text-xl text-[var(--text-primary)]/60 leading-relaxed mb-8 max-w-2xl">
               Traverse adjustment, deed plans, GNSS baseline processing, contour generation,
               and NLIMS-ready exports — all in one professional workspace. From field to finish,
               built for Kenyan surveyors.
@@ -194,14 +194,14 @@ function HeroSection() {
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
                 href="/register"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-black font-semibold rounded-xl text-sm hover:bg-white/90 hover:scale-[1.02] transition-all no-underline"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[var(--accent)] text-[var(--bg-primary)] font-semibold rounded-xl text-sm hover:bg-[var(--accent-dim)] hover:scale-[1.02] transition-all no-underline"
               >
                 Start a project
                 <span aria-hidden>→</span>
               </Link>
               <Link
                 href="#features"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/5 border border-white/10 text-white font-medium rounded-xl text-sm hover:bg-white/10 transition-all no-underline"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] font-medium rounded-xl text-sm hover:bg-[var(--bg-tertiary)] transition-all no-underline"
               >
                 Explore features
               </Link>
@@ -219,14 +219,14 @@ function HeroSection() {
 
 function StatsBar() {
   return (
-    <section className="border-y border-white/5 bg-[#0F0F0F]">
+    <section className="border-y border-[var(--border-color)] bg-[var(--bg-secondary)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
         {STATS.map((stat, i) => (
           <div key={i} className="text-center">
-            <div className="text-3xl sm:text-4xl font-bold text-white">
+            <div className="text-3xl sm:text-4xl font-bold text-[var(--text-primary)]">
               {stat.value}{stat.suffix}
             </div>
-            <div className="text-xs text-white/40 mt-2 uppercase tracking-widest">
+            <div className="text-xs text-[var(--text-primary)]/40 mt-2 uppercase tracking-widest">
               {stat.label}
             </div>
           </div>
@@ -245,15 +245,15 @@ function FeaturesSection() {
     <section id="features" className="py-24 md:py-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
         <div className="text-center mb-16">
-          <p className="text-orange-400 text-sm font-semibold uppercase tracking-widest mb-4">
+          <p className="text-[var(--accent)] text-sm font-semibold uppercase tracking-widest mb-4">
             Feature Suite
           </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
             Everything you need for
             <br />
-            <span className="text-orange-400">professional surveying</span>
+            <span className="text-[var(--accent)]">professional surveying</span>
           </h2>
-          <p className="max-w-2xl mx-auto text-white/50 text-base lg:text-lg">
+          <p className="max-w-2xl mx-auto text-[var(--text-primary)]/50 text-base lg:text-lg">
             Six core modules purpose-built for the East African surveyor. From field observations
             to regulatory submission.
           </p>
@@ -265,13 +265,13 @@ function FeaturesSection() {
             return (
               <div
                 key={i}
-                className="group p-8 rounded-2xl bg-[#0F0F0F] border border-white/5 hover:border-orange-500/20 transition-all duration-300 hover:-translate-y-1"
+                className="group p-8 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent)]/20 transition-all duration-300 hover:-translate-y-1"
               >
-                <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center mb-5 group-hover:bg-orange-500/20 transition-colors">
-                  <Icon className="w-6 h-6 text-orange-400" />
+                <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/10 flex items-center justify-center mb-5 group-hover:bg-[var(--accent)]/20 transition-colors">
+                  <Icon className="w-6 h-6 text-[var(--accent)]" />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-3">{feature.title}</h3>
-                <p className="text-sm text-white/50 leading-relaxed">{feature.description}</p>
+                <h3 className="text-lg font-bold text-[var(--text-primary)] mb-3">{feature.title}</h3>
+                <p className="text-sm text-[var(--text-primary)]/50 leading-relaxed">{feature.description}</p>
               </div>
             )
           })}
@@ -287,17 +287,17 @@ function FeaturesSection() {
 
 function WorkflowSection() {
   return (
-    <section id="workflow" className="py-24 md:py-32 bg-[#0F0F0F] border-y border-white/5">
+    <section id="workflow" className="py-24 md:py-32 bg-[var(--bg-secondary)] border-y border-[var(--border-color)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
         <div className="text-center mb-16">
-          <p className="text-orange-400 text-sm font-semibold uppercase tracking-widest mb-4">
+          <p className="text-[var(--accent)] text-sm font-semibold uppercase tracking-widest mb-4">
             Workflow
           </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
             Survey smarter in{' '}
-            <span className="text-orange-400">3 steps</span>
+            <span className="text-[var(--accent)]">3 steps</span>
           </h2>
-          <p className="max-w-xl mx-auto text-white/50 text-base lg:text-lg">
+          <p className="max-w-xl mx-auto text-[var(--text-primary)]/50 text-base lg:text-lg">
             From raw field observations to submission-ready documents.
           </p>
         </div>
@@ -305,9 +305,9 @@ function WorkflowSection() {
         <div className="grid md:grid-cols-3 gap-8 md:gap-12">
           {WORKFLOW_STEPS.map((step, i) => (
             <div key={i} className="text-center md:text-left">
-              <div className="text-5xl font-bold text-orange-400/20 mb-4">{step.number}</div>
-              <h3 className="text-xl font-bold text-white mb-3">{step.title}</h3>
-              <p className="text-sm text-white/50 leading-relaxed">{step.description}</p>
+              <div className="text-5xl font-bold text-[var(--accent)]/20 mb-4">{step.number}</div>
+              <h3 className="text-xl font-bold text-[var(--text-primary)] mb-3">{step.title}</h3>
+              <p className="text-sm text-[var(--text-primary)]/50 leading-relaxed">{step.description}</p>
             </div>
           ))}
         </div>
@@ -325,12 +325,12 @@ function ToolsSection() {
     <section className="py-24 md:py-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
         <div className="text-center mb-16">
-          <p className="text-orange-400 text-sm font-semibold uppercase tracking-widest mb-4">
+          <p className="text-[var(--accent)] text-sm font-semibold uppercase tracking-widest mb-4">
             Tool Library
           </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
             Professional-grade tools,{' '}
-            <span className="text-orange-400">free to start</span>
+            <span className="text-[var(--accent)]">free to start</span>
           </h2>
         </div>
 
@@ -341,13 +341,13 @@ function ToolsSection() {
               <Link
                 key={i}
                 href="/tools"
-                className="group p-5 rounded-xl bg-[#0F0F0F] border border-white/5 hover:border-orange-500/20 transition-all no-underline"
+                className="group p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent)]/20 transition-all no-underline"
               >
-                <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4 group-hover:bg-orange-500/20 transition-colors">
-                  <Icon className="w-5 h-5 text-orange-400" />
+                <div className="w-10 h-10 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center mb-4 group-hover:bg-[var(--accent)]/20 transition-colors">
+                  <Icon className="w-5 h-5 text-[var(--accent)]" />
                 </div>
-                <h3 className="font-bold text-white text-sm mb-1">{tool.title}</h3>
-                <p className="text-xs text-white/40">{tool.description}</p>
+                <h3 className="font-bold text-[var(--text-primary)] text-sm mb-1">{tool.title}</h3>
+                <p className="text-xs text-[var(--text-primary)]/40">{tool.description}</p>
               </Link>
             )
           })}
@@ -363,17 +363,17 @@ function ToolsSection() {
 
 function PricingSection() {
   return (
-    <section className="py-24 md:py-32 bg-[#0F0F0F] border-t border-white/5">
+    <section className="py-24 md:py-32 bg-[var(--bg-secondary)] border-t border-[var(--border-color)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
         <div className="text-center mb-16">
-          <p className="text-orange-400 text-sm font-semibold uppercase tracking-widest mb-4">
+          <p className="text-[var(--accent)] text-sm font-semibold uppercase tracking-widest mb-4">
             Pricing
           </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
             Start free,{' '}
-            <span className="text-orange-400">scale as you grow</span>
+            <span className="text-[var(--accent)]">scale as you grow</span>
           </h2>
-          <p className="max-w-xl mx-auto text-white/50 text-base lg:text-lg">
+          <p className="max-w-xl mx-auto text-[var(--text-primary)]/50 text-base lg:text-lg">
             No hidden fees. Pay via M-Pesa, card, or PayPal.
           </p>
         </div>
@@ -384,27 +384,27 @@ function PricingSection() {
               key={i}
               className={`relative p-8 rounded-2xl border transition-all ${
                 plan.highlighted
-                  ? 'border-orange-500/50 bg-[#0A0A0A] shadow-[0_0_60px_-15px_rgba(249,115,22,0.3)] scale-[1.02]'
-                  : 'border-white/5 bg-[#0A0A0A] hover:border-white/10'
+                  ? 'border-[var(--accent)]/50 bg-[var(--bg-primary)] shadow-[0_0_60px_-15px_rgba(209,123,71,0.2)] scale-[1.02]'
+                  : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--border-color)]'
               }`}
             >
               {plan.highlighted && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-orange-500 text-black text-xs font-bold rounded-full uppercase tracking-wider">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--accent)] text-black text-xs font-bold rounded-full uppercase tracking-wider">
                   Most Popular
                 </div>
               )}
 
-              <h3 className="text-lg font-bold text-white mb-1">{plan.tier}</h3>
-              <p className="text-sm text-white/40 mb-4">{plan.description}</p>
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">{plan.tier}</h3>
+              <p className="text-sm text-[var(--text-primary)]/40 mb-4">{plan.description}</p>
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-bold text-white">{plan.price}</span>
-                <span className="text-white/40 text-sm">{plan.period}</span>
+                <span className="text-4xl font-bold text-[var(--text-primary)]">{plan.price}</span>
+                <span className="text-[var(--text-primary)]/40 text-sm">{plan.period}</span>
               </div>
 
               <ul className="space-y-3 mb-8">
                 {plan.features.map((feature, j) => (
-                  <li key={j} className="flex items-start gap-3 text-sm text-white/60">
-                    <span className="mt-0.5 text-orange-400">✓</span>
+                  <li key={j} className="flex items-start gap-3 text-sm text-[var(--text-primary)]/60">
+                    <span className="mt-0.5 text-[var(--accent)]">✓</span>
                     {feature}
                   </li>
                 ))}
@@ -414,8 +414,8 @@ function PricingSection() {
                 href={plan.href}
                 className={`block text-center py-3.5 rounded-xl font-semibold text-sm transition-all no-underline ${
                   plan.highlighted
-                    ? 'bg-orange-500 text-black hover:bg-orange-400'
-                    : 'bg-white/5 text-white border border-white/10 hover:bg-white/10'
+                    ? 'bg-[var(--accent)] text-black hover:bg-[var(--accent-dim)]'
+                    : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-tertiary)]'
                 }`}
               >
                 {plan.cta}
@@ -434,51 +434,51 @@ function PricingSection() {
 
 function Footer() {
   return (
-    <footer className="border-t border-white/5 py-12 bg-[#0A0A0A]">
+    <footer className="border-t border-[var(--border-color)] py-12 bg-[var(--bg-primary)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div className="col-span-2">
             <MetarduLogo size={28} showWordmark={true} color="#FFFFFF" />
-            <p className="text-sm text-white/40 mt-4 max-w-xs">
+            <p className="text-sm text-[var(--text-primary)]/40 mt-4 max-w-xs">
               Professional surveying software for East Africa. Built in Nairobi,
               compliant with Survey Act Cap. 299 and RDM 1.1.
             </p>
             <div className="flex items-center gap-4 mt-4">
-              <span className="flex items-center gap-1.5 text-xs text-white/30">
+              <span className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/30">
                 <Smartphone className="w-3.5 h-3.5" /> PWA
               </span>
-              <span className="flex items-center gap-1.5 text-xs text-white/30">
+              <span className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/30">
                 <Cloud className="w-3.5 h-3.5" /> Offline
               </span>
-              <span className="flex items-center gap-1.5 text-xs text-white/30">
+              <span className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/30">
                 <Globe className="w-3.5 h-3.5" /> 14 Languages
               </span>
             </div>
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-white/80 mb-3">Product</h4>
-            <ul className="space-y-2 text-sm text-white/40">
-              <li><Link href="/tools" className="hover:text-white no-underline">Tools</Link></li>
-              <li><Link href="/pricing" className="hover:text-white no-underline">Pricing</Link></li>
-              <li><Link href="/docs" className="hover:text-white no-underline">Documentation</Link></li>
-              <li><Link href="/field" className="hover:text-white no-underline">Field Mode</Link></li>
+            <h4 className="text-sm font-semibold text-[var(--text-primary)]/80 mb-3">Product</h4>
+            <ul className="space-y-2 text-sm text-[var(--text-primary)]/40">
+              <li><Link href="/tools" className="hover:text-[var(--text-primary)] no-underline">Tools</Link></li>
+              <li><Link href="/pricing" className="hover:text-[var(--text-primary)] no-underline">Pricing</Link></li>
+              <li><Link href="/docs" className="hover:text-[var(--text-primary)] no-underline">Documentation</Link></li>
+              <li><Link href="/field" className="hover:text-[var(--text-primary)] no-underline">Field Mode</Link></li>
             </ul>
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-white/80 mb-3">Company</h4>
-            <ul className="space-y-2 text-sm text-white/40">
-              <li><Link href="/help" className="hover:text-white no-underline">Help Center</Link></li>
-              <li><Link href="/community" className="hover:text-white no-underline">Community</Link></li>
-              <li><Link href="/docs/data-protection" className="hover:text-white no-underline">Privacy</Link></li>
-              <li><Link href="/docs/terms" className="hover:text-white no-underline">Terms</Link></li>
+            <h4 className="text-sm font-semibold text-[var(--text-primary)]/80 mb-3">Company</h4>
+            <ul className="space-y-2 text-sm text-[var(--text-primary)]/40">
+              <li><Link href="/help" className="hover:text-[var(--text-primary)] no-underline">Help Center</Link></li>
+              <li><Link href="/community" className="hover:text-[var(--text-primary)] no-underline">Community</Link></li>
+              <li><Link href="/docs/data-protection" className="hover:text-[var(--text-primary)] no-underline">Privacy</Link></li>
+              <li><Link href="/docs/terms" className="hover:text-[var(--text-primary)] no-underline">Terms</Link></li>
             </ul>
           </div>
         </div>
-        <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-white/30">
+        <div className="pt-8 border-t border-[var(--border-color)] flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="text-xs text-[var(--text-primary)]/30">
             © {new Date().getFullYear()} METARDU. Survey Act Cap. 299 · RDM 1.1 compliant.
           </p>
-          <p className="text-xs text-white/30 font-mono">
+          <p className="text-xs text-[var(--text-primary)]/30 font-mono">
             Arc 1960 / UTM 37S · EPSG:21037
           </p>
         </div>

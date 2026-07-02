@@ -2,7 +2,7 @@ import Image from 'next/image'
 
 export default function RootLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
       <div className="flex flex-col items-center gap-4">
         <Image
           src="/metardu-icon.png"
@@ -12,7 +12,7 @@ export default function RootLoading() {
           className="rounded-lg animate-pulse"
           priority
         />
-        <div className="text-white/40 text-sm font-mono tracking-wider animate-pulse">
+        <div className="text-[var(--text-muted)] text-sm font-mono tracking-wider animate-pulse">
           METARDU
         </div>
       </div>
