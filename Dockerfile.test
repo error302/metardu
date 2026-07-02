@@ -1,5 +1,5 @@
 # Test Runner Dockerfile
-FROM node:20-alpine
+FROM node:26-alpine
 
 # Install Chromium + canvas dependencies
 RUN apk add --no-cache \
