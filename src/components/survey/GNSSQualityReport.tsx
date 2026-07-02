@@ -91,7 +91,7 @@ export function GNSSQualityReport({ externalPosition }: {
   }, [externalPosition])
 
   const startWatch = useCallback(() => {
-    if (watching) return
+    if (watchIdRef.current != null) return // Already watching
     if (externalPosition) return // Using external data, don't start browser GPS
     setWatching(true)
 
@@ -107,7 +107,7 @@ export function GNSSQualityReport({ externalPosition }: {
                        pos.coords.accuracy < 1 ? 'rtk_float' :
                        pos.coords.accuracy < 5 ? 'dgps' :
                        pos.coords.accuracy < 15 ? 'gps' : 'none',
-          satellites: 0, // Browser API doesn't expose satellite count
+          satellites: 0,
           satellitesGPS: 0,
           satellitesGLONASS: 0,
           satellitesGalileo: 0,
@@ -130,7 +130,7 @@ export function GNSSQualityReport({ externalPosition }: {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
     )
-  }, [watching])
+  }, [externalPosition]) // AUDIT FIX: Removed `watching` from deps — caused infinite loop
 
   const stopWatch = useCallback(() => {
     if (watchIdRef.current != null) {
@@ -140,10 +140,12 @@ export function GNSSQualityReport({ externalPosition }: {
     setWatching(false)
   }, [])
 
+  // AUDIT FIX: Only start on mount, don't re-run when startWatch changes
   useEffect(() => {
     startWatch()
     return () => stopWatch()
-  }, [startWatch, stopWatch])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Quality checks
   const checks: QualityCheck[] = quality ? [

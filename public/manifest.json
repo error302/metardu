@@ -1,7 +1,7 @@
 {
   "id": "/",
   "scope": "/",
-  "name": "METARDU — Kenya Survey & Cadastral Platform",
+  "name": "METARDU \u2014 Kenya Survey & Cadastral Platform",
   "short_name": "METARDU",
   "description": "Professional land surveying platform built for Kenya. Traverse adjustment, leveling, COGO, deed plans, GNSS stakeout, NLIMS export, and field-to-finish workflow compliant with Survey Act Cap. 299.",
   "start_url": "/dashboard?source=pwa",
@@ -31,38 +31,8 @@
   ],
   "icons": [
     {
-      "src": "/icons/icon-72.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-144.png",
-      "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-152.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-180.png",
-      "sizes": "180x180",
+      "src": "/metardu-icon.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
@@ -70,13 +40,13 @@
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
+      "src": "/icons/icon-256.png",
+      "sizes": "256x256",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-384.png",
@@ -88,13 +58,7 @@
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "screenshots": [
@@ -119,50 +83,99 @@
       "short_name": "Home",
       "description": "View your projects, recent activity, and quick actions",
       "url": "/dashboard?source=pwa_shortcut",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/metardu-icon.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Map",
       "short_name": "Map",
       "description": "Open the interactive cadastral map",
       "url": "/map?source=pwa_shortcut",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/metardu-icon.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Field Book",
       "short_name": "Field",
       "description": "Record traverse and leveling observations",
       "url": "/fieldbook?source=pwa_shortcut",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/metardu-icon.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Toolbox",
       "short_name": "Tools",
       "description": "Search 40+ survey calculation tools",
       "url": "/tools/all?source=pwa_shortcut",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/metardu-icon.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Settings",
       "short_name": "Settings",
       "description": "Manage profile, company info, and notifications",
       "url": "/settings/profile?source=pwa_shortcut",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/metardu-icon.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     }
   ],
   "file_handlers": [
     {
       "action": "/import",
       "accept": {
-        "application/vnd.ms-excel": [".xls"],
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-        "text/csv": [".csv"],
-        "application/json": [".json"],
-        "application/geo+json": [".geojson"],
-        "application/dxf": [".dxf"],
-        "application/vnd.google-earth.kml+xml": [".kml"]
+        "application/vnd.ms-excel": [
+          ".xls"
+        ],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+          ".xlsx"
+        ],
+        "text/csv": [
+          ".csv"
+        ],
+        "application/json": [
+          ".json"
+        ],
+        "application/geo+json": [
+          ".geojson"
+        ],
+        "application/dxf": [
+          ".dxf"
+        ],
+        "application/vnd.google-earth.kml+xml": [
+          ".kml"
+        ]
       },
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }],
+      "icons": [
+        {
+          "src": "/icons/icon-96.png",
+          "sizes": "96x96"
+        }
+      ],
       "launch_type": "single-client"
     }
   ],
