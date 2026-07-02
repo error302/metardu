@@ -7,7 +7,7 @@
 # Run:   docker compose up -d metardu-backup
 # Logs:  docker compose logs -f metardu-backup
 
-FROM alpine:3.19
+FROM alpine:3.24
 
 RUN apk add --no-cache \
     postgresql-client \
