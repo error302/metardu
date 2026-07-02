@@ -2,6 +2,12 @@
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { detectTotalStationFormat, TotalStationFormat } from '@/lib/import/totalStation/detectFormat'
+import { detectFormat, getParser } from '@/lib/importers/registry'
+// Import all parsers so they register themselves
+import '@/lib/importers/parsers/csv'
+import '@/lib/importers/parsers/dxf'
+import '@/lib/importers/parsers/las'
+import '@/lib/importers/parsers/rinex'
 import { parseGSI } from '@/lib/import/totalStation/parseGSI'
 import { parseJobXML } from '@/lib/import/totalStation/parseJobXML'
 import { parseTopcon } from '@/lib/import/totalStation/parseTopcon'
@@ -63,27 +69,47 @@ export default function ImportPage() {
     const text = await selectedFile.text()
     setContent(text)
 
-    const detectedFormat = detectTotalStationFormat(text, selectedFile.name)
-    setFormat(detectedFormat)
+    // AUDIT FIX: Use universal importer for all formats (CSV, DXF, LAS, RINEX, etc.)
+    // Falls back to total-station-specific parsers (GSI, JobXML, Topcon, Sokkia)
+    // for instrument-native formats
+    const universalFormat = detectFormat(selectedFile.name, text)
+    const tsFormat = detectTotalStationFormat(text, selectedFile.name)
 
     let parsed: any = { records: [], warnings: [] }
 
-    switch (detectedFormat) {
-      case 'gsi':
-        parsed = parseGSI(text)
-        break
-      case 'jobxml':
-        parsed = parseJobXML(text)
-        break
-      case 'topcon':
-        parsed = parseTopcon(text)
-        break
-      case 'sokkia':
-        parsed = parseSDR(text)
-        break
-      default:
-        setWarnings(['Unknown format. Please try CSV import instead.'])
+    if (universalFormat !== 'unknown') {
+      // Use universal parser (CSV, DXF, LAS, RINEX, etc.)
+      const parser = getParser(universalFormat)
+      if (parser) {
+        parsed = parser.parse(text)
+        setFormat(universalFormat as TotalStationFormat)
+      } else {
+        setWarnings([`Detected format ${universalFormat} but no parser available.`])
         return
+      }
+    } else if (tsFormat !== 'unknown') {
+      // Use total-station-specific parser
+      setFormat(tsFormat)
+      switch (tsFormat) {
+        case 'gsi':
+          parsed = parseGSI(text)
+          break
+        case 'jobxml':
+          parsed = parseJobXML(text)
+          break
+        case 'topcon':
+          parsed = parseTopcon(text)
+          break
+        case 'sokkia':
+          parsed = parseSDR(text)
+          break
+        default:
+          setWarnings(['Unknown format. Please try CSV import instead.'])
+          return
+      }
+    } else {
+      setWarnings(['Unknown format. Supported formats: CSV, DXF, LAS, RINEX, GSI, JobXML, Topcon, Sokkia, Trimble RW5.'])
+      return
     }
 
     setWarnings(parsed.warnings || [])
