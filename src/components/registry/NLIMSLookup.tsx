@@ -53,7 +53,7 @@ export default function NLIMSLookup({ initialParcel = '', onParcelVerified }: NL
             type="text"
             value={parcelNumber}
             onChange={e => setParcelNumber(e.target.value.toUpperCase())}
-            placeholder="e.g., NAIROBI BLOCK 2/1234"
+            aria-label="e.g., NAIROBI BLOCK 2/1234" placeholder="e.g., NAIROBI BLOCK 2/1234"
             className="w-full p-2 border rounded-lg"
           />
         </div>
@@ -65,7 +65,7 @@ export default function NLIMSLookup({ initialParcel = '', onParcelVerified }: NL
             type="text"
             value={county}
             onChange={e => setCounty(e.target.value)}
-            placeholder="e.g., Nairobi"
+            aria-label="e.g., Nairobi" placeholder="e.g., Nairobi"
             className="w-full p-2 border rounded-lg"
           />
         </div>

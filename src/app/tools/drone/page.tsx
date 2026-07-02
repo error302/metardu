@@ -323,7 +323,7 @@ export default function DroneSurveyPage() {
                         <td className="font-semibold">{g.name}</td>
                         <td><input className="input w-32 font-mono" value={g.easting} onChange={e => updateGCP(g.id, 'easting', e.target.value)} /></td>
                         <td><input className="input w-32 font-mono" value={g.northing} onChange={e => updateGCP(g.id, 'northing', e.target.value)} /></td>
-                        <td><input className="input w-24 font-mono" value={g.elevation} onChange={e => updateGCP(g.id, 'elevation', e.target.value)} placeholder="RL" /></td>
+                        <td><input className="input w-24 font-mono" value={g.elevation} onChange={e => updateGCP(g.id, 'elevation', e.target.value)} aria-label="RL" placeholder="RL" /></td>
                         <td>
                           <select 
                             className="input w-28" 
@@ -616,19 +616,19 @@ export default function DroneSurveyPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <label className="block text-[var(--text-secondary)] mb-1">Flying Height (m)</label>
-                    <input className="input" type="number" placeholder="120" value={flightParams.height} onChange={e => setFlightParams({...flightParams, height: e.target.value})} />
+                    <input className="input" type="number" aria-label="120" placeholder="120" value={flightParams.height} onChange={e => setFlightParams({...flightParams, height: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-[var(--text-secondary)] mb-1">GSD (cm/px)</label>
-                    <input className="input" type="number" placeholder="3.0" value={flightParams.gsd} onChange={e => setFlightParams({...flightParams, gsd: e.target.value})} />
+                    <input className="input" type="number" aria-label="3.0" placeholder="3.0" value={flightParams.gsd} onChange={e => setFlightParams({...flightParams, gsd: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-[var(--text-secondary)] mb-1">Overlap Front (%)</label>
-                    <input className="input" type="number" placeholder="80" value={flightParams.overlapFront} onChange={e => setFlightParams({...flightParams, overlapFront: e.target.value})} />
+                    <input className="input" type="number" aria-label="80" placeholder="80" value={flightParams.overlapFront} onChange={e => setFlightParams({...flightParams, overlapFront: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-[var(--text-secondary)] mb-1">Overlap Side (%)</label>
-                    <input className="input" type="number" placeholder="70" value={flightParams.overlapSide} onChange={e => setFlightParams({...flightParams, overlapSide: e.target.value})} />
+                    <input className="input" type="number" aria-label="70" placeholder="70" value={flightParams.overlapSide} onChange={e => setFlightParams({...flightParams, overlapSide: e.target.value})} />
                   </div>
                 </div>
               </div>

@@ -137,11 +137,11 @@ export default function GNSSProcessor() {
               </div>
               <div>
                 <label className="block text-sm mb-1">Latitude (decimal °)</label>
-                <input type="text" value={baseStation.lat} onChange={e => setBaseStation({...baseStation, lat: e.target.value})} className="input w-full" placeholder="-1.2921" />
+                <input type="text" value={baseStation.lat} onChange={e => setBaseStation({...baseStation, lat: e.target.value})} className="input w-full" aria-label="-1.2921" placeholder="-1.2921" />
               </div>
               <div>
                 <label className="block text-sm mb-1">Longitude (decimal °)</label>
-                <input type="text" value={baseStation.lon} onChange={e => setBaseStation({...baseStation, lon: e.target.value})} className="input w-full" placeholder="36.8219" />
+                <input type="text" value={baseStation.lon} onChange={e => setBaseStation({...baseStation, lon: e.target.value})} className="input w-full" aria-label="36.8219" placeholder="36.8219" />
               </div>
             </div>
           </div>

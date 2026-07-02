@@ -283,7 +283,7 @@ export default function MachineControlExportPanel() {
               value={coordSystem}
               onChange={(e) => setCoordSystem(e.target.value)}
               className="w-full rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm font-mono text-zinc-200 placeholder:text-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="e.g. Arc 1960 / UTM Zone 37S"
+              aria-label="e.g. Arc 1960 / UTM Zone 37S" placeholder="e.g. Arc 1960 / UTM Zone 37S"
             />
           </div>
 
@@ -295,7 +295,7 @@ export default function MachineControlExportPanel() {
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               className="w-full rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm font-mono text-zinc-200 placeholder:text-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="e.g. Road_Alignment"
+              aria-label="e.g. Road_Alignment" placeholder="e.g. Road_Alignment"
             />
           </div>
         </div>

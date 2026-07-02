@@ -305,7 +305,7 @@ export default function WhiteLabelPage() {
                   type="text"
                   value={config.organizationName}
                   onChange={(e) => setConfig({ ...config, organizationName: e.target.value })}
-                  placeholder="METARDU"
+                  aria-label="METARDU" placeholder="METARDU"
                   className="input-base"
                 />
               </FieldGroup>
@@ -443,7 +443,7 @@ export default function WhiteLabelPage() {
                     type="text"
                     value={config.primaryColor}
                     onChange={(e) => setConfig({ ...config, primaryColor: e.target.value })}
-                    placeholder="#0EA5E9"
+                    aria-label="#0EA5E9" placeholder="#0EA5E9"
                     className="input-base flex-1 font-mono"
                   />
                 </div>
@@ -469,7 +469,7 @@ export default function WhiteLabelPage() {
                   type="text"
                   value={config.customDomain ?? ''}
                   onChange={(e) => setConfig({ ...config, customDomain: e.target.value || null })}
-                  placeholder="survey.yourcompany.com"
+                  aria-label="survey.yourcompany.com" placeholder="survey.yourcompany.com"
                   className="input-base"
                 />
               </FieldGroup>

@@ -238,15 +238,15 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
             </div>
             <div>
               <label className={labelClass}>Opening E (m)</label>
-              <input type="number" step="0.0001" value={config.opening_easting} onChange={e => setConfig(p => ({ ...p, opening_easting: e.target.value }))} className={inputClass} placeholder="e.g., 250000" />
+              <input type="number" step="0.0001" value={config.opening_easting} onChange={e => setConfig(p => ({ ...p, opening_easting: e.target.value }))} className={inputClass} aria-label="e.g., 250000" placeholder="e.g., 250000" />
             </div>
             <div>
               <label className={labelClass}>Opening N (m)</label>
-              <input type="number" step="0.0001" value={config.opening_northing} onChange={e => setConfig(p => ({ ...p, opening_northing: e.target.value }))} className={inputClass} placeholder="e.g., 9800000" />
+              <input type="number" step="0.0001" value={config.opening_northing} onChange={e => setConfig(p => ({ ...p, opening_northing: e.target.value }))} className={inputClass} aria-label="e.g., 9800000" placeholder="e.g., 9800000" />
             </div>
             <div>
               <label className={labelClass}>Opening RL (m)</label>
-              <input type="number" step="0.001" value={config.opening_rl} onChange={e => setConfig(p => ({ ...p, opening_rl: e.target.value }))} className={inputClass} placeholder="Optional" />
+              <input type="number" step="0.001" value={config.opening_rl} onChange={e => setConfig(p => ({ ...p, opening_rl: e.target.value }))} className={inputClass} aria-label="Optional" placeholder="Optional" />
             </div>
           </div>
 
@@ -284,9 +284,9 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
               <div>
                 <label className={labelClass}>BS Bearing (D M S)</label>
                 <div className="grid grid-cols-3 gap-1">
-                  <input type="number" value={config.bs_bearing_deg} onChange={e => setConfig(p => ({ ...p, bs_bearing_deg: e.target.value }))} className={numClass} placeholder="D" />
-                  <input type="number" value={config.bs_bearing_min} onChange={e => setConfig(p => ({ ...p, bs_bearing_min: e.target.value }))} className={numClass} placeholder="M" />
-                  <input type="number" value={config.bs_bearing_sec} onChange={e => setConfig(p => ({ ...p, bs_bearing_sec: e.target.value }))} className={numClass} placeholder="S" />
+                  <input type="number" value={config.bs_bearing_deg} onChange={e => setConfig(p => ({ ...p, bs_bearing_deg: e.target.value }))} className={numClass} aria-label="D" placeholder="D" />
+                  <input type="number" value={config.bs_bearing_min} onChange={e => setConfig(p => ({ ...p, bs_bearing_min: e.target.value }))} className={numClass} aria-label="M" placeholder="M" />
+                  <input type="number" value={config.bs_bearing_sec} onChange={e => setConfig(p => ({ ...p, bs_bearing_sec: e.target.value }))} className={numClass} aria-label="S" placeholder="S" />
                 </div>
               </div>
             </div>
@@ -314,7 +314,7 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
                 {observations.map((obs, i) => (
                   <tr key={i} className="border-b border-[var(--border-color)]/30">
                     <td className="px-1 py-1 text-[var(--text-muted)]">{i + 1}</td>
-                    <td className="px-1 py-1"><input type="text" value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)} className={inputClass} placeholder="T2" /></td>
+                    <td className="px-1 py-1"><input type="text" value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)} className={inputClass} aria-label="T2" placeholder="T2" /></td>
                     <td className="px-1 py-1"><input type="text" value={obs.bs} onChange={e => updateObs(i, 'bs', e.target.value)} className={inputClass} /></td>
                     <td className="px-1 py-1"><input type="text" value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)} className={inputClass} /></td>
                     <td className="px-1 py-1">
@@ -331,7 +331,7 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
                         <input type="number" step="0.1" value={obs.hcr_sec} onChange={e => updateObs(i, 'hcr_sec', parseFloat(e.target.value)||0)} className={numClass} />
                       </div>
                     </td>
-                    <td className="px-1 py-1"><input type="number" step="0.001" value={obs.slope_dist} onChange={e => updateObs(i, 'slope_dist', e.target.value)} className={inputClass} placeholder="m" /></td>
+                    <td className="px-1 py-1"><input type="number" step="0.001" value={obs.slope_dist} onChange={e => updateObs(i, 'slope_dist', e.target.value)} className={inputClass} aria-label="m" placeholder="m" /></td>
                     <td className="px-1 py-1">
                       <div className="grid grid-cols-3 gap-0.5">
                         <input type="number" value={obs.va_deg} onChange={e => updateObs(i, 'va_deg', parseInt(e.target.value)||0)} className={numClass} />

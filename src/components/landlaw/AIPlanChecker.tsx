@@ -150,7 +150,7 @@ export default function AIPlanChecker() {
                 type="text"
                 value={planData.planId || ''}
                 onChange={e => setPlanData({ ...planData, planId: e.target.value })}
-                placeholder="Plan number"
+                aria-label="Plan number" placeholder="Plan number"
                 className="w-full p-2 border rounded-lg"
               />
             </div>
@@ -160,7 +160,7 @@ export default function AIPlanChecker() {
                 type="text"
                 value={planData.parcelNumber || ''}
                 onChange={e => setPlanData({ ...planData, parcelNumber: e.target.value })}
-                placeholder="LR Number"
+                aria-label="LR Number" placeholder="LR Number"
                 className="w-full p-2 border rounded-lg"
               />
             </div>
@@ -244,21 +244,21 @@ export default function AIPlanChecker() {
                     type="number"
                     value={coord.easting}
                     onChange={e => updateCoordinate(index, 'easting', Number(e.target.value))}
-                    placeholder="Easting"
+                    aria-label="Easting" placeholder="Easting"
                     className="w-24 p-1 text-sm border rounded"
                   />
                   <input
                     type="number"
                     value={coord.northing}
                     onChange={e => updateCoordinate(index, 'northing', Number(e.target.value))}
-                    placeholder="Northing"
+                    aria-label="Northing" placeholder="Northing"
                     className="w-24 p-1 text-sm border rounded"
                   />
                   <input
                     type="text"
                     value={coord.description}
                     onChange={e => updateCoordinate(index, 'description', e.target.value)}
-                    placeholder="Desc"
+                    aria-label="Desc" placeholder="Desc"
                     className="flex-1 p-1 text-sm border rounded"
                   />
                   <button

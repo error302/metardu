@@ -79,7 +79,7 @@ export function GCPOptimizerPanel() {
             step="0.01"
             value={areaHa}
             onChange={e => setAreaHa(e.target.value)}
-            placeholder="10.5"
+            aria-label="10.5" placeholder="10.5"
             className="flex-1 h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] font-mono"
           />
           <button

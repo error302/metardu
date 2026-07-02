@@ -197,7 +197,7 @@ function CheckoutContent() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  aria-label="you@example.com" placeholder="you@example.com"
                   className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] min-h-[44px]"
                 />
               </div>
@@ -207,7 +207,7 @@ function CheckoutContent() {
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="e.g. 254712345678"
+                  aria-label="e.g. 254712345678" placeholder="e.g. 254712345678"
                   className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] min-h-[44px]"
                 />
                 <p className="text-xs text-[var(--text-muted)] mt-2">Required only for M-Pesa STK Push.</p>

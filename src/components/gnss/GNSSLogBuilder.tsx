@@ -145,27 +145,27 @@ export default function GNSSLogBuilder() {
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Receiver Model</label>
             <input value={receiverModel} onChange={e => setReceiverModel(e.target.value)}
-              className="input w-full" placeholder="Trimble R12i" />
+              className="input w-full" aria-label="Trimble R12i" placeholder="Trimble R12i" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Receiver S/N</label>
             <input value={receiverSerial} onChange={e => setReceiverSerial(e.target.value)}
-              className="input w-full" placeholder="5012345678" />
+              className="input w-full" aria-label="5012345678" placeholder="5012345678" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Antenna Model</label>
             <input value={antennaModel} onChange={e => setAntennaModel(e.target.value)}
-              className="input w-full" placeholder="Zephyr 3" />
+              className="input w-full" aria-label="Zephyr 3" placeholder="Zephyr 3" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Antenna S/N</label>
             <input value={antennaSerial} onChange={e => setAntennaSerial(e.target.value)}
-              className="input w-full" placeholder="00123456" />
+              className="input w-full" aria-label="00123456" placeholder="00123456" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Base Station ID</label>
             <input value={baseStationId} onChange={e => setBaseStationId(e.target.value)}
-              className="input w-full" placeholder="KenCORS_NBI" />
+              className="input w-full" aria-label="KenCORS_NBI" placeholder="KenCORS_NBI" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Base Source</label>
@@ -177,17 +177,17 @@ export default function GNSSLogBuilder() {
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Datum</label>
             <input value={datum} onChange={e => setDatum(e.target.value)}
-              className="input w-full" placeholder="Arc 1960" />
+              className="input w-full" aria-label="Arc 1960" placeholder="Arc 1960" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Projection</label>
             <input value={projection} onChange={e => setProjection(e.target.value)}
-              className="input w-full" placeholder="UTM Zone 37S" />
+              className="input w-full" aria-label="UTM Zone 37S" placeholder="UTM Zone 37S" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Geoid Model</label>
             <input value={geoidModel} onChange={e => setGeoidModel(e.target.value)}
-              className="input w-full" placeholder="EGM2008" />
+              className="input w-full" aria-label="EGM2008" placeholder="EGM2008" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Elevation Mask (°)</label>
@@ -202,7 +202,7 @@ export default function GNSSLogBuilder() {
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Processing Software</label>
             <input value={processingSoftware} onChange={e => setProcessing(e.target.value)}
-              className="input w-full" placeholder="Trimble Business Center" />
+              className="input w-full" aria-label="Trimble Business Center" placeholder="Trimble Business Center" />
           </div>
         </div>
       </div>
@@ -282,28 +282,28 @@ export default function GNSSLogBuilder() {
                     </select>
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input type="number" step="0.001" value={obs.easting ?? ''} placeholder="—"
+                    <input type="number" step="0.001" value={obs.easting ?? ''} aria-label="—" placeholder="—"
                       onChange={e => updateObs(i, 'easting', e.target.value ? parseFloat(e.target.value) : undefined)}
                       className="w-24 px-1 py-1 bg-transparent text-[var(--text-secondary)]" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input type="number" step="0.001" value={obs.northing ?? ''} placeholder="—"
+                    <input type="number" step="0.001" value={obs.northing ?? ''} aria-label="—" placeholder="—"
                       onChange={e => updateObs(i, 'northing', e.target.value ? parseFloat(e.target.value) : undefined)}
                       className="w-24 px-1 py-1 bg-transparent text-[var(--text-secondary)]" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input type="number" step="0.001" value={obs.ellHeight ?? ''} placeholder="—"
+                    <input type="number" step="0.001" value={obs.ellHeight ?? ''} aria-label="—" placeholder="—"
                       onChange={e => updateObs(i, 'ellHeight', e.target.value ? parseFloat(e.target.value) : undefined)}
                       className="w-20 px-1 py-1 bg-transparent text-[var(--text-secondary)]" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
-                    <input type="number" step="0.001" value={obs.rmsH ?? ''} placeholder="—"
+                    <input type="number" step="0.001" value={obs.rmsH ?? ''} aria-label="—" placeholder="—"
                       onChange={e => updateObs(i, 'rmsH', e.target.value ? parseFloat(e.target.value) : undefined)}
                       className="w-14 px-1 py-1 bg-transparent text-[var(--text-secondary)]" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
                     <input value={obs.notes ?? ''} onChange={e => updateObs(i, 'notes', e.target.value || undefined)}
-                      placeholder="field note"
+                      aria-label="field note" placeholder="field note"
                       className="w-28 px-1 py-1 bg-transparent text-[var(--text-muted)]" />
                   </td>
                   <td className="px-1 py-1 border border-[var(--border-color)]/40">
@@ -369,7 +369,7 @@ export default function GNSSLogBuilder() {
                             {SOLUTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </td>
-                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input type="number" step="0.1" value={b.ratio ?? ''} placeholder="—" onChange={e => updateBsl(i, 'ratio', e.target.value ? parseFloat(e.target.value) : undefined)} className="w-12 px-1 py-1 bg-transparent text-[var(--text-secondary)]" /></td>
+                        <td className="px-1 py-1 border border-[var(--border-color)]/40"><input type="number" step="0.1" value={b.ratio ?? ''} aria-label="—" placeholder="—" onChange={e => updateBsl(i, 'ratio', e.target.value ? parseFloat(e.target.value) : undefined)} className="w-12 px-1 py-1 bg-transparent text-[var(--text-secondary)]" /></td>
                         <td className="px-1 py-1 border border-[var(--border-color)]/40"><input type="number" step="0.0001" value={b.rms} onChange={e => updateBsl(i, 'rms', parseFloat(e.target.value) || 0)} className="w-16 px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
                         <td className="px-1 py-1 border border-[var(--border-color)]/40"><button onClick={() => removeBsl(i)} className="text-red-400 hover:text-red-300 text-lg leading-none px-1">×</button></td>
                       </tr>

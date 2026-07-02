@@ -241,7 +241,7 @@ export default function BlocksPage() {
                   value={newBlock.block_number}
                   onChange={(e) => setNewBlock(prev => ({ ...prev, block_number: e.target.value }))}
                   className={inputClass}
-                  placeholder="e.g., A, B, 1, I"
+                  aria-label="e.g., A, B, 1, I" placeholder="e.g., A, B, 1, I"
                   autoFocus
                   required
                 />
@@ -253,7 +253,7 @@ export default function BlocksPage() {
                   value={newBlock.block_name}
                   onChange={(e) => setNewBlock(prev => ({ ...prev, block_name: e.target.value }))}
                   className={inputClass}
-                  placeholder="e.g., Northern Section"
+                  aria-label="e.g., Northern Section" placeholder="e.g., Northern Section"
                 />
               </div>
               <div>
@@ -263,7 +263,7 @@ export default function BlocksPage() {
                   value={newBlock.description}
                   onChange={(e) => setNewBlock(prev => ({ ...prev, description: e.target.value }))}
                   className={inputClass}
-                  placeholder="Optional description"
+                  aria-label="Optional description" placeholder="Optional description"
                 />
               </div>
             </form>

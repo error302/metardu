@@ -291,7 +291,7 @@ export default function BlockDetailPage() {
                   value={newParcel.lr_number_proposed}
                   onChange={e => setNewParcel(prev => ({ ...prev, lr_number_proposed: e.target.value }))}
                   className={inputClass}
-                  placeholder="e.g., MN/III/1234"
+                  aria-label="e.g., MN/III/1234" placeholder="e.g., MN/III/1234"
                 />
               </div>
               <div>
@@ -302,7 +302,7 @@ export default function BlockDetailPage() {
                   value={newParcel.area_ha}
                   onChange={e => setNewParcel(prev => ({ ...prev, area_ha: e.target.value }))}
                   className={inputClass}
-                  placeholder="e.g., 0.0625"
+                  aria-label="e.g., 0.0625" placeholder="e.g., 0.0625"
                 />
               </div>
               <div>
@@ -312,7 +312,7 @@ export default function BlockDetailPage() {
                   value={newParcel.notes}
                   onChange={e => setNewParcel(prev => ({ ...prev, notes: e.target.value }))}
                   className={inputClass}
-                  placeholder="Optional"
+                  aria-label="Optional" placeholder="Optional"
                 />
               </div>
             </form>

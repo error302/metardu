@@ -92,7 +92,7 @@ export function Step3Vertical({
                     value={vip.kValue || ''}
                     onChange={e => updateVIP(idx, 'kValue', e.target.value ? Number(e.target.value) : undefined)}
                     className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-white text-sm"
-                    placeholder="auto"
+                    aria-label="auto" placeholder="auto"
                   />
                 </div>
               </div>

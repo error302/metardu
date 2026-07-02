@@ -135,7 +135,7 @@ function ExtraFieldsForm({
       <div><label className="text-xs text-[var(--text-muted)] block mb-1">Documents enclosed (one per line)</label>
         <textarea value={extraFields.enclosures||'Survey plan\nField notes\nComputation sheet\nArea certificate'} onChange={e=>f('enclosures',e.target.value)} rows={4} className="input w-full resize-none text-sm" /></div>
       <div><label className="text-xs text-[var(--text-muted)] block mb-1">Closure/precision note (optional)</label>
-        <input value={extraFields.closureNote||''} onChange={e=>f('closureNote',e.target.value)} className="input w-full text-sm" placeholder="The traverse closed to a precision of 1:12,500." /></div>
+        <input value={extraFields.closureNote||''} onChange={e=>f('closureNote',e.target.value)} className="input w-full text-sm" aria-label="The traverse closed to a precision of 1:12,500." placeholder="The traverse closed to a precision of 1:12,500." /></div>
     </div>
   )
 
@@ -170,7 +170,7 @@ function ExtraFieldsForm({
            <div className="space-y-2">
              <div>
                <label className="text-xs text-[var(--text-muted)] block mb-0.5">Beacon type and condition</label>
-               <input value={extraFields[`beacon_type_${pt.name}`]||''} onChange={e=>f(`beacon_type_${pt.name}`,e.target.value)} className="input w-full text-sm" placeholder="Concrete beacon with iron pin — Good condition" />
+               <input value={extraFields[`beacon_type_${pt.name}`]||''} onChange={e=>f(`beacon_type_${pt.name}`,e.target.value)} className="input w-full text-sm" aria-label="Concrete beacon with iron pin — Good condition" placeholder="Concrete beacon with iron pin — Good condition" />
              </div>
              <div>
                <label className="text-xs text-[var(--text-muted)] block mb-0.5">Physical description and location</label>
@@ -189,7 +189,7 @@ function ExtraFieldsForm({
     <div className="space-y-3">
       <div>
         <label className="text-xs text-[var(--text-muted)] block mb-1">Parcel reference (LR No., plot number, etc.)</label>
-        <input value={extraFields.parcelRef||''} onChange={e=>f('parcelRef',e.target.value)} className="input w-full text-sm" placeholder="LR No. 123/456 or Plot 789" />
+        <input value={extraFields.parcelRef||''} onChange={e=>f('parcelRef',e.target.value)} className="input w-full text-sm" aria-label="LR No. 123/456 or Plot 789" placeholder="LR No. 123/456 or Plot 789" />
       </div>
     </div>
   )
@@ -198,7 +198,7 @@ function ExtraFieldsForm({
     <div className="space-y-3">
       <div>
         <label className="text-xs text-[var(--text-muted)] block mb-1">Field / completion date</label>
-        <input value={extraFields.fieldDate||''} onChange={e=>f('fieldDate',e.target.value)} className="input w-full text-sm" placeholder="15 March 2025" />
+        <input value={extraFields.fieldDate||''} onChange={e=>f('fieldDate',e.target.value)} className="input w-full text-sm" aria-label="15 March 2025" placeholder="15 March 2025" />
       </div>
       <div>
         <label className="text-xs text-[var(--text-muted)] block mb-1">Completion items (one per line)</label>
@@ -230,7 +230,7 @@ function ExtraFieldsForm({
        {points.filter((p: PointData) => p.is_control).map((pt: PointData) => (
         <div key={pt.name}>
           <label className="text-xs text-[var(--text-muted)] block mb-1">Beacon {pt.name} — description</label>
-          <input value={extraFields[`beacon_desc_${pt.name}`]||''} onChange={e=>onChange({...extraFields,[`beacon_desc_${pt.name}`]:e.target.value})} className="input w-full text-sm" placeholder="Concrete beacon at NE corner..." />
+          <input value={extraFields[`beacon_desc_${pt.name}`]||''} onChange={e=>onChange({...extraFields,[`beacon_desc_${pt.name}`]:e.target.value})} className="input w-full text-sm" aria-label="Concrete beacon at NE corner..." placeholder="Concrete beacon at NE corner..." />
         </div>
       ))}
     </div>

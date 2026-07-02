@@ -315,7 +315,7 @@ function LoginForm() {
                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:border-[var(--accent)] focus:bg-white/10 focus:ring-2 focus:ring-[var(--accent)]/30 focus:outline-none transition-all"
                         autoComplete="email"
                         autoFocus
-                        placeholder="you@example.com"
+                        aria-label="you@example.com" placeholder="you@example.com"
                       />
                       {emailTouched && emailError && (
                         <p className="text-red-300 text-xs mt-1.5">{emailError}</p>
@@ -337,7 +337,7 @@ function LoginForm() {
                           }}
                           className="w-full px-4 py-3 pr-11 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:border-[var(--accent)] focus:bg-white/10 focus:ring-2 focus:ring-[var(--accent)]/30 focus:outline-none transition-all"
                           autoComplete="current-password"
-                          placeholder="••••••••"
+                          aria-label="••••••••" placeholder="••••••••"
                         />
                         <button
                           type="button"
@@ -428,7 +428,7 @@ function LoginForm() {
                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:border-[var(--accent)] focus:bg-white/10 focus:ring-2 focus:ring-[var(--accent)]/30 focus:outline-none transition-all"
                         autoComplete="email"
                         autoFocus
-                        placeholder="you@example.com"
+                        aria-label="you@example.com" placeholder="you@example.com"
                       />
                       {emailTouched && emailError && (
                         <p className="text-red-300 text-xs mt-1.5">{emailError}</p>

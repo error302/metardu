@@ -367,7 +367,7 @@ Firm: ___________________________    Stamp: _______________`
                 value={reportInput.reportTitle || ''}
                 onChange={e => updateInput('reportTitle', e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
-                placeholder="Topographic Survey Report"
+                aria-label="Topographic Survey Report" placeholder="Topographic Survey Report"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -402,7 +402,7 @@ Firm: ___________________________    Stamp: _______________`
                       ? 'border-red-500'
                       : 'border-[var(--border-color)]'
                   }`}
-                  placeholder="RS149_2026_001_R00"
+                  aria-label="RS149_2026_001_R00" placeholder="RS149_2026_001_R00"
                 />
                 <button
                   onClick={() => {
@@ -497,7 +497,7 @@ Firm: ___________________________    Stamp: _______________`
                 value={reportInput.surveyorRegistrationNumber || ''}
                 onChange={e => updateInput('surveyorRegistrationNumber', normaliseRegistrationNo(e.target.value))}
                 className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm font-mono"
-                placeholder="RS149"
+                aria-label="RS149" placeholder="RS149"
               />
             </div>
           </div>
@@ -513,7 +513,7 @@ Firm: ___________________________    Stamp: _______________`
                 value={reportInput.projectLocation || ''}
                 onChange={e => updateInput('projectLocation', e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
-                placeholder="e.g., Kiserian, Kajiado County"
+                aria-label="e.g., Kiserian, Kajiado County" placeholder="e.g., Kiserian, Kajiado County"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -624,7 +624,7 @@ Firm: ___________________________    Stamp: _______________`
                 <div key={idx} className="grid grid-cols-6 gap-2 mb-2">
                   <input
                     type="text"
-                    placeholder="Type"
+                    aria-label="Type" placeholder="Type"
                     value={eq.type}
                     onChange={e => {
                       const newEq = [...(reportInput.equipment || [])]
@@ -635,7 +635,7 @@ Firm: ___________________________    Stamp: _______________`
                   />
                   <input
                     type="text"
-                    placeholder="Make"
+                    aria-label="Make" placeholder="Make"
                     value={eq.make}
                     onChange={e => {
                       const newEq = [...(reportInput.equipment || [])]
@@ -646,7 +646,7 @@ Firm: ___________________________    Stamp: _______________`
                   />
                   <input
                     type="text"
-                    placeholder="Serial No"
+                    aria-label="Serial No" placeholder="Serial No"
                     value={eq.serialNumber}
                     onChange={e => {
                       const newEq = [...(reportInput.equipment || [])]
@@ -667,7 +667,7 @@ Firm: ___________________________    Stamp: _______________`
                   />
                   <input
                     type="text"
-                    placeholder="Cert No"
+                    aria-label="Cert No" placeholder="Cert No"
                     value={eq.calibrationCert}
                     onChange={e => {
                       const newEq = [...(reportInput.equipment || [])]
@@ -700,7 +700,7 @@ Firm: ___________________________    Stamp: _______________`
                 <div key={idx} className="grid grid-cols-4 gap-2 mb-2">
                   <input
                     type="text"
-                    placeholder="Name"
+                    aria-label="Name" placeholder="Name"
                     value={p.name}
                     onChange={e => {
                       const newP = [...(reportInput.personnel || [])]
@@ -711,7 +711,7 @@ Firm: ___________________________    Stamp: _______________`
                   />
                   <input
                     type="text"
-                    placeholder="Role"
+                    aria-label="Role" placeholder="Role"
                     value={p.role}
                     onChange={e => {
                       const newP = [...(reportInput.personnel || [])]
@@ -722,7 +722,7 @@ Firm: ___________________________    Stamp: _______________`
                   />
                   <input
                     type="text"
-                    placeholder="Qualification"
+                    aria-label="Qualification" placeholder="Qualification"
                     value={p.qualification}
                     onChange={e => {
                       const newP = [...(reportInput.personnel || [])]
@@ -774,7 +774,7 @@ Firm: ___________________________    Stamp: _______________`
                   value={reportInput.projection || ''}
                   onChange={e => updateInput('projection', e.target.value)}
                   className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
-                  placeholder="e.g., UTM Zone 37S"
+                  aria-label="e.g., UTM Zone 37S" placeholder="e.g., UTM Zone 37S"
                 />
               </div>
             </div>
@@ -785,7 +785,7 @@ Firm: ___________________________    Stamp: _______________`
                 value={reportInput.gnssMethod || ''}
                 onChange={e => updateInput('gnssMethod', e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
-                placeholder="e.g., Static GNSS, RTK"
+                aria-label="e.g., Static GNSS, RTK" placeholder="e.g., Static GNSS, RTK"
               />
             </div>
             <div>
@@ -819,7 +819,7 @@ Firm: ___________________________    Stamp: _______________`
                   value={reportInput.instrumentUsed || ''}
                   onChange={e => updateInput('instrumentUsed', e.target.value)}
                   className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
-                  placeholder="e.g., Trimble S7, Leica GS18"
+                  aria-label="e.g., Trimble S7, Leica GS18" placeholder="e.g., Trimble S7, Leica GS18"
                 />
               </div>
             </div>
@@ -831,7 +831,7 @@ Firm: ___________________________    Stamp: _______________`
                   value={reportInput.pointDensity || ''}
                   onChange={e => updateInput('pointDensity', e.target.value)}
                   className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
-                  placeholder="e.g., 1 point per 10m²"
+                  aria-label="e.g., 1 point per 10m²" placeholder="e.g., 1 point per 10m²"
                 />
               </div>
               <div>
@@ -857,7 +857,7 @@ Firm: ___________________________    Stamp: _______________`
                 value={reportInput.traverseAccuracy || ''}
                 onChange={e => updateInput('traverseAccuracy', e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
-                placeholder="e.g., 1:10,000"
+                aria-label="e.g., 1:10,000" placeholder="e.g., 1:10,000"
               />
               <p className="text-xs text-gray-500 mt-1">Auto-populated from traverse computations if available.</p>
             </div>
@@ -868,7 +868,7 @@ Firm: ___________________________    Stamp: _______________`
                 value={reportInput.levellingMisclosure || ''}
                 onChange={e => updateInput('levellingMisclosure', e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
-                placeholder="e.g., 12.5 mm"
+                aria-label="e.g., 12.5 mm" placeholder="e.g., 12.5 mm"
               />
             </div>
           </div>

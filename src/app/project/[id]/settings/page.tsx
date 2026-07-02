@@ -262,7 +262,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                   type="text"
                   value={roadName}
                   onChange={(e) => setRoadName(e.target.value)}
-                  placeholder="e.g. Nairobi–Mombasa Road"
+                  aria-label="e.g. Nairobi–Mombasa Road" placeholder="e.g. Nairobi–Mombasa Road"
                   className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
                 />
               </div>
@@ -272,7 +272,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                   type="number"
                   value={startChainage}
                   onChange={(e) => setStartChainage(e.target.value)}
-                  placeholder="e.g. 0 or 5000"
+                  aria-label="e.g. 0 or 5000" placeholder="e.g. 0 or 5000"
                   className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
                 />
                 <p className="text-xs text-[var(--text-secondary)] mt-1">km+m format: 5000m = 5+000</p>
@@ -304,7 +304,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
               value={linearError}
               onChange={(e) => setLinearError(e.target.value)}
               className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
-              placeholder="e.g. 0.001"
+              aria-label="e.g. 0.001" placeholder="e.g. 0.001"
             />
             <p className="text-xs text-[var(--text-secondary)] mt-1">Used to compute C=m√K accuracy classification per RDM 1.1</p>
             {linearError && (
@@ -353,7 +353,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                   value={lrNumber}
                   onChange={(e) => setLrNumber(e.target.value)}
                   className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
-                  placeholder="LR 12345"
+                  aria-label="LR 12345" placeholder="LR 12345"
                 />
               </div>
               <div>
@@ -363,7 +363,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                   value={folioNumber}
                   onChange={(e) => setFolioNumber(e.target.value)}
                   className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
-                  placeholder="Folio/2024/001"
+                  aria-label="Folio/2024/001" placeholder="Folio/2024/001"
                 />
               </div>
               <div>
@@ -373,7 +373,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                   value={registerNumber}
                   onChange={(e) => setRegisterNumber(e.target.value)}
                   className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
-                  placeholder="REG/001"
+                  aria-label="REG/001" placeholder="REG/001"
                 />
               </div>
               <div>
@@ -383,7 +383,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                   value={plotParcelNumber}
                   onChange={(e) => setPlotParcelNumber(e.target.value)}
                   className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
-                  placeholder="Plot 45"
+                  aria-label="Plot 45" placeholder="Plot 45"
                 />
               </div>
               <div>
@@ -393,7 +393,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                   value={registrationDistrict}
                   onChange={(e) => setRegistrationDistrict(e.target.value)}
                   className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
-                  placeholder="Nairobi"
+                  aria-label="Nairobi" placeholder="Nairobi"
                 />
               </div>
               <div>
@@ -403,7 +403,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                   value={locality}
                   onChange={(e) => setLocality(e.target.value)}
                   className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
-                  placeholder="Karen"
+                  aria-label="Karen" placeholder="Karen"
                 />
               </div>
             </div>

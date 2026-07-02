@@ -123,7 +123,7 @@ export default function ParcelNumberInput({
             onChange={e => handleFreeTextChange(e.target.value)}
             disabled={disabled}
             required={required}
-            placeholder="e.g. NAIROBI BLOCK 2/1234 or KIAMBU/456"
+            aria-label="e.g. NAIROBI BLOCK 2/1234 or KIAMBU/456" placeholder="e.g. NAIROBI BLOCK 2/1234 or KIAMBU/456"
             className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
           />
         </div>
@@ -176,7 +176,7 @@ export default function ParcelNumberInput({
                   handleStructuredChange()
                 }}
                 disabled={disabled}
-                placeholder="1"
+                aria-label="1" placeholder="1"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-sm"
               />
             </div>
@@ -193,7 +193,7 @@ export default function ParcelNumberInput({
               }}
               disabled={disabled}
               required={required}
-              placeholder="1234"
+              aria-label="1234" placeholder="1234"
               className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-sm"
             />
           </div>

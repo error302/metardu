@@ -180,7 +180,7 @@ export default function OnlineServicesPage() {
                           step="any"
                           value={transformInput.latitude}
                           onChange={e => setTransformInput({ ...transformInput, latitude: e.target.value })}
-                          placeholder="e.g., -1.2921"
+                          aria-label="e.g., -1.2921" placeholder="e.g., -1.2921"
                           className="w-full p-2 border rounded-lg"
                         />
                       </div>
@@ -191,7 +191,7 @@ export default function OnlineServicesPage() {
                           step="any"
                           value={transformInput.longitude}
                           onChange={e => setTransformInput({ ...transformInput, longitude: e.target.value })}
-                          placeholder="e.g., 36.8219"
+                          aria-label="e.g., 36.8219" placeholder="e.g., 36.8219"
                           className="w-full p-2 border rounded-lg"
                         />
                       </div>
@@ -205,7 +205,7 @@ export default function OnlineServicesPage() {
                           step="any"
                           value={transformInput.easting}
                           onChange={e => setTransformInput({ ...transformInput, easting: e.target.value })}
-                          placeholder="e.g., 250000"
+                          aria-label="e.g., 250000" placeholder="e.g., 250000"
                           className="w-full p-2 border rounded-lg"
                         />
                       </div>
@@ -216,7 +216,7 @@ export default function OnlineServicesPage() {
                           step="any"
                           value={transformInput.northing}
                           onChange={e => setTransformInput({ ...transformInput, northing: e.target.value })}
-                          placeholder="e.g., 9850000"
+                          aria-label="e.g., 9850000" placeholder="e.g., 9850000"
                           className="w-full p-2 border rounded-lg"
                         />
                       </div>
@@ -227,7 +227,7 @@ export default function OnlineServicesPage() {
                             type="number"
                             value={transformInput.zone}
                             onChange={e => setTransformInput({ ...transformInput, zone: e.target.value })}
-                            placeholder="e.g., 37"
+                            aria-label="e.g., 37" placeholder="e.g., 37"
                             className="w-full p-2 border rounded-lg"
                           />
                         </div>
@@ -434,7 +434,7 @@ export default function OnlineServicesPage() {
                     step="any"
                     value={weatherInput.elevation}
                     onChange={e => setWeatherInput({ ...weatherInput, elevation: e.target.value })}
-                    placeholder="e.g., 1500"
+                    aria-label="e.g., 1500" placeholder="e.g., 1500"
                     className="w-full p-2 border rounded-lg"
                   />
                 </div>

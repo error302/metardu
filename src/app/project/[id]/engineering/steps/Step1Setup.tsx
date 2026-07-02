@@ -114,7 +114,7 @@ export function Step1Setup({
             value={roadName}
             onChange={e => setRoadName(e.target.value)}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
-            placeholder="e.g. Nairobi-Mombasa Highway"
+            aria-label="e.g. Nairobi-Mombasa Highway" placeholder="e.g. Nairobi-Mombasa Highway"
           />
         </div>
 

@@ -360,7 +360,7 @@ export default function BeaconsPage() {
             <div className="flex gap-4 items-center">
               <input
                 type="text"
-                placeholder="Search by name or authority..."
+                aria-label="Search by name or authority..." placeholder="Search by name or authority..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)]"

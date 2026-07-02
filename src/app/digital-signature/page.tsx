@@ -127,7 +127,7 @@ export default function DigitalSignaturePage() {
                   type="text"
                   value={signForm.documentId}
                   onChange={e => setSignForm({...signForm, documentId: e.target.value})}
-                  placeholder="e.g., SURVEY-2024-001"
+                  aria-label="e.g., SURVEY-2024-001" placeholder="e.g., SURVEY-2024-001"
                   className="w-full p-2 border rounded-lg"
                 />
               </div>
@@ -151,7 +151,7 @@ export default function DigitalSignaturePage() {
                   type="text"
                   value={signForm.signerId}
                   onChange={e => setSignForm({...signForm, signerId: e.target.value})}
-                  placeholder="e.g., LS/2024/1234"
+                  aria-label="e.g., LS/2024/1234" placeholder="e.g., LS/2024/1234"
                   className="w-full p-2 border rounded-lg"
                 />
               </div>
@@ -163,7 +163,7 @@ export default function DigitalSignaturePage() {
                   type="password"
                   value={signForm.secret}
                   onChange={e => setSignForm({...signForm, secret: e.target.value})}
-                  placeholder="Enter signing secret"
+                  aria-label="Enter signing secret" placeholder="Enter signing secret"
                   className="w-full p-2 border rounded-lg"
                 />
               </div>
@@ -248,7 +248,7 @@ export default function DigitalSignaturePage() {
                   type="password"
                   value={verifyForm.secret}
                   onChange={e => setVerifyForm({...verifyForm, secret: e.target.value})}
-                  placeholder="Enter signing secret"
+                  aria-label="Enter signing secret" placeholder="Enter signing secret"
                   className="w-full p-2 border rounded-lg"
                 />
               </div>

@@ -92,7 +92,7 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
             Current Password
           </label>
           <input
-            id="current_password"
+            id="current_password" aria-label="Current password"
             type={showPasswords ? 'text' : 'password'}
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
@@ -107,7 +107,7 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
             New Password
           </label>
           <input
-            id="new_password"
+            id="new_password" aria-label="New password"
             type={showPasswords ? 'text' : 'password'}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -136,7 +136,7 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
             Confirm New Password
           </label>
           <input
-            id="confirm_password"
+            id="confirm_password" aria-label="Confirm password"
             type={showPasswords ? 'text' : 'password'}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}

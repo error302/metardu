@@ -447,7 +447,7 @@ export default function ToolsPage() {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search tools by name, category, or keyword..."
+          aria-label="Search tools by name, category, or keyword..." placeholder="Search tools by name, category, or keyword..."
           className="w-full h-10 pl-10 pr-10 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors"
         />
         {searchQuery && (

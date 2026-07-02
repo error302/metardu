@@ -222,7 +222,7 @@ export default function SignatureCapture({
               type="text"
               value={typedName}
               onChange={e => setTypedName(e.target.value)}
-              placeholder="Enter your full name"
+              aria-label="Enter your full name" placeholder="Enter your full name"
               className="w-full p-2 border rounded-lg"
             />
           </div>
@@ -232,7 +232,7 @@ export default function SignatureCapture({
               type="text"
               value={typedIsk}
               onChange={e => setTypedIsk(e.target.value)}
-              placeholder="e.g., ISK/1234"
+              aria-label="e.g., ISK/1234" placeholder="e.g., ISK/1234"
               className="w-full p-2 border rounded-lg"
             />
           </div>

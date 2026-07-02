@@ -290,7 +290,7 @@ export function MobileFieldbookShell({
                       inputMode="decimal"
                       className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                       value={closingRL}
-                      placeholder="Optional"
+                      aria-label="Optional" placeholder="Optional"
                       onChange={(e) => setClosingRL(e.target.value)}
                     />
                   </div>

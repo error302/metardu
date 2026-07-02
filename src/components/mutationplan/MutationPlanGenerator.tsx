@@ -806,7 +806,7 @@ export default function MutationPlanGenerator() {
                   value={projectInfo.surveyor_name}
                   onChange={(e) => setProjectInfo({ ...projectInfo, surveyor_name: e.target.value })}
                   className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]"
-                  placeholder="Licensed Surveyor"
+                  aria-label="Licensed Surveyor" placeholder="Licensed Surveyor"
                 />
               </div>
               <div>
@@ -816,7 +816,7 @@ export default function MutationPlanGenerator() {
                   value={projectInfo.surveyor_licence}
                   onChange={(e) => setProjectInfo({ ...projectInfo, surveyor_licence: e.target.value })}
                   className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]"
-                  placeholder="ISK-0000"
+                  aria-label="ISK-0000" placeholder="ISK-0000"
                 />
               </div>
               <div>
@@ -859,7 +859,7 @@ export default function MutationPlanGenerator() {
                   value={projectInfo.transactions || ''}
                   onChange={(e) => setProjectInfo({ ...projectInfo, transactions: e.target.value })}
                   className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]"
-                  placeholder="Transaction reference"
+                  aria-label="Transaction reference" placeholder="Transaction reference"
                 />
               </div>
             </div>
@@ -972,14 +972,14 @@ export default function MutationPlanGenerator() {
                                 value={pt.easting}
                                 onChange={(e) => updatePlotPoint(i, j, 'easting', parseFloat(e.target.value) || 0)}
                                 className="w-24 px-1 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-xs text-white"
-                                placeholder="E"
+                                aria-label="E" placeholder="E"
                               />
                               <input
                                 type="number"
                                 value={pt.northing}
                                 onChange={(e) => updatePlotPoint(i, j, 'northing', parseFloat(e.target.value) || 0)}
                                 className="w-24 px-1 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-xs text-white"
-                                placeholder="N"
+                                aria-label="N" placeholder="N"
                               />
                             </div>
                           ))}
@@ -1226,7 +1226,7 @@ export default function MutationPlanGenerator() {
                         value={road.bearing_dms || ''}
                         onChange={(e) => updateRoad(i, 'bearing_dms', e.target.value)}
                         className="w-full px-2 py-1 bg-zinc-900 border border-zinc-700 rounded text-sm text-white"
-                        placeholder="12' 35&quot;"
+                        aria-label="12' 35&quot;" placeholder="12' 35&quot;"
                       />
                     </div>
                   </div>
@@ -1249,14 +1249,14 @@ export default function MutationPlanGenerator() {
                           value={pt.easting}
                           onChange={(e) => updateRoadCenterlinePoint(i, j, 'easting', parseFloat(e.target.value) || 0)}
                           className="w-24 px-1 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-xs text-white"
-                          placeholder="E"
+                          aria-label="E" placeholder="E"
                         />
                         <input
                           type="number"
                           value={pt.northing}
                           onChange={(e) => updateRoadCenterlinePoint(i, j, 'northing', parseFloat(e.target.value) || 0)}
                           className="w-24 px-1 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-xs text-white"
-                          placeholder="N"
+                          aria-label="N" placeholder="N"
                         />
                         {road.centerline.length > 2 && (
                           <button

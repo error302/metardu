@@ -157,7 +157,7 @@ export function AttributeTable({ rows, onSelectRow, onDeleteRow, onExport }: Att
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Filter..."
+              aria-label="Filter..." placeholder="Filter..."
               className="h-7 pl-7 pr-2 w-40 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
             />
           </div>

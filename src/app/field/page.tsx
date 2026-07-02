@@ -400,19 +400,19 @@ export default function FieldPage() {
             <div className="grid grid-cols-2 gap-2">
               <div>
 <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('field.name')}</label>
-              <input value={pName} onChange={e => setPName(e.target.value)} placeholder="P1" className={inputNumberClass} />
+              <input value={pName} onChange={e => setPName(e.target.value)} aria-label="P1" placeholder="P1" className={inputNumberClass} />
             </div>
             <div>
               <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('common.easting')}</label>
-              <input value={pE} onChange={e => setPE(e.target.value)} placeholder="500000" className={inputNumberClass} />
+              <input value={pE} onChange={e => setPE(e.target.value)} aria-label="500000" placeholder="500000" className={inputNumberClass} />
             </div>
             <div>
               <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('common.northing')}</label>
-              <input value={pN} onChange={e => setPN(e.target.value)} placeholder="4500000" className={inputNumberClass} />
+              <input value={pN} onChange={e => setPN(e.target.value)} aria-label="4500000" placeholder="4500000" className={inputNumberClass} />
             </div>
             <div>
               <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('common.elevation')}</label>
-              <input value={pZ} onChange={e => setPZ(e.target.value)} placeholder="0" className={inputNumberClass} />
+              <input value={pZ} onChange={e => setPZ(e.target.value)} aria-label="0" placeholder="0" className={inputNumberClass} />
             </div>
           </div>
 
@@ -458,11 +458,11 @@ export default function FieldPage() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('field.traverse')} →</label>
-                <input value={tStation} onChange={e => setTStation(e.target.value)} placeholder="B" className={inputClass} />
+                <input value={tStation} onChange={e => setTStation(e.target.value)} aria-label="B" placeholder="B" className={inputClass} />
               </div>
               <div>
                 <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('field.distance')}</label>
-                <input value={tDist} onChange={e => setTDist(e.target.value)} placeholder="100.00" className={inputNumberClass} />
+                <input value={tDist} onChange={e => setTDist(e.target.value)} aria-label="100.00" placeholder="100.00" className={inputNumberClass} />
               </div>
             </div>
 
@@ -472,19 +472,19 @@ export default function FieldPage() {
                 <input 
                   value={tDeg} 
                   onChange={e => setTDeg(e.target.value)} 
-                  placeholder="000" 
+                  aria-label="000" placeholder="000" 
                   className={`${inputClass} text-center text-sm`} 
                 />
                 <input 
                   value={tMin} 
                   onChange={e => setTMin(e.target.value)} 
-                  placeholder="00" 
+                  aria-label="00" placeholder="00" 
                   className={`${inputClass} text-center text-sm`} 
                 />
                 <input 
                   value={tSec} 
                   onChange={e => setTSec(e.target.value)} 
-                  placeholder="00.0" 
+                  aria-label="00.0" placeholder="00.0" 
                   className={`${inputClass} text-center font-mono text-sm`} 
                 />
               </div>
@@ -516,7 +516,7 @@ export default function FieldPage() {
             
             <div>
               <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Station</label>
-              <input value={lStation} onChange={e => setLStation(e.target.value)} placeholder="TP1" className={inputClass} />
+              <input value={lStation} onChange={e => setLStation(e.target.value)} aria-label="TP1" placeholder="TP1" className={inputClass} />
             </div>
 
             <div className="grid grid-cols-3 gap-1.5">
@@ -538,7 +538,7 @@ export default function FieldPage() {
                 <input
                   value={lReading}
                   onChange={e => setLReading(e.target.value)}
-                  placeholder="Reading"
+                  aria-label="Reading" placeholder="Reading"
                   className={inputNumberClass}
                 />
                 <button onClick={() => {
@@ -604,22 +604,22 @@ export default function FieldPage() {
 
             <div>
               <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Instrument Height (m)</label>
-              <input value={rInstH} onChange={e => setRInstH(e.target.value)} placeholder="1.500" className={inputNumberClass} />
+              <input value={rInstH} onChange={e => setRInstH(e.target.value)} aria-label="1.500" placeholder="1.500" className={inputNumberClass} />
             </div>
 
             <div className="border-t border-[var(--border-color)] pt-3 mt-3">
               <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Point Name</label>
-              <input value={rNewName} onChange={e => setRNewName(e.target.value)} placeholder="P1" className={inputClass} />
+              <input value={rNewName} onChange={e => setRNewName(e.target.value)} aria-label="P1" placeholder="P1" className={inputClass} />
 
               <label className="text-[10px] text-[var(--text-muted)] mb-1 block mt-2">Bearing</label>
               <div className="grid grid-cols-3 gap-1.5 mb-2">
-                <input value={rBearingDeg} onChange={e => setRBearingDeg(e.target.value)} placeholder="000" className={`${inputClass} text-center text-sm`} />
-                <input value={rBearingMin} onChange={e => setRBearingMin(e.target.value)} placeholder="00" className={`${inputClass} text-center text-sm`} />
-                <input value={rBearingSec} onChange={e => setRBearingSec(e.target.value)} placeholder="00.0" className={`${inputClass} text-center font-mono text-sm`} />
+                <input value={rBearingDeg} onChange={e => setRBearingDeg(e.target.value)} aria-label="000" placeholder="000" className={`${inputClass} text-center text-sm`} />
+                <input value={rBearingMin} onChange={e => setRBearingMin(e.target.value)} aria-label="00" placeholder="00" className={`${inputClass} text-center text-sm`} />
+                <input value={rBearingSec} onChange={e => setRBearingSec(e.target.value)} aria-label="00.0" placeholder="00.0" className={`${inputClass} text-center font-mono text-sm`} />
               </div>
 
               <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Distance (m)</label>
-              <input value={rDist} onChange={e => setRDist(e.target.value)} placeholder="50.00" className={inputNumberClass} />
+              <input value={rDist} onChange={e => setRDist(e.target.value)} aria-label="50.00" placeholder="50.00" className={inputNumberClass} />
 
               <button
                 onClick={() => {

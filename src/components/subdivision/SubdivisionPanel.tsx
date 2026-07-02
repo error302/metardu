@@ -429,7 +429,7 @@ export default function SubdivisionPanel({
                       min={0}
                       max={360}
                       step={1}
-                      placeholder="Auto (perpendicular)"
+                      aria-label="Auto (perpendicular)" placeholder="Auto (perpendicular)"
                       value={params.preferredBearing ?? ''}
                       onChange={(e) => {
                         const v = parseFloat(e.target.value)

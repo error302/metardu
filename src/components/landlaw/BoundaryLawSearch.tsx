@@ -56,7 +56,7 @@ export default function BoundaryLawSearch() {
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="Search boundary law topics, cases, statutes..."
+              aria-label="Search boundary law topics, cases, statutes..." placeholder="Search boundary law topics, cases, statutes..."
               className="w-full pl-10 pr-4 py-2 border rounded-lg"
             />
           </div>

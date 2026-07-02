@@ -332,7 +332,7 @@ function AddEquipmentModal({ onClose, onAdd }: { onClose: () => void; onAdd: () 
               type="text"
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g., Leica TS06 Plus"
+              aria-label="e.g., Leica TS06 Plus" placeholder="e.g., Leica TS06 Plus"
               className="w-full p-2 border rounded-lg"
             />
           </div>
@@ -355,7 +355,7 @@ function AddEquipmentModal({ onClose, onAdd }: { onClose: () => void; onAdd: () 
                 type="text"
                 value={form.make}
                 onChange={e => setForm({ ...form, make: e.target.value })}
-                placeholder="e.g., Leica"
+                aria-label="e.g., Leica" placeholder="e.g., Leica"
                 className="w-full p-2 border rounded-lg"
               />
             </div>
@@ -365,7 +365,7 @@ function AddEquipmentModal({ onClose, onAdd }: { onClose: () => void; onAdd: () 
                 type="text"
                 value={form.model}
                 onChange={e => setForm({ ...form, model: e.target.value })}
-                placeholder="e.g., TS06 Plus"
+                aria-label="e.g., TS06 Plus" placeholder="e.g., TS06 Plus"
                 className="w-full p-2 border rounded-lg"
               />
             </div>

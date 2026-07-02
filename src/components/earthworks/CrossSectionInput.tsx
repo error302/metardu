@@ -240,14 +240,14 @@ export default function EarthworksCalculator() {
                 <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.formRL} onChange={e => updateRow(row.id, 'formRL', e.target.value)} type="number" step="0.001" className="w-full px-1 py-1 bg-transparent text-[var(--text-primary)]" /></td>
                 {[0, 1, 2, 3].map((i) => (
                   <Fragment key={'ls' + i}>
-                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.leftShots[i]?.off || ''} onChange={e => updateShot(row.id, 'left', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="Off" /></td>
-                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.leftShots[i]?.rl || ''} onChange={e => updateShot(row.id, 'left', i, 'rl', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="RL" /></td>
+                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.leftShots[i]?.off || ''} onChange={e => updateShot(row.id, 'left', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" aria-label="Off" placeholder="Off" /></td>
+                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.leftShots[i]?.rl || ''} onChange={e => updateShot(row.id, 'left', i, 'rl', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" aria-label="RL" placeholder="RL" /></td>
                   </Fragment>
                 ))}
                 {[0, 1, 2, 3].map((i) => (
                   <Fragment key={'rs' + i}>
-                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.rightShots[i]?.off || ''} onChange={e => updateShot(row.id, 'right', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="Off" /></td>
-                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.rightShots[i]?.rl || ''} onChange={e => updateShot(row.id, 'right', i, 'rl', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" placeholder="RL" /></td>
+                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.rightShots[i]?.off || ''} onChange={e => updateShot(row.id, 'right', i, 'off', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" aria-label="Off" placeholder="Off" /></td>
+                    <td className="px-1 py-1 border border-[var(--border-color)]/50"><input value={row.rightShots[i]?.rl || ''} onChange={e => updateShot(row.id, 'right', i, 'rl', e.target.value)} type="number" step="0.001" className="w-14 px-1 py-1 bg-transparent text-[var(--text-primary)]" aria-label="RL" placeholder="RL" /></td>
                   </Fragment>
                 ))}
                 <td className="px-1 py-1 border border-[var(--border-color)]/50">
@@ -285,7 +285,7 @@ export default function EarthworksCalculator() {
                 <label className="block text-xs text-[var(--text-muted)] mb-1">Road Name / Description</label>
                 <input value={roadName} onChange={e => setRoadName(e.target.value)}
                   className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm"
-                  placeholder="e.g. Kitengela Access Road — A104" />
+                  aria-label="e.g. Kitengela Access Road — A104" placeholder="e.g. Kitengela Access Road — A104" />
               </div>
               <button onClick={handlePrintBoQ}
                 className="px-5 py-2 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 text-sm whitespace-nowrap mt-5">

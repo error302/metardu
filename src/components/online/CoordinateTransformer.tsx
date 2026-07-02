@@ -125,7 +125,7 @@ export default function CoordinateTransformer() {
             <div className="flex gap-2 mt-2">
               <input
                 type="number"
-                placeholder="Zone"
+                aria-label="Zone" placeholder="Zone"
                 value={fromZone}
                 onChange={e => setFromZone(e.target.value)}
                 className="w-20 px-2 py-1 bg-[var(--bg-tertiary)] border rounded text-sm"
@@ -157,7 +157,7 @@ export default function CoordinateTransformer() {
             <div className="flex gap-2 mt-2">
               <input
                 type="number"
-                placeholder="Zone"
+                aria-label="Zone" placeholder="Zone"
                 value={toZone}
                 onChange={e => setToZone(e.target.value)}
                 className="w-20 px-2 py-1 bg-[var(--bg-tertiary)] border rounded text-sm"
@@ -184,7 +184,7 @@ export default function CoordinateTransformer() {
               type="number"
               value={x}
               onChange={e => setX(e.target.value)}
-              placeholder="500000"
+              aria-label="500000" placeholder="500000"
               className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg"
             />
           </div>
@@ -194,7 +194,7 @@ export default function CoordinateTransformer() {
               type="number"
               value={y}
               onChange={e => setY(e.target.value)}
-              placeholder="9900000"
+              aria-label="9900000" placeholder="9900000"
               className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg"
             />
           </div>
@@ -204,7 +204,7 @@ export default function CoordinateTransformer() {
               type="number"
               value={z}
               onChange={e => setZ(e.target.value)}
-              placeholder="1500"
+              aria-label="1500" placeholder="1500"
               className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg"
             />
           </div>

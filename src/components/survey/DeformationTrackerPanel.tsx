@@ -103,11 +103,11 @@ export function DeformationTrackerPanel() {
             <span className="text-xs font-medium text-[var(--text-primary)]">Add Monitoring Station</span>
             <button onClick={() => setShowAddStation(false)} className="text-gray-400"><X className="w-3.5 h-3.5" /></button>
           </div>
-          <input type="text" value={newStation.name} onChange={e => setNewStation(prev => ({ ...prev, name: e.target.value }))} placeholder="Station name (e.g., Prism_A1)" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white" />
+          <input type="text" value={newStation.name} onChange={e => setNewStation(prev => ({ ...prev, name: e.target.value }))} aria-label="Station name (e.g., Prism_A1)" placeholder="Station name (e.g., Prism_A1)" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white" />
           <div className="grid grid-cols-3 gap-2">
-            <input type="number" value={newStation.x} onChange={e => setNewStation(prev => ({ ...prev, x: e.target.value }))} placeholder="Base X" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
-            <input type="number" value={newStation.y} onChange={e => setNewStation(prev => ({ ...prev, y: e.target.value }))} placeholder="Base Y" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
-            <input type="number" value={newStation.z} onChange={e => setNewStation(prev => ({ ...prev, z: e.target.value }))} placeholder="Base Z" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
+            <input type="number" value={newStation.x} onChange={e => setNewStation(prev => ({ ...prev, x: e.target.value }))} aria-label="Base X" placeholder="Base X" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
+            <input type="number" value={newStation.y} onChange={e => setNewStation(prev => ({ ...prev, y: e.target.value }))} aria-label="Base Y" placeholder="Base Y" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
+            <input type="number" value={newStation.z} onChange={e => setNewStation(prev => ({ ...prev, z: e.target.value }))} aria-label="Base Z" placeholder="Base Z" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
           </div>
           <button onClick={addStation} disabled={!newStation.name} className="w-full h-8 rounded bg-[var(--accent)] text-black text-xs font-semibold disabled:opacity-40">Add Station</button>
         </div>
@@ -126,9 +126,9 @@ export function DeformationTrackerPanel() {
             {stations.map(s => <option key={s.id} value={s.id}>{s.stationName}</option>)}
           </select>
           <div className="grid grid-cols-3 gap-2">
-            <input type="number" value={epochInput.x} onChange={e => setEpochInput(prev => ({ ...prev, x: e.target.value }))} placeholder="Current X" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
-            <input type="number" value={epochInput.y} onChange={e => setEpochInput(prev => ({ ...prev, y: e.target.value }))} placeholder="Current Y" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
-            <input type="number" value={epochInput.z} onChange={e => setEpochInput(prev => ({ ...prev, z: e.target.value }))} placeholder="Current Z" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
+            <input type="number" value={epochInput.x} onChange={e => setEpochInput(prev => ({ ...prev, x: e.target.value }))} aria-label="Current X" placeholder="Current X" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
+            <input type="number" value={epochInput.y} onChange={e => setEpochInput(prev => ({ ...prev, y: e.target.value }))} aria-label="Current Y" placeholder="Current Y" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
+            <input type="number" value={epochInput.z} onChange={e => setEpochInput(prev => ({ ...prev, z: e.target.value }))} aria-label="Current Z" placeholder="Current Z" className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
           </div>
           <button onClick={addEpochReading} disabled={!epochInput.stationId} className="w-full h-8 rounded bg-[var(--accent)] text-black text-xs font-semibold disabled:opacity-40">Record Reading</button>
         </div>

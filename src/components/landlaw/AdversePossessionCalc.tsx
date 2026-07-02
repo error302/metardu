@@ -78,7 +78,7 @@ export default function AdversePossessionCalc() {
               type="text"
               value={parcelId}
               onChange={e => setParcelId(e.target.value)}
-              placeholder="e.g., NAIROBI BLOCK 2/1234"
+              aria-label="e.g., NAIROBI BLOCK 2/1234" placeholder="e.g., NAIROBI BLOCK 2/1234"
               className="w-full p-2 border rounded-lg"
             />
           </div>
@@ -157,7 +157,7 @@ export default function AdversePossessionCalc() {
                       type="text"
                       value={ev.description}
                       onChange={e => updateEvidence(index, 'description', e.target.value)}
-                      placeholder="Description of evidence"
+                      aria-label="Description of evidence" placeholder="Description of evidence"
                       className="text-sm p-1 border rounded"
                     />
                   </div>

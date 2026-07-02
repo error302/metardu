@@ -44,7 +44,7 @@ export default function SlopeTab({
               type="number"
               step="0.5"
               min="0.5"
-              placeholder="auto"
+              aria-label="auto" placeholder="auto"
               value={slopeGridRes}
               onChange={e => setSlopeGridRes(e.target.value)}
             />

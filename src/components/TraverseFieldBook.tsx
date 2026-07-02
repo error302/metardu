@@ -342,7 +342,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
           <div className="grid grid-cols-3 gap-4 p-4 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border-color)]">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Opening Station</label>
-              <input value={openingName} onChange={e => setOpeningName(e.target.value)} placeholder="CP1"
+              <input value={openingName} onChange={e => setOpeningName(e.target.value)} aria-label="CP1" placeholder="CP1"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
             <div>
@@ -357,33 +357,33 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Opening RL (m)</label>
-              <input value={openingRL} onChange={e => setOpeningRL(e.target.value)} type="number" step="0.001" placeholder="Optional"
+              <input value={openingRL} onChange={e => setOpeningRL(e.target.value)} type="number" step="0.001" aria-label="Optional" placeholder="Optional"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-[var(--text-muted)] mb-1">Backsight Bearing (DMS)</label>
               <div className="flex gap-2">
-                <input value={bsDeg} onChange={e => setBsDeg(e.target.value)} type="number" placeholder="Deg" min="0" max="359"
+                <input value={bsDeg} onChange={e => setBsDeg(e.target.value)} type="number" aria-label="Deg" placeholder="Deg" min="0" max="359"
                   className="w-16 px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-                <input value={bsMin} onChange={e => setBsMin(e.target.value)} type="number" placeholder="Min" min="0" max="59"
+                <input value={bsMin} onChange={e => setBsMin(e.target.value)} type="number" aria-label="Min" placeholder="Min" min="0" max="59"
                   className="w-14 px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-                <input value={bsSec} onChange={e => setBsSec(e.target.value)} type="number" step="0.001" placeholder="Sec"
+                <input value={bsSec} onChange={e => setBsSec(e.target.value)} type="number" step="0.001" aria-label="Sec" placeholder="Sec"
                   className="flex-1 px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
               </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Station <span className="text-red-400 font-semibold">(Required)</span></label>
-              <input value={closingName} onChange={e => setClosingName(e.target.value)} placeholder="CP2"
+              <input value={closingName} onChange={e => setClosingName(e.target.value)} aria-label="CP2" placeholder="CP2"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Easting (m) <span className="text-red-400">*</span></label>
-              <input value={closingE} onChange={e => setClosingE(e.target.value)} type="number" step="0.001" placeholder="Required"
+              <input value={closingE} onChange={e => setClosingE(e.target.value)} type="number" step="0.001" aria-label="Required" placeholder="Required"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Closing Northing (m) <span className="text-red-400">*</span></label>
-              <input value={closingN} onChange={e => setClosingN(e.target.value)} type="number" step="0.001" placeholder="Required"
+              <input value={closingN} onChange={e => setClosingN(e.target.value)} type="number" step="0.001" aria-label="Required" placeholder="Required"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
           </div>
@@ -556,7 +556,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                   <tr key={i} className="border-b border-[var(--border-color)]/30">
                     <td className="px-1.5 py-1 text-[var(--text-muted)]">{i + 1}</td>
                     <td className="px-1 py-1"><input value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)}
-                      className="w-full px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" placeholder="T1" /></td>
+                      className="w-full px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" aria-label="T1" placeholder="T1" /></td>
                     <td className="px-1 py-1"><input value={obs.bs} onChange={e => updateObs(i, 'bs', e.target.value)}
                       className="w-12 px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" /></td>
                     <td className="px-1 py-1"><input value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)}

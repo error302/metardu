@@ -31,7 +31,8 @@ function StationCard({ station, distance, onSelect, selected }: {
 }) {
   const net = NETWORKS[station.network]
   return (
-    <div onClick={onSelect}
+    <div role="button" tabIndex={0} onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter') onSelect() }}
       className={`bg-[var(--bg-card)] border rounded-xl p-4 cursor-pointer transition-colors ${
         selected ? 'border-[var(--accent)]/50 bg-[var(--accent)]/5' : 'border-[var(--border-color)] hover:border-[var(--accent)]/30'
       }`}>
@@ -215,12 +216,12 @@ export default function KenCORSPage() {
                   <div>
                     <label className="text-xs text-[var(--text-muted)] block mb-1">Latitude (decimal °)</label>
                     <input value={myLat} onChange={e => setMyLat(e.target.value)}
-                      placeholder="-1.2921" className="input w-full text-sm font-mono" />
+                      aria-label="-1.2921" placeholder="-1.2921" className="input w-full text-sm font-mono" />
                   </div>
                   <div>
                     <label className="text-xs text-[var(--text-muted)] block mb-1">Longitude (decimal °)</label>
                     <input value={myLon} onChange={e => setMyLon(e.target.value)}
-                      placeholder="36.8219" className="input w-full text-sm font-mono" />
+                      aria-label="36.8219" placeholder="36.8219" className="input w-full text-sm font-mono" />
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -262,7 +263,7 @@ export default function KenCORSPage() {
                 <div className="space-y-1">
                   <div className="flex flex-wrap gap-2 mb-3">
                     <input value={search} onChange={e => setSearch(e.target.value)}
-                      placeholder="Search stations…"
+                      aria-label="Search stations…" placeholder="Search stations…"
                       className="input flex-1 min-w-40 text-sm" />
                     <select value={filterCounty} onChange={e => setFilterCounty(e.target.value)}
                       className="input text-sm">

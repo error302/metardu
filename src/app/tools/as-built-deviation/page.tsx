@@ -173,8 +173,8 @@ export default function AsBuiltDeviationPage() {
                 {designRows.map(row => (
                   <div key={row.id} className="grid grid-cols-[28px_1fr_1fr_28px] gap-2 items-center">
                     <span className="font-mono text-xs text-[var(--text-muted)]">{row.id}</span>
-                    <input className="input font-mono text-xs px-2 py-1" value={row.chainage} onChange={e => updateDesignRow(row.id, 'chainage', e.target.value)} placeholder="0" />
-                    <input className="input font-mono text-xs px-2 py-1" value={row.elevation} onChange={e => updateDesignRow(row.id, 'elevation', e.target.value)} placeholder="1520.000" />
+                    <input className="input font-mono text-xs px-2 py-1" value={row.chainage} onChange={e => updateDesignRow(row.id, 'chainage', e.target.value)} aria-label="0" placeholder="0" />
+                    <input className="input font-mono text-xs px-2 py-1" value={row.elevation} onChange={e => updateDesignRow(row.id, 'elevation', e.target.value)} aria-label="1520.000" placeholder="1520.000" />
                     <button onClick={() => removeDesignRow(row.id)} className="text-[var(--text-muted)] hover:text-[var(--error)] text-sm">×</button>
                   </div>
                 ))}
@@ -194,10 +194,10 @@ export default function AsBuiltDeviationPage() {
                 {asBuiltRows.map(row => (
                   <div key={row.id} className="grid grid-cols-[28px_60px_1fr_1fr_1fr_28px] gap-1 items-center min-w-[400px]">
                     <span className="font-mono text-xs text-[var(--text-muted)]">{row.id}</span>
-                    <input className="input font-mono text-xs px-1 py-1" value={row.pointId} onChange={e => updateAsBuiltRow(row.id, 'pointId', e.target.value)} placeholder="AB1" />
-                    <input className="input font-mono text-xs px-1 py-1" value={row.chainage} onChange={e => updateAsBuiltRow(row.id, 'chainage', e.target.value)} placeholder="0" />
-                    <input className="input font-mono text-xs px-1 py-1" value={row.elevation} onChange={e => updateAsBuiltRow(row.id, 'elevation', e.target.value)} placeholder="1520.002" />
-                    <input className="input text-xs px-1 py-1" value={row.description} onChange={e => updateAsBuiltRow(row.id, 'description', e.target.value)} placeholder="CL 0+000" />
+                    <input className="input font-mono text-xs px-1 py-1" value={row.pointId} onChange={e => updateAsBuiltRow(row.id, 'pointId', e.target.value)} aria-label="AB1" placeholder="AB1" />
+                    <input className="input font-mono text-xs px-1 py-1" value={row.chainage} onChange={e => updateAsBuiltRow(row.id, 'chainage', e.target.value)} aria-label="0" placeholder="0" />
+                    <input className="input font-mono text-xs px-1 py-1" value={row.elevation} onChange={e => updateAsBuiltRow(row.id, 'elevation', e.target.value)} aria-label="1520.002" placeholder="1520.002" />
+                    <input className="input text-xs px-1 py-1" value={row.description} onChange={e => updateAsBuiltRow(row.id, 'description', e.target.value)} aria-label="CL 0+000" placeholder="CL 0+000" />
                     <button onClick={() => removeAsBuiltRow(row.id)} className="text-[var(--text-muted)] hover:text-[var(--error)] text-sm">×</button>
                   </div>
                 ))}

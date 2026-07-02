@@ -219,7 +219,7 @@ export default function AddPointModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded focus:border-[var(--accent)] focus:outline-none text-[var(--text-primary)] font-mono"
-              placeholder="e.g., TP01, BM1"
+              aria-label="e.g., TP01, BM1" placeholder="e.g., TP01, BM1"
               required
             />
           </div>
@@ -263,7 +263,7 @@ export default function AddPointModal({
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
-              id="isControl"
+              id="isControl" aria-label="Iscontrol"
               checked={isControl}
               onChange={(e) => setIsControl(e.target.checked)}
               className="w-4 h-4 rounded bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--accent)] focus:ring-[#D17B47]"
@@ -290,7 +290,7 @@ export default function AddPointModal({
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  id="locked"
+                  id="locked" aria-label="Locked"
                   checked={locked}
                   onChange={(e) => setLocked(e.target.checked)}
                   className="w-4 h-4 rounded bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--accent)] focus:ring-[#D17B47]"

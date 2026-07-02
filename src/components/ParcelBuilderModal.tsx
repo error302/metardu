@@ -321,7 +321,7 @@ export default function ParcelBuilderModal({ projectId, points, onClose, onParce
                   className="input"
                   value={parcelName}
                   onChange={e => setParcelName(e.target.value)}
-                  placeholder="e.g., Plot A, Parcel 1"
+                  aria-label="e.g., Plot A, Parcel 1" placeholder="e.g., Plot A, Parcel 1"
                 />
               </div>
             </div>

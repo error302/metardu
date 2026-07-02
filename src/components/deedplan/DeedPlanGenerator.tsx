@@ -271,7 +271,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                   value={input.surveyNumber}
                   onChange={(e) => setInput({ ...input, surveyNumber: e.target.value })}
                   className="input w-full text-sm"
-                  placeholder="ISK/2024/001"
+                  aria-label="ISK/2024/001" placeholder="ISK/2024/001"
                 />
               </div>
               <div>
@@ -290,7 +290,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                   value={input.parcelNumber}
                   onChange={(e) => setInput({ ...input, parcelNumber: e.target.value })}
                   className="input w-full text-sm"
-                  placeholder="LOT 1234/NAIROBI"
+                  aria-label="LOT 1234/NAIROBI" placeholder="LOT 1234/NAIROBI"
                 />
               </div>
               <div>
@@ -357,7 +357,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                   value={input.clientName || ''}
                   onChange={(e) => setInput({ ...input, clientName: e.target.value })}
                   className="input w-full text-sm"
-                  placeholder="Name of the client/owner"
+                  aria-label="Name of the client/owner" placeholder="Name of the client/owner"
                 />
               </div>
               <div>
@@ -385,7 +385,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                   value={input.titleDeedNumber || ''}
                   onChange={(e) => setInput({ ...input, titleDeedNumber: e.target.value })}
                   className="input w-full text-sm"
-                  placeholder="e.g. FR No. 583/83"
+                  aria-label="e.g. FR No. 583/83" placeholder="e.g. FR No. 583/83"
                 />
               </div>
               <div>
@@ -564,7 +564,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                             setInput({ ...input, boundaryPoints: newPoints })
                           }}
                           className="w-48 px-2 py-1 border rounded"
-                          placeholder="Beacon description"
+                          aria-label="Beacon description" placeholder="Beacon description"
                         />
                       </td>
                       <td className="py-2 text-right">

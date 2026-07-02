@@ -529,7 +529,7 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
             <div className="space-y-2">
               <input
                 type="text"
-                placeholder="https://.../{z}/{x}/{y}.png"
+                aria-label="https://.../{z}/{x}/{y}.png" placeholder="https://.../{z}/{x}/{y}.png"
                 value={customUrl}
                 onChange={(e) => {
                   setCustomUrl(e.target.value);
@@ -542,7 +542,7 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
               />
               <input
                 type="text"
-                placeholder="Layer label (optional)"
+                aria-label="Layer label (optional)" placeholder="Layer label (optional)"
                 value={customLabel}
                 onChange={(e) => setCustomLabel(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-[#1B3A5C] focus:border-[#1B3A5C] outline-none"
@@ -582,7 +582,7 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
             <div className="space-y-2">
               <input
                 type="text"
-                placeholder="WMS URL (e.g. https://geoserver.example.com/wms)"
+                aria-label="WMS URL (e.g. https://geoserver.example.com/wms)" placeholder="WMS URL (e.g. https://geoserver.example.com/wms)"
                 value={wmsUrl}
                 onChange={(e) => {
                   setWmsUrl(e.target.value);
@@ -595,7 +595,7 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
               />
               <input
                 type="text"
-                placeholder="Layer name (e.g. workspace:parcels)"
+                aria-label="Layer name (e.g. workspace:parcels)" placeholder="Layer name (e.g. workspace:parcels)"
                 value={wmsLayerName}
                 onChange={(e) => {
                   setWmsLayerName(e.target.value);
@@ -608,7 +608,7 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
               />
               <input
                 type="text"
-                placeholder="Label (optional)"
+                aria-label="Label (optional)" placeholder="Label (optional)"
                 value={wmsLabel}
                 onChange={(e) => setWmsLabel(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-[#1B3A5C] focus:border-[#1B3A5C] outline-none"

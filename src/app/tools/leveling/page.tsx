@@ -125,11 +125,11 @@ export default function LevelingCalculator() {
         </div>
         <div className="card p-4">
           <label className="label">Closing Benchmark (m)</label>
-          <input className="input" value={closingBm} onChange={e => setClosingBm(e.target.value)} placeholder="Optional" />
+          <input className="input" value={closingBm} onChange={e => setClosingBm(e.target.value)} aria-label="Optional" placeholder="Optional" />
         </div>
         <div className="card p-4">
           <label className="label">Distance (km) for allowable error</label>
-          <input className="input" value={distanceKm} onChange={e => setDistanceKm(e.target.value)} placeholder="1" />
+          <input className="input" value={distanceKm} onChange={e => setDistanceKm(e.target.value)} aria-label="1" placeholder="1" />
         </div>
         <div className="card p-4">
           <label className="label">Method</label>
@@ -181,8 +181,8 @@ export default function LevelingCalculator() {
               {readings.map((r, i) => (
                 <tr key={r.id}>
                   <td className="text-left">{r.station}</td>
-                  <td><input className="input" value={r.bs} onChange={e => updateReading(r.id, 'bs', e.target.value)} placeholder="0.000" /></td>
-                  <td><input className="input" value={r.fs} onChange={e => updateReading(r.id, 'fs', e.target.value)} placeholder="0.000" /></td>
+                  <td><input className="input" value={r.bs} onChange={e => updateReading(r.id, 'bs', e.target.value)} aria-label="0.000" placeholder="0.000" /></td>
+                  <td><input className="input" value={r.fs} onChange={e => updateReading(r.id, 'fs', e.target.value)} aria-label="0.000" placeholder="0.000" /></td>
                   {result ? (
                     <>
                       <td className="font-mono">{result.readings[i + 1]?.rise?.toFixed(4) || '—'}</td>

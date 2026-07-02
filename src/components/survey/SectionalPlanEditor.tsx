@@ -154,15 +154,15 @@ export function SectionalPlanEditor() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1">Building Name</label>
-            <input type="text" value={buildingName} onChange={e => setBuildingName(e.target.value)} placeholder="Sunset Apartments" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
+            <input type="text" value={buildingName} onChange={e => setBuildingName(e.target.value)} aria-label="Sunset Apartments" placeholder="Sunset Apartments" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
           </div>
           <div>
             <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1">Parent Parcel No.</label>
-            <input type="text" value={parentParcel} onChange={e => setParentParcel(e.target.value)} placeholder="LR 12345/678" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
+            <input type="text" value={parentParcel} onChange={e => setParentParcel(e.target.value)} aria-label="LR 12345/678" placeholder="LR 12345/678" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
           </div>
           <div>
             <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1">Parent Area (ha)</label>
-            <input type="number" step="0.0001" value={parentArea} onChange={e => setParentArea(e.target.value)} placeholder="0.0500" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
+            <input type="number" step="0.0001" value={parentArea} onChange={e => setParentArea(e.target.value)} aria-label="0.0500" placeholder="0.0500" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
           </div>
           <div>
             <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1">Total Floors</label>

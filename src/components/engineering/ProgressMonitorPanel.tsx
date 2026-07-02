@@ -895,7 +895,7 @@ function CheckpointListView({
                               type="text"
                               value={deviationInput[cp.id!] || ''}
                               onChange={e => setDeviationInput(prev => ({ ...prev, [cp.id!]: e.target.value }))}
-                              placeholder="Add deviation note..."
+                              aria-label="Add deviation note..." placeholder="Add deviation note..."
                               className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600"
                               onKeyDown={e => {
                                 if (e.key === 'Enter' && deviationInput[cp.id!]?.trim()) {
@@ -995,7 +995,7 @@ function CheckpointListView({
                               ref={el => { photoInputRefs.current[cp.id!] = el }}
                               value={photoUrl}
                               onChange={e => setPhotoUrl(e.target.value)}
-                              placeholder="Photo URL or filename..."
+                              aria-label="Photo URL or filename..." placeholder="Photo URL or filename..."
                               className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600"
                               onKeyDown={e => {
                                 if (e.key === 'Enter' && photoUrl.trim()) {
@@ -1148,7 +1148,7 @@ function AddCheckpointForm({
             step="1"
             value={form.chainage}
             onChange={e => setForm(prev => ({ ...prev, chainage: e.target.value }))}
-            placeholder="e.g. 200"
+            aria-label="e.g. 200" placeholder="e.g. 200"
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-zinc-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
@@ -1160,7 +1160,7 @@ function AddCheckpointForm({
             type="text"
             value={form.gridRef}
             onChange={e => setForm(prev => ({ ...prev, gridRef: e.target.value }))}
-            placeholder="e.g. A3, B7"
+            aria-label="e.g. A3, B7" placeholder="e.g. A3, B7"
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-zinc-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
@@ -1186,7 +1186,7 @@ function AddCheckpointForm({
             type="text"
             value={form.description}
             onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
-            placeholder="e.g. Column A3 concrete pour, Road at Ch 0+200 base course"
+            aria-label="e.g. Column A3 concrete pour, Road at Ch 0+200 base course" placeholder="e.g. Column A3 concrete pour, Road at Ch 0+200 base course"
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>

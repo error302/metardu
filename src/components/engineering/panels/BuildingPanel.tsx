@@ -110,22 +110,22 @@ export function BuildingPanel({ projectId, subtype }: EngineeringPanelProps) {
           <div className="flex flex-wrap gap-2 mt-3">
             <input
               type="text"
-              placeholder="Label (A, B, C...)"
+              aria-label="Label (A, B, C...)" placeholder="Label (A, B, C...)"
               className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-24"
             />
             <input
               type="number"
-              placeholder="Easting"
+              aria-label="Easting" placeholder="Easting"
               className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-28"
             />
             <input
               type="number"
-              placeholder="Northing"
+              aria-label="Northing" placeholder="Northing"
               className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-28"
             />
             <input
               type="number"
-              placeholder="Elevation"
+              aria-label="Elevation" placeholder="Elevation"
               className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-24"
             />
             <button

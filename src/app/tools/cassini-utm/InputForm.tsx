@@ -204,7 +204,7 @@ export function InputForm(props: InputFormProps) {
             <input
               type="text"
               className="input mb-1.5 text-xs"
-              placeholder="Search sheets... (e.g. 148, Nairobi, zone 36)"
+              aria-label="Search sheets... (e.g. 148, Nairobi, zone 36)" placeholder="Search sheets... (e.g. 148, Nairobi, zone 36)"
               value={sheetSearch}
               onChange={e => setSheetSearch(e.target.value)}
             />
@@ -329,7 +329,7 @@ export function InputForm(props: InputFormProps) {
                   className="input font-mono text-xs"
                   value={customP}
                   onChange={e => setCustomP(e.target.value)}
-                  placeholder="0.3048"
+                  aria-label="0.3048" placeholder="0.3048"
                 />
               </div>
               <div>
@@ -338,7 +338,7 @@ export function InputForm(props: InputFormProps) {
                   className="input font-mono text-xs"
                   value={customQ}
                   onChange={e => setCustomQ(e.target.value)}
-                  placeholder="0"
+                  aria-label="0" placeholder="0"
                 />
               </div>
               <div>
@@ -347,7 +347,7 @@ export function InputForm(props: InputFormProps) {
                   className="input font-mono text-xs"
                   value={customCx}
                   onChange={e => setCustomCx(e.target.value)}
-                  placeholder="277474.6"
+                  aria-label="277474.6" placeholder="277474.6"
                 />
               </div>
               <div>
@@ -356,7 +356,7 @@ export function InputForm(props: InputFormProps) {
                   className="input font-mono text-xs"
                   value={customCy}
                   onChange={e => setCustomCy(e.target.value)}
-                  placeholder="10000198.4"
+                  aria-label="10000198.4" placeholder="10000198.4"
                 />
               </div>
             </div>

@@ -73,7 +73,7 @@ export function Step4CrossSection({
             value={template.cutSlope}
             onChange={e => setTemplate({ ...template, cutSlope: e.target.value })}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
-            placeholder="1:1"
+            aria-label="1:1" placeholder="1:1"
           />
         </div>
         <div>
@@ -83,7 +83,7 @@ export function Step4CrossSection({
             value={template.fillSlope}
             onChange={e => setTemplate({ ...template, fillSlope: e.target.value })}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
-            placeholder="1:1.5"
+            aria-label="1:1.5" placeholder="1:1.5"
           />
         </div>
         <div>

@@ -21,7 +21,7 @@ export default function ImageryViewer() {
             type="text"
             value={centerLat}
             onChange={e => setCenterLat(e.target.value)}
-            placeholder="-1.2921"
+            aria-label="-1.2921" placeholder="-1.2921"
             className="w-full p-2 border rounded-lg"
           />
         </div>
@@ -31,7 +31,7 @@ export default function ImageryViewer() {
             type="text"
             value={centerLon}
             onChange={e => setCenterLon(e.target.value)}
-            placeholder="36.8219"
+            aria-label="36.8219" placeholder="36.8219"
             className="w-full p-2 border rounded-lg"
           />
         </div>

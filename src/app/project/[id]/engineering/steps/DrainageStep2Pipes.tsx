@@ -66,7 +66,7 @@ export function DrainageStep2Pipes({
       <div className="flex items-center gap-3 mb-4">
         <input
           type="checkbox"
-          id="autoCompute"
+          id="autoCompute" aria-label="Autocompute"
           checked={autoCompute}
           onChange={e => setAutoCompute(e.target.checked)}
           className="rounded"

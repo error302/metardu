@@ -166,7 +166,7 @@ export default function TinTab({
               className="input w-32 font-mono"
               type="number"
               step="0.1"
-              placeholder="e.g. 1200"
+              aria-label="e.g. 1200" placeholder="e.g. 1200"
               value={datumRL}
               onChange={e => setDatumRL(e.target.value)}
             />

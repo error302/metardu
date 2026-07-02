@@ -117,7 +117,7 @@ export default function SubmitBeaconPage() {
                   required
                   value={form.name}
                   onChange={e => setForm({...form, name: e.target.value})}
-                  placeholder="KWL-102, TRIG-54"
+                  aria-label="KWL-102, TRIG-54" placeholder="KWL-102, TRIG-54"
                   className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)]"
                 />
               </div>
@@ -168,7 +168,7 @@ export default function SubmitBeaconPage() {
                   required
                   value={form.easting}
                   onChange={e => setForm({...form, easting: e.target.value})}
-                  placeholder="500000.0000"
+                  aria-label="500000.0000" placeholder="500000.0000"
                   className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] font-mono"
                 />
               </div>
@@ -181,7 +181,7 @@ export default function SubmitBeaconPage() {
                   required
                   value={form.northing}
                   onChange={e => setForm({...form, northing: e.target.value})}
-                  placeholder="4500000.0000"
+                  aria-label="4500000.0000" placeholder="4500000.0000"
                   className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] font-mono"
                 />
               </div>
@@ -195,7 +195,7 @@ export default function SubmitBeaconPage() {
                   step="0.001"
                   value={form.elevation}
                   onChange={e => setForm({...form, elevation: e.target.value})}
-                  placeholder="0.000"
+                  aria-label="0.000" placeholder="0.000"
                   className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] font-mono"
                 />
               </div>

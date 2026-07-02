@@ -129,13 +129,13 @@ export default function TopologyCheckPage() {
                       className="input font-mono text-sm"
                       value={row.easting}
                       onChange={(e) => updateRow(row.id, 'easting', e.target.value)}
-                      placeholder="274812.403"
+                      aria-label="274812.403" placeholder="274812.403"
                     />
                     <input
                       className="input font-mono text-sm"
                       value={row.northing}
                       onChange={(e) => updateRow(row.id, 'northing', e.target.value)}
-                      placeholder="9856214.778"
+                      aria-label="9856214.778" placeholder="9856214.778"
                     />
                     <button
                       onClick={() => removeRow(row.id)}
@@ -179,7 +179,7 @@ export default function TopologyCheckPage() {
                   type="number"
                   value={customArea}
                   onChange={(e) => setCustomArea(e.target.value)}
-                  placeholder="100"
+                  aria-label="100" placeholder="100"
                 />
               )}
             </div>

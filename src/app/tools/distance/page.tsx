@@ -59,21 +59,21 @@ export default function DistanceCalculator() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label">Point A Northing (m)</label>
-                    <input className="input" value={p1.n} onChange={e => setP1({...p1, n: e.target.value})} placeholder="5000.0000" />
+                    <input className="input" value={p1.n} onChange={e => setP1({...p1, n: e.target.value})} aria-label="5000.0000" placeholder="5000.0000" />
                   </div>
                   <div>
                     <label className="label">Point A Easting (m)</label>
-                    <input className="input" value={p1.e} onChange={e => setP1({...p1, e: e.target.value})} placeholder="3000.0000" />
+                    <input className="input" value={p1.e} onChange={e => setP1({...p1, e: e.target.value})} aria-label="3000.0000" placeholder="3000.0000" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label">Point B Northing (m)</label>
-                    <input className="input" value={p2.n} onChange={e => setP2({...p2, n: e.target.value})} placeholder="5234.5678" />
+                    <input className="input" value={p2.n} onChange={e => setP2({...p2, n: e.target.value})} aria-label="5234.5678" placeholder="5234.5678" />
                   </div>
                   <div>
                     <label className="label">Point B Easting (m)</label>
-                    <input className="input" value={p2.e} onChange={e => setP2({...p2, e: e.target.value})} placeholder="3156.7890" />
+                    <input className="input" value={p2.e} onChange={e => setP2({...p2, e: e.target.value})} aria-label="3156.7890" placeholder="3156.7890" />
                   </div>
                 </div>
               </div>
@@ -84,11 +84,11 @@ export default function DistanceCalculator() {
               <div className="card-body space-y-4">
                 <div>
                   <label className="label">Slope Distance (m)</label>
-                  <input className="input" value={slope.dist} onChange={e => setSlope({...slope, dist: e.target.value})} placeholder="150.2345" />
+                  <input className="input" value={slope.dist} onChange={e => setSlope({...slope, dist: e.target.value})} aria-label="150.2345" placeholder="150.2345" />
                 </div>
                 <div>
                   <label className="label">Vertical Angle (degrees)</label>
-                  <input className="input" value={slope.angle} onChange={e => setSlope({...slope, angle: e.target.value})} placeholder="5.5" />
+                  <input className="input" value={slope.angle} onChange={e => setSlope({...slope, angle: e.target.value})} aria-label="5.5" placeholder="5.5" />
                 </div>
               </div>
             </div>

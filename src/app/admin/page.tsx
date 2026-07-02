@@ -657,7 +657,7 @@ export default function AdminDashboardPage() {
           <div className="p-5 space-y-3">
             <input
               type="text"
-              placeholder="Announcement title..."
+              aria-label="Announcement title..." placeholder="Announcement title..."
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 outline-none transition-all"
               value={announcementTitle}
               onChange={e => setAnnouncementTitle(e.target.value)}
@@ -779,7 +779,7 @@ export default function AdminDashboardPage() {
             <div className="p-5 space-y-3">
               <input
                 type="email"
-                placeholder="User email..."
+                aria-label="User email..." placeholder="User email..."
                 className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 outline-none transition-all"
                 value={overrideEmail}
                 onChange={e => setOverrideEmail(e.target.value)}
@@ -796,7 +796,7 @@ export default function AdminDashboardPage() {
                 </select>
                 <input
                   type="number"
-                  placeholder="Days"
+                  aria-label="Days" placeholder="Days"
                   className="w-24 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none transition-all"
                   value={overrideDays}
                   onChange={e => setOverrideDays(e.target.value)}

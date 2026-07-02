@@ -147,7 +147,7 @@ export function BeaconRegistryPanel() {
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && search()}
-              placeholder="Enter beacon number (e.g., KP/12/345, MB/001)..."
+              aria-label="Enter beacon number (e.g., KP/12/345, MB/001)..." placeholder="Enter beacon number (e.g., KP/12/345, MB/001)..."
               className="w-full h-10 pl-9 pr-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
             />
           </div>
@@ -159,7 +159,7 @@ export function BeaconRegistryPanel() {
                 type="number"
                 value={easting}
                 onChange={e => setEasting(e.target.value)}
-                placeholder="257412"
+                aria-label="257412" placeholder="257412"
                 className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
               />
             </div>
@@ -169,7 +169,7 @@ export function BeaconRegistryPanel() {
                 type="number"
                 value={northing}
                 onChange={e => setNorthing(e.target.value)}
-                placeholder="9857641"
+                aria-label="9857641" placeholder="9857641"
                 className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
               />
             </div>
@@ -191,7 +191,7 @@ export function BeaconRegistryPanel() {
             type="text"
             value={county}
             onChange={e => setCounty(e.target.value)}
-            placeholder="County (optional)"
+            aria-label="County (optional)" placeholder="County (optional)"
             className="h-9 px-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
           />
           <select
@@ -365,7 +365,7 @@ function AddBeaconForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1">Beacon Number</label>
-          <input type="text" value={beaconNumber} onChange={e => setBeaconNumber(e.target.value)} placeholder="KP/12/345" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs font-mono text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
+          <input type="text" value={beaconNumber} onChange={e => setBeaconNumber(e.target.value)} aria-label="KP/12/345" placeholder="KP/12/345" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs font-mono text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
         </div>
         <div>
           <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1">Type</label>
@@ -382,16 +382,16 @@ function AddBeaconForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1">Easting (m)</label>
-          <input type="number" step="0.001" value={easting} onChange={e => setEasting(e.target.value)} placeholder="257412.800" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs font-mono text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
+          <input type="number" step="0.001" value={easting} onChange={e => setEasting(e.target.value)} aria-label="257412.800" placeholder="257412.800" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs font-mono text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
         </div>
         <div>
           <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1">Northing (m)</label>
-          <input type="number" step="0.001" value={northing} onChange={e => setNorthing(e.target.value)} placeholder="9857641.200" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs font-mono text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
+          <input type="number" step="0.001" value={northing} onChange={e => setNorthing(e.target.value)} aria-label="9857641.200" placeholder="9857641.200" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs font-mono text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <input type="text" value={county} onChange={e => setCounty(e.target.value)} placeholder="County" className="h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
+        <input type="text" value={county} onChange={e => setCounty(e.target.value)} aria-label="County" placeholder="County" className="h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none" />
         <select value={condition} onChange={e => setCondition(e.target.value)} className="h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)]">
           <option value="good">Good Condition</option>
           <option value="disturbed">Disturbed</option>

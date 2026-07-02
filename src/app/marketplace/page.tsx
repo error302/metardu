@@ -397,19 +397,19 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Brand *</label>
               <input value={form.brand} onChange={e => f('brand', e.target.value)} list="brand-list"
-                placeholder="Leica, Trimble…" className="input w-full" />
+                aria-label="Leica, Trimble…" placeholder="Leica, Trimble…" className="input w-full" />
               <datalist id="brand-list">{BRANDS.map((b: any) => <option key={b} value={b} />)}</datalist>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Model *</label>
               <input value={form.model} onChange={e => f('model', e.target.value)}
-                placeholder="TS16, S9, DNA03…" className="input w-full" />
+                aria-label="TS16, S9, DNA03…" placeholder="TS16, S9, DNA03…" className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Year of manufacture</label>
               <input type="number" min={1990} max={new Date().getFullYear()}
                 value={form.year || ''} onChange={e => f('year', Number(e.target.value) || undefined)}
-                placeholder="e.g. 2019" className="input w-full" />
+                aria-label="e.g. 2019" placeholder="e.g. 2019" className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
@@ -418,7 +418,7 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
               <div className="flex gap-2">
                 <input type="number" min={0} value={form.price || ''}
                   onChange={e => f('price', e.target.value)}
-                  placeholder="Amount" className="input flex-1" />
+                  aria-label="Amount" placeholder="Amount" className="input flex-1" />
                 <select value={form.currency} onChange={e => f('currency', e.target.value as Currency)} className="input w-20">
                   {CURRENCIES.map((c: any) => <option key={c.id} value={c.id}>{c.id}</option>)}
                 </select>
@@ -440,7 +440,7 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Listing title *</label>
             <input value={form.title} onChange={e => f('title', e.target.value)}
-              placeholder="e.g. Leica TS16 Total Station — 2019, with tribrach and case"
+              aria-label="e.g. Leica TS16 Total Station — 2019, with tribrach and case" placeholder="e.g. Leica TS16 Total Station — 2019, with tribrach and case"
               className="input w-full" />
           </div>
 
@@ -461,7 +461,7 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Location (town) *</label>
               <input value={form.location} onChange={e => f('location', e.target.value)}
-                placeholder="Nairobi, Kampala…" className="input w-full" />
+                aria-label="Nairobi, Kampala…" placeholder="Nairobi, Kampala…" className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Country *</label>
@@ -472,12 +472,12 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Your name *</label>
               <input value={form.sellerName} onChange={e => f('sellerName', e.target.value)}
-                placeholder="Your name or company" className="input w-full" />
+                aria-label="Your name or company" placeholder="Your name or company" className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Contact (phone / email) *</label>
               <input value={form.sellerContact} onChange={e => f('sellerContact', e.target.value)}
-                placeholder="+254712345678" className="input w-full" />
+                aria-label="+254712345678" placeholder="+254712345678" className="input w-full" />
             </div>
           </div>
         </div>
@@ -609,12 +609,12 @@ function ListingDetail({ listing, onClose, onRefresh }: {
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">Your name *</label>
                 <input value={form.buyerName} onChange={e => fq('buyerName', e.target.value)}
-                  placeholder="Your full name" className="input w-full text-sm py-1.5" />
+                  aria-label="Your full name" placeholder="Your full name" className="input w-full text-sm py-1.5" />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">Your contact *</label>
                 <input value={form.buyerContact} onChange={e => fq('buyerContact', e.target.value)}
-                  placeholder="+254712345678 or email" className="input w-full text-sm py-1.5" />
+                  aria-label="+254712345678 or email" placeholder="+254712345678 or email" className="input w-full text-sm py-1.5" />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">Message *</label>
@@ -665,7 +665,8 @@ function ListingCard({ listing, onClick }: { listing: InstrumentListing; onClick
   const cover     = listing.images[0]
 
   return (
-    <div onClick={onClick}
+    <div role="button" tabIndex={0} onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter') onClick() }}
       className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden hover:border-[var(--accent)]/30 transition-colors cursor-pointer group">
 
       {/* Cover photo or placeholder */}
@@ -812,7 +813,7 @@ export default function MarketplacePage() {
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-6">
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search by brand, model, location…"
+            aria-label="Search by brand, model, location…" placeholder="Search by brand, model, location…"
             className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:border-[var(--accent)]" />
           <select value={filterCat} onChange={e => setFilterCat(e.target.value as any)}
             className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] rounded-lg px-3 py-2 text-sm">

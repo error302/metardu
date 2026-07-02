@@ -82,7 +82,7 @@ export default function BearingCalculator() {
               <div className="card-body space-y-4">
                 <div>
                   <label className="label">Forward Bearing (WCB — degrees or DMS)</label>
-                  <input className="input" value={forward} onChange={e => setForward(e.target.value)} placeholder="45° 30' 22.5&quot; or 45.5" />
+                  <input className="input" value={forward} onChange={e => setForward(e.target.value)} aria-label="45° 30' 22.5&quot; or 45.5" placeholder="45° 30' 22.5&quot; or 45.5" />
                   <p className="text-xs text-[var(--text-muted)] mt-2">Accepts: 45.5 &nbsp;|&nbsp; 45°30&apos;22.5&quot; &nbsp;|&nbsp; 45 30 22.5</p>
                 </div>
               </div>

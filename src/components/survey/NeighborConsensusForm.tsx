@@ -284,7 +284,7 @@ export function NeighborConsensusForm({
               type="text"
               value={neighborName}
               onChange={e => setNeighborName(e.target.value)}
-              placeholder="John Doe"
+              aria-label="John Doe" placeholder="John Doe"
               className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
             />
           </div>
@@ -295,7 +295,7 @@ export function NeighborConsensusForm({
                 type="text"
                 value={neighborNationalId}
                 onChange={e => setNeighborNationalId(e.target.value)}
-                placeholder="12345678"
+                aria-label="12345678" placeholder="12345678"
                 className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
               />
             </div>
@@ -308,7 +308,7 @@ export function NeighborConsensusForm({
                 type="tel"
                 value={neighborPhone}
                 onChange={e => setNeighborPhone(e.target.value)}
-                placeholder="0712 345 678"
+                aria-label="0712 345 678" placeholder="0712 345 678"
                 className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
               />
             </div>
@@ -319,7 +319,7 @@ export function NeighborConsensusForm({
               type="text"
               value={neighborParcelNumber}
               onChange={e => setNeighborParcelNumber(e.target.value)}
-              placeholder="LR/12345/679"
+              aria-label="LR/12345/679" placeholder="LR/12345/679"
               className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
             />
           </div>

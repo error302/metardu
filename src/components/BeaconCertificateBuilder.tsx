@@ -211,7 +211,7 @@ export default function BeaconCertificateBuilder() {
                       <input
                         className="input w-full font-mono"
                         value={beacon.name}
-                        placeholder="e.g. P1 / A / BM1"
+                        aria-label="e.g. P1 / A / BM1" placeholder="e.g. P1 / A / BM1"
                         onChange={e => updateBeacon(beacon.id, 'name', e.target.value)}
                       />
                     </div>
@@ -256,7 +256,7 @@ export default function BeaconCertificateBuilder() {
                         type="number"
                         step="0.001"
                         value={beacon.easting}
-                        placeholder="e.g. 250000.000"
+                        aria-label="e.g. 250000.000" placeholder="e.g. 250000.000"
                         onChange={e => updateBeacon(beacon.id, 'easting', e.target.value)}
                       />
                     </div>
@@ -267,7 +267,7 @@ export default function BeaconCertificateBuilder() {
                         type="number"
                         step="0.001"
                         value={beacon.northing}
-                        placeholder="e.g. 9945000.000"
+                        aria-label="e.g. 9945000.000" placeholder="e.g. 9945000.000"
                         onChange={e => updateBeacon(beacon.id, 'northing', e.target.value)}
                       />
                     </div>
@@ -278,7 +278,7 @@ export default function BeaconCertificateBuilder() {
                         type="number"
                         step="0.001"
                         value={beacon.elevation}
-                        placeholder="Optional"
+                        aria-label="Optional" placeholder="Optional"
                         onChange={e => updateBeacon(beacon.id, 'elevation', e.target.value)}
                       />
                     </div>

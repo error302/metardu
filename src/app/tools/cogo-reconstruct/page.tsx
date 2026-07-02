@@ -158,9 +158,9 @@ export default function CogoReconstructPage() {
                 {legs.map((leg, i) => (
                   <div key={leg.id} className="grid grid-cols-[24px_50px_40px_40px_60px_70px_1fr_28px] gap-1 items-center min-w-[600px]">
                     <span className="font-mono text-xs text-[var(--text-muted)]">{i + 1}</span>
-                    <input className="input font-mono text-xs px-1 py-1" value={leg.bearingDeg} onChange={e => updateLeg(leg.id, 'bearingDeg', e.target.value)} placeholder="87" maxLength={3} />
-                    <input className="input font-mono text-xs px-1 py-1" value={leg.bearingMin} onChange={e => updateLeg(leg.id, 'bearingMin', e.target.value)} placeholder="14" maxLength={2} />
-                    <input className="input font-mono text-xs px-1 py-1" value={leg.bearingSec} onChange={e => updateLeg(leg.id, 'bearingSec', e.target.value)} placeholder="22" maxLength={2} />
+                    <input className="input font-mono text-xs px-1 py-1" value={leg.bearingDeg} onChange={e => updateLeg(leg.id, 'bearingDeg', e.target.value)} aria-label="87" placeholder="87" maxLength={3} />
+                    <input className="input font-mono text-xs px-1 py-1" value={leg.bearingMin} onChange={e => updateLeg(leg.id, 'bearingMin', e.target.value)} aria-label="14" placeholder="14" maxLength={2} />
+                    <input className="input font-mono text-xs px-1 py-1" value={leg.bearingSec} onChange={e => updateLeg(leg.id, 'bearingSec', e.target.value)} aria-label="22" placeholder="22" maxLength={2} />
                     {format === 'quadrant' ? (
                       <select
                         className="input font-mono text-xs px-1 py-1"
@@ -175,8 +175,8 @@ export default function CogoReconstructPage() {
                     ) : (
                       <span className="text-[var(--text-muted)] text-xs text-center">—</span>
                     )}
-                    <input className="input font-mono text-xs px-1 py-1" value={leg.distance} onChange={e => updateLeg(leg.id, 'distance', e.target.value)} placeholder="124.83" />
-                    <input className="input text-xs px-1 py-1" value={leg.description || ''} onChange={e => updateLeg(leg.id, 'description', e.target.value)} placeholder="AB1 → AB2" />
+                    <input className="input font-mono text-xs px-1 py-1" value={leg.distance} onChange={e => updateLeg(leg.id, 'distance', e.target.value)} aria-label="124.83" placeholder="124.83" />
+                    <input className="input text-xs px-1 py-1" value={leg.description || ''} onChange={e => updateLeg(leg.id, 'description', e.target.value)} aria-label="AB1 → AB2" placeholder="AB1 → AB2" />
                     <button onClick={() => removeLeg(leg.id)} className="text-[var(--text-muted)] hover:text-[var(--error)] text-sm">×</button>
                   </div>
                 ))}
@@ -278,25 +278,25 @@ export default function CogoReconstructPage() {
                     </div>
                     <div>
                       <label className="font-mono text-[9px] text-[var(--text-muted)] tracking-[0.06em] uppercase">Target E</label>
-                      <input className="input font-mono text-xs px-1 py-1" value={targetE} onChange={e => setTargetE(e.target.value)} placeholder="274812.403" />
+                      <input className="input font-mono text-xs px-1 py-1" value={targetE} onChange={e => setTargetE(e.target.value)} aria-label="274812.403" placeholder="274812.403" />
                     </div>
                     <div>
                       <label className="font-mono text-[9px] text-[var(--text-muted)] tracking-[0.06em] uppercase">Target N</label>
-                      <input className="input font-mono text-xs px-1 py-1" value={targetN} onChange={e => setTargetN(e.target.value)} placeholder="9856214.778" />
+                      <input className="input font-mono text-xs px-1 py-1" value={targetN} onChange={e => setTargetN(e.target.value)} aria-label="9856214.778" placeholder="9856214.778" />
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="font-mono text-[9px] text-[var(--text-muted)] tracking-[0.06em] uppercase">2nd pt #</label>
-                      <input className="input font-mono text-xs px-1 py-1" type="number" value={secondIndex} onChange={e => setSecondIndex(e.target.value)} placeholder="(optional)" />
+                      <input className="input font-mono text-xs px-1 py-1" type="number" value={secondIndex} onChange={e => setSecondIndex(e.target.value)} aria-label="(optional)" placeholder="(optional)" />
                     </div>
                     <div>
                       <label className="font-mono text-[9px] text-[var(--text-muted)] tracking-[0.06em] uppercase">2nd target E</label>
-                      <input className="input font-mono text-xs px-1 py-1" value={secondTargetE} onChange={e => setSecondTargetE(e.target.value)} placeholder="(optional)" />
+                      <input className="input font-mono text-xs px-1 py-1" value={secondTargetE} onChange={e => setSecondTargetE(e.target.value)} aria-label="(optional)" placeholder="(optional)" />
                     </div>
                     <div>
                       <label className="font-mono text-[9px] text-[var(--text-muted)] tracking-[0.06em] uppercase">2nd target N</label>
-                      <input className="input font-mono text-xs px-1 py-1" value={secondTargetN} onChange={e => setSecondTargetN(e.target.value)} placeholder="(optional)" />
+                      <input className="input font-mono text-xs px-1 py-1" value={secondTargetN} onChange={e => setSecondTargetN(e.target.value)} aria-label="(optional)" placeholder="(optional)" />
                     </div>
                   </div>
                   <button onClick={runSwingScale} className="btn btn-secondary w-full text-sm">Apply swing & scale</button>

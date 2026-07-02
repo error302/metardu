@@ -51,11 +51,11 @@ export default function TwoPegTestCalculator() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Staff at A (m)</label>
-                  <input className="input" value={inputs.a1} onChange={e => setInputs({...inputs, a1: e.target.value})} placeholder="1.525" />
+                  <input className="input" value={inputs.a1} onChange={e => setInputs({...inputs, a1: e.target.value})} aria-label="1.525" placeholder="1.525" />
                 </div>
                 <div>
                   <label className="label">Staff at B (m)</label>
-                  <input className="input" value={inputs.b1} onChange={e => setInputs({...inputs, b1: e.target.value})} placeholder="1.415" />
+                  <input className="input" value={inputs.b1} onChange={e => setInputs({...inputs, b1: e.target.value})} aria-label="1.415" placeholder="1.415" />
                 </div>
               </div>
             </div>
@@ -64,11 +64,11 @@ export default function TwoPegTestCalculator() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Staff at A (m)</label>
-                  <input className="input" value={inputs.a2} onChange={e => setInputs({...inputs, a2: e.target.value})} placeholder="1.530" />
+                  <input className="input" value={inputs.a2} onChange={e => setInputs({...inputs, a2: e.target.value})} aria-label="1.530" placeholder="1.530" />
                 </div>
                 <div>
                   <label className="label">Staff at B (m)</label>
-                  <input className="input" value={inputs.b2} onChange={e => setInputs({...inputs, b2: e.target.value})} placeholder="1.420" />
+                  <input className="input" value={inputs.b2} onChange={e => setInputs({...inputs, b2: e.target.value})} aria-label="1.420" placeholder="1.420" />
                 </div>
               </div>
             </div>

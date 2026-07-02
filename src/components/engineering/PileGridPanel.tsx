@@ -190,7 +190,7 @@ export default function PileGridPanel() {
                 value={gridDef.name}
                 onChange={(e) => setGridDef({ ...gridDef, name: e.target.value })}
                 className={inputClass}
-                placeholder="Block A – Pile Cap"
+                aria-label="Block A – Pile Cap" placeholder="Block A – Pile Cap"
               />
             </FormField>
 
@@ -215,7 +215,7 @@ export default function PileGridPanel() {
                 value={gridDef.coordinateSystem}
                 onChange={(e) => setGridDef({ ...gridDef, coordinateSystem: e.target.value })}
                 className={inputClass}
-                placeholder="Arc 1960 / UTM Zone 37S"
+                aria-label="Arc 1960 / UTM Zone 37S" placeholder="Arc 1960 / UTM Zone 37S"
               />
             </FormField>
 
@@ -226,7 +226,7 @@ export default function PileGridPanel() {
                 value={gridDef.startLabel}
                 onChange={(e) => setGridDef({ ...gridDef, startLabel: e.target.value })}
                 className={inputClass}
-                placeholder="A1"
+                aria-label="A1" placeholder="A1"
               />
             </FormField>
 
@@ -328,7 +328,7 @@ export default function PileGridPanel() {
                 <label className="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer">
                   <input
                     type="radio"
-                    name="labelRowsAs"
+                    name="labelRowsAs" aria-label="Labelrowsas"
                     value="alpha"
                     checked={gridDef.labelRowsAs === 'alpha'}
                     onChange={() => setGridDef({ ...gridDef, labelRowsAs: 'alpha' })}
@@ -339,7 +339,7 @@ export default function PileGridPanel() {
                 <label className="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer">
                   <input
                     type="radio"
-                    name="labelRowsAs"
+                    name="labelRowsAs" aria-label="Labelrowsas"
                     value="numeric"
                     checked={gridDef.labelRowsAs === 'numeric'}
                     onChange={() => setGridDef({ ...gridDef, labelRowsAs: 'numeric' })}
@@ -356,7 +356,7 @@ export default function PileGridPanel() {
                 <label className="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer">
                   <input
                     type="radio"
-                    name="labelColumnsAs"
+                    name="labelColumnsAs" aria-label="Labelcolumnsas"
                     value="alpha"
                     checked={gridDef.labelColumnsAs === 'alpha'}
                     onChange={() => setGridDef({ ...gridDef, labelColumnsAs: 'alpha' })}
@@ -367,7 +367,7 @@ export default function PileGridPanel() {
                 <label className="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer">
                   <input
                     type="radio"
-                    name="labelColumnsAs"
+                    name="labelColumnsAs" aria-label="Labelcolumnsas"
                     value="numeric"
                     checked={gridDef.labelColumnsAs === 'numeric'}
                     onChange={() => setGridDef({ ...gridDef, labelColumnsAs: 'numeric' })}
@@ -554,7 +554,7 @@ export default function PileGridPanel() {
                         value={stationE}
                         onChange={(e) => setStationE(e.target.value)}
                         className={inputClass}
-                        placeholder="372450.000"
+                        aria-label="372450.000" placeholder="372450.000"
                       />
                     </FormField>
                     <FormField label="Station Northing (m)">
@@ -564,7 +564,7 @@ export default function PileGridPanel() {
                         value={stationN}
                         onChange={(e) => setStationN(e.target.value)}
                         className={inputClass}
-                        placeholder="9987648.000"
+                        aria-label="9987648.000" placeholder="9987648.000"
                       />
                     </FormField>
                     <FormField label="Station RL (m)">
@@ -574,7 +574,7 @@ export default function PileGridPanel() {
                         value={stationRL}
                         onChange={(e) => setStationRL(e.target.value)}
                         className={inputClass}
-                        placeholder="1154.200"
+                        aria-label="1154.200" placeholder="1154.200"
                       />
                     </FormField>
                     <FormField label="Height of Instrument (m)">
@@ -584,7 +584,7 @@ export default function PileGridPanel() {
                         value={stationHI}
                         onChange={(e) => setStationHI(e.target.value)}
                         className={inputClass}
-                        placeholder="1.550"
+                        aria-label="1.550" placeholder="1.550"
                       />
                     </FormField>
                   </div>

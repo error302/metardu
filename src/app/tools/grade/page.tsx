@@ -41,16 +41,16 @@ export default function GradeCalculator() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Elevation 1 — RL (m)</label>
-                <input className="input" value={elev1} onChange={e => setElev1(e.target.value)} placeholder="100.000" />
+                <input className="input" value={elev1} onChange={e => setElev1(e.target.value)} aria-label="100.000" placeholder="100.000" />
               </div>
               <div>
                 <label className="label">Elevation 2 — RL (m)</label>
-                <input className="input" value={elev2} onChange={e => setElev2(e.target.value)} placeholder="105.500" />
+                <input className="input" value={elev2} onChange={e => setElev2(e.target.value)} aria-label="105.500" placeholder="105.500" />
               </div>
             </div>
             <div>
               <label className="label">Horizontal Distance (m)</label>
-              <input className="input" value={distance} onChange={e => setDistance(e.target.value)} placeholder="50.000" />
+              <input className="input" value={distance} onChange={e => setDistance(e.target.value)} aria-label="50.000" placeholder="50.000" />
             </div>
             <button onClick={calculate} className="btn btn-primary w-full">Calculate Gradient</button>
           </div>

@@ -241,12 +241,12 @@ export default function NewProjectPage() {
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Scheme Number</label>
                   <input type="text" value={schemeNumber} onChange={e => setSchemeNumber(e.target.value)}
-                    className={inputClass} placeholder="e.g., CRS/MWK/001/2026" />
+                    className={inputClass} aria-label="e.g., CRS/MWK/001/2026" placeholder="e.g., CRS/MWK/001/2026" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Adjudication Section</label>
                   <input type="text" value={adjudicationSection} onChange={e => setAdjudicationSection(e.target.value)}
-                    className={inputClass} placeholder="e.g., Mwavumbo Section" />
+                    className={inputClass} aria-label="e.g., Mwavumbo Section" placeholder="e.g., Mwavumbo Section" />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -260,18 +260,18 @@ export default function NewProjectPage() {
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Sub-County</label>
                   <input type="text" value={schemeSubCounty} onChange={e => setSchemeSubCounty(e.target.value)}
-                    className={inputClass} placeholder="e.g., Mariakani" />
+                    className={inputClass} aria-label="e.g., Mariakani" placeholder="e.g., Mariakani" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Ward</label>
                   <input type="text" value={schemeWard} onChange={e => setSchemeWard(e.target.value)}
-                    className={inputClass} placeholder="e.g., Mwavumbo" />
+                    className={inputClass} aria-label="e.g., Mwavumbo" placeholder="e.g., Mwavumbo" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Planned Parcels</label>
                 <input type="number" value={plannedParcels} onChange={e => setPlannedParcels(e.target.value)}
-                  className={inputClass} min={1} placeholder="e.g., 250" />
+                  className={inputClass} min={1} aria-label="e.g., 250" placeholder="e.g., 250" />
               </div>
             </div>
           )}
@@ -333,12 +333,12 @@ export default function NewProjectPage() {
             <div>
               <label className={labelClass}>Client Name</label>
               <input type="text" value={clientName} onChange={e => setClientName(e.target.value)}
-                className={inputClass} placeholder="e.g., Kilifi County Government" />
+                className={inputClass} aria-label="e.g., Kilifi County Government" placeholder="e.g., Kilifi County Government" />
             </div>
             <div>
               <label className={labelClass}>Surveyor Name</label>
               <input type="text" value={surveyorName} onChange={e => setSurveyorName(e.target.value)}
-                className={inputClass} placeholder="Your name or company" />
+                className={inputClass} aria-label="Your name or company" placeholder="Your name or company" />
             </div>
           </div>
 

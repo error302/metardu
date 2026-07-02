@@ -183,7 +183,7 @@ export function ProcessingToolbox({ compact = false }: { compact?: boolean }) {
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search 60+ tools..."
+            aria-label="Search 60+ tools..." placeholder="Search 60+ tools..."
             className="w-full h-9 pl-9 pr-8 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
             autoFocus
           />

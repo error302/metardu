@@ -96,7 +96,7 @@ export function GcpTab({
                         className="input w-28 font-mono"
                         value={g.name}
                         onChange={e => updateGCP(g.id, 'name', e.target.value)}
-                        placeholder="GCP-01"
+                        aria-label="GCP-01" placeholder="GCP-01"
                       />
                     </td>
                     <td>
@@ -104,7 +104,7 @@ export function GcpTab({
                         className="input w-36 font-mono"
                         value={g.easting}
                         onChange={e => updateGCP(g.id, 'easting', e.target.value)}
-                        placeholder="484500.0000"
+                        aria-label="484500.0000" placeholder="484500.0000"
                       />
                     </td>
                     <td>
@@ -112,7 +112,7 @@ export function GcpTab({
                         className="input w-36 font-mono"
                         value={g.northing}
                         onChange={e => updateGCP(g.id, 'northing', e.target.value)}
-                        placeholder="9863100.0000"
+                        aria-label="9863100.0000" placeholder="9863100.0000"
                       />
                     </td>
                     <td>
@@ -120,7 +120,7 @@ export function GcpTab({
                         className="input w-32 font-mono"
                         value={g.elevation}
                         onChange={e => updateGCP(g.id, 'elevation', e.target.value)}
-                        placeholder="120.5000"
+                        aria-label="120.5000" placeholder="120.5000"
                       />
                     </td>
                     <td>

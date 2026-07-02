@@ -934,7 +934,7 @@ export default function PointCloudImportPage() {
                 <input
                   className="input w-32 font-mono"
                   type="number"
-                  placeholder="min Z"
+                  aria-label="min Z" placeholder="min Z"
                   value={filterMinElev}
                   onChange={e => setFilterMinElev(e.target.value)}
                 />
@@ -944,7 +944,7 @@ export default function PointCloudImportPage() {
                 <input
                   className="input w-32 font-mono"
                   type="number"
-                  placeholder="max Z"
+                  aria-label="max Z" placeholder="max Z"
                   value={filterMaxElev}
                   onChange={e => setFilterMaxElev(e.target.value)}
                 />
@@ -1024,7 +1024,7 @@ export default function PointCloudImportPage() {
                   type="number"
                   step="0.5"
                   min="0.5"
-                  placeholder="auto"
+                  aria-label="auto" placeholder="auto"
                   value={slopeGridRes}
                   onChange={e => setSlopeGridRes(e.target.value)}
                 />
@@ -1264,7 +1264,7 @@ export default function PointCloudImportPage() {
                   className="input w-32 font-mono"
                   type="number"
                   step="0.1"
-                  placeholder="e.g. 1200"
+                  aria-label="e.g. 1200" placeholder="e.g. 1200"
                   value={datumRL}
                   onChange={e => setDatumRL(e.target.value)}
                 />

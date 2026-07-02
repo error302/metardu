@@ -101,7 +101,7 @@ function ScheduleFormModal({
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Job Title *</label>
             <input value={form.title} onChange={e => f('title', e.target.value)}
-              placeholder="e.g. Boundary Survey - Karen Plot L.R. No. 123/456" className="input w-full" />
+              aria-label="e.g. Boundary Survey - Karen Plot L.R. No. 123/456" placeholder="e.g. Boundary Survey - Karen Plot L.R. No. 123/456" className="input w-full" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Description</label>
@@ -143,7 +143,7 @@ function ScheduleFormModal({
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Location</label>
               <input value={form.location ?? ''} onChange={e => f('location', e.target.value)}
-                placeholder="e.g. Karen, Nairobi" className="input w-full" />
+                aria-label="e.g. Karen, Nairobi" placeholder="e.g. Karen, Nairobi" className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Client Name</label>
@@ -159,7 +159,7 @@ function ScheduleFormModal({
             <div className="flex gap-2 mb-2">
               <input value={equipInput} onChange={e => setEquipInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEquipment(equipInput) } }}
-                placeholder="Type + Enter" className="input flex-1 text-sm py-1.5" />
+                aria-label="Type + Enter" placeholder="Type + Enter" className="input flex-1 text-sm py-1.5" />
               <button onClick={() => addEquipment(equipInput)} className="btn btn-secondary text-sm py-1.5 px-3">Add</button>
             </div>
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -186,7 +186,7 @@ function ScheduleFormModal({
             <div className="flex gap-2">
               <input value={memberInput} onChange={e => setMemberInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addMember(memberInput) } }}
-                placeholder="Name + Enter" className="input flex-1 text-sm py-1.5" />
+                aria-label="Name + Enter" placeholder="Name + Enter" className="input flex-1 text-sm py-1.5" />
               <button onClick={() => addMember(memberInput)} className="btn btn-secondary text-sm py-1.5 px-3">Add</button>
             </div>
             {form.team_members.length > 0 && (

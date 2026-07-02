@@ -81,7 +81,7 @@ function EquipmentForm({
             <div className="col-span-2">
               <label className="block text-xs text-[var(--text-muted)] mb-1">Instrument name *</label>
               <input value={form.name} onChange={e => f('name', e.target.value)}
-                placeholder="e.g. Leica TS16 — Site A"
+                aria-label="e.g. Leica TS16 — Site A" placeholder="e.g. Leica TS16 — Site A"
                 className="input w-full" />
             </div>
             <div>
@@ -93,16 +93,16 @@ function EquipmentForm({
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Brand</label>
               <input value={form.brand} onChange={e => f('brand', e.target.value)}
-                list="brands-list" placeholder="Leica, Trimble…" className="input w-full" />
+                list="brands-list" aria-label="Leica, Trimble…" placeholder="Leica, Trimble…" className="input w-full" />
               <datalist id="brands-list">{BRANDS.map((b: any) => <option key={b} value={b} />)}</datalist>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Model</label>
-              <input value={form.model} onChange={e => f('model', e.target.value)} placeholder="TS16" className="input w-full" />
+              <input value={form.model} onChange={e => f('model', e.target.value)} aria-label="TS16" placeholder="TS16" className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Serial number</label>
-              <input value={form.serialNumber} onChange={e => f('serialNumber', e.target.value)} placeholder="1847293" className="input w-full" />
+              <input value={form.serialNumber} onChange={e => f('serialNumber', e.target.value)} aria-label="1847293" placeholder="1847293" className="input w-full" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Purchase date</label>
@@ -120,7 +120,7 @@ function EquipmentForm({
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-[var(--text-muted)] mb-1">Location / Office</label>
-              <input value={form.location} onChange={e => f('location', e.target.value)} placeholder="Nairobi Office, Site B…" className="input w-full" />
+              <input value={form.location} onChange={e => f('location', e.target.value)} aria-label="Nairobi Office, Site B…" placeholder="Nairobi Office, Site B…" className="input w-full" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-[var(--text-muted)] mb-1">Notes</label>
@@ -192,11 +192,11 @@ function LogForm({ equipment, onSave, onCancel }: { equipment: EquipmentWithStat
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Technician / Lab</label>
-            <input value={form.technician} onChange={e => f('technician', e.target.value)} placeholder="ABC Metrology Lab" className="input w-full" />
+            <input value={form.technician} onChange={e => f('technician', e.target.value)} aria-label="ABC Metrology Lab" placeholder="ABC Metrology Lab" className="input w-full" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Certificate number</label>
-            <input value={form.certificate} onChange={e => f('certificate', e.target.value)} placeholder="CERT-2024-001" className="input w-full" />
+            <input value={form.certificate} onChange={e => f('certificate', e.target.value)} aria-label="CERT-2024-001" placeholder="CERT-2024-001" className="input w-full" />
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Notes</label>

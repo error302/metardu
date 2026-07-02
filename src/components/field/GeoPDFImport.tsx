@@ -114,12 +114,12 @@ export default function GeoPDFImport({ onLayerReady }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <input
-                type="number" step="0.000001" placeholder="Latitude"
+                type="number" step="0.000001" aria-label="Latitude" placeholder="Latitude"
                 className="bg-gray-700 text-sm px-2 py-1.5 rounded border border-gray-600 text-white"
                 onChange={e => updateGCP(g.label!, 'lat', e.target.value)}
               />
               <input
-                type="number" step="0.000001" placeholder="Longitude"
+                type="number" step="0.000001" aria-label="Longitude" placeholder="Longitude"
                 className="bg-gray-700 text-sm px-2 py-1.5 rounded border border-gray-600 text-white"
                 onChange={e => updateGCP(g.label!, 'lng', e.target.value)}
               />

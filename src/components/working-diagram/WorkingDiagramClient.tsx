@@ -218,7 +218,7 @@ export default function WorkingDiagramClient() {
                     <span className="font-medium text-sm">{beacon.id}</span>
                     <button onClick={() => removeBeacon(beacon.id)} className="text-red-500 text-xs">Remove</button>
                   </div>
-                  <input type="text" value={beacon.label} onChange={e => updateBeacon(beacon.id, { label: e.target.value })} placeholder="Label" className="w-full px-2 py-1 border rounded text-sm" />
+                  <input type="text" value={beacon.label} onChange={e => updateBeacon(beacon.id, { label: e.target.value })} aria-label="Label" placeholder="Label" className="w-full px-2 py-1 border rounded text-sm" />
                   <select value={beacon.symbol} onChange={e => updateBeacon(beacon.id, { symbol: e.target.value as BeaconPoint['symbol'] })} className="w-full px-2 py-1 border rounded text-sm">
                     <option value="concrete_beacon">Concrete Beacon</option>
                     <option value="iron_peg">Iron Peg</option>
@@ -229,8 +229,8 @@ export default function WorkingDiagramClient() {
                     <option value="none">None</option>
                   </select>
                   <div className="grid grid-cols-2 gap-2">
-                    <input type="number" value={beacon.easting || ''} onChange={e => updateBeacon(beacon.id, { easting: parseFloat(e.target.value) })} placeholder="Easting" className="w-full px-2 py-1 border rounded text-sm" />
-                    <input type="number" value={beacon.northing || ''} onChange={e => updateBeacon(beacon.id, { northing: parseFloat(e.target.value) })} placeholder="Northing" className="w-full px-2 py-1 border rounded text-sm" />
+                    <input type="number" value={beacon.easting || ''} onChange={e => updateBeacon(beacon.id, { easting: parseFloat(e.target.value) })} aria-label="Easting" placeholder="Easting" className="w-full px-2 py-1 border rounded text-sm" />
+                    <input type="number" value={beacon.northing || ''} onChange={e => updateBeacon(beacon.id, { northing: parseFloat(e.target.value) })} aria-label="Northing" placeholder="Northing" className="w-full px-2 py-1 border rounded text-sm" />
                   </div>
                 </div>
               ))}
@@ -254,8 +254,8 @@ export default function WorkingDiagramClient() {
                       {diagram.beacons.map((b: any) => <option key={b.id} value={b.id}>{b.label}</option>)}
                     </select>
                   </div>
-                  <input type="text" value={boundary.bearingDMS} onChange={e => updateBoundary(boundary.id, { bearingDMS: e.target.value })} placeholder="0° 00' 00''" className="w-full px-2 py-1 border rounded text-sm" />
-                  <input type="number" step="0.01" value={boundary.distanceMeters} onChange={e => updateBoundary(boundary.id, { distanceMeters: parseFloat(e.target.value) })} placeholder="Distance (m)" className="w-full px-2 py-1 border rounded text-sm" />
+                  <input type="text" value={boundary.bearingDMS} onChange={e => updateBoundary(boundary.id, { bearingDMS: e.target.value })} aria-label="0° 00' 00''" placeholder="0° 00' 00''" className="w-full px-2 py-1 border rounded text-sm" />
+                  <input type="number" step="0.01" value={boundary.distanceMeters} onChange={e => updateBoundary(boundary.id, { distanceMeters: parseFloat(e.target.value) })} aria-label="Distance (m)" placeholder="Distance (m)" className="w-full px-2 py-1 border rounded text-sm" />
                   <RoadBoundarySelector value={boundary.boundaryType} onChange={v => updateBoundary(boundary.id, { boundaryType: v })} roadLabel={boundary.roadLabel} onRoadLabelChange={v => updateBoundary(boundary.id, { roadLabel: v })} />
                   <LegacyUnitBadge showLegacy={boundary.showLegacy} onShowLegacyChange={v => updateBoundary(boundary.id, { showLegacy: v })} legacyUnit={boundary.legacyUnit} onLegacyUnitChange={v => updateBoundary(boundary.id, { legacyUnit: v, legacyDistance: metersToLegacy(boundary.distanceMeters, v) })} distanceMeters={boundary.distanceMeters} legacyDistance={boundary.legacyDistance} onLegacyDistanceChange={v => updateBoundary(boundary.id, { legacyDistance: v })} />
                 </div>
@@ -271,7 +271,7 @@ export default function WorkingDiagramClient() {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-gray-500">North Bearing</label>
-                <input type="text" value={diagram.north.bearing} onChange={e => setDiagram(d => ({ ...d, north: { ...d.north, bearing: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" placeholder="0° 00' 00''" />
+                <input type="text" value={diagram.north.bearing} onChange={e => setDiagram(d => ({ ...d, north: { ...d.north, bearing: e.target.value } }))} className="w-full px-2 py-1 border rounded text-sm" aria-label="0° 00' 00''" placeholder="0° 00' 00''" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500">North Type</label>

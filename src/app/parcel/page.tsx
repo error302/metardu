@@ -97,7 +97,7 @@ export default function ParcelSearchPage() {
                   type="text"
                   value={searchParams.parcelId}
                   onChange={e => setSearchParams({ ...searchParams, parcelId: e.target.value })}
-                  placeholder="e.g., NRM/KISUMU/12345"
+                  aria-label="e.g., NRM/KISUMU/12345" placeholder="e.g., NRM/KISUMU/12345"
                   className="w-full p-2 border rounded-lg"
                 />
               </div>

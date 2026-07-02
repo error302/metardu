@@ -248,17 +248,17 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
                 <div className="col-span-2">
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Project / survey name *</label>
                   <input value={m.projectName} onChange={e => f('projectName', e.target.value)}
-                    placeholder="e.g. Karen Estate Boundary Survey" className="input w-full" />
+                    aria-label="e.g. Karen Estate Boundary Survey" placeholder="e.g. Karen Estate Boundary Survey" className="input w-full" />
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Client name</label>
                   <input value={m.client} onChange={e => f('client', e.target.value)}
-                    placeholder="ABC Properties Ltd" className="input w-full" />
+                    aria-label="ABC Properties Ltd" placeholder="ABC Properties Ltd" className="input w-full" />
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Location / site</label>
                   <input value={m.location} onChange={e => f('location', e.target.value)}
-                    placeholder="Karen, Nairobi" className="input w-full" />
+                    aria-label="Karen, Nairobi" placeholder="Karen, Nairobi" className="input w-full" />
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Survey type *</label>
@@ -283,12 +283,12 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Surveyor name</label>
                   <input value={m.surveyorName} onChange={e => f('surveyorName', e.target.value)}
-                    placeholder="Your full name" className="input w-full" />
+                    aria-label="Your full name" placeholder="Your full name" className="input w-full" />
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Licence / registration no.</label>
                   <input value={m.licenseNumber} onChange={e => f('licenseNumber', e.target.value)}
-                    placeholder="e.g. LSK/2456" className="input w-full" />
+                    aria-label="e.g. LSK/2456" placeholder="e.g. LSK/2456" className="input w-full" />
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">Team size</label>
@@ -321,13 +321,13 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
                     <div key={`cp-${cp.name || i}`} className="flex gap-2 items-center">
                       <input value={cp.name} onChange={e => {
                         const cp2 = [...m.controlPoints]; cp2[i] = { ...cp2[i], name: e.target.value }; f('controlPoints', cp2)
-                      }} placeholder="Name/ID" className="input flex-1 text-sm py-1.5" />
+                      }} aria-label="Name/ID" placeholder="Name/ID" className="input flex-1 text-sm py-1.5" />
                       <input value={cp.beaconNo} onChange={e => {
                         const cp2 = [...m.controlPoints]; cp2[i] = { ...cp2[i], beaconNo: e.target.value }; f('controlPoints', cp2)
-                      }} placeholder="Beacon no." className="input flex-1 text-sm py-1.5" />
+                      }} aria-label="Beacon no." placeholder="Beacon no." className="input flex-1 text-sm py-1.5" />
                       <input value={cp.location} onChange={e => {
                         const cp2 = [...m.controlPoints]; cp2[i] = { ...cp2[i], location: e.target.value }; f('controlPoints', cp2)
-                      }} placeholder="Location" className="input flex-1 text-sm py-1.5" />
+                      }} aria-label="Location" placeholder="Location" className="input flex-1 text-sm py-1.5" />
                       <label className="flex items-center gap-1 text-xs text-[var(--text-muted)] flex-shrink-0">
                         <input type="checkbox" checked={cp.confirmed} onChange={e => {
                           const cp2 = [...m.controlPoints]; cp2[i] = { ...cp2[i], confirmed: e.target.checked }; f('controlPoints', cp2)
@@ -384,19 +384,19 @@ function MissionEditor({ mission: initial, onSave, onClose }: {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">UTM zone</label>
-                    <input value={m.utmZone} onChange={e => f('utmZone', e.target.value)} placeholder="e.g. 37S" className="input w-full" />
+                    <input value={m.utmZone} onChange={e => f('utmZone', e.target.value)} aria-label="e.g. 37S" placeholder="e.g. 37S" className="input w-full" />
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">Datum</label>
-                    <input value={m.datum} onChange={e => f('datum', e.target.value)} placeholder="e.g. Arc 1960" className="input w-full" />
+                    <input value={m.datum} onChange={e => f('datum', e.target.value)} aria-label="e.g. Arc 1960" placeholder="e.g. Arc 1960" className="input w-full" />
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">Target precision</label>
-                    <input value={m.requiredPrecision} onChange={e => f('requiredPrecision', e.target.value)} placeholder="1:5000" className="input w-full" />
+                    <input value={m.requiredPrecision} onChange={e => f('requiredPrecision', e.target.value)} aria-label="1:5000" placeholder="1:5000" className="input w-full" />
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">Closure limit</label>
-                    <input value={m.closureLimit} onChange={e => f('closureLimit', e.target.value)} placeholder="10√K mm" className="input w-full" />
+                    <input value={m.closureLimit} onChange={e => f('closureLimit', e.target.value)} aria-label="10√K mm" placeholder="10√K mm" className="input w-full" />
                   </div>
                 </div>
               </div>

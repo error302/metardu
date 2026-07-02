@@ -272,7 +272,7 @@ export default function ProfilesPage({ params }: PageProps) {
                     className="input"
                     value={newAlignmentName}
                     onChange={e => setNewAlignmentName(e.target.value)}
-                    placeholder="e.g., Main Road Centerline"
+                    aria-label="e.g., Main Road Centerline" placeholder="e.g., Main Road Centerline"
                   />
                 </div>
                 <div className="md:col-span-2 flex items-end">

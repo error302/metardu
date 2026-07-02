@@ -171,7 +171,7 @@ export default function ProfilePage() {
                   value={profile.full_name}
                   onChange={e => setProfile({ ...profile, full_name: e.target.value })}
                   className="input w-full"
-                  placeholder="Enter your full name"
+                  aria-label="Enter your full name" placeholder="Enter your full name"
                 />
               </div>
               <div>
@@ -194,7 +194,7 @@ export default function ProfilePage() {
                   value={profile.license_number}
                   onChange={e => setProfile({ ...profile, license_number: e.target.value })}
                   className="input w-full"
-                  placeholder="e.g., LS/12345"
+                  aria-label="e.g., LS/12345" placeholder="e.g., LS/12345"
                 />
               </div>
               <div>
@@ -204,7 +204,7 @@ export default function ProfilePage() {
                   value={profile.firm_name}
                   onChange={e => setProfile({ ...profile, firm_name: e.target.value })}
                   className="input w-full"
-                  placeholder="Survey Associates Ltd"
+                  aria-label="Survey Associates Ltd" placeholder="Survey Associates Ltd"
                 />
               </div>
             </div>

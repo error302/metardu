@@ -140,13 +140,13 @@ export default function SiteCalibrationPage() {
                   </div>
                   {points.map(p => (
                     <div key={p.id} className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_1fr_28px] gap-1 items-center">
-                      <input className="input font-mono text-xs px-1 py-1" value={p.name} onChange={e => updatePoint(p.id, 'name', e.target.value)} placeholder="CP1" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--accent)' }} value={p.sx} onChange={e => updatePoint(p.id, 'sx', e.target.value)} placeholder="274812" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--accent)' }} value={p.sy} onChange={e => updatePoint(p.id, 'sy', e.target.value)} placeholder="9856214" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--accent)' }} value={p.sz} onChange={e => updatePoint(p.id, 'sz', e.target.value)} placeholder="1798" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--primary-blue)' }} value={p.tx} onChange={e => updatePoint(p.id, 'tx', e.target.value)} placeholder="274712" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--primary-blue)' }} value={p.ty} onChange={e => updatePoint(p.id, 'ty', e.target.value)} placeholder="9856314" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--primary-blue)' }} value={p.tz} onChange={e => updatePoint(p.id, 'tz', e.target.value)} placeholder="1790" />
+                      <input className="input font-mono text-xs px-1 py-1" value={p.name} onChange={e => updatePoint(p.id, 'name', e.target.value)} aria-label="CP1" placeholder="CP1" />
+                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--accent)' }} value={p.sx} onChange={e => updatePoint(p.id, 'sx', e.target.value)} aria-label="274812" placeholder="274812" />
+                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--accent)' }} value={p.sy} onChange={e => updatePoint(p.id, 'sy', e.target.value)} aria-label="9856214" placeholder="9856214" />
+                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--accent)' }} value={p.sz} onChange={e => updatePoint(p.id, 'sz', e.target.value)} aria-label="1798" placeholder="1798" />
+                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--primary-blue)' }} value={p.tx} onChange={e => updatePoint(p.id, 'tx', e.target.value)} aria-label="274712" placeholder="274712" />
+                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--primary-blue)' }} value={p.ty} onChange={e => updatePoint(p.id, 'ty', e.target.value)} aria-label="9856314" placeholder="9856314" />
+                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--primary-blue)' }} value={p.tz} onChange={e => updatePoint(p.id, 'tz', e.target.value)} aria-label="1790" placeholder="1790" />
                       <button onClick={() => removePoint(p.id)} className="text-[var(--text-muted)] hover:text-[var(--error)] text-sm">×</button>
                     </div>
                   ))}

@@ -114,7 +114,7 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
               value={form.station_from}
               onChange={(e) => setForm({ ...form, station_from: e.target.value.toUpperCase() })}
               className={inputClass}
-              placeholder="A"
+              aria-label="A" placeholder="A"
               autoFocus
               autoComplete="off"
             />
@@ -127,7 +127,7 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
               value={form.station_to}
               onChange={(e) => setForm({ ...form, station_to: e.target.value.toUpperCase() })}
               className={inputClass}
-              placeholder="1"
+              aria-label="1" placeholder="1"
               autoComplete="off"
             />
           </div>
@@ -141,7 +141,7 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
                 value={form.horizontal_angle}
                 onChange={(e) => setForm({ ...form, horizontal_angle: e.target.value })}
                 className={inputClass}
-                placeholder="45.1234"
+                aria-label="45.1234" placeholder="45.1234"
               />
             </div>
             <div>
@@ -152,7 +152,7 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
                 value={form.vertical_angle}
                 onChange={(e) => setForm({ ...form, vertical_angle: e.target.value })}
                 className={inputClass}
-                placeholder="90.0000"
+                aria-label="90.0000" placeholder="90.0000"
               />
             </div>
           </div>
@@ -165,7 +165,7 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
               value={form.slope_distance}
               onChange={(e) => setForm({ ...form, slope_distance: e.target.value })}
               className={inputClass}
-              placeholder="125.456"
+              aria-label="125.456" placeholder="125.456"
             />
           </div>
 
@@ -200,7 +200,7 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
                 value={form.remarks}
                 onChange={(e) => setForm({ ...form, remarks: e.target.value })}
                 className={inputClass + ' flex-1 min-w-0'}
-                placeholder="Concrete beacon, flush"
+                aria-label="Concrete beacon, flush" placeholder="Concrete beacon, flush"
               />
               <VoiceDictationButton
                 value={form.remarks}

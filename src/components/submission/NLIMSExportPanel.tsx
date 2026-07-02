@@ -140,7 +140,7 @@ export function NLIMSExportPanel({ projectId }: NLIMSExportPanelProps) {
                 value={registry}
                 onChange={e => setRegistry(e.target.value)}
                 className="input h-10 text-sm"
-                placeholder="Nairobi"
+                aria-label="Nairobi" placeholder="Nairobi"
               />
             </div>
             <div>
@@ -150,7 +150,7 @@ export function NLIMSExportPanel({ projectId }: NLIMSExportPanelProps) {
                 value={county}
                 onChange={e => setCounty(e.target.value)}
                 className="input h-10 text-sm"
-                placeholder="Nairobi"
+                aria-label="Nairobi" placeholder="Nairobi"
               />
             </div>
           </div>
@@ -162,7 +162,7 @@ export function NLIMSExportPanel({ projectId }: NLIMSExportPanelProps) {
               value={subCounty}
               onChange={e => setSubCounty(e.target.value)}
               className="input h-10 text-sm"
-              placeholder="Westlands"
+              aria-label="Westlands" placeholder="Westlands"
             />
           </div>
 
@@ -180,7 +180,7 @@ export function NLIMSExportPanel({ projectId }: NLIMSExportPanelProps) {
                   value={surveyorName}
                   onChange={e => setSurveyorName(e.target.value)}
                   className="input h-10 text-sm"
-                  placeholder="John Doe"
+                  aria-label="John Doe" placeholder="John Doe"
                 />
               </div>
               <div>
@@ -190,7 +190,7 @@ export function NLIMSExportPanel({ projectId }: NLIMSExportPanelProps) {
                   value={licenseNumber}
                   onChange={e => setLicenseNumber(e.target.value)}
                   className="input h-10 text-sm font-mono"
-                  placeholder="ISK/LS/2021/0452"
+                  aria-label="ISK/LS/2021/0452" placeholder="ISK/LS/2021/0452"
                 />
               </div>
             </div>
@@ -201,7 +201,7 @@ export function NLIMSExportPanel({ projectId }: NLIMSExportPanelProps) {
                 value={firm}
                 onChange={e => setFirm(e.target.value)}
                 className="input h-10 text-sm"
-                placeholder="Doe Surveyors Ltd"
+                aria-label="Doe Surveyors Ltd" placeholder="Doe Surveyors Ltd"
               />
             </div>
           </div>

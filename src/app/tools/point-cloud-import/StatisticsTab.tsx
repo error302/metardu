@@ -148,7 +148,7 @@ export default function StatisticsTab({
             <input
               className="input w-32 font-mono"
               type="number"
-              placeholder="min Z"
+              aria-label="min Z" placeholder="min Z"
               value={filterMinElev}
               onChange={e => setFilterMinElev(e.target.value)}
             />
@@ -158,7 +158,7 @@ export default function StatisticsTab({
             <input
               className="input w-32 font-mono"
               type="number"
-              placeholder="max Z"
+              aria-label="max Z" placeholder="max Z"
               value={filterMaxElev}
               onChange={e => setFilterMaxElev(e.target.value)}
             />

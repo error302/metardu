@@ -243,21 +243,21 @@ export function TraverseBook({
                   <tr key={r.id}>
                     <td className="text-left"><input className="input input-sm" value={r.station} onChange={(e) => upd({ station: e.target.value })} /></td>
                     {/* HCL */}
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hclDeg} onChange={(e) => upd({ hclDeg: e.target.value })} placeholder="Deg" /></td>
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hclMin} onChange={(e) => upd({ hclMin: e.target.value })} placeholder="Min" /></td>
-                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.hclSec} onChange={(e) => upd({ hclSec: e.target.value })} placeholder="Sec" /></td>
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hclDeg} onChange={(e) => upd({ hclDeg: e.target.value })} aria-label="Deg" placeholder="Deg" /></td>
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hclMin} onChange={(e) => upd({ hclMin: e.target.value })} aria-label="Min" placeholder="Min" /></td>
+                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.hclSec} onChange={(e) => upd({ hclSec: e.target.value })} aria-label="Sec" placeholder="Sec" /></td>
                     {/* HCR */}
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hcrDeg} onChange={(e) => upd({ hcrDeg: e.target.value })} placeholder="Deg" /></td>
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hcrMin} onChange={(e) => upd({ hcrMin: e.target.value })} placeholder="Min" /></td>
-                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.hcrSec} onChange={(e) => upd({ hcrSec: e.target.value })} placeholder="Sec" /></td>
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hcrDeg} onChange={(e) => upd({ hcrDeg: e.target.value })} aria-label="Deg" placeholder="Deg" /></td>
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hcrMin} onChange={(e) => upd({ hcrMin: e.target.value })} aria-label="Min" placeholder="Min" /></td>
+                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.hcrSec} onChange={(e) => upd({ hcrSec: e.target.value })} aria-label="Sec" placeholder="Sec" /></td>
                     {/* Mean Bearing */}
                     <td className="text-center font-mono text-xs text-amber-400 whitespace-nowrap">{meanStr}</td>
                     {/* Slope Distance */}
-                    <td className="text-right"><input inputMode="decimal" className="input input-sm font-mono w-20 text-right" value={r.slopeDist} onChange={(e) => upd({ slopeDist: e.target.value })} placeholder="100.000" /></td>
+                    <td className="text-right"><input inputMode="decimal" className="input input-sm font-mono w-20 text-right" value={r.slopeDist} onChange={(e) => upd({ slopeDist: e.target.value })} aria-label="100.000" placeholder="100.000" /></td>
                     {/* VA */}
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.vaDeg} onChange={(e) => upd({ vaDeg: e.target.value })} placeholder="Deg" /></td>
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.vaMin} onChange={(e) => upd({ vaMin: e.target.value })} placeholder="Min" /></td>
-                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.vaSec} onChange={(e) => upd({ vaSec: e.target.value })} placeholder="Sec" /></td>
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.vaDeg} onChange={(e) => upd({ vaDeg: e.target.value })} aria-label="Deg" placeholder="Deg" /></td>
+                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.vaMin} onChange={(e) => upd({ vaMin: e.target.value })} aria-label="Min" placeholder="Min" /></td>
+                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.vaSec} onChange={(e) => upd({ vaSec: e.target.value })} aria-label="Sec" placeholder="Sec" /></td>
                     {/* IH / TH */}
                     <td className="text-right"><input inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.ih} onChange={(e) => upd({ ih: e.target.value })} /></td>
                     <td className="text-right"><input inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.th} onChange={(e) => upd({ th: e.target.value })} /></td>

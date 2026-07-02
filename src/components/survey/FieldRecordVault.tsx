@@ -136,7 +136,7 @@ export function FieldRecordVault() {
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && search()}
-              placeholder="Search F/R number, locality, surveyor..."
+              aria-label="Search F/R number, locality, surveyor..." placeholder="Search F/R number, locality, surveyor..."
               className="w-full h-10 pl-9 pr-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] placeholder-gray-600 focus:border-[var(--accent)]/30 focus:outline-none"
             />
           </div>
@@ -144,11 +144,11 @@ export function FieldRecordVault() {
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Easting</label>
-              <input type="number" value={easting} onChange={e => setEasting(e.target.value)} placeholder="534850" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono" />
+              <input type="number" value={easting} onChange={e => setEasting(e.target.value)} aria-label="534850" placeholder="534850" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono" />
             </div>
             <div>
               <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Northing</label>
-              <input type="number" value={northing} onChange={e => setNorthing(e.target.value)} placeholder="9574220" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono" />
+              <input type="number" value={northing} onChange={e => setNorthing(e.target.value)} aria-label="9574220" placeholder="9574220" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono" />
             </div>
             <div>
               <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Radius (m)</label>
@@ -365,26 +365,26 @@ function AddRecordForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-[9px] text-gray-500 uppercase mb-0.5">F/R Number *</label>
-          <input type="text" value={frNumber} onChange={e => setFrNumber(e.target.value)} placeholder="FR/123/456" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
+          <input type="text" value={frNumber} onChange={e => setFrNumber(e.target.value)} aria-label="FR/123/456" placeholder="FR/123/456" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
         </div>
         <div>
           <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Survey Year</label>
-          <input type="number" value={surveyYear} onChange={e => setSurveyYear(e.target.value)} placeholder="1995" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
+          <input type="number" value={surveyYear} onChange={e => setSurveyYear(e.target.value)} aria-label="1995" placeholder="1995" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Easting *</label>
-          <input type="number" value={easting} onChange={e => setEasting(e.target.value)} placeholder="534850" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
+          <input type="number" value={easting} onChange={e => setEasting(e.target.value)} aria-label="534850" placeholder="534850" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
         </div>
         <div>
           <label className="block text-[9px] text-gray-500 uppercase mb-0.5">Northing *</label>
-          <input type="number" value={northing} onChange={e => setNorthing(e.target.value)} placeholder="9574220" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
+          <input type="number" value={northing} onChange={e => setNorthing(e.target.value)} aria-label="9574220" placeholder="9574220" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono" />
         </div>
       </div>
-      <input type="text" value={county} onChange={e => setCounty(e.target.value)} placeholder="County" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white" />
-      <input type="text" value={locality} onChange={e => setLocality(e.target.value)} placeholder="Locality" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white" />
-      <input type="text" value={surveyorName} onChange={e => setSurveyorName(e.target.value)} placeholder="Original Surveyor" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white" />
+      <input type="text" value={county} onChange={e => setCounty(e.target.value)} aria-label="County" placeholder="County" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white" />
+      <input type="text" value={locality} onChange={e => setLocality(e.target.value)} aria-label="Locality" placeholder="Locality" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white" />
+      <input type="text" value={surveyorName} onChange={e => setSurveyorName(e.target.value)} aria-label="Original Surveyor" placeholder="Original Surveyor" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white" />
       <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (bearings, tie points, reference markers)..." rows={2} className="w-full px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white resize-none" />
       {error && <p className="text-xs text-red-400">{error}</p>}
       <button onClick={handleSave} disabled={saving || !frNumber || !easting || !northing} className="w-full h-8 rounded bg-[var(--accent)] text-black text-xs font-semibold disabled:opacity-40">

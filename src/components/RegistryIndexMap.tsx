@@ -300,17 +300,17 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
                 <div>
                   <label className="text-xs font-semibold text-gray-600">District</label>
                   <input value={district} onChange={e => setDistrict(e.target.value)}
-                    className="w-full px-2 py-1 border rounded text-sm uppercase" placeholder="e.g. KAJIADO" />
+                    className="w-full px-2 py-1 border rounded text-sm uppercase" aria-label="e.g. KAJIADO" placeholder="e.g. KAJIADO" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-600">Location</label>
                   <input value={location} onChange={e => setLocation(e.target.value)}
-                    className="w-full px-2 py-1 border rounded text-sm uppercase" placeholder="e.g. ILKISONGO" />
+                    className="w-full px-2 py-1 border rounded text-sm uppercase" aria-label="e.g. ILKISONGO" placeholder="e.g. ILKISONGO" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-600">Sub-Location / Registration Unit</label>
                   <input value={registrationUnit} onChange={e => setRegistrationUnit(e.target.value)}
-                    className="w-full px-2 py-1 border rounded text-sm uppercase" placeholder="e.g. ENTARARA" />
+                    className="w-full px-2 py-1 border rounded text-sm uppercase" aria-label="e.g. ENTARARA" placeholder="e.g. ENTARARA" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -321,7 +321,7 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
                   <div>
                     <label className="text-xs font-semibold text-gray-600">Edition</label>
                     <input value={edition} onChange={e => setEdition(e.target.value)}
-                      className="w-full px-2 py-1 border rounded text-sm" placeholder="e.g. 1ST EDITION" />
+                      className="w-full px-2 py-1 border rounded text-sm" aria-label="e.g. 1ST EDITION" placeholder="e.g. 1ST EDITION" />
                   </div>
                 </div>
                 <div>
@@ -347,7 +347,7 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
                       </button>
                     ))}
                   </div>
-                  <input type="text" placeholder="Index notes (e.g. Sheet 2 to North)"
+                  <input type="text" aria-label="Index notes (e.g. Sheet 2 to North)" placeholder="Index notes (e.g. Sheet 2 to North)"
                     className="w-full px-2 py-1 border rounded text-xs" />
                 </div>
 
@@ -369,7 +369,7 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
                         <span className="font-bold w-6">{p.number}.</span>
                         <input value={p.area} onChange={e => updateParcel(p.id, {area: e.target.value})}
                           onClick={e => e.stopPropagation()}
-                          placeholder="Area (ha)"
+                          aria-label="Area (ha)" placeholder="Area (ha)"
                           className="flex-1 px-1 border rounded text-xs" />
                         <button onClick={e => { e.stopPropagation(); removeParcel(p.id) }}
                           className="text-red-500 hover:text-red-700 font-bold px-1">[x]</button>
@@ -391,16 +391,16 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
                       <div key={a.id} className="border rounded p-2 bg-white text-xs space-y-1">
                         <div className="grid grid-cols-2 gap-1">
                           <input value={a.date} onChange={e => updateAmendment(a.id, {date: e.target.value})}
-                            className="px-1 border rounded" placeholder="Date" />
+                            className="px-1 border rounded" aria-label="Date" placeholder="Date" />
                           <input value={a.edition} onChange={e => updateAmendment(a.id, {edition: e.target.value})}
-                            className="px-1 border rounded" placeholder="Edition" />
+                            className="px-1 border rounded" aria-label="Edition" placeholder="Edition" />
                         </div>
                         <input value={a.reference} onChange={e => updateAmendment(a.id, {reference: e.target.value})}
-                          className="w-full px-1 border rounded" placeholder="Reference (e.g. MUT/2/1036/1/88)" />
+                          className="w-full px-1 border rounded" aria-label="Reference (e.g. MUT/2/1036/1/88)" placeholder="Reference (e.g. MUT/2/1036/1/88)" />
                         <input value={a.description} onChange={e => updateAmendment(a.id, {description: e.target.value})}
-                          className="w-full px-1 border rounded" placeholder="Description (e.g. SUBDIV 904 INTO 3054-3061)" />
+                          className="w-full px-1 border rounded" aria-label="Description (e.g. SUBDIV 904 INTO 3054-3061)" placeholder="Description (e.g. SUBDIV 904 INTO 3054-3061)" />
                         <input value={a.affectedPlots} onChange={e => updateAmendment(a.id, {affectedPlots: e.target.value})}
-                          className="w-full px-1 border rounded" placeholder="Affected parcels" />
+                          className="w-full px-1 border rounded" aria-label="Affected parcels" placeholder="Affected parcels" />
                         <button onClick={() => setAmendments(prev => prev.filter((x: any) => x.id !== a.id))}
                           className="text-red-500 hover:text-red-700 text-xs">Remove</button>
                       </div>

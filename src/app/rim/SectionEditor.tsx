@@ -126,7 +126,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
             <input
               type="text"
               className="input"
-              placeholder="e.g. LR 123/456 Section II"
+              aria-label="e.g. LR 123/456 Section II" placeholder="e.g. LR 123/456 Section II"
               value={sectionForm.section_name || ''}
               onChange={(e) => setSectionForm((prev) => ({ ...prev, section_name: e.target.value }))}
             />
@@ -140,7 +140,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
             <input
               type="text"
               className="input"
-              placeholder="e.g. Machakos"
+              aria-label="e.g. Machakos" placeholder="e.g. Machakos"
               value={sectionForm.registry || ''}
               onChange={(e) => setSectionForm((prev) => ({ ...prev, registry: e.target.value }))}
             />
@@ -154,7 +154,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
             <input
               type="text"
               className="input"
-              placeholder="e.g. Machakos County"
+              aria-label="e.g. Machakos County" placeholder="e.g. Machakos County"
               value={sectionForm.district || ''}
               onChange={(e) => setSectionForm((prev) => ({ ...prev, district: e.target.value }))}
             />
@@ -168,7 +168,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
             <input
               type="text"
               className="input"
-              placeholder="e.g. MS 1234"
+              aria-label="e.g. MS 1234" placeholder="e.g. MS 1234"
               value={sectionForm.map_sheet_number || ''}
               onChange={(e) => setSectionForm((prev) => ({ ...prev, map_sheet_number: e.target.value }))}
             />
@@ -252,7 +252,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
               type="number"
               step="0.0001"
               className="input"
-              placeholder="0.0000"
+              aria-label="0.0000" placeholder="0.0000"
               value={sectionForm.total_area || ''}
               onChange={(e) =>
                 setSectionForm((prev) => ({
@@ -343,7 +343,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
                 <input
                   type="text"
                   className="input text-xs"
-                  placeholder="Parcel No. *"
+                  aria-label="Parcel No. *" placeholder="Parcel No. *"
                   value={newParcel.parcel_number}
                   onChange={(e) => setNewParcel((prev) => ({ ...prev, parcel_number: e.target.value }))}
                 />
@@ -351,21 +351,21 @@ export function SectionEditor({ rim }: { rim: RimState }) {
                   type="number"
                   step="0.0001"
                   className="input text-xs"
-                  placeholder="Area (Ha)"
+                  aria-label="Area (Ha)" placeholder="Area (Ha)"
                   value={newParcel.area}
                   onChange={(e) => setNewParcel((prev) => ({ ...prev, area: e.target.value }))}
                 />
                 <input
                   type="text"
                   className="input text-xs"
-                  placeholder="Land Use"
+                  aria-label="Land Use" placeholder="Land Use"
                   value={newParcel.land_use}
                   onChange={(e) => setNewParcel((prev) => ({ ...prev, land_use: e.target.value }))}
                 />
                 <input
                   type="number"
                   className="input text-xs"
-                  placeholder="Beacon Count"
+                  aria-label="Beacon Count" placeholder="Beacon Count"
                   value={newParcel.beacon_count}
                   onChange={(e) => setNewParcel((prev) => ({ ...prev, beacon_count: e.target.value }))}
                 />
@@ -373,7 +373,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
               <input
                 type="text"
                 className="input text-xs"
-                placeholder="Owner Name"
+                aria-label="Owner Name" placeholder="Owner Name"
                 value={newParcel.owner_name}
                 onChange={(e) => setNewParcel((prev) => ({ ...prev, owner_name: e.target.value }))}
               />
@@ -498,7 +498,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
                 <input
                   type="text"
                   className="input text-xs"
-                  placeholder="Beacon No. *"
+                  aria-label="Beacon No. *" placeholder="Beacon No. *"
                   value={newBeacon.beacon_number}
                   onChange={(e) => setNewBeacon((prev) => ({ ...prev, beacon_number: e.target.value }))}
                 />
@@ -517,7 +517,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
                   type="number"
                   step="0.001"
                   className="input text-xs"
-                  placeholder="Easting"
+                  aria-label="Easting" placeholder="Easting"
                   value={newBeacon.easting}
                   onChange={(e) => setNewBeacon((prev) => ({ ...prev, easting: e.target.value }))}
                 />
@@ -525,7 +525,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
                   type="number"
                   step="0.001"
                   className="input text-xs"
-                  placeholder="Northing"
+                  aria-label="Northing" placeholder="Northing"
                   value={newBeacon.northing}
                   onChange={(e) => setNewBeacon((prev) => ({ ...prev, northing: e.target.value }))}
                 />
@@ -544,7 +544,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
               <input
                 type="text"
                 className="input text-xs"
-                placeholder="Description"
+                aria-label="Description" placeholder="Description"
                 value={newBeacon.description}
                 onChange={(e) => setNewBeacon((prev) => ({ ...prev, description: e.target.value }))}
               />

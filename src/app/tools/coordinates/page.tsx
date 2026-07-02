@@ -76,7 +76,7 @@ export default function CoordinatesCalculator() {
                   <div><label className="label">Northing (m)</label><input className="input" value={utm.n} onChange={e => setUtm({...utm, n: e.target.value})} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="label">Zone</label><input className="input" value={utm.z} onChange={e => setUtm({...utm, z: e.target.value})} placeholder="37" /></div>
+                  <div><label className="label">Zone</label><input className="input" value={utm.z} onChange={e => setUtm({...utm, z: e.target.value})} aria-label="37" placeholder="37" /></div>
                   <div><label className="label">Hemisphere</label>
                     <select className="input" value={utm.h} onChange={e => setUtm({...utm, h: e.target.value})}>
                       <option value="N">Northern</option>
@@ -92,8 +92,8 @@ export default function CoordinatesCalculator() {
             <div className="card">
               <div className="card-header"><span className="label">Geographic (WGS84)</span></div>
               <div className="card-body space-y-4">
-                <div><label className="label">Latitude (decimal degrees, negative = South)</label><input className="input" value={geo.lat} onChange={e => setGeo({...geo, lat: e.target.value})} placeholder="-1.2921 (Nairobi)" /></div>
-                <div><label className="label">Longitude (decimal degrees)</label><input className="input" value={geo.lon} onChange={e => setGeo({...geo, lon: e.target.value})} placeholder="36.8219 (Nairobi)" /></div>
+                <div><label className="label">Latitude (decimal degrees, negative = South)</label><input className="input" value={geo.lat} onChange={e => setGeo({...geo, lat: e.target.value})} aria-label="-1.2921 (Nairobi)" placeholder="-1.2921 (Nairobi)" /></div>
+                <div><label className="label">Longitude (decimal degrees)</label><input className="input" value={geo.lon} onChange={e => setGeo({...geo, lon: e.target.value})} aria-label="36.8219 (Nairobi)" placeholder="36.8219 (Nairobi)" /></div>
               </div>
             </div>
           )}
@@ -108,7 +108,7 @@ export default function CoordinatesCalculator() {
                 </div>
                 <div>
                   <label className="label">DMS (e.g. 01° 17' 31.56&quot; S) OR Decimal (e.g. -1.2921)</label>
-                  <input className="input" value={dms.value} onChange={e => setDms({...dms, value: e.target.value})} placeholder="01° 17' 31.56&quot; S" />
+                  <input className="input" value={dms.value} onChange={e => setDms({...dms, value: e.target.value})} aria-label="01° 17' 31.56&quot; S" placeholder="01° 17' 31.56&quot; S" />
                 </div>
               </div>
             </div>

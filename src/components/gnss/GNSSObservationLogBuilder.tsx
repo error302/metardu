@@ -190,11 +190,11 @@ export default function GNSSObservationLogBuilder() {
           <Satellite className="h-5 w-5 text-cyan-400" /> Equipment &amp; Settings
         </summary>
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div><label className={labelCls}>Receiver Model</label><input className={inputCls} value={receiverModel} onChange={e => setReceiverModel(e.target.value)} placeholder="Leica GS18 T" /></div>
+          <div><label className={labelCls}>Receiver Model</label><input className={inputCls} value={receiverModel} onChange={e => setReceiverModel(e.target.value)} aria-label="Leica GS18 T" placeholder="Leica GS18 T" /></div>
           <div><label className={labelCls}>Receiver S/N</label><input className={inputCls} value={receiverSerial} onChange={e => setReceiverSerial(e.target.value)} /></div>
           <div><label className={labelCls}>Antenna Model</label><input className={inputCls} value={antennaModel} onChange={e => setAntennaModel(e.target.value)} /></div>
           <div><label className={labelCls}>Antenna S/N</label><input className={inputCls} value={antennaSerial} onChange={e => setAntennaSerial(e.target.value)} /></div>
-          <div><label className={labelCls}>Base Station ID</label><input className={inputCls} value={baseStationId} onChange={e => setBaseStationId(e.target.value)} placeholder="CORS_NBI" /></div>
+          <div><label className={labelCls}>Base Station ID</label><input className={inputCls} value={baseStationId} onChange={e => setBaseStationId(e.target.value)} aria-label="CORS_NBI" placeholder="CORS_NBI" /></div>
           <div>
             <label className={labelCls}>Base Source</label>
             <select className={inputCls} value={baseStationSource} onChange={e => setBaseStationSource(e.target.value as typeof baseStationSource)}>

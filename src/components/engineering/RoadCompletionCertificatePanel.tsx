@@ -328,7 +328,7 @@ export default function RoadCompletionCertificatePanel({
                 <label className="block text-xs text-zinc-400 mb-1">Survey Method / Instrument</label>
                 <input type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={surveyMethod} onChange={e => setSurveyMethod(e.target.value)}
-                  placeholder="e.g. RTK GNSS, Total Station, LiDAR Scanner" />
+                  aria-label="e.g. RTK GNSS, Total Station, LiDAR Scanner" placeholder="e.g. RTK GNSS, Total Station, LiDAR Scanner" />
               </div>
             </div>
           </div>
@@ -359,9 +359,9 @@ export default function RoadCompletionCertificatePanel({
                   onChange={e => { const nd = [...defects]; nd[i] = { ...d, severity: e.target.value as 'minor' | 'major' | 'critical' }; setDefects(nd) }}>
                   <option value="minor">Minor</option><option value="major">Major</option><option value="critical">Critical</option>
                 </select>
-                <input type="number" className="w-20 border border-zinc-600 rounded px-2 py-1 text-xs bg-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Chainage"
+                <input type="number" className="w-20 border border-zinc-600 rounded px-2 py-1 text-xs bg-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Chainage" placeholder="Chainage"
                   value={d.chainage} onChange={e => { const nd = [...defects]; nd[i] = { ...d, chainage: parseFloat(e.target.value) || 0 }; setDefects(nd) }} />
-                <input type="text" className="flex-1 border border-zinc-600 rounded px-2 py-1 text-xs bg-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Description"
+                <input type="text" className="flex-1 border border-zinc-600 rounded px-2 py-1 text-xs bg-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Description" placeholder="Description"
                   value={d.description} onChange={e => { const nd = [...defects]; nd[i] = { ...d, description: e.target.value }; setDefects(nd) }} />
                 <button onClick={() => setDefects(defects.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-300 text-xs">[x]</button>
               </div>

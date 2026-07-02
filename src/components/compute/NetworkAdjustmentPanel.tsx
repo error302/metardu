@@ -308,21 +308,21 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
             <div key={s.id} className="grid grid-cols-7 gap-2 items-center bg-zinc-800 p-3 rounded-lg">
               <input
                 className="col-span-1 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-white"
-                placeholder="Name"
+                aria-label="Name" placeholder="Name"
                 value={s.name}
                 onChange={e => updateStation(s.id, 'name', e.target.value)}
               />
               <input
                 type="number" step="0.001"
                 className="col-span-2 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-white"
-                placeholder="Easting (m)"
+                aria-label="Easting (m)" placeholder="Easting (m)"
                 value={s.easting || ''}
                 onChange={e => updateStation(s.id, 'easting', parseFloat(e.target.value) || 0)}
               />
               <input
                 type="number" step="0.001"
                 className="col-span-2 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-white"
-                placeholder="Northing (m)"
+                aria-label="Northing (m)" placeholder="Northing (m)"
                 value={s.northing || ''}
                 onChange={e => updateStation(s.id, 'northing', parseFloat(e.target.value) || 0)}
               />
@@ -381,28 +381,28 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
               <input
                 type="number" step="0.001"
                 className="bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-white"
-                placeholder="ΔE (m)"
+                aria-label="ΔE (m)" placeholder="ΔE (m)"
                 value={obs.deltaE || ''}
                 onChange={e => updateObservation(idx, 'deltaE', parseFloat(e.target.value) || 0)}
               />
               <input
                 type="number" step="0.001"
                 className="bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-white"
-                placeholder="ΔN (m)"
+                aria-label="ΔN (m)" placeholder="ΔN (m)"
                 value={obs.deltaN || ''}
                 onChange={e => updateObservation(idx, 'deltaN', parseFloat(e.target.value) || 0)}
               />
               <input
                 type="number" step="0.001"
                 className="bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-white"
-                placeholder="ΔH (m)"
+                aria-label="ΔH (m)" placeholder="ΔH (m)"
                 value={obs.deltaH || ''}
                 onChange={e => updateObservation(idx, 'deltaH', parseFloat(e.target.value) || 0)}
               />
               <input
                 type="number" step="0.0001"
                 className="bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-white"
-                placeholder="σ (m)"
+                aria-label="σ (m)" placeholder="σ (m)"
                 value={obs.stdDevE || ''}
                 onChange={e => {
                   const v = parseFloat(e.target.value) || 0.005
