@@ -17,7 +17,7 @@ import { MpesaService } from '@/lib/payments/mpesa'
 const InitiateSchema = z.object({
   amount: z.number().positive(),
   phoneNumber: z.string().min(10),
-  planId: z.enum(['free', 'pro', 'team']).default('free'),
+  planId: z.enum(['free', 'pro', 'team', 'firm', 'enterprise']).default('free'),
   purpose: z.string().max(200).optional(),
   referenceId: z.string().max(200).optional(),
   currency: z.string().length(3).default('KES'),

@@ -126,7 +126,7 @@ export class MpesaService {
     }
   }
 
-  async checkTransactionStatus(checkoutRequestId: string): Promise<{ status: string; amount?: number; phone?: string }> {
+  async checkTransactionStatus(checkoutRequestId: string): Promise<{ status: string; amount?: number; phone?: string; resultCode?: number; resultDesc?: string }> {
     const accessToken = await this.getAccessToken()
 
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)
@@ -147,14 +147,26 @@ export class MpesaService {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to check transaction status')
+      // AUDIT FIX (CRITICAL 2, 2026-07-02): Actionable error message.
+      const errBody = await response.text().catch(() => 'unknown')
+      throw new Error(
+        `Failed to check M-Pesa transaction status (HTTP ${response.status}). ${errBody}. ` +
+        `Check MPESA_CONSUMER_KEY/SECRET and MPESA_PASSKEY are correct.`
+      )
     }
 
     const data = await response.json()
+    // AUDIT FIX (CRITICAL 2, 2026-07-02): Check ResultCode, not ResponseCode.
+    // ResponseCode === '0' means the *query API call* succeeded — it does NOT
+    // mean the payment was completed. The actual payment status is in
+    // ResultCode: 0 = success, anything else = failure.
+    // Reference: Safaricom Daraja API docs — STK Push Query
     return {
-      status: data.ResponseCode === '0' ? 'completed' : 'failed',
+      status: data.ResultCode === 0 ? 'completed' : 'failed',
       amount: data.Amount ? parseFloat(data.Amount) : undefined,
-      phone: data.PhoneNumber
+      phone: data.PhoneNumber,
+      resultCode: data.ResultCode,
+      resultDesc: data.ResultDesc,
     }
   }
 
@@ -255,15 +267,19 @@ export class AirtelMoneyService {
 export function getMpesaService(): MpesaService | null {
   const consumerKey = process.env.MPESA_CONSUMER_KEY
   const consumerSecret = process.env.MPESA_CONSUMER_SECRET
-  
+
   if (!consumerKey || !consumerSecret) return null
 
+  // AUDIT FIX (HIGH 10, 2026-07-02): Use MPESA_ENV, not NODE_ENV.
+  // NODE_ENV=production does NOT mean M-Pesa is in production mode —
+  // the app can run in production with M-Pesa still in sandbox for testing.
+  // MPESA_ENV explicitly controls the M-Pesa environment.
   return new MpesaService({
     consumerKey,
     consumerSecret,
     shortCode: process.env.MPESA_SHORT_CODE || '',
     initiatorName: process.env.MPESA_INITIATOR_NAME || '',
     securityCredential: process.env.MPESA_SECURITY_CREDENTIAL || '',
-    environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
+    environment: (process.env.MPESA_ENV as 'sandbox' | 'production') || 'sandbox'
   })
 }

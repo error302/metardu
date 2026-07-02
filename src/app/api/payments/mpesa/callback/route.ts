@@ -7,19 +7,29 @@ import { getMpesaService } from '@/lib/payments/mpesa'
 import { getPlan } from '@/lib/subscription/catalog'
 
 // Safaricom IP whitelist for M-Pesa callbacks.
-// AUDIT NOTE (C4): These are hardcoded — Safaricom occasionally adds new IPs.
-// TODO: Move to env var (MPESA_CALLBACK_IP_WHITELIST) so it can be updated
-// without a code deploy.
-const SAFARICOM_IPS = [
+// AUDIT FIX (HIGH 5, 2026-07-02): Now configurable via env var
+// MPESA_CALLBACK_IP_WHITELIST (comma-separated). Falls back to the
+// hardcoded list below for backward compatibility. Update the env var
+// when Safaricom adds new IPs — no code deploy needed.
+const DEFAULT_SAFARICOM_IPS = [
   '196.201.214.200', '196.201.214.206', '196.201.213.114',
   '196.201.214.207', '196.201.214.208', '196.201.213.44',
   '196.201.212.127', '196.201.212.138', '196.201.212.129',
   '196.201.212.136', '196.201.212.74', '196.201.212.69',
 ]
 
+function getSafaricomIPs(): string[] {
+  const envList = process.env.MPESA_CALLBACK_IP_WHITELIST
+  if (envList) {
+    return envList.split(',').map(ip => ip.trim()).filter(Boolean)
+  }
+  return DEFAULT_SAFARICOM_IPS
+}
+
 function isSafaricomIP(req: NextRequest): boolean {
+  const whitelist = getSafaricomIPs()
   const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
-  return clientIp ? SAFARICOM_IPS.includes(clientIp) : false
+  return clientIp ? whitelist.includes(clientIp) : false
 }
 
 /**
@@ -103,9 +113,10 @@ export async function POST(request: NextRequest) {
 
   // 4. Determine planId — prefer URL param (validated), fall back to row
   const planId =
-    planIdParam && ['free', 'pro', 'team'].includes(planIdParam)
-      ? (planIdParam as 'free' | 'pro' | 'team')
-      : (paymentRow.plan_id as 'free' | 'pro' | 'team')
+    // AUDIT FIX (HIGH 7, 2026-07-02): Include 'firm' and 'enterprise'
+    planIdParam && ['free', 'pro', 'team', 'firm', 'enterprise'].includes(planIdParam)
+      ? (planIdParam as 'free' | 'pro' | 'team' | 'firm' | 'enterprise')
+      : (paymentRow.plan_id as 'free' | 'pro' | 'team' | 'firm' | 'enterprise')
 
   // 5. Handle failure result code
   if (typeof resultCode === 'number' && resultCode !== 0) {
