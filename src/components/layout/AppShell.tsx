@@ -43,6 +43,10 @@ function isAuthRoute(pathname: string): boolean {
   return pathname === '/login' || pathname === '/register' || pathname.startsWith('/login/') || pathname.startsWith('/register/')
 }
 
+function isLandingRoute(pathname: string): boolean {
+  return pathname === '/'
+}
+
 function isDashboardRoute(pathname: string): boolean {
   // Dashboard routes use sidebar navigation, not the top NavBar
   return pathname === '/dashboard' || pathname.startsWith('/dashboard/') ||
@@ -61,6 +65,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const admin = isAdminRoute(pathname)
   const hidden = isHiddenShellRoute(pathname)
   const auth = isAuthRoute(pathname)
+  const landing = isLandingRoute(pathname) // Has its own nav in the hero
   const dashboard = isDashboardRoute(pathname) // Uses sidebar nav, not top NavBar
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -192,18 +197,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <LanguageProvider>
         <CountryProvider>
           <SubscriptionProvider>
-            {/* AUDIT FIX: Hide top NavBar on dashboard routes — they use
-                sidebar navigation via (dashboard)/layout.tsx. Showing both
-                NavBar + sidebar header = double navigation bar. */}
-            {!dashboard && <NavBar />}
+            {/* Hide NavBar on landing page (has its own nav) and dashboard routes (sidebar) */}
+            {!dashboard && !landing && <NavBar />}
             <main id="main-content" className={`min-h-screen max-w-full overflow-x-hidden ${dashboard ? '' : 'pb-40 md:pb-0 mobile-nav-spacer'}`}>
               {children}
             </main>
-            <Footer />
+            {!landing && <Footer />}
             <FeedbackWidget />
             <KeyboardShortcuts />
             <QuickCompute />
-            {!dashboard && <MobileNav />}
+            {!dashboard && !landing && <MobileNav />}
             <CommandPalette />
             <NotificationToast />
             <OnboardingTour />
