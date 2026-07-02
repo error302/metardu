@@ -164,7 +164,7 @@
     "@types/three": "^0.183.1",
     "autoprefixer": "^10.4.27",
     "better-sqlite3": "^12.9.0",
-    "eslint": "^8.56.0",
+    "eslint": "^10.6.0",
     "eslint-config-next": "^14.2.0",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
