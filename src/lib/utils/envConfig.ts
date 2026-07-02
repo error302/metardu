@@ -95,12 +95,6 @@ export const featureFlags = {
   /** Enable workflow automator */
   automator: true,
 
-  /** Enable geofusion data integration */
-  geofusion: true,
-
-  /** Enable minescan safety dashboard */
-  minescan: true,
-
   /** Enable fieldguard data cleaner */
   fieldguard: true,
 

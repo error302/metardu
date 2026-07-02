@@ -64,7 +64,7 @@ const USER_SCOPED_TABLES = new Set([
   'collaboration_sessions', 'cpd_activities', 'peer_reviews',
   'peer_review_payments', 'digital_signatures', 'cleaned_datasets',
   'cadastra_validations', 'mine_twins', 'workflows', 'bathymetric_surveys',
-  'usv_missions', 'safety_incidents', 'geofusion_projects', 'geofusion_layers',
+  'usv_missions',
   'deed_plans', 'survey_reports', 'parcel_metadata', 'gnss_sessions',
   'signatures', 'equipment', 'equipment_calibrations', 'job_applications',
   'job_reviews', 'payment_history', 'render_jobs', 'project_submissions',
