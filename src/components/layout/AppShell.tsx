@@ -43,6 +43,12 @@ function isAuthRoute(pathname: string): boolean {
   return pathname === '/login' || pathname === '/register' || pathname.startsWith('/login/') || pathname.startsWith('/register/')
 }
 
+function isDashboardRoute(pathname: string): boolean {
+  // Dashboard routes use sidebar navigation, not the top NavBar
+  return pathname === '/dashboard' || pathname.startsWith('/dashboard/') ||
+         pathname.startsWith('/survey/') || pathname.startsWith('/project/')
+}
+
 function isHiddenShellRoute(pathname: string): boolean {
   return isFullScreenRoute(pathname) || isAdminRoute(pathname)
 }
@@ -55,6 +61,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const admin = isAdminRoute(pathname)
   const hidden = isHiddenShellRoute(pathname)
   const auth = isAuthRoute(pathname)
+  const dashboard = isDashboardRoute(pathname) // Uses sidebar nav, not top NavBar
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
 
@@ -185,15 +192,18 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <LanguageProvider>
         <CountryProvider>
           <SubscriptionProvider>
-            <NavBar />
-            <main id="main-content" className="min-h-screen pb-40 md:pb-0 mobile-nav-spacer max-w-full overflow-x-hidden">
+            {/* AUDIT FIX: Hide top NavBar on dashboard routes — they use
+                sidebar navigation via (dashboard)/layout.tsx. Showing both
+                NavBar + sidebar header = double navigation bar. */}
+            {!dashboard && <NavBar />}
+            <main id="main-content" className={`min-h-screen max-w-full overflow-x-hidden ${dashboard ? '' : 'pb-40 md:pb-0 mobile-nav-spacer'}`}>
               {children}
             </main>
             <Footer />
             <FeedbackWidget />
             <KeyboardShortcuts />
             <QuickCompute />
-            <MobileNav />
+            {!dashboard && <MobileNav />}
             <CommandPalette />
             <NotificationToast />
             <OnboardingTour />
