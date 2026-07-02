@@ -23,7 +23,7 @@ import React, { memo, useState, useCallback, useEffect } from 'react'
 import {
   Binoculars, Crosshair, Calculator, Target,
   Layers, Download,
-  X,
+  X, Menu,
   MapPin, PenTool, Hexagon, Circle,
   Undo2, Redo2, Trash2, Edit3,
   Navigation, Search, Bookmark,
@@ -625,6 +625,7 @@ const ExportPanel = memo(function ExportPanel() {
 export const MapToolDock = memo(function MapToolDock() {
   const [activeCategory, setActiveCategory] = useState<DockCategory>(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
+  const [dockVisible, setDockVisible] = useState(false) // AUDIT FIX: hidden by default, toggle to show
   const {
     drawMode, editMode, measureMode, gpsTracking, stakeoutActive,
     hasTraverse, showAnnotations, isMobile,
@@ -811,8 +812,22 @@ export const MapToolDock = memo(function MapToolDock() {
       {/* METARDU watermark */}
       <MetarduWatermark />
 
-      {/* Floating icon bar (left edge) */}
-      <div className="absolute top-3 left-3 z-20 flex flex-col gap-1">
+      {/* Toggle button — shows/hides the tool dock */}
+      <button
+        onClick={() => {
+          setDockVisible(!dockVisible)
+          if (dockVisible) closeDrawer()
+        }}
+        className="absolute top-3 left-3 z-30 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full bg-[#0d0d14]/60 backdrop-blur-xl border border-[var(--border-color)]/[0.08] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[#0d0d14]/80 transition-all"
+        title={dockVisible ? 'Hide tools (Esc)' : 'Show tools'}
+        aria-label={dockVisible ? 'Hide map tools' : 'Show map tools'}
+      >
+        {dockVisible ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+      </button>
+
+      {/* Floating icon bar (left edge) — only visible when toggled */}
+      {dockVisible && (
+      <div className="absolute top-3 left-3 z-20 flex flex-col gap-1 mt-12">
         {CATEGORIES.map(cat => {
           const Icon = cat.icon
           const active = isCategoryActive(cat.id)
@@ -842,6 +857,7 @@ export const MapToolDock = memo(function MapToolDock() {
           )
         })}
       </div>
+      )}
 
       {/* Sliding drawer panel */}
       {activeCategory && (
