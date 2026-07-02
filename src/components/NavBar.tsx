@@ -447,7 +447,7 @@ export default function NavBar() {
             ) : (
               /* Default Logo on mobile root pages */
               <Link href="/" prefetch={false}>
-                <MetarduLogo color="var(--accent)" size={24} showWordmark={true} />
+                <MetarduLogo color="var(--text-primary)" size={24} showWordmark={true} />
               </Link>
             )}
           </div>
@@ -455,7 +455,7 @@ export default function NavBar() {
           {/* Desktop Logo (always visible on desktop) */}
           <div className="hidden md:flex items-center">
             <Link href="/" prefetch={false}>
-              <MetarduLogo color="var(--accent)" size={28} showWordmark={true} />
+              <MetarduLogo color="var(--text-primary)" size={28} showWordmark={true} />
             </Link>
           </div>
 
