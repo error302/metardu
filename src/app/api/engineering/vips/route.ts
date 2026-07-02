@@ -20,7 +20,7 @@ export const POST = apiHandler({ auth: true, schema: SaveVIPsSchema, rateLimit: 
     const insertedRows: any[] = []
     for (const vip of vips) {
       const { rows } = await client.query(
-        `INSERT INTO vertical_ips (alignment_id, chainage, reduced_level, k_value)
+        `INSERT INTO alignment_vertical_ips (alignment_id, chainage, reduced_level, k_value)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (alignment_id, chainage) DO UPDATE SET
           reduced_level = EXCLUDED.reduced_level,

@@ -1,0 +1,89 @@
+/**
+ * /api/submissions/create
+ *
+ * POST — Create a new submission record for a project.
+ *
+ * AUDIT FIX (2026-07-03): The documents page (src/app/project/[id]/
+ * documents/page.tsx) calls `/api/submissions/create` (plural) with
+ * body `{ projectId }` and expects `{ success, submissionNumber }`.
+ * Only `/api/submission/generate` (singular, different shape) existed.
+ *
+ * This route creates a row in the `submissions` table and returns
+ * a human-readable submission number (format: SUB-YYYY-NNNNN) that
+ * the UI displays to the surveyor.
+ *
+ * Body:  { projectId: string (UUID) }
+ * Response (201): { success: true, submissionNumber: string, submissionId: string }
+ */
+
+export const dynamic = 'force-dynamic'
+
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { apiHandler } from '@/lib/apiHandler'
+import db from '@/lib/db'
+
+const CreateSubmissionSchema = z.object({
+  projectId: z.string().uuid(),
+})
+
+export const POST = apiHandler(
+  { auth: true, schema: CreateSubmissionSchema, rateLimit: { max: 30, windowMs: 60000 } },
+  async (_req, ctx) => {
+    const { projectId } = ctx.body as z.infer<typeof CreateSubmissionSchema>
+
+    // ── Verify project exists + user owns it ───────────────────────────────
+    const { rows: projectRows } = await db.query(
+      'SELECT id, survey_type FROM projects WHERE id = $1 AND user_id = $2',
+      [projectId, ctx.userId],
+    )
+    if (projectRows.length === 0) {
+      return NextResponse.json(
+        { error: 'Project not found or access denied', code: 'NOT_FOUND' },
+        { status: 404 },
+      )
+    }
+
+    const project = projectRows[0] as { id: string; survey_type: string }
+
+    // ── Generate a sequential submission number for the current year ───────
+    // Format: SUB-YYYY-NNNNN  (zero-padded sequence within the year)
+    const year = new Date().getFullYear()
+    const { rows: seqRows } = await db.query(
+      `SELECT COUNT(*)::int AS count
+         FROM submissions
+        WHERE project_id = $1
+          AND EXTRACT(YEAR FROM created_at) = $2`,
+      [projectId, year],
+    )
+    const seq = (seqRows[0]?.count ?? 0) + 1
+    const submissionNumber = `SUB-${year}-${String(seq).padStart(5, '0')}`
+
+    // ── Insert the submissions row ─────────────────────────────────────────
+    const { rows: insertRows } = await db.query(
+      `INSERT INTO submissions (project_id, submission_type, status)
+       VALUES ($1, $2, 'draft')
+       RETURNING id, created_at`,
+      [projectId, project.survey_type || 'cadastral'],
+    )
+
+    if (insertRows.length === 0) {
+      return NextResponse.json(
+        { error: 'Failed to create submission', code: 'INSERT_FAILED' },
+        { status: 500 },
+      )
+    }
+
+    const submissionId = insertRows[0].id as string
+
+    return NextResponse.json(
+      {
+        success: true,
+        submissionId,
+        submissionNumber,
+        createdAt: insertRows[0].created_at,
+      },
+      { status: 201 },
+    )
+  },
+)

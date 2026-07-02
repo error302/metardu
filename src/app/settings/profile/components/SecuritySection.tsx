@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { signOut } from 'next-auth/react'
 
 interface SecuritySectionProps {
   email: string
@@ -225,9 +226,22 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
             <button
               type="button"
               className="px-3 py-1.5 text-xs font-medium border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-tertiary)]"
-              onClick={() => {
-                // Defer to NextAuth signOut flow — not yet wired in this prototype
-                alert('This will sign you out everywhere. Feature coming soon.')
+              onClick={async () => {
+                // AUDIT FIX (2026-07-03): Wire to NextAuth signOut.
+                // This signs out the current device. True multi-device
+                // session revocation requires a server-side session
+                // table (see audit finding L8) — until that lands,
+                // we sign out this device and tell the user to change
+                // their password if they suspect another device is
+                // compromised.
+                if (!confirm(
+                  'This will sign you out on this device.\n\n' +
+                  'To revoke sessions on OTHER devices, change your password — ' +
+                  'that forces all sessions to re-authenticate.\n\n' +
+                  'Continue signing out this device?'
+                )) return
+
+                await signOut({ callbackUrl: '/login?signedOut=everywhere' })
               }}
             >
               Sign out everywhere

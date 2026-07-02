@@ -35,21 +35,14 @@ export default function DataIntegrator({ projectId, layers, onIntegrationComplet
     setError(null)
 
     try {
-      const response = projectId === 'default'
-        ? {
-            integrated_data: {
-              type: 'FeatureCollection',
-              features: [],
-              merge_strategy: mergeStrategy,
-            },
-            layer_count: selectedLayers.length,
-            features_created: selectedLayers.length,
-          }
-        : await integrateLayers({
-            project_id: projectId,
-            layer_ids: selectedLayers,
-            merge_strategy: mergeStrategy
-          })
+      // Always call the real integrateLayers. If the backend isn't
+      // reachable (no /api/geofusion/integrate route yet) we surface
+      // the error honestly instead of returning fake data.
+      const response = await integrateLayers({
+        project_id: projectId,
+        layer_ids: selectedLayers,
+        merge_strategy: mergeStrategy,
+      })
       setResult(response)
       onIntegrationComplete?.(response)
     } catch (err) {

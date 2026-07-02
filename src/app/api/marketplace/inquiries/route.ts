@@ -3,9 +3,22 @@
  *
  * GET  — Get inquiries for a listing (owner only)
  * POST — Send an inquiry to a listing (any authenticated user)
+ *
+ * AUDIT FIX (2026-07-03): This route previously queried
+ * `instrument_inquiries` (which doesn't exist) with columns
+ * `buyer_name`, `buyer_contact` (also don't exist). The actual table
+ * is `listing_inquiries` (created in migration 033) with columns
+ * `user_id`, `message`, `contact_email`, `contact_phone`, `status`.
+ *
+ * We now:
+ *   - Read from `listing_inquiries`
+ *   - JOIN with users + profiles so the listing owner can see the
+ *     buyer's name + email without the buyer self-attesting
+ *   - Look up the listing owner from `instrument_listings.user_id`
+ *     (not `seller_contact`) for the auth check
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { apiSuccess, apiError } from '@/lib/api/response'
 import db from '@/lib/db'
@@ -35,16 +48,34 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   }
 
   const { rows } = await db.query(
-    'SELECT * FROM instrument_inquiries WHERE listing_id = $1 ORDER BY created_at DESC',
+    `SELECT
+       li.id,
+       li.listing_id,
+       li.user_id,
+       li.message,
+       li.contact_email,
+       li.contact_phone,
+       li.status,
+       li.created_at,
+       u.email       AS buyer_email,
+       u.full_name   AS buyer_name,
+       p.phone       AS buyer_phone
+     FROM listing_inquiries li
+     LEFT JOIN users    u ON u.id  = li.user_id
+     LEFT JOIN profiles p ON p.id  = li.user_id
+     WHERE li.listing_id = $1
+     ORDER BY li.created_at DESC`,
     [listingId]
   )
 
   const inquiries = rows.map((row: Record<string, unknown>) => ({
     id: row.id,
     listingId: row.listing_id,
-    buyerName: row.buyer_name,
-    buyerContact: row.buyer_contact,
+    userId: row.user_id,
+    buyerName: row.buyer_name || row.contact_email || 'Anonymous',
+    buyerContact: row.contact_phone || row.buyer_phone || row.contact_email || row.buyer_email || '',
     message: row.message,
+    status: row.status,
     sentAt: row.created_at,
   }))
 
@@ -57,16 +88,15 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   const body = ctx.body as Record<string, unknown>
 
   const listingId = String(body.listingId ?? '')
-  const buyerName = String(body.buyerName ?? '').trim()
-  const buyerContact = String(body.buyerContact ?? '').trim()
   const message = String(body.message ?? '').trim()
+  // Optional — buyer may provide a contact phone/email different from account
+  const contactEmail = String(body.contactEmail ?? body.buyerEmail ?? '').trim() || null
+  const contactPhone = String(body.contactPhone ?? body.buyerPhone ?? '').trim() || null
 
   if (!listingId) return NextResponse.json(apiError('Listing ID is required'), { status: 400 })
-  if (!buyerName) return NextResponse.json(apiError('Your name is required'), { status: 400 })
-  if (!buyerContact) return NextResponse.json(apiError('Your contact is required'), { status: 400 })
   if (!message) return NextResponse.json(apiError('Message is required'), { status: 400 })
 
-  // Verify listing exists
+  // Verify listing exists and is not sold
   const { rows: listingRows } = await db.query(
     'SELECT id FROM instrument_listings WHERE id = $1 AND NOT sold',
     [listingId]
@@ -76,19 +106,21 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   }
 
   const { rows } = await db.query(
-    `INSERT INTO instrument_inquiries (listing_id, buyer_name, buyer_contact, message)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO listing_inquiries (listing_id, user_id, message, contact_email, contact_phone)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
-    [listingId, buyerName, buyerContact, message]
+    [listingId, ctx.userId, message, contactEmail, contactPhone]
   )
 
   const row = rows[0] as Record<string, unknown>
   return NextResponse.json(apiSuccess({
     id: row.id,
     listingId: row.listing_id,
-    buyerName: row.buyer_name,
-    buyerContact: row.buyer_contact,
+    userId: row.user_id,
     message: row.message,
+    contactEmail: row.contact_email,
+    contactPhone: row.contact_phone,
+    status: row.status,
     sentAt: row.created_at,
   }), { status: 201 })
 })

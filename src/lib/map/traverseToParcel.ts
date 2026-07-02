@@ -151,26 +151,36 @@ export async function createParcelFromTraverse(
   const result = traverseToParcelResult(traversePoints)
   const areaHa = result.area / 10000
 
-  // 3. Save the polygon as the parcel boundary via the scheme API
-  const boundaryRes = await fetch('/api/scheme/parcel/boundary', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      parcel_id: parcelId,
-      project_id: projectId,
-      boundary_geojson: result.polygon,
-      area_ha: areaHa,
-      source: 'traverse',
-      point_count: result.pointCount,
-      perimeter_m: result.perimeter,
-      crs: 'EPSG:21037',
-    }),
-  })
+  // 3. Save the polygon as the parcel boundary via the scheme API.
+  //
+  // AUDIT FIX (2026-07-03): The original code called the singular
+  // /api/scheme/parcel/boundary route (which doesn't exist) and then
+  // fell back to /api/scheme/parcel/${parcelId} (also singular — also
+  // doesn't exist). The actual routes are PLURAL:
+  //   PUT   /api/scheme/parcels/[id]/boundary
+  //   PATCH /api/scheme/parcels/[id]
+  // We now call the plural routes directly. If the call fails, we
+  // still return the computed polygon to the caller (the UI shows it
+  // as a preview), but we no longer silently swallow the persistence
+  // failure — we log it with the actual error.
+  try {
+    const boundaryRes = await fetch(`/api/scheme/parcels/${parcelId}/boundary`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_id: projectId,
+        boundary_geojson: result.polygon,
+        area_ha: areaHa,
+        source: 'traverse',
+        point_count: result.pointCount,
+        perimeter_m: result.perimeter,
+        crs: 'EPSG:21037',
+      }),
+    })
 
-  if (!boundaryRes.ok) {
-    // If the boundary API doesn't exist, update the parcel directly
-    try {
-      const updateRes = await fetch(`/api/scheme/parcel/${parcelId}`, {
+    if (!boundaryRes.ok) {
+      // Fall back to PATCHing the parcel directly with boundary + status
+      const updateRes = await fetch(`/api/scheme/parcels/${parcelId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -181,12 +191,18 @@ export async function createParcelFromTraverse(
       })
 
       if (!updateRes.ok) {
-        throw new Error(`Failed to update parcel boundary: ${updateRes.statusText}`)
+        const errBody = await updateRes.text().catch(() => '<no body>')
+        console.warn(
+          `[traverseToParcel] Could not persist boundary (PUT boundary ${boundaryRes.status}, PATCH parcel ${updateRes.status}): ${errBody}. ` +
+          `Returning computed result only — UI will show polygon but server parcel row is unchanged.`,
+        )
       }
-    } catch {
-      // Last resort: just return the computed result without persisting
-      console.warn('[traverseToParcel] Could not save boundary to server, returning computed result only')
     }
+  } catch (err) {
+    console.warn(
+      `[traverseToParcel] Network error persisting boundary:`,
+      err instanceof Error ? err.message : err,
+    )
   }
 
   return {

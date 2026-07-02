@@ -20,7 +20,7 @@ export const POST = apiHandler({ auth: true, schema: SaveStationsSchema, rateLim
     const insertedRows: any[] = []
     for (const station of stations) {
       const { rows } = await client.query(
-        `INSERT INTO alignment_stations (alignment_id, chainage, ground_level)
+        `INSERT INTO cross_section_stations (alignment_id, chainage, ground_level)
          VALUES ($1, $2, $3)
          ON CONFLICT (alignment_id, chainage) DO UPDATE SET
           ground_level = EXCLUDED.ground_level,
@@ -52,7 +52,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   }
 
   const { rows } = await db.query(
-    'SELECT * FROM alignment_stations WHERE alignment_id = $1 ORDER BY chainage ASC',
+    'SELECT * FROM cross_section_stations WHERE alignment_id = $1 ORDER BY chainage ASC',
     [alignmentId]
   )
 

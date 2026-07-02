@@ -613,7 +613,35 @@ export default function DocumentsPage({ params }: PageProps) {
 
             {submissionNumber && (
               <button
-                onClick={() => alert('Download full submission package coming soon!')}
+                onClick={async () => {
+                  if (!project) return
+                  try {
+                    const res = await fetch('/api/submission/assemble', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ projectId: params.id }),
+                    })
+                    if (!res.ok) {
+                      const err = await res.json().catch(() => ({}))
+                      const blockers = err.blockers?.length
+                        ? `\n\nBlockers:\n• ${err.blockers.join('\n• ')}`
+                        : ''
+                      alert(`Failed to assemble package: ${err.error || res.statusText}${blockers}`)
+                      return
+                    }
+                    const blob = await res.blob()
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `${submissionNumber}.zip`
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
+                    URL.revokeObjectURL(url)
+                  } catch (e) {
+                    alert(`Error downloading package: ${e instanceof Error ? e.message : String(e)}`)
+                  }
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg text-sm hover:bg-green-700 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

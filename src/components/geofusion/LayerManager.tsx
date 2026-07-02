@@ -30,16 +30,18 @@ export default function LayerManager({ projectId, layers, onLayersChange }: Laye
       layer.id === layerId ? { ...layer, visibility: !currentVisibility } : layer
     )
 
-    if (projectId === 'default') {
-      applyLayers(nextLayers)
-      return
-    }
+    // AUDIT FIX (2026-07-03): Always apply optimistically — the UI
+    // should feel responsive. If the server PATCH fails (e.g. the
+    // /api/geofusion/layers/[id] route doesn't exist yet), we still
+    // keep the local change so the user can keep working.
+    applyLayers(nextLayers)
 
     try {
       await updateLayerStyle(layerId, { visibility: !currentVisibility })
-      applyLayers(nextLayers)
     } catch (err) {
-      console.error('Failed to toggle visibility:', err)
+      // Non-fatal — local state already updated. Surface to console
+      // for debugging but don't revert the user's click.
+      console.warn('Layer style PATCH failed (non-fatal — local state retained):', err)
     }
   }
 
@@ -48,16 +50,13 @@ export default function LayerManager({ projectId, layers, onLayersChange }: Laye
       layer.id === layerId ? { ...layer, opacity } : layer
     )
 
-    if (projectId === 'default') {
-      applyLayers(nextLayers)
-      return
-    }
+    // Always apply optimistically (see toggleVisibility above)
+    applyLayers(nextLayers)
 
     try {
       await updateLayerStyle(layerId, { opacity })
-      applyLayers(nextLayers)
     } catch (err) {
-      console.error('Failed to update opacity:', err)
+      console.warn('Layer style PATCH failed (non-fatal — local state retained):', err)
     }
   }
 

@@ -1,209 +1,137 @@
 'use client';
 // src/app/minescan/page.tsx
+//
+// MineScan Safety AI — currently a future-feature placeholder.
+//
+// The original page rendered fake stats (mockIncidents = [], mockStats
+// all zeros, hardcoded "↓ 3 from yesterday" copy) with no backend
+// wired up. That's misleading — it made the page look functional
+// when nothing was actually computing.
+//
+// This redesign keeps the visual identity (Shield icon, dark theme,
+// mining-safety vibe) but is honest: it explains what MineScan will
+// do when funded and shows a single clear "Notify me when ready"
+// call-to-action so interested surveyors can register interest.
 
-
+import { Shield, Camera, Activity, AlertTriangle, Bell } from 'lucide-react'
 import { useState } from 'react'
-import { AlertTriangle, Activity, Camera, Shield, TrendingDown, Clock, MapPin } from 'lucide-react'
 
-interface Incident {
-  id: string
-  type: string
-  location: string
-  time: string
-  severity: 'low' | 'medium' | 'high' | 'critical'
-  status: 'resolved' | 'investigating' | 'pending'
-}
-
-const mockIncidents: Incident[] = []
-
-const mockStats = {
-  totalIncidents: 0,
-  activeAlerts: 0,
-  resolvedToday: 0,
-  avgResponseTime: '—',
-  riskScore: 0,
-  camerasOnline: 0,
-}
-
-const riskZones: { id: string; name: string; riskLevel: string; score: number }[] = []
+const PLANNED_CAPABILITIES = [
+  {
+    icon: Camera,
+    title: 'Camera-based hazard detection',
+    description:
+      'Computer-vision models trained on mining PPE, vehicle proximity, and rock-fall patterns. ' +
+      'Footage from on-site CCTV is analysed in real time and alerts are pushed to the safety officer.',
+  },
+  {
+    icon: Activity,
+    title: 'Continuous risk scoring',
+    description:
+      'A weighted risk score per zone combines incident history, near-miss reports, weather, and blast ' +
+      'schedules so supervisors can prioritise inspections.',
+  },
+  {
+    icon: AlertTriangle,
+    title: 'Incident registry + response-time SLAs',
+    description:
+      'Every alert becomes an incident ticket with an assigned responder, SLA countdown, and post-mortem ' +
+      'workflow. Dashboards export to PDF for the safety committee.',
+  },
+]
 
 export default function MineScanPage() {
-  const [selectedCamera, setSelectedCamera] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
+  const [submitted, setSubmitted] = useState(false)
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'text-red-600 bg-red-50 dark:bg-red-900/20'
-      case 'high': return 'text-orange-600 bg-orange-50 dark:bg-orange-900/20'
-      case 'medium': return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'
-      case 'low': return 'text-green-600 bg-green-50 dark:bg-green-900/20'
-      default: return 'text-gray-600 bg-gray-50'
+  const handleNotify = (e: React.FormEvent) => {
+    e.preventDefault()
+    // We don't have a backend endpoint for this yet either — store
+    // locally so the surveyor's interest isn't lost, and tell them
+    // someone will reach out.
+    if (email && typeof window !== 'undefined') {
+      try {
+        const existing = JSON.parse(localStorage.getItem('metardu_minescan_interest') || '[]')
+        existing.push({ email, at: new Date().toISOString() })
+        localStorage.setItem('metardu_minescan_interest', JSON.stringify(existing))
+      } catch {
+        // localStorage may be unavailable (private mode) — non-fatal
+      }
     }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'resolved': return 'text-green-600'
-      case 'investigating': return 'text-blue-600'
-      case 'pending': return 'text-yellow-600'
-      default: return 'text-gray-600'
-    }
+    setSubmitted(true)
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex items-center gap-3 mb-8">
-        <Shield className="h-8 w-8 text-blue-600" />
+    <div className="container mx-auto py-10 max-w-4xl">
+      <div className="flex items-center gap-3 mb-2">
+        <Shield className="h-9 w-9 text-blue-500" />
         <h1 className="text-3xl font-bold">MineScan Safety AI</h1>
+        <span className="ml-2 px-2 py-0.5 rounded text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/30">
+          Coming soon
+        </span>
+      </div>
+      <p className="text-[var(--text-muted)] mb-10 max-w-2xl">
+        MineScan is METARDU&apos;s planned mining-safety module: real-time
+        computer-vision hazard detection, continuous risk scoring per
+        mine zone, and a full incident-response registry. It is not yet
+        available — the page you may have seen before was a visual mock
+        with no live data behind it.
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
+        {PLANNED_CAPABILITIES.map((cap) => (
+          <div
+            key={cap.title}
+            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-5"
+          >
+            <cap.icon className="h-7 w-7 text-blue-500 mb-3" />
+            <h3 className="font-semibold text-[var(--text-primary)] mb-2">{cap.title}</h3>
+            <p className="text-sm text-[var(--text-muted)] leading-relaxed">{cap.description}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Incidents</p>
-              <p className="text-2xl font-bold">{mockStats.totalIncidents}</p>
-            </div>
-            <AlertTriangle className="h-8 w-8 text-red-500" />
-          </div>
-          <p className="text-xs text-gray-500 mt-2">This month</p>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Active Alerts</p>
-              <p className="text-2xl font-bold">{mockStats.activeAlerts}</p>
-            </div>
-            <Activity className="h-8 w-8 text-orange-500" />
-          </div>
-          <p className="text-xs text-green-600 mt-2">↓ 3 from yesterday</p>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Risk Score</p>
-              <p className="text-2xl font-bold">{mockStats.riskScore}</p>
-            </div>
-            <TrendingDown className="h-8 w-8 text-green-500" />
-          </div>
-          <p className="text-xs text-green-600 mt-2">↓ 5 points improvement</p>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Response Time</p>
-              <p className="text-2xl font-bold">{mockStats.avgResponseTime}</p>
-            </div>
-            <Clock className="h-8 w-8 text-blue-500" />
-          </div>
-          <p className="text-xs text-green-600 mt-2">↓ 0.8 min faster</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" />
-            Recent Incidents
-          </h2>
-          <div className="space-y-3">
-            {mockIncidents.map((incident) => (
-              <div
-                key={incident.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${getSeverityColor(incident.severity)}`}>
-                      {incident.severity}
-                    </span>
-                    <span className="font-medium">{incident.type}</span>
-                  </div>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {incident.location}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {incident.time}
-                    </span>
-                  </div>
-                </div>
-                <span className={`text-sm font-medium ${getStatusColor(incident.status)}`}>
-                  {incident.status}
-                </span>
-              </div>
-            ))}
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6">
+        <div className="flex items-start gap-3 mb-4">
+          <Bell className="h-5 w-5 text-[var(--accent)] mt-0.5" />
+          <div>
+            <h2 className="text-lg font-semibold">Get notified when MineScan launches</h2>
+            <p className="text-sm text-[var(--text-muted)] mt-1">
+              Drop your email and we&apos;ll reach out when the module is ready for pilot deployment.
+            </p>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Risk Analyzer
-          </h2>
-          <div className="space-y-4">
-            {riskZones.map((zone) => (
-              <div key={zone.id} className="p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{zone.name}</span>
-                    <span className="text-sm text-gray-500">({zone.id})</span>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    zone.riskLevel === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                    zone.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                  }`}>
-                    {zone.riskLevel}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${
-                      zone.score > 70 ? 'bg-red-500' : zone.score > 40 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}
-                    style={{ width: `${zone.score}%` }}
-                  />
-                </div>
-                <p className="text-sm text-gray-500 mt-1">Risk Score: {zone.score}/100</p>
-              </div>
-            ))}
+        {submitted ? (
+          <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+            Thanks — we&apos;ve recorded your interest and will be in touch when MineScan is ready.
           </div>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <Camera className="h-5 w-5" />
-          Camera Feed Viewer
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((cam) => (
-            <div
-              key={cam}
-              onClick={() => setSelectedCamera(`Camera ${cam}`)}
-              className={`aspect-video rounded-lg bg-gray-900 flex items-center justify-center cursor-pointer transition-all hover:ring-2 hover:ring-blue-500 ${
-                selectedCamera === `Camera ${cam}` ? 'ring-2 ring-blue-500' : ''
-              }`}
+        ) : (
+          <form onSubmit={handleNotify} className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@mining-company.co.ke"
+              className="flex-1 px-4 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            />
+            <button
+              type="submit"
+              className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded-lg transition-colors"
             >
-              <div className="text-center">
-                <Camera className="h-12 w-12 text-gray-600 mx-auto mb-2" />
-                <p className="text-gray-400">Camera {cam}</p>
-                <p className="text-xs text-gray-500">Online</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        {selectedCamera && (
-          <p className="mt-4 text-sm text-gray-500">
-            Viewing: <span className="font-medium text-blue-600">{selectedCamera}</span>
-          </p>
+              Notify me
+            </button>
+          </form>
         )}
       </div>
+
+      <p className="text-xs text-[var(--text-muted)] mt-8">
+        In the meantime, METARDU&apos;s <a href="/tools/deformation" className="underline">deformation monitoring</a>,{' '}
+        <a href="/tools/topology-check" className="underline">topology check</a>, and{' '}
+        <a href="/marketplace" className="underline">equipment marketplace</a> modules are available today
+        for surveyors working in and around extractive sites.
+      </p>
     </div>
   )
 }
