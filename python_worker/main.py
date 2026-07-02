@@ -256,6 +256,136 @@ async def levelling_closure(params: dict):
         "k_km": K,
     }
 
+
+# ============================================================
+# GNSS BASELINE PROCESSING (RTKLIB integration — audit C9)
+# ============================================================
+
+import tempfile
+import subprocess
+import shutil
+
+def _check_rtklib():
+    """Check if rnx2rtkp is available. Returns the path or None."""
+    return shutil.which("rnx2rtkp")
+
+@register_task("gnss_baseline_process")
+async def gnss_baseline_process(params: dict):
+    """
+    Process a GNSS baseline using RTKLIB's rnx2rtkp.
+
+    Parameters:
+      base_rinex:  str — Base station RINEX observation file content
+      rover_rinex: str — Rover station RINEX observation file content
+      nav_rinex:   str — RINEX navigation file content
+      options:     dict — mode, frequency, elevation_mask, ambiguity_resolution
+
+    Returns: dict with rover position, sigmas, quality, sat_count, ratio
+    """
+    rtklib = _check_rtklib()
+    if not rtklib:
+        raise RuntimeError(
+            "RTKLIB is not installed in the worker container. "
+            "Install via: apt-get install rtklib (or compile from source)."
+        )
+
+    base_content = params.get("base_rinex", "")
+    rover_content = params.get("rover_rinex", "")
+    nav_content = params.get("nav_rinex", "")
+    options = params.get("options", {})
+
+    if not base_content or not rover_content or not nav_content:
+        raise ValueError("base_rinex, rover_rinex, and nav_rinex are all required")
+
+    mode = options.get("mode", "static")
+    freq = options.get("frequency", "l1+l2")
+    el_mask = options.get("elevation_mask", 15)
+    ar_mode = options.get("ambiguity_resolution", "fix")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_path = f"{tmpdir}/base.obs"
+        rover_path = f"{tmpdir}/rover.obs"
+        nav_path = f"{tmpdir}/nav.nav"
+        out_path = f"{tmpdir}/result.pos"
+
+        with open(base_path, "w") as f:
+            f.write(base_content)
+        with open(rover_path, "w") as f:
+            f.write(rover_content)
+        with open(nav_path, "w") as f:
+            f.write(nav_content)
+
+        cmd = [
+            rtklib, "-k", f"pos1-posmode={mode}",
+            "-k", f"pos1-frequency={freq}",
+            "-k", f"pos1-elmask={el_mask}",
+            "-k", f"pos1-armode={ar_mode}",
+            "-o", out_path, base_path, rover_path, nav_path,
+        ]
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("RTKLIB timed out (300s). Try a shorter observation file.")
+        except Exception as e:
+            raise RuntimeError(f"RTKLIB execution failed: {e}")
+
+        if result.returncode != 0:
+            raise RuntimeError(f"RTKLIB error {result.returncode}: {result.stderr[:500]}")
+
+        try:
+            with open(out_path, "r") as f:
+                output = f.read()
+        except Exception:
+            output = result.stdout
+
+        return _parse_rtklib_output(output)
+
+
+def _parse_rtklib_output(output: str) -> dict:
+    """Parse RTKLIB .pos output file."""
+    lines = output.strip().split("\n")
+    data_lines = [l for l in lines if not l.startswith("%") and l.strip()]
+
+    if not data_lines:
+        raise RuntimeError("RTKLIB produced no output. Check RINEX format.")
+
+    last_line = data_lines[-1]
+    parts = last_line.split()
+
+    if len(parts) < 8:
+        raise RuntimeError(f"Unexpected RTKLIB output format: {last_line[:200]}")
+
+    try:
+        lat = float(parts[2])
+        lon = float(parts[3])
+        height = float(parts[4])
+        quality_flag = int(parts[5])
+        nsat = int(parts[6])
+        sdn = float(parts[7]) if len(parts) > 7 else 0
+        sde = float(parts[8]) if len(parts) > 8 else 0
+        sdu = float(parts[9]) if len(parts) > 9 else 0
+        ratio = float(parts[15]) if len(parts) > 15 else 0
+
+        quality_map = {1: "FIX", 2: "FLOAT", 3: "SBAS", 4: "DGPS", 5: "SINGLE", 6: "PPP"}
+        quality = quality_map.get(quality_flag, "UNKNOWN")
+
+        return {
+            "rover_latitude": lat,
+            "rover_longitude": lon,
+            "rover_height": height,
+            "sigma_north": sdn,
+            "sigma_east": sde,
+            "sigma_up": sdu,
+            "quality": quality,
+            "sat_count": nsat,
+            "ratio": ratio,
+            "raw_output": output[-2000:] if len(output) > 2000 else output,
+        }
+    except (ValueError, IndexError) as e:
+        raise RuntimeError(f"Failed to parse RTKLIB output: {e}. Line: {last_line[:200]}")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

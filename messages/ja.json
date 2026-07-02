@@ -262,7 +262,11 @@
     "leveling": "水準計算機",
     "traverse": "トラバース計算",
     "usSurveyReference": "米国測量基準リファレンス",
-    "usSurveyReferenceDesc": "米国魚類野生生物局およびBLM測量基準リファレンス"
+    "usSurveyReferenceDesc": "米国魚類野生生物局およびBLM測量基準リファレンス",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "権利証図面",

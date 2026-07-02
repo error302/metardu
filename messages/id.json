@@ -262,7 +262,11 @@
     "leveling": "Kalkulator Leveling",
     "traverse": "Perhitungan Poligon",
     "usSurveyReference": "Referensi Standar Survei AS",
-    "usSurveyReferenceDesc": "Referensi standar survei US Fish & Wildlife Service dan BLM"
+    "usSurveyReferenceDesc": "Referensi standar survei US Fish & Wildlife Service dan BLM",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "Rencana Sertifikat",

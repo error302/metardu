@@ -118,11 +118,28 @@ export function OnboardingTour() {
   const handleSkip = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, new Date().toISOString())
     localStorage.setItem('metardu:onboarding-skipped', 'true')
+    // AUDIT FIX (M18, 2026-07-02): Persist to server so cross-device users
+    // don't see the tour again. Fire-and-forget — localStorage is the
+    // immediate source of truth; the server record prevents the tour from
+    // reappearing on a new device.
+    fetch('/api/user/onboarding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'skip' }),
+      credentials: 'include',
+    }).catch(() => { /* silent fail — localStorage is enough */ })
     setActive(false)
   }, [])
 
   const handleComplete = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, new Date().toISOString())
+    // AUDIT FIX (M18, 2026-07-02): Persist completion to server.
+    fetch('/api/user/onboarding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'complete' }),
+      credentials: 'include',
+    }).catch(() => { /* silent fail — localStorage is enough */ })
     setActive(false)
   }, [])
 
@@ -158,11 +175,27 @@ export function OnboardingTour() {
 
   return (
     <>
-      {/* Backdrop overlay */}
-      <div role="button" tabIndex={0} aria-label="Skip tour" className="fixed inset-0 z-[9990] bg-black/70 backdrop-blur-sm" onClick={handleSkip} onKeyDown={(e) => { if (e.key === 'Escape') handleSkip() }} />
+      {/* AUDIT FIX (M16, 2026-07-02): Added ARIA attributes for accessibility.
+          - role="dialog" + aria-modal on the tour card (screen readers announce it as a dialog)
+          - aria-labelledby pointing to the step title
+          - aria-label on the close button
+          - The backdrop no longer dismisses on click (prevents accidental dismissal)
+            — users must click Skip or press Escape. */}
+
+      {/* Backdrop overlay — no onClick (prevents accidental dismissal) */}
+      <div
+        className="fixed inset-0 z-[9990] bg-black/70 backdrop-blur-sm"
+        aria-hidden="true"
+      />
 
       {/* Tour card */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9991] w-[440px] max-w-[calc(100vw-2rem)]">
+      <div
+        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9991] w-[440px] max-w-[calc(100vw-2rem)]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tour-title"
+        onKeyDown={(e) => { if (e.key === 'Escape') handleSkip() }}
+      >
         <div className="bg-[#0d0d14]/95 backdrop-blur-2xl border border-[#D17B47]/30 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
           {/* Progress bar */}
           <div className="h-1 bg-white/[0.06]">
@@ -183,6 +216,7 @@ export function OnboardingTour() {
               onClick={handleSkip}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
               title="Skip tour"
+              aria-label="Skip onboarding tour"
             >
               <X className="w-4 h-4" />
             </button>
@@ -195,7 +229,7 @@ export function OnboardingTour() {
                 <Icon className="w-6 h-6 text-[#D17B47]" />
               </div>
               <div className="flex-1 pt-1">
-                <h3 className="text-base font-bold text-white">{currentStep.title}</h3>
+                <h3 id="tour-title" className="text-base font-bold text-white">{currentStep.title}</h3>
                 <p className="text-xs text-gray-400 mt-1 leading-relaxed">{currentStep.description}</p>
               </div>
             </div>
@@ -204,7 +238,7 @@ export function OnboardingTour() {
             <div className="flex items-center justify-center gap-1.5 pt-2">
               {TOUR_STEPS.map((_, i) => (
                 <div
-                  key={`${_}-${i}`}
+                  key={i}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
                     i === step ? 'w-6 bg-[#D17B47]' : i < step ? 'w-1.5 bg-[#D17B47]/50' : 'w-1.5 bg-white/10'
                   }`}

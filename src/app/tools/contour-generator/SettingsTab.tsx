@@ -21,6 +21,8 @@ interface SettingsTabProps {
   contours: ContourLine[];
   tinSurface: TINSurface | null;
   volumeResult: VolumeResult | null;
+  generateProgress?: number;
+  usingWorker?: boolean;
 }
 
 export function SettingsTab({
@@ -36,6 +38,8 @@ export function SettingsTab({
   contours,
   tinSurface,
   volumeResult,
+  generateProgress = 0,
+  usingWorker = false,
 }: SettingsTabProps) {
   return (
     <div className="space-y-6">
@@ -84,7 +88,7 @@ export function SettingsTab({
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <button
             onClick={handleGenerate}
             disabled={isGenerating || points.length < 3}
@@ -103,7 +107,34 @@ export function SettingsTab({
             )}
           </button>
           {isGenerating && (
-            <span className="text-sm text-zinc-400">Building TIN and marching contours...</span>
+            <div className="flex items-center gap-3 text-sm text-zinc-400 flex-1 min-w-[200px]">
+              <div className="flex-1 max-w-xs">
+                <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--accent)] transition-all duration-300"
+                    style={{ width: `${Math.round(generateProgress * 100)}%` }}
+                  />
+                </div>
+              </div>
+              <span className="font-mono text-xs">
+                {Math.round(generateProgress * 100)}%
+              </span>
+              {usingWorker ? (
+                <span className="text-[10px] uppercase tracking-wider text-cyan-400 border border-cyan-700/50 rounded px-1.5 py-0.5">
+                  Worker
+                </span>
+              ) : (
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500 border border-zinc-700 rounded px-1.5 py-0.5">
+                  Sync
+                </span>
+              )}
+            </div>
+          )}
+          {!isGenerating && points.length >= 3 && (
+            <span className="text-sm text-zinc-400">Ready to generate.</span>
+          )}
+          {!isGenerating && points.length < 3 && (
+            <span className="text-sm text-zinc-500">Import at least 3 points first.</span>
           )}
         </div>
       </div>

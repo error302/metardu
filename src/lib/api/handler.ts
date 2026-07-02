@@ -1,6 +1,17 @@
 /**
  * apiHandler — Next-generation standardized API route wrapper for METARDU.
  *
+ * @deprecated (audit H3, 2026-07-02): Use `@/lib/apiHandler` (v1) instead.
+ *   The v1 handler now has feature parity with this v2:
+ *     - X-Request-Id header (opt-in via `requestId: true`, default true)
+ *     - Structured JSON error logging (opt-in via `structuredLogs: true`, default true)
+ *     - Tamper-evident audit chain (opt-in via `auditChain` option)
+ *     - Optimistic locking support
+ *     - Org-aware RLS context
+ *   This v2 file is kept for the 5 routes that import it, but new routes
+ *   should use v1. A future cleanup will migrate the 5 v2 consumers and
+ *   delete this file.
+ *
  * This is the v2 handler that builds on lessons from the original
  * `@/lib/apiHandler`. It provides:
  *

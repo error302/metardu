@@ -6,6 +6,10 @@
 2. **Node.js 18+**
 3. **Android Studio** (recommended) or command-line tools
 
+> **Note (2026-07-02):** `capacitor.config.ts` now exists at the repo root
+> (audit H5 fix). The first build requires `npx cap add android` to
+> scaffold the native project — see the Build Steps section below.
+
 ### Install Java (if not present)
 
 **Windows:**

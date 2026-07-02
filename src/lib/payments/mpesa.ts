@@ -62,7 +62,15 @@ export class MpesaService {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to obtain M-Pesa access token')
+      // AUDIT FIX (M15, 2026-07-02): Actionable error message.
+      const errorBody = await response.text().catch(() => 'unknown')
+      throw new Error(
+        'Could not obtain M-Pesa access token from Safaricom Daraja API. ' +
+        'Check: (1) MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET are set correctly, ' +
+        '(2) MPESA_ENV is "sandbox" or "production" and matches your credentials, ' +
+        '(3) Safaricom Daraja API is reachable (check network/firewall). ' +
+        `HTTP ${response.status}: ${errorBody}`
+      )
     }
 
     const data = await response.json()
@@ -98,7 +106,17 @@ export class MpesaService {
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.errorMessage || 'STK Push failed')
+      // AUDIT FIX (M15, 2026-07-02): Translate Safaricom internal error codes.
+      const safaricomErrors: Record<string, string> = {
+        'DS090.301.BF00002': 'Invalid phone number — the phone must be a registered M-Pesa number in the format 2547XXXXXXXX',
+        'DS090.301.BF00003': 'Insufficient funds — the user does not have enough M-Pesa balance',
+        'DS090.301.BF00004': 'Transaction cancelled by user',
+        'DS090.301.BF00005': 'Transaction timed out — the user did not respond to the STK prompt within 60 seconds',
+      }
+      const translated = error.errorMessage
+        ? safaricomErrors[error.errorMessage] ?? `Safaricom error: ${error.errorMessage}`
+        : 'STK Push failed — Safaricom did not accept the payment request'
+      throw new Error(translated)
     }
 
     const data = await response.json()
@@ -108,7 +126,7 @@ export class MpesaService {
     }
   }
 
-  async checkTransactionStatus(checkoutRequestId: string): Promise<{ status: string; amount?: number; phone?: string }> {
+  async checkTransactionStatus(checkoutRequestId: string): Promise<{ status: string; amount?: number; phone?: string; resultCode?: number; resultDesc?: string }> {
     const accessToken = await this.getAccessToken()
 
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)
@@ -129,14 +147,26 @@ export class MpesaService {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to check transaction status')
+      // AUDIT FIX (CRITICAL 2, 2026-07-02): Actionable error message.
+      const errBody = await response.text().catch(() => 'unknown')
+      throw new Error(
+        `Failed to check M-Pesa transaction status (HTTP ${response.status}). ${errBody}. ` +
+        `Check MPESA_CONSUMER_KEY/SECRET and MPESA_PASSKEY are correct.`
+      )
     }
 
     const data = await response.json()
+    // AUDIT FIX (CRITICAL 2, 2026-07-02): Check ResultCode, not ResponseCode.
+    // ResponseCode === '0' means the *query API call* succeeded — it does NOT
+    // mean the payment was completed. The actual payment status is in
+    // ResultCode: 0 = success, anything else = failure.
+    // Reference: Safaricom Daraja API docs — STK Push Query
     return {
-      status: data.ResponseCode === '0' ? 'completed' : 'failed',
+      status: data.ResultCode === 0 ? 'completed' : 'failed',
       amount: data.Amount ? parseFloat(data.Amount) : undefined,
-      phone: data.PhoneNumber
+      phone: data.PhoneNumber,
+      resultCode: data.ResultCode,
+      resultDesc: data.ResultDesc,
     }
   }
 
@@ -237,15 +267,19 @@ export class AirtelMoneyService {
 export function getMpesaService(): MpesaService | null {
   const consumerKey = process.env.MPESA_CONSUMER_KEY
   const consumerSecret = process.env.MPESA_CONSUMER_SECRET
-  
+
   if (!consumerKey || !consumerSecret) return null
 
+  // AUDIT FIX (HIGH 10, 2026-07-02): Use MPESA_ENV, not NODE_ENV.
+  // NODE_ENV=production does NOT mean M-Pesa is in production mode —
+  // the app can run in production with M-Pesa still in sandbox for testing.
+  // MPESA_ENV explicitly controls the M-Pesa environment.
   return new MpesaService({
     consumerKey,
     consumerSecret,
     shortCode: process.env.MPESA_SHORT_CODE || '',
     initiatorName: process.env.MPESA_INITIATOR_NAME || '',
     securityCredential: process.env.MPESA_SECURITY_CREDENTIAL || '',
-    environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
+    environment: (process.env.MPESA_ENV as 'sandbox' | 'production') || 'sandbox'
   })
 }

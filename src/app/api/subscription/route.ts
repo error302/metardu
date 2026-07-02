@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       // Create new subscription
       const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14-day trial
       await db.query(
-        `INSERT INTO user_subscriptions (user_id, plan_id, status, trial_ends_at, period_start, period_end)
+        `INSERT INTO user_subscriptions (user_id, plan_id, status, trial_ends_at, current_period_start, current_period_end)
          VALUES ($1, $2, 'active', $3, NOW(), NOW() + INTERVAL '30 days')`,
         [userId, planId, trialEndsAt.toISOString()]
       )

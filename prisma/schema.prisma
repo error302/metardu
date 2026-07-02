@@ -14,8 +14,6 @@ enum SurveyType {
   TOPOGRAPHIC
   ENGINEERING
   CONTROL
-  HYDROGRAPHIC
-  MINING
 }
 
 enum SurveyMethod {

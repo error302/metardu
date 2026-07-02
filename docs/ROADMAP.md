@@ -53,17 +53,19 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 ## Next up — integrations to finish
 
 ### Engineering integrations
-- [ ] Cross-sections tool auto-pulls from project levelling data
-  - Reuse `GET /api/project/[id]/points` (filter points with elevation along chainage)
-  - `/tools/cross-sections?project=<id>` auto-populates
-- [ ] Earthworks tool auto-pulls from cross-sections
-  - New API: `GET /api/project/[id]/cross-sections`
-  - `/tools/earthworks?project=<id>` auto-populates existing ground profiles
+- [x] Cross-sections tool auto-pulls from project levelling data
+  - Reuses `GET /api/project/[id]/points` (filter points with elevation along chainage)
+  - `/tools/cross-sections?project=<id>` auto-populates via `ProjectCrossSections` component
+- [x] Earthworks tool auto-pulls from cross-sections
+  - New API: `GET /api/project/[id]/cross-sections` — groups survey points by chainage (parsed from point name), supports optional `?interval=N` binning
+  - `/tools/earthworks?project=<id>` auto-populates existing ground profiles via `ProjectCrossSections`
 
 ### Mutation plan deep integration
-- [ ] Refactor `MutationPlanGenerator` to accept `initialPlots` prop
-  - Currently uses sessionStorage bridge (works but fragile)
-  - Clean prop injection is the right pattern
+- [x] Refactor `MutationPlanGenerator` to accept `initialPlots` prop
+  - `MutationPlanGenerator` now accepts `initialPlots?: MutationPlot[]`
+  - `ProjectMutationPlan` passes deed plan boundary directly as prop
+  - Removed sessionStorage bridge entirely — clean prop injection
+  - Generator auto-advances to step 2 when initialPlots supplied
 
 ---
 
@@ -135,29 +137,29 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 **How:** Extend existing `src/lib/engine/contours.ts` `computeVolumeFromTIN` to accept two TIN surfaces. Prismoidal column equation: `V = A_base × (Δz1+Δz2+Δz3)/3`. Cut/fill heatmap overlay on OpenLayers.
 **Where:** Extend `/tools/earthworks` or new `/tools/volume-comparison` (route exists)
 **Effort:** 1 session (extends existing volume code)
-**Status:** Not started. Note: Metardu already has `crossSectionVolume.ts` and `buildTINSurface` — this is a dual-surface extension, not a new engine.
+**Status:** ✅ SHIPPED — `/tools/volume-comparison` is live with TIN and IDW grid methods, cut/fill volume computation via `computeVolumeBetweenSurfaces`, CSV export for both summary report and cut/fill grid, and a cut/fill heatmap visualization. Two-surface input via file upload (CSV/XYZ/TXT) with side-by-side comparison.
 
 #### Parabolic vertical curve profile designer (engineering)
 **Why:** Highway alignment audit — checking crest/sag curves against stopping sight distance (SSD).
 **How:** Parabolic curve equation `y = ((g2-g1)/2L)x² + g1·x + E_PVC`. K-factor check against design speed. Amber warning on failing curves.
 **Where:** New `/tools/vertical-curve` or fold into as-built deviation guard as "design compliance" mode
 **Effort:** 1 session
-**Status:** Defer — this is a design tool, not a survey tool. Build only if targeting KeNHA highway contracts. Surveyors set out curves; they don't design them.
+**Status:** ✅ SHIPPED — `/tools/vertical-curve-designer`, multi-VIP alignment engine, AASHTO K-factor + SSD compliance, SVG profile diagram, station table, CSV export. Engine: `src/lib/survey/curves/verticalCurveDesigner.ts` (31 tests passing).
 
 #### Web Worker TIN generator
 **Why:** Contour generation can freeze on large datasets.
 **How:** Move Delaunay triangulation + contour interpolation to Web Worker.
-**Status:** Premature unless users report freezing. Current contour gen works for typical datasets.
+**Status:** ✅ SHIPPED — `src/lib/workers/tinWorker.ts` + `tinWorkerClient.ts` with auto-fallback to sync engine when Workers unavailable. Promise-based API (`triangulateAsync`, `buildTINSurfaceAsync`, `generateContoursAsync`) with progress callbacks. 13 tests passing.
 
 #### Automated breakline extraction
 **Why:** Auto-draw toe-of-slope, top-of-bank from TIN mesh.
 **How:** Compute triangle normal vectors, flag sharp angle changes, stitch into MultiLineString.
-**Status:** Nice-to-have. Most surveyors digitize breaklines in the field.
+**Status:** ✅ SHIPPED — `src/lib/engine/breaklineExtraction.ts` (triangle-normal dihedral algorithm, polyline stitching, ridge/slope-change/minor classification, GeoJSON + Breakline[] export). Integrated into `BreaklineEditor` as a new "Auto" tab with threshold slider and live preview. 20 tests passing.
 
 #### Spiral-to-curve alignment engine
 **Why:** KeNHA highway design uses clothoid spirals.
 **How:** Custom OpenLayers geometry for transition spirals. Dynamic chainage stationing.
-**Status:** Niche. Build when you have a KeNHA highway contract.
+**Status:** ✅ SHIPPED — `src/lib/survey/curves/spiralAlignment.ts` (TS→SC→CS→ST stationing, clothoid series expansion, world-coordinate output, station interpolation). UI: new "Spiral Alignment" tab on `/tools/curves` with SVG plan diagram and station table. 29 tests passing.
 
 ### Tier 3 — don't build (flawed or trap)
 
@@ -176,9 +178,11 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 
 ### Tool page deep refits
 - PageHeader + card CSS updated globally (shipped)
-- Individual tool pages still use old internal layouts
-- Priority: traverse, levelling, COGO, deed plan (highest traffic)
-- Pattern: field-book table + output diagram (from v0.1 preview)
+- [x] Traverse page refit — added SVG `TraverseDiagram` component showing
+      adjusted vs raw traverse, closing error vector, station markers,
+      north arrow, scale bar. Pattern: field-book table + output diagram.
+      Other pages (levelling, COGO, deed plan) can replicate this pattern.
+- [ ] Levelling, COGO, deed plan page refits — same pattern, lower priority
 
 ### OKLCH color migration
 - Current tokens are hex
@@ -186,9 +190,14 @@ Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topog
 - Low priority — current palette works
 
 ### Prisma schema cleanup
-- SurveyType union still includes 'mining' | 'hydrographic' (backward compat)
-- DB tables for hydro/mining may still exist (no migration run)
-- Clean up after confirming no old projects reference them
+- [x] Schema updated — `MINING` and `HYDROGRAPHIC` removed from `SurveyType`
+      enum in `prisma/schema.prisma`
+- [x] Migration SQL written — `prisma/migrations/20260702000000_drop_mining_hydrographic_survey_types/migration.sql`
+      with pre-flight check queries, PostgreSQL enum-swap pattern, and
+      post-migration verification queries
+- [ ] Migration NOT YET APPLIED — user must run pre-flight queries against
+      production DB, reassign any existing MINING/HYDROGRAPHIC projects,
+      then `npm run migrate`. See migration SQL header for full procedure.
 
 ---
 

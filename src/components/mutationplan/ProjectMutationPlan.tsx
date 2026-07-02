@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import MutationPlanGenerator from '@/components/mutationplan/MutationPlanGenerator'
+import type { MutationPlot } from '@/lib/reports/surveyPlan/formNo3Types'
 
 /**
  * ProjectMutationPlan — wrapper that connects MutationPlanGenerator to a project.
  *
  * Fetches the project's most recent deed plan from /api/project/[id]/deed-plans
- * and converts its boundary points into a MutationPlot[] for the generator.
+ * and converts its boundary points into a MutationPlot[] passed directly to
+ * MutationPlanGenerator via the `initialPlots` prop.
  *
  * This is the cadastral integration: a surveyor generates a deed plan,
  * then creates a mutation (subdivision, amalgamation) from that deed plan's
@@ -50,19 +52,12 @@ interface DeedPlanRecord {
 
 export default function ProjectMutationPlan({ projectId }: ProjectMutationPlanProps) {
   const [loaded, setLoaded] = useState(false)
-
-  // The MutationPlanGenerator manages its own state and doesn't accept props
-  // for initial plots. The cleanest integration without refactoring it is to
-  // pre-load the deed plan data and inject it via a custom event that the
-  // generator listens for — but that's fragile.
-  //
-  // For now, we show a banner with the deed plan info and a "Load boundary"
-  // button that writes the boundary points to a shared location the generator
-  // can read. This is a pragmatic first step — full prop injection would
-  // require refactoring MutationPlanGenerator to accept initialPlots.
-  //
-  // The deeper refactor (adding initialPlots prop to MutationPlanGenerator)
-  // is documented as a follow-up.
+  const [initialPlots, setInitialPlots] = useState<MutationPlot[] | null>(null)
+  const [deedPlanInfo, setDeedPlanInfo] = useState<{
+    parcelNumber: string | null
+    surveyNumber: string | null
+    areaHa: number | null
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -70,20 +65,28 @@ export default function ProjectMutationPlan({ projectId }: ProjectMutationPlanPr
     async function fetchDeedPlan() {
       try {
         const res = await fetch(`/api/project/${projectId}/deed-plans`)
-        if (!res.ok) return
+        if (!res.ok) {
+          if (!cancelled) setLoaded(true)
+          return
+        }
         const json = await res.json()
         const plans: DeedPlanRecord[] = json.data || []
-        if (plans.length === 0) return
+        if (plans.length === 0) {
+          if (!cancelled) setLoaded(true)
+          return
+        }
 
         // Take the most recent deed plan (already ordered DESC by API)
         const latest = plans[0]
         const boundaryPoints = latest.input_data?.boundaryPoints || []
 
-        if (boundaryPoints.length < 3) return
+        if (boundaryPoints.length < 3) {
+          if (!cancelled) setLoaded(true)
+          return
+        }
 
-        // Store in sessionStorage as a bridge to MutationPlanGenerator
-        // The generator can read this on mount if it exists
-        const plotData = {
+        // Build a MutationPlot directly — no sessionStorage bridge needed.
+        const plot: MutationPlot = {
           id: latest.parcel_number || latest.survey_number || 'parent',
           boundaryPoints: boundaryPoints.map(p => ({
             easting: p.easting,
@@ -96,14 +99,16 @@ export default function ProjectMutationPlan({ projectId }: ProjectMutationPlanPr
         }
 
         if (!cancelled) {
-          sessionStorage.setItem(
-            `metardu:mutation-plan:initial:${projectId}`,
-            JSON.stringify(plotData)
-          )
+          setInitialPlots([plot])
+          setDeedPlanInfo({
+            parcelNumber: latest.parcel_number,
+            surveyNumber: latest.survey_number,
+            areaHa: latest.area_sqm ? latest.area_sqm / 10000 : null,
+          })
+          setLoaded(true)
         }
       } catch {
-        // silent fail
-      } finally {
+        // silent fail — generator runs without initial plots
         if (!cancelled) setLoaded(true)
       }
     }
@@ -129,20 +134,25 @@ export default function ProjectMutationPlan({ projectId }: ProjectMutationPlanPr
 
   return (
     <div>
-      <div className="max-w-7xl mx-auto px-4 mb-4">
-        <div className="border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-3 rounded-md flex items-center gap-3">
-          <svg className="w-4 h-4 text-[var(--accent)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.16 6.02a3 3 0 11-1.59 5.79 3 3 0 011.59-5.79zM12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-          </svg>
-          <p className="text-xs text-[var(--text-secondary)]">
-            <span className="font-mono text-[var(--accent)]">Project linked.</span>{' '}
-            Deed plan boundary data is available for this project. Use the
-            "Import from CSV" option in the generator and select the project
-            boundary source to auto-populate plot coordinates.
-          </p>
+      {deedPlanInfo && (
+        <div className="max-w-7xl mx-auto px-4 mb-4">
+          <div className="border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-3 rounded-md flex items-center gap-3">
+            <svg className="w-4 h-4 text-[var(--accent)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.16 6.02a3 3 0 11-1.59 5.79 3 3 0 011.59-5.79zM12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            </svg>
+            <p className="text-xs text-[var(--text-secondary)]">
+              <span className="font-mono text-[var(--accent)]">Project linked.</span>{' '}
+              Deed plan
+              {deedPlanInfo.parcelNumber && ` ${deedPlanInfo.parcelNumber}`}
+              {deedPlanInfo.surveyNumber && ` (Survey ${deedPlanInfo.surveyNumber})`}
+              {deedPlanInfo.areaHa !== null && ` · ${deedPlanInfo.areaHa.toFixed(4)} ha`}
+              {' '}boundary pre-loaded as the parent plot on step 2.
+              Proceed to subdivide or amalgamate directly — no CSV import needed.
+            </p>
+          </div>
         </div>
-      </div>
-      <MutationPlanGenerator />
+      )}
+      <MutationPlanGenerator initialPlots={initialPlots ?? undefined} />
     </div>
   )
 }

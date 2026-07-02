@@ -64,11 +64,24 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Webhook signature verification ──────────────────────────────
+    // AUDIT FIX (CRITICAL 4, 2026-07-02): Security hardening.
+    //   - PAYPAL_WEBHOOK_ID is now REQUIRED in production (fail-fast)
+    //   - Sandbox bypass removed — even in sandbox, signature must verify
+    //     if webhook_id is set. If webhook_id is not set AND we're in
+    //     production, reject. If not set AND sandbox, allow with warning.
     const webhookId = process.env.PAYPAL_WEBHOOK_ID
-    const isSandbox = (process.env.PAYPAL_MODE || 'sandbox') === 'sandbox'
+    const isProduction = (process.env.PAYPAL_MODE || 'sandbox') === 'live'
 
     if (!webhookId) {
-      console.warn('[PayPal Webhook] PAYPAL_WEBHOOK_ID not set — skipping signature verification (development mode)')
+      if (isProduction) {
+        console.error('[PayPal Webhook] CRITICAL: PAYPAL_WEBHOOK_ID not set in production — rejecting all webhooks')
+        return NextResponse.json(
+          { error: 'PayPal webhook verification not configured. Set PAYPAL_WEBHOOK_ID env var.' },
+          { status: 503 }
+        )
+      } else {
+        console.warn('[PayPal Webhook] PAYPAL_WEBHOOK_ID not set in sandbox — skipping signature verification (development only)')
+      }
     } else {
       try {
         // 1. Compute CRC32 of the raw body
@@ -86,8 +99,7 @@ export async function POST(request: NextRequest) {
         const certPem = await certResponse.text()
 
         // 4. Verify the signature
-        // PayPal sends the signature as Base64-encoded, signed with SHA-256 with RSA
-        const algorithm = 'sha256' // PayPal currently only uses SHA-256
+        const algorithm = 'sha256'
         const publicKey = createPublicKey(certPem)
         const verifier = createVerify(algorithm)
         verifier.update(expectedSigString)
@@ -96,20 +108,14 @@ export async function POST(request: NextRequest) {
         const isValid = verifier.verify(publicKey, transmissionSig, 'base64')
 
         if (!isValid) {
+          // AUDIT FIX (CRITICAL 4): No sandbox bypass — reject always
           console.error('[PayPal Webhook] Signature verification FAILED — rejecting webhook')
-          if (isSandbox) {
-            console.warn('[PayPal Webhook] Sandbox mode — proceeding despite invalid signature')
-          } else {
-            return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
-          }
-        } else {
+          return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
         }
       } catch (verifyError: any) {
         console.error(`[PayPal Webhook] Signature verification error: ${verifyError.message}`)
-        if (!isSandbox) {
-          return NextResponse.json({ error: 'Signature verification failed' }, { status: 403 })
-        }
-        console.warn('[PayPal Webhook] Sandbox mode — proceeding despite verification error')
+        // AUDIT FIX (CRITICAL 4): No sandbox bypass — reject always
+        return NextResponse.json({ error: 'Signature verification failed' }, { status: 403 })
       }
     }
 

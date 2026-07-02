@@ -262,7 +262,11 @@
     "leveling": "Калькулятор нивелирования",
     "traverse": "Вычисление теодолитного хода",
     "usSurveyReference": "Справочник стандартов США",
-    "usSurveyReferenceDesc": "Справочник стандартов съёмки US Fish & Wildlife Service и BLM"
+    "usSurveyReferenceDesc": "Справочник стандартов съёмки US Fish & Wildlife Service и BLM",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "План межевания",

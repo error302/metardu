@@ -93,9 +93,12 @@ export interface NLIMSParcelCoordinate {
   easting: number
   northing: number
   utmZone: number
-  datum: 'Arc_1960'
-  projection: 'UTM'
-  hemisphere: 'S'
+  // AUDIT FIX (C7, 2026-07-02): Widened from literal types to strings
+  // so the exporter can emit Zone 36S, 37N, WGS84, etc. when the
+  // project's CRS requires it. The default is still Arc_1960/UTM/37S.
+  datum: string
+  projection: string
+  hemisphere: 'N' | 'S'
 }
 
 export interface NLIMSBeacon {
@@ -178,16 +181,45 @@ export interface NLIMSExportParams {
   encumbrances?: NLIMSEncumbrance[]
   /** Tolerance for area reconciliation (hectares). Default: 0.001 ha (10 m²) */
   areaToleranceHectares?: number
+  /**
+   * Coordinate Reference System metadata. Defaults to Arc 1960 / UTM Zone 37S
+   * (the most common CRS for Kenyan cadastral work in the central/southern
+   * region including Nairobi). Override for surveys in:
+   *   - Western Kenya (Kisumu, Eldoret, Kakamega): UTM Zone 36S
+   *   - Northern Kenya (Turkana, Marsabit): UTM Zone 36N or 37N
+   *   - Coastal region north of Mombasa: UTM Zone 37S (default is fine)
+   *
+   * AUDIT FIX (C7, 2026-07-02): Previously these values were hardcoded
+   * constants — a survey in Zone 36S would be mislabeled as Zone 37S on
+   * the NLIMS submission, which is statutory non-compliance. Now the
+   * caller can supply the correct CRS from project metadata.
+   */
+  crs?: {
+    utmZone?: number       // 1-60; default 37
+    hemisphere?: 'N' | 'S' // default 'S'
+    datum?: string         // default 'Arc_1960'
+    projection?: string    // default 'UTM'
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Constants
+// CRS Defaults (Arc 1960 / UTM Zone 37S — most common for Kenyan cadastral)
 // ---------------------------------------------------------------------------
 
-const UTM_ZONE = 37
-const HEMISPHERE = 'S' as const
-const DATUM = 'Arc_1960' as const
-const PROJECTION = 'UTM' as const
+const DEFAULT_UTM_ZONE = 37
+const DEFAULT_HEMISPHERE = 'S' as const
+const DEFAULT_DATUM = 'Arc_1960' as const
+const DEFAULT_PROJECTION = 'UTM' as const
+
+/** Resolve CRS params from the export params, falling back to defaults. */
+function resolveCRS(params: NLIMSExportParams) {
+  return {
+    utmZone: params.crs?.utmZone ?? DEFAULT_UTM_ZONE,
+    hemisphere: params.crs?.hemisphere ?? DEFAULT_HEMISPHERE,
+    datum: params.crs?.datum ?? DEFAULT_DATUM,
+    projection: params.crs?.projection ?? DEFAULT_PROJECTION,
+  }
+}
 
 /**
  * SoK beacon nomenclature patterns (Survey of Kenya standards):
@@ -444,6 +476,9 @@ export async function exportToNLIMS(params: NLIMSExportParams): Promise<{
     )
   }
 
+  // Resolve CRS from params (falls back to Arc 1960 / UTM 37S)
+  const crs = resolveCRS(params)
+
   // Build resulting parcels
   const resultingParcels: NLIMSSubmissionParcel[] = params.resultingParcels.map(parcel => {
     const areaSqM = calculateAreaSqM(parcel.vertices)
@@ -459,10 +494,10 @@ export async function exportToNLIMS(params: NLIMSExportParams): Promise<{
         cornerNumber: idx + 1,
         easting: parseFloat(v.easting.toFixed(3)),
         northing: parseFloat(v.northing.toFixed(3)),
-        utmZone: UTM_ZONE,
-        datum: DATUM,
-        projection: PROJECTION,
-        hemisphere: HEMISPHERE,
+        utmZone: crs.utmZone,
+        datum: crs.datum,
+        projection: crs.projection,
+        hemisphere: crs.hemisphere,
       })),
       landUse: parcel.landUse,
       ownerName: parcel.ownerName,
@@ -481,10 +516,10 @@ export async function exportToNLIMS(params: NLIMSExportParams): Promise<{
           cornerNumber: idx + 1,
           easting: parseFloat(v.easting.toFixed(3)),
           northing: parseFloat(v.northing.toFixed(3)),
-          utmZone: UTM_ZONE,
-          datum: DATUM,
-          projection: PROJECTION,
-          hemisphere: HEMISPHERE,
+          utmZone: crs.utmZone,
+          datum: crs.datum,
+          projection: crs.projection,
+          hemisphere: crs.hemisphere,
         })),
       }
     : undefined

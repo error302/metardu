@@ -111,9 +111,10 @@ export async function POST(request: NextRequest) {
 
       if (user) {
         const newStatus = status === 'active' ? 'active' : status === 'past_due' ? 'past_due' : 'cancelled'
+        // AUDIT FIX (MED 13, 2026-07-02): Also store stripe IDs for sync
         await db.query(
-          'UPDATE user_subscriptions SET status = $1 WHERE user_id = $2',
-          [newStatus, user.user_id]
+          'UPDATE user_subscriptions SET status = $1, stripe_customer_id = $2, stripe_subscription_id = $3 WHERE user_id = $4',
+          [newStatus, customerId, sub.id, user.user_id]
         )
       }
       break
@@ -125,8 +126,8 @@ export async function POST(request: NextRequest) {
 
       if (userId) {
         await db.query(
-          'UPDATE user_subscriptions SET status = $1 WHERE user_id = $2',
-          ['cancelled', userId]
+          'UPDATE user_subscriptions SET status = $1, cancelled_at = NOW(), stripe_subscription_id = $2 WHERE user_id = $3',
+          ['cancelled', sub.id, userId]
         )
       }
       break
@@ -148,6 +149,66 @@ export async function POST(request: NextRequest) {
           ['expired', userSub.user_id]
         )
       }
+      break
+    }
+
+    // AUDIT FIX (HIGH 11, 2026-07-02): Add missing webhook events.
+
+    case 'checkout.session.expired': {
+      // Session expired without payment — mark as expired
+      const session = event.data.object
+      const paymentId = session.metadata?.payment_id
+      if (paymentId) {
+        await db.query(
+          'UPDATE payment_history SET status = $1 WHERE id = $2 AND status = $3',
+          ['expired', paymentId, 'pending']
+        )
+      }
+      break
+    }
+
+    case 'charge.refunded': {
+      // Refund processed — update payment_history + cancel subscription
+      const charge = event.data.object
+      const paymentIntentId = charge.payment_intent
+      if (paymentIntentId) {
+        await db.query(
+          'UPDATE payment_history SET status = $1 WHERE transaction_id = $2',
+          ['refunded', paymentIntentId]
+        )
+        // If this was a subscription payment, cancel it
+        const userId = charge.metadata?.user_id
+        if (userId) {
+          await db.query(
+            "UPDATE user_subscriptions SET status = $1 WHERE user_id = $2 AND status = 'active'",
+            ['cancelled', userId]
+          )
+        }
+      }
+      break
+    }
+
+    case 'invoice.paid': {
+      // Recurring invoice paid — extend subscription period
+      const invoice = event.data.object
+      const userId = invoice.metadata?.user_id
+      if (userId) {
+        const now = new Date()
+        const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+        await db.query(
+          `UPDATE user_subscriptions
+           SET status = 'active', current_period_start = $1, current_period_end = $2
+           WHERE user_id = $3`,
+          [now.toISOString(), periodEnd.toISOString(), userId]
+        )
+      }
+      break
+    }
+
+    case 'payment_intent.payment_failed': {
+      // Card payment failed — log for debugging
+      const intent = event.data.object
+      console.warn(`[stripe] Payment failed: ${intent.id} — ${intent.last_payment_error?.message || 'unknown'}`)
       break
     }
 

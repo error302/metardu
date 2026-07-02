@@ -285,12 +285,133 @@ export function leastSquaresAdjustment(
       }
       
     } else if (obs.type === 'angle') {
-      // Angle observation (atStation is the vertex)
-      // This is simplified — full implementation would compute
-      // partial derivatives for the angle observation equation
-      b[i] = 0; // Placeholder
+      // AUDIT FIX (H12, 2026-07-02): Implemented angle observation equation.
+      // Previously was `b[i] = 0; // Placeholder` — the file was non-functional
+      // for traverses with angle observations.
+      //
+      // Angle at station B between backsight A and foresight C:
+      //   θ = α_BC - α_BA  (clockwise from backsight to foresight)
+      // where α_XY = atan2(E_Y - E_X, N_Y - N_X) is the bearing from X to Y.
+      //
+      // Partial derivatives (bearing α from P1 to P2, dist = |P2-P1|):
+      //   ∂α/∂E_1 =  dN / dist²    ∂α/∂N_1 = -dE / dist²
+      //   ∂α/∂E_2 = -dN / dist²    ∂α/∂N_2 =  dE / dist²
+      //
+      // For θ = α_BC - α_BA:
+      //   ∂θ/∂E_B = dN_BC/dist_BC² - dN_BA/dist_BA²
+      //   ∂θ/∂N_B = -dE_BC/dist_BC² + dE_BA/dist_BA²
+      //   ∂θ/∂E_A = dN_BA/dist_BA²
+      //   ∂θ/∂N_A = -dE_BA/dist_BA²
+      //   ∂θ/∂E_C = -dN_BC/dist_BC²
+      //   ∂θ/∂N_C = dE_BC/dist_BC²
+
+      const atStation = stations.find(s => s.name === obs.atStation)!;
+      const fromStation = stations.find(s => s.name === obs.fromStation)!; // backsight
+      const toStation = stations.find(s => s.name === obs.toStation)!;     // foresight
+
+      // Vectors and distances
+      const dE_BA = fromStation.easting - atStation.easting;
+      const dN_BA = fromStation.northing - atStation.northing;
+      const dist_BA = Math.sqrt(dE_BA * dE_BA + dN_BA * dN_BA);
+
+      const dE_BC = toStation.easting - atStation.easting;
+      const dN_BC = toStation.northing - atStation.northing;
+      const dist_BC = Math.sqrt(dE_BC * dE_BC + dN_BC * dN_BC);
+
+      if (dist_BA < 1e-10 || dist_BC < 1e-10) continue;
+
+      // Computed bearings (radians)
+      const alpha_BA = Math.atan2(dE_BA, dN_BA);
+      const alpha_BC = Math.atan2(dE_BC, dN_BC);
+
+      // Computed angle (radians → degrees)
+      let computedAngle = alpha_BC - alpha_BA;
+      // Normalize to [0, 360°)
+      while (computedAngle < 0) computedAngle += 2 * Math.PI;
+      while (computedAngle >= 2 * Math.PI) computedAngle -= 2 * Math.PI;
+      const computedDeg = computedAngle * 180 / Math.PI;
+
+      // Misclosure: observed - computed (in degrees)
+      b[i] = obs.value - computedDeg;
+
+      // Convert partial derivatives from radians to degrees
+      // (so the weight 1/σ² in degrees² is consistent)
+      const RAD_TO_DEG = 180 / Math.PI;
+      const dist_BA2 = dist_BA * dist_BA;
+      const dist_BC2 = dist_BC * dist_BC;
+
+      // ∂θ/∂E_B = (dN_BC/dist_BC² - dN_BA/dist_BA²) × RAD_TO_DEG
+      // ∂θ/∂N_B = (-dE_BC/dist_BC² + dE_BA/dist_BA²) × RAD_TO_DEG
+      const dTh_dEB = (dN_BC / dist_BC2 - dN_BA / dist_BA2) * RAD_TO_DEG;
+      const dTh_dNB = (-dE_BC / dist_BC2 + dE_BA / dist_BA2) * RAD_TO_DEG;
+      const dTh_dEA = (dN_BA / dist_BA2) * RAD_TO_DEG;
+      const dTh_dNA = (-dE_BA / dist_BA2) * RAD_TO_DEG;
+      const dTh_dEC = (-dN_BC / dist_BC2) * RAD_TO_DEG;
+      const dTh_dNC = (dE_BC / dist_BC2) * RAD_TO_DEG;
+
+      // Fill design matrix (only for free/non-fixed stations)
+      const atIdx = obs.atStation ? stationIndex.get(obs.atStation) : undefined;
+      if (atIdx !== undefined) {
+        A.set(i, atIdx * 2, dTh_dEB);
+        A.set(i, atIdx * 2 + 1, dTh_dNB);
+      }
+      const fromIdx = stationIndex.get(obs.fromStation);
+      if (fromIdx !== undefined) {
+        A.set(i, fromIdx * 2, dTh_dEA);
+        A.set(i, fromIdx * 2 + 1, dTh_dNA);
+      }
+      const toIdx = stationIndex.get(obs.toStation);
+      if (toIdx !== undefined) {
+        A.set(i, toIdx * 2, dTh_dEC);
+        A.set(i, toIdx * 2 + 1, dTh_dNC);
+      }
+
     } else if (obs.type === 'azimuth') {
-      b[i] = 0; // Placeholder
+      // AUDIT FIX (H12, 2026-07-02): Implemented azimuth observation equation.
+      // Previously was `b[i] = 0; // Placeholder`.
+      //
+      // Azimuth (bearing) from station P1 to station P2:
+      //   α = atan2(E_2 - E_1, N_2 - N_1)
+      //
+      // Partial derivatives (dist = |P2-P1|):
+      //   ∂α/∂E_1 =  dN / dist²    ∂α/∂N_1 = -dE / dist²
+      //   ∂α/∂E_2 = -dN / dist²    ∂α/∂N_2 =  dE / dist²
+
+      const fromStation = stations.find(s => s.name === obs.fromStation)!;
+      const toStation = stations.find(s => s.name === obs.toStation)!;
+
+      const dE = toStation.easting - fromStation.easting;
+      const dN = toStation.northing - fromStation.northing;
+      const dist = Math.sqrt(dE * dE + dN * dN);
+
+      if (dist < 1e-10) continue;
+
+      // Computed azimuth (radians → degrees)
+      const computedAz = Math.atan2(dE, dN) * 180 / Math.PI;
+      const computedDeg = (computedAz + 360) % 360; // normalize to [0, 360)
+
+      // Misclosure: observed - computed (in degrees)
+      b[i] = obs.value - computedDeg;
+
+      // Partial derivatives (convert radians → degrees)
+      const RAD_TO_DEG = 180 / Math.PI;
+      const dist2 = dist * dist;
+      const dAz_dEfrom = (dN / dist2) * RAD_TO_DEG;
+      const dAz_dNfrom = (-dE / dist2) * RAD_TO_DEG;
+      const dAz_dEto = (-dN / dist2) * RAD_TO_DEG;
+      const dAz_dNto = (dE / dist2) * RAD_TO_DEG;
+
+      const fromIdx = stationIndex.get(obs.fromStation);
+      if (fromIdx !== undefined) {
+        A.set(i, fromIdx * 2, dAz_dEfrom);
+        A.set(i, fromIdx * 2 + 1, dAz_dNfrom);
+      }
+      const toIdx = stationIndex.get(obs.toStation);
+      if (toIdx !== undefined) {
+        A.set(i, toIdx * 2, dAz_dEto);
+        A.set(i, toIdx * 2 + 1, dAz_dNto);
+      }
+
     } else if (obs.type === 'position') {
       // Position observation (pseudo-observation for constraints)
       const stationIdx = stationIndex.get(obs.fromStation);

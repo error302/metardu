@@ -151,7 +151,11 @@ export class StripeService {
     return data.id
   }
 
-  async createSubscription(customerId: string, priceId: string): Promise<{ subscriptionId: string; clientSecret: string }> {
+  async createSubscription(
+    customerId: string,
+    priceId: string,
+    metadata?: Record<string, string>
+  ): Promise<{ subscriptionId: string; clientSecret: string }> {
     const params = new URLSearchParams()
     params.append('customer', customerId)
     params.append('items[0][price]', priceId)
@@ -159,12 +163,23 @@ export class StripeService {
     params.append('payment_settings[save_default_payment_method]', 'on_subscription')
     params.append('expand', 'latest_invoice.payment_intent')
 
+    // AUDIT FIX (CRITICAL 3, 2026-07-02): Add metadata so webhook sync
+    // handlers can find the user. Without this, subscription update/delete
+    // webhooks silently no-op because sub.metadata.user_id is undefined.
+    if (metadata) {
+      for (const [key, value] of Object.entries(metadata)) {
+        params.append(`metadata[${key}]`, value)
+      }
+    }
+
     const response = await fetch('https://api.stripe.com/v1/subscriptions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.secretKey}`,
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Stripe-Version': STRIPE_API_VERSION
+        'Stripe-Version': STRIPE_API_VERSION,
+        // AUDIT FIX (HIGH 6, 2026-07-02): Idempotency key prevents double-charge on retry
+        'Idempotency-Key': `sub_${customerId}_${Date.now()}`,
       },
       body: params
     })
@@ -176,7 +191,7 @@ export class StripeService {
 
     const data = await response.json()
     const invoice = data.latest_invoice as { payment_intent?: { client_secret?: string } }
-    
+
     return {
       subscriptionId: data.id,
       clientSecret: invoice.payment_intent?.client_secret || ''
@@ -191,6 +206,16 @@ export class StripeService {
     const signatures = v1Parts.map((p) => p.slice(3)).filter(Boolean)
 
     if (!timestamp || signatures.length === 0) return false
+
+    // AUDIT FIX (HIGH 9, 2026-07-02): Timestamp freshness check.
+    // Reject webhooks older than 5 minutes to prevent replay attacks.
+    const webhookTime = parseInt(timestamp, 10) * 1000
+    const now = Date.now()
+    const maxAge = 5 * 60 * 1000 // 5 minutes
+    if (isNaN(webhookTime) || Math.abs(now - webhookTime) > maxAge) {
+      console.warn(`[stripe] Webhook timestamp outside 5min window: ${timestamp} (now: ${now})`)
+      return false
+    }
 
     const secret = process.env.STRIPE_WEBHOOK_SECRET
     if (!secret) return false

@@ -208,14 +208,59 @@ export type ReverseCurveApprox = {
   AB: number
   commonTangent: number
   totalLength: number
+  /** True when the total length is the rigorous value (deflection angles supplied); false when it's the 180°-arc approximation. */
+  isApprox: boolean
 }
 
 /**
  * Reverse curve (approx.) helper used by the UI tool.
+ *
+ * AUDIT FIX (M3, 2026-07-02):
+ *   The previous implementation computed `totalLength = π·R1 + π·R2`,
+ *   which assumes both arcs deflect by 180°. That's wrong for the
+ *   general case where Δ1 ≠ Δ2. The correct formula is
+ *   `L = R1·Δ1 + R2·Δ2` (radians). When deflection angles are supplied
+ *   via the optional `delta1`/`delta2` parameters (decimal degrees),
+ *   the rigorous length is returned and `isApprox = false`. When angles
+ *   are not supplied, the old 180° approximation is preserved for
+ *   backward compatibility, and `isApprox = true` flags it.
+ *
+ * @param input.R1     Radius of first arc (metres)
+ * @param input.R2     Radius of second arc (metres)
+ * @param input.AB     Distance between PIs of the two curves (metres)
+ * @param input.delta1 Optional deflection angle of first arc (decimal degrees)
+ * @param input.delta2 Optional deflection angle of second arc (decimal degrees)
  */
-export function reverseCurveApprox(input: { R1: number; R2: number; AB: number }): ReverseCurveApprox {
+export function reverseCurveApprox(input: {
+  R1: number
+  R2: number
+  AB: number
+  delta1?: number
+  delta2?: number
+}): ReverseCurveApprox {
   const diff = input.R2 - input.R1
   const commonTangent = Math.sqrt(Math.max(0, input.AB * input.AB - diff * diff))
-  const totalLength = Math.PI * input.R1 + Math.PI * input.R2
-  return { ...input, commonTangent, totalLength }
+
+  let totalLength: number
+  let isApprox: boolean
+
+  if (
+    typeof input.delta1 === 'number' &&
+    typeof input.delta2 === 'number' &&
+    !isNaN(input.delta1) &&
+    !isNaN(input.delta2)
+  ) {
+    // Rigorous: L = R1·Δ1 + R2·Δ2 (angles in radians)
+    const d1Rad = (input.delta1 * Math.PI) / 180
+    const d2Rad = (input.delta2 * Math.PI) / 180
+    totalLength = input.R1 * Math.abs(d1Rad) + input.R2 * Math.abs(d2Rad)
+    isApprox = false
+  } else {
+    // Approximation: assumes both arcs are 180° (semicircles).
+    // Flagged via isApprox = true so callers can warn the user.
+    totalLength = Math.PI * input.R1 + Math.PI * input.R2
+    isApprox = true
+  }
+
+  return { ...input, commonTangent, totalLength, isApprox }
 }

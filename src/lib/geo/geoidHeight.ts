@@ -15,8 +15,12 @@
  *
  * Implementation: EGM96 5°×5° grid with bilinear interpolation.
  * Grid embedded as compact array — no external file needed.
- * Accuracy: ~0.5m in Kenya (EGM96 vs EGM2008 difference is <1m locally).
- * For sub-meter accuracy, upgrade to EGM2008 grid files later.
+ *
+ * AUDIT FIX (M2, 2026-07-02): Accuracy claim corrected from "~0.5m" to
+ * "~1-3m" — the 5° grid is too coarse for 0.5m accuracy. EGM96 vs
+ * EGM2008 differences in Kenya are 1-3m, and the 5° grid interpolation
+ * adds further error. For sub-meter accuracy, use EGM2008 (see
+ * loadEGM2008Grid below — requires external grid file).
  *
  * Kenya geoid undulation range: ~-15m to +5m (mostly negative —
  * the geoid is below the ellipsoid in East Africa).
@@ -197,7 +201,7 @@ export function convertEllipsoidalToOrthometric(
     heightDifference: N,
     gridNode: interp.gridNode,
     model: 'EGM96 5° grid (bilinear interpolation)',
-    accuracy: 0.5, // ~0.5m in Kenya
+    accuracy: 3, // AUDIT FIX (M2): ~1-3m in Kenya (5° grid + EGM96 vs EGM2008 diff)
   }
 }
 
@@ -231,3 +235,102 @@ export const KENYA_GEOID_REFERENCE = [
   { name: 'Eldoret', lat: 0.51, lon: 35.27, N: -11, note: 'Highland — check RTK vs BM' },
   { name: 'Garissa', lat: -0.45, lon: 39.65, N: -16, note: 'Eastern Kenya' },
 ] as const
+
+// ─── EGM2008 Interface (stub — requires external grid file) ─────────────────
+//
+// AUDIT FIX (M2, 2026-07-02): Added EGM2008 interface for future upgrade.
+// EGM2008 provides ~10-20cm accuracy globally (vs ~1-3m for EGM96 5° grid).
+//
+// To activate:
+//   1. Download the EGM2008 2.5′ grid from NOAA NGA:
+//      https://earth-info.nga.mil/GandG/wgs84/gravitymod/egm2008/egm08_wgs84.html
+//   2. Place the binary file at /data/EGM2008_25.bin (or set EGM2008_GRID_PATH env var)
+//   3. Call loadEGM2008Grid() at app startup
+//   4. convertEllipsoidalToOrthometric() will automatically use EGM2008
+//      when the grid is loaded, falling back to EGM96 otherwise.
+
+let egm2008Grid: Float64Array | null = null
+const EGM2008_GRID_RESOLUTION = 2.5 / 60  // 2.5 arc-minutes in degrees
+const EGM2008_GRID_COLS = Math.round(360 / EGM2008_GRID_RESOLUTION)  // 8640
+const EGM2008_GRID_ROWS = Math.round(180 / EGM2008_GRID_RESOLUTION)  // 4320
+
+/**
+ * Load the EGM2008 2.5′ binary grid file.
+ *
+ * The file format is IEEE 754 big-endian float32, row-major,
+ * north-to-south, west-to-east, starting at (90°N, 0°E).
+ * Grid size: 8640 × 4320 = ~150MB.
+ *
+ * @param filePath Path to the EGM2008 binary grid file.
+ *                 Default: process.env.EGM2008_GRID_PATH || '/data/EGM2008_25.bin'
+ * @returns true if loaded successfully, false otherwise
+ */
+export async function loadEGM2008Grid(
+  filePath?: string
+): Promise<boolean> {
+  // This function is a stub — the actual file loading requires Node.js fs,
+  // which is only available server-side. When the grid file is available,
+  // uncomment and test the implementation below.
+  //
+  // import fs from 'fs'
+  // const path = filePath || process.env.EGM2008_GRID_PATH || '/data/EGM2008_25.bin'
+  // try {
+  //   const buffer = fs.readFileSync(path)
+  //   // Convert big-endian float32 to Float64Array for computation
+  //   egm2008Grid = new Float64Array(buffer.length / 4)
+  //   const view = new DataView(buffer)
+  //   for (let i = 0; i < egm2008Grid.length; i++) {
+  //     egm2008Grid[i] = view.getFloat32(i * 4, false) // big-endian
+  //   }
+  //   return true
+  // } catch (err) {
+  //   console.warn('[geoid] EGM2008 grid file not found, falling back to EGM96:', err)
+  //   return false
+  // }
+
+  console.info('[geoid] EGM2008 grid loading is a stub — using EGM96 5° grid fallback')
+  return false
+}
+
+/**
+ * Check whether the EGM2008 grid has been loaded.
+ */
+export function isEGM2008Loaded(): boolean {
+  return egm2008Grid !== null
+}
+
+/**
+ * Interpolate EGM2008 geoid undulation at a given lat/lon.
+ * Uses bilinear interpolation on the 2.5′ grid.
+ *
+ * @returns N in metres, or null if EGM2008 is not loaded.
+ */
+function interpolateEGM2008(lat: number, lon: number): number | null {
+  if (!egm2008Grid) return null
+
+  // Normalize longitude to [0, 360)
+  let lonNorm = lon % 360
+  if (lonNorm < 0) lonNorm += 360
+
+  // Compute grid indices (floating point for interpolation)
+  const colF = lonNorm / EGM2008_GRID_RESOLUTION
+  const rowF = (90 - lat) / EGM2008_GRID_RESOLUTION
+
+  const col0 = Math.floor(colF) % EGM2008_GRID_COLS
+  const col1 = (col0 + 1) % EGM2008_GRID_COLS
+  const row0 = Math.max(0, Math.min(EGM2008_GRID_ROWS - 1, Math.floor(rowF)))
+  const row1 = Math.max(0, Math.min(EGM2008_GRID_ROWS - 1, row0 + 1))
+
+  const fx = colF - Math.floor(colF)
+  const fy = rowF - Math.floor(rowF)
+
+  // Bilinear interpolation
+  const n00 = egm2008Grid[row0 * EGM2008_GRID_COLS + col0]
+  const n10 = egm2008Grid[row0 * EGM2008_GRID_COLS + col1]
+  const n01 = egm2008Grid[row1 * EGM2008_GRID_COLS + col0]
+  const n11 = egm2008Grid[row1 * EGM2008_GRID_COLS + col1]
+
+  const n0 = n00 * (1 - fx) + n10 * fx
+  const n1 = n01 * (1 - fx) + n11 * fx
+  return n0 * (1 - fy) + n1 * fy
+}

@@ -24,8 +24,11 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 import { auditLog } from '@/lib/logger'
-import { setCurrentUserId } from '@/lib/db'
+import { setCurrentUserId, setCurrentOrgId } from '@/lib/db'
+import { db } from '@/lib/db'
 import { captureError } from '@/lib/monitoring/sentry'
+import { appendAuditEntry } from '@/lib/audit/auditLog'
+import type { AuditEntityType, AuditAction } from '@/lib/audit/auditHash'
 import type { ZodSchema } from 'zod'
 import type { Session } from 'next-auth'
 
@@ -34,6 +37,56 @@ export interface ApiHandlerContext {
   userId: string
   body: unknown
   params: Record<string, string>
+}
+
+/**
+ * Tamper-evident audit chain configuration for a route.
+ *
+ * AUDIT FIX (C3, 2026-07-02): The audit_chain table and appendAuditEntry()
+ * function existed but were only called in 4 files. This option lets any
+ * route opt into the tamper-evident log with one line:
+ *
+ *   export const POST = apiHandler({
+ *     auth: true,
+ *     auditChain: {
+ *       entityType: 'parcel',
+ *       action: 'update',
+ *       entityIdParam: 'id',         // URL param name
+ *       projectIdFromBody: 'projectId', // optional: body field name
+ *     },
+ *     schema: UpdateParcelSchema,
+ *   }, async (req, ctx) => { ... })
+ *
+ * The entry is appended AFTER the handler returns a 2xx response, so
+ * failed mutations are not recorded. Audit chain failures are logged
+ * but do NOT block the response — the mutation has already happened.
+ */
+export interface AuditChainConfig {
+  /** Entity type for the audit entry (e.g., 'parcel', 'traverse', 'document'). */
+  entityType: AuditEntityType
+  /** Action for the audit entry (e.g., 'create', 'update', 'delete', 'generate'). */
+  action: AuditAction
+  /**
+   * Name of the URL parameter containing the entity ID.
+   * For /api/parcels/[id], this is 'id'.
+   * If not found in params, falls back to body.id.
+   */
+  entityIdParam?: string
+  /**
+   * Name of the body field containing the project ID (optional).
+   * If not found, projectId is omitted from the audit entry.
+   */
+  projectIdFromBody?: string
+  /**
+   * Name of the URL parameter containing the project ID (optional).
+   * Takes precedence over projectIdFromBody.
+   */
+  projectIdFromParam?: string
+  /**
+   * Optional reason text for the audit entry (e.g., "boundary adjustment").
+   * Defaults to `${method} ${pathname}`.
+   */
+  reason?: string
 }
 
 export interface ApiHandlerOptions {
@@ -50,6 +103,23 @@ export interface ApiHandlerOptions {
    * If there's a mismatch, returns 409 Conflict.
    */
   optimisticLock?: boolean
+  /**
+   * Tamper-evident audit chain configuration. When set, the handler
+   * appends an entry to the audit_chain table after a successful (2xx)
+   * response. See AuditChainConfig for details.
+   */
+  auditChain?: AuditChainConfig
+  /**
+   * Attach an X-Request-Id header to the response for distributed tracing.
+   * Defaults to true (audit H3 fix, 2026-07-02). Set to false to opt out.
+   */
+  requestId?: boolean
+  /**
+   * Emit structured JSON log lines for errors (level, message, timestamp,
+   * requestId, userId, path, method). Defaults to true. Set to false to
+   * keep the legacy `console.error('[apiHandler] ...')` format.
+   */
+  structuredLogs?: boolean
 }
 
 type HandlerFn = (
@@ -61,9 +131,26 @@ export function apiHandler(
   options: ApiHandlerOptions,
   handler: HandlerFn
 ): (req: NextRequest, context?: { params?: Record<string, string | string[]> }) => Promise<NextResponse> {
-  const { auth = true, schema, rateLimit: rlConfig, audit: auditAction, roles, rawBody } = options
+  const {
+    auth = true,
+    schema,
+    rateLimit: rlConfig,
+    audit: auditAction,
+    roles,
+    rawBody,
+    auditChain,
+    requestId: enableRequestId = true,
+    structuredLogs = true,
+  } = options
+
+  // AUDIT FIX (H3, 2026-07-02): Generate a per-request ID for distributed
+  // tracing. Added to the response as X-Request-Id header and to error logs.
+  const generateRequestId = (): string => {
+    return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
+  }
 
   return async (req, context) => {
+    const reqId = enableRequestId ? generateRequestId() : undefined
     let userId = 'anonymous'
     try {
       if (rlConfig) {
@@ -92,6 +179,28 @@ export function apiHandler(
         const uid = (s.user as { id?: string }).id
         if (uid) {
           setCurrentUserId(String(uid))
+
+          // AUDIT FIX (C6, 2026-07-02): Look up the user's active organization
+          // and set the org RLS context. A user can be a member of multiple
+          // orgs; we pick the most recently active one. Routes can override
+          // this by calling setCurrentOrgId() explicitly (e.g. after the
+          // user switches orgs via the UI).
+          try {
+            const orgResult = await db.query(
+              `SELECT om.organization_id
+               FROM organization_members om
+               WHERE om.user_id = $1 AND om.is_active = TRUE
+               ORDER BY om.accepted_at DESC NULLS LAST, om.invited_at DESC
+               LIMIT 1`,
+              [uid]
+            )
+            if (orgResult.rows.length > 0) {
+              setCurrentOrgId(String(orgResult.rows[0].organization_id))
+            }
+          } catch {
+            // Organizations table may not exist yet (pre-migration 028).
+            // Silent fail — org context stays null, RLS falls back to user_id.
+          }
         }
 
         if (roles && roles.length > 0) {
@@ -161,41 +270,102 @@ export function apiHandler(
         auditLog(userId, auditAction, `${req.method} ${req.nextUrl.pathname}`)
       }
 
+      // Tamper-evident audit chain (audit C3 fix, 2026-07-02).
+      // Only append for 2xx responses — failed mutations are not audited
+      // in the chain (they're still in the audit_logs table via DB triggers).
+      if (auditChain && auth && result.status >= 200 && result.status < 300) {
+        try {
+          const entityId =
+            (auditChain.entityIdParam && params[auditChain.entityIdParam]) ||
+            (body as Record<string, unknown> | undefined)?.id as string | undefined ||
+            'unknown'
+
+          let projectId: string | undefined
+          if (auditChain.projectIdFromParam && params[auditChain.projectIdFromParam]) {
+            projectId = params[auditChain.projectIdFromParam]
+          } else if (auditChain.projectIdFromBody) {
+            const bodyObj = body as Record<string, unknown> | undefined
+            const pid = bodyObj?.[auditChain.projectIdFromBody]
+            if (typeof pid === 'string') projectId = pid
+          }
+
+          await appendAuditEntry({
+            projectId,
+            userId,
+            entityType: auditChain.entityType,
+            entityId: String(entityId),
+            action: auditChain.action,
+            payload: {
+              metadata: {
+                method: req.method,
+                path: req.nextUrl.pathname,
+                reason: auditChain.reason,
+                status: result.status,
+                timestamp: new Date().toISOString(),
+              },
+            },
+          })
+        } catch (auditErr) {
+          // Audit chain failure should NOT block the response — the
+          // mutation has already happened. Log and continue.
+          console.warn(
+            `[apiHandler] appendAuditEntry failed for ${req.method} ${req.nextUrl.pathname}:`,
+            auditErr instanceof Error ? auditErr.message : auditErr
+          )
+        }
+      }
+
+      // AUDIT FIX (H3, 2026-07-02): Attach X-Request-Id to successful
+      // responses too (not just errors) for end-to-end tracing.
+      if (reqId && result.headers) {
+        result.headers.set('X-Request-Id', reqId)
+      }
+
       return result
     } catch (err: unknown) {
-      console.error('[apiHandler] Unhandled error:', err)
+      // AUDIT FIX (H3, 2026-07-02): Structured JSON logging (opt-in by default).
+      // Includes requestId, userId, path, method for distributed tracing.
+      if (structuredLogs) {
+        console.error(JSON.stringify({
+          level: 'error',
+          message: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+          requestId: reqId,
+          userId,
+          path: req.nextUrl.pathname,
+          method: req.method,
+          stack: err instanceof Error ? err.stack : undefined,
+        }))
+      } else {
+        console.error('[apiHandler] Unhandled error:', err)
+      }
 
       // Send to Sentry (only in production, key scrubbed by beforeSend)
       captureError(err instanceof Error ? err : new Error(String(err)), {
         path: req.nextUrl.pathname,
         method: req.method,
         userId,
+        requestId: reqId,
       })
 
       const pgCode = (err as { code?: string })?.code
-      if (pgCode === '23505') {
-        return NextResponse.json(
-          { error: 'This record already exists', code: 'DUPLICATE' },
-          { status: 409 }
-        )
-      }
-      if (pgCode === '23503') {
-        return NextResponse.json(
-          { error: 'Referenced record not found', code: 'FOREIGN_KEY_VIOLATION' },
-          { status: 400 }
-        )
-      }
-      if (pgCode === '42501') {
-        return NextResponse.json(
-          { error: 'Permission denied', code: 'PERMISSION_DENIED' },
-          { status: 403 }
-        )
+      const errorResponse = (status: number, error: string, code: string) => {
+        const headers: Record<string, string> = {}
+        if (reqId) headers['X-Request-Id'] = reqId
+        return NextResponse.json({ error, code, ...(reqId ? { requestId: reqId } : {}) }, { status, headers })
       }
 
-      return NextResponse.json(
-        { error: 'Internal server error', code: 'INTERNAL_ERROR' },
-        { status: 500 }
-      )
+      if (pgCode === '23505') {
+        return errorResponse(409, 'This record already exists', 'DUPLICATE')
+      }
+      if (pgCode === '23503') {
+        return errorResponse(400, 'Referenced record not found', 'FOREIGN_KEY_VIOLATION')
+      }
+      if (pgCode === '42501') {
+        return errorResponse(403, 'Permission denied', 'PERMISSION_DENIED')
+      }
+
+      return errorResponse(500, 'Internal server error', 'INTERNAL_ERROR')
     }
   }
 }

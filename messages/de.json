@@ -262,7 +262,11 @@
     "leveling": "Nivellement-Rechner",
     "traverse": "Polygonzug-Berechnung",
     "usSurveyReference": "US-Vermessungsstandards-Referenz",
-    "usSurveyReferenceDesc": "Referenz der Vermessungsstandards des US Fish & Wildlife Service und BLM"
+    "usSurveyReferenceDesc": "Referenz der Vermessungsstandards des US Fish & Wildlife Service und BLM",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "Katasterplan",

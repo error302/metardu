@@ -1,7 +1,15 @@
 /**
  * GNSS Baseline Processing Service
- * Phase 7 - Online Power Features
- * Upload and process RINEX or proprietary GNSS baseline files
+ *
+ * AUDIT FIX (C9, 2026-07-02): Previously this module was a regex parser
+ * that searched for "REFERENCE POINT" / "ROVER POINT" strings in
+ * pre-processed ASCII files — it did NOT compute baselines from raw
+ * RINEX. Now it calls the real RTKLIB-based processing endpoint
+ * (/api/gnss/baseline-process) which dispatches to the Python worker.
+ *
+ * The old regex parsing functions (parseRINEXBaseline, computeCoordinates-
+ * FromBaseline) are kept for backward compatibility but marked deprecated.
+ * New code should use processBaseline().
  */
 
 export interface GNSSBaselineFile {
@@ -283,4 +291,75 @@ export function getSolutionQualityDescription(solution: BaselineResult['solution
     case 'dgnss': return 'DGNSS differential correction (~0.5-2m)'
     case 'autonomous': return 'Autonomous GPS (~2-5m)'
   }
+}
+
+// ─── RTKLIB-based Baseline Processing (C9 fix, 2026-07-02) ─────────────────
+
+export interface BaselineProcessOptions {
+  mode?: 'static' | 'kinematic'
+  frequency?: 'l1' | 'l2' | 'l1+l2'
+  elevationMask?: number
+  ambiguityResolution?: 'fix' | 'float' | 'off'
+}
+
+export interface BaselineProcessResult {
+  rover_latitude: number
+  rover_longitude: number
+  rover_height: number
+  sigma_north: number
+  sigma_east: number
+  sigma_up: number
+  quality: 'FIX' | 'FLOAT' | 'SBAS' | 'DGPS' | 'SINGLE' | 'PPP' | 'UNKNOWN'
+  sat_count: number
+  ratio: number
+  raw_output: string
+}
+
+/**
+ * Process a GNSS baseline from raw RINEX files using RTKLIB.
+ *
+ * This is the REAL baseline processing function — it sends base + rover
+ * observation files and a navigation file to the Python worker, which
+ * runs RTKLIB's rnx2rtkp and returns the adjusted rover position with
+ * precision estimates.
+ *
+ * Usage:
+ *   const result = await processBaseline({
+ *     baseRinex: baseFileContent,
+ *     roverRinex: roverFileContent,
+ *     navRinex: navFileContent,
+ *     options: { mode: 'static', frequency: 'l1+l2' }
+ *   })
+ *
+ * @throws {Error} if the worker is unavailable, RTKLIB is not installed,
+ *                 or processing fails.
+ */
+export async function processBaseline(input: {
+  baseRinex: string
+  roverRinex: string
+  navRinex: string
+  options?: BaselineProcessOptions
+}): Promise<BaselineProcessResult> {
+  const response = await fetch('/api/gnss/baseline-process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      baseRinex: input.baseRinex,
+      roverRinex: input.roverRinex,
+      navRinex: input.navRinex,
+      options: input.options ?? {},
+    }),
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+    throw new Error(
+      error.error || `Baseline processing failed (HTTP ${response.status}). ` +
+      'Ensure the Python worker is running and RTKLIB is installed.'
+    )
+  }
+
+  const data = await response.json()
+  return data.baseline as BaselineProcessResult
 }

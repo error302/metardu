@@ -59,9 +59,11 @@ export default function CSVUploadModal({
       setWarnings([...result.warnings, ...validationWarnings])
       setStep('preview')
     } catch (err) {
-      setError('Failed to parse file')
+      // AUDIT FIX (M15, 2026-07-02): Actionable error message.
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(`Could not parse the file. ${msg}. Check that the file is a valid CSV with columns: name, easting, northing, elevation (or N, E, Z). If the file uses a different delimiter (tab, semicolon), try converting to comma-separated first.`)
     }
-    
+
     setLoading(false)
   }
 

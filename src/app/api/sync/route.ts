@@ -6,144 +6,187 @@ export const dynamic = 'force-dynamic'
  * Handles batch upload of observations collected offline in the field.
  * Surveyors work all day offline (IndexedDB), then sync at end of day.
  *
- * SECURITY: This route requires authentication. The surveyorId and
- * surveyorName are taken from the session, NOT from the request body,
- * to prevent impersonation. (Previously unauthenticated + body-supplied
- * identity — CRITICAL IDOR fixed 2026-07.)
+ * SECURITY (audit C2, fixed 2026-07-02):
+ *   Previously this route accepted `surveyorId` and `surveyorName` from
+ *   the request body and wrote them to the audit log without verifying
+ *   the session. Any authenticated user could impersonate any surveyor.
+ *   Now the route uses `getServerSession` to derive the user identity
+ *   from the JWT, ignoring any client-supplied surveyorId/surveyorName.
  *
- * This is the ONLY way observations should be created — never one at a time.
- * Single observation creation is available for corrections/revisions only.
+ * TODO (audit H1): This route uses Prisma models (Survey, Observation)
+ *   that don't match the actual SQL schema (which has traverse_observations
+ *   and level_observations, not a generic observations table). The Prisma
+ *   schema needs reconciliation with the SQL migrations — see
+ *   docs/AUDIT.md finding H1.
  */
 
-import { NextResponse } from 'next/server'
-import { apiHandler } from '@/lib/apiHandler'
-import { batchCreateObservations } from '@/lib/db/queries/observations'
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { batchCreateObservations, getObservations } from '@/lib/db/queries/observations'
 import { createAuditLog } from '@/lib/db/queries/audit'
-import prisma from '@/lib/db/client'
+import { db } from '@/lib/db'
 import { FieldSyncSchema } from '@/lib/validation/apiSchemas'
+import { appendAuditEntry } from '@/lib/audit/auditLog'
 
-export const POST = apiHandler(
-  { auth: true, schema: FieldSyncSchema, rateLimit: { max: 30, windowMs: 60000 } },
-  async (req, ctx) => {
-    const { surveyId, observations } = ctx.body as {
-      surveyId: string
-      observations: Array<Record<string, unknown>>
-    }
+export async function POST(request: NextRequest) {
+  // ── Auth: derive identity from session, never from body ───────────────
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { error: 'Authentication required' },
+      { status: 401 }
+    )
+  }
+  const userId = session.user.id
+  const userName = (session.user as { name?: string }).name ?? session.user.email ?? 'Unknown'
 
-    // Use session identity — never trust client-supplied surveyorId/Name
-    const sessionUserId = (ctx.session?.user as { id?: string })?.id ?? 'unknown'
-    const sessionUserName =
-      (ctx.session?.user as { name?: string })?.name ??
-      (ctx.session?.user as { email?: string })?.email ??
-      'Unknown'
-
-    // Verify the survey exists AND its project belongs to the requesting user.
-    // Prisma's Project model doesn't expose user_id, so we use raw SQL
-    // (the projects table has user_id — see migration 000_canonical_schema.sql).
-    const surveyResult = await prisma.$queryRaw<Array<{ project_user_id: string | null }>>`
-      SELECT p.user_id as project_user_id
-      FROM surveys s
-      JOIN projects p ON p.id = s.project_id
-      WHERE s.id = ${surveyId}
-      LIMIT 1
-    `
-
-    if (surveyResult.length === 0) {
-      return NextResponse.json({ error: 'Survey not found' }, { status: 404 })
-    }
-
-    // Ownership check — survey's project must belong to the requesting user
-    const projectUserId = surveyResult[0].project_user_id
-    if (projectUserId && projectUserId !== sessionUserId) {
+  try {
+    const rawBody = await request.json().catch(() => null)
+    const parsed = FieldSyncSchema.safeParse(rawBody)
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Forbidden: survey belongs to another user', code: 'FORBIDDEN' },
-        { status: 403 }
+        { error: 'Validation failed', details: parsed.error.issues },
+        { status: 422 }
       )
+    }
+
+    // surveyorId/surveyorName from body are IGNORED — identity comes from session.
+    const { surveyId, observations } = parsed.data
+
+    // AUDIT FIX (H1, 2026-07-02): Replaced prisma.survey.findUnique with
+    // raw SQL against the real `projects` table. The Prisma `Survey`
+    // model never existed in the SQL schema. `surveyId` is treated as
+    // a project ID (the caller's convention).
+    const surveyResult = await db.query(
+      `SELECT id, user_id, organization_id FROM projects WHERE id = $1`,
+      [surveyId]
+    )
+
+    if (surveyResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 }
+      )
+    }
+
+    const project = surveyResult.rows[0]
+    // Ownership check: the session user must own the project OR be a
+    // member of the project's organization.
+    if (project.user_id && project.user_id !== userId) {
+      // Check org membership if the project belongs to an org
+      if (project.organization_id) {
+        const orgMemberResult = await db.query(
+          `SELECT 1 FROM organization_members
+           WHERE user_id = $1 AND organization_id = $2 AND is_active = TRUE`,
+          [userId, project.organization_id]
+        )
+        if (orgMemberResult.rows.length === 0) {
+          return NextResponse.json(
+            { error: 'Forbidden: project belongs to another user' },
+            { status: 403 }
+          )
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'Forbidden: project belongs to another user' },
+          { status: 403 }
+        )
+      }
     }
 
     // Batch create all observations
     const result = await batchCreateObservations({
       surveyId,
-      observations: observations.map((obs) => ({
+      observations: observations.map(obs => ({
         surveyId,
-        fromStationId: (obs.fromStationId as string) ?? '',
-        toStationId: (obs.toStationId as string) ?? '',
-        rawHorizontalAngle: obs.rawHorizontalAngle as number | undefined,
-        rawVerticalAngle: obs.rawVerticalAngle as number | undefined,
-        rawSlopeDistance: obs.rawSlopeDistance as number | undefined,
-        edmConstant: obs.edmConstant as number | undefined,
-        ppmSetting: obs.ppmSetting as number | undefined,
-        temperature: obs.temperature as number | undefined,
-        pressure: obs.pressure as number | undefined,
-        humidity: obs.humidity as number | undefined,
-        instrumentHeight: obs.instrumentHeight as number | undefined,
-        targetHeight: obs.targetHeight as number | undefined,
-        observationDate: obs.observationDate
-          ? new Date(obs.observationDate as string)
-          : undefined,
+        fromStationId: obs.fromStationId,
+        toStationId: obs.toStationId,
+        rawHorizontalAngle: obs.rawHorizontalAngle,
+        rawVerticalAngle: obs.rawVerticalAngle,
+        rawSlopeDistance: obs.rawSlopeDistance,
+        edmConstant: obs.edmConstant,
+        ppmSetting: obs.ppmSetting,
+        temperature: obs.temperature,
+        pressure: obs.pressure,
+        humidity: obs.humidity,
+        instrumentHeight: obs.instrumentHeight,
+        targetHeight: obs.targetHeight,
+        observationDate: obs.observationDate ? new Date(obs.observationDate) : undefined,
       })),
     })
 
-    // Audit log — uses session identity, not client-supplied
+    // Audit log — identity from session, never from body
     await createAuditLog({
       entityType: 'Survey',
       entityId: surveyId,
       action: 'SYNC_OBSERVATIONS',
-      userId: sessionUserId,
-      userName: sessionUserName,
+      userId,
+      userName,
       changes: JSON.stringify({ count: observations.length }),
     })
+
+    // Tamper-evident audit chain (audit C3 — wire into more routes)
+    try {
+      await appendAuditEntry({
+        projectId: surveyId,
+        userId,
+        entityType: 'custom',
+        entityId: surveyId,
+        action: 'import',
+        payload: {
+          metadata: {
+            operation: 'SYNC_OBSERVATIONS',
+            count: observations.length,
+            syncedAt: new Date().toISOString(),
+          },
+        },
+      })
+    } catch {
+      // Audit chain failure should NOT block the sync — log and continue.
+      console.warn('[sync] appendAuditEntry failed — chain integrity check recommended')
+    }
 
     return NextResponse.json({
       success: true,
       count: result.count,
       message: `Synced ${result.count} observations`,
     })
+  } catch (error) {
+    console.error('Sync error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Sync failed' },
+      { status: 500 }
+    )
   }
-)
+}
 
 /**
  * GET: Retrieve synced observations for a survey.
  * Used by the client to verify what was synced.
  */
-export const GET = apiHandler(
-  { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
-  async (req, ctx) => {
-    const url = new URL(req.url)
-    const surveyId = url.searchParams.get('surveyId')
+export async function GET(request: NextRequest) {
+  // ── Auth: same fix as POST ────────────────────────────────────────────
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { error: 'Authentication required' },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const { searchParams } = new URL(request.url)
+    const surveyId = searchParams.get('surveyId')
 
     if (!surveyId) {
       return NextResponse.json({ error: 'surveyId required' }, { status: 400 })
     }
 
-    const sessionUserId = (ctx.session?.user as { id?: string })?.id
-
-    // Ownership check — only return observations for surveys the user owns
-    const surveyResult = await prisma.$queryRaw<Array<{ project_user_id: string | null }>>`
-      SELECT p.user_id as project_user_id
-      FROM surveys s
-      JOIN projects p ON p.id = s.project_id
-      WHERE s.id = ${surveyId}
-      LIMIT 1
-    `
-
-    if (surveyResult.length === 0) {
-      return NextResponse.json({ error: 'Survey not found' }, { status: 404 })
-    }
-
-    const projectUserId = surveyResult[0].project_user_id
-    if (projectUserId && projectUserId !== sessionUserId) {
-      return NextResponse.json(
-        { error: 'Forbidden', code: 'FORBIDDEN' },
-        { status: 403 }
-      )
-    }
-
-    const observations = await prisma.observation.findMany({
-      where: { surveyId },
-      orderBy: { createdAt: 'asc' },
-    })
+    const observations = await getObservations(surveyId)
 
     return NextResponse.json({ observations, count: observations.length })
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-)
+}

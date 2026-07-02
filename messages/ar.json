@@ -262,7 +262,11 @@
     "leveling": "حاسبة الميزانية",
     "traverse": "حساب المسح التفصيلي",
     "usSurveyReference": "مرجع معايير المسح الأمريكية",
-    "usSurveyReferenceDesc": "مرجع معايير المسح لخدمة الأسماك والحياة البرية الأمريكية ومكوك إدارة الأراضي"
+    "usSurveyReferenceDesc": "مرجع معايير المسح لخدمة الأسماك والحياة البرية الأمريكية ومكوك إدارة الأراضي",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "خطة ملكية",

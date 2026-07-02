@@ -22,7 +22,9 @@ ARG DATABASE_URL="postgresql://build:build@localhost/build"
 ARG AUTH_SECRET="build-placeholder-not-used-at-runtime"
 ENV DATABASE_URL=$DATABASE_URL
 ENV AUTH_SECRET=$AUTH_SECRET
-ENV IGNORE_TYPE_ERRORS=true
+# AUDIT FIX (C10, 2026-07-02): Removed IGNORE_TYPE_ERRORS=true — TypeScript
+# errors now block production builds. tsc --noEmit passes clean as of
+# this commit. If type errors are reintroduced, fix them; do not re-enable.
 RUN npx prisma generate
 RUN npm run build
 

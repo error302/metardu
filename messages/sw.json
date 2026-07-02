@@ -262,7 +262,11 @@
     "leveling": "Kikokotoo cha Kupima Kimo",
     "traverse": "Mahesabu ya Mfululizo",
     "usSurveyReference": "Rejea ya Viwango vya Upimaji vya Marekani",
-    "usSurveyReferenceDesc": "Rejea ya viwango vya upimaji vya Huduma ya Samaki na Wanyamaporo ya Marekani na BLM"
+    "usSurveyReferenceDesc": "Rejea ya viwango vya upimaji vya Huduma ya Samaki na Wanyamaporo ya Marekani na BLM",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "Mpango wa Hati",
@@ -459,7 +463,7 @@
     "raw": "Asili",
     "coordinateSystem": "Mfumo wa Kuratanishi",
     "datum": "Datumu",
-    "projection": "Miradi",
+    "projection": "Projecki",
     "zone": "Eneo",
     "hemisphere": "Nusutufe",
     "north": "Kaskazini",

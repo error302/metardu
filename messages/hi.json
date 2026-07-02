@@ -262,7 +262,11 @@
     "leveling": "लेवलिंग कैलकुलेटर",
     "traverse": "ट्रैवर्स गणना",
     "usSurveyReference": "अमेरिकी सर्वे मानक संदर्भ",
-    "usSurveyReferenceDesc": "अमेरिकी मत्स्य एवं वन्यजीव सेवा और BLM सर्वे मानक संदर्भ"
+    "usSurveyReferenceDesc": "अमेरिकी मत्स्य एवं वन्यजीव सेवा और BLM सर्वे मानक संदर्भ",
+    "verticalCurveDesigner": "Vertical Curve Designer",
+    "verticalCurveDesignerDesc": "Multi-VIP parabolic alignment with AASHTO K-factor and stopping sight distance compliance",
+    "spiralAlignment": "Spiral Alignment",
+    "spiralAlignmentDesc": "TS-SC-CS-ST alignment engine with clothoid transition spirals for highway design"
   },
   "documents": {
     "deedPlan": "डीड प्लान",

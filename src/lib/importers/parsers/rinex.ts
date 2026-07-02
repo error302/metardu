@@ -35,6 +35,13 @@ export interface RinexHeader {
   systems?: string[] // e.g. ['G', 'R', 'E', 'C']
   rinexDate?: string // date of file creation
   interval?: number // observation interval in seconds
+  /**
+   * AUDIT FIX (C9/M2, 2026-07-02): Observation type list per system.
+   * Maps system char → ordered list of obs type codes (e.g. ['C1C','L1C','S1C','C2W','L2W','S2W']).
+   * Used to correctly assign observation values by position instead of
+   * the magnitude heuristic that was previously used.
+   */
+  obsTypes?: Record<string, string[]>
 }
 
 // ─── Observation Types ───────────────────────────────────────────────────────
@@ -50,6 +57,7 @@ export interface RinexObservation {
   snrL1?: number          // dB-Hz (signal-to-noise ratio)
   snrL2?: number
   dopplerL1?: number      // Hz
+  dopplerL2?: number      // Hz
   lossOfLockL1?: number   // 0=ok, 1=cycle slip
   lossOfLockL2?: number
 }
@@ -149,12 +157,39 @@ export function parseRinexHeader(content: string): RinexHeader {
     } else if (label === 'INTERVAL') {
       header.interval = parseFloat(padded.substring(0, 10))
     } else if (label === 'SYS / # / OBS TYPES' || label === '# / TYPES OF OBSERV') {
-      // RINEX 3: "G  4 C1C L1C S1C C2C" or RINEX 2: "     4    C1    P1    L1    L2"
-      // Systems tracking
+      // AUDIT FIX (C9/M2, 2026-07-02): Parse the actual observation type
+      // codes so observation lines can be assigned by position instead of
+      // magnitude heuristic. Previously only the system char was recorded.
+      //
+      // RINEX 3: "G    4 C1C L1C S1C C2W" — sys char, count, then type codes
+      // RINEX 2: "     4    C1    L1    L2    P2    S1    S2" — count, then types
       if (!header.systems) header.systems = []
+      if (!header.obsTypes) header.obsTypes = {}
+
       const sysChar = padded.substring(0, 1).trim()
       if (sysChar && SYSTEM_MAP[sysChar]) {
-        header.systems.push(sysChar)
+        if (!header.systems.includes(sysChar)) header.systems.push(sysChar)
+
+        // Parse the type codes from the rest of the line
+        // RINEX 3 format: after sys char + count, types are space-separated 3-char codes
+        // RINEX 2 format: after count, types are space-separated 2-char codes
+        const afterSys = padded.substring(1).trim()
+        // First token is the count; remaining tokens are the type codes
+        const tokens = afterSys.split(/\s+/).filter(Boolean)
+        if (tokens.length > 1) {
+          // tokens[0] = count, tokens[1:] = type codes
+          (header?.obsTypes)[sysChar] = tokens.slice(1)
+        }
+      } else if (!sysChar) {
+        // RINEX 2: "# / TYPES OF OBSERV" — no system char, types apply to GPS
+        const tokens = padded.trim().split(/\s+/).filter(Boolean)
+        if (tokens.length > 1) {
+          const count = parseInt(tokens[0])
+          if (isFinite(count) && count > 0) {
+            (header?.obsTypes)['G'] = tokens.slice(1, 1 + count)
+            if (!header.systems.includes('G')) header.systems.push('G')
+          }
+        }
       }
     } else if (label === 'END OF HEADER') {
       break
@@ -177,6 +212,55 @@ function detectRinexVersion(content: string): number {
 }
 
 // ─── Observation Parsing Helpers ─────────────────────────────────────────────
+
+/**
+ * Map a RINEX observation type code to a field on RinexObservation.
+ *
+ * AUDIT FIX (C9/M2, 2026-07-02): Replaces the magnitude heuristic with
+ * proper type-code-based assignment. RINEX obs type codes:
+ *   C1, C1C, C1W → pseudorange L1
+ *   C2, C2C, C2W, C2L → pseudorange L2
+ *   P1, P2 → pseudorange L1/L2 (P-code)
+ *   L1, L1C, L1W → carrier phase L1
+ *   L2, L2C, L2W, L2L → carrier phase L2
+ *   S1, S1C, S1W → SNR L1
+ *   S2, S2C, S2W, S2L → SNR L2
+ *   D1, D1C → doppler L1
+ *   D2, D2C → doppler L2
+ *
+ * @param obsType  RINEX observation type code (2 or 3 chars)
+ * @param value    The parsed numeric value
+ * @param obs      The observation object to populate
+ */
+function assignObsByType(obsType: string, value: number, obs: RinexObservation): void {
+  const t = obsType.toUpperCase()
+
+  // Pseudorange
+  if (t === 'C1' || t === 'C1C' || t === 'C1W' || t === 'C1L' || t === 'P1') {
+    if (!obs.pseudorangeL1) obs.pseudorangeL1 = value
+  } else if (t === 'C2' || t === 'C2C' || t === 'C2W' || t === 'C2L' || t === 'C2X' || t === 'P2') {
+    if (!obs.pseudorangeL2) obs.pseudorangeL2 = value
+  }
+  // Carrier phase
+  else if (t === 'L1' || t === 'L1C' || t === 'L1W' || t === 'L1L') {
+    if (!obs.carrierPhaseL1) obs.carrierPhaseL1 = value
+  } else if (t === 'L2' || t === 'L2C' || t === 'L2W' || t === 'L2L' || t === 'L2X') {
+    if (!obs.carrierPhaseL2) obs.carrierPhaseL2 = value
+  }
+  // SNR
+  else if (t === 'S1' || t === 'S1C' || t === 'S1W') {
+    if (!obs.snrL1) obs.snrL1 = value
+  } else if (t === 'S2' || t === 'S2C' || t === 'S2W') {
+    if (!obs.snrL2) obs.snrL2 = value
+  }
+  // Doppler
+  else if (t === 'D1' || t === 'D1C') {
+    if (!obs.dopplerL1) obs.dopplerL1 = value
+  } else if (t === 'D2' || t === 'D2C') {
+    obs.dopplerL2 = value
+  }
+  // Unknown type — silently skip (the value is stored but not mapped)
+}
 
 /**
  * Parse a RINEX 2.x epoch header line.
@@ -333,7 +417,8 @@ function parseRinex4Epoch(line: string): { epoch: Date; satCount: number; sats: 
 function parseRinex2ObsLine(
   line: string,
   epoch: Date,
-  satId: string
+  satId: string,
+  obsTypes?: string[]  // AUDIT FIX (C9/M2): from (header?.obsTypes)['G']
 ): RinexObservation | null {
   const prn = line.substring(0, 3).trim()
   if (!prn || prn.length === 0) return null
@@ -345,9 +430,6 @@ function parseRinex2ObsLine(
     system: identifySystem(fullSatId),
   }
 
-  // RINEX 2 observation fields are 14 chars each starting at position 3
-  // Typical order: L1 L2 C1 C2 P1 P2 D1 D2 S1 S2 (varies by #/TYPES OF OBSERV)
-  // We extract what we can: L1 (carrier phase), C1/P1 (pseudorange), S1/S2 (SNR)
   const fieldWidth = 14
   const maxFields = Math.floor((line.length - 3) / fieldWidth)
 
@@ -359,30 +441,27 @@ function parseRinex2ObsLine(
     const val = parseFloat(valStr)
     if (!isFinite(val)) continue
 
-    // Try to identify what field this is based on position and value magnitude.
-    // Pseudorange values are typically > 1e6 (metres)
-    // Carrier phase values can be very large (cycles * wavelength) or include negative
-    // SNR is typically 10-60 (dB-Hz)
-    // We'll just store sequentially and let consumers interpret based on header.
-    // For simplicity, we assign by common convention:
-    if (i === 0 && Math.abs(val) > 100) {
-      obs.carrierPhaseL1 = val
-    } else if (i === 1 && Math.abs(val) > 100) {
-      obs.carrierPhaseL2 = val
-    } else if (i === 2 && Math.abs(val) > 1e4) {
-      obs.pseudorangeL1 = val
-    } else if (i === 3 && Math.abs(val) > 1e4) {
-      obs.pseudorangeL2 = val
-    } else if (i === 4 && Math.abs(val) > 1e4) {
-      obs.pseudorangeL1 = val // alternative P1 position
-    } else if (i === 5 && Math.abs(val) > 1e4) {
-      obs.pseudorangeL2 = val // alternative P2 position
-    } else if (val >= 1 && val <= 60 && i >= 6) {
-      // Likely SNR
-      if (!obs.snrL1) {
-        obs.snrL1 = val
-      } else {
-        obs.snrL2 = val
+    // AUDIT FIX (C9/M2, 2026-07-02): Use obsTypes from header when available.
+    // Fall back to magnitude heuristic only when header is missing.
+    if (obsTypes && obsTypes[i]) {
+      assignObsByType(obsTypes[i], val, obs)
+    } else {
+      // Fallback heuristic (for malformed RINEX without proper header)
+      if (i === 0 && Math.abs(val) > 100) {
+        obs.carrierPhaseL1 = val
+      } else if (i === 1 && Math.abs(val) > 100) {
+        obs.carrierPhaseL2 = val
+      } else if (i === 2 && Math.abs(val) > 1e4) {
+        obs.pseudorangeL1 = val
+      } else if (i === 3 && Math.abs(val) > 1e4) {
+        obs.pseudorangeL2 = val
+      } else if (i === 4 && Math.abs(val) > 1e4) {
+        obs.pseudorangeL1 = val
+      } else if (i === 5 && Math.abs(val) > 1e4) {
+        obs.pseudorangeL2 = val
+      } else if (val >= 1 && val <= 60 && i >= 6) {
+        if (!obs.snrL1) obs.snrL1 = val
+        else obs.snrL2 = val
       }
     }
   }
@@ -395,11 +474,14 @@ function parseRinex2ObsLine(
  * Format: "G07  12345678.012  -9876543.210  23456789.012  ..."
  * Satellite ID is 3 chars, then observation values (14 chars each).
  */
-function parseRinex3ObsLine(line: string, epoch: Date): RinexObservation | null {
+function parseRinex3ObsLine(
+  line: string,
+  epoch: Date,
+  obsTypesBySys?: Record<string, string[]>
+): RinexObservation | null {
   const satId = line.substring(0, 3).trim()
   if (!satId || satId.length < 2) return null
 
-  // Normalize satellite ID
   const sys = satId.charAt(0).toUpperCase()
   const num = parseInt(satId.substring(1))
   const fullSatId = isFinite(num) ? sys + String(num).padStart(2, '0') : satId
@@ -410,7 +492,8 @@ function parseRinex3ObsLine(line: string, epoch: Date): RinexObservation | null 
     system: identifySystem(fullSatId),
   }
 
-  // Observation values are 14 chars each starting at position 3
+  const sysObsTypes = obsTypesBySys?.[sys]
+
   const fieldWidth = 14
   const maxFields = Math.floor((line.length - 3) / fieldWidth)
 
@@ -422,29 +505,18 @@ function parseRinex3ObsLine(line: string, epoch: Date): RinexObservation | null 
     const val = parseFloat(valStr)
     if (!isFinite(val)) continue
 
-    // Assign by position (depends on SYS / # / OBS TYPES header)
-    // Common order: C1C L1C S1C C2W L2W S2W (code, phase, snr for each freq)
-    // We use heuristic assignment based on magnitude:
-    if (Math.abs(val) > 1e4) {
-      // Likely pseudorange
-      if (!obs.pseudorangeL1) {
-        obs.pseudorangeL1 = val
-      } else if (!obs.pseudorangeL2) {
-        obs.pseudorangeL2 = val
-      }
-    } else if (Math.abs(val) > 100) {
-      // Likely carrier phase
-      if (!obs.carrierPhaseL1) {
-        obs.carrierPhaseL1 = val
-      } else if (!obs.carrierPhaseL2) {
-        obs.carrierPhaseL2 = val
-      }
-    } else if (val >= 1 && val <= 60) {
-      // Likely SNR
-      if (!obs.snrL1) {
-        obs.snrL1 = val
-      } else if (!obs.snrL2) {
-        obs.snrL2 = val
+    if (sysObsTypes && sysObsTypes[i]) {
+      assignObsByType(sysObsTypes[i], val, obs)
+    } else {
+      if (Math.abs(val) > 1e4) {
+        if (!obs.pseudorangeL1) obs.pseudorangeL1 = val
+        else if (!obs.pseudorangeL2) obs.pseudorangeL2 = val
+      } else if (Math.abs(val) > 100) {
+        if (!obs.carrierPhaseL1) obs.carrierPhaseL1 = val
+        else if (!obs.carrierPhaseL2) obs.carrierPhaseL2 = val
+      } else if (val >= 1 && val <= 60) {
+        if (!obs.snrL1) obs.snrL1 = val
+        else obs.snrL2 = val
       }
     }
   }
@@ -457,11 +529,14 @@ function parseRinex3ObsLine(line: string, epoch: Date): RinexObservation | null 
  * Format: "G007  12345678.012  -9876543.210  ..."
  * Satellite ID is 4 chars, then observation values (16 chars each in v4).
  */
-function parseRinex4ObsLine(line: string, epoch: Date): RinexObservation | null {
+function parseRinex4ObsLine(
+  line: string,
+  epoch: Date,
+  obsTypesBySys?: Record<string, string[]>
+): RinexObservation | null {
   const satId = line.substring(0, 4).trim()
   if (!satId || satId.length < 3) return null
 
-  // Normalize 4-char to 3-char: G007 -> G07
   const sys = satId.charAt(0).toUpperCase()
   const num = parseInt(satId.substring(1))
   const fullSatId = isFinite(num) ? sys + String(num).padStart(2, '0') : satId
@@ -472,7 +547,8 @@ function parseRinex4ObsLine(line: string, epoch: Date): RinexObservation | null 
     system: identifySystem(fullSatId),
   }
 
-  // RINEX 4 uses 16-character fields (extended precision)
+  const sysObsTypes = obsTypesBySys?.[sys]
+
   const fieldWidth = 16
   const maxFields = Math.floor((line.length - 4) / fieldWidth)
 
@@ -484,23 +560,18 @@ function parseRinex4ObsLine(line: string, epoch: Date): RinexObservation | null 
     const val = parseFloat(valStr)
     if (!isFinite(val)) continue
 
-    if (Math.abs(val) > 1e4) {
-      if (!obs.pseudorangeL1) {
-        obs.pseudorangeL1 = val
-      } else if (!obs.pseudorangeL2) {
-        obs.pseudorangeL2 = val
-      }
-    } else if (Math.abs(val) > 100) {
-      if (!obs.carrierPhaseL1) {
-        obs.carrierPhaseL1 = val
-      } else if (!obs.carrierPhaseL2) {
-        obs.carrierPhaseL2 = val
-      }
-    } else if (val >= 1 && val <= 60) {
-      if (!obs.snrL1) {
-        obs.snrL1 = val
-      } else if (!obs.snrL2) {
-        obs.snrL2 = val
+    if (sysObsTypes && sysObsTypes[i]) {
+      assignObsByType(sysObsTypes[i], val, obs)
+    } else {
+      if (Math.abs(val) > 1e4) {
+        if (!obs.pseudorangeL1) obs.pseudorangeL1 = val
+        else if (!obs.pseudorangeL2) obs.pseudorangeL2 = val
+      } else if (Math.abs(val) > 100) {
+        if (!obs.carrierPhaseL1) obs.carrierPhaseL1 = val
+        else if (!obs.carrierPhaseL2) obs.carrierPhaseL2 = val
+      } else if (val >= 1 && val <= 60) {
+        if (!obs.snrL1) obs.snrL1 = val
+        else obs.snrL2 = val
       }
     }
   }
@@ -516,7 +587,8 @@ function parseRinex4ObsLine(line: string, epoch: Date): RinexObservation | null 
  */
 function parseObservationBlocks(
   content: string,
-  version: number
+  version: number,
+  header?: RinexHeader  // AUDIT FIX (C9/M2): pass header for obsTypes
 ): { observations: RinexObservation[]; epochCount: number; errors: string[] } {
   const lines = content.split('\n')
   const observations: RinexObservation[] = []
@@ -563,10 +635,10 @@ function parseObservationBlocks(
         if (obsLine.trim().length === 0 || obsLine.startsWith('>')) break
 
         if (version >= 4) {
-          const obs = parseRinex4ObsLine(obsLine, epochInfo.epoch)
+          const obs = parseRinex4ObsLine(obsLine, epochInfo.epoch, (header?.obsTypes))
           if (obs) observations.push(obs)
         } else {
-          const obs = parseRinex3ObsLine(obsLine, epochInfo.epoch)
+          const obs = parseRinex3ObsLine(obsLine, epochInfo.epoch, (header?.obsTypes))
           if (obs) observations.push(obs)
         }
         i++
@@ -608,7 +680,7 @@ function parseObservationBlocks(
         const obsLine = lines[i]
         if (obsLine.trim().length < 3) break
 
-        const obs = parseRinex2ObsLine(obsLine, epochInfo.epoch, epochInfo.sats[s] || '')
+        const obs = parseRinex2ObsLine(obsLine, epochInfo.epoch, epochInfo.sats[s] || '', (header?.obsTypes)?.['G'])
         if (obs) observations.push(obs)
         i++
       }
@@ -630,7 +702,7 @@ export function parseRinex(content: string): RinexParseResult {
   const parseErrors: string[] = []
 
   // Parse observation blocks
-  const obsResult = parseObservationBlocks(content, version)
+  const obsResult = parseObservationBlocks(content, version, header)
 
   // Collect unique satellite systems
   const systemsSet = new Set<string>()

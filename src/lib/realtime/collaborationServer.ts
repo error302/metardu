@@ -7,7 +7,13 @@
  * - Live presence (who's online in a project)
  * - Cursor sharing (see other users' mouse position on the map)
  * - Live feature editing (see when others draw/edit features)
- * - Conflict-free updates via operational transforms
+ * - Conflict resolution via last-write-wins (LWW) with timestamp comparison.
+ *   AUDIT FIX (M17, 2026-07-02): Previous docstring claimed "operational
+ *   transforms" — that was inaccurate. The actual implementation is LWW:
+ *   incoming edits with an older timestamp than the server's copy are
+ *   rejected with a `conflict_rejected` message. Three-way merge is
+ *   available in the offline sync queue (src/lib/offline/syncQueue.ts)
+ *   but is NOT used by the realtime collaboration server.
  *
  * This module sets up a WebSocket server that can be integrated
  * with Next.js custom server or run as a separate process.

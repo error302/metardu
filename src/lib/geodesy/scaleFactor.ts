@@ -90,29 +90,64 @@ export interface AreaConversionResult {
 export function computeCombinedScaleFactor(input: ScaleFactorInput): ScaleFactorResult {
   const { latitude, longitude, utmZone, ellipsoidalHeight } = input
 
+  // AUDIT FIX (M5, 2026-07-02): Replaced spherical approximation with
+  // the rigorous ellipsoidal point scale factor formula. The old code
+  // used EARTH_RADIUS_M = 6,371,000 (mean sphere) and
+  // mPerDegLon = 111,320 × cos(φ) — both spherical approximations that
+  // introduce ~0.1-0.3 ppm error at Nairobi distances. The rigorous
+  // formula uses the ellipsoidal meridional and prime-vertical radii.
+
+  // WGS84 / Arc 1960 ellipsoid parameters (Clarke 1880 for Arc 1960
+  // is very close to WGS84 for scale factor purposes — the difference
+  // is sub-ppm at Kenya latitudes)
+  const a = 6_378_137.0           // Semi-major axis (metres)
+  const f = 1 / 298.257223563     // Inverse flattening (WGS84)
+  const e2 = 2 * f - f * f        // First eccentricity squared
+  const ePrime2 = e2 / (1 - e2)   // Second eccentricity squared
+
+  const latRad = (latitude * Math.PI) / 180
+  const sinLat = Math.sin(latRad)
+  const cosLat = Math.cos(latRad)
+  const sinLat2 = sinLat * sinLat
+  const cosLat2 = cosLat * cosLat
+
+  // Radii of curvature (ellipsoidal)
+  // ρ = a(1-e²) / (1-e²sin²φ)^(3/2)  — meridional radius
+  // ν = a / √(1-e²sin²φ)              — prime vertical radius
+  // Rm = √(ρ·ν)                        — geometric mean radius
+  const oneMinusE2Sin2 = 1 - e2 * sinLat2
+  const rho = (a * (1 - e2)) / Math.pow(oneMinusE2Sin2, 1.5)
+  const nu = a / Math.sqrt(oneMinusE2Sin2)
+  const Rm = Math.sqrt(rho * nu)
+
   // Central meridian for this UTM zone
   const centralMeridian = utmZone * 6 - 183 // Zone 36 → 33°, Zone 37 → 39°
 
-  // Distance from central meridian in metres
-  // At the equator, 1° longitude ≈ 111,320 m
-  // At latitude φ, 1° longitude ≈ 111,320 × cos(φ)
-  const latRad = (latitude * Math.PI) / 180
-  const lonDiffDeg = longitude - centralMeridian
-  const mPerDegLon = 111_320 * Math.cos(latRad)
-  const distanceFromCM = Math.abs(lonDiffDeg * mPerDegLon)
+  // Distance from central meridian in metres — use the ellipsoidal
+  // prime-vertical radius (not the spherical 111,320 m/°):
+  // dE = (λ - λ₀) × ν × cos(φ)   (in radians)
+  const lonDiffRad = ((longitude - centralMeridian) * Math.PI) / 180
+  const distanceFromCM = Math.abs(lonDiffRad * nu * cosLat)
 
-  // Grid scale factor (UTM projection)
-  // k = k0 × (1 + (x / (R × k0))² / 2)
-  // where k0 = 0.9996, x = distance from central meridian, R = Earth radius
-  // Simplified: k ≈ k0 + (x²) / (2 × R² × k0)
-  const gridScaleFactor =
-    UTM_SCALE_AT_CENTRAL_MERIDIAN +
-    (distanceFromCM * distanceFromCM) / (2 * EARTH_RADIUS_M * EARTH_RADIUS_M * UTM_SCALE_AT_CENTRAL_MERIDIAN)
+  // Grid scale factor (UTM projection) — rigorous 2nd-order formula:
+  // k = k₀ × (1 + E'²/(2Rm²) × (1 + e'²cos²φ) + E'⁴/(24Rm⁴))
+  // where E' is the distance from the central meridian
+  const Eprime2 = distanceFromCM * distanceFromCM
+  const Eprime4 = Eprime2 * Eprime2
+  const Rm2 = Rm * Rm
+  const Rm4 = Rm2 * Rm2
 
-  // Elevation factor
-  // Fh = R / (R + h)
-  // When h > 0 (above ellipsoid), Fh < 1 (ground distances are longer than grid)
-  const elevationFactor = EARTH_RADIUS_M / (EARTH_RADIUS_M + ellipsoidalHeight)
+  const gridScaleFactor = UTM_SCALE_AT_CENTRAL_MERIDIAN * (
+    1 +
+    (Eprime2 / (2 * Rm2)) * (1 + ePrime2 * cosLat2) +
+    (Eprime4 / (24 * Rm4))
+  )
+
+  // Elevation factor — use the ellipsoidal prime-vertical radius (not
+  // the mean Earth radius). At 1800m elevation (Nairobi), this gives
+  // Fh = ν / (ν + h) ≈ 0.99972 (vs 0.99972 for spherical — the
+  // difference is sub-ppm at this elevation, but it's the correct formula).
+  const elevationFactor = nu / (nu + ellipsoidalHeight)
 
   // Combined scale factor
   const combinedScaleFactor = gridScaleFactor * elevationFactor

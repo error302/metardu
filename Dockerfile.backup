@@ -1,0 +1,35 @@
+# METARDU Backup Sidecar
+#
+# AUDIT FIX (H7, 2026-07-02): New container that runs backup.sh on a
+# cron schedule. Shares the BACKUP_DIR volume with the host.
+#
+# Build: docker compose build metardu-backup
+# Run:   docker compose up -d metardu-backup
+# Logs:  docker compose logs -f metardu-backup
+
+FROM alpine:3.19
+
+RUN apk add --no-cache \
+    postgresql-client \
+    coreutils \
+    findutils \
+    gzip \
+    gnupg \
+    dcron \
+    bash \
+    numfmt
+
+WORKDIR /app
+
+# Copy the backup scripts
+COPY scripts/backup.sh /app/scripts/backup.sh
+COPY scripts/backup-cron-entrypoint.sh /app/backup-cron-entrypoint.sh
+
+# Default backup directory (mount a volume here in production)
+RUN mkdir -p /backups
+ENV BACKUP_DIR=/backups
+
+# Make scripts executable
+RUN chmod +x /app/scripts/backup.sh /app/backup-cron-entrypoint.sh
+
+ENTRYPOINT ["/app/backup-cron-entrypoint.sh"]
