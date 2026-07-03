@@ -66,7 +66,7 @@ dist/
 # Capacitor (mobile builds are platform-specific)
 android/
 ios/
-capacitor.config.ts
+# capacitor.config.ts (uncommented — we need this file)
 capacitor/
 
 # PDF/Blueprints - local reference files

@@ -1,12 +1,12 @@
 import {
   BadgeDollarSign, BarChart2, BookMarked,
-  BookOpen, Building2, CalendarDays, ChartNoAxesCombined,
+  BookOpen, Box, Building2, CalendarDays, ChartNoAxesCombined,
   ChartSpline, ClipboardCheck, CodeXml, Compass, Construction,
   CreditCard, DraftingCompass, FileBadge, FileChartColumn,
   FileSearch, FileSpreadsheet, FolderKanban,
   GitBranch, Globe, GraduationCap, HardDrive, IdCard, Landmark,
   LandPlot, Layout, MapPinned, Milestone, Mountain,
-  NotebookPen, Orbit, Radar, RadioTower,
+  NotebookPen, Orbit, Radar, RadioTower, Route,
   Ruler, RulerDimensionLine, Satellite, Scale, ScanLine, ScanSearch, Settings2,
   ShieldCheck, Spline, Store, TrendingUp,
   UserRound, Users, Waves, Waypoints, Workflow
@@ -69,6 +69,10 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Earthworks', href: '/tools/earthworks', icon: Mountain, group: 'CORE_TOOLS', description: 'Cut and fill calculations' },
   { label: 'GNSS', href: '/tools/gnss', icon: Satellite, group: 'CORE_TOOLS', description: 'GNSS baseline processing' },
   { label: 'Missing Line', href: '/tools/missing-line', icon: GitBranch, group: 'CORE_TOOLS', description: 'Missing line calculations' },
+  { label: '3D Viewer', href: '/tools/3d-viewer', icon: Box, group: 'CORE_TOOLS', badge: 'NEW', description: '3D TIN and point cloud visualization with Three.js' },
+  { label: 'RTK Corrections', href: '/tools/rtk-corrections', icon: Satellite, group: 'CORE_TOOLS', badge: 'NEW', description: 'NTRIP client for real-time GNSS corrections from CORS networks' },
+  { label: 'Road Design', href: '/engineering-workflow', icon: Route, group: 'CORE_TOOLS', badge: 'NEW', description: 'Integrated road design: horizontal → vertical → sections → earthworks → export' },
+  { label: 'Topo Pipeline', href: '/topographic-workflow', icon: Mountain, group: 'CORE_TOOLS', badge: 'NEW', description: 'Integrated topo survey: import → contours → drawing → export' },
 
   // DOCUMENTS
   { label: 'Deed Plan', href: '/deed-plan', icon: FileBadge, group: 'DOCUMENTS', badge: 'NEW', description: 'Kenya Survey Regulations compliant deed plans' },

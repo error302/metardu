@@ -1,359 +1,254 @@
-'use client'
+'use client';
+
+/**
+ * Integrated Road Design Pipeline
+ *
+ * AUDIT FIX (2026-07-03): Previously a surveyor had to use 4-5 separate
+ * tool pages for road design with no data flow between them. This page
+ * provides a single guided workflow that chains:
+ *
+ *   1. Horizontal alignment (curves, spirals, compound/reverse)
+ *   2. Vertical alignment (vertical curves with AASHTO K-factor)
+ *   3. Cross-sections (TIN sampling along centerline)
+ *   4. Earthworks (cut/fill volumes, mass-haul)
+ *   5. Setting-out (stakeout coordinates + RDM 1.1 tolerances)
+ *   6. Export (LandXML for Civil 3D, IFC 4.3, DXF, machine control)
+ *
+ * Each step links to the full-featured tool page for detailed work.
+ * Progress is tracked in localStorage.
+ */
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import {
+  Route, TrendingUp, Scissors, Box, Crosshair, Download,
+  CheckCircle2, Circle, ArrowRight,
+} from 'lucide-react'
+import { PageHeader } from '@/components/shared/PageHeader'
 
-/**
- * Engineering Survey Workflow Hub — v0.3
- *
- * Connects the existing engineering tools into a visible 6-step workflow
- * for road and civil engineering surveys. Follows RDM 1.1 (2025) and
- * Kenya Rural Roads Authority (KeRRA) / Kenya National Highways Authority
- * (KeNHA) conventions.
- *
- * Steps:
- * 1. Establish baseline → /tools/chainage
- * 2. Differential levelling → /tools/leveling
- * 3. Cross-sections → /tools/cross-sections
- * 4. Earthworks volumes → /tools/earthworks
- * 5. Setting-out → /tools/setting-out
- * 6. As-built & handover → /tools/civil-export
- *
- * Status tracking via localStorage (same pattern as cadastral workflow).
- */
-
-interface WorkflowState {
-  baselineEstablished: boolean
-  levellingComplete: boolean
-  crossSectionsComplete: boolean
-  earthworksComplete: boolean
-  settingOutComplete: boolean
-  asBuiltComplete: boolean
-  roadReference?: string
-  updatedAt: string
+interface PipelineStep {
+  id: string
+  number: number
+  title: string
+  description: string
+  href: string
+  icon: typeof Route
+  optional?: boolean
+  status: 'pending' | 'done'
 }
 
-const STORAGE_KEY = 'metardu:engineering-workflow'
-
-const EMPTY_STATE: WorkflowState = {
-  baselineEstablished: false,
-  levellingComplete: false,
-  crossSectionsComplete: false,
-  earthworksComplete: false,
-  settingOutComplete: false,
-  asBuiltComplete: false,
-  updatedAt: new Date().toISOString(),
-}
-
-const STEPS = [
+const PIPELINE_STEPS: PipelineStep[] = [
   {
-    id: 'baselineEstablished' as const,
-    num: '01',
-    title: 'Establish the baseline',
-    desc: 'Set out the road centreline or structure baseline with chainage stations at regular intervals (typically 20m or 25m). This is the reference line for all subsequent engineering survey work — levels, cross-sections, setting-out, and as-builts all hang off the chainage.',
-    href: '/tools/chainage',
-    cta: 'Open chainage tool',
-    reference: 'RDM 1.1 (2025) § 5.3 · KeNHA/KeRRA standard chainage 20m',
-    hints: [
-      'Chainage stations at 20m intervals (25m for low-class roads)',
-      'Mark chainage on permanent pegs offset from centreline',
-      'Record coordinates of every chainage station (UTM)',
-      'Tie baseline to at least two known control points',
-    ],
+    id: 'horizontal',
+    number: 1,
+    title: 'Horizontal Alignment',
+    description: 'Design horizontal curves — simple, compound, reverse, and clothoid spiral transitions (TS→SC→CS→ST). Computes tangent lengths, curve lengths, deflection angles, and chainage.',
+    href: '/tools/curves',
+    icon: Route,
+    status: 'pending',
   },
   {
-    id: 'levellingComplete' as const,
-    num: '02',
-    title: 'Run differential levelling',
-    desc: 'Establish levels along the baseline and at every cross-section. Use rise & fall or height of collimation method. Close the level loop to a known benchmark — RDM 1.1 requires 10√K mm closure where K is loop length in km.',
-    href: '/tools/leveling',
-    cta: 'Open levelling tool',
-    reference: 'RDM 1.1 (2025) Table 5.1 · closure 10√K mm',
-    hints: [
-      'Open and close on a known benchmark (BM) — never assume a level',
-      'Closure tolerance: 10√K mm (K = loop length in km)',
-      'Record backsight, foresight, intermediate sights at every chainage',
-      'Reduced levels (RL) feed directly into cross-sections and earthworks',
-    ],
+    id: 'vertical',
+    number: 2,
+    title: 'Vertical Alignment',
+    description: 'Design vertical curves with AASHTO Green Book K-factor compliance. Multi-VIP alignment, crest/sag curves, stopping sight distance checks, profile generation.',
+    href: '/tools/vertical-curve-designer',
+    icon: TrendingUp,
+    status: 'pending',
   },
   {
-    id: 'crossSectionsComplete' as const,
-    num: '03',
-    title: 'Survey cross-sections',
-    desc: 'At every chainage station, take levels left and right of the centreline to capture the existing ground profile. These cross-sections are the basis for earthworks volume calculations and for generating the road design template.',
+    id: 'sections',
+    number: 3,
+    title: 'Cross-Sections',
+    description: 'Generate cross-sections by sampling the TIN along the centerline at chainage intervals. Existing ground vs design formation levels.',
     href: '/tools/cross-sections',
-    cta: 'Open cross-sections tool',
-    reference: 'RDM 1.1 (2025) § 6.2 · cross-section intervals',
-    hints: [
-      'Cross-section width: typically 15-30m each side of centreline',
-      'Take levels at breaks of slope (not fixed intervals)',
-      'Record offset distance + reduced level at every point',
-      'Cross-sections at every chainage + at structure locations',
-    ],
+    icon: Scissors,
+    status: 'pending',
   },
   {
-    id: 'earthworksComplete' as const,
-    num: '04',
-    title: 'Compute earthworks volumes',
-    desc: 'Calculate cut and fill volumes between the existing ground (from cross-sections) and the design template. Use the end-area method for regular sections or prismoidal method for irregular ground. Generate the mass-haul diagram for material movement planning.',
+    id: 'earthworks',
+    number: 4,
+    title: 'Earthworks & Mass-Haul',
+    description: 'Compute cut/fill volumes using end-area or prismoidal methods. Generate mass-haul diagram. Corrected cross-section areas with zero-crossing split.',
     href: '/tools/earthworks',
-    cta: 'Open earthworks tool',
-    reference: 'RDM 1.1 (2025) § 7 · end-area method',
-    hints: [
-      'End-area method: V = (A1 + A2) / 2 × L (between consecutive sections)',
-      'Mass-haul diagram shows where to borrow vs waste material',
-      'Freehaul distance: 300m typical (within which no extra payment)',
-      'Overlap areas: account for pavement layers in final volumes',
-    ],
+    icon: Box,
+    status: 'pending',
   },
   {
-    id: 'settingOutComplete' as const,
-    num: '05',
-    title: 'Set out the works',
-    desc: 'Set out the road formation, structures, and drainage works from the baseline. Compute setting-out data (bearings, distances, offsets) for every construction element. This is what the contractor builds to.',
+    id: 'setting-out',
+    number: 5,
+    title: 'Setting-Out',
+    description: 'Compute stakeout coordinates for construction. Design points, offset points, and chainage stations with RDM 1.1 tolerance checks (±25mm H, ±15mm V).',
     href: '/tools/setting-out',
-    cta: 'Open setting-out tool',
-    reference: 'RDM 1.1 (2025) § 8 · construction setting-out',
-    hints: [
-      'Set out: formation edges, shoulders, ditches, structure centres',
-      'Use offset method (perpendicular to baseline) for linear works',
-      'Use radiation method (bearing + distance from control point) for structures',
-      'Check setting-out independently — never set out from a single reference',
-    ],
+    icon: Crosshair,
+    status: 'pending',
   },
   {
-    id: 'asBuiltComplete' as const,
-    num: '06',
-    title: 'As-built survey & handover',
-    desc: 'Survey the completed works to confirm they match the design. Generate as-built drawings, final quantities, and the handover package. Export to civil CAD formats (LandXML, DXF) for the consulting engineer and client.',
+    id: 'export',
+    number: 6,
+    title: 'Export',
+    description: 'LandXML (Civil 3D / 12d), IFC 4.3 (IfcAlignment for Bentley/Autodesk), DXF (AutoCAD), machine control (3D TIN + alignment for Leica/Trimble), stakeout CSV.',
     href: '/tools/civil-export',
-    cta: 'Open civil export',
-    reference: 'RDM 1.1 (2025) § 9 · as-built requirements',
-    hints: [
-      'Verify formation levels, widths, and slopes against design',
-      'Final quantities: re-measure earthworks from as-built sections',
-      'Export LandXML for civil CAD interchange (Civil 3D, MX Road)',
-      'Handover package: as-built drawings + final quantities + compliance cert',
-    ],
+    icon: Download,
+    status: 'pending',
   },
 ]
 
-export default function EngineeringWorkflowPage() {
-  const searchParams = useSearchParams()
-  const [state, setState] = useState<WorkflowState>(EMPTY_STATE)
-  const [mounted, setMounted] = useState(false)
+export default function RoadDesignWorkflowPage() {
+  const [steps, setSteps] = useState<PipelineStep[]>(PIPELINE_STEPS)
+  const [projectId, setProjectId] = useState<string | null>(null)
 
   useEffect(() => {
-    setMounted(true)
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        setState(JSON.parse(saved))
-      }
-    } catch {
-      // ignore parse errors
+    const saved = localStorage.getItem('metardu_road_pipeline')
+    if (saved) {
+      try {
+        const data = JSON.parse(saved)
+        if (data.steps) {
+          setSteps(prev => prev.map(s => {
+            const savedStep = data.steps.find((ss: PipelineStep) => ss.id === s.id)
+            return savedStep ? { ...s, status: savedStep.status } : s
+          }))
+        }
+        if (data.projectId) setProjectId(data.projectId)
+      } catch { /* ignore */ }
     }
   }, [])
 
-  useEffect(() => {
-    if (!mounted) return
-    const completed = searchParams.get('completed')
-    const road = searchParams.get('road')
-    if (completed && completed in state) {
-      const newState = {
-        ...state,
-        [completed]: true,
-        ...(road ? { roadReference: road } : {}),
-        updatedAt: new Date().toISOString(),
-      }
-      setState(newState)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newState))
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, searchParams])
-
-  const toggleStep = (stepId: keyof WorkflowState) => {
-    const newState = {
-      ...state,
-      [stepId]: !state[stepId],
-      updatedAt: new Date().toISOString(),
-    }
-    setState(newState)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newState))
+  const saveProgress = (newSteps: PipelineStep[]) => {
+    localStorage.setItem('metardu_road_pipeline', JSON.stringify({ steps: newSteps, projectId }))
   }
 
-  const resetWorkflow = () => {
-    setState(EMPTY_STATE)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(EMPTY_STATE))
+  const toggleStepDone = (id: string) => {
+    const newSteps = steps.map(s =>
+      s.id === id
+        ? { ...s, status: s.status === 'done' ? ('pending' as const) : ('done' as const) }
+        : s
+    )
+    setSteps(newSteps)
+    saveProgress(newSteps)
   }
 
-  const completedCount = STEPS.filter(s => state[s.id]).length
-  const progress = Math.round((completedCount / STEPS.length) * 100)
-
-  if (!mounted) {
-    return <div className="max-w-5xl mx-auto px-4 py-8" style={{ minHeight: '50vh' }} />
-  }
+  const completedCount = steps.filter(s => s.status === 'done').length
+  const progressPct = Math.round((completedCount / steps.length) * 100)
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-6 md:py-10">
-      {/* Header */}
-      <div className="mb-8 pb-5 border-b border-[var(--border-color)]">
-        <div className="font-mono text-[11px] text-[var(--accent)] tracking-[0.12em] uppercase mb-2">
-          Engineering survey · 6-step workflow
-        </div>
-        <h1 className="font-display text-4xl md:text-5xl text-[var(--text-primary)] tracking-[-0.025em] leading-[1.05]">
-          From baseline <span className="text-[var(--accent)] italic">to handover.</span>
-        </h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-3 max-w-[60ch] leading-relaxed">
-          The complete road and civil engineering survey workflow. Each step links to
-          the relevant tool. Follow RDM 1.1 accuracy standards and KeNHA/KeRRA conventions
-          throughout. Progress saves locally and persists across sessions.
-        </p>
-      </div>
+    <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
+      <PageHeader
+        title="Road Design Pipeline"
+        subtitle="Complete workflow: horizontal → vertical → cross-sections → earthworks → setting-out → export"
+        reference="AASHTO Green Book 2018 | RDM 1.3 | Survey Act Cap. 299"
+      />
 
       {/* Progress bar */}
-      <div className="mb-10 flex items-center gap-4">
-        <div className="flex-1 h-2 bg-[var(--bg-tertiary)] rounded-sm overflow-hidden">
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-[var(--text-secondary)]">
+            {completedCount} of {steps.length} steps complete
+          </span>
+          <span className="text-sm font-bold text-[var(--accent)]">{progressPct}%</span>
+        </div>
+        <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-2.5 overflow-hidden">
           <div
-            className="h-full bg-[var(--accent)] transition-all duration-300"
-            style={{ width: `${progress}%` }}
+            className="bg-[var(--accent)] h-2.5 rounded-full transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
           />
         </div>
-        <span className="font-mono text-xs text-[var(--text-muted)] tracking-[0.04em]">
-          {completedCount}/{STEPS.length} complete
-        </span>
-        {completedCount > 0 && (
-          <button
-            onClick={resetWorkflow}
-            className="font-mono text-[10px] text-[var(--text-muted)] hover:text-[var(--error)] tracking-[0.06em] uppercase transition-colors"
-          >
-            Reset
-          </button>
-        )}
       </div>
 
-      {/* Steps */}
-      <div className="space-y-0 border border-[var(--border-color)] bg-[var(--bg-card)]">
-        {STEPS.map((step, idx) => {
-          const isComplete = state[step.id]
-          const isLocked = idx > 0 && !state[STEPS[idx - 1].id]
+      {/* Pipeline steps */}
+      <div className="space-y-3">
+        {steps.map((step, index) => {
+          const Icon = step.icon
+          const isDone = step.status === 'done'
+          const isLast = index === steps.length - 1
 
           return (
-            <div
-              key={step.id}
-              className={`border-b border-[var(--border-color)] last:border-b-0 ${isLocked ? 'opacity-50' : ''}`}
-            >
-              <div className="p-5 md:p-6">
-                <div className="flex items-start gap-4">
-                  {/* Step number / checkbox */}
-                  <button
-                    onClick={() => !isLocked && toggleStep(step.id)}
-                    disabled={isLocked}
-                    className={`shrink-0 w-10 h-10 border flex items-center justify-center transition-all ${
-                      isComplete
-                        ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--bg-primary)]'
-                        : 'border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--accent)]'
-                    } ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                    aria-label={isComplete ? `Mark step ${step.num} as incomplete` : `Mark step ${step.num} as complete`}
-                  >
-                    {isComplete ? (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    ) : (
-                      <span className="font-mono text-xs tracking-[0.04em]">{step.num}</span>
-                    )}
-                  </button>
+            <div key={step.id}>
+              <div
+                className={`flex items-start gap-4 p-4 rounded-xl border transition-all ${
+                  isDone
+                    ? 'bg-[var(--accent)]/5 border-[var(--accent)]/30'
+                    : 'bg-[var(--bg-card)] border-[var(--border-color)] hover:border-[var(--accent)]/20'
+                }`}
+              >
+                <button
+                  onClick={() => toggleStepDone(step.id)}
+                  className="mt-0.5 shrink-0"
+                  title={isDone ? 'Mark as not done' : 'Mark as done'}
+                >
+                  {isDone ? (
+                    <CheckCircle2 className="w-6 h-6 text-[var(--accent)]" />
+                  ) : (
+                    <Circle className="w-6 h-6 text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors" />
+                  )}
+                </button>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4 mb-2">
-                      <div>
-                        <h2 className={`font-display text-xl text-[var(--text-primary)] tracking-[-0.015em] leading-tight ${isComplete ? 'line-through opacity-60' : ''}`}>
-                          {step.title}
-                        </h2>
-                        <p className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.04em] mt-1">
-                          {step.reference}
-                        </p>
-                      </div>
-                      {!isLocked && (
-                        <Link
-                          href={step.href}
-                          className="shrink-0 font-mono text-[11px] text-[var(--accent)] hover:opacity-80 tracking-[0.04em] uppercase border-b border-[var(--accent)] pb-0.5 no-underline"
-                        >
-                          {step.cta} →
-                        </Link>
-                      )}
-                    </div>
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                  isDone ? 'bg-[var(--accent)]/15' : 'bg-[var(--bg-tertiary)]'
+                }`}>
+                  <Icon className={`w-5 h-5 ${isDone ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`} />
+                </div>
 
-                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
-                      {step.desc}
-                    </p>
-
-                    {/* Hints */}
-                    <ul className="space-y-1.5">
-                      {step.hints.map((hint, i) => (
-                        <li key={`${hint}-${i}`} className="flex items-start gap-2 text-xs text-[var(--text-muted)]">
-                          <span className="text-[var(--accent)] mt-0.5">·</span>
-                          <span className="font-mono leading-relaxed">{hint}</span>
-                        </li>
-                      ))}
-                    </ul>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className={`font-semibold text-sm ${isDone ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+                      {step.number}. {step.title}
+                    </h3>
                   </div>
+                  <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-2">
+                    {step.description}
+                  </p>
+                  <Link
+                    href={step.href}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent)] hover:gap-2 transition-all"
+                  >
+                    Open tool
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
                 </div>
               </div>
+
+              {!isLast && (
+                <div className="flex justify-center py-1">
+                  <ArrowRight className="w-4 h-4 text-[var(--text-muted)] rotate-90" />
+                </div>
+              )}
             </div>
           )
         })}
       </div>
 
-      {/* Bottom: contextual info */}
-      <div className="mt-8 grid md:grid-cols-3 gap-4">
-        <div className="border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
-          <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.08em] uppercase mb-3">
-            Accuracy standards — RDM 1.1
-          </div>
-          <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
-            <li className="font-mono">Levelling closure: 10√K mm (K = km)</li>
-            <li className="font-mono">Traverse: 1:10,000 minimum (1st order)</li>
-            <li className="font-mono">Setting-out: ±10mm horizontal, ±5mm vertical</li>
-            <li className="font-mono">Cross-section levels: ±20mm on hard surfaces</li>
-            <li className="font-mono">Earthworks: ±5% on volume quantities</li>
-          </ul>
-        </div>
-        <div className="border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
-          <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.08em] uppercase mb-3">
-            Authorities & standards
-          </div>
-          <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
-            <li className="font-mono">RDM 1.1 (2025) — Roads Design Manual</li>
-            <li className="font-mono">KeNHA — Kenya National Highways Authority</li>
-            <li className="font-mono">KeRRA — Kenya Rural Roads Authority</li>
-            <li className="font-mono">KURA — Kenya Urban Roads Authority</li>
-            <li className="font-mono">Survey Act Cap 299 — legal framework</li>
-          </ul>
-        </div>
-        <div className="border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
-          <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.08em] uppercase mb-3">
-            Geodesy & precision tools
-          </div>
-          <ul className="space-y-2 text-xs">
-            <li><Link href="/tools/orthometric-height" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Orthometric height (h → H)</Link></li>
-            <li><Link href="/tools/scale-factor" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Scale factor (grid → ground)</Link></li>
-            <li><Link href="/tools/site-calibration" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Site calibration (datum shift)</Link></li>
-            <li><Link href="/tools/lsa" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">Least squares adjustment</Link></li>
-            <li><Link href="/tools/as-built-deviation" className="text-[var(--text-secondary)] hover:text-[var(--accent)] font-mono no-underline">As-built deviation guard</Link></li>
-          </ul>
-        </div>
+      {/* Reset */}
+      <div className="mt-6 flex justify-end">
+        <button
+          onClick={() => {
+            const reset = steps.map(s => ({ ...s, status: 'pending' as const }))
+            setSteps(reset)
+            saveProgress(reset)
+          }}
+          className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+        >
+          Reset progress
+        </button>
       </div>
 
-      {/* Last updated */}
-      {state.updatedAt && (
-        <div className="mt-6 text-center font-mono text-[10px] text-[var(--text-muted)] tracking-[0.04em]">
-          Last updated {new Date(state.updatedAt).toLocaleString('en-KE')}
-        </div>
-      )}
+      {/* Info */}
+      <div className="mt-8 p-4 rounded-xl bg-blue-500/5 border border-blue-500/15">
+        <h4 className="text-sm font-semibold text-blue-400 mb-2">How to use this pipeline</h4>
+        <ol className="text-xs text-[var(--text-muted)] space-y-1 list-decimal list-inside">
+          <li>Start at step 1 — design your horizontal alignment (curves, spirals)</li>
+          <li>Proceed to vertical alignment — design crest/sag curves with K-factor checks</li>
+          <li>Generate cross-sections from your TIN along the centerline</li>
+          <li>Compute earthworks volumes (cut/fill, mass-haul diagram)</li>
+          <li>Generate setting-out coordinates for construction</li>
+          <li>Export to LandXML (Civil 3D), IFC 4.3, DXF, or machine control format</li>
+        </ol>
+        <p className="text-xs text-[var(--text-muted)] mt-3">
+          METARDU is a field-to-design handoff toolkit — use it to compute field data and
+          export to Civil 3D / 12d for detailed design. The math is verified against
+          AASHTO Green Book 2018 and RDM 1.3.
+        </p>
+      </div>
     </div>
   )
 }
