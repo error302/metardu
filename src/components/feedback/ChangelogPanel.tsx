@@ -93,17 +93,6 @@ const changelog: ChangelogEntry[] = [
     ],
   },
   {
-    phase: 33,
-    title: 'MineScan Safety Dashboard',
-    date: '2024-12',
-    items: [
-      'Real-time safety monitoring dashboard',
-      'Risk analysis with severity scoring',
-      'Equipment status tracking',
-      'Alert configuration and notifications',
-    ],
-  },
-  {
     phase: 32,
     title: 'USV Mission Planning',
     date: '2024-12',
@@ -112,17 +101,6 @@ const changelog: ChangelogEntry[] = [
       'Telemetry dashboard with live data',
       'Waypoint management and route optimization',
       'Mission status tracking',
-    ],
-  },
-  {
-    phase: 31,
-    title: 'GeoFusion Data Integration',
-    date: '2024-12',
-    items: [
-      'Multi-source data alignment engine',
-      'Layer management for overlay datasets',
-      'Cross-source analysis tools',
-      'Data import/export workflows',
     ],
   },
   {
@@ -185,7 +163,7 @@ function ChangelogItem({ entry }: { entry: ChangelogEntry }) {
         <div className="px-4 pb-3">
           <ul className="space-y-1.5">
             {entry.items.map((item, i) => (
-              <li key={`${item}-${i}`} className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
+              <li key={i} className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
                 <span className="text-[var(--accent)] mt-0.5 flex-shrink-0">•</span>
                 {item}
               </li>

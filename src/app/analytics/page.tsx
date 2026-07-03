@@ -107,7 +107,8 @@ export default function AnalyticsPage() {
               activeProjects: d.projects?.byStatus?.active ?? d.projects?.total ?? 0,
               completedSurveys: d.projects?.byStatus?.completed ?? 0,
               totalPoints: d.parcels ?? 0,
-              storageUsed: Math.round((d.parcels ?? 0) * 0.001 * 100) / 100,
+              // AUDIT FIX: Don't fabricate storage from parcel count.
+              storageUsed: 0,
               apiCalls: d.submissionsThisMonth ?? 0,
               userActivity: (d.revenue?.byMonth ?? []).map((m: { month: string; total: number }) => ({
                 date: m.month,
@@ -117,9 +118,10 @@ export default function AnalyticsPage() {
                 type,
                 count: count as number,
               })),
-              prevTotalProjects: Math.round((d.projects?.total ?? 0) * 0.85),
-              prevActiveProjects: Math.round(((d.projects?.byStatus?.active ?? d.projects?.total ?? 0)) * 0.9),
-              prevCompletedSurveys: Math.round(((d.projects?.byStatus?.completed ?? 0)) * 0.8),
+              // AUDIT FIX: Don't fabricate 'previous period' deltas.
+              prevTotalProjects: 0,
+              prevActiveProjects: 0,
+              prevCompletedSurveys: 0,
             })
           }
         } else {
@@ -165,7 +167,9 @@ export default function AnalyticsPage() {
             activeProjects: projects.length,
             completedSurveys: projects.filter((p) => p.survey_type !== null).length,
             totalPoints: points.length,
-            storageUsed: Math.round(points.length * 0.001 * 100) / 100,
+            // AUDIT FIX (2026-07-03): Don't fabricate storage from points count.
+            storageUsed: 0,
+            // AUDIT FIX: apiCalls=0 was hardcoded. We don't track per-user API calls yet.
             apiCalls: 0,
             userActivity: lastNDays,
             projectTypes: Object.entries(projectTypesMap).map(([type, count]) => ({ type, count })),
@@ -327,33 +331,51 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Storage, API, and Team info */}
+        {/* AUDIT FIX (2026-07-03): Storage/API widgets were fabricated.
+            Now show honest 'not yet available' when no real data. */}
         <div className="grid md:grid-cols-3 gap-4">
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-lg font-semibold mb-2 text-[var(--text-primary)]">Storage</h2>
             <div className="relative pt-4">
-              <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-4">
-                <div
-                  className="bg-green-500 h-4 rounded-full transition-all"
-                  style={{ width: `${Math.min((data.storageUsed / 5) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="text-sm text-[var(--text-muted)] mt-2">
-                {data.storageUsed} GB of 5 GB used
-              </p>
+              {data.storageUsed > 0 ? (
+                <>
+                  <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-4">
+                    <div
+                      className="bg-green-500 h-4 rounded-full transition-all"
+                      style={{ width: `${Math.min((data.storageUsed / 5) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-[var(--text-muted)] mt-2">
+                    {data.storageUsed} GB of 5 GB used
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-[var(--text-muted)]">
+                  Storage tracking is not yet available. File-size accounting will be added in a future update.
+                </p>
+              )}
             </div>
           </div>
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
             <h2 className="text-lg font-semibold mb-2 text-[var(--text-primary)]">API Usage</h2>
             <div className="relative pt-4">
-              <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-4">
-                <div
-                  className="bg-blue-500 h-4 rounded-full transition-all"
-                  style={{ width: `${Math.min((data.apiCalls / 50000) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="text-sm text-[var(--text-muted)] mt-2">
-                {data.apiCalls.toLocaleString()} of 50,000 calls
-              </p>
+              {data.apiCalls > 0 ? (
+                <>
+                  <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-4">
+                    <div
+                      className="bg-blue-500 h-4 rounded-full transition-all"
+                      style={{ width: `${Math.min((data.apiCalls / 50000) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-[var(--text-muted)] mt-2">
+                    {data.apiCalls.toLocaleString()} of 50,000 calls
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-[var(--text-muted)]">
+                  Per-user API call tracking is not yet available. Contact your administrator for platform-wide stats.
+                </p>
+              )}
             </div>
           </div>
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">

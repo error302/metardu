@@ -18,7 +18,7 @@ export default function LandLawPage() {
   const tabs = [
     { id: 'boundaries', label: 'Boundary Law', icon: Scale },
     { id: 'adverse', label: 'Adverse Possession', icon: Calculator },
-    { id: 'checker', label: 'AI Plan Checker', icon: FileCheck },
+    { id: 'checker', label: 'Plan Checker', icon: FileCheck },
     { id: 'disputes', label: 'Dispute Guide', icon: Gavel },
     { id: 'easements', label: 'Easements', icon: Route }
   ]

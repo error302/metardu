@@ -193,8 +193,17 @@ Both are actively imported. API responses are inconsistent.
 
 ---
 
-### H4. Offline conflict resolution is last-write-wins with destructive overrides
+### H4. Offline conflict resolution is last-write-wins with destructive overrides ✅ RESOLVED
 **File:** `src/lib/offline/syncQueue.ts:194-299`
+
+**Resolution (2026-07-03):** Implemented three-way merge with common-ancestor
+diff. `threeWayMerge()` compares base/local/remote and auto-resolves non-
+conflicting field changes. `captureBaseSnapshot()` stores the original server
+state before local edits so the merge has an ancestor. `forceLocalUpdate()`
+now does UPDATE (not delete+insert) preserving row identity + audit triggers.
+`resolveConflict()` + `getPendingConflicts()` provide the API for a manual
+conflict-resolution UI. Optimistic locking via `updated_at` checks is in
+`checkRemoteVersion()`.
 
 - `forceLocalUpdate` deletes the remote row then re-inserts — destroys concurrent edits from other surveyors, bypasses audit triggers
 - Conflict detection is timestamp-based LWW — device clock skew causes false/missed conflicts
@@ -215,8 +224,20 @@ Both are actively imported. API responses are inconsistent.
 
 ---
 
-### H6. NextAuth v5 migration file is `@ts-nocheck` and never imported
+### H6. NextAuth v5 migration file is `@ts-nocheck` and never imported ⏳ READY TO EXECUTE
 **File:** `src/lib/auth-v5.ts`
+
+**Resolution (2026-07-03):** The `@ts-nocheck` is intentional and correct —
+`next-auth@beta` is not installed, so v5 imports would fail without it.
+The v5 config (229 lines) is complete and ready for activation. All
+prerequisites are now in place: staging environment (deploy-staging.yml),
+rollback workflow (rollback.yml), pre-deploy DB backup (promote.yml),
+staging docker-compose. The 7-phase execution plan in
+`docs/nextauth-v5-migration-plan.md` can be run when there's a quiet window.
+This is a 2-week side-quest that requires installing the beta, running a
+codemod across 44 files, testing against staging, and having a rollback
+plan — doing it without those safety measures would risk locking out all
+users.
 
 The staged v5 config has `@ts-nocheck` at the top and is never imported by any route. v4 is still active. The migration plan exists at `docs/nextauth-v5-migration-plan.md` but is not executed.
 
@@ -224,8 +245,18 @@ The staged v5 config has `@ts-nocheck` at the top and is never imported by any r
 
 ---
 
-### H7. No backup automation
-**File:** `scripts/backup.sh`
+### H7. No backup automation ✅ RESOLVED
+**File:** `scripts/backup.sh`, `docker-compose.yml`, `Dockerfile.backup`, `scripts/backup-cron-entrypoint.sh`
+
+**Resolution (2026-07-03):** Backup script upgraded with GPG encryption,
+pg_restore verification, offsite copy, and 30-day retention. A
+`metardu-backup` sidecar container runs in docker-compose with dcron
+scheduling (default: daily 02:00 UTC, configurable via `BACKUP_CRON`).
+`Dockerfile.backup` builds the sidecar image (alpine + postgresql-client +
+gnupg + dcron). `backup-cron-entrypoint.sh` installs the cron job and
+runs crond in the foreground. Backups persist to a named volume + optional
+host mount. The `promote.yml` workflow also takes a pre-deploy backup
+before every production promotion.
 
 An 18-line bash script exists (`pg_dump | gzip`, 30-day retention) but is not wired to any cron, systemd timer, or docker-compose entrypoint. No PITR, no offsite backup, no encryption, no restore script, no verification.
 
@@ -257,8 +288,22 @@ The user-facing CPD page (`src/app/cpd/page.tsx`) imports the stub, not the real
 
 ---
 
-### H10. EBK/ISK license verification is self-attested
-**Files:** `src/types/professionalBody.ts`, `src/lib/survey/fetchSurveyorProfile.ts`
+### H10. EBK/ISK license verification is self-attested ✅ RESOLVED
+**Files:** `src/types/professionalBody.ts`, `src/lib/db/migrations/038_professional_memberships.sql`, `src/app/api/professional-memberships/`
+
+**Resolution (2026-07-03):** Aligned the ISK validation pattern across all
+call sites — `validateISKNumber()` now accepts `ISK/LS/YYYY/NNN` (official),
+`ISK/YYYY/NNN` (legacy), and `ISK/NNNN` (legacy short), matching what the
+NLIMS exporter and statutory gate expect. Added `validateEBKNumber()` and
+`validateISUNumber()` for other bodies. Added `validateMembershipNumber()`
+which returns `{valid, warning}` for any body. Created migration 038
+(`professional_memberships` table) with a documentary-proof workflow:
+surveyor uploads their practising certificate, status starts PENDING, an
+admin reviews and sets VERIFIED/FAILED. Created API routes
+`/api/professional-memberships` (GET/POST) and
+`/api/professional-memberships/[id]/verify` (POST, admin-only). Real ISK/EBK
+APIs don't exist publicly, so documentary proof + admin review is the
+correct approach.
 
 `validateISKNumber` checks pattern `/^ISK\/\d{4}$|^\d{4}$/` but the NLIMS exporter expects `ISK/LS/YYYY/NNN` — two different validation patterns. No actual API integration with ISK or EBK. `surveyor_profiles.verified_isk BOOLEAN DEFAULT FALSE` is set manually.
 
@@ -266,8 +311,17 @@ The user-facing CPD page (`src/app/cpd/page.tsx`) imports the stub, not the real
 
 ---
 
-### H11. Deformation analysis lacks statistical rigor
-**File:** `src/lib/engine/deformationTracker.ts`
+### H11. Deformation analysis lacks statistical rigor ✅ RESOLVED
+**File:** `src/lib/engine/deformationTracker.ts:190+`
+
+**Resolution (2026-07-03):** Added Pelzer global congruence test
+(`congruenceTest()`) — computes the quadratic form Ω = dᵀ·Q_dd⁺·d, test
+statistic T = Ω/(h·s₀²), and compares against F(h, f_rest, 1-α). Handles
+singular Q_dd via Tikhonov regularization (Moore-Penrose pseudoinverse).
+Added `DisplacementConfidenceEllipse` interface with semi-major/minor axes
+and orientation from the 2×2 covariance sub-matrix eigenvalues. Thresholds
+are now project-configurable via `DEFAULT_THRESHOLDS`. References: Pelzer
+1971, Caspary 1988, Schofield & Breach Ch. 14.
 
 - No congruence testing (Nievergelt/Pelzer/Caspary)
 - No confidence ellipses on displacements — 5mm threshold is arbitrary, not project-specific
@@ -280,8 +334,16 @@ The user-facing CPD page (`src/app/cpd/page.tsx`) imports the stub, not the real
 
 ---
 
-### H12. Least-squares traverse file has placeholder angle observations
-**File:** `src/lib/survey/traverse/least-squares.ts:287-293`
+### H12. Least-squares traverse file has placeholder angle observations ✅ RESOLVED
+**File:** `src/lib/survey/traverse/least-squares.ts:287-413`
+
+**Resolution (2026-07-03):** Implemented the angle observation equation
+(θ = α_BC − α_BA with full partial derivatives w.r.t. E/N at the vertex,
+backsight, and foresight stations) and the azimuth observation equation
+(α = atan2(dE, dN) with partials). Both convert radians → degrees so
+weights in degrees² are consistent. The `b[i] = 0; // Placeholder` lines
+are gone — the file is now functional for traverses with angle and azimuth
+observations, not just distances.
 
 ```typescript
 b[i] = 0; // Placeholder
@@ -293,8 +355,17 @@ Angle and azimuth observations are zeroed out. This file is non-functional for t
 
 ---
 
-### H13. No Baarda reliability analysis in LSA
-**File:** `src/lib/engine/leastSquares.ts`
+### H13. No Baarda reliability analysis in LSA ✅ RESOLVED
+**File:** `src/lib/engine/leastSquares.ts:1002-1073`
+
+**Resolution (2026-07-03):** Added a `reliability` field to
+`LSAdjustmentResult` with per-observation Baarda reliability analysis:
+redundancy number r_i = q_vv_i × p_i, w-test statistic (data snooping)
+|v_i|/σ_v_i, internal reliability (MDB) = σ̂₀√λ₀/√(p_i·r_i), and external
+reliability (max coordinate effect). Uses α=0.001 (Baarda's standard),
+power=0.80, non-centrality parameter λ₀=(z_{1-α/2}+z_{1-β})²≈17.07, w-test
+critical value ≈3.29. Flags observations as outliers when w_i > 3.29.
+References: Baarda 1968, Förstner 1979, Ghilani & Wolf Ch. 21.
 
 The LSA computes standardized residuals and chi-square global test, but has no:
 - Redundancy numbers `r_i`
@@ -307,8 +378,21 @@ The LSA computes standardized residuals and chi-square global test, but has no:
 
 ---
 
-### H14. No staging environment
-**File:** `.github/workflows/deploy.yml`
+### H14. No staging environment ✅ RESOLVED
+**Files:** `.github/workflows/deploy-staging.yml`, `.github/workflows/promote.yml`, `.github/workflows/rollback.yml`, `docker-compose.staging.yml`
+
+**Resolution (2026-07-03):** Created a full staging + promotion + rollback
+pipeline:
+- `deploy-staging.yml` — pushes to the `staging` branch deploy to a staging
+  server (port 3001, separate DB) with health checks
+- `promote.yml` — manual workflow that takes a pre-deploy DB backup, records
+  the current production commit SHA (for rollback), merges staging→main
+  (which triggers the production deploy), and uploads the rollback SHA as
+  an artifact
+- `rollback.yml` — manual workflow that reverts production to a previous
+  commit SHA + optionally restores the pre-deploy DB backup
+- `docker-compose.staging.yml` — separate container names, ports, and
+  volumes for staging
 
 `main` deploys directly to production via SSH + `git reset --hard origin/main`. No staging, no canary, no rollback path, no pre-deploy backup.
 

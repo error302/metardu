@@ -1,0 +1,109 @@
+name: Rollback Production
+
+# AUDIT FIX (H14, 2026-07-03): Emergency rollback workflow.
+#
+# Reverts production to a previous commit SHA + restores the
+# pre-deploy database backup (if available).
+#
+# Usage: Run this workflow manually and provide the commit SHA
+# to rollback to. The SHA should be from the "Promote" workflow's
+# summary or the production-rollback-sha artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA to rollback to (full 40-char SHA)'
+        required: true
+      restore_db:
+        description: 'Restore database backup? (true/false)'
+        required: false
+        default: 'false'
+
+jobs:
+  rollback:
+    name: Rollback production to previous commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Validate inputs
+        run: |
+          SHA="${{ github.event.inputs.commit_sha }}"
+          if [ ${#SHA} -ne 40 ]; then
+            echo "ERROR: commit_sha must be a full 40-character SHA"
+            exit 1
+          fi
+          echo "Rolling back to: $SHA"
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VM_SSH_KEY }}
+
+      - name: Add VM to known hosts
+        run: ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Rollback production
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} bash -s << 'ROLLBACK'
+          set -eo pipefail
+          SHA="${{ github.event.inputs.commit_sha }}"
+          RESTORE_DB="${{ github.event.inputs.restore_db }}"
+
+          APP_DIR="$HOME/metardu"
+          cd "$APP_DIR"
+
+          echo "=== [1/3] Rolling back to commit $SHA ==="
+          git fetch origin
+          git reset --hard "$SHA"
+
+          echo "=== [2/3] Optional: Restore database backup ==="
+          if [ "$RESTORE_DB" = "true" ]; then
+            BACKUP_DIR="$HOME/metardu-backups"
+            LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/pre_deploy_*.sql.gz 2>/dev/null | head -1)
+            if [ -n "$LATEST_BACKUP" ]; then
+              echo "Restoring from: $LATEST_BACKUP"
+              if [ -f .env.local ]; then
+                DB_URL=$(grep '^DATABASE_URL=' .env.local | cut -d= -f2- | tr -d '"'"'"'\'')
+                gunzip -c "$LATEST_BACKUP" | psql "$DB_URL"
+                echo "Database restored."
+              fi
+            else
+              echo "WARN: No pre-deploy backup found in $BACKUP_DIR"
+            fi
+          else
+            echo "Skipping database restore (restore_db=false)"
+          fi
+
+          echo "=== [3/3] Rebuilding Docker containers ==="
+          docker compose up -d --build 2>&1
+
+          echo "Waiting for container to be healthy..."
+          for i in $(seq 1 36); do
+            sleep 5
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' metardu_nextjs 2>/dev/null || echo "not_found")
+            if [ "$STATUS" = "healthy" ]; then
+              echo "Container healthy after $((i * 5)) seconds"
+              break
+            fi
+            if [ "$i" = "36" ]; then
+              echo "ERROR: Container not healthy after 180s"
+              docker logs --tail 30 metardu_nextjs 2>&1
+              exit 1
+            fi
+          done
+
+          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 15 http://localhost:3000/ || echo "000")
+          echo "Rollback complete. HTTP status: $HTTP_CODE"
+          ROLLBACK
+
+      - name: Summary
+        run: |
+          echo "=== Rollback Complete ==="
+          echo "Production is now at commit: ${{ github.event.inputs.commit_sha }}"
+          echo "Database restored: ${{ github.event.inputs.restore_db }}"
+          echo ""
+          echo "IMPORTANT: Investigate the failed deploy before promoting again."

@@ -29,11 +29,11 @@ export async function middleware(request: NextRequest) {
   const protectedPaths = [
     '/dashboard', '/project', '/fieldbook', '/deed-plan',
     '/tools/survey-report-builder', '/fieldguard', '/cadastra',
-    '/minetwin', '/automator', '/hydrolive', '/usv', '/minescan',
-    '/geofusion', '/equipment', '/cpd', '/jobs', '/peer-review',
+    '/minetwin', '/automator', '/hydrolive', '/usv',
+    '/equipment', '/cpd', '/jobs',
     '/registry', '/analytics', '/audit-logs', '/white-label',
     '/university', '/organization', '/account', '/checkout',
-    '/marketplace', '/community', '/land-law', '/admin',
+    '/community', '/land-law', '/admin',
     '/instruments', '/field', '/mobile/field', '/field/gnss',
   ]
 

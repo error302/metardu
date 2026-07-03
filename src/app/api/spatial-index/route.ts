@@ -39,15 +39,20 @@ export const GET = apiHandler(
 
     const features: any[] = []
 
-    // 1. Fetch parcels in viewport
+    // 1. Fetch parcels in viewport (join projects for ownership)
+    // AUDIT FIX (2026-07-03): parcels.geometry → parcels.geom,
+    // removed non-existent owner_name/lr_number, JOIN projects
+    // (parcels has no user_id), errors logged not swallowed.
     if (types.includes('parcel')) {
       try {
         const result = await db.query(
-          `SELECT id, parcel_number, owner_name, lr_number, area_ha,
-                  ST_AsGeoJSON(ST_Transform(geometry, 4326)) as geojson
-           FROM parcels
-           WHERE user_id = $1
-             AND geometry && ST_Transform(ST_MakeEnvelope($2, $3, $4, $5, 4326), 21037)
+          `SELECT p.id, p.parcel_number, p.area_ha, p.status,
+                  ST_AsGeoJSON(ST_Transform(p.geom, 4326)) as geojson
+           FROM parcels p
+           JOIN projects pr ON pr.id = p.project_id
+           WHERE pr.user_id = $1
+             AND p.geom IS NOT NULL
+             AND p.geom && ST_Transform(ST_MakeEnvelope($2, $3, $4, $5, 4326), 21037)
            LIMIT $6`,
           [user.id, west, south, east, north, Math.floor(limit / 2)],
         )
@@ -60,15 +65,15 @@ export const GET = apiHandler(
               geometry: JSON.parse(row.geojson),
               properties: {
                 parcelNumber: row.parcel_number,
-                ownerName: row.owner_name,
-                lrNumber: row.lr_number,
-                areaHa: parseFloat(row.area_ha),
-                status: 'registered',
+                areaHa: row.area_ha ? parseFloat(row.area_ha) : null,
+                status: row.status || 'pending',
               },
             })
           }
         }
-      } catch {}
+      } catch (err) {
+        console.error('[spatial-index] parcel query failed:', err)
+      }
     }
 
     // 2. Fetch beacons in viewport
@@ -108,10 +113,10 @@ export const GET = apiHandler(
             },
           })
         }
-      } catch {}
+      } catch (err) {
+        console.error('[spatial-index] beacon query failed:', err)
+      }
     }
-
-    // 3. Fetch field records in viewport
     if (types.includes('field_record')) {
       try {
         const result = await db.query(
@@ -148,7 +153,9 @@ export const GET = apiHandler(
             },
           })
         }
-      } catch {}
+      } catch (err) {
+        console.error('[spatial-index] field_record query failed:', err)
+      }
     }
 
     return apiSuccess({

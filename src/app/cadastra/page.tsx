@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import BoundaryUploader from '@/components/cadastra/BoundaryUploader'
 import ComparisonPanel from '@/components/cadastra/ComparisonPanel'
 import ValidationReport from '@/components/cadastra/ValidationReport'
@@ -10,7 +10,15 @@ import type { BoundaryPolygon, ValidationResult } from '@/types/cadastra'
 export default function CadastraValidatorPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ValidationResult | null>(null)
-  const projectId = 'default-project'
+  // AUDIT FIX (2026-07-03): Was hardcoded 'default-project'. Now reads
+  // projectId from URL query (?project=X) or null for standalone mode.
+  const [projectId, setProjectId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const pid = params.get('project') || params.get('projectId')
+    if (pid) setProjectId(pid)
+  }, [])
   
   const handleValidate = async (boundary: BoundaryPolygon) => {
     setLoading(true)

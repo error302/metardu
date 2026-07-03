@@ -10,8 +10,8 @@ export type {
   RimBeacon,
 } from './db'
 
-// Database functions
-export { createRimTables } from './db'
+// AUDIT FIX (2026-07-03): createRimTables export removed — function deleted.
+// Tables are created by migrations, not at runtime.
 
 // PDF generation
 export { generateRimPdf } from './rimPdfGenerator'

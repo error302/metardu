@@ -10,9 +10,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import { db } from '@/lib/db'
+import db from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/api/response'
-import { createRimTables } from '@/lib/rim'
+// AUDIT FIX (2026-07-03): createRimTables import removed — function deleted.
 import { generateRimPdf } from '@/lib/rim'
 import type { RimSection, RimParcel, RimBeacon } from '@/lib/rim'
 
@@ -47,8 +47,9 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 // ────────────────────────────────────────────────────────────
 
 export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
-  // Ensure tables exist
-  await createRimTables()
+  // AUDIT FIX (2026-07-03): Removed `await createRimTables()` call.
+  // Tables are created by migrations — no need to CREATE TABLE IF NOT
+  // EXISTS on every POST.
 
   const body = ctx.body as Record<string, unknown>
   const { action } = body

@@ -1,0 +1,105 @@
+name: Promote Staging to Production
+
+# AUDIT FIX (H14, 2026-07-03): Manual promotion workflow.
+#
+# After QA on staging, this workflow:
+#   1. Takes a pre-deploy backup of the production database
+#   2. Merges `staging` → `main` (which triggers deploy.yml)
+#   3. Records the rollback commit SHA for emergency rollback
+#
+# Rollback: run the "Rollback Production" workflow (rollback.yml)
+# with the commit SHA recorded here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "PROMOTE" to confirm promotion to production'
+        required: true
+        default: ''
+
+jobs:
+  promote:
+    name: Promote staging → production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Confirm promotion
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "PROMOTE" ]; then
+            echo 'ERROR: Type "PROMOTE" in the confirm field to proceed.'
+            exit 1
+          fi
+          echo "Promotion confirmed."
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VM_SSH_KEY }}
+
+      - name: Add VM to known hosts
+        run: ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Take pre-deploy production backup
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} bash -s << 'BACKUP'
+          set -eo pipefail
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_DIR="$HOME/metardu-backups"
+          mkdir -p "$BACKUP_DIR"
+
+          echo "=== Taking pre-deploy production backup ==="
+          cd "$HOME/metardu"
+          if [ -f .env.local ]; then
+            DB_URL=$(grep '^DATABASE_URL=' .env.local | cut -d= -f2- | tr -d '"'"'"'\'')
+            if [ -n "$DB_URL" ]; then
+              pg_dump "$DB_URL" | gzip > "$BACKUP_DIR/pre_deploy_${TIMESTAMP}.sql.gz"
+              echo "Backup saved: $BACKUP_DIR/pre_deploy_${TIMESTAMP}.sql.gz"
+              echo "PRE_DEPLOY_BACKUP=$BACKUP_DIR/pre_deploy_${TIMESTAMP}.sql.gz" >> $GITHUB_ENV
+            fi
+          fi
+          BACKUP
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record current production commit (for rollback)
+        run: |
+          git fetch origin main
+          PROD_SHA=$(git rev-parse origin/main)
+          echo "Current production commit: $PROD_SHA"
+          echo "PRODUCTION_ROLLBACK_SHA=$PROD_SHA" >> $GITHUB_ENV
+          # Store in workflow artifact for the rollback workflow
+          echo "$PROD_SHA" > production_rollback_sha.txt
+
+      - name: Upload rollback SHA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-rollback-sha
+          path: production_rollback_sha.txt
+          retention-days: 30
+
+      - name: Merge staging → main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin staging
+          git checkout main
+          git merge origin/staging --no-edit
+          git push origin main
+          echo "Staging merged to main. Deploy workflow will trigger automatically."
+
+      - name: Summary
+        run: |
+          echo "=== Promotion Summary ==="
+          echo "Previous production commit: ${{ env.PRODUCTION_ROLLBACK_SHA }}"
+          echo "New production commit: $(git rev-parse origin/main)"
+          echo ""
+          echo "To rollback: run the 'Rollback Production' workflow with commit SHA:"
+          echo "  ${{ env.PRODUCTION_ROLLBACK_SHA }}"

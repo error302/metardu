@@ -95,9 +95,9 @@ export const NAV_ITEMS: NavItem[] = [
   // COMMUNITY
   { label: 'Community', href: '/community', icon: Users, group: 'COMMUNITY', badge: 'NEW', description: 'Surveyor network hub' },
   { label: 'Marketplace', href: '/marketplace', icon: Store, group: 'COMMUNITY', badge: 'NEW', description: 'Buy, sell and rent survey equipment' },
-  { label: 'Peer Review', href: '/peer-review', icon: ClipboardCheck, group: 'COMMUNITY', badge: 'NEW', description: 'Professional plan review' },
+  // Peer Review page removed — feature not yet built. Will re-add when implemented.
   { label: 'Beacons Map', href: '/beacons', icon: MapPinned, group: 'COMMUNITY', description: 'Community beacon map' },
-  { label: 'AI Plan Checker', href: '/ai-plan-checker', icon: ScanSearch, group: 'COMMUNITY', badge: 'AI', description: 'AI-powered plan review' },
+  { label: 'Plan Checker', href: '/ai-plan-checker', icon: ScanSearch, group: 'COMMUNITY', description: 'Compliance check against Survey Act & RDM 1.1' },
 
   // ENTERPRISE
   { label: 'Analytics', href: '/analytics', icon: BarChart2, group: 'ENTERPRISE', description: 'Usage analytics and performance', requiresSubscription: 'enterprise' },

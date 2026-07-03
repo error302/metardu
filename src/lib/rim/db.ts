@@ -4,7 +4,10 @@
 // Survey Act Cap 299, Survey Regulations L.N. 168/1994
 // ============================================================
 
-import { db } from '@/lib/db'
+// AUDIT FIX (2026-07-03): `import db from '@/lib/db'` removed —
+// createRimTables() was the only function that used it, and that
+// function has been deleted (tables are created by migrations).
+
 // ────────────────────────────────────────────────────────────
 // Types
 // ────────────────────────────────────────────────────────────
@@ -55,75 +58,20 @@ export interface RimBeacon {
 // ────────────────────────────────────────────────────────────
 // Table Creation
 // ────────────────────────────────────────────────────────────
-
-export async function createRimTables(): Promise<void> {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS rim_sections (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL,
-      project_id UUID NOT NULL,
-      section_name TEXT NOT NULL DEFAULT '',
-      registry TEXT NOT NULL DEFAULT '',
-      district TEXT NOT NULL DEFAULT '',
-      map_sheet_number TEXT NOT NULL DEFAULT '',
-      scale TEXT NOT NULL DEFAULT '1:2500',
-      datum TEXT NOT NULL DEFAULT 'Arc 1960',
-      projection TEXT NOT NULL DEFAULT 'UTM Zone 37S',
-      total_area DOUBLE PRECISION NOT NULL DEFAULT 0,
-      parcels_count INTEGER NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'draft'
-        CHECK (status IN ('draft', 'review', 'approved')),
-      notes TEXT NOT NULL DEFAULT '',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_rim_sections_user_id
-      ON rim_sections(user_id);
-    CREATE INDEX IF NOT EXISTS idx_rim_sections_project_id
-      ON rim_sections(project_id);
-    CREATE INDEX IF NOT EXISTS idx_rim_sections_status
-      ON rim_sections(status);
-  `)
-
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS rim_parcels (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      rim_section_id UUID NOT NULL
-        REFERENCES rim_sections(id) ON DELETE CASCADE,
-      parcel_number TEXT NOT NULL DEFAULT '',
-      area DOUBLE PRECISION NOT NULL DEFAULT 0,
-      land_use TEXT NOT NULL DEFAULT '',
-      owner_name TEXT NOT NULL DEFAULT '',
-      beacon_count INTEGER NOT NULL DEFAULT 0,
-      northings DOUBLE PRECISION[] NOT NULL DEFAULT '{}',
-      eastings DOUBLE PRECISION[] NOT NULL DEFAULT '{}',
-      is_landmark BOOLEAN NOT NULL DEFAULT false
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_rim_parcels_section_id
-      ON rim_parcels(rim_section_id);
-    CREATE INDEX IF NOT EXISTS idx_rim_parcels_number
-      ON rim_parcels(parcel_number);
-  `)
-
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS rim_beacons (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      rim_section_id UUID NOT NULL
-        REFERENCES rim_sections(id) ON DELETE CASCADE,
-      beacon_number TEXT NOT NULL DEFAULT '',
-      easting DOUBLE PRECISION NOT NULL DEFAULT 0,
-      northing DOUBLE PRECISION NOT NULL DEFAULT 0,
-      description TEXT NOT NULL DEFAULT '',
-      type TEXT NOT NULL DEFAULT 'Pillar',
-      survey_status TEXT NOT NULL DEFAULT 'Original'
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_rim_beacons_section_id
-      ON rim_beacons(rim_section_id);
-    CREATE INDEX IF NOT EXISTS idx_rim_beacons_number
-      ON rim_beacons(beacon_number);
-  `)
-
-}
+//
+// AUDIT FIX (2026-07-03): createRimTables() removed.
+//
+// The rim_sections, rim_parcels, and rim_beacons tables are created
+// by src/lib/db/migrations/000_canonical_schema.sql and
+// 035_consolidated_missing_tables.sql. Calling CREATE TABLE IF NOT
+// EXISTS on every POST /api/rim request was:
+//   1. A redundant DB round-trip on every write
+//   2. Misleading — it implied the tables might not exist
+//   3. Conflicting — the runtime CREATE didn't include the `geom`
+//      column that migration 035 adds to rim_parcels/rim_beacons
+//
+// If you need to verify tables exist, use the migration runner
+// (src/app/api/db/migrations/route.ts) instead.
+//
+// The function is intentionally NOT exported anymore. If external
+// code depended on it, they should depend on the migration system.

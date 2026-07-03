@@ -617,20 +617,6 @@ export const MiningVolumeSchema = z.object({
   { message: 'sections required for end-area method; gridPoints required for grid method' }
 )
 
-// ─── GeoFusion Align Schema ──────────────────────────────────────────────────
-
-export const GeoFusionAlignSchema = z.object({
-  project_id: z.string().min(1, 'project_id is required').max(200),
-  source_layer_id: z.string().min(1, 'source_layer_id is required').max(200),
-  target_layer_id: z.string().max(200).optional(),
-  method: z.enum(['nearest', 'rubber_sheet', 'affine', 'similarity']).optional(),
-  tolerance: z.number().positive().max(1000).optional(),
-  control_points: z.array(z.object({
-    source: z.object({ x: z.number(), y: z.number() }),
-    target: z.object({ x: z.number(), y: z.number() }),
-  })).max(500).optional(),
-}).passthrough()
-
 // ─── Statutory Workbook Schema ───────────────────────────────────────────────
 
 export const StatutoryWorkbookSchema = z.object({
