@@ -106,15 +106,15 @@ export const POST = apiHandler(
         }
 
         // Insert parcel
+        // AUDIT FIX (2026-07-03): geometry → geom, removed non-existent
+        // owner_name/owner_id/lr_number (lr goes into lr_number_proposed).
         const parcelResult = await db.query(
-          `INSERT INTO parcels (project_id, parcel_number, owner_name, owner_id, lr_number, area_ha, geometry, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, ST_GeomFromText($7, 21037), NOW())
+          `INSERT INTO parcels (project_id, parcel_number, lr_number_proposed, area_ha, geom, created_at)
+           VALUES ($1, $2, $3, $4, ST_GeomFromText($5, 21037), NOW())
            RETURNING id`,
           [
             projectId,
             parcel.parcelNumber,
-            parcel.ownerName || null,
-            parcel.ownerId || null,
             parcel.lrNumber || null,
             areaHa,
             `POLYGON((${parcel.vertices.map(v => `${v.easting} ${v.northing}`).join(', ')}, ${parcel.vertices[0].easting} ${parcel.vertices[0].northing}))`,
@@ -124,13 +124,14 @@ export const POST = apiHandler(
         const parcelId = parcelResult.rows[0].id
 
         // Insert beacons for each vertex
+        // AUDIT FIX: survey_points has no parcel_id/point_type → use code='BEACON'
         for (let v = 0; v < parcel.vertices.length; v++) {
           const vertex = parcel.vertices[v]
           const beaconNumber = `${parcel.parcelNumber}/B${v + 1}`
           await db.query(
-            `INSERT INTO survey_points (project_id, parcel_id, point_name, easting, northing, point_type, created_at)
-             VALUES ($1, $2, $3, $4, $5, 'beacon', NOW())`,
-            [projectId, parcelId, beaconNumber, vertex.easting, vertex.northing],
+            `INSERT INTO survey_points (project_id, point_name, easting, northing, code, created_at)
+             VALUES ($1, $2, $3, $4, 'BEACON', NOW())`,
+            [projectId, beaconNumber, vertex.easting, vertex.northing],
           )
         }
 

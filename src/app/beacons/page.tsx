@@ -72,22 +72,11 @@ function getMarkerColor(type: string) {
   return colors[type] || '#6b7280'
 }
 
-function getProjectIcon(type: string) {
-  const icons: Record<string, string> = {
-    boundary: '[Compass]',
-    topographic: '[Map]',
-    road: '🛣',
-    construction: '🏗',
-    control: '[Pin]',
-    leveling: '[Ruler]',
-    other: '[Pin]'
-  }
-  return icons[type || 'other'] || '[Pin]'
-}
-
 export default function BeaconsPage() {
   const [importMsg, setImportMsg] = React.useState<{text:string;ok:boolean}|null>(null)
-  const [view, setView] = useState<'beacons' | 'activity'>('beacons')
+  // AUDIT FIX (2026-07-03): Removed 'activity' view — it placed projects
+  // at Math.random() positions (pins jumped on every refresh). Only
+  // the 'beacons' view is real.
   const [beacons, setBeacons] = useState<Beacon[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
@@ -200,7 +189,6 @@ export default function BeaconsPage() {
 
         const vectorSource = new VectorSource()
 
-        if (view === 'beacons') {
       const filteredBeacons = beacons.filter((b) => {
         if (filter !== 'all' && b.beacon_type !== filter) return false
         if (search && !b.name.toLowerCase().includes(search.toLowerCase()) &&
@@ -241,50 +229,18 @@ export default function BeaconsPage() {
       // Pan to Kenya/East Africa if beacons exist
       if (filteredBeacons.length > 0) {
         const extent = vectorSource.getExtent()
-        // ponytail: getExtent() can return an empty extent if no features; guard
         if (extent && (extent[2] - extent[0] > 0 || extent[3] - extent[1] > 0)) {
           map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 10 })
         }
+      } else {
+        map.getView().setCenter(fromLonLat([36.8219, -1.2921]))
+        map.getView().setZoom(6)
       }
-    } else if (view === 'activity') {
-      const surveyProjects = projects.filter((p) => p.survey_type)
-      surveyProjects.forEach((project) => {
-        const lat = -1.5 + Math.random() * 10
-        const lon = 30 + Math.random() * 15
-        const icon = getProjectIcon(project.survey_type || 'other')
-
-        const feature = new Feature({
-          geometry: new Point(fromLonLat([lon, lat])),
-        })
-        feature.setStyle(new Style({
-          image: new CircleStyle({
-            radius: 8,
-            fill: new Fill({ color: '#3b82f6' }),
-            stroke: new Stroke({ color: '#fff', width: 2 }),
-          }),
-          text: new Text({ text: icon, font: '12px sans-serif' }),
-        }))
-        feature.set('popupHtml',
-          `<div class="text-sm" style="color:var(--text-primary)">` +
-          `<div style="font-weight:bold;font-size:1.1rem">${icon} ${project.survey_type}</div>` +
-          `<div style="color:var(--text-muted)">Active Survey</div>` +
-          (project.location ? `<div style="color:var(--text-muted);margin-top:4px">Area: ${project.location}</div>` : '') +
-          `</div>`
-        )
-        vectorSource.addFeature(feature)
-      })
-    }
 
         // Remove old vector layers, add new one
         const existing = map.getLayers().getArray().find((l) => l instanceof VectorLayer)
         if (existing) map.removeLayer(existing)
         map.addLayer(new VectorLayer({ source: vectorSource }))
-
-        // Reset view if switching views
-        if (view === 'beacons') {
-          map.getView().setCenter(fromLonLat([36.8219, -1.2921]))
-          map.getView().setZoom(6)
-        }
       } catch (err) {
         console.error('Beacons map feature update failed:', err)
       }
@@ -295,7 +251,7 @@ export default function BeaconsPage() {
     return () => {
       cancelled = true
     }
-  }, [view, beacons, projects, filter, search, loading])
+  }, [beacons, projects, filter, search, loading])
 
   const handleImport = async () => {
     if (!importBeacon || !importProject) return
@@ -337,27 +293,16 @@ export default function BeaconsPage() {
               <p className="text-sm text-[var(--text-secondary)]">East Africa Control Network</p>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={() => setView('beacons')}
-                className={`px-4 py-2 rounded-lg font-medium ${
-                  view === 'beacons' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
-                }`}
+              <Link
+                href="/beacons/submit"
+                className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded-lg"
               >
-                Beacons
-              </button>
-              <button
-                onClick={() => setView('activity')}
-                className={`px-4 py-2 rounded-lg font-medium ${
-                  view === 'activity' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
-                }`}
-              >
-                Survey Activity
-              </button>
+                + Submit Beacon
+              </Link>
             </div>
           </div>
 
-          {view === 'beacons' && (
-            <div className="flex gap-4 items-center">
+          <div className="flex gap-4 items-center">
               <input
                 type="text"
                 placeholder="Search by name or authority..."
@@ -378,14 +323,7 @@ export default function BeaconsPage() {
                   </button>
                 ))}
               </div>
-              <Link
-                href="/beacons/submit"
-                className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded-lg"
-              >
-                + Submit Beacon
-              </Link>
             </div>
-          )}
         </div>
       </header>
 

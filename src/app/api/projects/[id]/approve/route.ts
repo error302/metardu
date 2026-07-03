@@ -87,17 +87,21 @@ export const POST = apiHandler({ auth: true, audit: 'project:approve_lock', rate
     )
   }
 
-  // ── 4. Fetch all control_points and parcels for canonical hashing ────
+  // ── 4. Fetch all control points and parcels for canonical hashing ────
+  // AUDIT FIX (2026-07-03): control_points table doesn't exist → use
+  // survey_points WHERE is_control=true. survey_points.name → point_name.
+  // parcels.area_sqm → area_ha. Removed non-existent geometry_type/
+  // description columns.
   const [pointsResult, parcelsResult] = await Promise.all([
     db.query(
-      `SELECT name, easting, northing, elevation, description
-       FROM control_points
-       WHERE project_id = $1
-       ORDER BY name ASC`,
+      `SELECT point_name, easting, northing, elevation, description
+       FROM survey_points
+       WHERE project_id = $1 AND is_control = true
+       ORDER BY point_name ASC`,
       [projectId]
     ),
     db.query(
-      `SELECT parcel_number, area_sqm, geometry_type, description
+      `SELECT parcel_number, area_ha, status
        FROM parcels
        WHERE project_id = $1
        ORDER BY parcel_number ASC`,

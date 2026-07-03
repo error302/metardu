@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   FileCheck, FileText, Map as MapIcon, Award, BookOpen, FileSpreadsheet,
-  Download, Eye, ArrowRight, Search,
+  ArrowRight, Search,
 } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 
@@ -15,12 +15,6 @@ const reportTypes = [
   { name: 'Beacon Certificate', icon: Award, href: '/tools/beacon-certificate', description: 'Official beacon coordinates, descriptions, and condition records' },
   { name: 'Field Book', icon: BookOpen, href: '/fieldbook', description: 'Raw field observations and measurements with rise & fall' },
   { name: 'Statutory Workbook', icon: FileSpreadsheet, href: '/tools/statutory-workbook', description: 'Regulatory compliance workbook for NLIMS submissions' },
-]
-
-const recentReports = [
-  { name: 'LR 2090/42 — Survey Report', type: 'Survey Report', date: '2026-06-28', status: 'completed' },
-  { name: 'LR 12345/1 — Deed Plan', type: 'Deed Plan', date: '2026-06-25', status: 'completed' },
-  { name: 'LR 7890/3 — Beacon Certificate', type: 'Beacon Certificate', date: '2026-06-20', status: 'draft' },
 ]
 
 export default function ReportsPage() {
@@ -83,48 +77,6 @@ export default function ReportsPage() {
             </Link>
           )
         })}
-      </div>
-
-      {/* Recent reports */}
-      <div>
-        <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-widest mb-4">
-          Recent Documents
-        </h2>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden">
-          {recentReports.map((report, i) => (
-            <div
-              key={i}
-              className={`flex items-center justify-between px-5 py-4 ${
-                i !== recentReports.length - 1 ? 'border-b border-[var(--border-color)]' : ''
-              } hover:bg-[var(--bg-secondary)] transition-colors`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-[var(--text-muted)]" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[var(--text-primary)]">{report.name}</p>
-                  <p className="text-xs text-[var(--text-muted)]">{report.type} · {report.date}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  report.status === 'completed'
-                    ? 'bg-[var(--success)]/15 text-[var(--success)]'
-                    : 'bg-[var(--warning)]/15 text-[var(--warning)]'
-                }`}>
-                  {report.status}
-                </span>
-                <button className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors">
-                  <Eye className="w-4 h-4" />
-                </button>
-                <button className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors">
-                  <Download className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   )
