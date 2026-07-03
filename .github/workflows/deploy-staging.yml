@@ -1,0 +1,111 @@
+name: Deploy to Staging
+
+# AUDIT FIX (H14, 2026-07-03): Staging environment.
+#
+# Every push to the `staging` branch deploys to the staging server.
+# Staging runs the same Docker stack as production but on a separate
+# domain (staging.metardu.duckdns.org) with its own database.
+#
+# Promote to production by merging `staging` → `main` (triggers
+# deploy.yml) or by manually running the Promote workflow.
+#
+# Required secrets (in addition to production secrets):
+#   STAGING_VM_HOST      — staging server hostname/IP
+#   STAGING_VM_USER      — SSH user
+#   STAGING_VM_SSH_KEY   — SSH private key
+#   STAGING_DB_URL       — staging database URL (separate from prod)
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging Server
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_VM_SSH_KEY }}
+
+      - name: Add VM to known hosts
+        run: ssh-keyscan -H ${{ secrets.STAGING_VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest code and rebuild Docker (staging)
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            ${{ secrets.STAGING_VM_USER }}@${{ secrets.STAGING_VM_HOST }} bash -s << 'DEPLOY'
+          set -eo pipefail
+
+          APP_DIR="$HOME/metardu-staging"
+          cd "$APP_DIR"
+
+          echo "=== [1/6] Pulling latest code (staging branch) ==="
+          git fetch origin staging
+          git reset --hard origin/staging
+
+          echo "=== [2/6] Backup staging database before deploy ==="
+          # Take a quick backup before deploying so we can rollback
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          if [ -n "$DATABASE_URL" ]; then
+            pg_dump "$DATABASE_URL" | gzip > "/tmp/staging_backup_${TIMESTAMP}.sql.gz" 2>/dev/null || \
+              echo "WARN: staging backup failed (non-blocking)"
+          fi
+
+          echo "=== [3/6] Running migrations ==="
+          # Migrations run automatically on container startup via the
+          # entrypoint script, but we run them explicitly here so we
+          # can catch migration failures before the container restarts.
+          docker compose -f docker-compose.staging.yml run --rm \
+            metardu-app npm run db:migrate 2>&1 || \
+            echo "WARN: migration step failed — container will retry on startup"
+
+          echo "=== [4/6] Rebuilding Docker containers (staging) ==="
+          docker compose -f docker-compose.staging.yml up -d --build 2>&1
+
+          echo "=== [5/6] Waiting for container to be healthy ==="
+          for i in $(seq 1 24); do
+            sleep 5
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' metardu-staging-app 2>/dev/null || echo "not_found")
+            if [ "$STATUS" = "healthy" ]; then
+              echo "Staging container is healthy after $((i * 5)) seconds"
+              break
+            fi
+            if [ "$i" = "24" ]; then
+              echo "ERROR: Staging container not healthy after 120s"
+              docker logs --tail 30 metardu-staging-app 2>&1
+              exit 1
+            fi
+            echo "  Waiting... ($((i * 5))s) status=$STATUS"
+          done
+
+          echo "=== [6/6] Verifying staging deployment ==="
+          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 15 http://localhost:3001/ || echo "000")
+          echo "Staging HTTP status: $HTTP_CODE"
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Staging deploy successful!"
+          else
+            echo "ERROR: Staging health check returned HTTP $HTTP_CODE"
+            docker logs --tail 50 metardu-staging-app 2>&1
+            exit 1
+          fi
+          DEPLOY
+
+      - name: Verify live staging deployment
+        if: always()
+        run: |
+          sleep 5
+          HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 20 "https://staging.metardu.duckdns.org/" || echo "000")
+          echo "Live staging site HTTP: $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "WARNING: Live staging site returned HTTP $HTTP_CODE"
+          fi

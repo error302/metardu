@@ -1,9 +1,22 @@
 # NextAuth v4 → v5 Migration Plan
 
-**Status:** Deferred from Tier 2 follow-up session (2026-07-02)
+**Status:** Ready to execute — all prerequisites in place (2026-07-03)
 **Roadmap reference:** `docs/ROADMAP.md` → Technical debt → NextAuth v4 → v5 migration
 **Estimated effort:** 2-week side-quest (per roadmap)
 **Risk level:** HIGH — auth is the front door; a botched migration locks out all users
+
+---
+
+## Prerequisites ✅ (all complete as of 2026-07-03)
+
+- ✅ Staging environment exists (`.github/workflows/deploy-staging.yml`)
+- ✅ Rollback workflow exists (`.github/workflows/rollback.yml`)
+- ✅ Pre-deploy DB backup automation (`promote.yml` takes backup before merge)
+- ✅ `auth-v5.ts` config is complete (229 lines, all callbacks, type notes)
+- ✅ Codemod script exists (`scripts/auth-v5-codemod.js`)
+- ✅ Staging docker-compose (`docker-compose.staging.yml`)
+
+The only remaining step is the actual 7-phase execution below.
 
 ---
 

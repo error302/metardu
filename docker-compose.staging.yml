@@ -1,0 +1,52 @@
+# AUDIT FIX (H14, 2026-07-03): Staging docker-compose.
+#
+# Same stack as production (docker-compose.yml) but:
+#   - Different container names (metardu-staging-*)
+#   - Different ports (3001 for app, 5433 for postgres)
+#   - Separate volumes (staging_postgres_data, staging_backups)
+#   - Reads from .env.staging (not .env)
+#
+# Usage:
+#   cp .env.example .env.staging  # edit with staging secrets
+#   docker compose -f docker-compose.staging.yml up -d --build
+
+services:
+  metardu-staging-postgres:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: metardu-staging-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=${STAGING_POSTGRES_DB:-metardu_staging}
+      - POSTGRES_USER=${STAGING_POSTGRES_USER:-metardu}
+      - POSTGRES_PASSWORD=${STAGING_POSTGRES_PASSWORD:?STAGING_POSTGRES_PASSWORD must be set}
+    volumes:
+      - staging_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${STAGING_POSTGRES_USER:-metardu}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  metardu-staging-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: metardu-staging-app
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgresql://${STAGING_POSTGRES_USER:-metardu}:${STAGING_POSTGRES_PASSWORD}@metardu-staging-postgres:5432/${STAGING_POSTGRES_DB:-metardu_staging}
+      - AUTH_SECRET=${STAGING_AUTH_SECRET:?STAGING_AUTH_SECRET must be set}
+      - NEXTAUTH_URL=${STAGING_NEXTAUTH_URL:-http://localhost:3001}
+      - NEXT_PUBLIC_APP_URL=${STAGING_NEXT_PUBLIC_APP_URL:-http://localhost:3001}
+      - NODE_ENV=production
+      - DISABLE_PWA=true
+    depends_on:
+      metardu-staging-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  staging_postgres_data:
