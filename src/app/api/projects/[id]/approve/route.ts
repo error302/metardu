@@ -21,7 +21,8 @@ import { createHash } from 'crypto'
 import { getRoleFromProfile, canApproveAndLock } from '@/lib/rbac'
 import { notifyProjectLocked } from '@/lib/notifications/africasTalking'
 
-export const POST = apiHandler({ auth: true, audit: 'project:approve_lock', rateLimit: { max: 60, windowMs: 60000 } }, async (_req, ctx) => {
+export const POST = apiHandler({ auth: true, audit: 'project:approve_lock', rateLimit: { max: 60, windowMs: 60000 },
+  auditChain: { entityType: 'parcel', action: 'lock', entityIdParam: 'id' } }, async (_req, ctx) => {
   const projectId = ctx.params.id
 
   if (!projectId) {

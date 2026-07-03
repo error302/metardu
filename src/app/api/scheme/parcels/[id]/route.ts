@@ -6,7 +6,9 @@ import { UpdateParcelSchema } from '@/lib/validation/apiSchemas'
 export const dynamic = 'force-dynamic'
 
 export const PATCH = apiHandler(
-  { auth: true, schema: UpdateParcelSchema, optimisticLock: true, audit: 'parcel_updated' , rateLimit: { max: 60, windowMs: 60000 } },
+  { auth: true, schema: UpdateParcelSchema, optimisticLock: true, audit: 'parcel_updated',
+    auditChain: { entityType: 'parcel', action: 'update', entityIdParam: 'id' },
+    rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const parcelId = ctx.params.id
     const validated = ctx.body as Record<string, unknown> & {

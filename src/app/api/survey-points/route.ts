@@ -68,7 +68,8 @@ const BodySchema = z.union([
 ])
 
 export const POST = apiHandler(
-  { auth: true, schema: BodySchema, rateLimit: { max: 60, windowMs: 60000 } },
+  { auth: true, schema: BodySchema, rateLimit: { max: 60, windowMs: 60000 },
+    auditChain: { entityType: 'control_point', action: 'import', projectIdFromBody: 'project_id' } },
   async (_req, ctx) => {
     const body = ctx.body as z.infer<typeof BodySchema>
     const points = Array.isArray(body) ? body : [body]
@@ -93,8 +94,12 @@ export const POST = apiHandler(
     }
 
     const projectId = points[0].project_id
+    // AUDIT FIX (C5, 2026-07-03): Load the project's default CRS so we
+    // can populate datum/zone/hemisphere on points that don't specify
+    // them explicitly. Previously these columns were left NULL even when
+    // the project had a known CRS.
     const { rows: projectRows } = await db.query(
-      'SELECT id FROM projects WHERE id = $1 AND user_id = $2',
+      'SELECT id, utm_zone, hemisphere, datum FROM projects WHERE id = $1 AND user_id = $2',
       [projectId, ctx.userId],
     )
     if (projectRows.length === 0) {
@@ -103,6 +108,7 @@ export const POST = apiHandler(
         { status: 404 },
       )
     }
+    const projectCRS = projectRows[0]
 
     // ── Insert points in a single transaction ─────────────────────────────
     const client = await db.getClient()
@@ -147,10 +153,11 @@ export const POST = apiHandler(
               p.description ?? null,
               p.code ?? null,
               p.is_control ?? false,
-              p.datum ?? null,
-              p.projection ?? null,
-              p.utm_zone ?? null,
-              p.hemisphere ?? null,
+              // C5 fix: fall back to project CRS defaults
+              p.datum ?? projectCRS.datum ?? null,
+              p.projection ?? (projectCRS.utm_zone ? 'UTM' : null),
+              p.utm_zone ?? projectCRS.utm_zone ?? null,
+              p.hemisphere ?? projectCRS.hemisphere ?? null,
               p.source ?? 'manual',
               p.observation_date ?? null,
             ],

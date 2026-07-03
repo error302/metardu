@@ -30,7 +30,8 @@ const patchSurveyPointSchema = z.object({
 })
 
 export const PATCH = apiHandler(
-  { auth: true, optimisticLock: true, schema: patchSurveyPointSchema },
+  { auth: true, optimisticLock: true, schema: patchSurveyPointSchema,
+    auditChain: { entityType: 'control_point', action: 'update', entityIdParam: 'id' } },
   async (_req, ctx) => {
     const { id } = ctx.params
     const body = ctx.body as z.infer<typeof patchSurveyPointSchema>

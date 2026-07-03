@@ -101,7 +101,8 @@ interface ProfileRow {
   firm_name: string | null
 }
 
-export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 },
+  auditChain: { entityType: 'document', action: 'sign', projectIdFromBody: 'projectId' } }, async (req, ctx) => {
   const parsed = SignPlanBodySchema.safeParse(ctx.body)
   if (!parsed.success) {
     return NextResponse.json(

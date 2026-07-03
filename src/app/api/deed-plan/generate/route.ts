@@ -50,7 +50,9 @@ const DeedPlanRequestSchema = z.object({
 })
 
 export const POST = apiHandler(
-  { auth: true, schema: DeedPlanRequestSchema, audit: 'deed_plan_generated' , rateLimit: { max: 60, windowMs: 60000 } },
+  { auth: true, schema: DeedPlanRequestSchema, audit: 'deed_plan_generated',
+    auditChain: { entityType: 'document', action: 'generate', projectIdFromBody: 'projectId' },
+    rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
     const raw = ctx.body as z.infer<typeof DeedPlanRequestSchema>
 
