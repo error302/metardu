@@ -1,70 +1,122 @@
 'use client';
 
-import { ToolExportButtons } from '@/components/shared/ToolExportButtons'
 import { useState } from 'react'
-import { KRDM2017, KeRRA } from '@/lib/standards/engineering'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { sightDistanceCheck, SSD_TABLE, type SightDistanceInput } from '@/lib/computations/roadDesignEngine'
+
+/**
+ * AUDIT FIX (2026-07-03): Replaced the simplified inline formula
+ * (ssd = designSpeed * 0.7 * 3, osd = ssd * 3.5) with the real
+ * roadDesignEngine.sightDistanceCheck() which uses the RDM 1.3
+ * formula: SSD = V²/(254(f+g)) + V×t/3.6 with proper friction
+ * factors, gradient correction, and terrain-based minimums.
+ */
 
 export default function SightDistancePage() {
   const { t } = useLanguage()
   const [designSpeed, setDesignSpeed] = useState(60)
-  const [standard, setStandard] = useState<'KRDM2017' | 'KeRRA'>('KRDM2017')
+  const [terrain, setTerrain] = useState<'flat' | 'rolling' | 'mountainous'>('rolling')
+  const [gradient, setGradient] = useState(0)
   const [curveRadius, setCurveRadius] = useState(150)
 
-  const std = standard === 'KRDM2017' ? KRDM2017 : KeRRA
-  const ssd = std.minSSD[designSpeed] || designSpeed * 0.7 * 3
-  const osd = ssd * 3.5
+  const input: SightDistanceInput = {
+    designSpeed,
+    roadClass: 'highway',
+    terrain,
+    gradient,
+  }
+
+  const result = sightDistanceCheck(input)
+
+  // Check if curve radius provides adequate sight distance
+  // For a simple curve: SSD on curve = R × (1 - cos(α/2))
+  // where α = arc subtended by SSD. Simplified check:
+  // if R >= SSD, sight distance is adequate around the curve
+  const curveAdequate = curveRadius >= result.ssdComputed
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
         title={t('tools.sightDistance')}
         subtitle={t('tools.sightDistanceDesc')}
+        reference="RDM 1.3 Section 3.3 | AASHTO Green Book 2018"
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">
-          <div>
-            <label className="block text-sm text-zinc-400 mb-2">Design Speed (km/h)</label>
-            <input aria-label="Design Speed (km/h)"
-              type="number"
-              value={designSpeed}
-              onChange={e => setDesignSpeed(Number(e.target.value))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
-              min={20}
-              max={120}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2">Design Speed (km/h)</label>
+              <input aria-label="Design Speed (km/h)"
+                type="number"
+                value={designSpeed}
+                onChange={e => setDesignSpeed(Number(e.target.value))}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+                min={20}
+                max={120}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2">Gradient (%)</label>
+              <input aria-label="Gradient (%)"
+                type="number"
+                value={gradient}
+                onChange={e => setGradient(Number(e.target.value))}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+                step="0.5"
+                min="-15"
+                max="15"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm text-zinc-400 mb-2">Standard</label>
+            <label className="block text-sm text-zinc-400 mb-2">Terrain</label>
             <select
-              value={standard}
-              onChange={e => setStandard(e.target.value as 'KRDM2017' | 'KeRRA')}
+              value={terrain}
+              onChange={e => setTerrain(e.target.value as 'flat' | 'rolling' | 'mountainous')}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
             >
-              <option value="KRDM2017">KRDM 2017</option>
-              <option value="KeRRA">KeRRA (Rural Roads)</option>
+              <option value="flat">Flat</option>
+              <option value="rolling">Rolling</option>
+              <option value="mountainous">Mountainous</option>
             </select>
           </div>
 
+          {/* Computed results */}
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
               <div className="text-sm text-zinc-400 mb-1">Stopping Sight Distance</div>
-              <div className="text-2xl font-bold text-amber-400">{ssd.toFixed(0)}m</div>
-              <div className="text-xs text-zinc-500 mt-1">SSD = Vt + V²/254(f+g)</div>
+              <div className="text-2xl font-bold text-amber-400">{result.ssdComputed.toFixed(1)}m</div>
+              <div className="text-xs text-zinc-500 mt-1">
+                SSD = V²/254(f+g) + Vt/3.6
+              </div>
+              <div className="text-xs text-zinc-600 mt-0.5">
+                f={result.frictionFactor.toFixed(4)}, g={gradient}%, t=2.5s
+              </div>
+              {Math.abs(result.ssdGradeCorrection) > 0.1 && (
+                <div className="text-xs text-blue-400 mt-0.5">
+                  Grade correction: +{result.ssdGradeCorrection.toFixed(1)}m
+                </div>
+              )}
             </div>
 
             <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
-              <div className="text-sm text-zinc-400 mb-1">Overtaking Sight Distance</div>
-              <div className="text-2xl font-bold text-green-400">{osd.toFixed(0)}m</div>
-              <div className="text-xs text-zinc-500 mt-1">OSD ≈ 3.5 × SSD</div>
+              <div className="text-sm text-zinc-400 mb-1">Min SSD (RDM 1.3)</div>
+              <div className="text-2xl font-bold text-green-400">{result.ssdMin}m</div>
+              <div className="text-xs text-zinc-500 mt-1">
+                Terrain: {terrain}
+              </div>
+              <div className={`text-xs mt-1 ${result.isSSDCompliant ? 'text-green-400' : 'text-red-400'}`}>
+                {result.isSSDCompliant ? '✓ Compliant' : '✗ Below minimum'}
+              </div>
             </div>
           </div>
 
+          {/* Curve radius check */}
           <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
-            <div className="text-sm text-zinc-400 mb-2">Curve Radius Check</div>
+            <div className="text-sm text-zinc-400 mb-2">Curve Radius Sight Check</div>
             <div className="mb-3">
               <label className="block text-xs text-zinc-500 mb-1">Curve Radius (m)</label>
               <input aria-label="Curve Radius (m)"
@@ -78,35 +130,66 @@ export default function SightDistancePage() {
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-zinc-500">SSD vs curve radius:</span>
-                <span className="text-white">
-                  {curveRadius >= ssd ? '✓ Adequate' : `[!] Radius needs ≥ ${ssd.toFixed(0)}m`}
+                <span className="zinc-500">Required (≥ SSD):</span>
+                <span className="text-white">{result.ssdComputed.toFixed(0)}m</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="zinc-500">Provided radius:</span>
+                <span className="text-white">{curveRadius}m</span>
+              </div>
+              <div className="flex justify-between font-medium">
+                <span className="zinc-500">Status:</span>
+                <span className={curveAdequate ? 'text-green-400' : 'text-red-400'}>
+                  {curveAdequate ? '✓ Adequate' : `✗ Needs ≥ ${result.ssdComputed.toFixed(0)}m`}
                 </span>
               </div>
             </div>
           </div>
+
+          {/* Computation steps */}
+          {result.steps.length > 0 && (
+            <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
+              <h3 className="text-sm font-semibold text-white mb-3">Computation Steps</h3>
+              <div className="space-y-2">
+                {result.steps.map((step, i) => (
+                  <div key={i} className="text-xs">
+                    <div className="text-zinc-400">{step.description}</div>
+                    <div className="text-zinc-600 font-mono">{step.formula}</div>
+                    <div className="text-white font-mono">→ {step.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
+        {/* Reference table */}
         <div className="border border-zinc-700 rounded-lg p-4">
-          <h3 className="font-medium text-white mb-4">Minimum SSD (per {standard})</h3>
+          <h3 className="font-medium text-white mb-4">Minimum SSD (RDM 1.3 Table 3-5)</h3>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-zinc-500 border-b border-zinc-700">
                 <th className="text-left py-2">Speed (km/h)</th>
-                <th className="text-right py-2">SSD (m)</th>
-                <th className="text-right py-2">OSD (m)</th>
+                <th className="text-right py-2">Flat (m)</th>
+                <th className="text-right py-2">Rolling (m)</th>
+                <th className="text-right py-2">Mountainous (m)</th>
               </tr>
             </thead>
             <tbody>
-              {Object.entries(std.minSSD).map(([speed, ssdVal]) => (
-                <tr key={speed} className="border-b border-zinc-800">
-                  <td className="py-2 text-zinc-400">{speed}</td>
-                  <td className="py-2 text-right text-white">{ssdVal}m</td>
-                  <td className="py-2 text-right text-zinc-500">{(ssdVal * 3.5).toFixed(0)}m</td>
+              {SSD_TABLE.map(row => (
+                <tr key={row.speed} className={`border-b border-zinc-800 ${row.speed === designSpeed ? 'bg-amber-900/20' : ''}`}>
+                  <td className="py-2 text-zinc-400">{row.speed}</td>
+                  <td className="py-2 text-right text-white">{row.flat}</td>
+                  <td className="py-2 text-right text-white">{row.rolling}</td>
+                  <td className="py-2 text-right text-white">{row.mountainous}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <p className="text-xs text-zinc-500 mt-3">
+            Highlighted row matches the current design speed. Values are minimum
+            required SSD per RDM 1.3 — computed SSD must exceed these.
+          </p>
         </div>
       </div>
     </div>

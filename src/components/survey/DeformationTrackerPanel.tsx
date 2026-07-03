@@ -20,10 +20,12 @@ import {
   computeDisplacement,
   generateDeformationReport,
   congruenceTest,
+  computeDisplacementConfidenceEllipses,
   DEFAULT_THRESHOLDS,
   type MonitoringStation,
   type EpochReading,
   type CongruenceTestResult,
+  type DisplacementConfidenceEllipse,
 } from '@/lib/engine/deformationTracker'
 
 export function DeformationTrackerPanel() {
@@ -37,6 +39,7 @@ export function DeformationTrackerPanel() {
   // Pelzer congruence test parameters (AUDIT FIX H11, 2026-07-03)
   const [coordSigmaMm, setCoordSigmaMm] = useState(2.0)  // a priori σ per coordinate, mm
   const [pelzerResult, setPelzerResult] = useState<CongruenceTestResult | null>(null)
+  const [ellipses, setEllipses] = useState<DisplacementConfidenceEllipse[]>([])
 
   const addStation = useCallback(() => {
     if (!newStation.name.trim()) return
@@ -149,8 +152,48 @@ export function DeformationTrackerPanel() {
       residualDof,
       0.05,  // α = 0.05 (95% confidence)
     )
-
     setPelzerResult(result)
+
+    // AUDIT FIX (2026-07-03): Also compute per-station confidence ellipses
+    // so the surveyor can see which individual stations have significant
+    // displacement (not just the global test).
+    const stationIdsForEllipses: string[] = []
+    const displacementsFlat: number[] = []
+    const cofactorDiagonals: number[][][] = []
+
+    for (const station of stations) {
+      const stationReadings = readings
+        .filter(r => r.stationId === station.id)
+        .sort((a, b) => a.epochNumber - b.epochNumber)
+
+      if (stationReadings.length < 2) continue
+
+      const latest = stationReadings[stationReadings.length - 1]
+      const dE = latest.deltaX
+      const dN = latest.deltaY
+
+      stationIdsForEllipses.push(station.id)
+      displacementsFlat.push(dE, dN)
+      // 2×2 cofactor sub-matrix: [[qEE, qEN], [qNE, qNN]]
+      // Using the same σ² approximation as the Pelzer test
+      cofactorDiagonals.push([
+        [2 * sigmaSq, 0],
+        [0, 2 * sigmaSq],
+      ])
+    }
+
+    if (stationIdsForEllipses.length > 0) {
+      const ellipseResults = computeDisplacementConfidenceEllipses(
+        stationIdsForEllipses,
+        displacementsFlat,
+        cofactorDiagonals,
+        referenceVariance,
+        0.95,
+      )
+      setEllipses(ellipseResults)
+    } else {
+      setEllipses([])
+    }
   }, [stations, readings, coordSigmaMm])
 
   return (
@@ -325,6 +368,34 @@ export function DeformationTrackerPanel() {
               <div>σ̂₀² = {pelzerResult.referenceVariance.toFixed(6)}</div>
             </div>
             <p className="mt-1 text-[9px] leading-relaxed">{pelzerResult.summary}</p>
+          </div>
+        )}
+
+        {/* Per-station confidence ellipses (AUDIT FIX 2026-07-03) */}
+        {ellipses.length > 0 && (
+          <div className="mt-2 space-y-1">
+            <div className="text-[10px] text-gray-500 font-medium mb-1">Per-Station 95% Confidence Ellipses</div>
+            {ellipses.map((el, i) => {
+              const station = stations.find(s => s.id === el.stationId)
+              return (
+                <div key={i} className={`flex items-center gap-2 p-1.5 rounded text-[9px] ${
+                  el.significant
+                    ? 'bg-red-500/5 border border-red-500/15'
+                    : 'bg-[var(--bg-tertiary)]'
+                }`}>
+                  {el.significant
+                    ? <AlertTriangle className="w-2.5 h-2.5 text-red-400 shrink-0" />
+                    : <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400 shrink-0" />}
+                  <span className="font-mono text-gray-300 shrink-0">{station?.stationName || el.stationId}</span>
+                  <span className="text-gray-500">a={el.semiMajor.toFixed(2)}mm</span>
+                  <span className="text-gray-500">b={el.semiMinor.toFixed(2)}mm</span>
+                  <span className="text-gray-500">θ={el.orientation.toFixed(0)}°</span>
+                  <span className={`ml-auto ${el.significant ? 'text-red-400' : 'text-emerald-400'}`}>
+                    {el.significant ? 'SIGNIFICANT' : 'stable'}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

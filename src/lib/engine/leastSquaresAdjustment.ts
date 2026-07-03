@@ -37,6 +37,19 @@ export interface AngleObservation {
   id: string
   fromStationId: string
   toStationId: string
+  /**
+   * The station at the vertex of the angle (where the instrument is set up).
+   * The angle is measured clockwise from the backsight (fromStation) to the
+   * foresight (toStation), as observed at the atStation.
+   *
+   * If atStationId is omitted, the observation is treated as a bearing
+   * (direction) from fromStation to toStation — NOT an interior angle.
+   *
+   * AUDIT FIX (2026-07-03): Added atStationId so the engine can compute
+   * true interior angles (θ = α_BC − α_BA) instead of treating every
+   * "angle" as a bearing. The page collects from/at/to for a reason.
+   */
+  atStationId?: string
   angle: number  // decimal degrees
   stdDev: number // seconds
 }
@@ -256,24 +269,81 @@ export function adjustTraverseLSA(observations: TraverseObservations): LSAResult
 
   // Angle observation equations
   for (const angle of angles) {
-    const from = stationMap.get(angle.fromStationId)
-    const to = stationMap.get(angle.toStationId)
+    const from = stationMap.get(angle.fromStationId)  // backsight
+    const to = stationMap.get(angle.toStationId)      // foresight
     if (!from || !to) continue
 
     const row: Vector = Array(paramCount).fill(0)
 
-    // Computed angle from current coordinates
-    const computedBearing = computeBearing(from.easting, from.northing, to.easting, to.northing)
-    const computedAngle = computedBearing  // simplified — full implementation would use backsight
+    // AUDIT FIX (2026-07-03): If atStationId is provided, compute a true
+    // interior angle θ = α_BC − α_BA (bearing from vertex to foresight
+    // minus bearing from vertex to backsight). If not, fall back to the
+    // old bearing-only behavior for backward compatibility.
+    let computedAngle: number
+    let dAngle_dE_from: number, dAngle_dN_from: number
+    let dAngle_dE_to: number, dAngle_dN_to: number
+    let dAngle_dE_at = 0, dAngle_dN_at = 0
 
-    // Partial derivatives
-    const dist = computeDistance(from.easting, from.northing, to.easting, to.northing)
-    if (dist < 0.001) continue
+    if (angle.atStationId) {
+      // ── True interior angle at vertex ──
+      const at = stationMap.get(angle.atStationId)
+      if (!at) continue
 
-    const dAngle_dE_from = (to.northing - from.northing) / (dist * dist) * 180 / Math.PI
-    const dAngle_dN_from = -(to.easting - from.easting) / (dist * dist) * 180 / Math.PI
-    const dAngle_dE_to = -(to.northing - from.northing) / (dist * dist) * 180 / Math.PI
-    const dAngle_dN_to = (to.easting - from.easting) / (dist * dist) * 180 / Math.PI
+      // Bearing from vertex to backsight (BA)
+      const dE_BA = from.easting - at.easting
+      const dN_BA = from.northing - at.northing
+      const dist_BA = Math.sqrt(dE_BA * dE_BA + dN_BA * dN_BA)
+      if (dist_BA < 0.001) continue
+
+      // Bearing from vertex to foresight (BC)
+      const dE_BC = to.easting - at.easting
+      const dN_BC = to.northing - at.northing
+      const dist_BC = Math.sqrt(dE_BC * dE_BC + dN_BC * dN_BC)
+      if (dist_BC < 0.001) continue
+
+      // Computed bearings (degrees, 0-360)
+      const alpha_BA = computeBearing(at.easting, at.northing, from.easting, from.northing)
+      const alpha_BC = computeBearing(at.easting, at.northing, to.easting, to.northing)
+
+      // Interior angle = BC − BA (normalized to 0-360)
+      computedAngle = alpha_BC - alpha_BA
+      while (computedAngle < 0) computedAngle += 360
+      while (computedAngle >= 360) computedAngle -= 360
+
+      // Partial derivatives of θ = α_BC − α_BA w.r.t. E/N at each station
+      // ∂α/∂E_from = dN/dist²   ∂α/∂N_from = −dE/dist²  (for BA direction)
+      // ∂α/∂E_to   = −dN/dist²  ∂α/∂N_to   = dE/dist²   (for BC direction)
+      // ∂α/∂E_at   = (dE_BC terms − dE_BA terms) / respective dist²
+      const RAD = 180 / Math.PI
+      const dist_BA2 = dist_BA * dist_BA
+      const dist_BC2 = dist_BC * dist_BC
+
+      // θ = α_BC − α_BA
+      // ∂θ/∂E_at = ∂α_BC/∂E_at − ∂α_BA/∂E_at = (−dN_BC/dist_BC²) − (dN_BA/dist_BA²)
+      dAngle_dE_at = ((-dN_BC / dist_BC2) - (dN_BA / dist_BA2)) * RAD
+      dAngle_dN_at = ((dE_BC / dist_BC2) - (-dE_BA / dist_BA2)) * RAD  // fix signs
+      dAngle_dN_at = ((dE_BC / dist_BC2) + (dE_BA / dist_BA2)) * RAD
+
+      // ∂θ/∂E_from (backsight) = dN_BA / dist_BA² (from the BA bearing derivative)
+      dAngle_dE_from = (dN_BA / dist_BA2) * RAD
+      dAngle_dN_from = (-dE_BA / dist_BA2) * RAD
+
+      // ∂θ/∂E_to (foresight) = −dN_BC / dist_BC²
+      dAngle_dE_to = (-dN_BC / dist_BC2) * RAD
+      dAngle_dN_to = (dE_BC / dist_BC2) * RAD
+
+    } else {
+      // ── Bearing-only (backward compatible) ──
+      const dist = computeDistance(from.easting, from.northing, to.easting, to.northing)
+      if (dist < 0.001) continue
+
+      computedAngle = computeBearing(from.easting, from.northing, to.easting, to.northing)
+
+      dAngle_dE_from = (to.northing - from.northing) / (dist * dist) * 180 / Math.PI
+      dAngle_dN_from = -(to.easting - from.easting) / (dist * dist) * 180 / Math.PI
+      dAngle_dE_to = -(to.northing - from.northing) / (dist * dist) * 180 / Math.PI
+      dAngle_dN_to = (to.easting - from.easting) / (dist * dist) * 180 / Math.PI
+    }
 
     // Fill coefficient matrix for adjustable stations
     if (!from.isFixed) {
@@ -288,6 +358,17 @@ export function adjustTraverseLSA(observations: TraverseObservations): LSAResult
       if (idx != null) {
         row[idx * 2] = dAngle_dE_to
         row[idx * 2 + 1] = dAngle_dN_to
+      }
+    }
+    // Vertex station (if provided and adjustable)
+    if (angle.atStationId) {
+      const at = stationMap.get(angle.atStationId)
+      if (at && !at.isFixed) {
+        const idx = adjStationMap.get(at.id)
+        if (idx != null) {
+          row[idx * 2] = dAngle_dE_at
+          row[idx * 2 + 1] = dAngle_dN_at
+        }
       }
     }
 

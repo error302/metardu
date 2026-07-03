@@ -93,6 +93,8 @@ export default function LeastSquaresPage() {
         .map(a => ({
           id: a.id,
           fromStationId: a.fromStation,
+          // AUDIT FIX (2026-07-03): Pass atStationId so the engine computes
+          // a true interior angle θ = α_BC − α_BA instead of a bearing.
           atStationId: a.atStation,
           toStationId: a.toStation,
           angle: parseFloat(a.angleDeg) + parseFloat(a.angleMin || '0') / 60 + parseFloat(a.angleSec || '0') / 3600,

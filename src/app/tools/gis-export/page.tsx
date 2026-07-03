@@ -127,13 +127,38 @@ export default function GISExportPage() {
       case 'wkt':
         download(getWKT(z, h), `${name}_CRS.wkt`)
         break
+      // AUDIT FIX (2026-07-03): Added DXF + Shapefile exports.
+      // The API routes existed but weren't exposed in the UI.
+      case 'dxf':
+        // Call the server-side DXF export route
+        fetch('/api/compute/export/dxf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ points: ptsMapped, projectName: name, utmZone: z, hemisphere: h }),
+        }).then(r => r.text()).then(dxf => {
+          download(dxf, `${name}_survey.dxf`, 'application/dxf')
+        }).catch(() => alert('DXF export failed — try the server-side export route'))
+        break
+      case 'shapefile':
+        // Call the server-side Shapefile export route (returns a ZIP)
+        fetch('/api/compute/export/shapefile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ points: ptsMapped, projectName: name, utmZone: z, hemisphere: h }),
+        }).then(r => r.blob()).then(blob => {
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url; a.download = `${name}_shapefile.zip`; a.click()
+          URL.revokeObjectURL(url)
+        }).catch(() => alert('Shapefile export failed — try the server-side export route'))
+        break
     }
     markExported(type)
   }
 
   const exportAll = () => {
-    ['geojson','kml','landxml','csv','prj','wkt'].forEach((t, i) =>
-      setTimeout(() => doExport(t), i * 150)
+    ['geojson','dxf','shapefile','kml','landxml','csv','prj','wkt'].forEach((t, i) =>
+      setTimeout(() => doExport(t), i * 200)
     )
   }
 
@@ -144,6 +169,21 @@ export default function GISExportPage() {
       desc: 'Universal format — drop directly into QGIS, ArcGIS, Mapbox, Leaflet, PostGIS.',
       note: 'Coordinates converted to WGS84 lat/lon as required by spec.',
       software: 'QGIS · ArcGIS · Mapbox · PostGIS',
+    },
+    // AUDIT FIX (2026-07-03): Added DXF + Shapefile export cards.
+    {
+      key: 'dxf', icon: '△',
+      title: 'DXF (AutoCAD/Civil 3D)',
+      desc: 'Drawing Exchange Format — the standard for CAD interoperability. Points as POINT entities with layer separation.',
+      note: 'Control points on CONTROL layer, survey points on SURVEY layer.',
+      software: 'AutoCAD · Civil 3D · MicroStation · BricsCAD',
+    },
+    {
+      key: 'shapefile', icon: '▦',
+      title: 'Shapefile (ESRI)',
+      desc: 'Industry-standard GIS format. Includes .shp, .shx, .dbf, and .prj files bundled as a ZIP.',
+      note: 'Point geometry with attributes (name, elevation, type).',
+      software: 'ArcGIS · QGIS · MapInfo · Global Mapper',
     },
     {
       key: 'kml', icon: '◉',
@@ -212,7 +252,7 @@ export default function GISExportPage() {
             )}
             {points.length > 0 && (
               <button onClick={exportAll} className="btn btn-primary flex-shrink-0">
-                Download all 6 formats
+                Download all 8 formats
               </button>
             )}
           </div>
