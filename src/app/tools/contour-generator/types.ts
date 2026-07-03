@@ -6,7 +6,7 @@
 
 import type { SpotHeight } from '@/lib/engine/contours';
 
-export type TabId = 'import' | 'settings' | 'map' | 'export';
+export type TabId = 'import' | 'breaklines' | 'settings' | 'map' | 'export';
 
 export interface ParsedPoint {
   name: string;

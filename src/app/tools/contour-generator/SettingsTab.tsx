@@ -23,6 +23,7 @@ interface SettingsTabProps {
   volumeResult: VolumeResult | null;
   generateProgress?: number;
   usingWorker?: boolean;
+  breaklineCount?: number;
 }
 
 export function SettingsTab({
@@ -40,6 +41,7 @@ export function SettingsTab({
   volumeResult,
   generateProgress = 0,
   usingWorker = false,
+  breaklineCount = 0,
 }: SettingsTabProps) {
   return (
     <div className="space-y-6">
@@ -131,7 +133,9 @@ export function SettingsTab({
             </div>
           )}
           {!isGenerating && points.length >= 3 && (
-            <span className="text-sm text-zinc-400">Ready to generate.</span>
+            <span className="text-sm text-zinc-400">
+              Ready to generate{breaklineCount > 0 ? ` (${breaklineCount} breakline${breaklineCount > 1 ? 's' : ''} active)` : '.'}
+            </span>
           )}
           {!isGenerating && points.length < 3 && (
             <span className="text-sm text-zinc-500">Import at least 3 points first.</span>

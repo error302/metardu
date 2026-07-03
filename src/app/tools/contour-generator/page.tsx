@@ -10,6 +10,7 @@ import {
   type SpotHeight,
   type ContourLine,
   type TINSurface,
+  type Breakline,
 } from '@/lib/engine/contours';
 import {
   generateContoursAsync,
@@ -35,6 +36,7 @@ import { ImportTab } from './ImportTab';
 import { SettingsTab } from './SettingsTab';
 import { MapTab, type SvgElements } from './MapTab';
 import { ExportTab } from './ExportTab';
+import { BreaklineTab } from './BreaklineTab';
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -59,6 +61,9 @@ export default function ContourGeneratorPage() {
   const [generateError, setGenerateError] = useState('');
   const [generateProgress, setGenerateProgress] = useState(0);
   const [usingWorker, setUsingWorker] = useState(false);
+
+  // Breaklines (AUDIT FIX 2026-07-03: expose engine's breakline support in UI)
+  const [breaklines, setBreaklines] = useState<Breakline[]>([]);
 
   // Results
   const [contours, setContours] = useState<ContourLine[]>([]);
@@ -227,15 +232,24 @@ export default function ContourGeneratorPage() {
       // For large datasets (≥ 5000 pts) this keeps the UI responsive;
       // for small datasets the worker overhead is negligible thanks to
       // the 30 s timeout + sync fallback in tinWorkerClient.
+      //
+      // AUDIT FIX (2026-07-03): Pass breaklines to both the contour
+      // generator and the TIN builder so triangles don't cross terrain
+      // discontinuities.
       const result = await generateContoursAsync(points, contourInterval, {
         indexInterval,
+        breaklines: breaklines.length > 0 ? breaklines : undefined,
         onProgress: p => setGenerateProgress(p),
       });
       setContours(result);
 
-      const surface = await buildTINSurfaceAsync(points, undefined, {
-        onProgress: p => setGenerateProgress(p),
-      });
+      const surface = await buildTINSurfaceAsync(
+        points,
+        breaklines.length > 0 ? breaklines : undefined,
+        {
+          onProgress: p => setGenerateProgress(p),
+        },
+      );
       setTinSurface(surface);
 
       // Compute volume relative to minimum elevation
@@ -249,7 +263,7 @@ export default function ContourGeneratorPage() {
       setGenerateProgress(1);
       setUsingWorker(false);
     }
-  }, [points, contourInterval, indexMultiplier]);
+  }, [points, contourInterval, indexMultiplier, breaklines]);
 
   // ─── Export handlers ─────────────────────────────────────────────────────
 
@@ -312,6 +326,7 @@ export default function ContourGeneratorPage() {
 
   const tabs: { id: TabId; label: string; disabled?: boolean }[] = [
     { id: 'import', label: 'Import Points' },
+    { id: 'breaklines', label: `Breaklines${breaklines.length > 0 ? ` (${breaklines.length})` : ''}`, disabled: points.length < 3 },
     { id: 'settings', label: 'Settings & Generate', disabled: points.length < 3 },
     { id: 'map', label: 'Contour Map', disabled: contours.length === 0 },
     { id: 'export', label: 'Export', disabled: contours.length === 0 },
@@ -373,6 +388,15 @@ export default function ContourGeneratorPage() {
         />
       )}
 
+      {/* ═══════════════════ TAB 1.5: Breaklines ═══════════════════ */}
+      {activeTab === 'breaklines' && (
+        <BreaklineTab
+          points={points}
+          breaklines={breaklines}
+          setBreaklines={setBreaklines}
+        />
+      )}
+
       {/* ═══════════════════ TAB 2: Settings & Generate ═══════════════════ */}
       {activeTab === 'settings' && (
         <SettingsTab
@@ -390,6 +414,7 @@ export default function ContourGeneratorPage() {
           volumeResult={volumeResult}
           generateProgress={generateProgress}
           usingWorker={usingWorker}
+          breaklineCount={breaklines.length}
         />
       )}
 
