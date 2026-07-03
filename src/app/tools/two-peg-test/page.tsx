@@ -15,7 +15,13 @@ export default function TwoPegTestCalculator() {
     a1: '',  // Staff at A from position 1
     b1: '',  // Staff at B from position 1
     a2: '',  // Staff at A from position 2
-    b2: ''   // Staff at B from position 2
+    b2: '',  // Staff at B from position 2
+    // AUDIT FIX (2026-07-03): Add baseline distance + tolerance inputs.
+    // Previously the baseline was hardcoded to 100m and the allowable
+    // error to 10mm/100m — surveyors couldn't change them for non-standard
+    // setups (e.g., 50m baseline, 2mm/100m digital level tolerance).
+    baseline: '100',    // Distance between pegs A and B (metres)
+    allowable: '10',    // Allowable collimation error (mm per 100m)
   });
   const [steps, setSteps] = useState<SolutionStep[] | null>(null);
   const [calcError, setCalcError] = useState<string | null>(null);
@@ -26,10 +32,12 @@ export default function TwoPegTestCalculator() {
     const B1 = parseFloat(inputs.b1);
     const A2 = parseFloat(inputs.a2);
     const B2 = parseFloat(inputs.b2);
+    const baseline = parseFloat(inputs.baseline) || 100;
+    const allowable = parseFloat(inputs.allowable) || 10;
 
     if (isNaN(A1) || isNaN(B1) || isNaN(A2) || isNaN(B2)) return;
 
-    const s = twoPegTestSolved({ A1, B1, A2, B2 })
+    const s = twoPegTestSolved({ A1, B1, A2, B2, baselineMeters: baseline, allowableMmPer100m: allowable })
     setSteps(s.steps)
     setSolutionTitle(s.solution.title)
   };
@@ -71,6 +79,23 @@ export default function TwoPegTestCalculator() {
                   <input className="input" value={inputs.b2} onChange={e => setInputs({...inputs, b2: e.target.value})} aria-label="1.420" placeholder="1.420" />
                 </div>
               </div>
+            </div>
+            {/* AUDIT FIX (2026-07-03): Baseline + tolerance inputs */}
+            <div className="border-b border-[var(--border-color)] pb-4 mb-4">
+              <div className="text-sm text-[var(--text-secondary)] mb-3">Setup Parameters</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Baseline A–B distance (m)</label>
+                  <input className="input" value={inputs.baseline} onChange={e => setInputs({...inputs, baseline: e.target.value})} aria-label="100" placeholder="100" type="number" />
+                </div>
+                <div>
+                  <label className="label">Allowable error (mm/100m)</label>
+                  <input className="input" value={inputs.allowable} onChange={e => setInputs({...inputs, allowable: e.target.value})} aria-label="10" placeholder="10" type="number" />
+                </div>
+              </div>
+              <p className="text-xs text-[var(--text-muted)] mt-2">
+                Typical: 100m baseline, 10mm/100m for optical levels. Digital levels may use 2mm/100m. Adjust per your instrument's specs and RDM 1.1 requirements.
+              </p>
             </div>
             <button onClick={calculate} className="btn btn-primary w-full">Run Two Peg Test</button>
             {steps && (

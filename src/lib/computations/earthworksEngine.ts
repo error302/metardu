@@ -301,7 +301,17 @@ export function computeCrossSection(
     { x: leftX, y: leftFormY },
   ]
 
-  const arithmeticCheck = { passed: true, diff: 0 }
+  // AUDIT FIX (2026-07-03): Replace the hardcoded { passed: true, diff: 0 }
+  // stub with a real arithmetic check. The identity is:
+  //   cutArea + fillArea − formationArea = totalGroundArea
+  // (i.e., the ground area equals the cut area plus fill area minus the
+  // formation area, because the formation occupies space within the ground).
+  // A small tolerance (0.01 m²) accounts for floating-point rounding.
+  const arithmeticDiff = (cutArea + fillArea - formationArea) - totalGroundArea
+  const arithmeticCheck = {
+    passed: Math.abs(arithmeticDiff) < 0.01,
+    diff: arithmeticDiff,
+  }
   steps.push({
     description: `Cut area (Trapezoidal)`,
     formula: `Σ dx × (avg_ground − avg_formation)`,

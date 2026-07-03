@@ -134,32 +134,132 @@ export function verticalCurveElevation(
   return pvcElevation + (vc.gradeIn * x / 100) + (r * x * x / 2);
 }
 
+/**
+ * Compute cut/fill areas for a cross-section using trapezoidal integration.
+ *
+ * AUDIT FIX (2026-07-03): The old implementation was:
+ *   `fillArea += Math.abs(diff) * sideSlopeH`  per point
+ * which is dimensionally wrong (it multiplies a height by a ratio —
+ * not an area) and produces meaningless results.
+ *
+ * The correct approach: the design (formation) is a horizontal line at
+ * `designElevation`. The natural ground is a polyline through
+ * `naturalLevels` (sorted by offset). We compute the area between these
+ * two lines using the trapezoidal rule:
+ *
+ *   For each segment [i, i+1]:
+ *     diff1 = designElevation - ground[i].elevation
+ *     diff2 = designElevation - ground[i+1].elevation
+ *     width = |ground[i+1].offset - ground[i].offset|
+ *
+ *     If both diffs > 0 (fill):  fillArea += (diff1 + diff2) / 2 * width
+ *     If both diffs < 0 (cut):   cutArea  += (|diff1| + |diff2|) / 2 * width
+ *     If different signs:        find the zero-crossing offset, split
+ *                                into a cut triangle and a fill triangle
+ *
+ * The `sideSlopeH` parameter is no longer used in the calculation —
+ * it was a misapplication. Side slopes are already accounted for in
+ * the ground levels if the surveyor shot the full cross-section from
+ * left slope stake to right slope stake. The parameter is kept in the
+ * signature for backward compatibility but is ignored.
+ */
 export function crossSectionCutFill(
   designElevation: number,
   naturalLevels: Array<{ offset: number; elevation: number }>,
-  sideSlopeH: number = 1.5
+  _sideSlopeH: number = 1.5
 ): { cutArea: number; fillArea: number } {
   let cutArea = 0;
   let fillArea = 0;
 
-  naturalLevels.forEach(point => {
-    const diff = designElevation - point.elevation;
-    if (diff > 0) {
-      fillArea += Math.abs(diff) * sideSlopeH;
+  if (naturalLevels.length < 2) return { cutArea, fillArea };
+
+  // Sort by offset to ensure left-to-right processing
+  const sorted = [...naturalLevels].sort((a, b) => a.offset - b.offset);
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const p1 = sorted[i];
+    const p2 = sorted[i + 1];
+    const width = Math.abs(p2.offset - p1.offset);
+    if (width < 1e-10) continue;
+
+    const diff1 = designElevation - p1.elevation;  // + = fill, - = cut
+    const diff2 = designElevation - p2.elevation;
+
+    if (diff1 >= 0 && diff2 >= 0) {
+      // Both fill
+      fillArea += (diff1 + diff2) / 2 * width;
+    } else if (diff1 <= 0 && diff2 <= 0) {
+      // Both cut
+      cutArea += (Math.abs(diff1) + Math.abs(diff2)) / 2 * width;
     } else {
-      cutArea += Math.abs(diff) * sideSlopeH;
+      // Mixed — find the zero-crossing point
+      // Linear interpolation: at what fraction t does diff = 0?
+      // diff(t) = diff1 + t * (diff2 - diff1) = 0
+      // t = -diff1 / (diff2 - diff1)
+      const t = -diff1 / (diff2 - diff1);
+      const crossingWidth = t * width;
+
+      if (diff1 > 0) {
+        // p1 is fill, p2 is cut → fill triangle then cut triangle
+        fillArea += (diff1 * crossingWidth) / 2;
+        cutArea += (Math.abs(diff2) * (width - crossingWidth)) / 2;
+      } else {
+        // p1 is cut, p2 is fill → cut triangle then fill triangle
+        cutArea += (Math.abs(diff1) * crossingWidth) / 2;
+        fillArea += (diff2 * (width - crossingWidth)) / 2;
+      }
     }
-  });
+  }
 
   return { cutArea, fillArea };
 }
 
-export function prismoidalVolume(
+/**
+ * Compute volume between two cross-sections using the average-end-area method.
+ *
+ * AUDIT FIX (2026-07-03): This function was named `prismoidalVolume` but
+ * actually computed the end-area formula `V = (A1 + A2) / 2 * L`. The
+ * prismoidal formula is `V = L/6 * (A1 + 4*Am + A2)` where Am is the
+ * area at the midpoint — which requires a middle cross-section that
+ * callers don't have.
+ *
+ * Renamed to `endAreaVolume` (honest naming). The old name `prismoidalVolume`
+ * is kept as a deprecated alias for backward compatibility — it calls
+ * `endAreaVolume` under the hood. Callers should migrate to `endAreaVolume`.
+ *
+ * For a true prismoidal volume, use `prismoidalVolumeFromMidSection`.
+ */
+export function endAreaVolume(
   area1: number,
   area2: number,
   distance: number
 ): number {
   return ((area1 + area2) / 2) * distance;
+}
+
+/**
+ * True prismoidal volume: V = L/6 * (A1 + 4*Am + A2)
+ * Requires the middle cross-section area (Am).
+ */
+export function prismoidalVolumeFromMidSection(
+  area1: number,
+  middleArea: number,
+  area2: number,
+  distance: number
+): number {
+  return (distance / 6) * (area1 + 4 * middleArea + area2);
+}
+
+/**
+ * @deprecated Use `endAreaVolume` instead. This function computes the
+ * end-area volume, not the prismoidal volume. Kept for backward compat.
+ */
+export function prismoidalVolume(
+  area1: number,
+  area2: number,
+  distance: number
+): number {
+  return endAreaVolume(area1, area2, distance);
 }
 
 export function curveStakeoutPoint(

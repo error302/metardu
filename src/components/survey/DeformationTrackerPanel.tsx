@@ -19,9 +19,11 @@ import {
 import {
   computeDisplacement,
   generateDeformationReport,
+  congruenceTest,
   DEFAULT_THRESHOLDS,
   type MonitoringStation,
   type EpochReading,
+  type CongruenceTestResult,
 } from '@/lib/engine/deformationTracker'
 
 export function DeformationTrackerPanel() {
@@ -31,6 +33,10 @@ export function DeformationTrackerPanel() {
   const [newStation, setNewStation] = useState({ name: '', x: '', y: '', z: '' })
   const [currentEpoch, setCurrentEpoch] = useState(0)
   const [epochInput, setEpochInput] = useState({ stationId: '', x: '', y: '', z: '' })
+
+  // Pelzer congruence test parameters (AUDIT FIX H11, 2026-07-03)
+  const [coordSigmaMm, setCoordSigmaMm] = useState(2.0)  // a priori σ per coordinate, mm
+  const [pelzerResult, setPelzerResult] = useState<CongruenceTestResult | null>(null)
 
   const addStation = useCallback(() => {
     if (!newStation.name.trim()) return
@@ -73,6 +79,79 @@ export function DeformationTrackerPanel() {
   }, [stations, readings])
 
   const flaggedCount = report?.flaggedStations.length ?? 0
+
+  /**
+   * Run the Pelzer global congruence test (AUDIT FIX H11, 2026-07-03).
+   *
+   * Compares epoch 0 (baseline) against the latest epoch for each station
+   * that has readings in both epochs. Builds a simplified diagonal cofactor
+   * matrix from the a priori coordinate standard deviation (coordSigmaMm),
+   * since we don't have the full LSA cofactor matrix from each epoch's
+   * network adjustment.
+   *
+   * For a rigorous Pelzer test, the surveyor should export the cofactor
+   * matrices from their LSA software and run the test via the API. This
+   * UI implementation gives a practical approximation that's still
+   * statistically valid for typical monitoring scenarios.
+   */
+  const runPelzerTest = useCallback(() => {
+    if (stations.length === 0 || readings.length === 0) return
+
+    // Find stations that have BOTH an epoch-0 (baseline) reading and a
+    // latest-epoch reading
+    const stationDisplacements: number[] = []
+    const stationIds: string[] = []
+
+    for (const station of stations) {
+      const stationReadings = readings
+        .filter(r => r.stationId === station.id)
+        .sort((a, b) => a.epochNumber - b.epochNumber)
+
+      if (stationReadings.length < 2) continue
+
+      const baseline = stationReadings[0]
+      const latest = stationReadings[stationReadings.length - 1]
+
+      // 2D displacement (E, N) in metres
+      const dE = latest.deltaX  // deltaX is the E displacement vs baseline
+      const dN = latest.deltaY  // deltaY is the N displacement vs baseline
+
+      stationDisplacements.push(dE, dN)
+      stationIds.push(station.id)
+    }
+
+    if (stationIds.length === 0) {
+      setPelzerResult(null)
+      return
+    }
+
+    // Build a simplified diagonal cofactor matrix Q_dd = Q₀ + Q₁.
+    // Since we don't have the LSA cofactor matrices per epoch, we
+    // approximate: each coordinate has variance σ², and the pooled
+    // cofactor for the displacement is 2σ² (sum of two epochs).
+    const sigma = coordSigmaMm / 1000  // convert mm → metres
+    const sigmaSq = sigma * sigma
+    const n = stationDisplacements.length  // 2 * numStations
+    const cofactorMatrix: number[][] = Array.from({ length: n }, (_, i) =>
+      Array.from({ length: n }, (_, j) => (i === j ? 2 * sigmaSq : 0))
+    )
+
+    // Reference variance: σ̂₀² = 1 (we're using a priori σ, not a posteriori)
+    const referenceVariance = 1.0
+
+    // Degrees of freedom: roughly numStations * 2 (2D displacements)
+    const residualDof = stationIds.length * 2
+
+    const result = congruenceTest(
+      stationDisplacements,
+      cofactorMatrix,
+      referenceVariance,
+      residualDof,
+      0.05,  // α = 0.05 (95% confidence)
+    )
+
+    setPelzerResult(result)
+  }, [stations, readings, coordSigmaMm])
 
   return (
     <div className="space-y-4">
@@ -195,6 +274,59 @@ export function DeformationTrackerPanel() {
           <p>Warning: {DEFAULT_THRESHOLDS.warningDisplacement}mm displacement or {DEFAULT_THRESHOLDS.warningVelocity}mm/week velocity</p>
           <p>Critical: {DEFAULT_THRESHOLDS.criticalDisplacement}mm displacement or {DEFAULT_THRESHOLDS.criticalVelocity}mm/week velocity</p>
         </div>
+      </div>
+
+      {/* Pelzer Congruence Test (AUDIT FIX H11, 2026-07-03) */}
+      <div className="card p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
+          <span className="text-xs font-semibold text-[var(--text-primary)]">Pelzer Congruence Test</span>
+          <span className="text-[9px] text-gray-500 ml-auto">Statistical significance (95% confidence)</span>
+        </div>
+        <div className="text-[10px] text-gray-400">
+          Tests whether the observed deformation is statistically significant or can be explained by measurement noise.
+          Requires ≥2 epochs of data for at least one station.
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] text-gray-400 whitespace-nowrap">Coord σ (mm):</label>
+          <input
+            type="number"
+            value={coordSigmaMm}
+            onChange={e => setCoordSigmaMm(parseFloat(e.target.value) || 2.0)}
+            step="0.5"
+            min="0.1"
+            className="w-16 h-7 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white font-mono"
+          />
+          <button
+            onClick={runPelzerTest}
+            disabled={readings.length === 0}
+            className="h-7 px-3 rounded bg-purple-600 text-white text-xs font-semibold disabled:opacity-40 hover:bg-purple-700 transition-colors"
+          >
+            Run Test
+          </button>
+        </div>
+        {pelzerResult && (
+          <div className={`p-2.5 rounded-lg border text-[10px] ${
+            pelzerResult.significant
+              ? 'bg-red-500/5 border-red-500/20 text-red-300'
+              : 'bg-emerald-500/5 border-emerald-500/20 text-emerald-300'
+          }`}>
+            <div className="flex items-center gap-1.5 mb-1">
+              {pelzerResult.significant
+                ? <AlertTriangle className="w-3 h-3 text-red-400" />
+                : <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
+              <span className="font-semibold">
+                {pelzerResult.significant ? 'DEFORMATION SIGNIFICANT' : 'No significant deformation'}
+              </span>
+            </div>
+            <div className="font-mono text-[9px] text-gray-400 space-y-0.5">
+              <div>T = {pelzerResult.testStatistic.toFixed(4)}  vs  F_crit = {pelzerResult.criticalValue.toFixed(4)}</div>
+              <div>Ω = {pelzerResult.quadraticForm.toFixed(6)},  h = {pelzerResult.degreesOfFreedom}</div>
+              <div>σ̂₀² = {pelzerResult.referenceVariance.toFixed(6)}</div>
+            </div>
+            <p className="mt-1 text-[9px] leading-relaxed">{pelzerResult.summary}</p>
+          </div>
+        )}
       </div>
     </div>
   )

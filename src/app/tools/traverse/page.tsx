@@ -317,7 +317,7 @@ export default function TraverseCalculator() {
   <div class="summary-row"><span class="summary-label">&#931; Departures</span><span class="summary-value">${result.legs.reduce((s: number, l: any) => s + l.departure, 0).toFixed(4)} m</span></div>
   <div class="summary-row"><span class="summary-label">&#931; Latitudes</span><span class="summary-value">${result.legs.reduce((s: number, l: any) => s + l.latitude,  0).toFixed(4)} m</span></div>
   <div class="summary-row"><span class="summary-label">Linear Misclosure</span><span class="summary-value">${result.linearError.toFixed(6)} m</span></div>
-  <div class="summary-row"><span class="summary-label">Precision Ratio</span><span class="summary-value">1 : ${Math.round(1 / result.precisionRatio)}</span></div>
+  <div class="summary-row"><span class="summary-label">Precision Ratio</span><span class="summary-value">1 : ${Math.round(result.precisionRatio)}</span></div>
   <div class="summary-row"><span class="summary-label">Allowable (RDM 1.1 Table 5.1)</span><span class="summary-value">1 : 10 000</span></div>
   ${acc ? `<div class="summary-row"><span class="summary-label">Survey Order</span><span class="summary-value">${acc.order}</span></div>` : ''}
 </div>
@@ -480,7 +480,7 @@ ${azmSection}`
             <div className="card-header flex justify-between items-center">
               <span className="label">Traverse Diagram — Adjusted vs Raw</span>
               <span className="text-xs text-[var(--text-muted)] font-mono">
-                Closing error: {result.linearError.toFixed(4)} m · Precision 1:{Math.round(1 / result.precisionRatio)}
+                Closing error: {result.linearError.toFixed(4)} m · Precision 1:{Math.round(result.precisionRatio)}
               </span>
             </div>
             <div className="p-4">
@@ -502,7 +502,7 @@ ${azmSection}`
               <ResultRow label="Σ Departures" value={`${result.legs.reduce((s: number, l: any) => s + l.departure, 0).toFixed(4)} m`} />
               <ResultRow label="Σ Latitudes"  value={`${result.legs.reduce((s: number, l: any) => s + l.latitude,  0).toFixed(4)} m`} />
               <ResultRow label="Linear Misclosure" value={`${result.linearError.toFixed(6)} m`} />
-              <ResultRow label="Precision Ratio"   value={`1 : ${Math.round(1 / result.precisionRatio)}`} highlight />
+              <ResultRow label="Precision Ratio"   value={`1 : ${Math.round(result.precisionRatio)}`} highlight />
             </div>
           </div>
 
@@ -523,7 +523,7 @@ ${azmSection}`
                 <div className="card-body space-y-3">
                   <ResultRow label="Total Perimeter"   value={`${result.totalDistance.toFixed(4)} m`} />
                   <ResultRow label="Linear Misclosure" value={`${result.linearError.toFixed(6)} m`} />
-                  <ResultRow label="Precision Ratio"   value={`1 : ${Math.round(1 / result.precisionRatio)}`} />
+                  <ResultRow label="Precision Ratio"   value={`1 : ${Math.round(result.precisionRatio)}`} />
                   <ResultRow label="Allowable (RDM 1.1 Table 5.1)" value="1 : 10 000" />
                   <div className="mt-3 p-4 rounded-lg text-center">
                     <p className="text-xs text-[var(--text-muted)] mb-2">TRAVERSE ACCURACY ORDER</p>
