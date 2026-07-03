@@ -61,6 +61,44 @@ export interface LSAdjustmentResult {
     upper: number
     passed: boolean
   }
+  // ─── Baarda Reliability Analysis (H13, 2026-07-03) ───────────────────────
+  // Added per audit finding H13. Each observation gets:
+  //   - redundancy number r_i  (0 ≤ r_i ≤ 1; sum of r_i = degrees of freedom)
+  //   - internal reliability / MDB (Minimal Detectable Bias) — the smallest
+  //     bias in observation i that would be detected by the w-test at the
+  //     chosen significance level
+  //   - external reliability — the effect of an undetected MDB-sized bias
+  //     on the adjusted coordinates (max |∇x| in meters)
+  //   - w-test statistic (data snooping) — |v_i| / σ_v_i
+  //
+  // References:
+  //   - Baarda, W. (1968) "A Testing Procedure for Use in Geodetic Networks"
+  //   - Förstner, W. (1979) "On Internal and External Reliability of
+  //     Photogrammetric Coordinates"
+  //   - Ghilani & Wolf "Adjustment Computations" Ch. 21 (Reliability)
+  reliability?: {
+    observations: Array<{
+      observation: string
+      /** Redundancy number r_i = q_vv_i × p_i  (0=no redundancy, 1=full) */
+      redundancyNumber: number
+      /** Internal reliability: MDB in observation units (m or arcsec) */
+      minimalDetectableBias: number
+      /** External reliability: max effect on adjusted coords (m) */
+      externalReliability: number
+      /** w-test statistic (data snooping): |v_i| / σ_v_i */
+      wTestStatistic: number
+      /** True if w-test exceeds critical value (outlier suspected) */
+      isOutlier: boolean
+    }>
+    /** Critical value for the w-test (standard normal, default 3.29 = α=0.001) */
+    wTestCriticalValue: number
+    /** Significance level used for MDB computation */
+    alpha: number
+    /** Power of test (1-β, default 0.80) */
+    power: number
+    /** Non-centrality parameter λ₀ for α, β */
+    nonCentralityParameter: number
+  }
   passed: boolean
   error?: string
 }
@@ -961,6 +999,80 @@ export function adjustNetwork(input: LSAdjustmentInput): LSAdjustmentResult {
         })()
       : undefined
 
+  // ─── Baarda Reliability Analysis (H13, 2026-07-03) ───────────────────────
+  //
+  // For each observation i, compute:
+  //   1. Redundancy number:  r_i = q_vv_i × p_i = 1 - (a_iᵀ · Qxx · a_i) × p_i
+  //      where q_vv_i is the diagonal of Qvv = P⁻¹ - A·Qxx·Aᵀ
+  //   2. w-test (data snooping):  w_i = |v_i| / √(σ̂₀² · q_vv_i)
+  //      Reject H0 if w_i > z_{1-α/2}  (critical value from standard normal)
+  //   3. Internal reliability (MDB):  ∇₀_i = (σ̂₀ · √(λ₀)) / √(p_i · r_i)
+  //      where λ₀ is the non-centrality parameter for α, β
+  //   4. External reliability:  ∇x_i = (Aᵀ·P·A)⁻¹ · a_iᵀ · p_i · ∇₀_i
+  //      (max absolute coordinate effect)
+  //
+  // The non-centrality parameter λ₀ depends on α (significance) and β (power):
+  //   λ₀ = (z_{1-α/2} + z_{1-β})²
+  // For α=0.001, β=0.20 (power=0.80):  λ₀ = (3.29 + 0.84)² ≈ 17.07
+  const reliability = (() => {
+    if (dof <= 0 || !A || A.length === 0) return undefined
+
+    const alpha = 0.001  // Baarda's standard α for the w-test
+    const beta = 0.20    // 1-β = 0.80 power
+    const power = 1 - beta
+    // normalQuantile is the inverse standard normal CDF (Acklam's approx)
+    const zAlpha = normalQuantile(1 - alpha / 2)  // ≈ 3.2905
+    const zBeta = normalQuantile(power)            // ≈ 0.8416
+    const lambda0 = Math.pow(zAlpha + zBeta, 2)    // ≈ 17.075
+    const s0 = Math.sqrt(Math.max(refVar, 1e-15))
+
+    const obsReliability = v.map((vi, i) => {
+      const aRow = A[i]
+      const pi = P[i]
+      const qll = pi > 0 ? 1 / pi : 1
+      const Qa = matVecMul(Ninv, aRow)
+      const aTQa = dot(aRow, Qa)
+      const qvv = Math.max(0, qll - aTQa)
+
+      // 1. Redundancy number
+      const r_i = qvv * pi
+
+      // 2. w-test statistic
+      const sigmaVi = Math.sqrt(Math.max(refVar, 1e-15) * qvv)
+      const w_i = sigmaVi > 0 ? Math.abs(vi) / sigmaVi : 0
+
+      // 3. Internal reliability (MDB) — guard against r_i → 0
+      const mdb = r_i > 1e-10
+        ? (s0 * Math.sqrt(lambda0)) / Math.sqrt(pi * r_i)
+        : Infinity
+
+      // 4. External reliability — max coordinate effect
+      //    ∇x = Qxx · a_iᵀ · p_i · ∇₀_i, take max abs component
+      let extRel = 0
+      if (r_i > 1e-10 && isFinite(mdb)) {
+        const gradX = matVecMul(Ninv, aRow).map(c => c * pi * mdb)
+        extRel = Math.max(...gradX.map(Math.abs))
+      }
+
+      return {
+        observation: finalLabels[i],
+        redundancyNumber: Math.max(0, Math.min(1, r_i)),
+        minimalDetectableBias: isFinite(mdb) ? mdb : Infinity,
+        externalReliability: isFinite(extRel) ? extRel : Infinity,
+        wTestStatistic: w_i,
+        isOutlier: w_i > zAlpha,
+      }
+    })
+
+    return {
+      observations: obsReliability,
+      wTestCriticalValue: zAlpha,
+      alpha,
+      power,
+      nonCentralityParameter: lambda0,
+    }
+  })()
+
   return {
     ok: true,
     adjustedPoints,
@@ -969,6 +1081,7 @@ export function adjustNetwork(input: LSAdjustmentInput): LSAdjustmentResult {
     chiSquare: vPv,
     degreesOfFreedom: dof,
     globalTest,
+    reliability,
     passed,
   }
 }

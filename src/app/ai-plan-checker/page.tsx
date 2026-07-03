@@ -87,10 +87,13 @@ export default function AIPlanCheckerPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
       <PageHeader
-        title="AI Plan Checker"
+        title="Plan Compliance Checker"
         subtitle="Automated survey plan compliance checking against regulatory standards"
         reference="Survey Act Cap. 299 | RDM 1.1 | Survey Regulations 1994"
-        badge="AI"
+        // AUDIT FIX (2026-07-03): Removed the 'AI' badge — the checker
+        // is a deterministic rule engine (5 + 14 rules), not an LLM.
+        // Calling it 'AI' was misleading. The functionality is real;
+        // only the label was wrong.
       />
 
       {/* Input form */}
