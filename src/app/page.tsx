@@ -148,6 +148,7 @@ function HeroSection() {
           <div className="hidden md:flex items-center gap-8">
             <Link href="#features" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Features</Link>
             <Link href="#workflow" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Workflow</Link>
+            <Link href="/industrial" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Industrial</Link>
             <Link href="/pricing" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Pricing</Link>
             <Link href="/docs" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Docs</Link>
             <Link href="/login" className="text-sm text-[var(--text-primary)]/70 hover:text-[var(--text-primary)] transition-colors no-underline">Sign in</Link>
