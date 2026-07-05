@@ -10,9 +10,24 @@
 import { useState, useCallback } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { TIN3DViewer } from '@/components/visualization/TIN3DViewer'
-import { generateDemoData } from '@/lib/engine/contours'
 import { buildTINSurface, type SpotHeight, type TINSurface } from '@/lib/engine/contours'
 import { Upload, Box, Mountain } from 'lucide-react'
+
+// Local demo data generator (replaces missing generateDemoData export).
+// Generates a Gaussian hill centered on (500, 500) with a 50m peak.
+function generateDemoData(): SpotHeight[] {
+  const pts: SpotHeight[] = []
+  const cx = 500, cy = 500, peakH = 50, sigma = 150
+  for (let i = 0; i < 80; i++) {
+    // Pseudo-random on a 1000x1000 plane
+    const x = (i * 137.5) % 1000
+    const y = (i * 271.3) % 1000
+    const dx = x - cx, dy = y - cy
+    const h = peakH * Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma))
+    pts.push({ name: `PT${i + 1}`, easting: x, northing: y, elevation: h })
+  }
+  return pts
+}
 
 export default function ThreeDViewerPage() {
   const [points, setPoints] = useState<SpotHeight[]>([])

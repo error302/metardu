@@ -77,7 +77,7 @@ export const POST = apiHandler(
       fromCRS,
       toCRS,
       points: coords.map((c) => ({
-        id: c.id,
+        id: c.id ?? `pt-${c.easting}-${c.northing}`,
         x: c.easting,
         y: c.northing,
       })),
@@ -93,7 +93,7 @@ export const POST = apiHandler(
       epsg:
         toDatum === 'WGS84' ? 4326
         : toDatum === 'ARC1960' ? 4210
-        : (toCRS.match(/\d+/)?.[0] ? parseInt(toCRS.match(/\d+/)[0], 10) : 21037),
+        : (toCRS.match(/\d+/)?.[0] ? parseInt(toCRS.match(/\d+/)![0], 10) : 21037),
     }))
 
     return NextResponse.json({

@@ -184,7 +184,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           [user.id]
         )
 
-        console.log(`[auth-v5] Created default profile + project for user ${user.id}`)
+        // Verbose log gated to dev only — never log user IDs in production
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[auth-v5] Created default profile + project for user ${user.id}`)
+        }
       } catch (err) {
         console.error('[auth-v5] Failed to create default profile:', err)
         // Don't fail the registration — user can create profile manually

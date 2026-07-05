@@ -23,6 +23,7 @@
  */
 
 import { useEffect, useRef } from 'react'
+import type * as THREE from 'three'
 import type { TINSurface, SpotHeight } from '@/lib/engine/contours'
 
 interface TIN3DViewerProps {

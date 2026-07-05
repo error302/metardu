@@ -28,7 +28,11 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { detectFormat, getParser } from '@/lib/importers/registry'
-import { parse as parseCSV } from '@/lib/importers/parsers/csv'
+import type { ParsedPoint } from '@/types/importer'
+// NOTE: csv parser self-registers via registerParser() on import; we don't
+// need to call it directly here. The fallback for raw CSV below goes through
+// the registry's getParser('csv').
+import '@/lib/importers/parsers/csv'
 
 const MAX_BYTES = 100 * 1024 * 1024 // 100 MB — matches UploadZone default
 const ALLOWED_EXT = new Set([
@@ -84,7 +88,18 @@ export const POST = apiHandler(
     const warnings: string[] = []
     let detectedType = ext.toUpperCase()
     let confidence = 0.5
-    let points: { x: number; y: number; z?: number; name?: string }[] = []
+    // Hold parsed points in their native ParsedPoint shape; convert to the
+    // {x,y,z,name} wire shape at the boundary (see mapParsedPoints below).
+    let parsedPoints: ParsedPoint[] = []
+    const mapParsedPoints = (pts: ParsedPoint[]) =>
+      pts
+        .filter(p => typeof p.easting === 'number' && typeof p.northing === 'number')
+        .map(p => ({
+          x: p.easting as number,
+          y: p.northing as number,
+          z: typeof p.rl === 'number' ? p.rl : undefined,
+          name: p.point_no ?? p.code ?? p.feature_code,
+        }))
 
     try {
       const text = await file.text()
@@ -93,20 +108,24 @@ export const POST = apiHandler(
       if (format !== 'unknown') {
         const parser = getParser(format)
         if (parser) {
-          const parseResult = parser(text, file.name)
+          // Parser is an object with a .parse() method, not a callable function.
+          const parseResult = parser.parse(text)
           if (parseResult && Array.isArray(parseResult.points)) {
-            points = parseResult.points
+            parsedPoints = parseResult.points
             detectedType = format
             confidence = 0.95
           }
         }
       } else if (ext === 'csv') {
-        // Fall back to raw CSV parsing
-        const result = parseCSV(text)
-        if (result && Array.isArray(result.points)) {
-          points = result.points
-          detectedType = 'CSV'
-          confidence = 0.85
+        // Fall back to raw CSV parsing via the registry
+        const csvParser = getParser('csv')
+        if (csvParser) {
+          const result = csvParser.parse(text)
+          if (result && Array.isArray(result.points)) {
+            parsedPoints = result.points
+            detectedType = 'CSV'
+            confidence = 0.85
+          }
         }
       }
     } catch (err) {
@@ -131,6 +150,8 @@ export const POST = apiHandler(
           windows: 0,
         }
       : undefined
+
+    const points = mapParsedPoints(parsedPoints)
 
     const boq = hasBoq
       ? {

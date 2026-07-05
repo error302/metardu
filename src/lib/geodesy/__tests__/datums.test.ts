@@ -149,7 +149,9 @@ describe('transformToWGS84', () => {
     if (!datum) return
     const result = transformToWGS84(257000, 9857000, 37, 'S', datum)
     expect(Number.isFinite(result.easting)).toBe(true)
-    expect(result.note).toContain('Helmert')
+    // Note uses 'Bursa-Wolf' (the formal name for the 7-parameter Helmert
+    // transform per EPSG 9606). Both names refer to the same math.
+    expect(result.note).toMatch(/Bursa-Wolf|Helmert/)
   })
 })
 

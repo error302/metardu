@@ -65,8 +65,10 @@ jobs:
           # Migrations run automatically on container startup via the
           # entrypoint script, but we run them explicitly here so we
           # can catch migration failures before the container restarts.
+          # AUDIT FIX (2026-07-05): Was `npm run db:migrate` but no such
+          # script exists in package.json. The actual script is `migrate`.
           docker compose -f docker-compose.staging.yml run --rm \
-            metardu-app npm run db:migrate 2>&1 || \
+            metardu-app npm run migrate 2>&1 || \
             echo "WARN: migration step failed — container will retry on startup"
 
           echo "=== [4/6] Rebuilding Docker containers (staging) ==="

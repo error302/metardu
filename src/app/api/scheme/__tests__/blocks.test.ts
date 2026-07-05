@@ -91,10 +91,13 @@ describe('POST /api/scheme/blocks', () => {
 
   it('should create a block with valid input', async () => {
     mockSession.mockResolvedValue(createAuthSession())
+    // First mock call: apiHandler's organization_members lookup (returns no orgs)
+    // Then: route's project check, route's dup check, route's INSERT
     mockDb
-      .mockResolvedValueOnce(mr([{ id: 1, project_type: 'scheme' }]))
-      .mockResolvedValueOnce(mr([]))
-      .mockResolvedValueOnce(mr([{ id: 'block-1', block_number: '1', project_id: TEST_UUID, block_name: 'Block A' }]))
+      .mockResolvedValueOnce(mr([]))                                                                              // org lookup
+      .mockResolvedValueOnce(mr([{ id: 1, project_type: 'scheme' }]))                                              // project check
+      .mockResolvedValueOnce(mr([]))                                                                               // dup check
+      .mockResolvedValueOnce(mr([{ id: 'block-1', block_number: '1', project_id: TEST_UUID, block_name: 'Block A' }])) // INSERT
 
     const req = createMockRequest({ project_id: TEST_UUID, block_number: '1', block_name: 'Block A' })
     const res = await POST(req as any)
@@ -103,14 +106,16 @@ describe('POST /api/scheme/blocks', () => {
     expect(res.status).toBe(201)
     expect(data.data.block_number).toBe('1')
     expect(data.data.block_name).toBe('Block A')
-    expect(mockDb).toHaveBeenCalledTimes(3)
+    expect(mockDb).toHaveBeenCalledTimes(4)
   })
 
   it('should reject duplicate block_number for same project', async () => {
     mockSession.mockResolvedValue(createAuthSession())
+    // org lookup, then project check, then dup check (returns existing block)
     mockDb
-      .mockResolvedValueOnce(mr([{ id: 1, project_type: 'scheme' }]))
-      .mockResolvedValueOnce(mr([{ id: 'existing-block' }]))
+      .mockResolvedValueOnce(mr([]))                                                                              // org lookup
+      .mockResolvedValueOnce(mr([{ id: 1, project_type: 'scheme' }]))                                              // project check
+      .mockResolvedValueOnce(mr([{ id: 'existing-block' }]))                                                       // dup check
 
     const req = createMockRequest({ project_id: TEST_UUID, block_number: '1' })
     const res = await POST(req as any)
@@ -141,8 +146,10 @@ describe('GET /api/scheme/blocks', () => {
 
   it('should return blocks with parcel counts', async () => {
     mockSession.mockResolvedValue(createAuthSession())
+    // First mock: apiHandler's org lookup. Then: route's project check, route's GET blocks.
     mockDb
-      .mockResolvedValueOnce(mr([{ id: 1 }]))
+      .mockResolvedValueOnce(mr([]))                                                                                  // org lookup
+      .mockResolvedValueOnce(mr([{ id: 1 }]))                                                                          // project check
       .mockResolvedValueOnce(mr([
         { id: 'b1', block_number: '1', block_name: 'A', parcel_count: 5, completed_count: 3 },
         { id: 'b2', block_number: '2', block_name: 'B', parcel_count: 3, completed_count: 0 },

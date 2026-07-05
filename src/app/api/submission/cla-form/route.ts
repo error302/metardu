@@ -97,12 +97,19 @@ export const POST = apiHandler({ auth: true, schema: GenerateCLAFormSchema, audi
     );
   }
 
-  // Log the generation (optional audit)
+  // AUDIT FIX (2026-07-05): Replace raw console.log (which leaked user IDs
+  // to stdout in production) with the structured auditLog helper from
+  // @/lib/logger. The audit log goes through PM2's structured JSON pipeline.
   if (userId) {
-    console.log(
-      `[cla-form] User ${userId} generated CLA Form ${formNumber} (${metadata?.title})` +
-      (projectId ? ` for project ${projectId}` : ''),
-    );
+    try {
+      const { auditLog } = await import('@/lib/logger')
+      auditLog(userId, 'GENERATE_CLA_FORM', `form:${formNumber}`, {
+        projectId: projectId ?? null,
+        title: metadata?.title ?? null,
+      })
+    } catch {
+      // Logger import failure is non-blocking
+    }
   }
 
   // Return PDF (convert to Buffer for proper streaming)

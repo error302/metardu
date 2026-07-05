@@ -77,10 +77,12 @@ describe('POST /api/scheme/parcels', () => {
 
   it('should create parcel with valid input', async () => {
     mockSession.mockResolvedValue(createAuthSession())
+    // First mock: apiHandler's org lookup. Then: route's block check, route's dup check, route's INSERT.
     mockDb
-      .mockResolvedValueOnce(mr([{ id: 1, project_id: TEST_PROJECT_UUID }]))
-      .mockResolvedValueOnce(mr([]))
-      .mockResolvedValueOnce(mr([{ id: 'p-1', parcel_number: '101', block_id: TEST_BLOCK_UUID, status: 'pending', area_ha: 0.5 }]))
+      .mockResolvedValueOnce(mr([]))                                                                                          // org lookup
+      .mockResolvedValueOnce(mr([{ id: 1, project_id: TEST_PROJECT_UUID }]))                                                  // block check
+      .mockResolvedValueOnce(mr([]))                                                                                          // dup check
+      .mockResolvedValueOnce(mr([{ id: 'p-1', parcel_number: '101', block_id: TEST_BLOCK_UUID, status: 'pending', area_ha: 0.5 }])) // INSERT
 
     const req = new NextRequest('http://localhost/api/scheme/parcels', {
       method: 'POST',
@@ -89,7 +91,7 @@ describe('POST /api/scheme/parcels', () => {
     })
     const res = await POST(req as any)
     expect(res.status).toBe(201)
-    expect(mockDb).toHaveBeenCalledTimes(3)
+    expect(mockDb).toHaveBeenCalledTimes(4)
   })
 })
 
@@ -98,8 +100,10 @@ describe('GET /api/scheme/parcels', () => {
 
   it('should return parcels for a block', async () => {
     mockSession.mockResolvedValue(createAuthSession())
+    // First mock: apiHandler's org lookup. Then: route's block check, route's SELECT parcels.
     mockDb
-      .mockResolvedValueOnce(mr([{ id: 1 }]))
+      .mockResolvedValueOnce(mr([]))                                                                                            // org lookup
+      .mockResolvedValueOnce(mr([{ id: 1 }]))                                                                                    // block check
       .mockResolvedValueOnce(mr([
         { id: 'p-1', parcel_number: '101', status: 'computed', area_ha: 0.5 },
         { id: 'p-2', parcel_number: '102', status: 'pending', area_ha: 0.3 },

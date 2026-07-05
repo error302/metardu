@@ -42,7 +42,7 @@ export default function CadastraValidatorPage() {
         {result && (
           <>
             <ComparisonPanel result={result} />
-            <ValidationReport result={result} projectId={projectId} />
+            <ValidationReport result={result} projectId={projectId ?? 'standalone'} />
           </>
         )}
       </div>

@@ -1,22 +1,31 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
+import { apiHandler } from '@/lib/apiHandler'
 import { calculateEDMCorrection, calculateScaleCorrection, combinedEDMCorrection, estimateAccuracy } from '@/lib/online/weather'
 import { EDMCorrectionSchema } from '@/lib/validation/apiSchemas'
 
-export async function POST(request: NextRequest) {
-  try {
-    const rawBody = await request.json()
-
-    const parsed = EDMCorrectionSchema.safeParse(rawBody)
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', issues: parsed.error.issues },
-        { status: 400 }
-      )
+/**
+ * POST /api/weather/edm-correction
+ *
+ * Calculates EDM atmospheric corrections from temperature, pressure, humidity.
+ * Pure computation — no DB, no external API. Public (no auth) because the
+ * field crew may use this from a tablet without logging in.
+ *
+ * Rate-limited to 60/min per IP to prevent abuse.
+ */
+export const POST = apiHandler(
+  { auth: false, schema: EDMCorrectionSchema, rateLimit: { max: 60, windowMs: 60_000 } },
+  async (_req, ctx) => {
+    // Schema-validated input. Cast to the union shape the calculator functions expect.
+    // The schema (EDMCorrectionSchema) allows optional distance/latitude/instrumentAccuracy
+    // which the WeatherData interface doesn't declare, but the calculator functions
+    // accept them via their parameter signatures.
+    const body = ctx.body as Parameters<typeof calculateEDMCorrection>[0] & {
+      distance?: number
+      latitude?: number
+      instrumentAccuracy?: number
     }
-
-    const body = parsed.data
 
     const result = calculateEDMCorrection(body)
 
@@ -27,7 +36,7 @@ export async function POST(request: NextRequest) {
         ...result,
         correctedDistance: corrected,
         correctionApplied: corrected - body.distance,
-        estimatedAccuracy: accuracy
+        estimatedAccuracy: accuracy,
       })
     }
 
@@ -35,19 +44,17 @@ export async function POST(request: NextRequest) {
       const scaleCorrection = calculateScaleCorrection(body.elevation, body.latitude)
       return NextResponse.json({
         ...result,
-        scaleCorrection
+        scaleCorrection,
       })
     }
 
     return NextResponse.json(result)
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Calculation failed' },
-      { status: 500 }
-    )
-  }
-}
+  },
+)
 
+/**
+ * GET /api/weather/edm-correction — API docs
+ */
 export async function GET() {
   return NextResponse.json({
     description: 'EDM atmospheric correction calculator',
@@ -58,14 +65,14 @@ export async function GET() {
       elevation: 'Height above sea level in meters (optional)',
       latitude: 'Latitude in degrees (required for scale correction)',
       distance: 'Measured distance in meters (optional)',
-      instrumentAccuracy: 'Instrument accuracy in mm (default: 3)'
+      instrumentAccuracy: 'Instrument accuracy in mm (default: 3)',
     },
     example: {
       temperature: 25,
       pressure: 1013.25,
       humidity: 60,
       elevation: 1500,
-      latitude: -1.2921
-    }
+      latitude: -1.2921,
+    },
   })
 }

@@ -21,10 +21,71 @@
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300  // 5 minutes max per connection
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { parseRTCM3Message, type NTRIPConfig } from '@/lib/gnss/ntripClient'
 
+// AUDIT FIX (2026-07-05): SSRF protection. Previously this endpoint accepted
+// any host:port — an attacker could make the server connect to internal
+// services (e.g. http://169.254.169.254/ for cloud metadata, or
+// http://localhost:5432/ to probe the DB). Now restricted to:
+//   - Public IPs only (no RFC1918, no loopback, no link-local)
+//   - Standard NTRIP port (2101) or ports 80/443/8080/8443
+//   - Hostnames that resolve to public IPs
+// Also requires auth (was previously anonymous).
+const ALLOWED_PORTS = new Set([2101, 80, 443, 8080, 8443])
+
+function isPrivateIP(ip: string): boolean {
+  // Loopback
+  if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('127.')) return true
+  // Link-local
+  if (ip.startsWith('169.254.')) return true
+  // Private ranges (RFC1918)
+  if (ip.startsWith('10.')) return true
+  if (ip.startsWith('192.168.')) return true
+  // 172.16.0.0/12
+  if (ip.startsWith('172.')) {
+    const second = parseInt(ip.split('.')[1], 10)
+    if (second >= 16 && second <= 31) return true
+  }
+  // CGNAT 100.64.0.0/10
+  if (ip.startsWith('100.')) {
+    const second = parseInt(ip.split('.')[1], 10)
+    if (second >= 64 && second <= 127) return true
+  }
+  // Multicast / reserved
+  if (ip.startsWith('224.') || ip.startsWith('240.')) return true
+  return false
+}
+
+async function resolveAndCheckHost(hostname: string): Promise<string | null> {
+  try {
+    const { lookup } = await import('dns')
+    return new Promise((resolve) => {
+      lookup(hostname, { family: 4 }, (err, address) => {
+        if (err || !address || isPrivateIP(address)) {
+          resolve(null)
+        } else {
+          resolve(address)
+        }
+      })
+    })
+  } catch {
+    return null
+  }
+}
+
 export async function GET(request: NextRequest) {
+  // ── Auth: require login (was previously anonymous) ──────────────────────
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return new Response(JSON.stringify({ error: 'Authentication required' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   const { searchParams } = new URL(request.url)
   const host = searchParams.get('host')
   const port = parseInt(searchParams.get('port') || '2101', 10)
@@ -37,6 +98,32 @@ export async function GET(request: NextRequest) {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     })
+  }
+
+  // ── Port allow-list ─────────────────────────────────────────────────────
+  if (!ALLOWED_PORTS.has(port)) {
+    return new Response(
+      JSON.stringify({ error: `Port ${port} not allowed. Use 2101 (NTRIP standard) or 80/443/8080/8443.` }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  // ── SSRF check: reject private/loopback/link-local IPs ─────────────────
+  // Also reject raw IP literals that are private.
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(host) && isPrivateIP(host)) {
+    return new Response(
+      JSON.stringify({ error: 'Connecting to private/internal IPs is not allowed' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  // For hostnames, resolve and check the IP
+  const resolvedIP = await resolveAndCheckHost(host)
+  if (!resolvedIP) {
+    return new Response(
+      JSON.stringify({ error: 'Could not resolve host or host resolves to a private/internal IP' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
   }
 
   const config: NTRIPConfig = { host, port, mountpoint, username, password }

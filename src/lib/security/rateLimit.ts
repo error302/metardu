@@ -76,21 +76,19 @@ function inMemoryRateLimit(
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-/**
- * Rate limit categories — referenced by middleware.ts to pick the right
- * quota per route family. Values are { max, windowMs }.
- *
- * AUDIT FIX (2026-07-05): These exports were referenced by middleware.ts
- * since 2026-05-29 (commit 39158da) but never actually defined here. The
- * middleware silently threw `TypeError: Cannot read properties of
- * undefined (reading 'api')` on every API request, which was masked
- * because:
- *   1. tsconfig.json `include` only covers `src/**/*.ts` — middleware.ts
- *      at the project root is never type-checked by `tsc --noEmit`.
- *   2. `next build` uses webpack, which does not do strict typechecking.
- *
- * The fix: define the exports AND add middleware.ts to tsconfig include.
- */
+// Rate limit categories — referenced by middleware.ts to pick the right
+// quota per route family. Values are { max, windowMs }.
+//
+// AUDIT FIX (2026-07-05): These exports were referenced by middleware.ts
+// since 2026-05-29 (commit 39158da) but never actually defined here. The
+// middleware silently threw TypeError: Cannot read properties of
+// undefined (reading api) on every API request, which was masked
+// because:
+//   1. tsconfig.json include only covered src/**/*.ts — middleware.ts
+//      at the project root was never type-checked by tsc --noEmit.
+//   2. next build uses webpack, which does not do strict typechecking.
+//
+// The fix: define the exports AND add middleware.ts to tsconfig include.
 export type RateLimitCategory =
   | 'api'
   | 'auth'

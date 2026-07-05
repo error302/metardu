@@ -12,7 +12,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import {
   Download, Shield, CheckCircle2, Cpu, FileBox, Radio,
-  Mountain, Ship, Terminal, FileCheck, ArrowRight, Github,
+  Mountain, Ship, Terminal, FileCheck, ArrowRight, GitBranch,
 } from 'lucide-react'
 
 const FEATURES = [
@@ -90,7 +90,7 @@ export default function IndustrialPage() {
               rel="noopener"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-8 py-3 text-lg font-medium text-slate-200 transition-colors hover:bg-slate-700"
             >
-              <Github className="h-5 w-5" />
+              <GitBranch className="h-5 w-5" />
               View Source
             </a>
           </div>

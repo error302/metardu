@@ -46,7 +46,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     description: 'Upload total station CSV, GNSS RINEX, GSI, RW5, or point cloud (LAS/PLY). Or load points from an existing project.',
     href: '/import',
     icon: Upload,
-    status: 'pending',
+    status: 'pending' as const,
   },
   {
     id: 'contours',
@@ -55,7 +55,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     description: 'Delaunay TIN + marching-triangles contour generation. Set interval, add breaklines, export DXF/SVG/CSV/GeoJSON.',
     href: '/tools/contour-generator',
     icon: Mountain,
-    status: 'pending',
+    status: 'pending' as const,
   },
   {
     id: 'slope',
@@ -64,7 +64,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     description: 'IDW grid + Horn\'s method. Aspect, KENHA road classification, balance-point binary search.',
     href: '/tools/slope-analysis',
     icon: TrendingUp,
-    status: 'pending',
+    status: 'pending' as const,
     optional: true,
   },
   {
@@ -74,7 +74,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     description: 'End-area, prismoidal, grid, or TIN-vs-TIN. Cut/fill volumes with mass-haul diagrams.',
     href: '/tools/volume-comparison',
     icon: Box,
-    status: 'pending',
+    status: 'pending' as const,
     optional: true,
   },
   {
@@ -84,7 +84,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     description: 'TIN sampling along centerline at chainage intervals. CSV/DXF/PDF output.',
     href: '/tools/cross-sections',
     icon: Scissors,
-    status: 'pending',
+    status: 'pending' as const,
     optional: true,
   },
   {
@@ -94,7 +94,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     description: 'Auto-generate DXF with Survey of Kenya feature codes, spot heights, north arrow, scale bar, title block.',
     href: '/tools/topo-drawing',
     icon: FileCode,
-    status: 'pending',
+    status: 'pending' as const,
   },
   {
     id: 'export',
@@ -103,7 +103,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     description: 'DXF (AutoCAD/Civil 3D), Shapefile (QGIS/ArcGIS), GeoJSON, KML, LandXML.',
     href: '/tools/gis-export',
     icon: Download,
-    status: 'pending',
+    status: 'pending' as const,
   },
 ]
 
@@ -133,9 +133,9 @@ export default function TopographicWorkflowPage() {
   }
 
   const toggleStepDone = (id: string) => {
-    const newSteps = steps.map(s =>
+    const newSteps: PipelineStep[] = steps.map(s =>
       s.id === id
-        ? { ...s, status: s.status === 'done' ? 'pending' : 'done' }
+        ? { ...s, status: s.status === 'done' ? 'pending' as const : 'done' as const }
         : s
     )
     setSteps(newSteps)
