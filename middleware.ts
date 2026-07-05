@@ -35,6 +35,7 @@ export async function middleware(request: NextRequest) {
     '/university', '/organization', '/account', '/checkout',
     '/community', '/land-law', '/admin',
     '/instruments', '/field', '/mobile/field', '/field/gnss',
+    '/drone',
   ]
 
   const isProtected = protectedPaths.some(path =>
