@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -24,36 +24,68 @@ interface CommunityStats {
   surveyorsCount: number
 }
 
-const surveyorDirectory = [
-  { name: 'Amina Otieno', region: 'Nairobi County', county: 'Nairobi', specialty: 'Cadastral & mutation plans', tags: ['Cadastral', 'Mutation'], rating: 4.9, jobs: '128', status: 'Available this week', license: 'ISK/LS/2021/0452' },
-  { name: 'Brian Kiplagat', region: 'Uasin Gishu', county: 'Eldoret', specialty: 'GNSS control & road corridors', tags: ['GNSS', 'Roads'], rating: 4.8, jobs: '91', status: 'Field crew ready', license: 'ISK/LS/2019/0318' },
-  { name: 'Grace Wanjiku', region: 'Mombasa County', county: 'Mombasa', specialty: 'Hydrographic & port surveys', tags: ['Hydro', 'Port'], rating: 4.9, jobs: '74', status: 'Review slots open', license: 'ISK/LS/2020/0287' },
-]
+/**
+ * AUDIT FIX (2026-07-05): Removed hardcoded fake surveyor directory,
+ * equipment listings, peer review queue, discussion topics, and regional
+ * coverage. These were all fabricated data that gave a false impression
+ * of an active community. Now fetched from real APIs:
+ *   - /api/community/surveyors (verified ISK users + project counts)
+ *   - /api/marketplace/listings (real equipment listings)
+ *   - /api/community/stats (real aggregate counts)
+ * If no data exists yet, the UI shows honest empty states instead of fake
+ * surveyors with fabricated ratings and license numbers.
+ */
 
-const peerReviewQueue: Array<{ title: string; meta: string; status: string; count: number; href: string }> = []
+interface SurveyorProfile {
+  id: string
+  fullName: string
+  iskNumber?: string
+  verifiedIsk: boolean
+  firmName?: string
+  county?: string
+  specialty?: string
+  avatarUrl?: string
+  projectsCount: number
+}
 
-const equipmentListings = [
-  { title: 'Leica TS07 total station', condition: 'good', location: 'Nairobi', price: 'KSh 310,000', type: 'sale', href: '/marketplace' },
-  { title: 'Emlid Reach RS2 rover pair', condition: 'good', location: 'Eldoret', price: 'KSh 8,000/day', type: 'rental', href: '/marketplace' },
-  { title: 'Auto level kit', condition: 'fair', location: 'Kisumu', price: 'KSh 35,000', type: 'sale', href: '/marketplace' },
-]
-
-const discussionTopics = [
-  { title: 'Handling legacy Cassini coordinates in mixed estates', replies: 18, category: 'Standards', pinned: false, hot: true },
-  { title: 'Recommended control density for rural road design', replies: 7, category: 'Road Design', pinned: false, hot: false },
-  { title: 'Peer-review checklist for mutation plans', replies: 12, category: 'Workflow', pinned: true, hot: true },
-]
-
-const regionalCoverage = [
-  { region: 'Kenya', count: '1,284', flag: 'KE', detail: 'ISK, county & registry workflows', active: true },
-  { region: 'Uganda', count: '214', flag: 'UG', detail: 'Control & infrastructure', active: true },
-  { region: 'Tanzania', count: '188', flag: 'TZ', detail: 'Field crews & equipment', active: true },
-  { region: 'Rwanda', count: '96', flag: 'RW', detail: 'GNSS & topographic teams', active: false },
-]
+interface EquipmentListing {
+  id: string
+  title: string
+  type: string // 'sale' | 'rent'
+  condition: string // 'new' | 'excellent' | 'good' | 'fair' | 'for_parts'
+  location: string
+  price: number
+  currency: string
+  rentPeriod?: string
+  brand?: string
+  model?: string
+}
 
 function formatCount(value: number | undefined) {
   return (value ?? 0).toLocaleString()
 }
+
+function formatPrice(price: number, currency: string, type: string, rentPeriod?: string) {
+  const symbols: Record<string, string> = {
+    KES: 'KSh', USD: '$', UGX: 'USh', TZS: 'TSh', NGN: '₦', GHS: '₵', ZAR: 'R',
+  }
+  const sym = symbols[currency] || currency
+  if (type === 'rent' && rentPeriod) {
+    return `${sym} ${price.toLocaleString()}/${rentPeriod}`
+  }
+  return `${sym} ${price.toLocaleString()}`
+}
+
+/**
+ * Countries METARDU supports. The counts shown are fetched from the
+ * stats API — these are just the country metadata (flag + description).
+ */
+const SUPPORTED_COUNTRIES = [
+  { region: 'Kenya', flag: 'KE', detail: 'ISK, county & registry workflows' },
+  { region: 'Uganda', flag: 'UG', detail: 'Control & infrastructure' },
+  { region: 'Tanzania', flag: 'TZ', detail: 'Field crews & equipment' },
+  { region: 'Rwanda', flag: 'RW', detail: 'GNSS & topographic teams' },
+]
 
 // ---------------------------------------------------------------------------
 // Custom SVG Icon Components — Survey-specific, minimalistic single-stroke
@@ -489,31 +521,34 @@ function ConditionDot({ condition }: { condition: string }) {
 
 export default function CommunityPage() {
   const [stats, setStats] = useState<CommunityStats | null>(null)
+  const [surveyors, setSurveyors] = useState<SurveyorProfile[]>([])
+  const [listings, setListings] = useState<EquipmentListing[]>([])
   const [loading, setLoading] = useState(true)
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/community/stats')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: CommunityStats) => { if (!cancelled && data) setStats(data) })
-      .catch(() => { if (!cancelled) setStats(null) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+
+    // Fetch stats, surveyors, and equipment listings in parallel
+    Promise.allSettled([
+      fetch('/api/community/stats').then(r => r.ok ? r.json() : null),
+      fetch('/api/community/surveyors?limit=6').then(r => r.ok ? r.json() : null),
+      fetch('/api/marketplace/listings?limit=3').then(r => r.ok ? r.json() : null),
+    ]).then(([statsRes, surveyorsRes, listingsRes]) => {
+      if (cancelled) return
+      if (statsRes.status === 'fulfilled' && statsRes.value) setStats(statsRes.value)
+      if (surveyorsRes.status === 'fulfilled' && surveyorsRes.value?.data) {
+        setSurveyors(surveyorsRes.value.data)
+      }
+      if (listingsRes.status === 'fulfilled' && listingsRes.value?.data) {
+        setListings(listingsRes.value.data)
+      }
+    }).finally(() => {
+      if (!cancelled) setLoading(false)
+    })
+
     return () => { cancelled = true }
   }, [])
-
-  const reviewCount = useMemo(() => stats?.openPeerReviews ?? 0, [stats])
-
-  // Kanban grouping for review desk
-  const urgentReviews = peerReviewQueue.filter(r => r.status === 'urgent')
-  const inReviewItems = peerReviewQueue.filter(r => r.status === 'reviewers')
-  const newReviews = peerReviewQueue.filter(r => r.status === 'new')
-
-  const categoryColors: Record<string, string> = {
-    Standards: 'bg-violet-500/15 text-violet-400 border-violet-500/25',
-    'Road Design': 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
-    Workflow: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
-  }
 
   return (
     <div className="min-h-screen">
@@ -646,87 +681,107 @@ export default function CommunityPage() {
           ═══════════════════════════════════════════════════════════════════ */}
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
 
-        {/* ── Surveyor Directory (Masonry grid) ── */}
+        {/* ── Surveyor Directory (real data from /api/community/surveyors) ── */}
         <section>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <TheodoliteIcon className="w-5 h-5 text-[var(--accent)]" />
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">Verified Surveyor Directory</h2>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Surveyor Directory</h2>
             </div>
-            <Link href="/community/directory" className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1 font-medium">
-              Open directory <ChevronRight className="w-3 h-3" />
-            </Link>
+            {surveyors.length > 0 && (
+              <Link href="/community/directory" className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1 font-medium">
+                View all <ChevronRight className="w-3 h-3" />
+              </Link>
+            )}
           </div>
-          <div className="grid gap-5 md:grid-cols-3">
-            {surveyorDirectory.map((s) => {
-              // Generate gradient colors from name
-              const hue = s.name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360
-              return (
-                <Link
-                  key={s.name}
-                  href="/community/directory"
-                  className="group relative rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 hover:border-[var(--accent)]/30 transition-all duration-300 hover:shadow-lg hover:shadow-[var(--accent)]/5"
-                >
-                  {/* Gradient avatar */}
-                  <div className="flex items-start gap-4 mb-4">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-lg"
-                      style={{
-                        background: `linear-gradient(135deg, hsl(${hue}, 70%, 50%), hsl(${hue + 40}, 70%, 35%))`,
-                      }}
-                    >
-                      {s.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors">
-                          {s.name}
-                        </h3>
-                        <ShieldBadgeIcon className="w-4 h-4 shrink-0" />
-                      </div>
-                      <p className="text-xs text-[var(--text-muted)] flex items-center gap-1 mt-0.5">
-                        <MapPinGradientIcon className="w-3.5 h-3.5" /> {s.county}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Star rating */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <StarRating rating={s.rating} />
-                    <span className="text-xs font-semibold text-[var(--text-primary)]">{s.rating}</span>
-                  </div>
-
-                  {/* Specialty tags */}
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {s.tags.map(tag => (
-                      <span
-                        key={tag}
-                        className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border"
+          {surveyors.length === 0 ? (
+            /* Honest empty state — no fake surveyors */
+            <div className="rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-card)]/50 p-10 text-center">
+              <TheodoliteIcon className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-3 opacity-50" />
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">No surveyors listed yet</h3>
+              <p className="text-xs text-[var(--text-muted)] mt-1 max-w-md mx-auto">
+                Verified ISK surveyors who create a public profile will appear here.
+                Be the first — add your firm info in{' '}
+                <Link href="/settings/profile" className="text-[var(--accent)] hover:underline">Settings</Link>.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-3">
+              {surveyors.map((s) => {
+                const hue = s.fullName.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360
+                return (
+                  <Link
+                    key={s.id}
+                    href="/community/directory"
+                    className="group relative rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 hover:border-[var(--accent)]/30 transition-all duration-300 hover:shadow-lg hover:shadow-[var(--accent)]/5"
+                  >
+                    <div className="flex items-start gap-4 mb-4">
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-lg"
                         style={{
-                          background: `hsl(${hue}, 60%, 15%)`,
-                          borderColor: `hsl(${hue}, 60%, 30%)`,
-                          color: `hsl(${hue}, 80%, 70%)`,
+                          background: `linear-gradient(135deg, hsl(${hue}, 70%, 50%), hsl(${hue + 40}, 70%, 35%))`,
                         }}
                       >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                        {s.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors">
+                            {s.fullName}
+                          </h3>
+                          {s.verifiedIsk && <ShieldBadgeIcon className="w-4 h-4 shrink-0" />}
+                        </div>
+                        <p className="text-xs text-[var(--text-muted)] flex items-center gap-1 mt-0.5">
+                          <MapPinGradientIcon className="w-3.5 h-3.5" /> {s.county || s.firmName || 'Kenya'}
+                        </p>
+                      </div>
+                    </div>
 
-                  <p className="text-xs text-[var(--text-secondary)] mb-4">{s.specialty}</p>
+                    {/* ISK license badge (if verified) */}
+                    {s.iskNumber && (
+                      <div className="mb-3">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-mono bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-secondary)]">
+                          ISK {s.iskNumber}
+                        </span>
+                      </div>
+                    )}
 
-                  {/* Footer */}
-                  <div className="pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-[11px]">
-                    <span className="text-[var(--text-muted)]">{s.jobs} completed</span>
-                    <span className="text-emerald-400 font-semibold">{s.status}</span>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
+                    {/* Specialty tags */}
+                    {s.specialty && (
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        <span
+                          className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border"
+                          style={{
+                            background: `hsl(${hue}, 60%, 15%)`,
+                            borderColor: `hsl(${hue}, 60%, 30%)`,
+                            color: `hsl(${hue}, 80%, 70%)`,
+                          }}
+                        >
+                          {s.specialty}
+                        </span>
+                      </div>
+                    )}
+
+                    {s.firmName && (
+                      <p className="text-xs text-[var(--text-secondary)] mb-4">{s.firmName}</p>
+                    )}
+
+                    {/* Footer */}
+                    <div className="pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-[11px]">
+                      <span className="text-[var(--text-muted)]">{s.projectsCount} projects</span>
+                      {s.verifiedIsk && (
+                        <span className="text-emerald-400 font-semibold">Verified ISK</span>
+                      )}
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </section>
 
-        {/* ── Equipment Marketplace Highlights ── */}
+        {/* ── Equipment Marketplace Highlights (real listings) ── */}
         <section>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -737,31 +792,51 @@ export default function CommunityPage() {
               Browse all <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {equipmentListings.map((item, i) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="group rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 hover:border-[var(--accent)]/30 transition-all duration-300"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
-                    item.type === 'sale'
-                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                      : 'bg-sky-500/15 text-sky-400 border border-sky-500/20'
-                  }`}>
-                    {item.type}
-                  </span>
-                  <ConditionDot condition={item.condition} />
-                </div>
-                <p className="text-sm font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors">
-                  {item.title}
-                </p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-1 capitalize">{item.condition} · {item.location}</p>
-                <p className="text-lg font-bold text-[var(--accent)] mt-3">{item.price}</p>
-              </Link>
-            ))}
-          </div>
+
+          {listings.length === 0 ? (
+            /* Honest empty state — no fake equipment listings */
+            <div className="rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-card)]/50 p-10 text-center">
+              <BeaconIcon className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-3 opacity-50" />
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">No equipment listed yet</h3>
+              <p className="text-xs text-[var(--text-muted)] mt-1 max-w-md mx-auto">
+                Total stations, GNSS rovers, levels, and drones for sale or rent
+                will appear here.{' '}
+                <Link href="/marketplace" className="text-[var(--accent)] hover:underline">
+                  List your equipment
+                </Link>.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3">
+              {listings.map((item) => (
+                <Link
+                  key={item.id}
+                  href="/marketplace"
+                  className="group rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 hover:border-[var(--accent)]/30 transition-all duration-300"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                      item.type === 'sale'
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                        : 'bg-sky-500/15 text-sky-400 border border-sky-500/20'
+                    }`}>
+                      {item.type}
+                    </span>
+                    <ConditionDot condition={item.condition} />
+                  </div>
+                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors">
+                    {item.title}
+                  </p>
+                  <p className="text-[10px] text-[var(--text-muted)] mt-1 capitalize">
+                    {item.condition} · {item.location}
+                  </p>
+                  <p className="text-lg font-bold text-[var(--accent)] mt-3">
+                    {formatPrice(item.price, item.currency, item.type, item.rentPeriod)}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ── Regional Coverage + CPD (stacks on mobile) ── */}
@@ -780,10 +855,13 @@ export default function CommunityPage() {
                   <EastAfricaMap activeRegion={hoveredRegion} onRegionHover={setHoveredRegion} />
                 </div>
 
-                {/* Country stats */}
+                {/* Country stats — counts derived from total surveyors (no fake numbers) */}
                 <div className="space-y-2">
-                  {regionalCoverage.map((item) => {
+                  {SUPPORTED_COUNTRIES.map((item) => {
                     const isHovered = hoveredRegion === item.region
+                    // Show real total surveyor count for Kenya, 0 for others (no data yet)
+                    const isKenya = item.region === 'Kenya'
+                    const count = isKenya ? (stats?.stats.totalSurveyors ?? 0) : 0
                     return (
                       <div
                         key={item.region}
@@ -800,7 +878,9 @@ export default function CommunityPage() {
                             <span className="text-[10px] font-bold text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded">{item.flag}</span>
                             <h3 className="font-semibold text-sm text-[var(--text-primary)]">{item.region}</h3>
                           </div>
-                          <span className="text-lg font-bold tabular-nums text-[var(--text-primary)]">{item.count}</span>
+                          <span className="text-lg font-bold tabular-nums text-[var(--text-primary)]">
+                            {loading ? '—' : formatCount(count)}
+                          </span>
                         </div>
                         <p className="text-[10px] text-[var(--text-muted)] mt-1">{item.detail}</p>
                       </div>
@@ -838,41 +918,50 @@ export default function CommunityPage() {
               </Link>
             </div>
 
-            {/* Equipment Market (Marketplace grid) */}
+            {/* Equipment Market (sidebar — same data as the main section, compact view) */}
             <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] overflow-hidden">
               <div className="flex items-center justify-between px-6 pt-5 pb-3">
                 <h3 className="text-sm font-bold text-[var(--text-primary)]">Equipment Market</h3>
                 <Link href="/marketplace" className="text-[10px] text-[var(--accent)] hover:underline font-medium">Browse all</Link>
               </div>
               <div className="px-4 pb-4 space-y-3">
-                {equipmentListings.map((item, i) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="group flex items-start gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-tertiary)]/50 p-3 hover:border-[var(--accent)]/20 transition-all duration-300"
-                  >
-                    {/* Type badge */}
-                    <div className="flex flex-col items-center gap-1 shrink-0">
-                      <span className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${
-                        item.type === 'sale'
-                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-sky-500/15 text-sky-400 border border-sky-500/20'
-                      }`}>
-                        {item.type}
+                {listings.length === 0 ? (
+                  <p className="text-xs text-[var(--text-muted)] py-4 text-center">
+                    No listings yet.{' '}
+                    <Link href="/marketplace" className="text-[var(--accent)] hover:underline">List your equipment</Link>.
+                  </p>
+                ) : (
+                  listings.map((item) => (
+                    <Link
+                      key={item.id}
+                      href="/marketplace"
+                      className="group flex items-start gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-tertiary)]/50 p-3 hover:border-[var(--accent)]/20 transition-all duration-300"
+                    >
+                      {/* Type badge */}
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <span className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${
+                          item.type === 'sale'
+                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                            : 'bg-sky-500/15 text-sky-400 border border-sky-500/20'
+                        }`}>
+                          {item.type}
+                        </span>
+                        <ConditionDot condition={item.condition} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors">
+                          {item.title}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-muted)] mt-0.5 capitalize">{item.condition} · {item.location}</p>
+                      </div>
+
+                      <span className="text-sm font-bold text-[var(--accent)] shrink-0">
+                        {formatPrice(item.price, item.currency, item.type, item.rentPeriod)}
                       </span>
-                      <ConditionDot condition={item.condition} />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors">
-                        {item.title}
-                      </p>
-                      <p className="text-[10px] text-[var(--text-muted)] mt-0.5 capitalize">{item.condition} · {item.location}</p>
-                    </div>
-
-                    <span className="text-sm font-bold text-[var(--accent)] shrink-0">{item.price}</span>
-                  </Link>
-                ))}
+                    </Link>
+                  ))
+                )}
               </div>
             </div>
 
