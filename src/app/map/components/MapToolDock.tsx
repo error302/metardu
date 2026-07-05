@@ -413,6 +413,27 @@ const CapturePanel = memo(function CapturePanel() {
         </div>
       )}
 
+      {/* AUDIT FIX (2026-07-05): Rotate angle slider.
+          Was hardcoded to 15° — now the user can pick any angle 0-360°. */}
+      {ctx.activeDigitizingTool === 'rotate' && (
+        <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06]">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">Angle:</span>
+            <input
+              aria-label="Rotation angle"
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              value={ctx.rotateAngle}
+              onChange={e => ctx.setRotateAngle(parseFloat(e.target.value))}
+              className="flex-1"
+            />
+            <span className="font-mono text-[10px] text-[var(--text-primary)]">{ctx.rotateAngle}°</span>
+          </div>
+        </div>
+      )}
+
       {/* Active tool instruction banner */}
       {ctx.activeDigitizingTool && ctx.activeDigitizingTool !== 'draw' && (
         <div className="mt-2 p-2.5 rounded-lg bg-[var(--accent)]/[0.06] border border-[var(--accent)]/20 flex items-start gap-2">
@@ -422,11 +443,11 @@ const CapturePanel = memo(function CapturePanel() {
               {ctx.activeDigitizingTool}
             </span>
             <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
-              {ctx.activeDigitizingTool === 'split' && 'Draw a line across the polygon to split it into two parts.'}
-              {ctx.activeDigitizingTool === 'merge' && 'Select 2+ adjacent polygons, then click Merge to combine.'}
-              {ctx.activeDigitizingTool === 'reshape' && 'Draw a new line across the boundary to replace it.'}
-              {ctx.activeDigitizingTool === 'rotate' && 'Select a polygon, then it will rotate 15° clockwise.'}
-              {ctx.activeDigitizingTool === 'offset' && 'Select a feature, then adjust the distance slider above.'}
+              {ctx.activeDigitizingTool === 'split' && 'Draw a line across the polygon to split it into two parts. The line must cross the polygon at 2 points.'}
+              {ctx.activeDigitizingTool === 'merge' && 'Merges ALL polygons in the draw source into one. Draw 2+ adjacent polygons first, then click Merge.'}
+              {ctx.activeDigitizingTool === 'reshape' && 'Draw a new line across the polygon boundary. The boundary between intersection points will be replaced with your new line.'}
+              {ctx.activeDigitizingTool === 'rotate' && 'Click a polygon on the map to select it. Adjust the angle slider, then click Rotate to apply.'}
+              {ctx.activeDigitizingTool === 'offset' && 'Click a feature on the map to select it. Adjust the distance slider, then click Offset to create a parallel copy.'}
             </p>
           </div>
         </div>

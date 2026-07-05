@@ -38,6 +38,11 @@ interface DigitizingToolbarProps {
   /** Offset distance in metres (for offset tool) */
   offsetDistance?: number
   onOffsetDistanceChange?: (d: number) => void
+  /** AUDIT FIX (2026-07-05): Rotate angle in degrees (for rotate tool).
+   * Was previously hardcoded to 15° inside MapClient. Now the toolbar
+   * shows a slider so the user can pick the angle. */
+  rotateAngle?: number
+  onRotateAngleChange?: (a: number) => void
 }
 
 const TOOLS: Array<{
@@ -114,6 +119,8 @@ export function DigitizingToolbar({
   selectedCount = 0,
   offsetDistance = 5,
   onOffsetDistanceChange,
+  rotateAngle = 15,
+  onRotateAngleChange,
 }: DigitizingToolbarProps) {
   const [internalActiveTool, setInternalActiveTool] = useState<DigitizingTool>(null)
 
@@ -210,7 +217,7 @@ export function DigitizingToolbar({
                 {activeTool === 'offset' && onOffsetDistanceChange && (
                   <div className="flex items-center gap-2 mt-2">
                     <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">Distance:</span>
-                    <input aria-label="Distance"
+                    <input aria-label="Offset distance"
                       type="range"
                       min="1"
                       max="50"
@@ -219,6 +226,24 @@ export function DigitizingToolbar({
                       className="flex-1 max-w-[100px]"
                     />
                     <span className="font-mono text-[10px] text-[var(--text-primary)]">{offsetDistance}m</span>
+                  </div>
+                )}
+
+                {/* AUDIT FIX (2026-07-05): Rotate angle slider.
+                    Was previously hardcoded to 15° with no user control. */}
+                {activeTool === 'rotate' && onRotateAngleChange && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">Angle:</span>
+                    <input aria-label="Rotation angle"
+                      type="range"
+                      min="0"
+                      max="360"
+                      step="1"
+                      value={rotateAngle}
+                      onChange={e => onRotateAngleChange(parseFloat(e.target.value))}
+                      className="flex-1 max-w-[100px]"
+                    />
+                    <span className="font-mono text-[10px] text-[var(--text-primary)]">{rotateAngle}°</span>
                   </div>
                 )}
 

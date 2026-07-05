@@ -114,6 +114,11 @@ export interface MapContextValue {
   setActiveDigitizingTool: (tool: 'draw' | 'split' | 'merge' | 'reshape' | 'rotate' | 'offset' | null) => void
   offsetDistance: number
   setOffsetDistance: (d: number) => void
+  // AUDIT FIX (2026-07-05): Rotate angle — was hardcoded to 15° with no
+  // user control. Now exposed via context so the DigitizingToolbar can
+  // show a slider (0-360°) that lets the user pick the rotation angle.
+  rotateAngle: number
+  setRotateAngle: (a: number) => void
   snappingEnabled: boolean
   setSnappingEnabled: (v: boolean) => void
   showSnappingOptions: boolean

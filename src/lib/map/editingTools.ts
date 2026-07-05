@@ -79,9 +79,14 @@ export function splitPolygonWithLine(
     ]
 
     // Create a cutting polygon (a thin rectangle along the extended line)
+    // AUDIT FIX (2026-07-05): halfWidth was `margin` (= 2x bbox dimension)
+    // which made the cutting polygon so wide it swallowed the entire target
+    // polygon, causing turf.difference to return nothing. Now uses a tiny
+    // halfWidth (0.01m) — just enough for turf to register a valid polygon
+    // but thin enough to only cut along the line.
     const perpX = -uy
     const perpY = ux
-    const halfWidth = margin
+    const halfWidth = 0.01
 
     const cutPolygon = turf.polygon([[
       [extendedStart[0] + perpX * halfWidth, extendedStart[1] + perpY * halfWidth],
@@ -207,7 +212,11 @@ export function createOffset(
 /**
  * Reshape: replace part of a polygon boundary with a new line segment.
  * Finds where the new line intersects the existing boundary and replaces
- * the boundary between those intersection points.
+ * the boundary between those intersection points with the new line.
+ *
+ * AUDIT FIX (2026-07-05): Properly implemented. Was previously returning
+ * the original polygon unchanged (no-op). Now traces the boundary, finds
+ * intersection points, and replaces the segment between them.
  */
 export function reshapePolygon(
   polygonCoords: [number, number][],
@@ -218,25 +227,111 @@ export function reshapePolygon(
     const polygon = turf.polygon([closed])
     const newLine = turf.lineString(newSegmentCoords)
 
-    // Find intersection points
+    // Find intersection points between the new line and the polygon boundary
     const intersects = turf.lineIntersect(newLine, polygon)
-    if (intersects.features.length < 2) return null
+    if (intersects.features.length < 2) {
+      return null // Line must cross the polygon boundary at 2+ points
+    }
 
-    // This is a complex operation — for now, use a simplified approach:
-    // Buffer the new line slightly and subtract from the polygon, then
-    // union the result back with the new line buffered on the other side.
-    // A full implementation would trace the boundary and insert the new segment.
+    // Get first and last intersection points
+    const ip1 = intersects.features[0].geometry.coordinates as [number, number]
+    const ip2 = intersects.features[intersects.features.length - 1].geometry.coordinates as [number, number]
 
-    // Simplified: just return the original — the real reshape needs
-    // boundary tracing which is complex. This is a known limitation.
-    // TODO: implement proper boundary tracing for reshape
-    return polygonCoords
-  } catch {
+    // Find which boundary segment each intersection point falls on
+    const boundary = closed.slice(0, -1) // remove closing point
+    const seg1 = findSegmentIndex(boundary, ip1)
+    const seg2 = findSegmentIndex(boundary, ip2)
+
+    if (seg1 === -1 || seg2 === -1) return null
+    if (seg1 === seg2) return null // intersection points on same segment — degenerate
+
+    // Build the new ring by walking the boundary from ip2 forward to ip1,
+    // then back from ip1 to ip2 via the new segment.
+    // This replaces the boundary section between ip2→ip1 with the new line.
+    const newRing: [number, number][] = []
+
+    // Start at ip2
+    newRing.push(ip2)
+
+    // Walk forward along the boundary from seg2+1 to seg1
+    let i = (seg2 + 1) % boundary.length
+    let safety = 0
+    while (i !== seg1 && safety < boundary.length * 2) {
+      newRing.push(boundary[i])
+      i = (i + 1) % boundary.length
+      safety++
+    }
+    if (safety >= boundary.length * 2) return null // safety check
+
+    // Add ip1
+    newRing.push(ip1)
+
+    // Add the new segment in reverse (from ip1 back to ip2 via the new line)
+    // The new segment was drawn from start to end; we need it from ip1 to ip2
+    // Since ip1 is near the start and ip2 is near the end of the new segment,
+    // we add the new segment coordinates in reverse order
+    for (let j = newSegmentCoords.length - 1; j >= 0; j--) {
+      // Skip if this point is essentially the same as the last added point
+      const last = newRing[newRing.length - 1]
+      if (Math.abs(newSegmentCoords[j][0] - last[0]) < 1e-9 &&
+          Math.abs(newSegmentCoords[j][1] - last[1]) < 1e-9) continue
+      newRing.push(newSegmentCoords[j])
+    }
+
+    // Close the ring
+    newRing.push(ip2)
+
+    // Validate: the new polygon must have a positive area and be valid
+    const newPolygon = turf.polygon([newRing])
+    const newArea = turf.area(newPolygon)
+    if (newArea < 0.001) return null
+
+    return newRing
+  } catch (err) {
+    console.error('[editingTools] reshapePolygon failed:', err)
     return null
   }
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Find the index of the boundary segment closest to a point.
+ * Returns the segment index (0-based) or -1 if not found.
+ */
+function findSegmentIndex(boundary: [number, number][], point: [number, number]): number {
+  let minDist = Infinity
+  let bestSeg = -1
+  for (let i = 0; i < boundary.length; i++) {
+    const a = boundary[i]
+    const b = boundary[(i + 1) % boundary.length]
+    const dist = pointToSegmentDistance(point, a, b)
+    if (dist < minDist) {
+      minDist = dist
+      bestSeg = i
+    }
+  }
+  return bestSeg
+}
+
+/**
+ * Distance from a point to a line segment.
+ */
+function pointToSegmentDistance(
+  p: [number, number],
+  a: [number, number],
+  b: [number, number],
+): number {
+  const dx = b[0] - a[0]
+  const dy = b[1] - a[1]
+  const len2 = dx * dx + dy * dy
+  if (len2 === 0) return Math.hypot(p[0] - a[0], p[1] - a[1])
+  let t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2
+  t = Math.max(0, Math.min(1, t))
+  const projX = a[0] + t * dx
+  const projY = a[1] + t * dy
+  return Math.hypot(p[0] - projX, p[1] - projY)
+}
 
 function isClosed(coords: [number, number][]): boolean {
   if (coords.length < 2) return false
