@@ -525,16 +525,28 @@ export default function CommunityPage() {
   const [listings, setListings] = useState<EquipmentListing[]>([])
   const [loading, setLoading] = useState(true)
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null)
+  // AUDIT FIX (2026-07-05): CPD ring is now wired to the real API.
+  // Was hardcoded to percent={65} points={13} target={20} — fake data.
+  // Now fetches from /api/cpd?action=summary for logged-in users.
+  // If not logged in, shows a CTA to log in and track CPD.
+  const [cpdSummary, setCpdSummary] = useState<{
+    total: number; pending: number; cap: number; remaining: number; percent: number
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
-    // Fetch stats, surveyors, and equipment listings in parallel
+    // Fetch stats, surveyors, equipment listings, and CPD (if logged in) in parallel
     Promise.allSettled([
       fetch('/api/community/stats').then(r => r.ok ? r.json() : null),
       fetch('/api/community/surveyors?limit=6').then(r => r.ok ? r.json() : null),
       fetch('/api/marketplace/listings?limit=3').then(r => r.ok ? r.json() : null),
-    ]).then(([statsRes, surveyorsRes, listingsRes]) => {
+      // CPD requires auth — 401 is expected if not logged in (not an error)
+      fetch('/api/cpd?action=summary', { credentials: 'include' }).then(r => {
+        if (r.ok) return r.json()
+        return null // 401 or other — just skip CPD
+      }),
+    ]).then(([statsRes, surveyorsRes, listingsRes, cpdRes]) => {
       if (cancelled) return
       if (statsRes.status === 'fulfilled' && statsRes.value) setStats(statsRes.value)
       if (surveyorsRes.status === 'fulfilled' && surveyorsRes.value?.data) {
@@ -542,6 +554,9 @@ export default function CommunityPage() {
       }
       if (listingsRes.status === 'fulfilled' && listingsRes.value?.data) {
         setListings(listingsRes.value.data)
+      }
+      if (cpdRes.status === 'fulfilled' && cpdRes.value?.summary) {
+        setCpdSummary(cpdRes.value.summary)
       }
     }).finally(() => {
       if (!cancelled) setLoading(false)
@@ -893,7 +908,7 @@ export default function CommunityPage() {
 
           {/* ── Sidebar ── */}
           <aside className="space-y-6">
-            {/* CPD Progress */}
+            {/* CPD Progress — wired to real /api/cpd?action=summary */}
             <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
@@ -901,18 +916,51 @@ export default function CommunityPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">CPD Progress</h3>
-                  <p className="text-[10px] text-[var(--text-muted)]">Annual renewal target</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">
+                    {cpdSummary ? `${new Date().getFullYear()} annual renewal` : 'Sign in to track'}
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center justify-center py-2">
-                <CpdRing percent={65} points={13} target={20} />
-              </div>
-              <p className="text-xs text-[var(--text-secondary)] text-center mt-3">
-                13 of 20 CPD points earned this year
-              </p>
-              <p className="text-[10px] text-[var(--accent)] text-center mt-1 font-medium">
-                Next milestone: 75% (15 pts)
-              </p>
+
+              {cpdSummary ? (
+                <>
+                  <div className="flex items-center justify-center py-2">
+                    <CpdRing
+                      percent={cpdSummary.percent}
+                      points={cpdSummary.total}
+                      target={cpdSummary.cap}
+                    />
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)] text-center mt-3">
+                    {cpdSummary.total} of {cpdSummary.cap} CPD points earned this year
+                  </p>
+                  {cpdSummary.pending > 0 && (
+                    <p className="text-[10px] text-amber-400 text-center mt-1 font-medium">
+                      {cpdSummary.pending} pending approval
+                    </p>
+                  )}
+                  <p className="text-[10px] text-[var(--accent)] text-center mt-1 font-medium">
+                    {cpdSummary.remaining > 0
+                      ? `${cpdSummary.remaining} points remaining`
+                      : 'Annual cap reached'}
+                  </p>
+                </>
+              ) : (
+                /* Not logged in — show CTA instead of fake numbers */
+                <div className="text-center py-4">
+                  <p className="text-xs text-[var(--text-muted)] mb-3">
+                    Sign in to track your continuing professional development
+                    points and generate ISK renewal certificates.
+                  </p>
+                  <Link
+                    href="/login?next=/community"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
+                  >
+                    Sign in to track CPD
+                  </Link>
+                </div>
+              )}
+
               <Link href="/cpd" className="mt-4 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--accent)] hover:underline">
                 Open CPD dashboard <ArrowRight className="w-3 h-3" />
               </Link>
