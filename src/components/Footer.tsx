@@ -59,18 +59,18 @@ export default function Footer() {
               </p>
               <div className="flex items-center gap-4">
                 <a
-                  href="https://twitter.com/metardu"
+                  href="https://x.com/itsdosho"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors p-1"
-                  aria-label="Twitter"
+                  aria-label="Twitter / X"
                 >
                   <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
                 </a>
                 <a
-                  href="https://github.com/metardu"
+                  href="https://github.com/error302"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors p-1"
@@ -118,14 +118,10 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Bottom bar — copyright + tagline */}
+        {/* Bottom bar — copyright */}
         <div className="py-6 sm:py-8 border-t border-[var(--border-color)] flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
           <p className="text-xs text-[var(--text-muted)] text-center sm:text-left">
             &copy; {year} METARDU. All rights reserved.
-          </p>
-          <p className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
-            Built with{' '}
-            <span className="text-[var(--accent)]">precision</span> in Kenya
           </p>
         </div>
       </div>

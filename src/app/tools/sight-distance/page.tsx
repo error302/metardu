@@ -11,29 +11,44 @@ import { sightDistanceCheck, SSD_TABLE, type SightDistanceInput } from '@/lib/co
  * roadDesignEngine.sightDistanceCheck() which uses the RDM 1.3
  * formula: SSD = V²/(254(f+g)) + V×t/3.6 with proper friction
  * factors, gradient correction, and terrain-based minimums.
+ *
+ * AUDIT FIX (2026-07-05): Added an explicit "Compute" button. Previously
+ * the result auto-updated on every keystroke, which made users think
+ * nothing was happening. Now the result only updates when the user
+ * clicks Compute (or presses Enter).
  */
 
 export default function SightDistancePage() {
   const { t } = useLanguage()
+  // Input state
   const [designSpeed, setDesignSpeed] = useState(60)
   const [terrain, setTerrain] = useState<'flat' | 'rolling' | 'mountainous'>('rolling')
   const [gradient, setGradient] = useState(0)
   const [curveRadius, setCurveRadius] = useState(150)
+  // Computed result (only updates when the user clicks Compute)
+  const [computed, setComputed] = useState<{
+    designSpeed: number
+    terrain: 'flat' | 'rolling' | 'mountainous'
+    gradient: number
+    curveRadius: number
+  } | null>(null)
+
+  const compute = () => {
+    setComputed({ designSpeed, terrain, gradient, curveRadius })
+  }
 
   const input: SightDistanceInput = {
-    designSpeed,
+    designSpeed: computed?.designSpeed ?? designSpeed,
     roadClass: 'highway',
-    terrain,
-    gradient,
+    terrain: computed?.terrain ?? terrain,
+    gradient: computed?.gradient ?? gradient,
   }
 
   const result = sightDistanceCheck(input)
 
   // Check if curve radius provides adequate sight distance
-  // For a simple curve: SSD on curve = R × (1 - cos(α/2))
-  // where α = arc subtended by SSD. Simplified check:
-  // if R >= SSD, sight distance is adequate around the curve
-  const curveAdequate = curveRadius >= result.ssdComputed
+  const effectiveCurveRadius = computed?.curveRadius ?? curveRadius
+  const curveAdequate = effectiveCurveRadius >= result.ssdComputed
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -52,6 +67,7 @@ export default function SightDistancePage() {
                 type="number"
                 value={designSpeed}
                 onChange={e => setDesignSpeed(Number(e.target.value))}
+                onKeyDown={e => { if (e.key === 'Enter') compute() }}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
                 min={20}
                 max={120}
@@ -63,6 +79,7 @@ export default function SightDistancePage() {
                 type="number"
                 value={gradient}
                 onChange={e => setGradient(Number(e.target.value))}
+                onKeyDown={e => { if (e.key === 'Enter') compute() }}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
                 step="0.5"
                 min="-15"
@@ -84,81 +101,103 @@ export default function SightDistancePage() {
             </select>
           </div>
 
-          {/* Computed results */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
-              <div className="text-sm text-zinc-400 mb-1">Stopping Sight Distance</div>
-              <div className="text-2xl font-bold text-amber-400">{result.ssdComputed.toFixed(1)}m</div>
-              <div className="text-xs text-zinc-500 mt-1">
-                SSD = V²/254(f+g) + Vt/3.6
+          {/* Curve radius input (used in the curve check) */}
+          <div>
+            <label className="block text-sm text-zinc-400 mb-2">Curve Radius (m) — for curve sight check</label>
+            <input aria-label="Curve Radius (m)"
+              type="number"
+              value={curveRadius}
+              onChange={e => setCurveRadius(Number(e.target.value))}
+              onKeyDown={e => { if (e.key === 'Enter') compute() }}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+              min={30}
+              max={5000}
+            />
+          </div>
+
+          {/* AUDIT FIX (2026-07-05): Explicit Compute button */}
+          <button
+            onClick={compute}
+            className="w-full py-3 bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-black font-semibold rounded-lg transition-colors"
+          >
+            Compute Sight Distance
+          </button>
+
+          {/* Computed results — only shown after clicking Compute */}
+          {computed && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
+                  <div className="text-sm text-zinc-400 mb-1">Stopping Sight Distance</div>
+                  <div className="text-2xl font-bold text-amber-400">{result.ssdComputed.toFixed(1)}m</div>
+                  <div className="text-xs text-zinc-500 mt-1">
+                    SSD = V²/254(f+g) + Vt/3.6
+                  </div>
+                  <div className="text-xs text-zinc-600 mt-0.5">
+                    f={result.frictionFactor.toFixed(4)}, g={computed.gradient}%, t=2.5s
+                  </div>
+                  {Math.abs(result.ssdGradeCorrection) > 0.1 && (
+                    <div className="text-xs text-blue-400 mt-0.5">
+                      Grade correction: +{result.ssdGradeCorrection.toFixed(1)}m
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
+                  <div className="text-sm text-zinc-400 mb-1">Min SSD (RDM 1.3)</div>
+                  <div className="text-2xl font-bold text-green-400">{result.ssdMin}m</div>
+                  <div className="text-xs text-zinc-500 mt-1">
+                    Terrain: {computed.terrain}
+                  </div>
+                  <div className={`text-xs mt-1 ${result.isSSDCompliant ? 'text-green-400' : 'text-red-400'}`}>
+                    {result.isSSDCompliant ? '✓ Compliant' : '✗ Below minimum'}
+                  </div>
+                </div>
               </div>
-              <div className="text-xs text-zinc-600 mt-0.5">
-                f={result.frictionFactor.toFixed(4)}, g={gradient}%, t=2.5s
+
+              {/* Curve radius check */}
+              <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
+                <div className="text-sm text-zinc-400 mb-2">Curve Radius Sight Check</div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="zinc-500">Required (≥ SSD):</span>
+                    <span className="text-white">{result.ssdComputed.toFixed(0)}m</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="zinc-500">Provided radius:</span>
+                    <span className="text-white">{effectiveCurveRadius}m</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span className="zinc-500">Status:</span>
+                    <span className={curveAdequate ? 'text-green-400' : 'text-red-400'}>
+                      {curveAdequate ? '✓ Adequate' : `✗ Needs ≥ ${result.ssdComputed.toFixed(0)}m`}
+                    </span>
+                  </div>
+                </div>
               </div>
-              {Math.abs(result.ssdGradeCorrection) > 0.1 && (
-                <div className="text-xs text-blue-400 mt-0.5">
-                  Grade correction: +{result.ssdGradeCorrection.toFixed(1)}m
+
+              {/* Computation steps */}
+              {result.steps.length > 0 && (
+                <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
+                  <h3 className="text-sm font-semibold text-white mb-3">Computation Steps</h3>
+                  <div className="space-y-2">
+                    {result.steps.map((step, i) => (
+                      <div key={i} className="text-xs">
+                        <div className="text-zinc-400">{step.description}</div>
+                        <div className="text-zinc-600 font-mono">{step.formula}</div>
+                        <div className="text-white font-mono">→ {step.value}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
+            </>
+          )}
 
-            <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
-              <div className="text-sm text-zinc-400 mb-1">Min SSD (RDM 1.3)</div>
-              <div className="text-2xl font-bold text-green-400">{result.ssdMin}m</div>
-              <div className="text-xs text-zinc-500 mt-1">
-                Terrain: {terrain}
-              </div>
-              <div className={`text-xs mt-1 ${result.isSSDCompliant ? 'text-green-400' : 'text-red-400'}`}>
-                {result.isSSDCompliant ? '✓ Compliant' : '✗ Below minimum'}
-              </div>
-            </div>
-          </div>
-
-          {/* Curve radius check */}
-          <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
-            <div className="text-sm text-zinc-400 mb-2">Curve Radius Sight Check</div>
-            <div className="mb-3">
-              <label className="block text-xs text-zinc-500 mb-1">Curve Radius (m)</label>
-              <input aria-label="Curve Radius (m)"
-                type="number"
-                value={curveRadius}
-                onChange={e => setCurveRadius(Number(e.target.value))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm"
-                min={30}
-                max={5000}
-              />
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="zinc-500">Required (≥ SSD):</span>
-                <span className="text-white">{result.ssdComputed.toFixed(0)}m</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="zinc-500">Provided radius:</span>
-                <span className="text-white">{curveRadius}m</span>
-              </div>
-              <div className="flex justify-between font-medium">
-                <span className="zinc-500">Status:</span>
-                <span className={curveAdequate ? 'text-green-400' : 'text-red-400'}>
-                  {curveAdequate ? '✓ Adequate' : `✗ Needs ≥ ${result.ssdComputed.toFixed(0)}m`}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Computation steps */}
-          {result.steps.length > 0 && (
-            <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
-              <h3 className="text-sm font-semibold text-white mb-3">Computation Steps</h3>
-              <div className="space-y-2">
-                {result.steps.map((step, i) => (
-                  <div key={i} className="text-xs">
-                    <div className="text-zinc-400">{step.description}</div>
-                    <div className="text-zinc-600 font-mono">{step.formula}</div>
-                    <div className="text-white font-mono">→ {step.value}</div>
-                  </div>
-                ))}
-              </div>
+          {/* Empty state before first compute */}
+          {!computed && (
+            <div className="p-6 bg-zinc-900 rounded-lg border border-zinc-700 text-center text-sm text-zinc-500">
+              Click <span className="text-[var(--accent)] font-semibold">Compute Sight Distance</span> to calculate stopping sight distance, RDM 1.3 compliance, and curve radius adequacy.
             </div>
           )}
         </div>

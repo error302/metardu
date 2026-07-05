@@ -98,10 +98,7 @@ import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
 import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButton'
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
-// AUDIT FIX (2026-07-05): DigitizingToolbar import removed — the floating
-// bottom-center bar was merged into the CapturePanel inside MapToolDock
-// to declutter the map page. The advanced tools (Split/Merge/Reshape/
-// Rotate/Offset) now live inline under "Advanced Editing".
+import { DigitizingToolbar } from '@/app/map/components/DigitizingToolbar'
 import { StakeoutRadar } from '@/components/survey/StakeoutRadar'
 import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
@@ -826,8 +823,9 @@ export default function MapClient() {
           }) || []
 
           if (selectedFeatures.length < 2) {
-            setSaveMsg('Select 2+ polygons to merge (draw them first)')
-            setTimeout(() => setSaveMsg(''), 3000)
+            setSaveMsg('Draw 2+ polygons first, then click Merge to combine them')
+            setTimeout(() => setSaveMsg(''), 4000)
+            setActiveDigitizingTool(null)
             return
           }
 
@@ -1333,12 +1331,28 @@ export default function MapClient() {
               {/* ── Mobile Gesture Lock (bottom-left, above status bar) ── */}
               <MapInteractionToggle mapInstance={mapInstance} />
 
-              {/* ── Digitizing tools are now inline in the CapturePanel ── */}
-              {/* (was previously a floating bottom-center bar — caused clutter
-                  and confused users who expected tools to live in the dock).
-                  The advanced tools (Split/Merge/Reshape/Rotate/Offset) now
-                  appear in the CapturePanel under an "Advanced Editing"
-                  section, sharing the same activeDigitizingTool state. */}
+              {/* ── Digitizing Toolbar (bottom-center, above status bar) ── */}
+              {/* Restored 2026-07-05: User wanted the floating digitizing bar
+                  kept — it provides quick access to Split/Merge/Reshape/
+                  Rotate/Offset without having to open the CapturePanel dock.
+                  The CapturePanel also has these tools inline under
+                  "Advanced" so users can access them either way. */}
+              <DigitizingToolbar
+                activeTool={activeDigitizingTool}
+                onToolChange={setActiveDigitizingTool}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={undo}
+                onRedo={redo}
+                snappingEnabled={snappingEnabled}
+                selectedCount={selectedFeature ? 1 : 0}
+                offsetDistance={offsetDistance}
+                onOffsetDistanceChange={setOffsetDistance}
+                onToggleSnapping={() => {
+                  setSnappingEnabled(!snappingEnabled)
+                  setShowSnappingOptions(!snappingEnabled)
+                }}
+              />
 
               {/* ── Snapping Options Panel (top-right, below zoom) ── */}
               <SnappingOptions

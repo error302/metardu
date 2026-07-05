@@ -174,7 +174,7 @@ function HeroSection() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] mb-6">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-[var(--text-primary)]/60 font-mono tracking-wide">Built in Nairobi · Cassini · UTM 36S/37S · Arc 1960</span>
+              <span className="text-xs text-[var(--text-primary)]/60 font-mono tracking-wide">Survey Act Cap. 299 compliant · NLIMS-ready exports</span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.05] tracking-tight mb-6">
@@ -441,8 +441,8 @@ function Footer() {
           <div className="col-span-2">
             <MetarduLogo size={28} showWordmark={true} color="#FFFFFF" />
             <p className="text-sm text-[var(--text-primary)]/40 mt-4 max-w-xs">
-              Professional surveying software for East Africa. Built in Nairobi,
-              compliant with Survey Act Cap. 299 and RDM 1.1.
+              Professional surveying software for East Africa, compliant with
+              Survey Act Cap. 299 and RDM 1.1.
             </p>
             <div className="flex items-center gap-4 mt-4">
               <span className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/30">
