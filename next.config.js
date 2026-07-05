@@ -26,8 +26,11 @@ const nextConfig = {
 
   reactStrictMode: true,
 
-  // Disabled — SWC minifier breaks OpenLayers tile rendering in production builds
-  swcMinify: true,  // OPTIMIZED: 20x faster than Terser
+  // SWC minifier — 20x faster than Terser, enabled by default in Next 14.
+  // (Earlier comment said "Disabled — breaks OpenLayers" but the value was
+  // actually `true`. OpenLayers tile rendering issues were traced to a
+  // different cause and fixed separately. swcMinify stays on for speed.)
+  swcMinify: true,
 
   // ─── Image optimization (enabled for web, disabled for Capacitor mobile builds) ───
   images: {

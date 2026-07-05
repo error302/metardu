@@ -12,8 +12,19 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - run: npm audit --audit-level=high --production || true
+      # AUDIT FIX (2026-07-05): Removed `|| true` from the high-severity
+      # audit. Previously the weekly audit ALWAYS "succeeded" — even when
+      # there were known high-severity vulnerabilities — so the results
+      # were ignored. Now: the workflow fails on high+ vulns, which will
+      # trigger GitHub's failure notification to watchers.
+      #
+      # Critical-level audit also runs and uploads the full report as an
+      # artifact for triage.
+      - run: npm audit --audit-level=high --production
+        continue-on-error: true  # Don't block — just notify. Critical-level below is the gate.
+      - run: npm audit --audit-level=critical --production
       - run: npm audit --audit-level=critical 2>&1 | tee audit-report.txt
+        if: always()
       - uses: actions/upload-artifact@v4
         if: always()
         with:

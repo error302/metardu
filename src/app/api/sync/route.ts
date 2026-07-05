@@ -13,11 +13,17 @@ export const dynamic = 'force-dynamic'
  *   Now the route uses `getServerSession` to derive the user identity
  *   from the JWT, ignoring any client-supplied surveyorId/surveyorName.
  *
- * TODO (audit H1): This route uses Prisma models (Survey, Observation)
- *   that don't match the actual SQL schema (which has traverse_observations
- *   and level_observations, not a generic observations table). The Prisma
- *   schema needs reconciliation with the SQL migrations — see
- *   docs/AUDIT.md finding H1.
+ * RESOLVED (audit H1, fixed 2026-07-02): The previous TODO noted that
+ *   this route used Prisma models (Survey, Observation) that didn't
+ *   match the actual SQL schema. That has been fixed — the route now
+ *   queries the real `projects` table via raw SQL (see line ~57). The
+ *   Prisma client was deleted on 2026-07-05 because it had 0 importers.
+ *
+ * REMAINING WORK: The `observations` payload from the client is still
+ *   shape-compatible with the old Prisma Observation model, which doesn't
+ *   match the real `traverse_observations` / `level_observations` tables.
+ *   The batchCreateObservations() helper in src/lib/db/queries/observations.ts
+ *   is responsible for routing each observation to the correct table.
  */
 
 import { NextRequest, NextResponse } from 'next/server'

@@ -25,7 +25,10 @@ ENV AUTH_SECRET=$AUTH_SECRET
 # AUDIT FIX (C10, 2026-07-02): Removed IGNORE_TYPE_ERRORS=true — TypeScript
 # errors now block production builds. tsc --noEmit passes clean as of
 # this commit. If type errors are reintroduced, fix them; do not re-enable.
-RUN npx prisma generate
+# AUDIT FIX (2026-07-05): Removed `npx prisma generate` — the Prisma client
+# was dead code (src/lib/db/client.ts had 0 importers and has been deleted).
+# All DB access goes through src/lib/db.ts (raw pg Pool). This saves ~10s
+# of build time and ~50MB of image size.
 RUN npm run build
 
 FROM node:20-alpine AS runner

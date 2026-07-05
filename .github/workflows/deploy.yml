@@ -52,29 +52,46 @@ jobs:
           # Only changed layers are rebuilt — typically just the COPY + npm run build
           docker compose up -d --build 2>&1
 
-          echo "=== [4/5] Waiting for container to be healthy ==="
+          # AUDIT FIX (2026-07-05): Container name was metardu_nextjs but
+          # docker-compose.yml defines it as metardu-app. The old name caused
+          # `docker inspect` to always return "not_found", making the health
+          # loop waste 180s and then silently fall through to the curl check.
+          # Also: the warning at iteration 36 was not failing the deploy.
+          # Now: we exit 1 if the container is not healthy, surfacing real
+          # failures (failed migrations, port conflicts, OOM, etc.) instead
+          # of letting curl be the only gate.
+          CONTAINER_NAME="metardu-app"
+
+          echo "=== [4/5] Waiting for container '$CONTAINER_NAME' to be healthy ==="
+          HEALTHY=false
           for i in $(seq 1 36); do
             sleep 5
-            STATUS=$(docker inspect --format='{{.State.Health.Status}}' metardu_nextjs 2>/dev/null || echo "not_found")
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "not_found")
             if [ "$STATUS" = "healthy" ]; then
               echo "Container is healthy after $((i * 5)) seconds"
+              HEALTHY=true
               break
-            fi
-            if [ "$i" = "36" ]; then
-              echo "WARNING: Container not healthy after 180s"
-              docker logs --tail 30 metardu_nextjs 2>&1
             fi
             echo "  Waiting... ($((i * 5))s) status=$STATUS"
           done
 
-          echo "=== [5/5] Verifying deployment ==="
-          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 15 http://localhost:3000/ || echo "000")
-          echo "HTTP status: $HTTP_CODE"
+          if [ "$HEALTHY" != "true" ]; then
+            echo "ERROR: Container '$CONTAINER_NAME' not healthy after 180s"
+            echo "--- Last 50 log lines ---"
+            docker logs --tail 50 "$CONTAINER_NAME" 2>&1 || echo "(could not fetch logs)"
+            echo "--- Container state ---"
+            docker ps -a --filter "name=$CONTAINER_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            exit 1
+          fi
+
+          echo "=== [5/5] Verifying deployment via HTTP ==="
+          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 15 http://localhost:3000/api/public/health || echo "000")
+          echo "HTTP status: $HTTP_CODE (expecting 200 from /api/public/health)"
           if [ "$HTTP_CODE" = "200" ]; then
             echo "Deploy successful!"
           else
-            echo "WARNING: Health check returned HTTP $HTTP_CODE"
-            docker logs --tail 50 metardu_nextjs 2>&1
+            echo "ERROR: Health check returned HTTP $HTTP_CODE"
+            docker logs --tail 50 "$CONTAINER_NAME" 2>&1 || echo "(could not fetch logs)"
             exit 1
           fi
           DEPLOY

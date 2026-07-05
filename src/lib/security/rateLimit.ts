@@ -76,6 +76,44 @@ function inMemoryRateLimit(
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+/**
+ * Rate limit categories — referenced by middleware.ts to pick the right
+ * quota per route family. Values are { max, windowMs }.
+ *
+ * AUDIT FIX (2026-07-05): These exports were referenced by middleware.ts
+ * since 2026-05-29 (commit 39158da) but never actually defined here. The
+ * middleware silently threw `TypeError: Cannot read properties of
+ * undefined (reading 'api')` on every API request, which was masked
+ * because:
+ *   1. tsconfig.json `include` only covers `src/**/*.ts` — middleware.ts
+ *      at the project root is never type-checked by `tsc --noEmit`.
+ *   2. `next build` uses webpack, which does not do strict typechecking.
+ *
+ * The fix: define the exports AND add middleware.ts to tsconfig include.
+ */
+export type RateLimitCategory =
+  | 'api'
+  | 'auth'
+  | 'submission'
+  | 'upload'
+  | 'mpesa'
+  | 'export'
+
+export const RATE_LIMITS: Record<RateLimitCategory, { max: number; windowMs: number }> = {
+  // Default for all /api/* routes — 120 req/min per IP
+  api: { max: 120, windowMs: 60_000 },
+  // Auth routes (login, register, password reset) — tighter to slow brute force
+  auth: { max: 20, windowMs: 60_000 },
+  // Submission/NLIMS export — heavy work, 10/min
+  submission: { max: 10, windowMs: 60_000 },
+  // File uploads — 20/min (each upload is a separate request)
+  upload: { max: 20, windowMs: 60_000 },
+  // M-Pesa STK push initiation — 10/min (Safaricom also rate-limits server-side)
+  mpesa: { max: 10, windowMs: 60_000 },
+  // Export endpoints (DXF/Shapefile/PDF generation) — 30/min
+  export: { max: 30, windowMs: 60_000 },
+}
+
 export async function rateLimit(
   identifier: string,
   maxRequests = 60,

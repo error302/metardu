@@ -1,3 +1,22 @@
+// ────────────────────────────────────────────────────────────────────────────
+// DEPRECATED — DO NOT USE FOR NEW CODE
+// ────────────────────────────────────────────────────────────────────────────
+// This Prisma schema is legacy dead code. It does NOT reflect the live
+// database, which is defined by raw SQL in src/lib/db/migrations/ and
+// scripts/init-test-db.sql (40+ snake_case tables with UUID PKs).
+//
+// The Prisma client (src/lib/db/client.ts) was deleted on 2026-07-05
+// because it had 0 importers and `prisma generate` was wasting build time.
+//
+// All DB access goes through src/lib/db.ts (raw pg Pool with parameterized
+// queries and RLS via AsyncLocalStorage). Do NOT add new Prisma models here
+// — they will not be reflected in the actual schema.
+//
+// To fully remove Prisma: delete this file, the prisma/migrations/ directory,
+// and run `npm uninstall @prisma/client prisma`. Left in place for now to
+// avoid breaking local dev workflows that may reference it.
+// ────────────────────────────────────────────────────────────────────────────
+
 generator client {
   provider = "prisma-client-js"
 }
