@@ -47,8 +47,18 @@ export default function MobileNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] md:hidden z-50 safe-area-inset-bottom">
-        <div className="flex justify-around items-stretch py-1">
+      <nav
+        className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] md:hidden z-50"
+        style={{
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          // AUDIT FIX (2026-07-05): Use real safe-area inset instead of CSS class
+          // (the class was a no-op). On notched Android devices this prevents
+          // the nav from being obscured by the gesture bar.
+        }}
+        role="navigation"
+        aria-label="Primary mobile navigation"
+      >
+        <div className="flex justify-around items-stretch">
           {mobileNavItems.slice(0, 4).map((item) => {
             const isActive = isNavItemActive(pathname, item.href)
             const iconName = item.icon || item.href.replace('/', '')
@@ -57,7 +67,10 @@ export default function MobileNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
+                aria-current={isActive ? 'page' : undefined}
+                // AUDIT FIX (2026-07-05): min-h-[48px] + py-3 to meet Android
+                // Material Design tap target guideline (48dp minimum).
+                className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
                   isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -76,7 +89,8 @@ export default function MobileNav() {
               <Link
                 key={reportsItem.href}
                 href={reportsItem.href}
-                className={`flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
+                aria-current={isActive ? 'page' : undefined}
+                className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
                   isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -89,7 +103,9 @@ export default function MobileNav() {
           {/* More button */}
           <button
             onClick={() => setShowMore(true)}
-            className={`flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
+            aria-label="Show more navigation options"
+            aria-expanded={showMore}
+            className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
               isMoreActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
             }`}
           >

@@ -98,7 +98,10 @@ import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
 import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButton'
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
-import { DigitizingToolbar } from '@/app/map/components/DigitizingToolbar'
+// AUDIT FIX (2026-07-05): DigitizingToolbar import removed — the floating
+// bottom-center bar was merged into the CapturePanel inside MapToolDock
+// to declutter the map page. The advanced tools (Split/Merge/Reshape/
+// Rotate/Offset) now live inline under "Advanced Editing".
 import { StakeoutRadar } from '@/components/survey/StakeoutRadar'
 import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
@@ -1221,6 +1224,14 @@ export default function MapClient() {
     hasFeature,
     canUndo,
     canRedo,
+    activeDigitizingTool,
+    setActiveDigitizingTool,
+    offsetDistance,
+    setOffsetDistance,
+    snappingEnabled,
+    setSnappingEnabled,
+    showSnappingOptions,
+    setShowSnappingOptions,
     setPanelOpen,
     setProjectSearch,
     setAudioMuted,
@@ -1276,6 +1287,10 @@ export default function MapClient() {
     activeProjection, showSheetLayout, isPrinting,
     paperSize, orientation, offlineMapExtent, schemeProjectId,
     hasFeature, canUndo, canRedo,
+    activeDigitizingTool, setActiveDigitizingTool,
+    offsetDistance, setOffsetDistance,
+    snappingEnabled, setSnappingEnabled,
+    showSnappingOptions, setShowSnappingOptions,
     setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen,
     setVertexEditingEnabled, setSnapEnabled, setSnapTolerance, setShowSheetLayout,
     interactions, toggleBasemap, toggleGPS,
@@ -1318,23 +1333,12 @@ export default function MapClient() {
               {/* ── Mobile Gesture Lock (bottom-left, above status bar) ── */}
               <MapInteractionToggle mapInstance={mapInstance} />
 
-              {/* ── Digitizing Toolbar (bottom-center, above status bar) ── */}
-              <DigitizingToolbar
-                activeTool={activeDigitizingTool}
-                onToolChange={setActiveDigitizingTool}
-                canUndo={canUndo}
-                canRedo={canRedo}
-                onUndo={undo}
-                onRedo={redo}
-                snappingEnabled={snappingEnabled}
-                selectedCount={selectedFeature ? 1 : 0}
-                offsetDistance={offsetDistance}
-                onOffsetDistanceChange={setOffsetDistance}
-                onToggleSnapping={() => {
-                  setSnappingEnabled(!snappingEnabled)
-                  setShowSnappingOptions(!snappingEnabled)
-                }}
-              />
+              {/* ── Digitizing tools are now inline in the CapturePanel ── */}
+              {/* (was previously a floating bottom-center bar — caused clutter
+                  and confused users who expected tools to live in the dock).
+                  The advanced tools (Split/Merge/Reshape/Rotate/Offset) now
+                  appear in the CapturePanel under an "Advanced Editing"
+                  section, sharing the same activeDigitizingTool state. */}
 
               {/* ── Snapping Options Panel (top-right, below zoom) ── */}
               <SnappingOptions
@@ -1434,10 +1438,16 @@ export default function MapClient() {
                 <NorthArrowOverlay mapInstance={mapInstance} />
               </div>
 
-              {/* ── Vertex Edit Toolbar (top, near center when active) ── */}
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
-                <VertexEditToolbar />
-              </div>
+              {/* ── Vertex Edit Toolbar (top-center, only when enabled) ── */}
+              {/* AUDIT FIX (2026-07-05): Previously always rendered at top-center,
+                  which clashed with the project count badge and added visual
+                  noise. Now only renders when vertex editing is enabled —
+                  collapses out of the way when not in use. */}
+              {vertexEditingEnabled && (
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+                  <VertexEditToolbar />
+                </div>
+              )}
 
               {/* ── Tier 1: Print/PDF & Sheet Layout ── */}
               <div className="absolute bottom-10 right-3 z-20 no-print print-hide flex items-center gap-2">

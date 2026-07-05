@@ -105,6 +105,20 @@ export interface MapContextValue {
   canUndo: boolean
   canRedo: boolean
 
+  // ── Advanced digitizing tools (Split / Merge / Reshape / Rotate / Offset) ──
+  // AUDIT FIX (2026-07-05): Previously these were local state in MapClient and
+  // passed only to the floating DigitizingToolbar. Now exposed via context so
+  // the CapturePanel inside MapToolDock can render them inline (cleaner UI,
+  // removes the cluttered bottom-center floating bar).
+  activeDigitizingTool: 'draw' | 'split' | 'merge' | 'reshape' | 'rotate' | 'offset' | null
+  setActiveDigitizingTool: (tool: 'draw' | 'split' | 'merge' | 'reshape' | 'rotate' | 'offset' | null) => void
+  offsetDistance: number
+  setOffsetDistance: (d: number) => void
+  snappingEnabled: boolean
+  setSnappingEnabled: (v: boolean) => void
+  showSnappingOptions: boolean
+  setShowSnappingOptions: (v: boolean) => void
+
   // ── Setters ──
   setPanelOpen: (v: boolean) => void
   setProjectSearch: (v: string) => void

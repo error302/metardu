@@ -46,23 +46,35 @@ module.exports = {
     '!src/**/__mocks__/**',
   ],
   coverageThreshold: {
-    // AUDIT FIX (2026-07-05): Ratcheted thresholds to CURRENT coverage levels
-    // so CI actually enforces them (previously set to 80% which was never met,
-    // so the CI test job — which didn't run --coverage — silently passed).
+    // AUDIT FIX (2026-07-05): Ratcheted thresholds — second bump after
+    // adding tests for security/rateLimit, auth/ownership, validation/
+    // surveyData, engine/chainageCalculator, engine/computationalAccuracy,
+    // and validation/versionedEntities.
     //
-    // Current baseline:
-    //   Statements: 51.91%  → set threshold to 50% (catch regressions >2pp)
-    //   Branches:    74.36% → set threshold to 70% (catch regressions >4pp)
-    //   Functions:   69.77% → set threshold to 65% (catch regressions >5pp)
-    //   Lines:       51.91% → set threshold to 50%
+    // Current baseline (2026-07-05):
+    //   Statements: 53.87% → set threshold to 50% (catch regressions >4pp)
+    //   Branches:    75.12% → set threshold to 70% (catch regressions >5pp)
+    //   Functions:   70.26% → set threshold to 65% (catch regressions >5pp)
+    //   Lines:       53.87% → set threshold to 50%
     //
-    // RATCHET PLAN: as coverage improves, raise these thresholds. Goal: 80%
-    // across the board by end of Q3 2026. Tracking: see worklog entries.
+    // RATCHET PLAN: as coverage improves, raise these thresholds.
+    // Goal: 80% across the board by end of Q4 2026.
+    // Tracking: see worklog entries dated 2026-07-05.
+    //
+    // Next priorities for coverage improvement (in priority order):
+    //   1. src/lib/auth/requireAuth.ts (0% → currently exposed via API routes only)
+    //   2. src/lib/auth/session.ts (0% → NextAuth session helpers)
+    //   3. src/lib/enterprise/auditTrail.ts (0% → audit log query builder)
+    //   4. src/lib/engineering/crossSectionVolume.ts (0% → earthworks math)
+    //   5. src/lib/engineering/cutFillEngine.ts (0% → earthworks math)
+    //   6. src/lib/engineering/deformationTracker.ts (0% → monitoring)
+    //   7. src/lib/engineering/gcpOptimizer.ts (0% → GNSS control)
+    //   8. src/lib/survey/traverse/least-squares.ts (0% → LSQ adjustment)
     global: {
-      branches: 65,
-      functions: 60,
-      lines: 45,
-      statements: 45,
+      branches: 70,
+      functions: 65,
+      lines: 50,
+      statements: 50,
     },
     './src/lib/engineering/': {
       branches: 55,

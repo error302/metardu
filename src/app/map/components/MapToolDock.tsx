@@ -30,6 +30,9 @@ import {
   Ruler, Compass, Satellite, Globe, Mountain, Moon,
   FileOutput, Printer, FileText,
   Eye, MapPinned,
+  // AUDIT FIX (2026-07-05): Added for inline advanced digitizing tools
+  // (previously in the floating DigitizingToolbar — now merged here).
+  Scissors, GitMerge, RefreshCw, Magnet, Info,
 } from 'lucide-react'
 import { useMapContext } from '@/app/map/MapReactContext'
 import { CogoInfoPanel } from '@/app/map/components/CogoInfoPanel'
@@ -345,6 +348,101 @@ const CapturePanel = memo(function CapturePanel() {
         </button>
       </div>
       <ActionBtn label="Delete Selected" icon={<Trash2 className="w-4 h-4" />} isActive={false} onClick={ctx.deleteSelected} danger shortcut="Del" />
+
+      {/* ── Advanced Editing (Split / Merge / Reshape / Rotate / Offset) ── */}
+      {/* AUDIT FIX (2026-07-05): These tools were previously in a separate
+          floating DigitizingToolbar at the bottom-center of the map,
+          which cluttered the UI and confused users. Now they live inline
+          under the CapturePanel's "Advanced" section, sharing the same
+          activeDigitizingTool state via context. */}
+      <SectionLabel hint="X">Advanced</SectionLabel>
+      <div className="grid grid-cols-5 gap-1">
+        <ToolBtn
+          label="Split"
+          icon={<Scissors className="w-4 h-4" />}
+          isActive={ctx.activeDigitizingTool === 'split'}
+          onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'split' ? null : 'split')}
+          shortcut="S"
+        />
+        <ToolBtn
+          label="Merge"
+          icon={<GitMerge className="w-4 h-4" />}
+          isActive={ctx.activeDigitizingTool === 'merge'}
+          onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'merge' ? null : 'merge')}
+          shortcut="M"
+        />
+        <ToolBtn
+          label="Reshape"
+          icon={<RefreshCw className="w-4 h-4" />}
+          isActive={ctx.activeDigitizingTool === 'reshape'}
+          onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'reshape' ? null : 'reshape')}
+          shortcut="R"
+        />
+        <ToolBtn
+          label="Rotate"
+          icon={<RefreshCw className="w-4 h-4" />}
+          isActive={ctx.activeDigitizingTool === 'rotate'}
+          onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'rotate' ? null : 'rotate')}
+          shortcut="O"
+        />
+        <ToolBtn
+          label="Offset"
+          icon={<Ruler className="w-4 h-4" />}
+          isActive={ctx.activeDigitizingTool === 'offset'}
+          onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'offset' ? null : 'offset')}
+          shortcut="F"
+        />
+      </div>
+
+      {/* Offset distance slider — only visible when Offset is active */}
+      {ctx.activeDigitizingTool === 'offset' && (
+        <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06]">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">Distance:</span>
+            <input
+              aria-label="Offset distance"
+              type="range"
+              min="1"
+              max="50"
+              value={ctx.offsetDistance}
+              onChange={e => ctx.setOffsetDistance(parseFloat(e.target.value))}
+              className="flex-1"
+            />
+            <span className="font-mono text-[10px] text-[var(--text-primary)]">{ctx.offsetDistance}m</span>
+          </div>
+        </div>
+      )}
+
+      {/* Active tool instruction banner */}
+      {ctx.activeDigitizingTool && ctx.activeDigitizingTool !== 'draw' && (
+        <div className="mt-2 p-2.5 rounded-lg bg-[var(--accent)]/[0.06] border border-[var(--accent)]/20 flex items-start gap-2">
+          <Info className="w-3 h-3 text-[var(--accent)] shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <span className="font-mono text-[9px] text-[var(--accent)] uppercase tracking-[0.08em]">
+              {ctx.activeDigitizingTool}
+            </span>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+              {ctx.activeDigitizingTool === 'split' && 'Draw a line across the polygon to split it into two parts.'}
+              {ctx.activeDigitizingTool === 'merge' && 'Select 2+ adjacent polygons, then click Merge to combine.'}
+              {ctx.activeDigitizingTool === 'reshape' && 'Draw a new line across the boundary to replace it.'}
+              {ctx.activeDigitizingTool === 'rotate' && 'Select a polygon, then it will rotate 15° clockwise.'}
+              {ctx.activeDigitizingTool === 'offset' && 'Select a feature, then adjust the distance slider above.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Snapping toggle */}
+      <ActionBtn
+        label={ctx.snappingEnabled ? 'Snapping On' : 'Snapping Off'}
+        icon={<Magnet className="w-4 h-4" />}
+        isActive={ctx.snappingEnabled}
+        onClick={() => {
+          ctx.setSnappingEnabled(!ctx.snappingEnabled)
+          ctx.setShowSnappingOptions(!ctx.snappingEnabled)
+        }}
+        shortcut="N"
+      />
 
       {ctx.selectedFeature && (
         <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] space-y-2">
