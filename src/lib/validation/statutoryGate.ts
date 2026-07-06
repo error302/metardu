@@ -103,6 +103,7 @@ export type RegulatorySource =
   | 'ardhisasa'        // ArdhiSasa portal spec
   | 'lra_2012'         // Land Registration Act 2012
   | 'sok_standard'     // Survey of Kenya general standard
+  | 'metardu_qc'       // METARDU internal quality control (cross-checks)
 
 export interface Violation {
   /** Rule identifier, e.g. 'cap299.angular_misclosure' */
@@ -907,6 +908,43 @@ export function runStatutoryGate(input: StatutoryGateInput): StatutoryGateResult
         message: `Internal error evaluating rule "${rule.id}": ${err instanceof Error ? err.message : String(err)}`,
       })
     }
+  }
+
+  // ── AUDIT FIX (2026-07-05): Run calculation cross-checks ──
+  // Independent verification that catches computation errors the
+  // rule-based checks above might miss (e.g., a precision ratio that
+  // doesn't match the reported misclosure and distance).
+  try {
+    if (input.traverse) {
+      const t = input.traverse
+
+      // Cross-check: precision ratio should equal totalDistance / linearError
+      // If these don't agree, the precision was computed incorrectly.
+      if (t.totalDistanceM > 0 && t.linearErrorM > 0) {
+        const computedRatio = Math.round(t.totalDistanceM / t.linearErrorM)
+        if (Math.abs(computedRatio - t.precisionRatio) > 1) {
+          violations.push({
+            rule: 'cross_check.precision_ratio_consistency',
+            source: 'metardu_qc',
+            severity: 'warn',
+            message: `Precision ratio cross-check: reported 1:${t.precisionRatio} vs computed 1:${computedRatio} (distance=${t.totalDistanceM.toFixed(1)}m / misclosure=${t.linearErrorM.toFixed(3)}m). Values disagree — check the precision calculation.`,
+          })
+        }
+      }
+
+      // Cross-check: if linearErrorM is 0 but angularMisclosure is non-zero
+      // (or vice versa), something is wrong
+      if (t.linearErrorM === 0 && t.angularMisclosureSeconds && Math.abs(t.angularMisclosureSeconds) > 1) {
+        violations.push({
+          rule: 'cross_check.zero_linear_misclosure',
+          source: 'metardu_qc',
+          severity: 'warn',
+          message: `Linear misclosure is 0 but angular misclosure is ${t.angularMisclosureSeconds.toFixed(1)}". This is suspicious — a traverse with angular error should also have linear error. Check if the traverse was properly closed.`,
+        })
+      }
+    }
+  } catch {
+    // Cross-check module not available — non-blocking
   }
 
   // Order violations by severity: block → warn → info
