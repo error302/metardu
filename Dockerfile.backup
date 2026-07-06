@@ -16,8 +16,7 @@ RUN apk add --no-cache \
     gzip \
     gnupg \
     dcron \
-    bash \
-    numfmt
+    bash
 
 WORKDIR /app
 

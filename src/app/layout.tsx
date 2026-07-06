@@ -127,6 +127,20 @@ export default function RootLayout({
         <AuthProvider>
           <QueryProvider>
             <WebVitals />
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify({
+                  '@context': 'https://schema.org',
+                  '@type': 'Organization',
+                  name: 'METARDU',
+                  url: publicAppUrl,
+                  description: 'Professional land-surveying platform built in Kenya for the East African market.',
+                  areaServed: 'KE',
+                  knowsAbout: ['Survey Act Cap. 299', 'RDM 1.1', 'NLIMS', 'ArdhiSasa', 'EPSG:21037'],
+                }),
+              }}
+            />
             <AppShell>
               {children}
             </AppShell>

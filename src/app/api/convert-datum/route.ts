@@ -76,8 +76,8 @@ export const POST = apiHandler(
     const transformInput: TransformInput = {
       fromCRS,
       toCRS,
-      points: coords.map((c) => ({
-        id: c.id ?? `pt-${c.easting}-${c.northing}`,
+      points: coords.map((c, i) => ({
+        id: c.id ?? String(i),
         x: c.easting,
         y: c.northing,
       })),
@@ -85,16 +85,19 @@ export const POST = apiHandler(
 
     const result = transformCoordinates(transformInput)
 
-    const data = (result.points ?? []).map((p: { id?: string; x: number; y: number }) => ({
-      id: p.id,
-      easting: p.x,
-      northing: p.y,
-      datum: toDatum,
-      epsg:
-        toDatum === 'WGS84' ? 4326
-        : toDatum === 'ARC1960' ? 4210
-        : (toCRS.match(/\d+/)?.[0] ? parseInt(toCRS.match(/\d+/)![0], 10) : 21037),
-    }))
+    const data = (result.points ?? []).map((p: { id?: string; x: number; y: number }) => {
+      const epsgMatch = toCRS.match(/\d+/)
+      return {
+        id: p.id,
+        easting: p.x,
+        northing: p.y,
+        datum: toDatum,
+        epsg:
+          toDatum === 'WGS84' ? 4326
+          : toDatum === 'ARC1960' ? 4210
+          : (epsgMatch ? parseInt(epsgMatch[0], 10) : 21037),
+      }
+    })
 
     return NextResponse.json({
       data,

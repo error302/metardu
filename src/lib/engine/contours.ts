@@ -618,3 +618,27 @@ export function computeVolumeBetweenSurfaces(
 
   return { cut, fill, net: cut - fill }
 }
+
+/**
+ * Generate a small demo set of spot heights for the 3D viewer
+ * (a 10x10 grid with a smooth bump + noise around an origin).
+ */
+export function generateDemoData(): SpotHeight[] {
+  const points: SpotHeight[] = []
+  const cx = 500000
+  const cy = 0
+  const step = 5
+  const n = 10
+  let idx = 0
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const easting = cx + (i - n / 2) * step
+      const northing = cy + (j - n / 2) * step
+      const r = Math.sqrt((i - n / 2) ** 2 + (j - n / 2) ** 2)
+      const bump = Math.max(0, 20 - r * 2)
+      const elevation = 100 + bump + Math.sin(i * 0.6) * 0.5 + Math.cos(j * 0.5) * 0.5
+      points.push({ name: `P${idx++}`, easting, northing, elevation })
+    }
+  }
+  return points
+}

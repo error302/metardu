@@ -19,6 +19,7 @@ export interface PlanCatalogEntry {
   id: PlanId
   name: string
   prices: Record<CurrencyCode, number>
+  annualPrices: Record<CurrencyCode, number>
   features: string[]
   billingInterval: 'monthly'
 }
@@ -42,6 +43,10 @@ export const PLAN_CATALOG: PlanCatalogEntry[] = [
       GBP: 0,
       EUR: 0,
       USD: 0,
+    },
+    annualPrices: {
+      KES: 0, UGX: 0, TZS: 0, NGN: 0, GHS: 0, ZAR: 0,
+      INR: 0, IDR: 0, BRL: 0, AUD: 0, GBP: 0, EUR: 0, USD: 0,
     },
     features: [
       'All quick calculation tools',
@@ -70,6 +75,10 @@ export const PLAN_CATALOG: PlanCatalogEntry[] = [
       GBP: 3,
       EUR: 4,
       USD: 4,
+    },
+    annualPrices: {
+      KES: 5000, UGX: 150000, TZS: 100000, NGN: 20000, GHS: 500, ZAR: 750,
+      INR: 3500, IDR: 650000, BRL: 200, AUD: 60, GBP: 30, EUR: 40, USD: 40,
     },
     features: [
       'Unlimited projects',
@@ -102,6 +111,10 @@ export const PLAN_CATALOG: PlanCatalogEntry[] = [
       EUR: 14,
       USD: 15,
     },
+    annualPrices: {
+      KES: 20000, UGX: 600000, TZS: 400000, NGN: 80000, GHS: 2000, ZAR: 2800,
+      INR: 13000, IDR: 2300000, BRL: 750, AUD: 220, GBP: 120, EUR: 140, USD: 150,
+    },
     features: [
       'Everything in Pro',
       '5 team members',
@@ -132,6 +145,10 @@ export const PLAN_CATALOG: PlanCatalogEntry[] = [
       EUR: 35,
       USD: 38,
     },
+    annualPrices: {
+      KES: 50000, UGX: 1500000, TZS: 1000000, NGN: 200000, GHS: 5000, ZAR: 7000,
+      INR: 35000, IDR: 5800000, BRL: 1900, AUD: 550, GBP: 300, EUR: 350, USD: 380,
+    },
     features: [
       'Everything in Team',
       '20 team members',
@@ -161,6 +178,10 @@ export const PLAN_CATALOG: PlanCatalogEntry[] = [
       GBP: 90,
       EUR: 105,
       USD: 115,
+    },
+    annualPrices: {
+      KES: 150000, UGX: 4500000, TZS: 3000000, NGN: 600000, GHS: 15000, ZAR: 21000,
+      INR: 105000, IDR: 17400000, BRL: 5700, AUD: 1650, GBP: 900, EUR: 1050, USD: 1150,
     },
     features: [
       'Everything in Firm',

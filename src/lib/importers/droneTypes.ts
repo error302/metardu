@@ -17,12 +17,10 @@ export interface ParsedSurveyData {
       flightDate?: string;
       gcpCount?: number;
       averageError?: number;
-      // LAS/LAZ-specific fields (added 2026-07-05 to fix TS errors in
-      // src/lib/importers/parsers/las.ts — the parser was emitting these
-      // but the type didn't allow them).
       hasRgb?: boolean;
       hasGpsTime?: boolean;
       pointDataFormat?: number;
+      gcpSet?: { id: string; x: number; y: number; z: number }[];
       recordLength?: number;
     };
   };

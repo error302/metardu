@@ -135,10 +135,13 @@ export function DigitizingToolbar({
   const activeToolConfig = TOOLS.find(t => t.id === activeTool)
 
   return (
-    <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20">
-      <div className="bg-[var(--bg-card)]/95 backdrop-blur-md border border-[var(--border-color)] rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.4)] overflow-hidden">
+    <div
+      className="absolute left-1/2 -translate-x-1/2 z-20 transition-all duration-300 ease-out"
+      style={{ bottom: 'calc(var(--map-bottom-offset, 0px) + 48px)' }}
+    >
+      <div className="bg-[var(--bg-card)]/90 backdrop-blur-md border border-[var(--border-color)]/60 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 hover:shadow-[0_8px_32px_rgba(209,123,71,0.08)] hover:border-[var(--accent)]/20">
         {/* Toolbar */}
-        <div className="flex items-center gap-0.5 p-1.5">
+        <div className="flex items-center gap-1 p-1.5">
           {TOOLS.map(tool => {
             const Icon = tool.icon
             const isActive = activeTool === tool.id
@@ -149,91 +152,90 @@ export function DigitizingToolbar({
                 onClick={() => !isDisabled && handleToolClick(tool.id)}
                 title={`${tool.label} (${tool.shortcut})${isDisabled ? ' — select a feature first' : ''}`}
                 disabled={isDisabled}
-                className={`relative flex flex-col items-center justify-center w-12 h-12 rounded-md transition-all duration-200 ${
+                className={`relative flex flex-col items-center justify-center w-11 h-11 rounded-lg transition-all duration-200 ${
                   isActive
-                    ? 'bg-[var(--accent)]/15 border border-[var(--accent)]/30 text-[var(--accent)]'
-                    : 'border border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed'
+                    ? 'bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-[var(--accent)] font-medium scale-[1.02]'
+                    : 'border border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] hover:scale-[1.04] active:scale-[0.96] disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-transparent'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                <span className="text-[8px] font-mono mt-0.5">{tool.label}</span>
+                <Icon className="w-3.5 h-3.5" />
+                <span className="text-[8px] font-mono mt-0.5 tracking-wider">{tool.label}</span>
                 {isActive && (
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]" />
                 )}
               </button>
             )
           })}
 
           {/* Divider */}
-          <div className="w-px h-8 bg-[var(--border-color)] mx-1" />
+          <div className="w-px h-6 bg-[var(--border-color)]/60 mx-1" />
 
           {/* Undo / Redo */}
           <button
             onClick={onUndo}
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
-            className="flex items-center justify-center w-10 h-10 rounded-md border border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="flex items-center justify-center w-9 h-9 rounded-lg border border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] hover:scale-[1.04] active:scale-[0.96] disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-transparent transition-all"
           >
-            <Undo2 className="w-4 h-4" />
+            <Undo2 className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={onRedo}
             disabled={!canRedo}
             title="Redo (Ctrl+Y)"
-            className="flex items-center justify-center w-10 h-10 rounded-md border border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="flex items-center justify-center w-9 h-9 rounded-lg border border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] hover:scale-[1.04] active:scale-[0.96] disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-transparent transition-all"
           >
-            <Redo2 className="w-4 h-4" />
+            <Redo2 className="w-3.5 h-3.5" />
           </button>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-[var(--border-color)] mx-1" />
+          <div className="w-px h-6 bg-[var(--border-color)]/60 mx-1" />
 
           {/* Snapping toggle */}
           <button
             onClick={onToggleSnapping}
             title={`Snapping: ${snappingEnabled ? 'ON' : 'OFF'}`}
-            className={`flex items-center justify-center w-10 h-10 rounded-md border transition-all ${
+            className={`flex items-center justify-center w-9 h-9 rounded-lg border transition-all hover:scale-[1.04] active:scale-[0.96] ${
               snappingEnabled
                 ? 'bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)]'
                 : 'border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
             }`}
           >
-            <Magnet className="w-4 h-4" />
+            <Magnet className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Active tool instructions + controls */}
         {activeToolConfig && (
-          <div className="px-4 py-2 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
-            <div className="flex items-start gap-2">
-              <Info className="w-3 h-3 text-[var(--accent)] shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <span className="font-mono text-[9px] text-[var(--accent)] uppercase tracking-[0.08em]">
+          <div className="px-4 py-2.5 border-t border-[var(--border-color)]/40 bg-[var(--bg-secondary)]/50">
+            <div className="flex items-start gap-2.5">
+              <Info className="w-3.5 h-3.5 text-[var(--accent)] shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-[240px] max-w-[320px]">
+                <span className="font-mono text-[9px] text-[var(--accent)] uppercase tracking-[0.12em] font-semibold">
                   {activeToolConfig.label}
                 </span>
-                <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{activeToolConfig.instructions}</p>
+                <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{activeToolConfig.instructions}</p>
 
                 {/* Offset distance slider */}
                 {activeTool === 'offset' && onOffsetDistanceChange && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">Distance:</span>
+                  <div className="flex items-center gap-2 mt-2 pt-1 border-t border-[var(--border-color)]/30">
+                    <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Distance:</span>
                     <input aria-label="Offset distance"
                       type="range"
                       min="1"
                       max="50"
                       value={offsetDistance}
                       onChange={e => onOffsetDistanceChange(parseFloat(e.target.value))}
-                      className="flex-1 max-w-[100px]"
+                      className="flex-1 h-1 bg-[var(--border-color)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
                     />
-                    <span className="font-mono text-[10px] text-[var(--text-primary)]">{offsetDistance}m</span>
+                    <span className="font-mono text-[10px] text-[var(--accent)] font-medium min-w-[28px] text-right">{offsetDistance}m</span>
                   </div>
                 )}
 
-                {/* AUDIT FIX (2026-07-05): Rotate angle slider.
-                    Was previously hardcoded to 15° with no user control. */}
+                {/* Rotate angle slider */}
                 {activeTool === 'rotate' && onRotateAngleChange && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">Angle:</span>
+                  <div className="flex items-center gap-2 mt-2 pt-1 border-t border-[var(--border-color)]/30">
+                    <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Angle:</span>
                     <input aria-label="Rotation angle"
                       type="range"
                       min="0"
@@ -241,15 +243,16 @@ export function DigitizingToolbar({
                       step="1"
                       value={rotateAngle}
                       onChange={e => onRotateAngleChange(parseFloat(e.target.value))}
-                      className="flex-1 max-w-[100px]"
+                      className="flex-1 h-1 bg-[var(--border-color)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
                     />
-                    <span className="font-mono text-[10px] text-[var(--text-primary)]">{rotateAngle}°</span>
+                    <span className="font-mono text-[10px] text-[var(--accent)] font-medium min-w-[32px] text-right">{rotateAngle}°</span>
                   </div>
                 )}
 
                 {/* Selected count indicator */}
                 {activeToolConfig.requiresSelection && (
-                  <p className="font-mono text-[9px] text-[var(--text-muted)] mt-1">
+                  <p className="font-mono text-[9px] text-[var(--text-muted)] mt-1.5 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-[var(--text-muted)]" />
                     {selectedCount} feature{selectedCount !== 1 ? 's' : ''} selected
                   </p>
                 )}

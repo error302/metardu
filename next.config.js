@@ -109,7 +109,7 @@ const nextConfig = {
       ...config.resolve.fallback,
       fs: false,
       path: false,
-      crypto: false,
+      crypto: isServer ? false : require.resolve('crypto-browserify'),
     }
 
     if (isServer) {

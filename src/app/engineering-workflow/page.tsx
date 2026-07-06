@@ -34,7 +34,7 @@ interface PipelineStep {
   href: string
   icon: typeof Route
   optional?: boolean
-  status: 'pending' | 'done'
+  status: string
 }
 
 const PIPELINE_STEPS: PipelineStep[] = [

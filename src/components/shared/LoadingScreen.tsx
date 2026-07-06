@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import MetarduLogo from '@/components/MetarduLogo'
 
 interface LoadingScreenProps {
   /** Show the loading screen */
@@ -78,48 +79,9 @@ export function LoadingScreen({
 
       {/* Center content */}
       <div className="relative z-10 flex flex-col items-center">
-        {/* Animated logo */}
-        <div className="relative mb-8">
-          <svg width="80" height="80" viewBox="0 0 80 80" className="animate-pulse">
-            <defs>
-              <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#D17B47" />
-                <stop offset="100%" stopColor="#FFB84D" />
-              </linearGradient>
-            </defs>
-            {/* Hexagon outline */}
-            <polygon
-              points="40,5 70,22.5 70,57.5 40,75 10,57.5 10,22.5"
-              fill="none"
-              stroke="url(#logo-gradient)"
-              strokeWidth="2"
-            />
-            {/* M letter */}
-            <path
-              d="M 22 55 L 22 30 L 30 30 L 40 45 L 50 30 L 58 30 L 58 55"
-              fill="none"
-              stroke="url(#logo-gradient)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            {/* Crosshair */}
-            <circle cx="40" cy="40" r="3" fill="#D17B47" />
-          </svg>
-
-          {/* Rotating ring */}
-          <svg className="absolute inset-0 w-full h-full animate-spin" style={{ animationDuration: '3s' }} viewBox="0 0 80 80">
-            <circle
-              cx="40"
-              cy="40"
-              r="36"
-              fill="none"
-              stroke="#D17B47"
-              strokeWidth="1"
-              strokeDasharray="5 10"
-              opacity="0.3"
-            />
-          </svg>
+        {/* Official logo */}
+        <div className="mb-8">
+          <MetarduLogo size={72} showWordmark={false} color="#D17B47" />
         </div>
 
         {/* Brand name */}

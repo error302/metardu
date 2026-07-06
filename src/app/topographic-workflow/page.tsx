@@ -35,7 +35,7 @@ interface PipelineStep {
   href: string
   icon: typeof Upload
   optional?: boolean
-  status: 'pending' | 'in-progress' | 'done'
+  status: string
 }
 
 const PIPELINE_STEPS: PipelineStep[] = [
