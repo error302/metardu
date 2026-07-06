@@ -120,7 +120,7 @@ services:
     restart: unless-stopped
 
   # Public exposure: bore.pub tunnel proxies port 3000 over TCP.
-  # Public URL: http://bore.pub:7777 — stable as long as this container runs.
+  # Public URL: http://bore.pub:7788 — stable as long as this container runs.
   metardu-bore:
     image: ekzhang/bore:latest
     container_name: metardu-bore
@@ -130,7 +130,7 @@ services:
       - "--to"
       - "bore.pub"
       - "--port"
-      - "7777"
+      - "7788"
       - "--local-host"
       - "metardu-app"
     restart: unless-stopped
