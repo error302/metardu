@@ -18,6 +18,7 @@ import {
 } from '@/lib/compute/tin';
 import { parsePly } from '@/lib/importers/parsers/ply';
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { VolumeTab } from './VolumeTab';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ interface ColumnMapping {
   name: number;
 }
 
-type TabId = 'import' | 'statistics' | 'slope' | 'tin';
+type TabId = 'import' | 'statistics' | 'slope' | 'tin' | 'volume';
 type SortColumn = 'name' | 'easting' | 'northing' | 'elevation';
 type SortDir = 'asc' | 'desc';
 
@@ -611,6 +612,7 @@ export default function PointCloudImportPage() {
     { id: 'statistics', label: 'Statistics & Preview', disabled: points.length === 0 },
     { id: 'slope', label: 'Slope Analysis', disabled: points.length < 3 },
     { id: 'tin', label: 'TIN & Volume', disabled: points.length < 3 },
+    { id: 'volume', label: 'Volume (Cut/Fill)', disabled: points.length < 3 },
   ];
 
   return (
@@ -1360,6 +1362,13 @@ export default function PointCloudImportPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Volume (Cut/Fill) Tab ── */}
+      {activeTab === 'volume' && (
+        <div className="max-w-2xl mx-auto">
+          <VolumeTab points={points.map(p => ({ easting: p.easting, northing: p.northing, elevation: p.elevation }))} />
         </div>
       )}
     </div>

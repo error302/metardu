@@ -24,6 +24,7 @@ import { GNSSQualityReport } from '@/components/survey/GNSSQualityReport'
 import { FieldbookAuditDrawer } from '@/components/fieldbook/FieldbookAuditDrawer'
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
 import { CheckCircle2 } from 'lucide-react'
+import { RealTimeQCPanel } from '@/components/survey/RealTimeQCPanel'
 
 /** useIsMobile — SSR-safe media-query hook (lg breakpoint = 1024px). */
 function useIsMobile() {
@@ -1142,6 +1143,20 @@ export default function DigitalFieldBookPage() {
               <button onClick={exportCSV} className="btn btn-secondary text-xs py-2">CSV</button>
               <button onClick={exportJSON} className="btn btn-secondary text-xs py-2">JSON</button>
             </div>
+          </div>
+
+          {/* AUDIT FIX (2026-07-05): Real-Time QC Panel — live closure monitor */}
+          <div className="card p-4">
+            <RealTimeQCPanel
+              observations={travRows.map((r, i) => ({
+                fromStation: r.station || `ST${i}`,
+                toStation: travRows[i + 1]?.station || `ST${i + 1}`,
+                bearing: r.bearing ? parseFloat(r.bearing) : undefined,
+                distance: r.slopeDist ? parseFloat(r.slopeDist) : undefined,
+              }))}
+              surveyClass="urban"
+              compact
+            />
           </div>
 
           {/* Saved fieldbooks — collapsible */}
