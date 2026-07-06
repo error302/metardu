@@ -19,7 +19,7 @@ import {
   Search, Star, Clock, ChevronRight, Calculator,
   Compass, Ruler, MapPin, FileText, Mountain,
   Waves, Building2, Navigation, Layers,
-  X, Activity,
+  X, Activity, Satellite, FileCheck, AlertTriangle, Building,
 } from 'lucide-react'
 
 interface Tool {
@@ -84,6 +84,12 @@ const TOOLS: Tool[] = [
   { id: 'gcp-optimizer', name: 'GCP Optimizer', description: 'Drone GCP planning + Pix4D export', category: 'Engineering', href: '/tools/gcp-optimizer', icon: MapPin, keywords: ['gcp', 'drone', 'pix4d', 'webodm', 'ground', 'control'] },
   { id: 'lsa', name: 'Least Squares', description: 'Parametric adjustment + error ellipses', category: 'Calculations', href: '/tools/lsa', icon: Calculator, keywords: ['least', 'squares', 'adjustment', 'lsa', 'control', 'network'] },
   { id: 'field-records', name: 'F/R Vault', description: 'Historic field record search', category: 'Documents', href: '/field-records', icon: FileText, keywords: ['field', 'record', 'fr', 'historic', 'archive', 'vault'] },
+  { id: 'staking-table', name: 'Staking Table', description: 'Batch staking + chainage schedule for setting out', category: 'Engineering', href: '/tools/staking-table', icon: MapPin, keywords: ['staking', 'setting', 'out', 'chainage', 'offset', 'alignment', 'curve'] },
+  { id: 'mass-haul', name: 'Mass Haul Optimization', description: 'Free-haul, overhaul, borrow/spoil analysis', category: 'Engineering', href: '/tools/mass-haul', icon: Mountain, keywords: ['mass', 'haul', 'overhaul', 'borrow', 'spoil', 'earthwork', 'cost'] },
+  { id: 'title-comparison', name: 'Title Dimension Check', description: 'Compare surveyed vs title deed dimensions', category: 'Validation', href: '/tools/title-comparison', icon: FileCheck, keywords: ['title', 'dimension', 'comparison', 'deed', 'mutation', 'discrepancy'] },
+  { id: 'boundary-dispute', name: 'Boundary Dispute Analysis', description: 'Overlay legal boundary vs physical occupation', category: 'Validation', href: '/tools/boundary-dispute', icon: AlertTriangle, keywords: ['boundary', 'dispute', 'encroachment', 'fence', 'occupation', 'legal'] },
+  { id: 'sectional-properties', name: 'Sectional Properties', description: 'Apartment units, parking, common areas per Act 2020', category: 'Documents', href: '/tools/sectional-properties', icon: Building, keywords: ['sectional', 'apartment', 'unit', 'floor', 'participation', 'quota'] },
+  { id: 'encumbrance', name: 'Encumbrance Registration', description: 'Wayleaves, easements, restrictions on parcels', category: 'Documents', href: '/tools/encumbrance', icon: FileText, keywords: ['encumbrance', 'wayleave', 'easement', 'restriction', 'caveat', 'kplc'] },
 ]
 
 const CATEGORIES = ['All', 'Calculations', 'Coordinates', 'Engineering', 'Volumes', 'Documents', 'Field Books', 'Validation']
@@ -335,6 +341,3 @@ function ToolRow({
     </div>
   )
 }
-
-// Import Satellite icon
-import { Satellite } from 'lucide-react'
