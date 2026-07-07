@@ -370,13 +370,20 @@ export interface SymbolicFactor {
  * Symbolic Cholesky factorization: compute the sparsity pattern of L given
  * the sparsity pattern of the (symmetric, lower-triangle-stored) matrix.
  *
- * Algorithm:
- *   1. Build column adjacency (non-zero rows below diagonal in each column)
- *   2. Compute elimination tree using Liu's algorithm with path compression
- *   3. Compute column patterns: pattern[L[:, j]] = {j} ∪ colAdj[j] ∪ (union of
- *      children's patterns, restricted to rows > j)
+ * Algorithm (Davis 2006, CSparse `cs_etree`):
+ *   1. For each column j (in increasing order), iterate over ROW j's
+ *      off-diagonal entries (c < j). For each such c, find the root of c's
+ *      subtree in the partial elimination tree (with path compression).
+ *      If the root is not j, attach it: parent[root] = j.
+ *   2. Build children list from parent array.
+ *   3. Compute column patterns: pattern[L[:, j]] = {j} ∪ colAdj[j] ∪
+ *      (union of children's patterns, restricted to rows > j).
  *
- * Reference: Davis (2006) Ch. 6 — "Symbolic factorization"
+ * The key insight: parent[j] = smallest i > j such that L[i, j] ≠ 0.
+ * The algorithm correctly captures fill-in because it uses the elimination
+ * tree (which encodes fill-in dependencies), not just the original adjacency.
+ *
+ * Reference: Davis (2006) Ch. 6 — "Symbolic factorization"; Liu (1990)
  */
 export function symbolicFactorize(M: SparseMatrix): SymbolicFactor {
   const n = M.rows
@@ -385,6 +392,7 @@ export function symbolicFactorize(M: SparseMatrix): SymbolicFactor {
   }
 
   // Build column adjacency: colAdj[j] = list of rows r > j where M[r, j] != 0
+  // (used later for column pattern computation)
   const colAdj: number[][] = new Array(n).fill(null).map(() => [])
   for (let r = 0; r < n; r++) {
     for (let idx = M.rowPtr[r]; idx < M.rowPtr[r + 1]; idx++) {
@@ -395,56 +403,60 @@ export function symbolicFactorize(M: SparseMatrix): SymbolicFactor {
     }
   }
 
-  // Compute elimination tree (Liu's algorithm with path compression)
+  // Compute elimination tree using Liu/Davis algorithm with path compression.
+  // ancestor[i] = root of i's subtree in the partial tree (initially i itself).
   const parent = new Array(n).fill(-1)
-  const ancestor = new Array(n).fill(-1) // path-compression "w" array
+  const ancestor = new Array(n).fill(0).map((_, i) => i)
 
-  for (let k = 0; k < n; k++) {
-    for (const i of colAdj[k]) {
-      // Walk up i's subtree with path compression
-      let root = i
-      while (ancestor[root] !== -1) {
-        const a = ancestor[root]
-        // Path compression: point root directly to grandparent if it exists
-        if (ancestor[a] !== -1) {
-          ancestor[root] = ancestor[a]
-        }
-        root = a
-      }
-      // root is now the topmost visited ancestor of i
-      if (root !== k && parent[root] === -1) {
-        parent[root] = k
-        ancestor[root] = k
-      }
-    }
-  }
-
-  // Build children list (children[j] = list of c with parent[c] = j)
-  const children: number[][] = new Array(n).fill(null).map(() => [])
   for (let j = 0; j < n; j++) {
-    if (parent[j] !== -1) {
-      children[parent[j]].push(j)
+    // Iterate over ROW j's off-diagonal entries (c < j) — these are entries
+    // M[j, c] in the lower triangle, which equal M[c, j] in the full matrix.
+    for (let idx = M.rowPtr[j]; idx < M.rowPtr[j + 1]; idx++) {
+      const c = M.colIdx[idx]
+      if (c >= j) continue // skip diagonal and upper (shouldn't have upper in lower-triangle storage)
+
+      // Find root of c's subtree with path compression
+      let root = c
+      while (ancestor[root] !== root) {
+        ancestor[root] = ancestor[ancestor[root]] // path compression
+        root = ancestor[root]
+      }
+      if (root !== j) {
+        ancestor[root] = j
+        parent[root] = j
+      }
     }
   }
 
-  // Compute column patterns in DECREASING order (children before parents)
+  // Compute column patterns using the elimination tree.
+  //
+  // Theorem (Liu 1990): L[i, j] ≠ 0 (for i > j) iff i is an ancestor of j in
+  // the elimination tree (i.e., j is reachable from i by following parent[]
+  // backwards, equivalently i appears on the path from j to the root).
+  //
+  // Therefore: pattern(L[:, j]) = {j} ∪ {ancestors of j}.
+  //
+  // This captures BOTH original non-zeros AND fill-in, because the elimination
+  // tree is constructed to encode the dependency structure.
+  //
+  // Note: the related formula "pattern(L[:, j]) = {j} ∪ ⋃_{c ∈ children[j]} pattern(L[:, c])"
+  // actually computes the ROW pattern pattern(L[j, :]) (transposed), not the
+  // column pattern. Don't confuse them.
   const colRows: number[][] = new Array(n).fill(null).map(() => [])
   const colCount: number[] = new Array(n).fill(0)
 
-  for (let j = n - 1; j >= 0; j--) {
-    const rows = new Set<number>([j])
-    // Column j of M's non-zeros (rows > j)
-    for (const r of colAdj[j]) {
-      rows.add(r)
+  for (let j = 0; j < n; j++) {
+    const rows: number[] = [j]
+    // Walk up the elimination tree from j, collecting all ancestors
+    let p = parent[j]
+    while (p !== -1) {
+      rows.push(p)
+      p = parent[p]
     }
-    // Children's patterns (restricted to rows > j)
-    for (const c of children[j]) {
-      for (const r of colRows[c]) {
-        if (r > j) rows.add(r)
-      }
-    }
-    colRows[j] = Array.from(rows).sort((a, b) => a - b)
-    colCount[j] = colRows[j].length
+    // Sort ascending (required for Cholesky algorithm)
+    rows.sort((a, b) => a - b)
+    colRows[j] = rows
+    colCount[j] = rows.length
   }
 
   return { n, parent, colRows, colCount }
@@ -491,29 +503,30 @@ export function cholesky(M: SparseMatrix, symbolic: SymbolicFactor): SparseChole
 
   for (let j = 0; j < n; j++) {
     const rows = symbolic.colRows[j] // sorted, includes j and rows > j
+    const rowSet = new Set(rows) // for O(1) membership test
 
-    // Step 1: Initialize work with column j of M
+    // Step 1: Initialize work with column j of M (only for rows in pattern)
     const work = new Map<number, number>()
     for (const r of rows) {
-      // M[r, j] for r >= j
-      // For symmetric lower-triangle CSR, M[r, j] is stored as entry (r, j) in row r if r >= j
+      // M[r, j] for r >= j (lower triangle, stored as M[r, j] in row r)
       const v = mLookup[r].get(j) ?? 0
       if (v !== 0) work.set(r, v)
     }
 
     // Step 2: Subtract contributions from previously computed columns
-    // For each k < j such that L[j, k] != 0 (i.e., column k of L has entry at row j):
-    //   For each r in column k of L's pattern with r >= j:
+    // For each k < j such that L[j, k] != 0:
+    //   For each r in column k of L's pattern with r >= j AND r in column j's pattern:
     //     work[r] -= L[j, k] * L[r, k]
     //
-    // Iterate k from 0 to j-1; check if L[j, k] != 0 via lColumns[k].get(j)
+    // The constraint "r in column j's pattern" is essential — otherwise we'd add
+    // spurious entries to work that aren't structurally present in L[:, j].
     for (let k = 0; k < j; k++) {
       const ljk = lColumns[k].get(j)
       if (ljk === undefined || ljk === 0) continue
 
-      // For each row r in column k of L's pattern with r >= j, subtract L[j, k] * L[r, k]
+      // Iterate over column k of L's entries; only update rows in column j's pattern
       for (const [r, lrk] of lColumns[k]) {
-        if (r >= j) {
+        if (r >= j && rowSet.has(r)) {
           work.set(r, (work.get(r) ?? 0) - ljk * lrk)
         }
       }
@@ -730,8 +743,49 @@ export function diagonal(M: SparseMatrix): number[] {
 }
 
 /**
+ * Add a scalar to the diagonal of a (symmetric, lower-triangle-stored) matrix.
+ *
+ * Used for Tikhonov regularization: N + εI makes a rank-deficient normal
+ * matrix invertible while preserving the constrained (minimum-norm) solution.
+ */
+export function addDiagonal(M: SparseMatrix, epsilon: number): SparseMatrix {
+  const n = M.rows
+  // Copy and add ε to diagonal entries
+  const newRowPtr = [...M.rowPtr]
+  const newColIdx = [...M.colIdx]
+  const newValues = [...M.values]
+
+  for (let r = 0; r < n; r++) {
+    let foundDiag = false
+    for (let idx = M.rowPtr[r]; idx < M.rowPtr[r + 1]; idx++) {
+      if (M.colIdx[idx] === r) {
+        newValues[idx] = M.values[idx] + epsilon
+        foundDiag = true
+        break
+      }
+    }
+    if (!foundDiag) {
+      // Insert diagonal entry — need to shift everything after this row
+      // For simplicity, rebuild via triplets
+      const triplets: Array<{ row: number; col: number; value: number }> = []
+      for (let r2 = 0; r2 < n; r2++) {
+        for (let idx = M.rowPtr[r2]; idx < M.rowPtr[r2 + 1]; idx++) {
+          triplets.push({ row: r2, col: M.colIdx[idx], value: M.values[idx] })
+        }
+        triplets.push({ row: r2, col: r2, value: epsilon })
+      }
+      return fromTriplets(n, M.cols, triplets, M.symmetric)
+    }
+  }
+  return { rows: n, cols: M.cols, rowPtr: newRowPtr, colIdx: newColIdx, values: newValues, symmetric: M.symmetric }
+}
+
+/**
  * Selective inversion: compute only the diagonal of M⁻¹ without computing
  * the full inverse. Returns the diagonal entries.
+ *
+ * Accepts either the original matrix M (will factor internally) or a
+ * pre-computed Cholesky factor (preferred — saves refactoring).
  *
  * Uses Takahashi's method: compute Z = L⁻ᵀ (upper triangular) by back-substitution,
  * starting from the last column. The diagonal of M⁻¹ = Σ_k Z[i, k]² for each i.
@@ -742,11 +796,15 @@ export function diagonal(M: SparseMatrix): number[] {
  * Inverse of a Sparse Matrix"
  */
 export function sparseInverseDiagonal(
-  M: SparseMatrix,
+  M: SparseMatrix | null,
   factor?: SparseCholesky,
 ): number[] {
-  const n = M.rows
-  const { L, symbolic } = factor ?? cholesky(M, symbolicFactorize(M))
+  if (!factor) {
+    if (!M) throw new Error('sparseInverseDiagonal requires either M or a pre-computed factor')
+    factor = cholesky(M, symbolicFactorize(M))
+  }
+  const n = factor.n
+  const { L, symbolic } = factor
 
   // Build column-major access for L: colEntries[c] = list of {row, val} for column c
   const colEntries: Array<Array<{ row: number; val: number }>> = new Array(n).fill(null).map(() => [])
