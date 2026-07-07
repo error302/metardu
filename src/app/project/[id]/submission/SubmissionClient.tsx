@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { CheckCircle2 } from 'lucide-react'
 import { z } from 'zod';
 import { createClient } from '@/lib/api-client/client';
 import { apiGet, apiPost, apiInvalidate, ApiError } from '@/lib/api/client';
@@ -213,7 +214,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
   const getStatusIcon = (status: DocumentStatus) => {
     switch (status) {
       case 'ready':
-        return '[OK]';
+        return '<CheckCircle2 className="w-3.5 h-3.5 inline shrink-0" /> ';
       case 'generating':
         return '[Sync]';
       case 'error':

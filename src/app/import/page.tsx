@@ -1,5 +1,6 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/api-client/client'
 import { detectTotalStationFormat, TotalStationFormat } from '@/lib/import/totalStation/detectFormat'
 import { parseGSI } from '@/lib/import/totalStation/parseGSI'
@@ -262,7 +263,7 @@ export default function ImportPage() {
                 {warnings.length > 0 && (
                   <div className="bg-amber-900/20 border border-amber-500/50 rounded p-3 mb-4">
                     {warnings.map((w, i) => (
-                      <p key={`${w}-${i}`} className="text-amber-400 text-sm">[!] {w}</p>
+                      <p key={`${w}-${i}`} className="text-amber-400 text-sm"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> {w}</p>
                     ))}
                   </div>
                 )}

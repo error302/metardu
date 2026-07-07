@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { manningPipeCapacity, rationalMethodCatchment, manningChannelCapacity, sizePipe, MANNING_N, RUNOFF_COEFFICIENTS, STANDARD_PIPE_SIZES } from '@/lib/engineering/drainageDesign'
 
 type Tab = 'pipe' | 'catchment' | 'channel'
@@ -135,7 +136,7 @@ function PipeSizingTab() {
       {/* Warning banner */}
       {hasWarning && (
         <div className="bg-amber-950/50 border border-amber-700 rounded-lg p-3 text-sm text-amber-300">
-          [!] Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
+          <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
         </div>
       )}
 
@@ -303,7 +304,7 @@ function CatchmentTab() {
       {/* Warning banner */}
       {hasWarning && (
         <div className="bg-amber-950/50 border border-amber-700 rounded-lg p-3 text-sm text-amber-300">
-          [!] Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
+          <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
         </div>
       )}
 
@@ -431,7 +432,7 @@ function ChannelTab() {
       {/* Warning banner */}
       {hasWarning && (
         <div className="bg-amber-950/50 border border-amber-700 rounded-lg p-3 text-sm text-amber-300">
-          [!] Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
+          <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
         </div>
       )}
 

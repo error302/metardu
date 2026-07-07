@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AlertTriangle } from 'lucide-react'
 import { ENGINEERING_QA, type EngineeringSubtype, computeHorizontalCurve, computeVerticalCurve, crossSectionCutFill, prismoidalVolume } from '@/lib/engine/engineering';
 
 interface EngineeringPanelProps {
@@ -141,7 +142,7 @@ export function RailwayPanel({ projectId, subtype }: EngineeringPanelProps) {
           ))}
           {minRadiusWarning && (
             <div className="mt-2 p-2 bg-amber-900/50 border border-amber-700 rounded-lg text-sm text-amber-400">
-              [!] Minimum curve radius R &lt; 200m for V ≤ 60km/h
+              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Minimum curve radius R &lt; 200m for V ≤ 60km/h
             </div>
           )}
         </div>
@@ -161,7 +162,7 @@ export function RailwayPanel({ projectId, subtype }: EngineeringPanelProps) {
           ))}
           {gradientWarning && (
             <div className="mt-2 p-2 bg-amber-900/50 border border-amber-700 rounded-lg text-sm text-amber-400">
-              [!] Gradient exceeds maximum {maxGradientPercent}%
+              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Gradient exceeds maximum {maxGradientPercent}%
             </div>
           )}
         </div>

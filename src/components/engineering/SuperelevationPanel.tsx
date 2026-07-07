@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { AlertTriangle } from 'lucide-react'
 import { superelevationCalc, type SuperelevationResult, logEngineeringCompute } from '@/lib/engineering/compute';
 import { z } from 'zod';
 import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers';
@@ -173,7 +174,7 @@ export default function SuperelevationPanel({
           <p className="text-red-400 text-sm font-semibold mb-1">Standards Violations</p>
           <ul className="text-red-400 text-xs space-y-0.5">
             {validations.issues.map((issue, i) => (
-              <li key={`${issue}-${i}`}>[!] {issue}</li>
+              <li key={`${issue}-${i}`}><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> {issue}</li>
             ))}
           </ul>
         </div>

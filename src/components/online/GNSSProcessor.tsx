@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, FileText, MapPin, Download, Loader2 } from 'lucide-react'
+import { Upload, FileText, MapPin, Download, Loader2 , AlertTriangle } from 'lucide-react'
 import type { GNSSBaseline } from '@/types/gnss'
 
 interface FileWithLabel {
@@ -200,7 +200,7 @@ export default function GNSSProcessor({ projectId = '' }: { projectId?: string }
             {fixedCount === results.length ? (
               <span className="text-green-700"> All baselines fixed — First Order accuracy achieved</span>
             ) : (
-              <span className="text-amber-700">[!] Some baselines are float solutions — not suitable for cadastral work</span>
+              <span className="text-amber-700"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Some baselines are float solutions — not suitable for cadastral work</span>
             )}
           </div>
 
@@ -226,7 +226,7 @@ export default function GNSSProcessor({ projectId = '' }: { projectId?: string }
                     <td className="p-3 text-right font-mono">{r.distance.toFixed(3)}</td>
                     <td className="p-3 text-right font-mono">{(r.rmsError * 1000).toFixed(1)}mm</td>
                     <td className="p-3 text-right font-mono">{r.ratio.toFixed(1)}</td>
-                    <td className="p-3 text-center">{r.fixed ? '' : '[!]'}</td>
+                    <td className="p-3 text-center">{r.fixed ? '' : '<AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> '}</td>
                     <td className="p-3 text-center">{r.qualityClass}</td>
                   </tr>
                 ))}

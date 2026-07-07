@@ -172,7 +172,7 @@ export function ResultPanel({
                     </div>
                   </div>
                   <p className="text-[10px] text-[var(--text-muted)]">
-                    [!] Approximate — datum shift from Arc 1960 to WGS84 not applied (~10–30 m)
+                    <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Approximate — datum shift from Arc 1960 to WGS84 not applied (~10–30 m)
                   </p>
                 </div>
               </div>

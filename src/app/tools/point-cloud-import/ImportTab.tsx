@@ -1,6 +1,7 @@
 'use client';
 
 import type React from 'react';
+import { AlertTriangle } from 'lucide-react'
 import { MAX_POINTS } from './constants';
 import type { BoundingBox, ImportStats, ImportedPoint, ParseError } from './types';
 import { fmt } from './helpers';
@@ -174,7 +175,7 @@ export default function ImportTab({
       {/* Warnings */}
       {warningMsg && (
         <div className="p-4 bg-yellow-900/30 border border-yellow-600 rounded text-yellow-400 text-sm">
-          [!] {warningMsg}
+          <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> {warningMsg}
         </div>
       )}
 

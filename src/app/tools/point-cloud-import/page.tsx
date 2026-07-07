@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { AlertTriangle } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader';
 import {
   analyzeSlopeFromPoints,
@@ -779,7 +780,7 @@ export default function PointCloudImportPage() {
           {/* Warnings */}
           {warningMsg && (
             <div className="p-4 bg-yellow-900/30 border border-yellow-600 rounded text-yellow-400 text-sm">
-              [!] {warningMsg}
+              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> {warningMsg}
             </div>
           )}
 

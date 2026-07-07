@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { computeTraverse, type RawObservation, type TraverseComputationResult } from '@/lib/computations/traverseEngine'
 import { parseTraverseCSV } from '@/lib/parsers/totalStation'
@@ -596,7 +597,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
           {/* Regulatory warning when no closing control */}
           {(!closingE || !closingN) && (
             <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
-              [!] CLOSING CONTROL IS MANDATORY — Without closing control coordinates, this is a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A cadastral traverse must close between two previously fixed stations (minimum 2 distinct known control points). Enter closing control point coordinates above.
+              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> CLOSING CONTROL IS MANDATORY — Without closing control coordinates, this is a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A cadastral traverse must close between two previously fixed stations (minimum 2 distinct known control points). Enter closing control point coordinates above.
             </div>
           )}
           {/* Warning when closing = opening (1-point traverse) */}
@@ -604,7 +605,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
             Math.abs(parseFloat(closingE) - parseFloat(openingE)) + Math.abs(parseFloat(closingN) - parseFloat(openingN)) < 0.001
           ) && (
             <div className="p-3 bg-amber-900/30 border border-amber-600 rounded text-amber-400 text-sm">
-              [!] Closing point is the SAME as opening point — this is a 1-point traverse with no absolute position check. For cadastral surveys, minimum 2 DISTINCT known control points are required. The traverse could be shifted/rotated from true position undetected.
+              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Closing point is the SAME as opening point — this is a 1-point traverse with no absolute position check. For cadastral surveys, minimum 2 DISTINCT known control points are required. The traverse could be shifted/rotated from true position undetected.
             </div>
           )}
 

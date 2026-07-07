@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react'
-import { Download } from 'lucide-react'
+import { Download , AlertTriangle } from 'lucide-react'
 import { inverseComputation, polarComputation, intersectionComputation, resectionComputation, areaComputation, joinComputation, distanceDistanceIntersection, bearingDistanceIntersection, arcByRadiusAndChord, type InverseStep, type DistDistResult, type BearingDistResult, type ArcResult } from '@/lib/computations/cogoEngine'
 import { downloadCSV, toCSV } from '@/lib/export/helpers'
 
@@ -760,7 +760,7 @@ export default function COGOCalculator({ compact = false }: Props) {
               <h2 className="font-semibold text-sm">Working — Tienstra Resection</h2>
               {resResult.isDangerCircle && (
                 <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
-                  [!] DANGER CIRCLE WARNING — K₁+K₂+K₃ ≈ 0. Point P is approximately on the circumcircle of triangle ABC. Results may be unreliable. Consider changing observation setup.
+                  <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> DANGER CIRCLE WARNING — K₁+K₂+K₃ ≈ 0. Point P is approximately on the circumcircle of triangle ABC. Results may be unreliable. Consider changing observation setup.
                 </div>
               )}
               <StepsDisplay steps={resResult.steps} />

@@ -664,7 +664,7 @@ export function MobileFieldbookShell({
               <div className="p-4 border-t border-[var(--border-color)] space-y-3 bg-[var(--bg-secondary)]/25">
                 {!computed.ok ? (
                   <div className="p-3 bg-red-950/20 border border-red-500/30 rounded-lg text-xs text-red-300 space-y-1">
-                    <div className="font-semibold text-red-400">[!] Calculation Errors:</div>
+                    <div className="font-semibold text-red-400"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Calculation Errors:</div>
                     {computed.errors.map((e: string, i: number) => (
                       <div key={`item-${i}`} className="list-item ml-3">{e}</div>
                     ))}
@@ -694,7 +694,7 @@ export function MobileFieldbookShell({
                       <>
                         {computed.mode === 'open' ? (
                           <div className="p-3 bg-yellow-950/20 border border-yellow-500/30 rounded-lg text-xs text-yellow-350">
-                            [!] Open Traverse: No closing coordinate check. Prohibited for legal land boundary surveys under Reg 67.
+                            <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Open Traverse: No closing coordinate check. Prohibited for legal land boundary surveys under Reg 67.
                           </div>
                         ) : (
                           <div className="grid grid-cols-2 gap-2 text-xs">

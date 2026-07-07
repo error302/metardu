@@ -112,7 +112,7 @@ export default function EquipmentTracker() {
       {overdueCount > 0 && (
         <div className="p-4 bg-red-100 border border-red-200 rounded-lg">
           <p className="text-red-800 font-medium">
-            [!] Calibration overdue. Survey Regulations 1994 Reg 5 requires current
+            <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Calibration overdue. Survey Regulations 1994 Reg 5 requires current
             calibration for all survey instruments. This equipment should not be used
             for licensed surveys until recalibrated.
           </p>

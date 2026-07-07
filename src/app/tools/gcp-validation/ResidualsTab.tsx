@@ -5,6 +5,7 @@
 // Extracted from src/app/tools/gcp-validation/page.tsx.
 
 import type { KnownGCP, ResidualFormat, ResidualRow } from './types';
+import { AlertTriangle } from 'lucide-react'
 import { fmt } from './helpers';
 
 interface ResidualsTabProps {
@@ -214,7 +215,7 @@ GCP-01,1234.5,567.8,120.485,484500,9863100,120.500,
                     <tr key={r.id} className={isMatched ? '' : 'opacity-50'}>
                       <td className="font-semibold">
                         {r.name}
-                        {!isMatched && <span className="ml-2 text-xs text-red-400">[!] no match</span>}
+                        {!isMatched && <span className="ml-2 text-xs text-red-400"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> no match</span>}
                       </td>
                       <td className="text-xs text-[var(--text-muted)]">{r.source === 'pix4d' ? 'Pix4D' : 'Agisoft'}</td>
                       <td className="font-mono">{fmt(r.softwareE)}</td>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import {
   processBaselineFile,
@@ -174,7 +175,7 @@ export default function GNSSBaselinePage() {
             )}
             {validation.warnings.length > 0 && (
               <ul className="text-sm text-yellow-400 space-y-1 mt-2">
-                {validation.warnings.map((w, i) => <li key={`${w}-${i}`}>[!] {w}</li>)}
+                {validation.warnings.map((w, i) => <li key={`${w}-${i}`}><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> {w}</li>)}
               </ul>
             )}
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import type { Dispatch, SetStateAction } from 'react'
 import { reduceEDMObservation, computeMeanAngleDMS as sharedMeanAngleDMS } from '@/lib/survey/adapter'
 import { parseFieldAngle } from '@/lib/engine/angles'
@@ -190,7 +191,7 @@ export function TraverseBook({
             </div>
           ) : (
             <div className={`p-3 border rounded text-xs flex items-center ${travMode === 'open' ? 'bg-red-900/20 border-red-600 text-red-400' : 'bg-[var(--bg-primary)]/40 border-[var(--border-color)] text-[var(--text-muted)]'}`}>
-              {travMode === 'closed' ? t('traverse.closedHint') : '[!] Open traverse: No closing control — prohibited for cadastral surveys per Reg. 67 (swinging traverse). Use link or closed mode instead.'}
+              {travMode === 'closed' ? t('traverse.closedHint') : '<AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Open traverse: No closing control — prohibited for cadastral surveys per Reg. 67 (swinging traverse). Use link or closed mode instead.'}
             </div>
           )}
         </div>

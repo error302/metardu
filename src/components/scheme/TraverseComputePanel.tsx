@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import {
   Plus, Trash2, Save, Loader2, CheckCircle2, AlertCircle,
   X, ChevronDown, ChevronUp
-} from 'lucide-react'
+, AlertTriangle } from 'lucide-react'
 import { z } from 'zod'
 import { apiGet, apiPost, ApiError } from '@/lib/api/client'
 
@@ -263,7 +263,7 @@ export default function TraverseComputePanel({ parcelId }: { parcelId: number })
 
           {!config.is_closed && (
             <div className="p-2 bg-red-900/30 border border-red-600 rounded text-red-400 text-xs">
-              [!] Without closing control, this is a swinging traverse — prohibited by Survey Regulations Reg. 67. Enable "Closed Traverse" and provide closing coordinates.
+              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Without closing control, this is a swinging traverse — prohibited by Survey Regulations Reg. 67. Enable "Closed Traverse" and provide closing coordinates.
             </div>
           )}
 

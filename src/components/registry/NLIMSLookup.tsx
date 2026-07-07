@@ -123,7 +123,7 @@ export default function NLIMSLookup({ initialParcel = '', onParcelVerified }: NL
           {result.parcel.status === 'DISPUTED' && (
             <div className="p-4 bg-red-100 border-b border-red-200">
               <p className="text-red-800 font-medium">
-                [!] This parcel has a registered dispute. Proceed only with written 
+                <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> This parcel has a registered dispute. Proceed only with written 
                 instruction from client. Cite: Survey Act Cap 299 s.22
               </p>
             </div>

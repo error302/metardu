@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
-import { Eye, EyeOff, ArrowLeft, CheckCircle2, ShieldCheck, WifiOff } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, CheckCircle2, ShieldCheck, WifiOff , AlertTriangle } from 'lucide-react'
 import MetarduLogo from '@/components/MetarduLogo'
 import Image from 'next/image'
 
@@ -295,7 +295,7 @@ function LoginForm() {
                   <form onSubmit={handleLogin} className="space-y-5">
                     {error && (
                       <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-sm flex items-start gap-2">
-                        <span className="mt-0.5">[!]</span>
+                        <span className="mt-0.5"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /></span>
                         <span>{error}</span>
                       </div>
                     )}

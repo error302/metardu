@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react'
+import { AlertTriangle , CheckCircle2 } from 'lucide-react'
 import { adjustNetwork, Station, Observation, AdjustmentResult } from '@/lib/survey/networkAdjustment'
 import { generateNetworkDXF } from '@/lib/survey/networkAdjustmentDXF'
 import { ErrorEllipseCanvas } from './ErrorEllipseCanvas'
@@ -450,7 +451,7 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
         <section className="space-y-5">
           <div className={`p-4 rounded-lg border ${result.passedTolerance ? 'bg-green-900/30 border-green-700' : 'bg-amber-900/30 border-amber-700'}`}>
             <h3 className="font-semibold mb-2 text-white">
-              {result.passedTolerance ? '[OK] Adjustment Passed' : '[!] Adjustment — Check Residuals'}
+              {result.passedTolerance ? '<CheckCircle2 className="w-3.5 h-3.5 inline shrink-0" /> Adjustment Passed' : '<AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Adjustment — Check Residuals'}
             </h3>
             <div className="grid grid-cols-3 gap-4 text-sm text-zinc-300">
               <div><span className="text-zinc-500">σ₀ (ref std dev)</span><br /><strong>{result.sigmaZero.toFixed(4)}</strong></div>

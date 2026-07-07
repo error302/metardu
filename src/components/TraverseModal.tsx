@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/api-client/client'
 import { bowditchAdjustment } from '@/lib/engine/traverse'
 import { dmsToDecimal, decimalToDMS, bearingToString } from '@/lib/engine/angles'
@@ -1164,7 +1165,7 @@ export default function TraverseModal({
 
               {!hasClosingControl && (
                 <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
-                  [!] Without a closing control point, this becomes a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A traverse must close between two previously fixed stations.
+                  <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Without a closing control point, this becomes a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A traverse must close between two previously fixed stations.
                 </div>
               )}
             </div>
@@ -1260,7 +1261,7 @@ export default function TraverseModal({
                       <tr key={`${leg}-${idx}`} className={`border-b border-[var(--border-color)]/50 ${isBlunderRow ? 'bg-red-900/30' : ''}`}>
                         <td className={`px-2 py-2 font-mono ${isBlunderRow ? 'text-red-400' : 'text-[var(--text-primary)]'}`}>
                           {leg.from} → {leg.to}
-                          {isBlunderRow && <span className="ml-2 text-red-400">[!]</span>}
+                          {isBlunderRow && <span className="ml-2 text-red-400"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /></span>}
                         </td>
                         <td className="px-2 py-2 text-right font-mono text-[var(--text-primary)]">{leg.distance.toFixed(3)}</td>
                         <td className="px-2 py-2 font-mono text-[var(--text-primary)]">{leg.bearingDMS}</td>
@@ -1305,7 +1306,7 @@ export default function TraverseModal({
                         />
                       </div>
                       <span className="w-12 text-right">{b.contribution}%</span>
-                      {b.isBlunder && <span className="text-red-400">[!] CHECK</span>}
+                      {b.isBlunder && <span className="text-red-400"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> CHECK</span>}
                       {!b.isBlunder && !b.distanceMismatch && <span className="text-green-400"> OK</span>}
                     </div>
                   ))}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { interpretCSV, CSVInterpretResult } from '@/lib/parsers/csvSurveyInterpreter'
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
@@ -418,7 +419,7 @@ export default function ProcessPage() {
               {interpretResult.warnings.length > 0 && (
                 <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded">
                   {interpretResult.warnings.map((w, i) => (
-                    <p key={`warn-${i}`} className="text-sm text-yellow-400">[!] {w}</p>
+                    <p key={`warn-${i}`} className="text-sm text-yellow-400"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> {w}</p>
                   ))}
                 </div>
               )}
@@ -630,7 +631,7 @@ export default function ProcessPage() {
               {interpretResult?.error || 'Could not parse the uploaded file'}
             </p>
             {interpretResult?.warnings.map((w, i) => (
-              <p key={`warn2-${i}`} className="text-sm text-yellow-400">[!] {w}</p>
+              <p key={`warn2-${i}`} className="text-sm text-yellow-400"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> {w}</p>
             ))}
             
             <div className="mt-6 p-4 bg-[var(--bg-tertiary)] rounded">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { bowditchAdjustment, transitAdjustment } from '@/lib/engine/traverse'
 import { trackEvent } from '@/lib/analytics/events'
@@ -553,7 +554,7 @@ ${azmSection}`
                 <ResultRow label="Allowable (RDM 1.1)"    value="≤ 3.0″ per station" />
                 {azmResult.coursesWarning && (
                   <div className="rounded p-3 bg-amber-900/20 border border-amber-700 text-xs text-amber-300">
-                    [!] {azmResult.numCourses} courses — RDM 1.1 requires an azimuth check every 15 courses maximum.
+                    <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> {azmResult.numCourses} courses — RDM 1.1 requires an azimuth check every 15 courses maximum.
                   </div>
                 )}
                 <div className={`mt-1 p-3 rounded-lg text-center ${azmResult.passes

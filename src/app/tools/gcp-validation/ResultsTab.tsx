@@ -5,6 +5,7 @@
 // Extracted from src/app/tools/gcp-validation/page.tsx.
 
 import type { AccuracyClass, ValidationSummary } from './types';
+import { AlertTriangle } from 'lucide-react'
 import { fmt } from './helpers';
 
 interface ResultsTabProps {
@@ -105,7 +106,7 @@ export function ResultsTab({
           {/* Unmatched warning */}
           {validationSummary.unmatchedNames.length > 0 && (
             <div className="p-4 bg-amber-900/30 border border-amber-600 rounded text-sm">
-              <span className="text-amber-400 font-semibold">[!] Unmatched GCPs: </span>
+              <span className="text-amber-400 font-semibold"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Unmatched GCPs: </span>
               <span className="text-[var(--text-secondary)]">
                 {validationSummary.unmatchedNames.join(', ')} — not found in known coordinates table.
                 Check that names match exactly (case-sensitive).
