@@ -21,7 +21,7 @@ export const MapCoordSearch = memo(function MapCoordSearch() {
   }, [searchInput, handleCoordSearch])
 
   return (
-    <div className="absolute top-3 left-14 z-20 md:left-14">
+    <div className="absolute top-3 left-[344px] z-20 md:left-[344px]">
       <div className="relative">
         <input
           type="text"

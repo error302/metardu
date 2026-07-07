@@ -1415,7 +1415,7 @@ export default function MapClient() {
                       }
                     }
                   }}
-                  className="absolute bottom-20 left-3 z-20 flex items-center justify-center w-12 h-12 rounded-xl bg-[#0d0d14]/70 backdrop-blur-xl border border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:text-[#D17B47] hover:border-[#D17B47]/30 transition-all shadow-lg"
+                  className="absolute bottom-20 left-16 z-20 sm:left-3 flex items-center justify-center w-12 h-12 rounded-xl bg-[#0d0d14]/70 backdrop-blur-xl border border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:text-[#D17B47] hover:border-[#D17B47]/30 transition-all shadow-lg"
                   title="Launch stakeout radar for beacon recovery"
                   aria-label="Stakeout radar"
                 >
