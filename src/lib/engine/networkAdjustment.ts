@@ -81,6 +81,7 @@ export type ObservationType =
   | 'slope_distance'
   | 'zenith_angle'
   | 'height_difference'
+  | 'gnss_baseline'
 
 export type Dimension = '2D' | '3D'
 
@@ -106,6 +107,32 @@ export interface NetworkObservation {
   sigma: number
   /** Optional explicit weight (overrides 1/sigma²). */
   weight?: number
+  /**
+   * GNSS baseline 3×3 covariance matrix (lower triangle, row-major).
+   * Required for type='gnss_baseline'. Provides full 3D correlation
+   * between ΔE, ΔN, ΔU components.
+   *
+   * Format: [C_EE, C_EN, C_NN, C_EU, C_NU, C_UU] (6 entries, lower triangle)
+   * Units: m²
+   *
+   * When provided, the baseline is whitened via Cholesky decomposition
+   * before being added to the design matrix. This decouples the 3
+   * correlated components into 3 independent observations with weight 1.
+   *
+   * If not provided, defaults to diagonal σ² for each component.
+   */
+  covariance3x3?: [number, number, number, number, number, number]
+  /**
+   * For 'gnss_baseline': the 3 components of the baseline vector.
+   * deltaE = E_to - E_from (m)
+   * deltaN = N_to - N_from (m)
+   * deltaU = U_to - U_from (m, ellipsoidal height)
+   *
+   * The `value` field is ignored for gnss_baseline; these three are used instead.
+   */
+  deltaE?: number
+  deltaN?: number
+  deltaU?: number
 }
 
 export interface NetworkAdjustmentOptions {
@@ -344,6 +371,9 @@ function buildDesignMatrix(
   const P: number[] = []
   const observationMetadata: DesignMatrixBuild['observationMetadata'] = []
 
+  // Row counter — GNSS baselines contribute 3 rows each, others 1 row
+  let rowIdx = 0
+
   for (let i = 0; i < observations.length; i++) {
     const obs = observations[i]
     const from = currentCoords.get(obs.from)
@@ -361,7 +391,6 @@ function buildDesignMatrix(
     const toIdx = pointIndex.get(obs.to)
     const atIdx = obs.at ? pointIndex.get(obs.at) : undefined
 
-    // Skip observations involving only fixed points (no contribution to adjustment)
     // Note: use `=== undefined` not `!idx` — idx can be 0 (first adjustable point),
     // which is falsy but valid.
     const fromIsFixed = fromIdx === undefined || points.get(obs.from)?.fixed === true
@@ -369,6 +398,134 @@ function buildDesignMatrix(
     const atIsFixed = obs.at ? (atIdx === undefined || points.get(obs.at)?.fixed === true) : true
 
     const RAD = 180 / Math.PI
+
+    // ─── GNSS BASELINE — special handling (3 rows + 3×3 covariance) ─────────
+    if (obs.type === 'gnss_baseline') {
+      if (dimension !== '3D') {
+        throw new Error('gnss_baseline observations require dimension="3D"')
+      }
+      if (obs.deltaE === undefined || obs.deltaN === undefined || obs.deltaU === undefined) {
+        throw new Error(`gnss_baseline ${obs.from}→${obs.to} missing deltaE/deltaN/deltaU`)
+      }
+      if (from.rl === undefined || to.rl === undefined) {
+        throw new Error(`gnss_baseline requires RL values for ${obs.from} and ${obs.to}`)
+      }
+
+      // Computed baseline from current coordinates
+      const computed_dE = to.e - from.e
+      const computed_dN = to.n - from.n
+      const computed_dU = (to.rl ?? 0) - (from.rl ?? 0)
+
+      // Misclosures (observed - computed)
+      const misclosureE = obs.deltaE - computed_dE
+      const misclosureN = obs.deltaN - computed_dN
+      const misclosureU = obs.deltaU - computed_dU
+
+      // Build 3×3 design sub-matrix:
+      //   dE/dx = ∂(E_to - E_from)/∂(params)
+      //   For 3D, params are (E, N, RL) per station.
+      //   ∂dE/∂E_from = -1, ∂dE/∂N_from = 0, ∂dE/∂RL_from = 0
+      //   ∂dE/∂E_to = +1, etc.
+      // Same pattern for dN and dU.
+      // The 3 rows of A for this baseline:
+      //   row_E: from.E = -1, to.E = +1
+      //   row_N: from.N = -1, to.N = +1
+      //   row_U: from.RL = -1, to.RL = +1
+      const rows: Array<Array<{ col: number; value: number }>> = [
+        [], // row for dE
+        [], // row for dN
+        [], // row for dU
+      ]
+      if (fromIdx !== undefined && !fromIsFixed) {
+        rows[0].push({ col: fromIdx * 3, value: -1 })
+        rows[1].push({ col: fromIdx * 3 + 1, value: -1 })
+        rows[2].push({ col: fromIdx * 3 + 2, value: -1 })
+      }
+      if (toIdx !== undefined && !toIsFixed) {
+        rows[0].push({ col: toIdx * 3, value: 1 })
+        rows[1].push({ col: toIdx * 3 + 1, value: 1 })
+        rows[2].push({ col: toIdx * 3 + 2, value: 1 })
+      }
+
+      // Build 3×3 covariance matrix
+      let C: number[][]
+      if (obs.covariance3x3 && obs.covariance3x3.length === 6) {
+        const [cEE, cEN, cNN, cEU, cNU, cUU] = obs.covariance3x3
+        C = [
+          [cEE, cEN, cEU],
+          [cEN, cNN, cNU],
+          [cEU, cNU, cUU],
+        ]
+      } else {
+        // Default: diagonal with sigma² (independent components)
+        const sigma2 = (obs.sigma || 0.005) ** 2
+        C = [
+          [sigma2, 0, 0],
+          [0, sigma2, 0],
+          [0, 0, sigma2],
+        ]
+      }
+
+      // Whiten the 3 observations via Cholesky decomposition of C.
+      // Find L (lower triangular) such that L Lᵀ = C.
+      // Then W = L^(-1) applied to (A_sub, w_sub) gives whitened observations
+      // with identity weight matrix.
+      const L = cholesky3x3(C)
+      const W = inverseLowerTriangular3x3(L)
+
+      // Apply whitening: A_whitened = W · A_sub, w_whitened = W · w_sub
+      // Each whitened row is a linear combination of original rows.
+      // The weight of each whitened observation is 1 (identity).
+      for (let r = 0; r < 3; r++) {
+        for (const entry of rows[r]) {
+          // The whitened row r' = Σ_k W[r][k] * rows[k]
+          // We need to combine all 3 rows
+        }
+      }
+      // Build combined whitened rows
+      for (let r = 0; r < 3; r++) {
+        const combinedRow = new Map<number, number>()
+        for (let k = 0; k < 3; k++) {
+          const w_rk = W[r][k]
+          if (w_rk === 0) continue
+          for (const entry of rows[k]) {
+            combinedRow.set(entry.col, (combinedRow.get(entry.col) ?? 0) + w_rk * entry.value)
+          }
+        }
+        for (const [col, value] of combinedRow) {
+          if (value !== 0) {
+            triplets.push({ row: rowIdx, col, value })
+          }
+        }
+      }
+
+      // Whitened misclosures: w_whitened = W · w_sub
+      const wWhitened = [
+        W[0][0] * misclosureE + W[0][1] * misclosureN + W[0][2] * misclosureU,
+        W[1][0] * misclosureE + W[1][1] * misclosureN + W[1][2] * misclosureU,
+        W[2][0] * misclosureE + W[2][1] * misclosureN + W[2][2] * misclosureU,
+      ]
+
+      // Push 3 whitened observations with weight = 1 each
+      for (let r = 0; r < 3; r++) {
+        w.push(wWhitened[r])
+        // Robust estimation: apply weight override if present (uses observation index i)
+        const effectiveWeight = weightOverrides?.get(i) ?? 1
+        P.push(effectiveWeight)
+        observationMetadata.push({
+          type: 'gnss_baseline',
+          from: obs.from,
+          to: obs.to,
+          observed: r === 0 ? obs.deltaE : r === 1 ? obs.deltaN : obs.deltaU,
+          sigma: obs.sigma,
+          weight: 1,
+        })
+        rowIdx++
+      }
+      continue
+    }
+
+    // ─── Standard observations (1 row each) ─────────────────────────────────
     let computed = 0
     let row: Array<{ col: number; value: number }> = []
 
@@ -555,7 +712,7 @@ function buildDesignMatrix(
     }
 
     for (const entry of row) {
-      triplets.push({ row: i, col: entry.col, value: entry.value })
+      triplets.push({ row: rowIdx, col: entry.col, value: entry.value })
     }
     w.push(misclosure)
 
@@ -575,10 +732,64 @@ function buildDesignMatrix(
       sigma: obs.sigma,
       weight: baseWeight,
     })
+    rowIdx++
   }
 
-  const A = fromTriplets(observations.length, paramCount, triplets)
+  // A has `rowIdx` rows (one per standard observation, three per GNSS baseline)
+  const A = fromTriplets(rowIdx, paramCount, triplets)
   return { A, w, P, pointIndex, paramCount, observationMetadata }
+}
+
+// ---------------------------------------------------------------------------
+// 3×3 matrix helpers (for GNSS baseline whitening)
+// ---------------------------------------------------------------------------
+
+/** Cholesky decomposition of a 3×3 symmetric positive-definite matrix. */
+function cholesky3x3(C: number[][]): number[][] {
+  const L = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0],
+  ]
+  // L[0][0]
+  if (C[0][0] <= 0) throw new Error(`GNSS covariance not positive definite: C[0][0]=${C[0][0]}`)
+  L[0][0] = Math.sqrt(C[0][0])
+  // L[1][0], L[1][1]
+  L[1][0] = C[1][0] / L[0][0]
+  const c11_adj = C[1][1] - L[1][0] * L[1][0]
+  if (c11_adj <= 0) throw new Error(`GNSS covariance not positive definite: C[1][1] adjusted=${c11_adj}`)
+  L[1][1] = Math.sqrt(c11_adj)
+  // L[2][0], L[2][1], L[2][2]
+  L[2][0] = C[2][0] / L[0][0]
+  L[2][1] = (C[2][1] - L[2][0] * L[1][0]) / L[1][1]
+  const c22_adj = C[2][2] - L[2][0] * L[2][0] - L[2][1] * L[2][1]
+  if (c22_adj <= 0) throw new Error(`GNSS covariance not positive definite: C[2][2] adjusted=${c22_adj}`)
+  L[2][2] = Math.sqrt(c22_adj)
+  return L
+}
+
+/** Inverse of a 3×3 lower-triangular matrix. */
+function inverseLowerTriangular3x3(L: number[][]): number[][] {
+  // L is lower-triangular: [[l00, 0, 0], [l10, l11, 0], [l20, l21, l22]]
+  // W = L^(-1) is also lower-triangular.
+  // From W L = I:
+  //   w00 = 1/l00
+  //   w11 = 1/l11
+  //   w22 = 1/l22
+  //   w10*l00 + w11*l10 = 0 → w10 = -w11*l10/l00
+  //   w21*l11 + w22*l21 = 0 → w21 = -w22*l21/l11
+  //   w20*l00 + w21*l10 + w22*l20 = 0 → w20 = -(w21*l10 + w22*l20)/l00
+  const w00 = 1 / L[0][0]
+  const w11 = 1 / L[1][1]
+  const w22 = 1 / L[2][2]
+  const w10 = -w11 * L[1][0] / L[0][0]
+  const w21 = -w22 * L[2][1] / L[1][1]
+  const w20 = -(w21 * L[1][0] + w22 * L[2][0]) / L[0][0]
+  return [
+    [w00, 0, 0],
+    [w10, w11, 0],
+    [w20, w21, w22],
+  ]
 }
 
 // ---------------------------------------------------------------------------
@@ -1155,6 +1366,7 @@ function computeResidualsAndStats(
     const at = obs.at ? currentCoords.get(obs.at)! : undefined
 
     let computed = 0
+    let v = 0
     switch (obs.type) {
       case 'distance':
         computed = distance2D(from.e, from.n, to.e, to.n)
@@ -1183,9 +1395,25 @@ function computeResidualsAndStats(
       case 'height_difference':
         computed = (to.rl ?? 0) - (from.rl ?? 0)
         break
+      case 'gnss_baseline': {
+        // For GNSS baselines, compute residual as the magnitude of the 3D vector
+        // difference between observed and computed baseline components.
+        // (sumPVV contribution is approximated; the actual sumPVV would use C⁻¹.)
+        const computed_dE = to.e - from.e
+        const computed_dN = to.n - from.n
+        const computed_dU = (to.rl ?? 0) - (from.rl ?? 0)
+        const dE_r = (obs.deltaE ?? 0) - computed_dE
+        const dN_r = (obs.deltaN ?? 0) - computed_dN
+        const dU_r = (obs.deltaU ?? 0) - computed_dU
+        computed = 0 // obs.value is unused for gnss_baseline
+        v = Math.sqrt(dE_r * dE_r + dN_r * dN_r + dU_r * dU_r)
+        break
+      }
     }
 
-    let v = obs.value - computed
+    if (obs.type !== 'gnss_baseline') {
+      v = obs.value - computed
+    }
     if (obs.type === 'bearing' || obs.type === 'angle' || obs.type === 'zenith_angle') {
       while (v > 180) v -= 360
       while (v < -180) v += 360
