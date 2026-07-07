@@ -58,8 +58,8 @@ export const POST = apiHandler(
     try {
       const { appendAuditEntry } = await import('@/lib/audit/auditLog')
       await appendAuditEntry({
-        projectId: undefined, // NLIMS payload may span projects
-        userId: undefined, // populated from session in future
+        projectId: null, // NLIMS submission may span multiple projects
+        userId: ctx.userId,
         userName: params.surveyor.name || undefined,
         entityType: 'document',
         entityId: `nlims/${payload.submissionId}`,

@@ -18,10 +18,10 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   const validTypes = [
     'pdf_generation',
     'dxf_generation',
-    'shapefile_generation',
+    'assemble_submission',
     'report_processing',
-    'payment_verification',
-    'email_notification',
+    'traverse_compute',
+    'earthworks_boq',
   ]
   if (!validTypes.includes(body.jobType)) {
     return NextResponse.json({ error: 'Invalid jobType' }, { status: 400 })
@@ -32,6 +32,8 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   if (body.projectId) {
     payload.project_id = body.projectId
   }
+  // Thread userId so the worker can attribute audit entries correctly
+  payload.userId = ctx.userId
 
   const priority = typeof body.priority === 'number'
     ? Math.max(0, Math.min(10, body.priority))
@@ -44,7 +46,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     [body.jobType, JSON.stringify(payload), priority]
   )
 
-  return NextResponse.json({ success: true, job: rows[0] })
+  return NextResponse.json({ success: true, job: rows[0], jobId: rows[0].id })
 })
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req) => {

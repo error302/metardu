@@ -34,6 +34,7 @@ export const POST = apiHandler({ auth: true, schema: GenerateSubmissionSchema, r
       projectId,
       documentId,
       surveyType: project.survey_type,
+      userId: ctx.userId,
     })
 
     await db.query(

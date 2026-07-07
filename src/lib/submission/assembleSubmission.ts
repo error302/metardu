@@ -65,6 +65,8 @@ export async function assembleSubmissionPackage(
     .from('survey_points')
     .select('*')
     .eq('project_id', projectId)
+    .limit(50_000) // hard cap: 50k points per project (~50MB RAM for dense surveys).
+                    // Exceeding this requires project splitting or cursor pagination.
 
   if (pointsError) {
     throw new Error(`Failed to load survey points: ${pointsError.message}`)

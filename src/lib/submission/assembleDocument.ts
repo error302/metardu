@@ -147,6 +147,8 @@ interface GenerateDocumentInput {
   projectId: string;
   documentId: string;
   surveyType: string;
+  /** userId from session — for tamper-evident audit chain attribution */
+  userId?: string;
 }
 
 interface GenerateDocumentResult {
@@ -156,7 +158,7 @@ interface GenerateDocumentResult {
 export async function generateDocument(
   input: GenerateDocumentInput
 ): Promise<GenerateDocumentResult> {
-  const { projectId, documentId, surveyType } = input;
+  const { projectId, documentId, surveyType, userId } = input;
 
   let buffer: Buffer;
   let fileName: string;
@@ -239,7 +241,7 @@ export async function generateDocument(
         const { appendAuditEntry } = await import('../audit/auditLog');
         await appendAuditEntry({
           projectId,
-          userId: undefined, // populated by caller from session if available
+          userId: userId ?? null,
           userName: profile.surveyorName || undefined,
           entityType: 'document',
           entityId: `deed-plan/${projectId}`,
