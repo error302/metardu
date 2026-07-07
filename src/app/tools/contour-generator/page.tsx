@@ -233,10 +233,32 @@ export default function ContourGeneratorPage() {
       // for small datasets the worker overhead is negligible thanks to
       // the 30 s timeout + sync fallback in tinWorkerClient.
       //
+      // AUDIT FIX (2026-07-05): DTM filtering — classify ground vs non-ground
+      // before contour generation. Vegetation and buildings distort contours
+      // if not filtered. Uses CSF algorithm (only if enough points).
+      let groundPoints = points;
+      try {
+        if (points.length >= 20) {
+          const { classifyPointCloud, extractGroundPoints } = await import('@/lib/topo/pointCloudClassification');
+          const classified = classifyPointCloud(points.map(p => ({
+            x: p.easting, y: p.northing, z: p.elevation,
+          })));
+          const ground = extractGroundPoints(classified);
+          if (ground.length >= 3) {
+            groundPoints = ground.map((p, i) => ({
+              name: `G${i}`,
+              easting: p.x, northing: p.y, elevation: p.z,
+            }));
+          }
+        }
+      } catch {
+        // DTM filtering failed — use all points
+      }
+
       // AUDIT FIX (2026-07-03): Pass breaklines to both the contour
       // generator and the TIN builder so triangles don't cross terrain
       // discontinuities.
-      const result = await generateContoursAsync(points, contourInterval, {
+      const result = await generateContoursAsync(groundPoints, contourInterval, {
         indexInterval,
         breaklines: breaklines.length > 0 ? breaklines : undefined,
         onProgress: p => setGenerateProgress(p),
@@ -244,7 +266,7 @@ export default function ContourGeneratorPage() {
       setContours(result);
 
       const surface = await buildTINSurfaceAsync(
-        points,
+        groundPoints,
         breaklines.length > 0 ? breaklines : undefined,
         {
           onProgress: p => setGenerateProgress(p),
@@ -253,7 +275,7 @@ export default function ContourGeneratorPage() {
       setTinSurface(surface);
 
       // Compute volume relative to minimum elevation
-      const minElev = Math.min(...points.map(p => p.elevation));
+      const minElev = Math.min(...groundPoints.map(p => p.elevation));
       const vol = computeVolumeFromTIN(surface, minElev);
       setVolumeResult(vol);
     } catch (err) {

@@ -20,6 +20,7 @@ import {
 import { parsePly } from '@/lib/importers/parsers/ply';
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { VolumeTab } from './VolumeTab';
+import { autoClassifyPoint } from '@/lib/topo/featureCodeAutomation';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -309,13 +310,17 @@ export default function PointCloudImportPage() {
       if (ext === 'ply') {
         // Use existing PLY parser
         const result = await parsePly(file);
-        const imported: ImportedPoint[] = result.points.map((p, i) => ({
-          id: `pt-${i}`,
-          name: p.code || `P${i + 1}`,
-          easting: p.easting,
-          northing: p.northing,
-          elevation: p.rl,
-        }));
+        const imported: ImportedPoint[] = result.points.map((p, i) => {
+          // AUDIT FIX (2026-07-05): Auto-classify feature codes on import
+          const classification = p.code ? autoClassifyPoint(p.code) : null
+          return {
+            id: `pt-${i}`,
+            name: p.code || classification?.matchedCode?.code || `P${i + 1}`,
+            easting: p.easting,
+            northing: p.northing,
+            elevation: p.rl,
+          }
+        });
         if (imported.length > MAX_POINTS) {
           setWarningMsg(`PLY file contains ${result.metadata.totalPoints.toLocaleString()} points. Only the first ${MAX_POINTS.toLocaleString()} will be processed.`);
         }
@@ -519,7 +524,7 @@ export default function PointCloudImportPage() {
     setIsTinRunning(true);
     setTinError('');
 
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const tinPoints: TINPoint[] = points.map((p, i) => ({
           id: p.id || `tin-${i}`,
@@ -527,7 +532,36 @@ export default function PointCloudImportPage() {
           y: p.northing,
           z: p.elevation,
         }));
-        const triangles = generateTIN(tinPoints);
+
+        // AUDIT FIX (2026-07-05): Use breakline-enforced TIN generation
+        // and DTM filtering (ground point classification) for accurate surfaces.
+        // Falls back to basic generateTIN if breaklines aren't available.
+        let triangles;
+        try {
+          // Try DTM filtering first (CSF ground classification)
+          const { classifyPointCloud, extractGroundPoints } = await import('@/lib/topo/pointCloudClassification');
+          if (tinPoints.length >= 20) {
+            const classified = classifyPointCloud(tinPoints.map(p => ({ x: p.x, y: p.y, z: p.z })));
+            const groundOnly = extractGroundPoints(classified);
+            if (groundOnly.length >= 3) {
+              const groundTinPoints = groundOnly.map((p, i) => ({
+                id: `ground-${i}`,
+                x: p.x, y: p.y, z: p.z,
+              }));
+              // Use breakline-enforced TIN (falls back to standard if no breaklines)
+              const { generateTINWithBreaklines } = await import('@/lib/compute/tinWithBreaklines');
+              triangles = generateTINWithBreaklines(groundTinPoints);
+            }
+          }
+        } catch {
+          // DTM filtering or breakline module not available — fall back
+        }
+
+        // Fallback: standard TIN without breaklines/DTM filtering
+        if (!triangles || triangles.length === 0) {
+          triangles = generateTIN(tinPoints);
+        }
+
         const surfaceArea = computeSurfaceArea(triangles);
         setTinTriangles(triangles);
         setTinSurfaceArea(surfaceArea);

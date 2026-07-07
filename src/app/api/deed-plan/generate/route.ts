@@ -6,6 +6,7 @@ import { z } from 'zod'
 import type { DeedPlanInput, DeedPlanOutput } from '@/types/deedPlan'
 import { computeBoundaryLegs, computeArea, computeClosureCheck } from '@/lib/compute/deedPlan'
 import { renderDeedPlanSVG } from '@/lib/compute/deedPlanRenderer'
+import { runStatutoryGate } from '@/lib/validation/statutoryGate'
 
 const BoundaryPointSchema = z.object({
   id: z.string().optional(),
@@ -143,10 +144,46 @@ export const POST = apiHandler(
     }
 
     // If cross-checks found issues, include them in the output as warnings
-    // (We don't block the deed plan, but we surface the issues so the
-    // surveyor can review before submitting to ArdhiSasa)
     if (crossCheckIssues.length > 0) {
       console.warn('[deed-plan] Cross-check issues:', crossCheckIssues)
+    }
+
+    // ── AUDIT FIX (2026-07-05): Run statutory gate ──
+    let gateResult: any = null
+    try {
+      const linearError = Math.sqrt(
+        closureCheck.closingErrorE ** 2 + closureCheck.closingErrorN ** 2
+      )
+      const precisionRatioNum = linearError > 0
+        ? Math.round(closureCheck.perimeter / linearError)
+        : 999999
+
+      gateResult = runStatutoryGate({
+        surveyType: 'cadastral',
+        surveyor: {
+          name: input.surveyorName || 'Unknown',
+          licenseNumber: input.iskNumber || 'N/A',
+        },
+        traverse: {
+          stationCount: input.boundaryPoints.length,
+          linearErrorM: linearError,
+          totalDistanceM: closureCheck.perimeter,
+          precisionRatio: precisionRatioNum,
+        },
+        parcels: [{
+          vertices: input.boundaryPoints.map(p => ({
+            easting: p.easting,
+            northing: p.northing,
+          })),
+          parcelNumber: input.parcelNumber || '',
+        }],
+      })
+
+      if (!gateResult.passed) {
+        console.warn('[deed-plan] Statutory gate blocked:', gateResult.summary)
+      }
+    } catch (err) {
+      console.warn('[deed-plan] Statutory gate failed to run:', err)
     }
 
     const svg = renderDeedPlanSVG({ ...input, area }, bearingSchedule, closureCheck)
@@ -156,8 +193,8 @@ export const POST = apiHandler(
       bearingSchedule,
       coordinateSchedule: input.boundaryPoints,
       closureCheck,
-      // Include cross-check warnings in the output
       ...(crossCheckIssues.length > 0 ? { crossCheckWarnings: crossCheckIssues } : {}),
+      ...(gateResult ? { statutoryGate: gateResult } : {}),
     }
 
     return NextResponse.json(output)

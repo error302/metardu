@@ -1,9 +1,9 @@
 {
   "id": "/",
   "scope": "/",
-  "name": "METARDU \u2014 Kenya Survey & Cadastral Platform",
-  "short_name": "METARDU",
-  "description": "Professional land surveying platform built for Kenya. Traverse adjustment, leveling, COGO, deed plans, GNSS stakeout, NLIMS export, and field-to-finish workflow compliant with Survey Act Cap. 299.",
+  "name": "METARDU Access — Survey & Cadastral Platform",
+  "short_name": "METARDU Access",
+  "description": "Professional land surveying platform with METARDU Access mobile field collection. Traverse adjustment, leveling, COGO, deed plans, GNSS stakeout, NLIMS export, and field-to-finish workflow compliant with Survey Act Cap. 299.",
   "start_url": "/dashboard?source=pwa",
   "scope_extensions": [
     "/field",
