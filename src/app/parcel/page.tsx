@@ -304,7 +304,7 @@ export default function ParcelSearchPage() {
                     <h4 className="font-medium mb-2">Recommendations</h4>
                     <ul className="text-sm space-y-1">
                       {legalGuidance.recommendations.map((r: string, i: number) => (
-                        <li key={i} className="text-[var(--text-muted)]">✓ {r}</li>
+                        <li key={i} className="text-[var(--text-muted)]"> {r}</li>
                       ))}
                     </ul>
                   </div>

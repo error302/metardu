@@ -90,7 +90,7 @@ export default function CSVImportPage() {
           <ul className="space-y-3">
             {tips.map((tip, i) => (
               <li key={`${tip}-${i}`} className="flex items-start gap-3 text-[var(--text-secondary)]">
-                <span className="text-[var(--accent)]">✓</span>
+                <span className="text-[var(--accent)]"></span>
                 {tip}
               </li>
             ))}

@@ -273,13 +273,13 @@ export default function RegistryIndexMap({ isOpen, onClose, initialData }: Regis
               onClick={() => setMode(m => m === 'view' ? 'edit' : 'view')}
               className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded"
             >
-              {mode === 'view' ? '[Edit] Edit Sheet' : '👁 View'}
+              {mode === 'view' ? '[Edit] Edit Sheet' : ' View'}
             </button>
             <button
               onClick={handlePrint}
               className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 rounded"
             >
-              🖨 Print / Export
+               Print / Export
             </button>
             <button
               onClick={onClose}

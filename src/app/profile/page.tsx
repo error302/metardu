@@ -223,7 +223,7 @@ export default function ProfilePage() {
                       : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--border-hover)]'
                   }`}
                 >
-                  {profile.specializations.includes(spec) ? '✓' : '○'} {spec}
+                  {profile.specializations.includes(spec) ? '' : '○'} {spec}
                 </button>
               ))}
             </div>
@@ -279,7 +279,7 @@ export default function ProfilePage() {
             </button>
             {saved && (
               <span className="text-green-400 flex items-center">
-                ✓ Saved successfully!
+                 Saved successfully!
               </span>
             )}
           </div>

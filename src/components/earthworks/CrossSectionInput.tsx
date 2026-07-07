@@ -200,7 +200,7 @@ export default function EarthworksCalculator() {
             </button>
             {earthworkResult && (
               <button onClick={handlePrintBoQ} className="px-4 py-1.5 text-xs bg-amber-600 text-white rounded font-medium hover:bg-amber-700">
-                🖨 Print BoQ
+                 Print BoQ
               </button>
             )}
           </div>
@@ -289,7 +289,7 @@ export default function EarthworksCalculator() {
               </div>
               <button onClick={handlePrintBoQ}
                 className="px-5 py-2 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 text-sm whitespace-nowrap mt-5">
-                🖨 Print Earthworks BoQ
+                 Print Earthworks BoQ
               </button>
             </div>
             <PrintMetaPanel meta={printMeta} onChange={setPrintMeta} />

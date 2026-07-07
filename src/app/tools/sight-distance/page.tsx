@@ -150,7 +150,7 @@ export default function SightDistancePage() {
                     Terrain: {computed.terrain}
                   </div>
                   <div className={`text-xs mt-1 ${result.isSSDCompliant ? 'text-green-400' : 'text-red-400'}`}>
-                    {result.isSSDCompliant ? '✓ Compliant' : '✗ Below minimum'}
+                    {result.isSSDCompliant ? ' Compliant' : ' Below minimum'}
                   </div>
                 </div>
               </div>
@@ -170,7 +170,7 @@ export default function SightDistancePage() {
                   <div className="flex justify-between font-medium">
                     <span className="zinc-500">Status:</span>
                     <span className={curveAdequate ? 'text-green-400' : 'text-red-400'}>
-                      {curveAdequate ? '✓ Adequate' : `✗ Needs ≥ ${result.ssdComputed.toFixed(0)}m`}
+                      {curveAdequate ? ' Adequate' : ` Needs ≥ ${result.ssdComputed.toFixed(0)}m`}
                     </span>
                   </div>
                 </div>

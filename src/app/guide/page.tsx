@@ -42,7 +42,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'radiation',
     name: 'Radiation Survey',
-    icon: '📡',
+    icon: '',
     description: 'Take multiple readings from a single instrument station',
     time: '1-3 hours',
     difficulty: 'Beginner',
@@ -69,7 +69,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'road-survey',
     name: 'Road Survey',
-    icon: '🛣',
+    icon: '',
     description: 'Profile and cross-sections for road design and construction',
     time: '3-6 hours',
     difficulty: 'Intermediate',
@@ -87,7 +87,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'mining',
     name: 'Mining Survey',
-    icon: '⛏',
+    icon: '',
     description: 'Underground traverse, volume calculations, and subsidence monitoring',
     time: '4-8 hours',
     difficulty: 'Advanced',
@@ -105,7 +105,7 @@ const guideTypes: GuideType[] = [
   {
     id: 'drone',
     name: 'Drone/UAV Survey',
-    icon: '🚁',
+    icon: '',
     description: 'GCP planning, accuracy verification, and survey reports',
     time: '2-4 hours',
     difficulty: 'Intermediate',
@@ -274,7 +274,7 @@ export default function GuidePage() {
                 {completedSteps === guide.steps && (
                   <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
                     <div className="text-xs text-green-400">
-                      ✓ Complete
+                       Complete
                     </div>
                   </div>
                 )}
@@ -287,7 +287,7 @@ export default function GuidePage() {
           <h2 className="text-lg font-semibold mb-4">How Guides Work</h2>
           <div className="grid md:grid-cols-3 gap-6 text-sm text-[var(--text-secondary)]">
             <div>
-              <div className="text-xl mb-2">👨[Grad] 👴</div>
+              <div className="text-xl mb-2">[Grad] </div>
               <h3 className="font-medium text-[var(--text-primary)] mb-1">Two Modes</h3>
               <p>Junior Mode explains everything. Senior Mode gives quick prompts for experienced surveyors.</p>
             </div>

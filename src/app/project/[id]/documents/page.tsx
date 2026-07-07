@@ -781,7 +781,7 @@ export default function DocumentsPage({ params }: PageProps) {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-[var(--text-primary)]">{doc.title}</p>
                       {doc.required && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20">Required</span>}
-                      {isDone && <span className="text-[10px] text-green-400">✓ Generated</span>}
+                      {isDone && <span className="text-[10px] text-green-400"> Generated</span>}
                     </div>
                     <p className="text-xs text-[var(--text-muted)] mt-0.5">{doc.description}</p>
                   </div>

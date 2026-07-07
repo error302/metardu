@@ -184,9 +184,9 @@ export function getActivityTypes() {
   return [
     { id: 'course', name: 'Formal Course', icon: '[Books]' },
     { id: 'workshop', name: 'Workshop', icon: '[Tool]' },
-    { id: 'seminar', name: 'Seminar', icon: '🎤' },
-    { id: 'conference', name: 'Conference', icon: '🎪' },
-    { id: 'webinar', name: 'Webinar', icon: '💻' },
+    { id: 'seminar', name: 'Seminar', icon: '' },
+    { id: 'conference', name: 'Conference', icon: '' },
+    { id: 'webinar', name: 'Webinar', icon: '' },
     { id: 'self_study', name: 'Self Study', icon: '[Book]' },
     { id: 'mentoring', name: 'Mentoring', icon: '[Users]' },
     { id: 'research', name: 'Research/Publication', icon: '[Note]' },

@@ -126,7 +126,7 @@ export function getCloudProject(projectId: string): CloudProject | undefined {
 export function getRenderTypes() {
   return [
     { id: '2d_plan', name: '2D Survey Plan', icon: '[Compass]' },
-    { id: '3d_model', name: '3D Surface Model', icon: '🎲' },
+    { id: '3d_model', name: '3D Surface Model', icon: '' },
     { id: 'contour_map', name: 'Contour Map', icon: '[Mtn]' },
     { id: 'cross_section', name: 'Cross Section', icon: '[Cut]' },
     { id: 'orthomosaic', name: 'Orthomosaic', icon: '[Map]' },

@@ -99,10 +99,10 @@ export default function GNSSBaselinePage() {
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-4">
             <h3 className="font-semibold text-[var(--text-primary)] mb-3">Supported Formats</h3>
             <ul className="text-sm text-[var(--text-muted)] space-y-2">
-              <li>✓ RINEX (.rnx, .obs)</li>
-              <li>✓ Topcon (.top, .tps)</li>
-              <li>✓ Trimble (.tin, .tnx)</li>
-              <li>✓ Leica (.mdb, .xml)</li>
+              <li> RINEX (.rnx, .obs)</li>
+              <li> Topcon (.top, .tps)</li>
+              <li> Trimble (.tin, .tnx)</li>
+              <li> Leica (.mdb, .xml)</li>
             </ul>
             <div className="mt-4 p-3 bg-blue-950/50 border border-blue-800/50 rounded-lg text-sm text-blue-300">
               <strong>Tip:</strong> Ensure your baseline file contains vector data (ΔE, ΔN, ΔU) from reference to rover station.
@@ -165,7 +165,7 @@ export default function GNSSBaselinePage() {
         {validation && (
           <div className={`rounded-xl p-4 mb-6 ${validation.valid ? 'bg-green-950/30 border border-green-800' : 'bg-red-950/30 border border-red-800'}`}>
             <h4 className={`font-semibold mb-2 ${validation.valid ? 'text-green-300' : 'text-red-300'}`}>
-              {validation.valid ? '✓ Validation Passed' : '[x] Validation Issues'}
+              {validation.valid ? ' Validation Passed' : '[x] Validation Issues'}
             </h4>
             {validation.errors.length > 0 && (
               <ul className="text-sm text-red-400 space-y-1">

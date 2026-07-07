@@ -142,7 +142,7 @@ export default function USSurveyReferencePage() {
               <ul className="text-sm space-y-2">
                 {DOJ_TITLE_STANDARDS.requiredBeforeAcquisition.map((s, i) => (
                   <li key={`${s}-${i}`} className="flex gap-2">
-                    <span className="text-green-500">✓</span>
+                    <span className="text-green-500"></span>
                     <span>{s}</span>
                   </li>
                 ))}

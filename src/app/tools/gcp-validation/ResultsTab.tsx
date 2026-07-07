@@ -57,7 +57,7 @@ export function ResultsTab({
               ? 'bg-green-900/30 border border-green-600 text-green-400'
               : 'bg-red-900/30 border border-red-600 text-red-400'
           }`}>
-            {validationSummary.pass ? '✓ OVERALL PASS' : '[x] OVERALL FAIL'} — {selectedClass.name} ({selectedClass.scale})
+            {validationSummary.pass ? ' OVERALL PASS' : '[x] OVERALL FAIL'} — {selectedClass.name} ({selectedClass.scale})
           </div>
 
           {/* Summary Cards */}
@@ -174,7 +174,7 @@ export function ResultsTab({
                       <td>
                         {p.overallPass ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-green-900/50 text-green-400 border border-green-600">
-                            ✓ PASS
+                             PASS
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-900/50 text-red-400 border border-red-600">

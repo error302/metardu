@@ -55,13 +55,13 @@ export default function SuperelevationPanel({
     } else if (ePercent > 7) {
       issues.push(`Required e ${ePercent.toFixed(1)}% exceeds KeRRA rural max 7%`);
     } else {
-      passes.push(`e ${ePercent.toFixed(1)}% within 7% limit ✓`);
+      passes.push(`e ${ePercent.toFixed(1)}% within 7% limit `);
     }
 
     if (minTransition < 30) {
       issues.push(`Transition length ${minTransition.toFixed(1)}m < absolute minimum 30m`);
     } else {
-      passes.push(`Transition length ${minTransition.toFixed(1)}m ≥ 30m minimum ✓`);
+      passes.push(`Transition length ${minTransition.toFixed(1)}m ≥ 30m minimum `);
     }
 
     if (standard === 'KeRRA' && ePercent > 7) {
@@ -183,7 +183,7 @@ export default function SuperelevationPanel({
         <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
           <ul className="text-green-400 text-xs space-y-0.5">
             {validations.passes.map((pass, i) => (
-              <li key={`${pass}-${i}`}>✓ {pass}</li>
+              <li key={`${pass}-${i}`}> {pass}</li>
             ))}
           </ul>
         </div>

@@ -130,7 +130,7 @@ export function generateFormNo4PDF(pkg: SubmissionPackage): Buffer {
   if (pkg.surveyor.verifiedIsk) {
     doc.setFontSize(7)
     doc.setTextColor(34, 139, 34)
-    doc.text('✓ ISK VERIFIED', col2X + 45, titleBlockY + 36)
+    doc.text(' ISK VERIFIED', col2X + 45, titleBlockY + 36)
     doc.setTextColor(0)
   }
 

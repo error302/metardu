@@ -174,13 +174,13 @@ If you enter bearings/distances (instead of raw angles), ensure your bearings ar
 METARDU computes the traverse and tells you whether it is acceptable.
 
 METARDU computes:
-✓ Latitude/Departure per leg (Lat = D×cos(WCB), Dep = D×sin(WCB))
-✓ Closing error (ΔE, ΔN) and linear misclosure
-✓ Relative precision ratio (Total traverse length / Misclosure)
-✓ Bowditch corrections per Basak:
+ Latitude/Departure per leg (Lat = D×cos(WCB), Dep = D×sin(WCB))
+ Closing error (ΔE, ΔN) and linear misclosure
+ Relative precision ratio (Total traverse length / Misclosure)
+ Bowditch corrections per Basak:
   corrE = -(legD/totalD) × closingErrorE
   corrN = -(legD/totalD) × closingErrorN
-✓ Adjusted coordinates + Gale’s Table output
+ Adjusted coordinates + Gale’s Table output
 
 Acceptance gates (Basak):
 • Urban cadastral:  ≥ 1:5000
@@ -382,7 +382,7 @@ Keep the raw booking. If RLs are challenged later, your raw notes are the eviden
   },
   'radiation': {
     title: 'Radiation Survey',
-    icon: '📡',
+    icon: '',
     steps: [
       {
         id: 1,
@@ -753,7 +753,7 @@ Minimum contents:
   },
   'road-survey': {
     title: 'Road Survey',
-    icon: '🛣',
+    icon: '',
     steps: [
       {
         id: 1,
@@ -919,7 +919,7 @@ Report should include:
   },
   'mining': {
     title: 'Mining Survey',
-    icon: '⛏',
+    icon: '',
     steps: [
       {
         id: 1,
@@ -1128,7 +1128,7 @@ Deliverables:
   },
   'drone': {
     title: 'Drone/UAV Survey',
-    icon: '🚁',
+    icon: '',
     steps: [
       {
         id: 1,
@@ -1329,7 +1329,7 @@ export default function GuideTypePage({ params }: PageProps) {
                     mode === 'junior' ? 'bg-[var(--accent)] text-black' : 'text-[var(--text-secondary)]'
                   }`}
                 >
-                  👨[Grad] Junior
+                  [Grad] Junior
                 </button>
                 <button
                   onClick={() => setMode('senior')}
@@ -1415,14 +1415,14 @@ export default function GuideTypePage({ params }: PageProps) {
                       : 'border-gray-600 hover:border-[var(--accent)]'
                   }`}
                 >
-                  {isComplete && '✓'}
+                  {isComplete && ''}
                 </button>
                 
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs text-[var(--text-muted)]">STEP {step.id}</span>
                     {isComplete && (
-                      <span className="text-xs text-green-400">✓ Complete</span>
+                      <span className="text-xs text-green-400"> Complete</span>
                     )}
                   </div>
                   <h3 className="text-lg font-semibold mb-3">{step.title}</h3>
@@ -1452,7 +1452,7 @@ export default function GuideTypePage({ params }: PageProps) {
 
         {allComplete && (
           <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-6 text-center">
-            <div className="text-4xl mb-4">🎉</div>
+            <div className="text-4xl mb-4"></div>
             <h2 className="text-xl font-bold text-green-400 mb-2">Survey Complete!</h2>
             <p className="text-[var(--text-secondary)] mb-4">
               You've completed the {guide.title} workflow guide.

@@ -606,7 +606,7 @@ export default function SurveyReport({
         <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-between rounded-b-xl">
           {validated ? (
             <div className="text-sm text-green-600 font-medium">
-              ✓ {t('surveyReport.validated')}
+               {t('surveyReport.validated')}
             </div>
           ) : validationErrors.length > 0 ? (
             <div className="text-sm text-red-600">

@@ -233,7 +233,7 @@ function CountryPrecisionBadge({ country, totalDistance, linearError }: {
   const passes = achieved >= order.minPrecision
   return (
     <span className={`px-2 py-1 rounded text-xs font-semibold ${passes ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
-      {passes ? '✓' : '[x]'} Req 1:{order.minPrecision.toLocaleString()}
+      {passes ? '' : '[x]'} Req 1:{order.minPrecision.toLocaleString()}
     </span>
   )
 }
@@ -1306,7 +1306,7 @@ export default function TraverseModal({
                       </div>
                       <span className="w-12 text-right">{b.contribution}%</span>
                       {b.isBlunder && <span className="text-red-400">[!] CHECK</span>}
-                      {!b.isBlunder && !b.distanceMismatch && <span className="text-green-400">✓ OK</span>}
+                      {!b.isBlunder && !b.distanceMismatch && <span className="text-green-400"> OK</span>}
                     </div>
                   ))}
                 </div>

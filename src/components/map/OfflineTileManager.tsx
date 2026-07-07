@@ -55,7 +55,7 @@ function formatDate(timestamp: number | null): string {
 function getSourceIcon(sourceId: string): string {
   if (sourceId.includes('osm') || sourceId.includes('openstreetmap')) return '[Map]'
   if (sourceId.includes('satellite') || sourceId.includes('esri')) return '[Sat]'
-  return '📦'
+  return ''
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────

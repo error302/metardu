@@ -242,10 +242,10 @@ export function getCategories() {
     { id: 'all', name: 'All Templates', icon: '[Folder]' },
     { id: 'traverse', name: 'Traverse', icon: '[Compass]' },
     { id: 'leveling', name: 'Leveling', icon: '[Chart]' },
-    { id: 'cogo', name: 'COGO', icon: '🧮' },
-    { id: 'mining', name: 'Mining', icon: '⛏' },
+    { id: 'cogo', name: 'COGO', icon: '' },
+    { id: 'mining', name: 'Mining', icon: '' },
     { id: 'hydrographic', name: 'Hydrographic', icon: '[Water]' },
-    { id: 'drone', name: 'Drone/UAV', icon: '🚁' },
+    { id: 'drone', name: 'Drone/UAV', icon: '' },
     { id: 'general', name: 'General', icon: '[Clip]' },
   ]
 }

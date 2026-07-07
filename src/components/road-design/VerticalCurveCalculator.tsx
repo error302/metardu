@@ -93,7 +93,7 @@ export default function VerticalCurveCalculator() {
         </div>
         {result && (
           <span className={`text-xs font-mono px-2 py-1 rounded ${result.arithmeticCheck.passed ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
-            {result.arithmeticCheck.passed ? '✓ Arithmetic Check PASS' : `[x] FAIL (diff=${result.arithmeticCheck.diff.toFixed(4)}m)`}
+            {result.arithmeticCheck.passed ? ' Arithmetic Check PASS' : `[x] FAIL (diff=${result.arithmeticCheck.diff.toFixed(4)}m)`}
           </span>
         )}
       </div>

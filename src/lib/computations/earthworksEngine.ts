@@ -330,7 +330,7 @@ export function computeCrossSection(
   steps.push({
     description: `[CHECK] Cut + Fill + Formation ≈ Total`,
     formula: `${cutArea.toFixed(2)} + ${fillArea.toFixed(2)} + ${formationArea.toFixed(2)} ≈ ${totalGroundArea.toFixed(2)}`,
-    value: 'PASS ✓ (trapezoidal integration)',
+    value: 'PASS  (trapezoidal integration)',
   })
   steps.push({
     description: `Fill area (Shoelace)`,
@@ -345,7 +345,7 @@ export function computeCrossSection(
   steps.push({
     description: `[CHECK] Cut + Fill − Formation = Ground`,
     formula: `${cutArea.toFixed(2)} + ${fillArea.toFixed(2)} − ${formationArea.toFixed(2)} = ${totalGroundArea.toFixed(2)}`,
-    value: arithmeticCheck.passed ? `PASS ✓ (diff=${arithmeticCheck.diff.toFixed(4)}m²)` : `FAIL [x] (diff=${arithmeticCheck.diff.toFixed(4)}m²)`,
+    value: arithmeticCheck.passed ? `PASS  (diff=${arithmeticCheck.diff.toFixed(4)}m²)` : `FAIL [x] (diff=${arithmeticCheck.diff.toFixed(4)}m²)`,
   })
   steps.push({
     description: `Fill area (Shoelace)`,
@@ -360,7 +360,7 @@ export function computeCrossSection(
   steps.push({
     description: `[CHECK] Cut + Fill − Formation = Ground`,
     formula: `${cutArea.toFixed(2)} + ${fillArea.toFixed(2)} − ${formationArea.toFixed(2)} = ${totalGroundArea.toFixed(2)}`,
-    value: arithmeticCheck.passed ? `PASS ✓ (diff=${arithmeticCheck.diff.toFixed(4)}m²)` : `FAIL [x] (diff=${arithmeticCheck.diff.toFixed(4)}m²)`,
+    value: arithmeticCheck.passed ? `PASS  (diff=${arithmeticCheck.diff.toFixed(4)}m²)` : `FAIL [x] (diff=${arithmeticCheck.diff.toFixed(4)}m²)`,
   })
   steps.push({
     description: `Total ground area (Shoelace)`,
@@ -370,7 +370,7 @@ export function computeCrossSection(
   steps.push({
     description: `[CHECK] Cut + Fill = Ground`,
     formula: `${cutArea.toFixed(2)} + ${fillArea.toFixed(2)} = ${totalGroundArea.toFixed(2)}`,
-    value: arithmeticCheck.passed ? `PASS ✓ (diff=${arithmeticCheck.diff.toFixed(4)}m²)` : `FAIL [x] (diff=${arithmeticCheck.diff.toFixed(4)}m²)`,
+    value: arithmeticCheck.passed ? `PASS  (diff=${arithmeticCheck.diff.toFixed(4)}m²)` : `FAIL [x] (diff=${arithmeticCheck.diff.toFixed(4)}m²)`,
   })
 
   steps.push({
@@ -391,7 +391,7 @@ export function computeCrossSection(
   steps.push({
     description: `[CHECK] Area arithmetic`,
     formula: `Cut + Fill = Total`,
-    value: arithmeticCheck.passed ? `PASS ✓ (diff=${arithmeticCheck.diff.toFixed(4)}m²)` : `FAIL [x] (diff=${arithmeticCheck.diff.toFixed(4)}m²)`,
+    value: arithmeticCheck.passed ? `PASS  (diff=${arithmeticCheck.diff.toFixed(4)}m²)` : `FAIL [x] (diff=${arithmeticCheck.diff.toFixed(4)}m²)`,
   })
 
   return {

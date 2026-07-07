@@ -29,7 +29,7 @@ export default function BoundaryDisputePage() {
           {result ? (
             <div className="space-y-4">
               <div className={`p-4 rounded-lg border ${result.severity === 'none' ? 'border-green-500/20 bg-green-500/5' : result.severity === 'minor' ? 'border-amber-500/20 bg-amber-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                <p className={`text-sm font-semibold ${result.severity === 'none' ? 'text-green-400' : result.severity === 'minor' ? 'text-amber-400' : 'text-red-400'}`}>{result.severity === 'none' ? '✓ No encroachment' : result.severity === 'minor' ? '⚠ Minor encroachment' : '🔴 Major encroachment'}</p>
+                <p className={`text-sm font-semibold ${result.severity === 'none' ? 'text-green-400' : result.severity === 'minor' ? 'text-amber-400' : 'text-red-400'}`}>{result.severity === 'none' ? ' No encroachment' : result.severity === 'minor' ? '! Minor encroachment' : ' Major encroachment'}</p>
                 <p className="text-xs text-zinc-500 mt-1">{result.summary}</p>
               </div>
               <div className="grid grid-cols-2 gap-3">

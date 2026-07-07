@@ -266,7 +266,7 @@ export function intersectionComputation(input: IntersectionInput): IntersectionR
     {
       description: `[CHECK] Difference between both N₃ computations`,
       formula: `|${n3From1.toFixed(4)} - ${n3From2.toFixed(4)}|`,
-      value: `${checkDiff.toFixed(4)} m  ${checkDiff <= 0.001 ? '✓ PASS' : '[x] FAIL'}`,
+      value: `${checkDiff.toFixed(4)} m  ${checkDiff <= 0.001 ? ' PASS' : '[x] FAIL'}`,
     },
   ]
 
@@ -554,7 +554,7 @@ export function areaComputation(input: AreaInput): AreaResult {
     {
       description: `[CHECK] Alternative: 2A = |Σ En(Nn+1 - Nn-1)|`,
       formula: `${doubleAreaAlt.toFixed(4)}`,
-      value: `Difference: ${arithmeticCheck.diff.toFixed(4)} m²  ${arithmeticCheck.passed ? '✓ PASS' : '[x] FAIL'}`,
+      value: `Difference: ${arithmeticCheck.diff.toFixed(4)} m²  ${arithmeticCheck.passed ? ' PASS' : '[x] FAIL'}`,
     },
     {
       description: `Perimeter = Σ√(ΔE² + ΔN²)`,

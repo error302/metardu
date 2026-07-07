@@ -123,10 +123,10 @@ export function AutomationPanel({ surveyType, currentStep = 1 }: AutomationPanel
                 </div>
                 <div className="flex items-center gap-2 text-[10px]">
                   {completedCount > 0 && (
-                    <span className="text-emerald-400">{completedCount} ✓</span>
+                    <span className="text-emerald-400">{completedCount} </span>
                   )}
                   {failedCount > 0 && (
-                    <span className="text-red-400">{failedCount} ✗</span>
+                    <span className="text-red-400">{failedCount} </span>
                   )}
                   <span className="text-[var(--text-muted)]">{steps.length} steps</span>
                 </div>

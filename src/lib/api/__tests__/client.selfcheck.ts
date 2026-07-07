@@ -38,10 +38,10 @@ async function check(name: string, fn: () => void | Promise<void>) {
     const r = fn()
     if (r instanceof Promise) await r
     pass++
-    console.log(`  ✓ ${name}`)
+    console.log(`   ${name}`)
   } catch (err) {
     fail++
-    console.error(`  ✗ ${name}: ${(err as Error).message}`)
+    console.error(`   ${name}: ${(err as Error).message}`)
   }
 }
 

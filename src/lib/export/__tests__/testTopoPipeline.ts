@@ -32,9 +32,9 @@ async function run() {
   
   console.log('DXF length:', dxf.length)
   if (dxf.length > 0 && dxf.includes('ENTITIES')) {
-    console.log('✅ Pipeline Test Passed!')
+    console.log('PASS Pipeline Test Passed!')
   } else {
-    console.log('❌ DXF Generation Failed.')
+    console.log('FAIL DXF Generation Failed.')
   }
 }
 

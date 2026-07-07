@@ -54,7 +54,7 @@ function getMarkerIcon(type: string) {
     control: '●',
     boundary: '■',
     benchmark: '◆',
-    gnss: '★',
+    gnss: '',
     other: '●'
   }
   return icons[type] || '●'

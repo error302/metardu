@@ -162,7 +162,7 @@ export default function ProgressMonitorPage() {
                   ]},
                   ...phases.map(p => ({
                     title: `${p.name} — ${p.progress}%`,
-                    rows: p.tasks.map(t => ({ label: t.name, value: t.done ? '✓ Done' : 'Pending' })),
+                    rows: p.tasks.map(t => ({ label: t.name, value: t.done ? ' Done' : 'Pending' })),
                   })),
                 ],
               )
@@ -278,7 +278,7 @@ export default function ProgressMonitorPage() {
                               ? 'bg-emerald-900/40 border-emerald-700 text-emerald-400'
                               : 'border-[var(--border-color)] text-[var(--text-muted)]'
                           }`}>
-                            {task.done && '✓'}
+                            {task.done && ''}
                           </span>
                           <span className={task.done ? 'text-[var(--text-muted)] line-through' : 'text-[var(--text-secondary)]'}>
                             {task.name}

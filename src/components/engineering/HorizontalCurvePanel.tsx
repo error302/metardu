@@ -47,20 +47,20 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
     if (R < minRadius) {
       issues.push(`Radius ${R}m < minimum ${minRadius}m for ${designSpeed}km/h (RDM 1.1)`);
     } else {
-      passes.push(`Radius ${R}m ≥ minimum ${minRadius}m ✓`);
+      passes.push(`Radius ${R}m ≥ minimum ${minRadius}m `);
     }
 
     const ssdCheck = R >= minSSD * 0.5;
     if (!ssdCheck) {
       issues.push(`Insufficient sight distance for ${designSpeed}km/h (min SSD: ${minSSD}m)`);
     } else {
-      passes.push(`Sight distance adequate (min SSD: ${minSSD}m) ✓`);
+      passes.push(`Sight distance adequate (min SSD: ${minSSD}m) `);
     }
 
     if (minE > 7) {
       issues.push(`Required superelevation ${minE.toFixed(1)}% exceeds 7% max — consider larger radius`);
     } else {
-      passes.push(`Superelevation ${minE.toFixed(1)}% within 7% limit ✓`);
+      passes.push(`Superelevation ${minE.toFixed(1)}% within 7% limit `);
     }
 
     return { issues, passes };
@@ -179,7 +179,7 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
         <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
           <ul className="text-green-400 text-xs space-y-0.5">
             {validations.passes.map((pass, i) => (
-              <li key={`${pass}-${i}`}>✓ {pass}</li>
+              <li key={`${pass}-${i}`}> {pass}</li>
             ))}
           </ul>
         </div>

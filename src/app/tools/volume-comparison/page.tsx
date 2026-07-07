@@ -1101,7 +1101,7 @@ export default function VolumeComparisonPage() {
             {/* Export results CSV */}
             <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">📄</span>
+                <span className="text-2xl"></span>
                 <div>
                   <h4 className="font-medium text-sm">Results Summary (CSV)</h4>
                   <p className="text-xs text-[var(--text-muted)]">Volume metadata + statistics</p>
@@ -1137,7 +1137,7 @@ export default function VolumeComparisonPage() {
             {/* Print report */}
             <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">🖨</span>
+                <span className="text-2xl"></span>
                 <div>
                   <h4 className="font-medium text-sm">Print-Friendly Report</h4>
                   <p className="text-xs text-[var(--text-muted)]">Browser print dialog</p>

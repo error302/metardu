@@ -198,7 +198,7 @@ export default function GNSSProcessor({ projectId = '' }: { projectId?: string }
           {/* Accuracy Banner */}
           <div className={`p-4 rounded-lg ${fixedCount === results.length ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
             {fixedCount === results.length ? (
-              <span className="text-green-700">✓ All baselines fixed — First Order accuracy achieved</span>
+              <span className="text-green-700"> All baselines fixed — First Order accuracy achieved</span>
             ) : (
               <span className="text-amber-700">[!] Some baselines are float solutions — not suitable for cadastral work</span>
             )}
@@ -226,7 +226,7 @@ export default function GNSSProcessor({ projectId = '' }: { projectId?: string }
                     <td className="p-3 text-right font-mono">{r.distance.toFixed(3)}</td>
                     <td className="p-3 text-right font-mono">{(r.rmsError * 1000).toFixed(1)}mm</td>
                     <td className="p-3 text-right font-mono">{r.ratio.toFixed(1)}</td>
-                    <td className="p-3 text-center">{r.fixed ? '✓' : '[!]'}</td>
+                    <td className="p-3 text-center">{r.fixed ? '' : '[!]'}</td>
                     <td className="p-3 text-center">{r.qualityClass}</td>
                   </tr>
                 ))}

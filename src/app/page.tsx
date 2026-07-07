@@ -17,7 +17,7 @@ const STATS = [
   { value: '47', suffix: '', label: 'Counties supported' },
   { value: 'Arc 1960', suffix: '', label: 'UTM 36S/37S datum' },
   { value: 'Cap 299', suffix: '', label: 'Survey Act compliant' },
-  { value: 'NLIMS', suffix: ' ✓', label: 'ArdhiSasa-ready exports' },
+  { value: 'NLIMS', suffix: ' ', label: 'ArdhiSasa-ready exports' },
 ]
 
 const TRUST_BADGES = [
@@ -72,7 +72,7 @@ const WORKFLOW_STEPS = [
     number: '02',
     title: 'Collect & Compute',
     description: 'Import field data from total stations, GNSS, or CSV. Run Bowditch, levelling, COGO, and curve calculations with full working shown.',
-    example: 'Closure: 1:48,000 ✓ RDM 1.1 Class B',
+    example: 'Closure: 1:48,000  RDM 1.1 Class B',
   },
   {
     number: '03',
@@ -533,7 +533,7 @@ function PricingSection({ annual, onToggleAnnual }: { annual: boolean; onToggleA
                 <ul className="space-y-3 mb-8 list-none p-0">
                   {plan.features.map((feature, j) => (
                     <li key={j} className="flex items-start gap-3 text-sm text-[var(--text-primary)]/85">
-                      <span className="mt-0.5 text-[var(--accent)]" aria-hidden>✓</span>
+                      <span className="mt-0.5 text-[var(--accent)]" aria-hidden></span>
                       {feature}
                     </li>
                   ))}

@@ -99,7 +99,7 @@ function buildBody(inp: LevelBookPrintInput): string {
   <div class="summary-row"><span class="summary-label">ΣRise − ΣFall</span><span class="summary-value">${(r.sumRise - r.sumFall).toFixed(3)} m</span></div>
   ` : ''}
   
-  <div class="summary-row"><span class="summary-label">Arithmetic Check (ΣBS − ΣFS = Last RL − First RL)</span><span class="summary-value ${r.arithmeticPass ? 'pass' : 'fail'}">${r.arithmeticPass ? 'PASS ✓' : 'FAIL [x]'} (${r.arithmeticCheck.toFixed(6)} m)</span></div>
+  <div class="summary-row"><span class="summary-label">Arithmetic Check (ΣBS − ΣFS = Last RL − First RL)</span><span class="summary-value ${r.arithmeticPass ? 'pass' : 'fail'}">${r.arithmeticPass ? 'PASS ' : 'FAIL [x]'} (${r.arithmeticCheck.toFixed(6)} m)</span></div>
   <div class="summary-row"><span class="summary-label">Misclosure</span><span class="summary-value">${r.misclosure > 0 ? r.misclosure.toFixed(6) + ' m' : '—'}</span></div>
   <div class="summary-row"><span class="summary-label">Allowable Misclosure (C = 10√K mm, K = ${r.distanceKm} km)</span><span class="summary-value">${r.allowableMisclosure.toFixed(3)} m</span></div>
   <div class="summary-row"><span class="summary-label">Closure Check — RDM 1.1 (2025) Table 5.1</span><span class="summary-value ${r.isAcceptable ? 'pass' : 'fail'} bold">${r.isAcceptable ? 'ACCEPTABLE' : 'EXCEEDS TOLERANCE'}</span></div>

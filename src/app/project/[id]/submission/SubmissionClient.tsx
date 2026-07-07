@@ -252,7 +252,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
         </div>
         {progressPct === 100 && (
           <p className="mt-2 text-sm text-green-400 font-medium">
-            ✓ All documents ready for submission
+             All documents ready for submission
           </p>
         )}
       </div>

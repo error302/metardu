@@ -87,7 +87,7 @@ export function solutionV1ToSteps(solution: SolutionV1): SolutionStep[] {
 
   const checkText = joinLines(
     (solution.check ?? []).map((c) => {
-      const status = c.ok === true ? '✓' : c.ok === false ? '[x]' : '•'
+      const status = c.ok === true ? '' : c.ok === false ? '[x]' : '•'
       return `${status} ${c.label}: ${c.value}`
     }),
     '—'

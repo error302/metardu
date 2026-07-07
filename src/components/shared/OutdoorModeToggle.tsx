@@ -66,7 +66,7 @@ export function OutdoorModeToggle() {
   }, [])
 
   const label = theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'Field'
-  const icon = theme === 'dark' ? '◐' : theme === 'light' ? '○' : '☀'
+  const icon = theme === 'dark' ? '◐' : theme === 'light' ? '○' : ''
 
   return (
     <button

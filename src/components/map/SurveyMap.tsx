@@ -320,7 +320,7 @@ export default function SurveyMap({
           }`}
           title="Toggle sheet layout overlay (north arrow, scale bar, grid ticks, title block)"
         >
-          {showSheetLayout ? '✦ Sheet Layout On' : '✦ Sheet Layout'}
+          {showSheetLayout ? ' Sheet Layout On' : ' Sheet Layout'}
         </button>
         <button
           onClick={handlePrint}

@@ -155,7 +155,7 @@ export default function RoadCompletionCertificatePanel({
 </head>
 <body>
   <div class="no-print" style="text-align:center;margin-bottom:16px;">
-    <button onclick="window.print()" style="padding:10px 28px;font-size:14px;cursor:pointer;border:1px solid #999;border-radius:4px;background:#1e40af;color:#fff;">🖨 Print Certificate</button>
+    <button onclick="window.print()" style="padding:10px 28px;font-size:14px;cursor:pointer;border:1px solid #999;border-radius:4px;background:#1e40af;color:#fff;"> Print Certificate</button>
   </div>
 
   <div class="header">
@@ -426,7 +426,7 @@ function CertificatePreview({ certificate }: { certificate: ReturnType<typeof ge
 
       {/* Status Badge */}
       <div className={`text-center py-2 rounded-lg ${certificate.isComplete ? 'bg-green-900/50 text-green-400' : 'bg-amber-900/50 text-amber-400'}`}>
-        <span className="font-bold">{certificate.isComplete ? '✓ CERTIFIED — COMPLIANT' : '[!] PENDING — RESERVATIONS NOTED'}</span>
+        <span className="font-bold">{certificate.isComplete ? ' CERTIFIED — COMPLIANT' : '[!] PENDING — RESERVATIONS NOTED'}</span>
       </div>
 
       {/* Sections */}
@@ -452,7 +452,7 @@ function CertificatePreview({ certificate }: { certificate: ReturnType<typeof ge
         <div className="grid grid-cols-2 gap-1">
           {certificate.certificationChecklist.map((item, i) => (
             <div key={`${item}-${i}`} className={`flex items-center gap-2 text-xs py-1 ${item.certified ? 'text-green-400' : 'text-red-400'}`}>
-              {item.certified ? '✓' : '[x]'} {item.item}
+              {item.certified ? '' : '[x]'} {item.item}
             </div>
           ))}
         </div>

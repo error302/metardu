@@ -276,7 +276,7 @@ describe('Statutory Validation Gate', () => {
       const input = makeBaseInput({
         leveling: {
           sumBS: 1.55,
-          sumFS: 1.5, // arithmetic: 1.55 - 1.5 = 0.05 = lastRL - firstRL ✓
+          sumFS: 1.5, // arithmetic: 1.55 - 1.5 = 0.05 = lastRL - firstRL 
           firstRL: 100.0,
           lastRL: 100.05, // 50 mm closing error
           distanceKm: 1.0,
@@ -297,7 +297,7 @@ describe('Statutory Validation Gate', () => {
       const preciseInput = makeBaseInput({
         leveling: {
           sumBS: 1.508,
-          sumFS: 1.5, // arithmetic: 1.508 - 1.5 = 0.008 = lastRL - firstRL ✓
+          sumFS: 1.5, // arithmetic: 1.508 - 1.5 = 0.008 = lastRL - firstRL 
           firstRL: 100.0,
           lastRL: 100.008, // 8 mm
           distanceKm: 1.0,

@@ -401,12 +401,12 @@ export default function GNSSLogBuilder() {
       {/* ── WHAT'S INCLUDED ──────────────────────────────────────────────────── */}
       <div className="p-3 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border-color)] text-xs space-y-1 text-[var(--text-muted)]">
         <p className="font-semibold text-[var(--text-primary)] mb-1.5">Log will include:</p>
-        <p>✓ Equipment details — receiver, antenna, base station, epoch/mask settings</p>
-        <p>✓ Table 1: Occupation Schedule — start/end, duration, satellites, PDOP, HDOP, fix type, antenna height</p>
-        {observations.some(o => o.easting) && <p>✓ Table 2: Coordinate Results — Easting, Northing, Ellipsoidal/Orthometric heights, RMS H/V</p>}
-        {baselines.length > 0 && <p>✓ Table 3: Baseline Vectors — ΔE/ΔN/ΔU, distance, azimuth, solution, ratio, RMS</p>}
-        <p>✓ Quality Assessment — fix rate, avg PDOP, avg satellites, baseline RMS, overall quality rating</p>
-        <p>✓ Surveyor's Certificate — Survey Regulations 1994, Reg. 21</p>
+        <p> Equipment details — receiver, antenna, base station, epoch/mask settings</p>
+        <p> Table 1: Occupation Schedule — start/end, duration, satellites, PDOP, HDOP, fix type, antenna height</p>
+        {observations.some(o => o.easting) && <p> Table 2: Coordinate Results — Easting, Northing, Ellipsoidal/Orthometric heights, RMS H/V</p>}
+        {baselines.length > 0 && <p> Table 3: Baseline Vectors — ΔE/ΔN/ΔU, distance, azimuth, solution, ratio, RMS</p>}
+        <p> Quality Assessment — fix rate, avg PDOP, avg satellites, baseline RMS, overall quality rating</p>
+        <p> Surveyor's Certificate — Survey Regulations 1994, Reg. 21</p>
         <p className="font-mono mt-1">Reference: Survey Act Cap 299 | Survey Regulations 1994 Reg. 21 | ISK GNSS Guidelines 2019 | ISO 17123-8</p>
       </div>
 

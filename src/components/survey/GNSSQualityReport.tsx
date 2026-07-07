@@ -49,9 +49,9 @@ interface QualityCheck {
 }
 
 const FIX_QUALITY_LABELS: Record<string, { label: string; color: string; icon: string }> = {
-  rtk_fixed: { label: 'RTK Fixed', color: 'text-emerald-400', icon: '🟢' },
-  rtk_float: { label: 'RTK Float', color: 'text-amber-400', icon: '🟡' },
-  dgps: { label: 'DGPS', color: 'text-blue-400', icon: '🔵' },
+  rtk_fixed: { label: 'RTK Fixed', color: 'text-emerald-400', icon: '' },
+  rtk_float: { label: 'RTK Float', color: 'text-amber-400', icon: '' },
+  dgps: { label: 'DGPS', color: 'text-blue-400', icon: '' },
   gps: { label: 'GPS Only', color: 'text-amber-400', icon: '[Y]' },
   none: { label: 'No Fix', color: 'text-red-400', icon: '[R]' },
 }

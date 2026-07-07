@@ -369,13 +369,13 @@ export default function ProcessPage() {
             <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-4">Download Sample Files</h3>
             <div className="flex flex-wrap gap-3">
               <a href="/sample-files/traverse_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm">
-                📄 Traverse Sample
+                 Traverse Sample
               </a>
               <a href="/sample-files/leveling_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm">
-                📄 Leveling Sample
+                 Leveling Sample
               </a>
               <a href="/sample-files/radiation_sample.csv" className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] rounded text-sm">
-                📄 Radiation Sample
+                 Radiation Sample
               </a>
             </div>
           </div>
@@ -384,7 +384,7 @@ export default function ProcessPage() {
         <div className="space-y-6">
           <div className="card border border-[var(--border-color)]">
             <div className="card-header flex items-center gap-3">
-              <span className="text-2xl">✓</span>
+              <span className="text-2xl"></span>
               <span className="font-semibold">
                 {detectLabel(detectSurveyTypeFromDataset(interpretResult.dataset!))} Detected
               </span>
@@ -477,7 +477,7 @@ export default function ProcessPage() {
             <>
               <div className={`card border-2 ${toleranceResult?.passed ? 'border-green-700' : 'border-red-700'}`}>
                 <div className="card-header flex items-center gap-3">
-                  <span className="text-2xl">{toleranceResult?.passed ? '✓' : '[x]'}</span>
+                  <span className="text-2xl">{toleranceResult?.passed ? '' : '[x]'}</span>
                   <span className="font-semibold">
                     Tolerance Check: {toleranceResult?.passed ? 'PASS' : 'FAIL'}
                   </span>
@@ -488,7 +488,7 @@ export default function ProcessPage() {
                 <div className="card-body">
                   {toleranceResult?.checks.map((check, i) => (
                     <div key={`check-${check.name || i}`} className={`flex items-center justify-between py-2 border-b border-[var(--border-color)] last:border-0 ${check.passed ? 'text-green-400' : 'text-red-400'}`}>
-                      <span>{check.passed ? '✓' : '[x]'} {check.name}</span>
+                      <span>{check.passed ? '' : '[x]'} {check.name}</span>
                       <span className="text-sm">{check.message}</span>
                     </div>
                   ))}
@@ -603,7 +603,7 @@ export default function ProcessPage() {
                       disabled={!selectedProjectId || saveLoading}
                       className="px-6 py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold rounded-lg disabled:opacity-50"
                     >
-                      {saveLoading ? 'Saving...' : saveSuccess ? '✓ Saved!' : 'Save Points'}
+                      {saveLoading ? 'Saving...' : saveSuccess ? ' Saved!' : 'Save Points'}
                     </button>
                   </div>
 

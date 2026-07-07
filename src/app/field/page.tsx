@@ -183,7 +183,7 @@ export default function FieldPage() {
       setBatchErrors([])
       setShowBatch(false)
       fetchProjectPoints(selectedProject)
-      setMsg(`✓ Saved ${batchParseResults.length} points successfully`)
+      setMsg(` Saved ${batchParseResults.length} points successfully`)
     } catch (e: unknown) {
       setMsg('Error: ' + (e instanceof Error ? (e as Error).message : String(e)))
     }

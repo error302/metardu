@@ -77,7 +77,7 @@ export function horizontalCurveElements(input: HorizontalCurveInput): Horizontal
     { description: `TC = IP - T`, formula: `${ipChainage.toFixed(3)} - ${tangentLength.toFixed(4)}`, value: `${tcChainage.toFixed(4)} m` },
     { description: `CC = TC + L/2`, formula: `${tcChainage.toFixed(4)} + ${curveLength.toFixed(4)}/2`, value: `${ccChainage.toFixed(4)} m` },
     { description: `CT = TC + L`, formula: `${tcChainage.toFixed(4)} + ${curveLength.toFixed(4)}`, value: `${ctChainage.toFixed(4)} m` },
-    { description: `[CHECK] CT via IP: IP + T`, formula: `${ipChainage.toFixed(4)} + ${tangentLength.toFixed(4)} = ${ctFromIP.toFixed(4)}`, value: `${arithmeticCheck.passed ? 'PASS ✓' : 'FAIL [x]'} (diff=${arithmeticCheck.diff.toFixed(4)}m)` },
+    { description: `[CHECK] CT via IP: IP + T`, formula: `${ipChainage.toFixed(4)} + ${tangentLength.toFixed(4)} = ${ctFromIP.toFixed(4)}`, value: `${arithmeticCheck.passed ? 'PASS ' : 'FAIL [x]'} (diff=${arithmeticCheck.diff.toFixed(4)}m)` },
   ]
 
   return {
@@ -287,7 +287,7 @@ export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
     { description: `EVC = VPI + L/2`, formula: `${vpiChainage.toFixed(4)} + ${(L/2).toFixed(4)}`, value: `${evcChainage.toFixed(4)} m` },
     { description: `BVC RL = VPI RL - G₁×(L/2)/100`, formula: `${vpiRL.toFixed(4)} - ${g1.toFixed(4)}×${(L/2).toFixed(4)}/100`, value: `${bvcRL.toFixed(4)} m` },
     { description: `EVC RL = VPI RL + G₂×(L/2)/100`, formula: `${vpiRL.toFixed(4)} + ${g2.toFixed(4)}×${(L/2).toFixed(4)}/100`, value: `${evcRL.toFixed(4)} m` },
-    { description: `[CHECK] RL at EVC via formula`, formula: `${rlAtEVC.toFixed(4)} vs ${evcRL.toFixed(4)}`, value: `${arithmeticCheck.passed ? 'PASS ✓' : 'FAIL [x]'} (diff=${arithmeticCheck.diff.toFixed(4)}m)` },
+    { description: `[CHECK] RL at EVC via formula`, formula: `${rlAtEVC.toFixed(4)} vs ${evcRL.toFixed(4)}`, value: `${arithmeticCheck.passed ? 'PASS ' : 'FAIL [x]'} (diff=${arithmeticCheck.diff.toFixed(4)}m)` },
   ]
 
   if (A !== 0) {

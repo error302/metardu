@@ -179,7 +179,7 @@ export default function AddPointModal({
 
       // Success - clear fields but keep checkbox state
       setLoading(false)
-      setSuccessMsg(`✓ ${name} saved`)
+      setSuccessMsg(` ${name} saved`)
       setName('')
       setEasting('')
       setNorthing('')

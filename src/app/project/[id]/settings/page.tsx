@@ -108,7 +108,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
     if (error) {
       setMessage('Error: ' + error.message)
     } else {
-      setMessage('✓ Project settings saved')
+      setMessage(' Project settings saved')
       setTimeout(() => setMessage(''), 3000)
     }
 
@@ -153,7 +153,7 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
 
         {message && (
           <div className={`p-3 rounded mb-6 ${
-            message.startsWith('✓') 
+            message.startsWith('') 
               ? 'bg-green-900/30 text-green-400'
               : 'bg-red-900/30 text-red-400'
           }`}>

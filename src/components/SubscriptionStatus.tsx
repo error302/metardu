@@ -15,28 +15,28 @@ export default function SubscriptionStatus({ subscription }: { subscription: any
     if (plan === 'enterprise') {
       return (
         <span className="text-xs bg-amber-900/50 text-amber-400 px-2 py-1 rounded font-semibold">
-          Enterprise ✓
+          Enterprise 
         </span>
       )
     }
     if (plan === 'firm') {
       return (
         <span className="text-xs bg-purple-900/50 text-purple-400 px-2 py-1 rounded font-semibold">
-          Firm ✓
+          Firm 
         </span>
       )
     }
     if (plan === 'team') {
       return (
         <span className="text-xs bg-blue-900/50 text-blue-400 px-2 py-1 rounded">
-          Team ✓
+          Team 
         </span>
       )
     }
     if (plan === 'pro') {
       return (
         <span className="text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded">
-          Pro ✓
+          Pro 
         </span>
       )
     }

@@ -59,7 +59,7 @@ export default function SubmitBeaconPage() {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-8 text-center">
-          <div className="text-6xl mb-4">✓</div>
+          <div className="text-6xl mb-4"></div>
           <h1 className="text-2xl font-bold text-green-400 mb-4">Beacon Submitted!</h1>
           <p className="text-[var(--text-primary)] mb-6">
             Thank you. Your beacon will appear on the map after verification.

@@ -498,7 +498,7 @@ export default function EngineeringWorkspacePage() {
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
           toast.type === 'success' ? 'bg-green-900/90 text-green-300 border border-green-700' : 'bg-red-900/90 text-red-300 border border-red-700'
         }`}>
-          {toast.type === 'success' ? '✓ ' : '[x] '}{toast.message}
+          {toast.type === 'success' ? ' ' : '[x] '}{toast.message}
         </div>
       )}
 
@@ -535,7 +535,7 @@ export default function EngineeringWorkspacePage() {
                         step.status === 'locked' ? 'bg-zinc-800 text-zinc-600' :
                         'bg-zinc-700 text-zinc-300'
                       }`}>
-                        {step.status === 'complete' ? '✓' : isLocked ? '[Lock]' : idx + 1}
+                        {step.status === 'complete' ? '' : isLocked ? '[Lock]' : idx + 1}
                       </span>
                       <div className="min-w-0">
                         <div className={`text-sm font-medium ${isLocked ? 'text-zinc-600' : isActive ? 'text-white' : 'text-zinc-300'}`}>

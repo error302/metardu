@@ -137,7 +137,7 @@ export default function ContoursPage({ params }: { params: Promise<{ id: string 
                 ? 'bg-green-500/10 text-green-400 border border-green-500/20'
                 : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
             }`}>
-              {engineMode === 'python' ? '⬡ Python engine' : '⬡ TS fallback'}
+              {engineMode === 'python' ? ' Python engine' : ' TS fallback'}
             </span>
           )}
         </div>

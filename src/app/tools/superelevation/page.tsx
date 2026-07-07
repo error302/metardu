@@ -103,7 +103,7 @@ export default function SuperelevationPage() {
             </div>
             {result.isCapped && (
               <div className="text-xs text-red-400 mt-1">
-                ⚠ Required e = {(result.requiredE * 100).toFixed(2)}% exceeds max — capped to 8%
+                ! Required e = {(result.requiredE * 100).toFixed(2)}% exceeds max — capped to 8%
               </div>
             )}
           </div>
@@ -120,7 +120,7 @@ export default function SuperelevationPage() {
           {/* Compliance */}
           <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
             <div className={`text-lg font-medium ${result.isCompliant ? 'text-green-400' : 'text-red-400'}`}>
-              {result.isCompliant ? '✓ Compliant with RDM 1.3' : '✗ Non-compliant — radius too small for speed'}
+              {result.isCompliant ? ' Compliant with RDM 1.3' : ' Non-compliant — radius too small for speed'}
             </div>
             <div className="text-xs text-zinc-500 mt-1">
               Rate of change p = {(result.rateOfChange * 100).toFixed(2)}%/m (1% per 2.4m per RDM 1.3)

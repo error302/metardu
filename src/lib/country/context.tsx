@@ -106,7 +106,7 @@ export function CountryProvider({ children }: { children: ReactNode }) {
     getBeacon,
     getFieldNote,
     getReportReq,
-    flag: countryInfo?.flag ?? '🌍',
+    flag: countryInfo?.flag ?? '',
     isoCode: countryInfo?.isoCode ?? 'XX',
   }), [country, standard, setCountry, getAreaRule, getSlope, getBeacon, getFieldNote, getReportReq, countryInfo])
 

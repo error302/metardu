@@ -54,12 +54,12 @@ export default function SurveyDetailPage() {
         <div className="card">
           <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--accent)' }}>Corrections Applied</h3>
           <div style={{ display: 'grid', gap: '8px', fontSize: '13px' }}>
-            <div style={{ color: 'var(--success)' }}>✓ Atmospheric (temp/pressure/humidity)</div>
-            <div style={{ color: 'var(--success)' }}>✓ Curvature & Refraction</div>
-            <div style={{ color: 'var(--success)' }}>✓ Grid Scale Factor</div>
-            <div style={{ color: 'var(--success)' }}>✓ Sea Level Reduction</div>
-            <div style={{ color: 'var(--success)' }}>✓ Slope Reduction</div>
-            <div style={{ color: 'var(--success)' }}>✓ Grid Convergence</div>
+            <div style={{ color: 'var(--success)' }}> Atmospheric (temp/pressure/humidity)</div>
+            <div style={{ color: 'var(--success)' }}> Curvature & Refraction</div>
+            <div style={{ color: 'var(--success)' }}> Grid Scale Factor</div>
+            <div style={{ color: 'var(--success)' }}> Sea Level Reduction</div>
+            <div style={{ color: 'var(--success)' }}> Slope Reduction</div>
+            <div style={{ color: 'var(--success)' }}> Grid Convergence</div>
           </div>
         </div>
       </div>

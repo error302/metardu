@@ -31,7 +31,7 @@ export default function AdversePossessionPage() {
         <div>{result ? (
           <div className="space-y-4">
             <div className={`p-4 rounded-lg border ${result.allElementsMet ? 'border-green-500/20 bg-green-500/5' : result.meetsStatutoryPeriod ? 'border-amber-500/20 bg-amber-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-              <p className={`text-sm font-semibold ${result.allElementsMet ? 'text-green-400' : result.meetsStatutoryPeriod ? 'text-amber-400' : 'text-red-400'}`}>{result.allElementsMet ? '✓ Claim Valid' : result.meetsStatutoryPeriod ? '⚠ Partial Claim' : '✗ Period Not Met'}</p>
+              <p className={`text-sm font-semibold ${result.allElementsMet ? 'text-green-400' : result.meetsStatutoryPeriod ? 'text-amber-400' : 'text-red-400'}`}>{result.allElementsMet ? ' Claim Valid' : result.meetsStatutoryPeriod ? '! Partial Claim' : ' Period Not Met'}</p>
               <p className="text-xs text-zinc-500 mt-1">{result.recommendation}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -40,7 +40,7 @@ export default function AdversePossessionPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[['Open & Notorious', result.isOpenAndNotorious], ['Exclusive', result.isExclusive], ['Hostile', result.isHostile], ['Continuous', result.isContinuous]].map(([label, val]) => (
-                <div key={label as string} className={`p-2 rounded-lg border text-center ${val ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}><span className="text-xs">{val ? '🟢' : '🔴'} {label as string}</span></div>
+                <div key={label as string} className={`p-2 rounded-lg border text-center ${val ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}><span className="text-xs">{val ? '' : ''} {label as string}</span></div>
               ))}
             </div>
           </div>

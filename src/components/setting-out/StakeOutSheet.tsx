@@ -116,11 +116,11 @@ export default function StakeOutSheet({ result }: Props) {
       {/* ── WHAT'S INCLUDED ─────────────────────────────────────────── */}
       <div className="p-3 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border-color)] text-xs space-y-1 text-[var(--text-muted)]">
         <p className="font-semibold text-[var(--text-primary)] mb-1.5">Schedule will include:</p>
-        <p>✓ Standard document header (project · client · date · surveyor · reg no · instrument)</p>
-        <p>✓ Instrument station: E, N, RL, IH — Backsight: E, N, WCB bearing</p>
-        <p>✓ Full table: Point ID · Design E · Design N · Design RL · Hz Angle · HD · VD · VA · SD · TH</p>
-        <p>✓ 10 field notes including construction tolerance (±25mm H / ±15mm V — RDM 1.1 Table 5.2)</p>
-        <p>✓ Surveyor&apos;s Certificate — Survey Regulations 1994, Regulation 3(2)</p>
+        <p> Standard document header (project · client · date · surveyor · reg no · instrument)</p>
+        <p> Instrument station: E, N, RL, IH — Backsight: E, N, WCB bearing</p>
+        <p> Full table: Point ID · Design E · Design N · Design RL · Hz Angle · HD · VD · VA · SD · TH</p>
+        <p> 10 field notes including construction tolerance (±25mm H / ±15mm V — RDM 1.1 Table 5.2)</p>
+        <p> Surveyor&apos;s Certificate — Survey Regulations 1994, Regulation 3(2)</p>
         <p className="font-mono mt-1">Reference: Ghilani &amp; Wolf Ch.23 | RDM 1.1 (2025) Table 5.2 | Survey Act Cap 299</p>
       </div>
 

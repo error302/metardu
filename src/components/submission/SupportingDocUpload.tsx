@@ -74,7 +74,7 @@ export function SupportingDocUpload({ projectId }: { projectId: string }) {
             <p className="text-xs text-muted-foreground">
               {doc.required ? 'Required' : 'Optional'}
               {doc.file_url && (
-                <span className="ml-2 text-green-400">✓ Uploaded</span>
+                <span className="ml-2 text-green-400"> Uploaded</span>
               )}
             </p>
           </div>

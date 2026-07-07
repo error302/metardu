@@ -252,7 +252,7 @@ export default function AdversePossessionCalc() {
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
                       step.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                     }`}>
-                      {step.passed ? '✓' : '[x]'}
+                      {step.passed ? '' : '[x]'}
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{step.title}</p>

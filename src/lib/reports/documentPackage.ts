@@ -512,7 +512,7 @@ export function generateCompletionCertificate(
     ${(extraFields.completionItems || 
       'All survey points established and recorded\nField observations independently checked\nComputations verified and within acceptable limits\nSurvey documents prepared and certified').split('\n').map((item: string) => `
     <div style="display:flex;align-items:flex-start;gap:8px;margin:6px 0;">
-      <span style="color:#D17B47;font-weight:700;font-size:14px;">✓</span>
+      <span style="color:#D17B47;font-weight:700;font-size:14px;"></span>
       <span>${item.trim()}</span>
     </div>`).join('')}
   </div>

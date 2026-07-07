@@ -264,7 +264,7 @@ export function InputForm(props: InputFormProps) {
               </select>
               {detectedSubSheet && selectedSubSheetId === '__auto__' && (
                 <p className="mt-1 text-[10px] text-emerald-400">
-                  ✓ Auto-detected sub-sheet {detectedSubSheet.fullId}
+                   Auto-detected sub-sheet {detectedSubSheet.fullId}
                 </p>
               )}
             </div>

@@ -398,7 +398,7 @@ export default function SubdivisionPanel({
                           : 'Click map to set'}
                       </button>
                       <span className="text-[10px] text-gray-400">
-                        {params.center ? '✓ Set' : 'Default: centroid'}
+                        {params.center ? ' Set' : 'Default: centroid'}
                       </span>
                     </div>
                   </div>
@@ -467,7 +467,7 @@ export default function SubdivisionPanel({
                   )}
                   {splitLine && (
                     <div className="p-2.5 bg-green-50 border border-green-200 rounded-md">
-                      <div className="text-xs text-green-800 font-medium mb-1">✓ Split line defined</div>
+                      <div className="text-xs text-green-800 font-medium mb-1"> Split line defined</div>
                       <div className="text-[10px] text-green-700 font-mono">
                         ({splitLine.startPoint.easting.toFixed(1)}, {splitLine.startPoint.northing.toFixed(1)}) →
                         ({splitLine.endPoint.easting.toFixed(1)}, {splitLine.endPoint.northing.toFixed(1)})

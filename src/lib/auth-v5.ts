@@ -2,7 +2,7 @@
 /**
  * NextAuth v5 (Auth.js) — STAGED MIGRATION CONFIG
  *
- * ⚠️  This file is NOT yet active. The app still uses src/lib/auth.ts (v4).
+ * !  This file is NOT yet active. The app still uses src/lib/auth.ts (v4).
  *     This is the v5 equivalent, ready for activation when the migration
  *     window opens (per docs/SYSTEM_DESIGN_V3.md section 6).
  *

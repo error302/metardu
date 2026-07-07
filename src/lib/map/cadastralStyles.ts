@@ -576,7 +576,7 @@ export async function createEdgeAnnotationStyleFunction(
  *
  * Each feature's geometry should be a `LineString`.  The function renders:
  * 1. A dashed line in the specified colour.
- * 2. A directional arrow (➤) at the midpoint, rotated to match the
+ * 2. A directional arrow () at the midpoint, rotated to match the
  *    traverse bearing.
  *
  * Features **may** expose a `bearing` property (degrees, CW from north)
@@ -689,7 +689,7 @@ export async function createTraverseLegStyleFunction(
         new Style({
           geometry: arrowGeometry,
           text: new Text({
-            text: '\u27A4', // ➤ right-pointing arrow
+            text: '\u27A4', //  right-pointing arrow
             rotation,
             font: `${arrowSize}px sans-serif`,
             fill: new Fill({ color: effectiveArrowColor }),

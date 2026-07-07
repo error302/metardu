@@ -492,7 +492,7 @@ export default function TraverseFieldBook({ projectId, onImport }: TraverseField
                   <div className="flex items-center gap-2">
                     <button onClick={() => setAtmVerified(true)}
                       className={`px-3 py-1.5 rounded text-xs font-medium ${atmVerified ? 'bg-green-700 text-green-100' : 'bg-amber-700 hover:bg-amber-600 text-amber-100'}`}>
-                      {atmVerified ? '✓ Verified' : 'Verify These Readings'}
+                      {atmVerified ? ' Verified' : 'Verify These Readings'}
                     </button>
                     {weatherFetchedAt && (
                       <span className="text-[10px] text-[var(--text-muted)]">

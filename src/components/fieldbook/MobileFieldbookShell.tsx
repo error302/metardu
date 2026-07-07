@@ -723,7 +723,7 @@ export function MobileFieldbookShell({
 
                     {(surveyType === 'control') && (
                       <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-lg text-xs text-emerald-300">
-                        ✓ All {rows.length} points calculated successfully via 3D polar computations.
+                         All {rows.length} points calculated successfully via 3D polar computations.
                       </div>
                     )}
                   </div>

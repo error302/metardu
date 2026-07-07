@@ -370,13 +370,13 @@ export default function BeaconCertificateBuilder() {
           <div className="p-4 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border-color)] text-xs space-y-1.5">
             <p className="font-semibold text-[var(--text-primary)] mb-2">The certificate will include:</p>
             <div className="text-[var(--text-muted)] space-y-1">
-              <p>✓ Standard document header (project · client · date · surveyor · reg no · instrument)</p>
-              <p>✓ Location particulars (parcel ref · county · sub-county · location · sub-location · job no.)</p>
-              <p>✓ Beacon summary (set / found / disturbed / destroyed counts)</p>
-              <p>✓ Full beacon description table — coordinates to 3dp, monument type, condition</p>
-              <p>✓ Description and adjacent features for each beacon</p>
-              <p>✓ 6 standard notes (coordinate system, datum, definitions)</p>
-              <p>✓ Surveyor&apos;s Certificate — Survey Regulations 1994, Regulation 3(2)</p>
+              <p> Standard document header (project · client · date · surveyor · reg no · instrument)</p>
+              <p> Location particulars (parcel ref · county · sub-county · location · sub-location · job no.)</p>
+              <p> Beacon summary (set / found / disturbed / destroyed counts)</p>
+              <p> Full beacon description table — coordinates to 3dp, monument type, condition</p>
+              <p> Description and adjacent features for each beacon</p>
+              <p> 6 standard notes (coordinate system, datum, definitions)</p>
+              <p> Surveyor&apos;s Certificate — Survey Regulations 1994, Regulation 3(2)</p>
             </div>
             <p className="text-[var(--text-muted)] font-mono mt-2">
               Coordinate system: UTM Arc 1960 / Zone 37S (SRID 21037)

@@ -87,7 +87,7 @@ export default function PricingCard({
             }`}
           >
             <span className={`text-lg ${feature.included ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}>
-              {feature.included ? '✓' : '[x]'}
+              {feature.included ? '' : '[x]'}
             </span>
             {feature.text}
           </li>

@@ -711,7 +711,7 @@ export default function COGOCalculator({ compact = false }: Props) {
                   <ResultCard label="Back Bearing" value={invResult.backBearingDMS} />
                   <ResultCard label="Quadrant" value={invResult.quadrant} />
                   <ResultCard label="Arithmetic Check"
-                    value={`${invResult.arithmeticCheck.passed ? 'PASS ✓' : 'FAIL [x]'} (${invResult.arithmeticCheck.value.toFixed(6)})`}
+                    value={`${invResult.arithmeticCheck.passed ? 'PASS ' : 'FAIL [x]'} (${invResult.arithmeticCheck.value.toFixed(6)})`}
                     accent={invResult.arithmeticCheck.passed} />
                 </div>
               </div>
@@ -747,7 +747,7 @@ export default function COGOCalculator({ compact = false }: Props) {
                   <ResultCard label="Dist from P1" value={`${intResult.distanceFrom1.toFixed(4)} m`} />
                   <ResultCard label="Dist from P2" value={`${intResult.distanceFrom2.toFixed(4)} m`} />
                   <ResultCard label="Check Difference"
-                    value={`${intResult.checkDiff.toFixed(4)} m  ${intResult.isWithinTolerance ? '✓ PASS' : '[x] FLAG'}`}
+                    value={`${intResult.checkDiff.toFixed(4)} m  ${intResult.isWithinTolerance ? ' PASS' : '[x] FLAG'}`}
                     accent={intResult.isWithinTolerance} />
                 </div>
               </div>
@@ -820,7 +820,7 @@ export default function COGOCalculator({ compact = false }: Props) {
                 <ResultCard label="Area (ha)" value={areaResult.areaHa.toFixed(4)} accent />
                 <ResultCard label="Perimeter (m)" value={areaResult.perimeter.toFixed(4)} />
                 <ResultCard label="Arithmetic Check"
-                  value={`${areaResult.arithmeticCheck.passed ? 'PASS ✓' : 'FAIL [x]'} (${areaResult.arithmeticCheck.diff.toFixed(6)} m²)`}
+                  value={`${areaResult.arithmeticCheck.passed ? 'PASS ' : 'FAIL [x]'} (${areaResult.arithmeticCheck.diff.toFixed(6)} m²)`}
                   accent={areaResult.arithmeticCheck.passed} />
                 <ResultCard label="Centroid E" value={areaResult.centroid.easting.toFixed(4)} />
                 <ResultCard label="Centroid N" value={areaResult.centroid.northing.toFixed(4)} />
