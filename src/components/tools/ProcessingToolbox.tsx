@@ -19,7 +19,7 @@ import {
   Search, Star, Clock, ChevronRight, Calculator,
   Compass, Ruler, MapPin, FileText, Mountain,
   Waves, Building2, Navigation, Layers,
-  X, Activity, Satellite, FileCheck, AlertTriangle, Building,
+  X, Activity, Satellite, FileCheck, AlertTriangle, Building, TrendingUp,
 } from 'lucide-react'
 
 interface Tool {
@@ -90,6 +90,13 @@ const TOOLS: Tool[] = [
   { id: 'boundary-dispute', name: 'Boundary Dispute Analysis', description: 'Overlay legal boundary vs physical occupation', category: 'Validation', href: '/tools/boundary-dispute', icon: AlertTriangle, keywords: ['boundary', 'dispute', 'encroachment', 'fence', 'occupation', 'legal'] },
   { id: 'sectional-properties', name: 'Sectional Properties', description: 'Apartment units, parking, common areas per Act 2020', category: 'Documents', href: '/tools/sectional-properties', icon: Building, keywords: ['sectional', 'apartment', 'unit', 'floor', 'participation', 'quota'] },
   { id: 'encumbrance', name: 'Encumbrance Registration', description: 'Wayleaves, easements, restrictions on parcels', category: 'Documents', href: '/tools/encumbrance', icon: FileText, keywords: ['encumbrance', 'wayleave', 'easement', 'restriction', 'caveat', 'kplc'] },
+  { id: 'super-runout', name: 'Superelevation Runout', description: 'Cross-slope transition profile diagram', category: 'Engineering', href: '/tools/super-runout', icon: Activity, keywords: ['superelevation', 'runout', 'transition', 'cross', 'slope', 'crown'] },
+  { id: 'grade-analysis', name: 'Grade Analysis', description: 'Sustained grades, critical lengths, climbing lane warrants', category: 'Engineering', href: '/tools/grade-analysis', icon: TrendingUp, keywords: ['grade', 'slope', 'critical', 'climbing', 'lane', 'sustained'] },
+  { id: 'pier-alignment', name: 'Bridge Pier Alignment', description: 'Perpendicular offsets from centerline at pier locations', category: 'Engineering', href: '/tools/pier-alignment', icon: Building, keywords: ['bridge', 'pier', 'alignment', 'offset', 'perpendicular', 'staking'] },
+  { id: 'pipeline-asbuilt', name: 'Pipeline As-Built', description: 'Invert levels, cover depth, joint schedule', category: 'Engineering', href: '/tools/pipeline-asbuilt', icon: Activity, keywords: ['pipeline', 'as-built', 'invert', 'cover', 'joint', 'pipe'] },
+  { id: 'composite-plans', name: 'Composite Plans', description: 'Multi-parcel layout on A1/A0 sheets, registry index', category: 'Documents', href: '/tools/composite-plans', icon: Layers, keywords: ['composite', 'plan', 'sheet', 'registry', 'index', 'multi', 'parcel'] },
+  { id: 'community-land', name: 'Community Land Survey', description: 'Communal boundaries per Community Land Act 2016', category: 'Documents', href: '/tools/community-land', icon: Building2, keywords: ['community', 'land', 'communal', 'household', 'grazing', 'farming'] },
+  { id: 'adverse-possession', name: 'Adverse Possession', description: 'Evaluate 12-year occupation claim per Limitation Act', category: 'Validation', href: '/tools/adverse-possession', icon: AlertTriangle, keywords: ['adverse', 'possession', 'occupation', 'limitation', '12', 'years', 'claim'] },
 ]
 
 const CATEGORIES = ['All', 'Calculations', 'Coordinates', 'Engineering', 'Volumes', 'Documents', 'Field Books', 'Validation']
