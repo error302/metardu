@@ -1,6 +1,6 @@
 import Drawing from 'dxf-writer'
 import {
-  initialiseDXFLayers,
+  initialiseSokDXFLayers,
   addStandardTitleBlock,
   DXF_LAYERS,
 } from '@/lib/drawing/dxfLayers'
@@ -15,7 +15,7 @@ export function generateNetworkDXF(params: {
   const { adjustedStations, observations, projectData, surveyorProfile } = params
   const drawing = new Drawing()
 
-  initialiseDXFLayers(drawing)
+  initialiseSokDXFLayers(drawing)
 
   addStandardTitleBlock(drawing, {
     drawingTitle: 'GPS CONTROL NETWORK DIAGRAM',
@@ -42,18 +42,18 @@ export function generateNetworkDXF(params: {
     const from = stationMap.get(obs.from)
     const to = stationMap.get(obs.to)
     if (!from || !to) continue
-    drawing.setActiveLayer(DXF_LAYERS.TRAVERSE.name)
+    drawing.setActiveLayer(DXF_LAYERS.CONTROL.name)
     drawing.drawLine(from.easting, from.northing, to.easting, to.northing)
   }
 
   const symbolSize = 2
   for (const s of adjustedStations) {
-    drawing.setActiveLayer(DXF_LAYERS.CONTROL_POINTS.name)
+    drawing.setActiveLayer(DXF_LAYERS.CONTROL.name)
     drawing.drawLine(s.easting, s.northing + symbolSize, s.easting - symbolSize, s.northing - symbolSize)
     drawing.drawLine(s.easting - symbolSize, s.northing - symbolSize, s.easting + symbolSize, s.northing - symbolSize)
     drawing.drawLine(s.easting + symbolSize, s.northing - symbolSize, s.easting, s.northing + symbolSize)
 
-    drawing.setActiveLayer(DXF_LAYERS.ANNOTATIONS.name)
+    drawing.setActiveLayer(DXF_LAYERS.NOTES_TXT.name)
     drawing.drawText(
       s.easting + symbolSize * 1.5,
       s.northing,
@@ -63,7 +63,7 @@ export function generateNetworkDXF(params: {
     )
 
     if (!s.isFixed && s.semiMajor > 0) {
-      drawing.setActiveLayer(DXF_LAYERS.ANNOTATIONS.name)
+drawing.setActiveLayer(DXF_LAYERS.NOTES_TXT.name)
       drawing.drawCircle(s.easting, s.northing, s.semiMajor * 1000)
     }
   }

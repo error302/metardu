@@ -127,7 +127,7 @@ export default function SuperelevationPanel({
     drawing.drawLine(0, 0, width, 0);
     drawing.drawLine(width, rise, width, rise + 0.3);
     
-    drawing.setActiveLayer(DXF_LAYERS.CHAINAGES.name);
+    drawing.setActiveLayer(DXF_LAYERS.CHAIN.name);
     drawing.drawText(1, 0.5, 0.15, 0, `R=${R}m V=${V}km/h e=${result.eDesign.toFixed(1)}%`);
     drawing.drawText(1, 1.5, 0.15, 0, `Transition: ${result.transitionLength.toFixed(1)}m`);
     

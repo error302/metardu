@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { setCurrentUserId } from '@/lib/db'
 import Drawing from 'dxf-writer'
 import {
-  initialiseDXFLayers,
+  initialiseSokDXFLayers,
   DXF_LAYERS
 } from '@/lib/drawing/dxfLayers'
 import type { ContourLine } from '@/lib/topo/contourGenerator'
@@ -23,11 +23,11 @@ export async function POST(req: NextRequest) {
     const { projectId, contours, spotHeights } = await req.json()
 
     const drawing = new Drawing()
-    initialiseDXFLayers(drawing)
+    initialiseSokDXFLayers(drawing)
 
     contours.forEach((contour: ContourLine) => {
       const layerName = contour.isIndex
-        ? DXF_LAYERS.CONTOURS_IDX.name
+        ? DXF_LAYERS.CONTOUR_I.name
         : DXF_LAYERS.CONTOURS.name
 
       drawing.setActiveLayer(layerName)
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       })
     })
 
-    drawing.setActiveLayer(DXF_LAYERS.SPOT_HEIGHTS.name)
+    drawing.setActiveLayer(DXF_LAYERS.SPOT.name)
     spotHeights.forEach((pt: { e: number; n: number; z: number; label?: string }) => {
       drawing.drawCircle(pt.e, pt.n, 0.2)
       drawing.drawText(pt.e + 0.3, pt.n + 0.3, 0.4, 0, pt.z.toFixed(2))

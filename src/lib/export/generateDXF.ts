@@ -11,7 +11,7 @@
  */
 
 import Drawing from 'dxf-writer'
-import { initialiseDXFLayers } from '@/lib/drawing/dxfLayers'
+import { initialiseSokDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
 import type { SurveyPoint } from '@/types/surveyPoint'
 
 // Re-export for backwards compatibility with callers that import
@@ -39,25 +39,25 @@ export function generateDXF(options: DXFExportOptions): string {
   const { points, traverseLegs = [], includeElevations = true } = options
 
   const drawing = new Drawing()
-  initialiseDXFLayers(drawing)
+  initialiseSokDXFLayers(drawing)
   drawing.setUnits('Meters')
 
   drawing.addLineType('DASHED', 'Dashed', [-1.0, 0.5])
   drawing.addLineType('DOTTED', 'Dotted', [-0.5, 0.25])
 
-  drawing.addLayer('POINTS_CONTROL', Drawing.ACI.RED, 'CONTINUOUS')
-  drawing.addLayer('POINTS_SURVEY', Drawing.ACI.YELLOW, 'CONTINUOUS')
-  drawing.addLayer('TRAVERSE', Drawing.ACI.CYAN, 'CONTINUOUS')
-  drawing.addLayer('LABELS', Drawing.ACI.WHITE, 'CONTINUOUS')
+  drawing.addLayer(DXF_LAYERS.CONTROL.name, Drawing.ACI.RED, 'CONTINUOUS')
+  drawing.addLayer(DXF_LAYERS.SPOT.name, Drawing.ACI.YELLOW, 'CONTINUOUS')
+  drawing.addLayer(DXF_LAYERS.CONTROL.name, Drawing.ACI.CYAN, 'CONTINUOUS')
+  drawing.addLayer(DXF_LAYERS.BEACON_TXT.name, Drawing.ACI.WHITE, 'CONTINUOUS')
 
   const byName = new Map(points.map((p: any) => [p.name, p] as const))
 
   // Points + labels
   for (const p of points) {
-    drawing.setActiveLayer(p.is_control ? 'POINTS_CONTROL' : 'POINTS_SURVEY')
+    drawing.setActiveLayer(p.is_control ? DXF_LAYERS.CONTROL.name : DXF_LAYERS.SPOT.name)
     drawing.drawPoint(p.easting, p.northing)
 
-    drawing.setActiveLayer('LABELS')
+    drawing.setActiveLayer(DXF_LAYERS.BEACON_TXT.name)
     const label =
       includeElevations && typeof p.elevation === 'number' ? `${p.name} (${p.elevation})` : p.name
     drawing.drawText(p.easting + 0.5, p.northing + 0.5, 1.5, 0, label)
@@ -65,7 +65,7 @@ export function generateDXF(options: DXFExportOptions): string {
 
   // Traverse lines (if coordinates can be resolved)
   if (traverseLegs.length > 0) {
-    drawing.setActiveLayer('TRAVERSE')
+    drawing.setActiveLayer(DXF_LAYERS.CONTROL.name)
     for (const leg of traverseLegs) {
       const from = byName.get(leg.from)
       const to = byName.get(leg.to)

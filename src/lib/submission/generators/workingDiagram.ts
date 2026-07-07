@@ -1,6 +1,6 @@
 import Drawing from 'dxf-writer'
 import type { SubmissionPackage } from '../types'
-import { initialiseDXFLayers, DXF_LAYERS, formatPlanDate } from '@/lib/drawing/dxfLayers'
+import { initialiseSokDXFLayers, DXF_LAYERS, formatPlanDate } from '@/lib/drawing/dxfLayers'
 
 // ─── Bearing Computation ──────────────────────────────────────────────────────
 
@@ -96,7 +96,7 @@ function chooseScaleBarLength(extentWidth: number): number {
 
 export function generateWorkingDiagramDXF(pkg: SubmissionPackage): string {
   const drawing = new Drawing()
-  initialiseDXFLayers(drawing)
+  initialiseSokDXFLayers(drawing)
 
   const points = pkg.traverse.points
   if (points.length === 0) return drawing.toDxfString()
@@ -148,7 +148,7 @@ export function generateWorkingDiagramDXF(pkg: SubmissionPackage): string {
   // ═══════════════════════════════════════════════════════════════════════════
   // 3. DISTANCE labels at midpoints of each leg (DIMENSIONS layer)
   // ═══════════════════════════════════════════════════════════════════════════
-  drawing.setActiveLayer(DXF_LAYERS.DIMENSIONS.name)
+  drawing.setActiveLayer(DXF_LAYERS.DISTANCES.name)
 
   const distLabelHeight = Math.max(padAbs * 0.05, 0.4)
 
@@ -220,7 +220,7 @@ export function generateWorkingDiagramDXF(pkg: SubmissionPackage): string {
   // ═══════════════════════════════════════════════════════════════════════════
   // 5. NORTH ARROW (top-right area of drawing)
   // ═══════════════════════════════════════════════════════════════════════════
-  drawing.setActiveLayer(DXF_LAYERS.NORTH_ARROW.name)
+  drawing.setActiveLayer(DXF_LAYERS.NORTH_ARR.name)
 
   const arrowX = extent.maxE + padAbs * 2.5
   const arrowBaseN = extent.maxN + padAbs * 0.3
@@ -239,7 +239,7 @@ export function generateWorkingDiagramDXF(pkg: SubmissionPackage): string {
   // ═══════════════════════════════════════════════════════════════════════════
   // 6. SCALE BAR (bottom-right area of drawing, above title block)
   // ═══════════════════════════════════════════════════════════════════════════
-  drawing.setActiveLayer(DXF_LAYERS.SCALE_BAR.name)
+  drawing.setActiveLayer(DXF_LAYERS.SCL_BAR.name)
 
   const scaleBarLength = chooseScaleBarLength(extentWidth)
   const scaleBarX = extent.minE + padAbs
@@ -281,7 +281,7 @@ export function generateWorkingDiagramDXF(pkg: SubmissionPackage): string {
   // ═══════════════════════════════════════════════════════════════════════════
   // 7. TITLE BLOCK at the bottom of the drawing
   // ═══════════════════════════════════════════════════════════════════════════
-  drawing.setActiveLayer(DXF_LAYERS.TITLE_BLOCK.name)
+  drawing.setActiveLayer(DXF_LAYERS.TITLE_BLK.name)
 
   const tbOriginX = extent.minE - padAbs
   const tbOriginY = extent.minN - padAbs * 5
@@ -342,7 +342,7 @@ export function generateWorkingDiagramDXF(pkg: SubmissionPackage): string {
   // ═══════════════════════════════════════════════════════════════════════════
   // 8. ANNOTATIONS — submission reference & misc notes
   // ═══════════════════════════════════════════════════════════════════════════
-  drawing.setActiveLayer(DXF_LAYERS.ANNOTATIONS.name)
+  drawing.setActiveLayer(DXF_LAYERS.NOTES_TXT.name)
 
   // Traverse precision info near the top
   const noteX = extent.minE - padAbs

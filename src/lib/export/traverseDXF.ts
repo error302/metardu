@@ -26,7 +26,7 @@
  */
 
 import Drawing from 'dxf-writer'
-import { DXF_LAYERS, formatBearingDMS } from '@/lib/drawing/dxfLayers'
+import { DXF_LAYERS, formatBearingDMS, initialiseSokDXFLayers } from '@/lib/drawing/dxfLayers'
 
 // ─── Public Types ────────────────────────────────────────────────────────────
 
@@ -401,7 +401,7 @@ export function generateTraverseDXF(options: TraverseDXFOptions): string {
   drawing.setUnits('Meters')
 
   // Register standard layers from dxfLayers.ts
-  initialiseDXFLayers(drawing)
+  initialiseSokDXFLayers(drawing)
 
   // Register traverse-specific layers
   drawing.addLayer('CONTROL_POINTS', ACI.MAGENTA, 'CONTINUOUS')
@@ -752,12 +752,8 @@ export function generateTraverseDXF(options: TraverseDXFOptions): string {
  * Initialise standard DXF layers on a dxf-writer Drawing instance.
  * Re-exports the standard layer definitions from dxfLayers.ts and also
  * registers traverse-specific layers.
+ * @deprecated Use initialiseSokDXFLayers() from dxfLayers.ts instead.
  */
 function initialiseDXFLayers(drawing: Drawing): void {
-  // Register all standard layers from DXF_LAYERS
-  const layers = DXF_LAYERS as Record<string, { readonly name: string; readonly color: number; readonly linetype: string }>
-  for (const key of Object.keys(layers)) {
-    const layer = layers[key]
-    drawing.addLayer(layer.name, layer.color, layer.linetype)
-  }
+  initialiseSokDXFLayers(drawing)
 }

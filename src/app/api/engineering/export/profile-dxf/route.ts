@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import Drawing from 'dxf-writer'
-import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
+import { initialiseSokDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
 
 export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { points, title, projectId } = ctx.body as {
@@ -17,7 +17,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   }
 
   const drawing = new Drawing()
-  initialiseDXFLayers(drawing)
+  initialiseSokDXFLayers(drawing)
 
   const minCh = Math.min(...points.map((p: any) => p.chainage))
   const minGL = Math.min(...points.map((p: any) => p.groundLevel))
@@ -56,7 +56,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   }
 
   // Chainage annotations
-  drawing.setActiveLayer(DXF_LAYERS.CHAINAGES.name)
+  drawing.setActiveLayer(DXF_LAYERS.CHAIN.name)
   points.forEach((p: any) => {
     drawing.drawText(
       (p.chainage - minCh) * hScale,

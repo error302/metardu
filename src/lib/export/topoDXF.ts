@@ -11,7 +11,7 @@
 
 import Drawing from 'dxf-writer'
 import { KENYA_TOPO_CODES, FeatureCodeDef } from '@/lib/topo/featureCodes'
-import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
+import { initialiseSokDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
 
 export interface TopoPoint {
   easting: number
@@ -35,7 +35,7 @@ export function generateTopoDXF(
   if (!points || points.length === 0) return ''
 
   const drawing = new Drawing()
-  initialiseDXFLayers(drawing)
+  initialiseSokDXFLayers(drawing)
   drawing.setUnits('Meters')
 
   // Register linetypes

@@ -11,7 +11,7 @@
  */
 
 import Drawing from 'dxf-writer'
-import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
+import { initialiseSokDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
 
 export interface ProfilePoint {
   chainage: number
@@ -34,7 +34,7 @@ export function generateLongSectionDXF(
   if (!points || points.length === 0) return ''
 
   const drawing = new Drawing()
-  initialiseDXFLayers(drawing)
+  initialiseSokDXFLayers(drawing)
   drawing.setUnits('Meters')
 
   const hzScale = options?.horizontalScale ?? 1000
@@ -67,7 +67,7 @@ export function generateLongSectionDXF(
   const startY = 0
 
   // ─── Draw Data Bands (Grid Frame) ──────────────────────────────────────────
-  drawing.setActiveLayer(DXF_LAYERS.BORDER.name)
+  drawing.setActiveLayer(DXF_LAYERS.TITLE_BLK.name)
 
   const sectionWidth = maxChainage - minChainage
   const sectionRightX = startX + sectionWidth
@@ -114,7 +114,7 @@ export function generateLongSectionDXF(
     drawing.drawLine(x, startY, x, maxY)
 
     // Text in bands
-    drawing.setActiveLayer(DXF_LAYERS.ANNOTATIONS.name)
+    drawing.setActiveLayer(DXF_LAYERS.NOTES_TXT.name)
     
     // Chainage
     drawing.drawText(x + 1, bands[3].y + bandHeight / 2 - 1, 1.8, 90, p.chainage.toFixed(3))
@@ -142,7 +142,7 @@ export function generateLongSectionDXF(
   for (let el = datum; el <= maxEl + 5; el += 5) {
     const y = topOfBands + (el - datum) * ve
     drawing.drawLine(startX - 5, y, sectionRightX + 5, y)
-    drawing.setActiveLayer(DXF_LAYERS.ANNOTATIONS.name)
+    drawing.setActiveLayer(DXF_LAYERS.NOTES_TXT.name)
     drawing.drawText(startX - 15, y - 1, 1.8, 0, `${el.toFixed(1)}`)
     drawing.drawText(sectionRightX + 2, y - 1, 1.8, 0, `${el.toFixed(1)}`)
     drawing.setActiveLayer(DXF_LAYERS.GRID.name)
@@ -151,7 +151,7 @@ export function generateLongSectionDXF(
   // ─── Draw Profiles ────────────────────────────────────────────────────────
   
   // Ground Profile
-  drawing.setActiveLayer(DXF_LAYERS.OLD_BOUNDARY.name) // Use OLD_BOUNDARY or a dedicated ground layer
+  drawing.setActiveLayer(DXF_LAYERS.EXIST_BDY.name) // Use OLD_BOUNDARY or a dedicated ground layer
   for (let i = 0; i < points.length - 1; i++) {
     const p1 = points[i]
     const p2 = points[i + 1]
@@ -177,7 +177,7 @@ export function generateLongSectionDXF(
   }
 
   // ─── Title ──────────────────────────────────────────────────────────────
-  drawing.setActiveLayer(DXF_LAYERS.TITLEBLOCK.name)
+  drawing.setActiveLayer(DXF_LAYERS.TITLE_BLK.name)
   const titleY = topOfBands + (maxEl - datum) * ve + 30
   drawing.drawText(startX, titleY, 5.0, 0, options?.projectName ? `LONGITUDINAL SECTION: ${options.projectName}` : 'LONGITUDINAL SECTION')
   drawing.drawText(startX, titleY - 8, 2.5, 0, `SCALES — HORIZONTAL 1:${hzScale} | VERTICAL 1:${vtScale}`)

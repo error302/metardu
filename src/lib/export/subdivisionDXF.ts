@@ -14,7 +14,7 @@
  */
 
 import Drawing from 'dxf-writer'
-import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
+import { initialiseSokDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
 import type { SubdivisionResult } from '@/types/subdivision'
 
 /**
@@ -32,7 +32,7 @@ export function generateSubdivisionDXF(
   }
 ): string {
   const drawing = new Drawing()
-  initialiseDXFLayers(drawing)
+  initialiseSokDXFLayers(drawing)
   drawing.setUnits('Meters')
 
   drawing.addLineType('DASHED', 'Dashed', [-5.0, 2.5])

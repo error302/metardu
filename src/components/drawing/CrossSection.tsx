@@ -184,7 +184,7 @@ export function CrossSection({
         xOffset + 20, formationY
       );
 
-      drawing.setActiveLayer(DXF_LAYERS.CHAINAGES.name);
+      drawing.setActiveLayer(DXF_LAYERS.CHAIN.name);
       drawing.drawText(
         xOffset, groundY + 1,
         0.15, 0,

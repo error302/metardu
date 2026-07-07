@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { z } from 'zod';
 import { crossSectionVolume, massHaulDiagram, logEngineeringCompute } from '@/lib/engineering/compute';
-import { initialiseDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers';
+import { initialiseSokDXFLayers, DXF_LAYERS, TitleBlockData, TITLE_BLOCK_TEMPLATES } from '@/lib/drawing/dxfLayers';
 
 const VolumeInputSchema = z.object({
   areas: z.array(z.number()).min(2),
@@ -264,7 +264,7 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
 
     const { default: Drawing } = await import('dxf-writer');
     const drawing = new Drawing();
-    initialiseDXFLayers(drawing);
+    initialiseSokDXFLayers(drawing);
 
     const tb: TitleBlockData = {
       drawingTitle: TITLE_BLOCK_TEMPLATES.eng_volumes.drawingTitle,
@@ -302,7 +302,7 @@ export function VolumesPanel({ projectId, projectData, surveyorProfile }: Volume
       prevY = y;
     });
 
-    drawing.setActiveLayer(DXF_LAYERS.CHAINAGES.name);
+    drawing.setActiveLayer(DXF_LAYERS.CHAIN.name);
     drawing.drawText(50, baseY + 30, 0.2, 0, `Total Cut: ${result.totalCut.toFixed(2)} m³`);
     drawing.drawText(50, baseY + 50, 0.2, 0, `Total Fill: ${result.totalFill.toFixed(2)} m³`);
 

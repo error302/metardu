@@ -26,7 +26,7 @@
  */
 
 import Drawing, { type Point2D } from 'dxf-writer'
-import { initialiseDXFLayers, formatBearingDMS, formatDistanceM, formatPlanDate } from '@/lib/drawing/dxfLayers'
+import { initialiseSokDXFLayers, formatBearingDMS, formatDistanceM, formatPlanDate } from '@/lib/drawing/dxfLayers'
 import {
   generateSheetLayout,
   addDrawingEntities,
@@ -128,14 +128,14 @@ export function generateCadastralPlanDXF(
   drawing.setUnits('Meters')
 
   // Add standard layers
-  initialiseDXFLayers(drawing)
+  initialiseSokDXFLayers(drawing)
 
   // Add cadastral-specific layers
   for (const layer of CADASTRAL_LAYERS) {
     try {
       drawing.addLayer(layer.name, layer.color, layer.linetype)
     } catch {
-      // Layer may already exist from initialiseDXFLayers
+      // Layer may already exist from initialiseSokDXFLayers
     }
   }
 

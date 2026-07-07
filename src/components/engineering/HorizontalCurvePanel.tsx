@@ -120,7 +120,7 @@ export function HorizontalCurvePanel({ projectId, projectData, surveyorProfile, 
       50 + result.L * scale, centerY
     );
 
-    drawing.setActiveLayer(DXF_LAYERS.CHAINAGES.name);
+    drawing.setActiveLayer(DXF_LAYERS.CHAIN.name);
     drawing.drawText(50, centerY + 20, 0.2, 0, `TC @ ${result.chainage_TC.toFixed(3)}m`);
     drawing.drawText(50 + result.L * scale, centerY + 20, 0.2, 0, `CT @ ${result.chainage_CT.toFixed(3)}m`);
     drawing.drawText(50 + result.T * scale, centerY + 40, 0.2, 0, `IP @ ${chainageStart.toFixed(3)}m`);

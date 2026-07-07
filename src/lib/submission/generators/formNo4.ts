@@ -1,7 +1,7 @@
 import Drawing from 'dxf-writer'
 import type { SubmissionPackage } from '../types'
 import {
-  initialiseDXFLayers,
+  initialiseSokDXFLayers,
   DXF_LAYERS,
   formatPlanDate,
   formatBearingDMS,
@@ -13,7 +13,7 @@ export { formatPlanDate, formatBearingDMS, formatDistanceM }
 export function generateFormNo4DXF(pkg: SubmissionPackage): string {
   const drawing = new Drawing()
 
-  initialiseDXFLayers(drawing)
+  initialiseSokDXFLayers(drawing)
 
   const points = pkg.traverse.points
   if (points.length < 3) {
@@ -23,7 +23,7 @@ export function generateFormNo4DXF(pkg: SubmissionPackage): string {
   const adjustedAreaHa = pkg.traverse.areaM2 / 10000
   const { extentWidth, extentHeight, centroid } = computeExtentAndCentroid(points)
 
-  drawing.setActiveLayer(DXF_LAYERS.BOUNDARY.name)
+  drawing.setActiveLayer(DXF_LAYERS.PARCEL_BDY.name)
   for (let i = 0; i < points.length; i++) {
     const from = points[i]
     const to = points[(i + 1) % points.length]
@@ -41,7 +41,7 @@ export function generateFormNo4DXF(pkg: SubmissionPackage): string {
     drawBeacon(drawing, pt.adjustedEasting, pt.adjustedNorthing, symbolSize)
   })
 
-  drawing.setActiveLayer(DXF_LAYERS.BEACON_LABELS.name)
+  drawing.setActiveLayer(DXF_LAYERS.BEACON_TXT.name)
   points.forEach(pt => {
     drawBeaconLabel(drawing, pt.adjustedEasting, pt.adjustedNorthing, pt.pointName, symbolSize)
   })
@@ -59,10 +59,10 @@ export function generateFormNo4DXF(pkg: SubmissionPackage): string {
   const scale = computePlanScale(extentWidth, extentHeight)
   drawTitleBlock(drawing, pkg, adjustedAreaHa, scale)
 
-  drawing.setActiveLayer(DXF_LAYERS.SCALE_BAR.name)
+  drawing.setActiveLayer(DXF_LAYERS.SCL_BAR.name)
   drawScaleBar(drawing, extentWidth + 50, -30, scale)
 
-  drawing.setActiveLayer(DXF_LAYERS.NORTH_ARROW.name)
+  drawing.setActiveLayer(DXF_LAYERS.NORTH_ARR.name)
   drawNorthArrow(drawing, extentWidth + 50, 0)
 
   return drawing.toDxfString()
@@ -126,12 +126,12 @@ function drawLegAnnotation(drawing: Drawing, x1: number, y1: number, x2: number,
   drawing.setActiveLayer(DXF_LAYERS.BEARINGS.name)
   drawing.drawText(midX, midY + textHeight * 1.5, textHeight, 0, formatBearingDMS(bearing))
 
-  drawing.setActiveLayer(DXF_LAYERS.DIMENSIONS.name)
+  drawing.setActiveLayer(DXF_LAYERS.DISTANCES.name)
   drawing.drawText(midX, midY, textHeight, 0, formatDistanceM(distance) + 'm')
 }
 
 function drawAreaAnnotation(drawing: Drawing, centroidX: number, centroidY: number, areaHa: number, textHeightM: number = 3.0): void {
-  drawing.setActiveLayer(DXF_LAYERS.AREA_LABEL.name)
+  drawing.setActiveLayer(DXF_LAYERS.AREA_TXT.name)
   drawing.drawText(centroidX, centroidY, textHeightM, 0, `Area = ${areaHa.toFixed(4)} Ha`)
 }
 
@@ -152,7 +152,7 @@ function computePlanScale(extentWidthM: number, extentHeightM: number, sheetWidt
 }
 
 function drawTitleBlock(drawing: Drawing, pkg: SubmissionPackage, areaHa: number, scaleDenominator: number): void {
-  drawing.setActiveLayer(DXF_LAYERS.TITLE_BLOCK.name)
+  drawing.setActiveLayer(DXF_LAYERS.TITLE_BLK.name)
 
   const originX = 0
   const originY = -100

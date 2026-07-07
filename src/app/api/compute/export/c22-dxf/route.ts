@@ -5,7 +5,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
 
 import Drawing from 'dxf-writer'
-import { initialiseDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
+import { initialiseSokDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers'
 
 // ---------------------------------------------------------------------------
 // Zod schema
@@ -47,7 +47,7 @@ export const POST = apiHandler(
     // -----------------------------------------------------------------------
 
     const drawing = new Drawing()
-    initialiseDXFLayers(drawing)
+    initialiseSokDXFLayers(drawing)
     drawing.setUnits('Meters')
 
     // Add TEXT layer (not in standard DXF_LAYERS set)
@@ -75,7 +75,7 @@ export const POST = apiHandler(
     // -----------------------------------------------------------------------
 
     if (points.length >= 3) {
-      drawing.setActiveLayer(DXF_LAYERS.BOUNDARY.name)
+      drawing.setActiveLayer(DXF_LAYERS.PARCEL_BDY.name)
       for (let i = 0; i < points.length; i++) {
         const curr = points[i]
         const next = points[(i + 1) % points.length]

@@ -297,7 +297,7 @@ export function LongitudinalSection({
       }
     }
 
-    drawing.setActiveLayer(DXF_LAYERS.CHAINAGES.name)
+    drawing.setActiveLayer(DXF_LAYERS.CHAIN.name)
     pointsWithDesign.forEach(p => {
       drawing.drawText(
         (p.chainage - minCh) * hScaleFactor,
