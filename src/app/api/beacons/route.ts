@@ -70,7 +70,10 @@ export const GET = apiHandler(
     const result = await db.query(
       `SELECT id, beacon_number, beacon_type, easting, northing, elevation, utm_zone,
               datum, county, sub_county, locality, sheet_number, established_by,
-              established_date, condition, description, is_adopted, source, created_at
+              established_date, condition, description, is_adopted, source,
+              sigma_e, sigma_n, sigma_rl, source_confidence, latitude, longitude,
+              last_verified_at,
+              created_at
        FROM beacon_registry ${whereClause}
        ORDER BY beacon_number ASC LIMIT $${paramIdx}`,
       params,
