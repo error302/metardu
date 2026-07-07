@@ -167,8 +167,10 @@ export function renderDeedPlanSVG(
 
   <!-- ===================== AREA STATEMENT ===================== -->
   <g transform="translate(${DA_LEFT + 15}, ${effTop + effH - 28})">
-    <rect x="-5" y="-9" width="220" height="16" fill="white" fill-opacity="0.92" stroke="#ccc" stroke-width="0.3" rx="2"/>
+    <rect x="-5" y="-9" width="285" height="22" fill="white" fill-opacity="0.92" stroke="#ccc" stroke-width="0.3" rx="2"/>
     <text x="0" y="3" class="bt" font-weight="bold">AREA: ${areaHa.toFixed(3)} Ha | ${areaAc.toFixed(2)} Acres | ${input.area.toFixed(2)} m&#178;</text>
+    <text x="0" y="12" class="st">Ground Area (Grid-to-Ground corrected)</text>
+    <text x="0" y="19" class="st">Grid Area: ${input.gridArea ? input.gridArea.toFixed(2) + ' m²' : 'N/A'}</text>
   </g>
 
   <!-- ===================== 12. RIGHT PANEL ===================== -->
@@ -182,18 +184,26 @@ export function renderDeedPlanSVG(
 // ============================================================
 function buildTitleBlock(input: DeedPlanInput): string {
   const x = DA_LEFT, y = DA_TOP, w = DA_WIDTH
+  const subLine = input.submissionNumber
+    ? `<text x="${x+10}" y="${y+8}" class="st">Submission Ref: <tspan font-weight="bold">${escapeXml(input.submissionNumber)}</tspan></text>`
+    : ''
+  const sheetLine = (input.sheetNumber && input.totalSheets)
+    ? `<text x="${x+w-10}" y="${y+8}" class="st" text-anchor="end">Sheet <tspan font-weight="bold">${input.sheetNumber}</tspan> of <tspan font-weight="bold">${input.totalSheets}</tspan></text>`
+    : ''
   return `
   <rect x="${x}" y="${y}" width="${w}" height="${TITLE_H}" fill="#F5F5F5" stroke="black" stroke-width="0.5"/>
   <rect x="${x}" y="${y}" width="${w}" height="${TITLE_H}" fill="url(#hatch)" stroke="none"/>
   <rect x="${x+2}" y="${y+2}" width="${w-4}" height="${TITLE_H-4}" fill="none" stroke="black" stroke-width="0.3"/>
   <text x="${x + w/2}" y="${y + 21}" class="tm" text-anchor="middle">DEED PLAN</text>
   <line x1="${x + w/2 - 85}" y1="${y + 24}" x2="${x + w/2 + 85}" y2="${y + 24}" stroke="black" stroke-width="0.6"/>
+  ${subLine}
   <text x="${x+10}" y="${y+12}" class="st">Survey No: <tspan font-weight="bold">${escapeXml(input.surveyNumber)}</tspan></text>
   <text x="${x+10}" y="${y+22}" class="st">Drawing No: <tspan font-weight="bold">${input.drawingNumber}</tspan></text>
   <text x="${x+10}" y="${y+31}" class="st">Parcel No: <tspan font-weight="bold">${escapeXml(input.parcelNumber)}</tspan></text>
   <text x="${x+w-10}" y="${y+12}" class="st" text-anchor="end">County: <tspan font-weight="bold">${escapeXml(input.county)}</tspan></text>
   <text x="${x+w-10}" y="${y+22}" class="st" text-anchor="end">Locality: <tspan font-weight="bold">${escapeXml(input.locality)}</tspan></text>
-  <text x="${x+w-10}" y="${y+31}" class="st" text-anchor="end">Date: <tspan font-weight="bold">${input.surveyDate}</tspan></text>`
+  <text x="${x+w-10}" y="${y+31}" class="st" text-anchor="end">Date: <tspan font-weight="bold">${input.surveyDate}</tspan></text>
+  ${sheetLine}`
 }
 
 // ============================================================
@@ -432,6 +442,13 @@ function buildRightPanel(
   s += `<text x="${le}" y="${y}" class="bt" font-weight="bold">${areaHa.toFixed(3)} Hectares</text>\n`; y += 9
   s += `<text x="${le}" y="${y}" class="bt">${areaAc.toFixed(2)} Acres</text>\n`; y += 9
   s += `<text x="${le}" y="${y}" class="st">(${input.area.toFixed(2)} m&#178;)</text>\n`; y += 9
+  if (input.gridArea && input.gridArea !== input.area) {
+    s += `<text x="${le}" y="${y}" class="st">Grid Area: ${input.gridArea.toFixed(2)} m&#178;</text>\n`; y += 9
+  }
+  if (input.scaleFactor) {
+    s += `<text x="${le}" y="${y}" class="st">Scale Factor: ${input.scaleFactor.toFixed(6)}</text>\n`; y += 9
+    s += `<text x="${le}" y="${y}" class="st">Reduction applied: Grid to Ground</text>\n`; y += 9
+  }
   s += hr(le, y, re); y += 6
 
   // --- DATUM & PROJECTION ---
@@ -440,6 +457,12 @@ function buildRightPanel(
   s += row(le, y, 'Projection:', input.projectionType); y += 9
   s += row(le, y, 'Zone:', `UTM ${input.utmZone}${input.hemisphere}`); y += 9
   s += row(le, y, 'Scale:', `1 : ${input.scale}`); y += 9
+  if (input.meanElevation !== undefined) {
+    s += row(le, y, 'Mean Elev.:', `${input.meanElevation.toFixed(1)}m`); y += 9
+  }
+  if (input.controlClass) {
+    s += row(le, y, 'Class:', `${input.controlClass} ORDER`); y += 9
+  }
   s += hr(le, y, re); y += 6
 
   // --- CLOSURE CHECK ---
@@ -502,9 +525,10 @@ function buildRightPanel(
 
   // --- SURVEYOR'S CERTIFICATE & SIGNATURE ---
   s += secHdr(le, y, "SURVEYOR'S CERTIFICATE"); y += 10
-  s += `<text x="${le}" y="${y}" class="st">I hereby certify that this survey was carried out</text>\n`; y += 7
-  s += `<text x="${le}" y="${y}" class="st">under my direct supervision and that this plan</text>\n`; y += 7
-  s += `<text x="${le}" y="${y}" class="st">is correct to the best of my knowledge and belief.</text>\n`; y += 14
+  s += `<text x="${le}" y="${y}" class="st">I hereby certify that this survey was carried out under my direct</text>\n`; y += 7
+  s += `<text x="${le}" y="${y}" class="st">supervision in accordance with the Survey Act (Cap. 299)</text>\n`; y += 7
+  s += `<text x="${le}" y="${y}" class="st">and Survey Regulations 1994. This plan is correct to the best</text>\n`; y += 7
+  s += `<text x="${le}" y="${y}" class="st">of my knowledge and belief.</text>\n`; y += 14
   s += `<line x1="${le}" y1="${y}" x2="${re-30}" y2="${y}" stroke="black" stroke-width="0.5"/>\n`; y += 7
   s += `<text x="${le}" y="${y}" class="st">Signature</text>\n`; y += 6
   s += `<text x="${le}" y="${y}" class="st">Date: ${input.signatureDate}</text>\n`

@@ -343,6 +343,97 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                   <option value="ARC1960">ARC1960</option>
                 </select>
               </div>
+              <div className="mt-4 p-3 border border-[var(--border-color)] rounded">
+                <p className="text-xs font-semibold mb-2 text-[var(--text-secondary)] uppercase tracking-wide">SRVY2025-1 & Grid Corrections</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Submission Number (SRVY2025-1)</label>
+                    <input
+                      type="text"
+                      value={input.submissionNumber || ''}
+                      onChange={(e) => setInput({ ...input, submissionNumber: e.target.value })}
+                      className="input w-full text-sm"
+                      placeholder="RS149_2025_001_R00"
+                    />
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Format: RS###_YYYY_###_R## — from SRVY2025-1</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Sheet No.</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={input.sheetNumber || ''}
+                        onChange={(e) => setInput({ ...input, sheetNumber: e.target.value ? Number(e.target.value) : undefined })}
+                        className="input w-full text-sm"
+                        placeholder="1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Total Sheets</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={input.totalSheets || ''}
+                        onChange={(e) => setInput({ ...input, totalSheets: e.target.value ? Number(e.target.value) : undefined })}
+                        className="input w-full text-sm"
+                        placeholder="1"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Scale Factor (SF)</label>
+                      <input
+                        type="number"
+                        step="0.000001"
+                        value={input.scaleFactor || ''}
+                        onChange={(e) => setInput({ ...input, scaleFactor: e.target.value ? Number(e.target.value) : undefined })}
+                        className="input w-full text-sm"
+                        placeholder="0.99979"
+                      />
+                      <p className="text-xs text-[var(--text-muted)] mt-1">Grid-to-Ground correction</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Mean Elevation (m)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={input.meanElevation ?? ''}
+                        onChange={(e) => setInput({ ...input, meanElevation: e.target.value ? Number(e.target.value) : undefined })}
+                        className="input w-full text-sm"
+                        placeholder="1820.0"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Grid Area (m²)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={input.gridArea || ''}
+                      onChange={(e) => setInput({ ...input, gridArea: e.target.value ? Number(e.target.value) : undefined })}
+                      className="input w-full text-sm"
+                      placeholder="Leave blank if not applicable"
+                    />
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Area from UTM coordinates before SF correction</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Control Class</label>
+                    <select
+                      value={input.controlClass || ''}
+                      onChange={(e) => setInput({ ...input, controlClass: e.target.value as 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH' | undefined })}
+                      className="input w-full text-sm"
+                    >
+                      <option value="">Select accuracy class...</option>
+                      <option value="FIRST">First Order — 1:50,000 precision</option>
+                      <option value="SECOND">Second Order — 1:20,000 precision</option>
+                      <option value="THIRD">Third Order — 1:10,000 precision</option>
+                      <option value="FOURTH">Fourth Order — 1:5,000 precision</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -72,6 +72,11 @@ export interface SubmissionPackage {
   supportingDocs: SupportingDocument[]
   generatedAt: string
   revision: number
+  // Grid-to-ground correction
+  scaleFactor?: number
+  meanElevation?: number
+  // SRVY2025-1 submission
+  controlClass?: 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH'
 }
 
 export interface QAGateResult {

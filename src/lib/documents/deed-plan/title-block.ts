@@ -1,9 +1,9 @@
 /**
  * Title Block Generator
- * 
+ *
  * Generates the standard Kenya survey plan title block.
  * Positioned at the bottom-right of the plan.
- * 
+ *
  * Standard title block contains:
  * - LR Number (Land Registration)
  * - Area (hectares/acres)
@@ -12,15 +12,21 @@
  * - Date of survey
  * - County and sub-county
  * - Revision number
- * - Legend
+ * - Coordinate reference block (datum, projection, scale factor, mean elevation)
  * - North arrow
+ *
+ * New in SRVY2025-1:
+ * - Submission number (RS###_YYYY_###_R##)
+ * - Sheet numbering (N of total)
+ * - Scale factor for grid-to-ground correction
+ * - Mean elevation
+ * - Registry Map Sheet reference
+ * - Control survey accuracy class
  */
 
 import type PDFKit from 'pdfkit';
 import { drawLine, drawRect, drawText, LINE_WEIGHTS, TEXT_SIZES } from '../pdf-engine';
 import { drawNorthArrow, drawScaleBar } from '../pdf-engine';
-
-// ─── Types ───────────────────────────────────────────────────────
 
 export interface TitleBlockData {
   lrNumber: string;
@@ -34,92 +40,98 @@ export interface TitleBlockData {
   revision?: string;
   projection?: string;
   datum?: string;
+  submissionNo?: string;
+  sheetNo?: number;
+  totalSheets?: number;
+  scaleFactor?: number;
+  meanElevation?: number;
+  gridArea?: string;
+  registryMapSheet?: string;
+  controlClass?: string;
 }
 
-// ─── Constants ───────────────────────────────────────────────────
+const TITLE_BLOCK_WIDTH = 160;
+const TITLE_BLOCK_HEIGHT = 55;
+const MARGIN = 3;
+const ROW_HEIGHT = 5;
 
-const TITLE_BLOCK_WIDTH = 120; // mm
-const TITLE_BLOCK_HEIGHT = 45; // mm
-const MARGIN = 3; // mm internal padding
-const ROW_HEIGHT = 5; // mm per row
-
-// ─── Core Function ───────────────────────────────────────────────
-
-/**
- * Draw the standard Kenya title block on a survey plan.
- * 
- * @param doc - PDFKit document
- * @param x - Bottom-right X position (mm)
- * @param y - Bottom-right Y position (mm)
- * @param data - Title block data
- */
 export function drawTitleBlock(
   doc: PDFKit.PDFDocument,
   x: number, y: number,
   data: TitleBlockData
 ): void {
-  const mmToPt = 2.8346;
-  
-  // Title block origin (top-left corner)
   const bx = x - TITLE_BLOCK_WIDTH;
   const by = y - TITLE_BLOCK_HEIGHT;
-  
-  // ─── Outer border ────────────────────────────────────────────
+
   drawRect(doc, bx, by, TITLE_BLOCK_WIDTH, TITLE_BLOCK_HEIGHT, LINE_WEIGHTS.titleBorder);
-  
-  // ─── Header row ──────────────────────────────────────────────
+
   const headerY = by + MARGIN;
-  drawText(doc, 'DEED PLAN', bx + MARGIN, headerY, TEXT_SIZES.titleBlock, {
+  const titleParts: string[] = ['DEED PLAN'];
+  if (data.submissionNo) titleParts.push(`Ref: ${data.submissionNo}`);
+  if (data.sheetNo && data.totalSheets) titleParts.push(`Sheet ${data.sheetNo}/${data.totalSheets}`);
+  drawText(doc, titleParts.join('  |  '), bx + MARGIN, headerY, TEXT_SIZES.titleBlock, {
     bold: true,
     align: 'center',
   });
-  
-  // Separator line
+
   drawLine(doc, bx, by + ROW_HEIGHT * 2, bx + TITLE_BLOCK_WIDTH, by + ROW_HEIGHT * 2, 0.3);
-  
-  // ─── Data rows (two columns) ────────────────────────────────
+
   let currentY = by + ROW_HEIGHT * 2 + MARGIN;
   const col1X = bx + MARGIN;
-  const col2X = bx + TITLE_BLOCK_WIDTH / 2 + MARGIN;
+  const col2X = bx + 55;
+  const col3X = bx + 105;
   const labelWidth = 30;
-  
-  // Left column
+
   drawLabelValue(doc, col1X, currentY, 'LR No.:', data.lrNumber, labelWidth);
   drawLabelValue(doc, col1X, currentY + ROW_HEIGHT, 'Area:', data.area, labelWidth);
   drawLabelValue(doc, col1X, currentY + ROW_HEIGHT * 2, 'Scale:', `1:${data.scale}`, labelWidth);
   drawLabelValue(doc, col1X, currentY + ROW_HEIGHT * 3, 'County:', data.county, labelWidth);
-  
-  // Right column
+  if (data.registryMapSheet) {
+    drawLabelValue(doc, col1X, currentY + ROW_HEIGHT * 4, 'Map Sheet:', data.registryMapSheet, labelWidth);
+  }
+
   drawLabelValue(doc, col2X, currentY, 'Surveyor:', data.surveyorName, labelWidth);
   drawLabelValue(doc, col2X, currentY + ROW_HEIGHT, 'License:', data.surveyorLicense, labelWidth);
   drawLabelValue(doc, col2X, currentY + ROW_HEIGHT * 2, 'Date:', data.date, labelWidth);
   drawLabelValue(doc, col2X, currentY + ROW_HEIGHT * 3, 'Datum:', data.datum ?? 'Arc 1960', labelWidth);
-  
-  // Column separator
-  drawLine(doc, bx + TITLE_BLOCK_WIDTH / 2, by + ROW_HEIGHT * 2, 
-           bx + TITLE_BLOCK_WIDTH / 2, by + TITLE_BLOCK_HEIGHT, 0.15);
-  
-  // ─── North arrow (top-left of title block) ──────────────────
-  drawNorthArrow(doc, bx - 15, by + 20, 12, undefined);
-  
-  // ─── Scale bar (below title block) ──────────────────────────
+  if (data.controlClass) {
+    drawLabelValue(doc, col2X, currentY + ROW_HEIGHT * 4, 'Class:', data.controlClass, labelWidth);
+  }
+
+  const utmLabel = data.projection?.includes('37') ? 'UTM Z37S' : 'UTM Z36S';
+  drawLabelValue(doc, col3X, currentY, 'Datum:', data.datum ?? 'Arc 1960', labelWidth);
+  drawLabelValue(doc, col3X, currentY + ROW_HEIGHT, 'Proj.:', utmLabel, labelWidth);
+  if (data.scaleFactor !== undefined) {
+    drawLabelValue(doc, col3X, currentY + ROW_HEIGHT * 2, 'SF:', data.scaleFactor.toFixed(6), labelWidth);
+  }
+  if (data.meanElevation !== undefined) {
+    drawLabelValue(doc, col3X, currentY + ROW_HEIGHT * 3, 'Elev.:', `${data.meanElevation.toFixed(1)}m`, labelWidth);
+  }
+  if (data.revision) {
+    drawLabelValue(doc, col3X, currentY + ROW_HEIGHT * 4, 'Rev.:', data.revision, labelWidth);
+  }
+
+  drawLine(doc, bx + 52, by + ROW_HEIGHT * 2, bx + 52, by + TITLE_BLOCK_HEIGHT - MARGIN, 0.15);
+  drawLine(doc, bx + 102, by + ROW_HEIGHT * 2, bx + 102, by + TITLE_BLOCK_HEIGHT - MARGIN, 0.15);
+  drawLine(doc, bx + 102, by + ROW_HEIGHT * 6, bx + TITLE_BLOCK_WIDTH, by + ROW_HEIGHT * 6, 0.15);
+
+  if (data.gridArea) {
+    currentY = by + ROW_HEIGHT * 6 + MARGIN;
+    drawLabelValue(doc, bx + 105, currentY, 'Grid Area:', data.gridArea, labelWidth);
+  }
+
+  drawNorthArrow(doc, bx - 18, by + 18, 12, undefined);
   const scaleBarY = by + TITLE_BLOCK_HEIGHT + 5;
-  const groundDistance = data.scale <= 1000 ? 100 : 200; // meters
+  const groundDistance = data.scale <= 1000 ? 100 : 200;
   drawScaleBar(doc, bx, scaleBarY, data.scale, TITLE_BLOCK_WIDTH, groundDistance, 0.3);
 }
 
-/**
- * Draw a label-value pair.
- */
 function drawLabelValue(
   doc: PDFKit.PDFDocument,
   x: number, y: number,
   label: string, value: string,
   labelWidth: number
 ): void {
-  // Label (smaller, left-aligned)
   drawText(doc, label, x, y, TEXT_SIZES.small, { bold: true });
-  
-  // Value (larger, after label)
   drawText(doc, value, x + labelWidth, y, TEXT_SIZES.coordinate);
 }

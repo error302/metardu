@@ -142,6 +142,24 @@ export function FormNo4Preview({
           <p className="font-medium">{pkg.submissionRef}</p>
           <p className="text-[var(--text-muted)] text-xs">R{pkg.revision.toString().padStart(2, '0')}</p>
         </div>
+        {pkg.scaleFactor && (
+          <div>
+            <p className="text-[var(--text-muted)] text-xs">Scale Factor</p>
+            <p className="font-medium">{pkg.scaleFactor.toFixed(6)}</p>
+          </div>
+        )}
+        {pkg.meanElevation != null && (
+          <div>
+            <p className="text-[var(--text-muted)] text-xs">Mean Elevation</p>
+            <p className="font-medium">{pkg.meanElevation.toFixed(2)} m</p>
+          </div>
+        )}
+        {pkg.controlClass && (
+          <div>
+            <p className="text-[var(--text-muted)] text-xs">Control Class</p>
+            <p className="font-medium">{pkg.controlClass} Order</p>
+          </div>
+        )}
       </div>
     </div>
   )

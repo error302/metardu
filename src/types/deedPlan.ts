@@ -1,4 +1,5 @@
 export interface DeedPlanInput {
+  // Identification
   surveyNumber: string
   drawingNumber: string
   parcelNumber: string
@@ -6,16 +7,27 @@ export interface DeedPlanInput {
   area: number
   registrationSection: string
   county: string
+  // Coordinates
   utmZone: number
   hemisphere: 'N' | 'S'
   scale: 500 | 1000 | 2500 | 5000
   datum: 'ARC1960' | 'WGS84'
   projectionType: 'UTM' | 'Cassini'
+  // Grid-to-ground correction (required for accurate area per RDM 1.1)
+  scaleFactor?: number        // Grid-to-ground scale factor (e.g. 0.99979 for Nairobi)
+  meanElevation?: number       // Mean ground elevation in metres above sea level
+  gridArea?: number           // Area computed from UTM coordinates (m²), before correction
+  // Submission (SRVY2025-1)
+  submissionNumber?: string    // RS###_YYYY_###_R## format
+  sheetNumber?: number         // Current sheet number
+  totalSheets?: number        // Total sheets in the submission
+  // Boundary data
   boundaryPoints: BoundaryPoint[]
   abuttalNorth: string
   abuttalSouth: string
   abuttalEast: string
   abuttalWest: string
+  // Surveyor
   surveyorName: string
   iskNumber: string
   firmName: string
@@ -28,6 +40,10 @@ export interface DeedPlanInput {
   registryMapSheet?: string
   drawnBy?: string
   checkedBy?: string
+  // Control survey class (RDM 1.1 accuracy classification)
+  controlClass?: 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH'
+  // Optional declaration text override (uses statutory default if omitted)
+  declarationText?: string
 }
 
 export interface BoundaryPoint {

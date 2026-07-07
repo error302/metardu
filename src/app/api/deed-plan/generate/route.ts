@@ -31,6 +31,14 @@ const DeedPlanRequestSchema = z.object({
   scale: z.enum(['500', '1000', '2500', '5000']).optional(),
   datum: z.enum(['ARC1960', 'WGS84']).optional(),
   projectionType: z.enum(['UTM', 'Cassini']).optional(),
+  // Grid-to-ground correction (RDM 1.1)
+  scaleFactor: z.number().optional(),
+  meanElevation: z.number().optional(),
+  gridArea: z.number().optional(),
+  // SRVY2025-1 submission
+  submissionNumber: z.string().optional(),
+  sheetNumber: z.number().optional(),
+  totalSheets: z.number().optional(),
   boundaryPoints: z.array(BoundaryPointSchema).min(3, 'A deed plan requires at least 3 boundary points'),
   abuttalNorth: z.string().optional(),
   abuttalSouth: z.string().optional(),
@@ -48,6 +56,7 @@ const DeedPlanRequestSchema = z.object({
   registryMapSheet: z.string().optional(),
   drawnBy: z.string().optional(),
   checkedBy: z.string().optional(),
+  controlClass: z.enum(['FIRST', 'SECOND', 'THIRD', 'FOURTH']).optional(),
 })
 
 export const POST = apiHandler(
@@ -95,6 +104,15 @@ export const POST = apiHandler(
       registryMapSheet: raw.registryMapSheet,
       drawnBy: raw.drawnBy,
       checkedBy: raw.checkedBy,
+      // SRVY2025-1
+      submissionNumber: raw.submissionNumber,
+      sheetNumber: raw.sheetNumber,
+      totalSheets: raw.totalSheets,
+      // Grid-to-ground
+      scaleFactor: raw.scaleFactor,
+      meanElevation: raw.meanElevation,
+      gridArea: raw.gridArea,
+      controlClass: raw.controlClass,
     }
 
     const bearingSchedule = computeBoundaryLegs(input.boundaryPoints)
