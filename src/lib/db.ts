@@ -43,11 +43,27 @@ function getCurrentOrgId(): string | undefined {
 }
 
 function getPoolConfig() {
+  // Pool sizing — tune based on expected load.
+  // Default 10 connections is conservative; production should set DB_POOL_MAX
+  // based on (max_connections - reserved_for_admin - other_apps).
+  //
+  // Rule of thumb (HikariCP formula): pool_size = (peak_qps × avg_query_ms) / 1000
+  // For METARDU: peak ~100 qps × 50ms = 5 connections minimum.
+  // Set to 20 for headroom on multi-user deployments.
+  const poolMax = parseInt(process.env.DB_POOL_MAX ?? '20', 10)
+  const idleTimeoutMs = parseInt(process.env.DB_POOL_IDLE_TIMEOUT_MS ?? '30000', 10)
+  const connTimeoutMs = parseInt(process.env.DB_POOL_CONNECT_TIMEOUT_MS ?? '2000', 10)
+  const statementTimeoutMs = parseInt(process.env.DB_STATEMENT_TIMEOUT_MS ?? '10000', 10)
+
   const base = {
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000, // Fail fast when DB is unavailable
-    statement_timeout: 10000, // 10s — prevents runaway queries
+    max: poolMax,
+    idleTimeoutMillis: idleTimeoutMs,
+    connectionTimeoutMillis: connTimeoutMs, // Fail fast when DB is unavailable
+    statement_timeout: statementTimeoutMs, // 10s — prevents runaway queries
+    // Best-practice: keep idle connections warm so first request after idle
+    // doesn't pay connection setup latency.
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
   }
 
   if (env.DATABASE_URL) {

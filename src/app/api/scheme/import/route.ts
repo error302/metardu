@@ -60,46 +60,50 @@ export const POST = apiHandler(
     const results = { created: 0, skipped: 0, errors: [] as string[] }
     const maxParcels = 500
 
-    for (let i = 1; i < lines.length && results.created < maxParcels; i++) {
-      const line = lines[i].trim()
-      if (!line) continue
+    // Wrap all inserts/updates in a single transaction so partial failures
+    // don't leave half-imported parcels. CSV import must be atomic.
+    await db.transaction(async (client) => {
+      for (let i = 1; i < lines.length && results.created < maxParcels; i++) {
+        const line = lines[i].trim()
+        if (!line) continue
 
-      const values = line.split(',').map(v => v.trim().replace(/"/g, ''))
-      if (values.length <= 1) continue
+        const values = line.split(',').map(v => v.trim().replace(/"/g, ''))
+        if (values.length <= 1) continue
 
-      const parcelNumber = values[parcelNumCol]?.trim()
-      if (!parcelNumber) {
-        results.skipped++
-        results.errors.push(`Row ${i + 1}: empty parcel number`)
-        continue
-      }
+        const parcelNumber = values[parcelNumCol]?.trim()
+        if (!parcelNumber) {
+          results.skipped++
+          results.errors.push(`Row ${i + 1}: empty parcel number`)
+          continue
+        }
 
-      const lrNumber = lrCol >= 0 ? (values[lrCol]?.trim() || null) : null
-      const areaHa = areaCol >= 0 ? (parseFloat(values[areaCol]) || null) : null
-      const notes = notesCol >= 0 ? (values[notesCol]?.trim() || null) : null
+        const lrNumber = lrCol >= 0 ? (values[lrCol]?.trim() || null) : null
+        const areaHa = areaCol >= 0 ? (parseFloat(values[areaCol]) || null) : null
+        const notes = notesCol >= 0 ? (values[notesCol]?.trim() || null) : null
 
-      const dupCheck = await db.query(
-        'SELECT id FROM parcels WHERE block_id = $1 AND parcel_number = $2',
-        [blockId, parcelNumber]
-      )
-
-      if (dupCheck.rows.length > 0) {
-        await db.query(
-          `UPDATE parcels SET
-            lr_number_proposed = $3, area_ha = $4, notes = $5, updated_at = NOW()
-          WHERE block_id = $1 AND parcel_number = $2`,
-          [blockId, parcelNumber, lrNumber, areaHa, notes]
+        const dupCheck = await client.query(
+          'SELECT id FROM parcels WHERE block_id = $1 AND parcel_number = $2',
+          [blockId, parcelNumber]
         )
-        results.skipped++
-      } else {
-        await db.query(
-          `INSERT INTO parcels (project_id, block_id, parcel_number, lr_number_proposed, area_ha, status, notes)
-          VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
-          [parseInt(projectId as string), parseInt(blockId as string), parcelNumber, lrNumber, areaHa, notes]
-        )
-        results.created++
+
+        if (dupCheck.rows.length > 0) {
+          await client.query(
+            `UPDATE parcels SET
+              lr_number_proposed = $3, area_ha = $4, notes = $5, updated_at = NOW()
+            WHERE block_id = $1 AND parcel_number = $2`,
+            [blockId, parcelNumber, lrNumber, areaHa, notes]
+          )
+          results.skipped++
+        } else {
+          await client.query(
+            `INSERT INTO parcels (project_id, block_id, parcel_number, lr_number_proposed, area_ha, status, notes)
+            VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
+            [parseInt(projectId as string), parseInt(blockId as string), parcelNumber, lrNumber, areaHa, notes]
+          )
+          results.created++
+        }
       }
-    }
+    })
 
     return NextResponse.json({
       data: {
