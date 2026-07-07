@@ -16,10 +16,11 @@
  */
 
 import { useState } from 'react'
-import { Wifi, WifiOff, CloudUpload, Plus, Trash2, ChevronUp, ChevronDown, CheckCircle2, AlertTriangle, Clock, History, Settings, Calculator } from 'lucide-react'
+import { Wifi, WifiOff, CloudUpload, Plus, Trash2, ChevronUp, ChevronDown, CheckCircle2, AlertTriangle, Clock, History, Settings, Calculator, Ruler, Compass, MapPin } from 'lucide-react'
 import type { MobileSurveyType } from './UniversalMobileObservationForm'
 import { UniversalMobileObservationForm } from './UniversalMobileObservationForm'
 import type { CapturedBeaconPhoto } from './BeaconPhotoCapture'
+import { useHaptics, StickySummary, OfflineCacheIndicator } from './MobileFieldUX'
 
 type Row = { id: string; [key: string]: string }
 
@@ -77,10 +78,10 @@ interface MobileFieldbookShellProps {
   // --- Mining setup props removed in v1 scope narrowing (see metardu-industrial repo) ---
 }
 
-const TYPE_LABELS: Record<MobileSurveyType, { label: string; icon: string }> = {
-  leveling:     { label: 'Leveling',     icon: '[Ruler]' },
-  traverse:     { label: 'Traverse',     icon: '[Compass]' },
-  control:      { label: 'Control',      icon: '[Pin]' },
+const TYPE_LABELS: Record<MobileSurveyType, { label: string; icon: typeof Ruler }> = {
+  leveling:     { label: 'Leveling',     icon: Ruler },
+  traverse:     { label: 'Traverse',     icon: Compass },
+  control:      { label: 'Control',      icon: MapPin },
 }
 
 /** Per-survey-type primary fields to display on each card (in order). */
@@ -227,13 +228,57 @@ export function MobileFieldbookShell({
                     : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:border-[var(--accent)]/40',
                 ].join(' ')}
               >
-                <span className="text-xs leading-none text-[var(--text-muted)]">{meta.icon}</span>
+                <meta.icon className="w-3.5 h-3.5" />
                 <span>{meta.label}</span>
               </button>
             )
           })}
         </div>
       </div>
+
+      {/* ─── AUDIT FIX: Sticky QC Summary + Offline Cache (mobile UX upgrade) ─── */}
+      {computed?.ok && (
+        <StickySummary
+          primary={
+            surveyType === 'traverse'
+              ? `1:${computed.calc?.precisionRatio?.toLocaleString() ?? '—'}`
+              : surveyType === 'leveling'
+                ? computed.calc?.arithmeticCheck ? 'PASS' : 'FAIL'
+                : `${rows.length} pts`
+          }
+          primaryLabel={
+            surveyType === 'traverse' ? 'Precision'
+            : surveyType === 'leveling' ? 'Arith Check'
+            : 'Readings'
+          }
+          primaryGood={
+            surveyType === 'traverse'
+              ? (computed.calc?.precisionRatio ?? 0) >= 5000
+              : surveyType === 'leveling'
+                ? computed.calc?.arithmeticCheck
+                : true
+          }
+          secondary={
+            surveyType === 'traverse'
+              ? `${computed.calc?.misclosureDistance?.toFixed(3) ?? '—'}m`
+              : surveyType === 'leveling'
+                ? `${Number(computed.calc?.misclosure ?? 0).toFixed(4)}m`
+                : undefined
+          }
+          secondaryLabel={
+            surveyType === 'traverse' ? 'Misclosure'
+            : surveyType === 'leveling' ? 'Misclosure'
+            : undefined
+          }
+          readingCount={rows.length}
+        />
+      )}
+      <OfflineCacheIndicator
+        online={online}
+        cachedReadings={rows.length}
+        pendingSync={unsyncedCount}
+        lastSync={lastSaved}
+      />
 
       {/* ─── Card list ─── */}
       <div className="flex-1 overflow-y-auto px-4 py-3 pb-44">
