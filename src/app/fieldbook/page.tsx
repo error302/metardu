@@ -25,6 +25,10 @@ import { FieldbookAuditDrawer } from '@/components/fieldbook/FieldbookAuditDrawe
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
 import { CheckCircle2 } from 'lucide-react'
 import { RealTimeQCPanel } from '@/components/survey/RealTimeQCPanel'
+import { InstrumentStreamBar, type StreamedReading, type SurveyType as StreamSurveyType } from '@/components/fieldbook/InstrumentStreamBar'
+import { useAutoSave } from '@/hooks/useAutoSave'
+import { useNotifications } from '@/hooks/useNotifications'
+import { crossCheckArea, crossCheckBearing, crossCheckClosure, crossCheckDistance } from '@/lib/engine/calculationCrossCheck'
 
 /** useIsMobile — SSR-safe media-query hook (lg breakpoint = 1024px). */
 function useIsMobile() {
@@ -220,6 +224,10 @@ export default function DigitalFieldBookPage() {
   const { t } = useLanguage()
   const dbClient = createClient()
   const isMobile = useIsMobile()
+
+  // ── AUDIT FIX (2026-07-05): Wire notifications ──
+  const { notify } = useNotifications()
+
   const [online, setOnline] = useState(true)
   const [auditDrawerOpen, setAuditDrawerOpen] = useState(false)
 
@@ -532,6 +540,47 @@ export default function DigitalFieldBookPage() {
 
   const currentComputed = type === 'leveling' ? levelingComputed : type === 'traverse' ? traverseComputed : controlComputed
 
+  // ── AUDIT FIX (2026-07-05): Auto-save + QC notifications (wired AFTER state) ──
+  const autoSaveData = useMemo(() => ({
+    type, name, projectId,
+    travRows: travRows.length,
+    levelRows: levelRows.length,
+    controlRows: controlRows.length,
+  }), [type, name, projectId, travRows, levelRows, controlRows])
+
+  useAutoSave({
+    data: autoSaveData,
+    onSave: async () => {
+      if (projectId && (travRows.length > 0 || levelRows.length > 0 || controlRows.length > 0)) {
+        await handleSave()
+        notify({ title: 'Auto-saved', body: 'Field book data saved automatically.', type: 'auto_save' })
+      }
+    },
+    interval: 30000,
+    enabled: !!projectId,
+  })
+
+  // Fire notification when QC fails — don't wait for surveyor to scroll
+  useEffect(() => {
+    if (type === 'traverse' && traverseComputed?.ok) {
+      const adjusted = traverseComputed.adjusted
+      if (adjusted?.linearError != null && adjusted.linearError > 0.05) {
+        notify({
+          title: 'QC Alert: Traverse Misclosure Exceeded',
+          body: `Linear misclosure is ${adjusted.linearError.toFixed(3)}m. Check bearings and distances for errors.`,
+          type: 'qc_fail',
+        })
+      }
+      if (adjusted?.precisionRatio != null && adjusted.precisionRatio < 5000 && adjusted.precisionRatio > 0) {
+        notify({
+          title: 'QC Alert: Precision Below Standard',
+          body: `Precision ratio is 1:${adjusted.precisionRatio}. Cadastral surveys require minimum 1:5000 per Cap. 299.`,
+          type: 'qc_fail',
+        })
+      }
+    }
+  }, [traverseComputed, type, notify])
+
   function currentDataPayload() {
     if (type === 'leveling') return { method: levelMethod, openingRL, closingRL, distanceKm, rows: levelRows }
     if (type === 'traverse') return { mode: travMode, startStation, startE, startN, closeE, closeN, rows: travRows }
@@ -621,6 +670,51 @@ export default function DigitalFieldBookPage() {
 
     setSaveStatus({ kind: 'saving' })
     const now = niceNow()
+
+    // ── AUDIT FIX (2026-07-05): Run cross-checks BEFORE saving ──
+    // These are the independent verification methods that catch
+    // computation errors before data is committed to the DB.
+    // If a cross-check fails, we still save (data isn't lost) but
+    // we fire a notification so the surveyor knows there's an issue.
+    if (type === 'traverse' && traverseComputed?.ok) {
+      const adjusted = traverseComputed.adjusted
+      if (adjusted && adjusted.legs && adjusted.legs.length >= 3) {
+        // Extract adjusted coordinates from legs for cross-checking
+        const points = adjusted.legs.map((leg: any) => ({
+          easting: leg.adjEasting || 0,
+          northing: leg.adjNorthing || 0,
+        }))
+
+        // Run area cross-check (Shoelace vs. triangulation)
+        const areaCheck = crossCheckArea(points)
+        if (!areaCheck.passed) {
+          notify({
+            title: 'QC Warning: Area Cross-Check Failed',
+            body: areaCheck.message,
+            type: 'qc_fail',
+          })
+        }
+
+        // Run closure cross-check (traverse sums vs. coordinate round-trip)
+        if (points.length >= 2) {
+          const start = points[0]
+          const end = points[points.length - 1]
+          const closureCheck = crossCheckClosure(
+            start.easting, start.northing,
+            end.easting, end.northing,
+            adjusted.linearError || 0, 0,
+            0.001
+          )
+          if (!closureCheck.passed) {
+            notify({
+              title: 'QC Warning: Closure Cross-Check Failed',
+              body: closureCheck.message,
+              type: 'qc_fail',
+            })
+          }
+        }
+      }
+    }
 
     const session = await dbClient.auth.getSession()
     const sessData = session.data.session as Record<string, unknown> | null
@@ -1061,11 +1155,55 @@ export default function DigitalFieldBookPage() {
             setControlStation={setControlStation}
           />
         </div>
-        {/* Mobile Measurement Capture Bar — take readings directly on mobile */}
-        <MobileMeasurementCapture
-          onCapture={handleMeasurementCapture}
+        {/* AUDIT FIX (2026-07-05): Replaced MobileMeasurementCapture with
+            InstrumentStreamBar — provides zero-manual-entry data collection
+            via total station (Web Serial) and GNSS rover (Web Bluetooth).
+            The old MobileMeasurementCapture was manual-only. The new bar
+            auto-detects the best mode based on survey type + browser support. */}
+        <InstrumentStreamBar
+          surveyType={type as StreamSurveyType}
+          onReading={(reading: StreamedReading) => {
+            // Route the streamed reading into the appropriate field book rows
+            if (type === 'traverse') {
+              const bearingStr = reading.bearing != null ? bearingToString(reading.bearing) : ''
+              setTravRows((p) => [...p, {
+                id: crypto.randomUUID(),
+                station: reading.station || '',
+                bearing: bearingStr,
+                hclDeg: '', hclMin: '', hclSec: '',
+                hcrDeg: '', hcrMin: '', hcrSec: '',
+                slopeDist: reading.distance?.toFixed(3) || '',
+                vaDeg: '', vaMin: '', vaSec: '',
+                ih: reading.instrumentHeight?.toFixed(3) || '1.500',
+                th: reading.targetHeight?.toFixed(3) || '1.500',
+                remarks: '',
+              }])
+            } else if (type === 'control') {
+              setControlRows((p) => [...p, {
+                id: crypto.randomUUID(),
+                pointId: reading.station || '',
+                bearing: reading.bearing?.toString() || '',
+                verticalAngle: reading.verticalAngle?.toString() || '',
+                slopeDistance: reading.distance?.toFixed(3) || '',
+                instrumentHeight: reading.instrumentHeight?.toFixed(3) || '1.500',
+                targetHeight: reading.targetHeight?.toFixed(3) || '1.500',
+                remarks: '',
+              }])
+            } else if (type === 'leveling') {
+              // For leveling, GNSS/total station readings add a level entry
+              setLevelRows((p) => [...p, {
+                id: crypto.randomUUID(),
+                station: reading.station || '',
+                bs: '',
+                is: '',
+                fs: '',
+                remarks: reading.elevation ? `RL: ${reading.elevation.toFixed(3)}` : '',
+              }])
+            }
+          }}
           stationName={type === 'control' ? controlStation.name : startStation}
-          surveyType={type}
+          instrumentHeight={1.5}
+          targetHeight={1.5}
         />
         <FieldbookAuditDrawer
           open={auditDrawerOpen}

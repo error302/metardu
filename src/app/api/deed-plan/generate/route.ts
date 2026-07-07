@@ -100,13 +100,64 @@ export const POST = apiHandler(
     const area = computeArea(input.boundaryPoints)
     const closureCheck = computeClosureCheck(input.boundaryPoints)
 
+    // ── AUDIT FIX (2026-07-05): Run cross-checks before generating deed plan ──
+    // These independent verification methods catch computation errors
+    // that could lead to incorrect boundaries and encroachment disputes.
+    const crossCheckIssues: string[] = []
+
+    try {
+      const { crossCheckArea, crossCheckClosure } = await import('@/lib/engine/calculationCrossCheck')
+
+      // Convert boundary points to Point2D format for cross-checks
+      const points2D = input.boundaryPoints.map(p => ({
+        easting: p.easting,
+        northing: p.northing,
+      }))
+
+      // Area cross-check: Shoelace vs. triangulation
+      const areaCheck = crossCheckArea(points2D)
+      if (!areaCheck.passed) {
+        crossCheckIssues.push(`Area cross-check failed: ${areaCheck.message}`)
+      }
+
+      // Closure cross-check: coordinate round-trip
+      if (points2D.length >= 2) {
+        const start = points2D[0]
+        const end = points2D[points2D.length - 1]
+        const linearError = Math.sqrt(
+          closureCheck.closingErrorE ** 2 + closureCheck.closingErrorN ** 2
+        )
+        const closureCheckResult = crossCheckClosure(
+          start.easting, start.northing,
+          end.easting, end.northing,
+          linearError, 0,
+          0.001
+        )
+        if (!closureCheckResult.passed) {
+          crossCheckIssues.push(`Closure cross-check failed: ${closureCheckResult.message}`)
+        }
+      }
+    } catch {
+      // Cross-check module not available — non-blocking but log
+      console.warn('[deed-plan] Cross-check module not available')
+    }
+
+    // If cross-checks found issues, include them in the output as warnings
+    // (We don't block the deed plan, but we surface the issues so the
+    // surveyor can review before submitting to ArdhiSasa)
+    if (crossCheckIssues.length > 0) {
+      console.warn('[deed-plan] Cross-check issues:', crossCheckIssues)
+    }
+
     const svg = renderDeedPlanSVG({ ...input, area }, bearingSchedule, closureCheck)
 
     const output: DeedPlanOutput = {
       svg,
       bearingSchedule,
       coordinateSchedule: input.boundaryPoints,
-      closureCheck
+      closureCheck,
+      // Include cross-check warnings in the output
+      ...(crossCheckIssues.length > 0 ? { crossCheckWarnings: crossCheckIssues } : {}),
     }
 
     return NextResponse.json(output)
