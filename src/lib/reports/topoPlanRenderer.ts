@@ -21,6 +21,33 @@
 
 import type { SpotHeight, ContourLine } from '@/lib/engine/contours'
 
+export type FeatureType = 'main_building' | 'subsidiary_building' | 'fence' | 'registered_boundary' | 'road_edge' | 'access_path' | 'water_course' | 'utility_line'
+
+export interface FeatureLine {
+  id: string
+  type: FeatureType
+  points: Array<{ easting: number; northing: number }>
+  label?: string
+  roadClassification?: string
+  roadWidth?: number
+  waterCourseType?: 'perennial' | 'intermittent'
+  hwmElevation?: number
+}
+
+export interface RightOfWay {
+  centerlineEasting: number
+  centerlineNorthing: number
+  bearing: number
+  width: number
+  roadName?: string
+}
+
+export interface KenyaLocationInset {
+  countyFIPS: string
+  highlightX: number
+  highlightY: number
+}
+
 export interface TopoPlanInput {
   // Project metadata
   projectName: string
@@ -45,10 +72,22 @@ export interface TopoPlanInput {
   spotHeights: SpotHeight[]
   controlPoints?: Array<{ name: string; easting: number; northing: number; elevation: number }>
   boundaryPoints?: Array<{ easting: number; northing: number; label?: string }>
+  // Feature lines with RDM 1.1 line weight hierarchy
+  featureLines?: FeatureLine[]
+  // Right-of-way boundaries (Public Roads Act)
+  rightOfWay?: RightOfWay
+  // Kenya location diagram inset
+  locationInset?: KenyaLocationInset
 
   // Contour settings
   contourInterval: number
   majorContourInterval?: number
+
+  // RDM 1.1 control network annotation
+  controlClass?: 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH'
+  surveyMethod?: string
+  bmName?: string
+  bmElevation?: number
 
   // Optional survey annotations
   magneticDeclination?: number
@@ -200,6 +239,53 @@ export function renderTopoPlanSVG(input: TopoPlanInput): TopoPlanOutput {
     }
   }
 
+  // ── 6b. Feature lines (RDM 1.1 line weight hierarchy) ──
+  if (input.featureLines && input.featureLines.length > 0) {
+    for (const feat of input.featureLines) {
+      if (!feat.points || feat.points.length < 2) continue
+
+      const pathD = feat.points.map((c, i) => {
+        const x = tx(c.easting)
+        const y = ty(c.northing)
+        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`
+      }).join(' ')
+
+      const { strokeW, color, dash, labelText } = getFeatureLineStyle(feat.type, feat)
+      svg += `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="${strokeW}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`
+
+      if (labelText) {
+        const mid = feat.points[Math.floor(feat.points.length / 2)]
+        const mx = tx(mid.easting), my = ty(mid.northing)
+        svg += `<text x="${(mx + 2).toFixed(1)}" y="${(my + 3).toFixed(1)}" font-size="4" fill="#333">${escapeXml(labelText)}</text>`
+      }
+    }
+  }
+
+  // ── 6c. Right-of-way boundaries (Public Roads Act) ──
+  if (input.rightOfWay && input.rightOfWay.width > 0 && input.featureLines) {
+    const halfW = input.rightOfWay.width / 2
+
+    for (const feat of input.featureLines) {
+      if (feat.type !== 'road_edge' || !feat.points || feat.points.length < 2) continue
+      for (let i = 0; i < feat.points.length - 1; i++) {
+        const p1 = feat.points[i], p2 = feat.points[i + 1]
+        const midE = (p1.easting + p2.easting) / 2
+        const midN = (p1.northing + p2.northing) / 2
+        const bear = Math.atan2(p2.easting - p1.easting, p2.northing - p1.northing)
+        const perp = bear + Math.PI / 2
+        const leftE = midE + halfW * Math.cos(perp)
+        const leftN = midN + halfW * Math.sin(perp)
+        const rightE = midE - halfW * Math.cos(perp)
+        const rightN = midN - halfW * Math.sin(perp)
+        svg += `<line x1="${tx(leftE).toFixed(1)}" y1="${ty(leftN).toFixed(1)}" x2="${tx(rightE).toFixed(1)}" y2="${ty(rightN).toFixed(1)}" stroke="#cc6600" stroke-width="0.5" stroke-dasharray="6,3"/>`
+      }
+    }
+    if (input.rightOfWay.roadName) {
+      const rcl = input.rightOfWay
+      svg += `<text x="${tx(rcl.centerlineEasting + halfW + 1).toFixed(1)}" y="${ty(rcl.centerlineNorthing).toFixed(1)}" font-size="3.5" fill="#cc6600">${rcl.width}m RoW: ${escapeXml(rcl.roadName || '')}</text>`
+    }
+  }
+
   // ── 7. North arrow ──
   const northX = drawX + drawW - 35
   const northY = drawY + 35
@@ -210,10 +296,22 @@ export function renderTopoPlanSVG(input: TopoPlanInput): TopoPlanOutput {
   const sbY = drawY + drawH - 18
   svg += drawScaleBar(sbX, sbY, scale, input.scale)
 
+  // ── 8b. RDM 1.1 control network annotation ──
+  if (input.controlClass || input.surveyMethod || input.bmName) {
+    const cnX = drawX + 10
+    const cnY = sbY - 38
+    svg += drawControlNetworkAnnotation(cnX, cnY, input.controlClass, input.surveyMethod, input.bmName, input.bmElevation)
+  }
+
   // ── 9. Legend ──
   const legX = drawX + drawW - 148
   const legY = drawY + 40
   svg += drawLegend(legX, legY, input.contourInterval, input.majorContourInterval ?? input.contourInterval * 5)
+
+  // ── 9b. Kenya location diagram inset ──
+  if (input.locationInset) {
+    svg += drawKenyaLocationInset(drawX + drawW - 100, drawY + 30, input.locationInset, input.county)
+  }
 
   // ── 10. Title block ──
   svg += drawTitleBlock(input, pageW, pageH, margin, titleBlockH, input.magneticDeclination, input.gridConvergence)
@@ -236,6 +334,75 @@ export function renderTopoPlanSVG(input: TopoPlanInput): TopoPlanOutput {
 }
 
 // ─── Helper functions ───────────────────────────────────────────────────────
+
+function getFeatureLineStyle(type: FeatureLine['type'], feat: FeatureLine): { strokeW: number; color: string; dash?: string; labelText?: string } {
+  switch (type) {
+    case 'main_building': return { strokeW: 0.6, color: 'black', labelText: feat.label }
+    case 'subsidiary_building': return { strokeW: 0.4, color: 'black', labelText: feat.label }
+    case 'fence': return { strokeW: 0.4, color: 'black', dash: '4,2', labelText: feat.label }
+    case 'registered_boundary': return { strokeW: 0.6, color: '#333', dash: '8,3', labelText: feat.label }
+    case 'road_edge': return { strokeW: 0.6, color: 'black', labelText: feat.roadClassification ? `${feat.roadClassification} ${feat.roadWidth ? feat.roadWidth + 'm' : ''}`.trim() : undefined }
+    case 'access_path': return { strokeW: 0.4, color: '#666', dash: '3,2', labelText: undefined }
+    case 'water_course': return { strokeW: 0.6, color: '#0066cc', dash: feat.waterCourseType === 'intermittent' ? '4,2' : undefined, labelText: feat.waterCourseType }
+    case 'utility_line': return { strokeW: 0.4, color: '#cc0000', dash: '2,2', labelText: feat.label }
+    default: return { strokeW: 0.4, color: 'black' }
+  }
+}
+
+function drawKenyaLocationInset(x: number, y: number, inset: KenyaLocationInset, county: string): string {
+  // Simplified Kenya outline polygon (approximate, for location reference only)
+  const kenyaOutline = 'M 340,180 L 360,140 L 400,120 L 440,100 L 480,95 L 520,100 L 540,130 L 530,170 L 500,200 L 460,220 L 420,240 L 380,250 L 350,240 L 320,210 L 310,190 Z'
+  const insetW = 80, insetH = 60
+
+  let svg = `<g transform="translate(${x},${y})">`
+  svg += `<rect x="-2" y="-2" width="${insetW + 4}" height="${insetH + 4}" fill="white" stroke="black" stroke-width="0.5"/>`
+  svg += `<rect x="0" y="0" width="${insetW}" height="${insetH}" fill="#f5f5f5" stroke="black" stroke-width="0.3"/>`
+
+  // Simplified Kenya map outline
+  svg += `<path d="${kenyaOutline}" fill="#e8e8d8" stroke="#999" stroke-width="0.4" transform="translate(-280,-80) scale(0.12)"/>`
+
+  // Approximate county dot positions (rough central point for each major county)
+  const countyDots: Record<string, [number, number]> = {
+    'Nairobi': [44, 28], 'Kajiado': [36, 34], 'Machakos': [38, 38], 'Kiambu': [42, 24],
+    'Murang\'a': [43, 20], 'Nyeri': [45, 16], 'Kirinyaga': [47, 14], 'Embu': [50, 16],
+    'Meru': [54, 14], 'Isiolo': [58, 20], 'Marsabit': [68, 24], 'Samburu': [54, 10],
+    'Laikipia': [50, 8], 'Nakuru': [44, 10], 'Baringo': [40, 14], 'Elgeyo-Marakwet': [36, 14],
+    'Uasin Gishu': [34, 12], 'Kakamega': [26, 14], 'Lamu': [72, 28], 'Tana River': [66, 36],
+    'Kilifi': [70, 40], 'Kwale': [64, 46], 'Mombasa': [66, 50], 'Taita-Taveta': [52, 44],
+    'Kisumu': [30, 22], 'Homa Bay': [26, 28], 'Migori': [24, 32], 'Kisii': [30, 26],
+    'Nyamira': [30, 22], 'Bomet': [34, 22], 'Kericho': [36, 18], 'Nandi': [32, 16],
+    'Vihiga': [28, 18], 'Bungoma': [22, 16], 'Trans Nzoia': [24, 10], 'Siaya': [28, 20],
+  }
+
+  const dotPos = countyDots[county] || countyDots['Nairobi']
+  svg += `<circle cx="${dotPos[0]}" cy="${dotPos[1]}" r="2.5" fill="#cc0000"/>`
+  svg += `<line x1="${dotPos[0]}" y1="${dotPos[1]}" x2="${dotPos[0] - 2}" y2="${dotPos[1] + 6}" stroke="#cc0000" stroke-width="0.5"/>`
+
+  svg += `<text x="${insetW / 2}" y="${insetH + 8}" font-size="4" fill="black" text-anchor="middle" font-weight="bold">LOCATION: ${escapeXml(county)} COUNTY</text>`
+  svg += `</g>`
+  return svg
+}
+
+function drawControlNetworkAnnotation(x: number, y: number, controlClass?: string, surveyMethod?: string, bmName?: string, bmElevation?: number): string {
+  let svg = `<g transform="translate(${x},${y})">`
+  const w = 130, h = 34
+  svg += `<rect x="0" y="0" width="${w}" height="${h}" fill="white" stroke="black" stroke-width="0.4"/>`
+  svg += `<text x="3" y="8" font-size="4" fill="black" font-weight="bold">CONTROL (RDM 1.1)</text>`
+  svg += `<line x1="0" y1="10" x2="${w}" y2="10" stroke="black" stroke-width="0.3"/>`
+
+  if (controlClass) {
+    const classLabels: Record<string, string> = { FIRST: '1st Ord — 1:50,000', SECOND: '2nd Ord — 1:20,000', THIRD: '3rd Ord — 1:10,000', FOURTH: '4th Ord — 1:5,000' }
+    svg += `<text x="3" y="18" font-size="3.5" fill="black">Horiz: <tspan font-weight="bold">${classLabels[controlClass] || controlClass}</tspan></text>`
+  }
+  if (surveyMethod) {
+    svg += `<text x="3" y="24" font-size="3.5" fill="black">Method: ${escapeXml(surveyMethod)}</text>`
+  }
+  if (bmName) {
+    svg += `<text x="3" y="30" font-size="3.5" fill="black">BM: ${escapeXml(bmName)} ${bmElevation != null ? `@ RL ${bmElevation.toFixed(3)}m` : ''}</text>`
+  }
+  svg += `</g>`
+  return svg
+}
 
 function computeBounds(input: TopoPlanInput) {
   const allPoints = [

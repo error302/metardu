@@ -63,6 +63,8 @@ export interface CrossSectionData {
   majorGridInterval: number
   /** e.g. 10 */
   minorGridInterval: number
+  /** 20m interval per RDM 1.1 Section 5.6.2 — set to 20 for road surveys */
+  crossSectionInterval?: number
 
   // ── Surveyor info ─────────────────────────────────────────
   surveyorName: string
@@ -1180,6 +1182,13 @@ function drawSummary(
       doc.text(
         `Formation Width: ${data.formationWidth} m`,
         x + 240,
+        r2y,
+      )
+    }
+    if (data.crossSectionInterval) {
+      doc.text(
+        `Section Intvl: ${data.crossSectionInterval}m (RDM 1.1 \u00a75.6.2)`,
+        x + 320,
         r2y,
       )
     }
