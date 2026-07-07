@@ -362,6 +362,7 @@ function buildDesignMatrix(
   points: Map<string, { e: number; n: number; rl?: number; fixed: boolean }>,
   pointIndex: Map<string, number>,
   paramCount: number,
+  paramPerPoint: number,
   dimension: Dimension,
   currentCoords: Map<string, { e: number; n: number; rl?: number }>,
   weightOverrides?: Map<number, number>, // index → effective weight (for robust)
@@ -473,16 +474,17 @@ function buildDesignMatrix(
       const L = cholesky3x3(C)
       const W = inverseLowerTriangular3x3(L)
 
-      // Apply whitening: A_whitened = W · A_sub, w_whitened = W · w_sub
-      // Each whitened row is a linear combination of original rows.
-      // The weight of each whitened observation is 1 (identity).
-      for (let r = 0; r < 3; r++) {
-        for (const entry of rows[r]) {
-          // The whitened row r' = Σ_k W[r][k] * rows[k]
-          // We need to combine all 3 rows
-        }
-      }
-      // Build combined whitened rows
+      // Whitened misclosures: w_whitened = W · w_sub
+      const wWhitened = [
+        W[0][0] * misclosureE + W[0][1] * misclosureN + W[0][2] * misclosureU,
+        W[1][0] * misclosureE + W[1][1] * misclosureN + W[1][2] * misclosureU,
+        W[2][0] * misclosureE + W[2][1] * misclosureN + W[2][2] * misclosureU,
+      ]
+
+      // Apply whitening: A_whitened = W · A_sub
+      // For each of the 3 whitened rows, combine the original 3 rows
+      // weighted by W[r][k]. Push triplets AND increment rowIdx together
+      // so each whitened row gets its own row index.
       for (let r = 0; r < 3; r++) {
         const combinedRow = new Map<number, number>()
         for (let k = 0; k < 3; k++) {
@@ -497,17 +499,8 @@ function buildDesignMatrix(
             triplets.push({ row: rowIdx, col, value })
           }
         }
-      }
 
-      // Whitened misclosures: w_whitened = W · w_sub
-      const wWhitened = [
-        W[0][0] * misclosureE + W[0][1] * misclosureN + W[0][2] * misclosureU,
-        W[1][0] * misclosureE + W[1][1] * misclosureN + W[1][2] * misclosureU,
-        W[2][0] * misclosureE + W[2][1] * misclosureN + W[2][2] * misclosureU,
-      ]
-
-      // Push 3 whitened observations with weight = 1 each
-      for (let r = 0; r < 3; r++) {
+        // Push the whitened misclosure and weight for this row
         w.push(wWhitened[r])
         // Robust estimation: apply weight override if present (uses observation index i)
         const effectiveWeight = weightOverrides?.get(i) ?? 1
@@ -536,13 +529,14 @@ function buildDesignMatrix(
         computed = r
         const dEdE = (to.e - from.e) / r
         const dNdN = (to.n - from.n) / r
+        // Use paramPerPoint (2 for 2D, 3 for 3D) for correct column indexing
         if (fromIdx !== undefined && !fromIsFixed) {
-          row.push({ col: fromIdx * 2, value: -dEdE })
-          row.push({ col: fromIdx * 2 + 1, value: -dNdN })
+          row.push({ col: fromIdx * paramPerPoint, value: -dEdE })
+          row.push({ col: fromIdx * paramPerPoint + 1, value: -dNdN })
         }
         if (toIdx !== undefined && !toIsFixed) {
-          row.push({ col: toIdx * 2, value: dEdE })
-          row.push({ col: toIdx * 2 + 1, value: dNdN })
+          row.push({ col: toIdx * paramPerPoint, value: dEdE })
+          row.push({ col: toIdx * paramPerPoint + 1, value: dNdN })
         }
         break
       }
@@ -581,12 +575,12 @@ function buildDesignMatrix(
         const dTheta_dE_from = -dN / r2 * RAD
         const dTheta_dN_from = dE / r2 * RAD
         if (fromIdx !== undefined && !fromIsFixed) {
-          row.push({ col: fromIdx * 2, value: dTheta_dE_from })
-          row.push({ col: fromIdx * 2 + 1, value: dTheta_dN_from })
+          row.push({ col: fromIdx * paramPerPoint, value: dTheta_dE_from })
+          row.push({ col: fromIdx * paramPerPoint + 1, value: dTheta_dN_from })
         }
         if (toIdx !== undefined && !toIsFixed) {
-          row.push({ col: toIdx * 2, value: -dTheta_dE_from })
-          row.push({ col: toIdx * 2 + 1, value: -dTheta_dN_from })
+          row.push({ col: toIdx * paramPerPoint, value: -dTheta_dE_from })
+          row.push({ col: toIdx * paramPerPoint + 1, value: -dTheta_dN_from })
         }
         break
       }
@@ -633,16 +627,16 @@ function buildDesignMatrix(
         const dTh_dN_to = (dE_BC / r2_BC) * RAD
 
         if (atIdx !== undefined && !atIsFixed) {
-          row.push({ col: atIdx * 2, value: dTh_dE_at })
-          row.push({ col: atIdx * 2 + 1, value: dTh_dN_at })
+          row.push({ col: atIdx * paramPerPoint, value: dTh_dE_at })
+          row.push({ col: atIdx * paramPerPoint + 1, value: dTh_dN_at })
         }
         if (fromIdx !== undefined && !fromIsFixed) {
-          row.push({ col: fromIdx * 2, value: dTh_dE_from })
-          row.push({ col: fromIdx * 2 + 1, value: dTh_dN_from })
+          row.push({ col: fromIdx * paramPerPoint, value: dTh_dE_from })
+          row.push({ col: fromIdx * paramPerPoint + 1, value: dTh_dN_from })
         }
         if (toIdx !== undefined && !toIsFixed) {
-          row.push({ col: toIdx * 2, value: dTh_dE_to })
-          row.push({ col: toIdx * 2 + 1, value: dTh_dN_to })
+          row.push({ col: toIdx * paramPerPoint, value: dTh_dE_to })
+          row.push({ col: toIdx * paramPerPoint + 1, value: dTh_dN_to })
         }
         break
       }
@@ -1090,6 +1084,7 @@ export function adjustNetwork(
         pointsMap,
         pointIndex,
         paramCount,
+        paramPerPoint,
         dimension,
         currentCoords,
         weightOverrides.size > 0 ? weightOverrides : undefined,
