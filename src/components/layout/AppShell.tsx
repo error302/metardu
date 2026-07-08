@@ -53,7 +53,14 @@ function isHiddenShellRoute(pathname: string): boolean {
   return isFullScreenRoute(pathname) || isAdminRoute(pathname)
 }
 
+function isMapRoute(pathname: string): boolean {
+  return pathname === '/map' || pathname.startsWith('/map/')
+}
+
 /* ── Shell Component ─────────────────────────────────────────────── */
+
+// Only show the loading screen once per browser session (not on every route change)
+let _hasShownLoadingScreen = false
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -62,12 +69,20 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const hidden = isHiddenShellRoute(pathname)
   const auth = isAuthRoute(pathname)
   const dashboard = isDashboardRoute(pathname) // Uses sidebar nav, not top NavBar
+  const mapPage = isMapRoute(pathname)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [initialLoading, setInitialLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(!_hasShownLoadingScreen)
 
-  // Show branded loading screen on initial app load
+  // Show branded loading screen only on very first app load
   useEffect(() => {
-    const timer = setTimeout(() => setInitialLoading(false), 1500)
+    if (_hasShownLoadingScreen) {
+      setInitialLoading(false)
+      return
+    }
+    const timer = setTimeout(() => {
+      setInitialLoading(false)
+      _hasShownLoadingScreen = true
+    }, 1500)
     return () => clearTimeout(timer)
   }, [])
 
@@ -200,9 +215,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
               {children}
             </main>
             <Footer />
-            <FeedbackWidget />
+            {!mapPage && <FeedbackWidget />}
             <KeyboardShortcuts />
-            <QuickCompute />
+            {/* Hide QuickCompute and FeedbackWidget on map page — they overlap map tools */}
+            {!mapPage && <QuickCompute />}
             {!dashboard && <MobileNav />}
             <CommandPalette />
             <NotificationToast />

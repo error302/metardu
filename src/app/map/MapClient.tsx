@@ -99,7 +99,6 @@ import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButto
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
 import { StakeoutRadar } from '@/components/survey/StakeoutRadar'
-import { LayerControl } from '@/components/map/LayerControl'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
 import { switchMapView } from '@/lib/map/nativeProjectionView'
@@ -1452,52 +1451,27 @@ export default function MapClient() {
 
               {/* ── Right side controls ── */}
               <div className="absolute top-14 right-3 z-20 sm:top-16 sm:right-4 flex flex-col gap-2 items-end">
-                <LayerControl
-                  map={mapInstance.current}
-                  hideBasemap
-                  defaultCollapsed={isMobile}
-                  onBasemapChange={(bm) => {
-                    if (bm === 'osm' || bm === 'satellite') {
-                      toggleBasemap(bm as BasemapMode)
-                    }
-                  }}
-                />
-
-                {/* ── Projection Switcher (zero-prop) ── */}
+                {/* Projection Switcher (zero-prop) */}
                 <ProjectionSwitcher />
 
-                {/* ── Rotation Control (north reset) ── */}
+                {/* Rotation Control (north reset) */}
                 <RotationControl />
 
-                {/* ── Always-on North Arrow (rotates with map) ── */}
+                {/* Always-on North Arrow (rotates with map) */}
                 <NorthArrowOverlay mapInstance={mapInstance} />
               </div>
 
-              {/* ── Vertex Edit Toolbar (top, near center when active) ── */}
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+              {/* ── Vertex Edit Toolbar (bottom-left, near map controls) ── */}
+              <div className="absolute bottom-24 left-3 z-20">
                 <VertexEditToolbar />
               </div>
 
-              {/* ── Tier 1: Print/PDF & Sheet Layout ── */}
+              {/* ── Print button (bottom-right) ── */}
               <div className="absolute bottom-10 right-3 z-20 no-print print-hide flex items-center gap-2">
-                <button
-                  onClick={() => setShowSheetLayout(v => !v)}
-                  className={`p-2 rounded-lg border transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)] ${
-                    showSheetLayout
-                      ? 'border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]'
-                      : 'border-[var(--border-color)] hover:border-[var(--accent)] hover:bg-[var(--accent-subtle)]'
-                  }`}
-                  title={showSheetLayout ? 'Hide Sheet Layout' : 'Show Sheet Layout (north arrow, scale bar, title block)'}
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <path d="M12 8v8M8 12h8" />
-                  </svg>
-                </button>
                 <MapPrintButton />
               </div>
 
-              {/* ── Tier 1: Sheet Layout Overlay (for print) ── */}
+              {/* ── Sheet Layout Overlay (print-only — no manual toggle) ── */}
               {showSheetLayout && (
                 <SheetLayout
                   show={showSheetLayout}
