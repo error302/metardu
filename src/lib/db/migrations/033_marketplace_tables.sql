@@ -34,8 +34,12 @@ CREATE INDEX IF NOT EXISTS idx_listings_user ON instrument_listings(user_id);
 CREATE INDEX IF NOT EXISTS idx_listings_category ON instrument_listings(category, type);
 CREATE INDEX IF NOT EXISTS idx_listings_active ON instrument_listings(sold, created_at DESC);
 
-CREATE TRIGGER IF NOT EXISTS trg_listings_updated_at
-  BEFORE UPDATE ON instrument_listings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+  DROP TRIGGER IF EXISTS trg_listings_updated_at ON instrument_listings;
+  CREATE TRIGGER trg_listings_updated_at
+    BEFORE UPDATE ON instrument_listings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+END $$;
 
 -- Enable RLS
 ALTER TABLE instrument_listings ENABLE ROW LEVEL SECURITY;

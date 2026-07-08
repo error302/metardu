@@ -65,8 +65,9 @@ ALTER TABLE level_observations ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "project_child_level_obs" ON level_observations;
 CREATE POLICY "project_child_level_obs" ON level_observations
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM projects p
-            WHERE p.id = level_observations.project_id
+    EXISTS (SELECT 1 FROM level_networks ln
+            JOIN projects p ON p.id = ln.project_id
+            WHERE ln.id = level_observations.network_id
               AND (p.user_id::text = current_setting('request.user_id', true)
                    OR (p.organization_id = current_org_id()
                        AND EXISTS (SELECT 1 FROM organization_members om
@@ -79,8 +80,9 @@ ALTER TABLE level_adjustment_results ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "project_child_level_adj" ON level_adjustment_results;
 CREATE POLICY "project_child_level_adj" ON level_adjustment_results
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM projects p
-            WHERE p.id = level_adjustment_results.project_id
+    EXISTS (SELECT 1 FROM level_networks ln
+            JOIN projects p ON p.id = ln.project_id
+            WHERE ln.id = level_adjustment_results.network_id
               AND (p.user_id::text = current_setting('request.user_id', true)
                    OR (p.organization_id = current_org_id()
                        AND EXISTS (SELECT 1 FROM organization_members om
@@ -228,13 +230,10 @@ CREATE POLICY "self_subscriptions" ON user_subscriptions
   FOR ALL USING (user_id::text = current_setting('request.user_id', true))
   WITH CHECK (user_id::text = current_setting('request.user_id', true));
 
--- ─── CPD records (user-scoped) ─────────────────────────────────────────────
-
-ALTER TABLE cpd_records ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "self_cpd" ON cpd_records;
-CREATE POLICY "self_cpd" ON cpd_records
-  FOR ALL USING (user_id::text = current_setting('request.user_id', true))
-  WITH CHECK (user_id::text = current_setting('request.user_id', true));
+-- ─── CPD records ──────────────────────────────────────────────────────────
+-- RLS for cpd_records is applied in migration 035_consolidated_missing_tables
+-- because that is where the cpd_records table is created (this migration runs
+-- before the table exists, so a policy here would fail).
 
 -- ─── Audit logs (user can see own, admins can see all) ─────────────────────
 

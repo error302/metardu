@@ -152,22 +152,17 @@ CREATE POLICY "Users can view entity versions for their projects"
     OR (entity_type = 'projects' AND entity_id IN (
       SELECT id FROM projects WHERE user_id = current_setting('request.user_id', true)::UUID
     ))
-    -- Traverse results via parcel_traverses → parcels → blocks → projects
+    -- Traverse results via direct project_id FK
     OR (entity_type = 'traverse_results' AND entity_id IN (
       SELECT tr.id FROM traverse_results tr
-      JOIN parcel_traverses pt ON pt.id = tr.traverse_id
-      JOIN parcels p ON p.id = pt.parcel_id
-      JOIN blocks b ON b.id = p.block_id
-      JOIN projects proj ON proj.id = b.project_id
+      JOIN projects proj ON proj.id = tr.project_id
       WHERE proj.user_id = current_setting('request.user_id', true)::UUID
     ))
-    -- Traverse observations via parcel_traverses → parcels → blocks → projects
+    -- Traverse observations via parcel_traverses → projects
     OR (entity_type = 'traverse_observations' AND entity_id IN (
       SELECT tobs.id FROM traverse_observations tobs
       JOIN parcel_traverses pt ON pt.id = tobs.traverse_id
-      JOIN parcels p ON p.id = pt.parcel_id
-      JOIN blocks b ON b.id = p.block_id
-      JOIN projects proj ON proj.id = b.project_id
+      JOIN projects proj ON proj.id = pt.project_id
       WHERE proj.user_id = current_setting('request.user_id', true)::UUID
     ))
     -- Project fieldbook entries via project

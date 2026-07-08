@@ -19,6 +19,8 @@ import {
   updateTargetProximityStyle,
   createStakeoutAudioAlert,
   stopStakeoutAudio,
+  computeStakeoutState,
+  formatBearingWCB,
   type StakeoutTarget,
   type StakeoutState,
   type StakeoutPosition,
@@ -604,6 +606,44 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       // Set the target state
       p.setStakeoutTarget({ e: target.easting, n: target.northing })
       p.setStakeoutActive(true)
+
+      // Initialize stakeoutState immediately so the panel shows live data
+      // without waiting for the first GPS position update.
+      // If we have a GPS position, compute initial distance/bearing.
+      // If not yet, show ARRIVED status so the panel renders correctly.
+      if (p.gpsPos) {
+        const { transform } = await import('ol/proj')
+        const [gpsE, gpsN] = transform(
+          [p.gpsPos.lon, p.gpsPos.lat],
+          'EPSG:4326',
+          'EPSG:21037'
+        ) as [number, number]
+        const initialPos: StakeoutPosition = {
+          easting: gpsE,
+          northing: gpsN,
+          accuracy: p.gpsPos.accuracy,
+        }
+        const targetPt: StakeoutTarget = {
+          easting: target.easting,
+          northing: target.northing,
+        }
+        const initialState = computeStakeoutState(initialPos, targetPt)
+        p.setStakeoutState(initialState)
+      } else {
+        // No GPS fix yet — set ARRIVED so the panel renders in "searching" mode
+        // (proximityColor amber, label SEARCHING). First GPS fix will overwrite this.
+        p.setStakeoutState({
+          distance: 0,
+          bearing: 0,
+          bearingWCB: formatBearingWCB(0),
+          dE: 0,
+          dN: 0,
+          elevationDiff: null,
+          proximityColor: 'amber',
+          proximityLabel: 'SEARCHING',
+        })
+      }
+
       stakeoutCleanupDone.current = false
 
       // Enable GPS if not already tracking
@@ -617,7 +657,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       console.error('[activateStakeout] Failed:', err)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.hasFeature, p.gpsTracking, p.toggleGPS])
+  }, [p.hasFeature, p.gpsTracking, p.toggleGPS, p.gpsPos])
 
   // ── STAKEOUT: Deactivate and clean up ──
   const deactivateStakeout = useCallback(async () => {
@@ -704,7 +744,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       // Trigger audio alert
       createStakeoutAudioAlert(state.distance)
     } catch { /* skip update */ }
-  }, [p.stakeoutActive, p.stakeoutTarget, p.gpsPos])
+  }, [p.stakeoutActive, p.stakeoutTarget, p.gpsPos, p.setStakeoutState])
 
   // ── STAKEOUT: Legacy toggle (for backward compat) ──
   const toggleStakeout = useCallback(() => {

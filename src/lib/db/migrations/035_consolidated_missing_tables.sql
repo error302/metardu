@@ -64,6 +64,13 @@ CREATE TABLE IF NOT EXISTS cpd_records (
 );
 CREATE INDEX IF NOT EXISTS idx_cpd_records_user_year ON cpd_records(user_id, earned_at);
 
+-- RLS for cpd_records (user-scoped)
+ALTER TABLE cpd_records ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "self_cpd" ON cpd_records;
+CREATE POLICY "self_cpd" ON cpd_records
+  FOR ALL USING (user_id::text = current_setting('request.user_id', true))
+  WITH CHECK (user_id::text = current_setting('request.user_id', true));
+
 -- ─── 3. cpd_certificates ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS cpd_certificates (
   id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

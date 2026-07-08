@@ -1,17 +1,16 @@
 @echo off
-title METARDU Cloudflare Tunnel
-echo ==========================================
-echo   METARDU - Starting Cloudflare Quick Tunnel
-echo ==========================================
-echo.
-echo Stopping any existing cloudflared processes...
-taskkill /F /IM cloudflared.exe >nul 2>&1
-timeout /t 2 /nobreak >nul
+REM METARDU Startup Script — runs dev server and bore tunnel
+REM Run this from the METARDU folder in a terminal.
+REM Or double-click to open in two new windows.
 
-echo Starting tunnel (pointing to http://127.0.0.1:3000)...
-echo.
-"C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://127.0.0.1:3000 --loglevel info 2>"C:\Users\user\Desktop\METARDU\cloudflared-err.log"
+echo [METARDU] Starting Next.js dev server on port 3000...
+start "METARDU Dev Server" cmd /k "cd /d %~dp0 && npm run dev"
 
-echo.
-echo Tunnel has stopped.
+echo [METARDU] Waiting for server to start (20s)...
+timeout /t 20 /nobreak > nul
+
+echo [METARDU] Starting bore tunnel on port 3000...
+start "METARDU Bore Tunnel" cmd /k "C:\Users\user\.cargo\bin\bore.exe local 3000"
+
+echo [METARDU] Done. Check the "METARDU Bore Tunnel" window for your public URL.
 pause

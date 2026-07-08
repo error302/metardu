@@ -47,9 +47,12 @@ BEGIN
   END IF;
 END$$;
 
-CREATE TRIGGER IF NOT EXISTS trg_avips_updated_at
-  BEFORE UPDATE ON alignment_vertical_ips
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+  DROP TRIGGER IF EXISTS trg_avips_updated_at ON alignment_vertical_ips;
+  CREATE TRIGGER trg_avips_updated_at
+    BEFORE UPDATE ON alignment_vertical_ips FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+END $$;
 
 -- ─── cross_section_stations ─────────────────────────────────────────────────
 ALTER TABLE cross_section_stations
@@ -81,9 +84,12 @@ BEGIN
   END IF;
 END$$;
 
-CREATE TRIGGER IF NOT EXISTS trg_css_updated_at
-  BEFORE UPDATE ON cross_section_stations
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+  DROP TRIGGER IF EXISTS trg_css_updated_at ON cross_section_stations;
+  CREATE TRIGGER trg_css_updated_at
+    BEFORE UPDATE ON cross_section_stations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+END $$;
 
 COMMENT ON COLUMN alignment_vertical_ips.reduced_level IS 'Reduced level (elevation) at the VIP — preferred field for the engineering API';
 COMMENT ON COLUMN alignment_vertical_ips.k_value       IS 'AASHTO K-factor (length per percent of algebraic grade difference)';

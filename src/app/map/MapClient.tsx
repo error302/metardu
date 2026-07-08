@@ -1146,20 +1146,27 @@ export default function MapClient() {
 
     const onPositionChange = async () => {
       const pos = geolocation.getPosition()
-      if (pos) {
-        try {
-          const { transform } = await import('ol/proj')
-          const lonLat = transform(pos, 'EPSG:3857', 'EPSG:4326')
-          setGpsPos({ lon: lonLat[0], lat: lonLat[1], accuracy: geolocation.getAccuracy() })
-        } catch {
-          // Fallback: use raw coordinates
-          setGpsPos({ lon: pos[0], lat: pos[1], accuracy: geolocation.getAccuracy() })
-        }
+      if (!pos) return
+      try {
+        const { transform } = await import('ol/proj')
+        const lonLat = transform(pos, 'EPSG:3857', 'EPSG:4326') as [number, number]
+        setGpsPos({ lon: lonLat[0], lat: lonLat[1], accuracy: geolocation.getAccuracy() })
+      } catch {
+        // If transform fails, skip this update rather than corrupt state with wrong coords.
+        // This can happen if the position is somehow not a valid coordinate.
       }
     }
 
     geolocation.on('change:position', onPositionChange)
-    return () => geolocation.un('change:position', onPositionChange)
+    geolocation.on('change:error', () => {
+      setGpsPos(null)
+    })
+    return () => {
+      geolocation.un('change:position', onPositionChange)
+      geolocation.un('change:error', () => {
+        setGpsPos(null)
+      })
+    }
   }, [mapReady])
 
   // ── GPS position in EPSG:21037 (for StakeoutPanel) ──

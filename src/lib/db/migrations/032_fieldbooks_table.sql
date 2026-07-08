@@ -24,8 +24,12 @@ CREATE INDEX IF NOT EXISTS idx_fieldbooks_project ON fieldbooks(project_id);
 CREATE INDEX IF NOT EXISTS idx_fieldbooks_type ON fieldbooks(user_id, type);
 
 -- Trigger for updated_at
-CREATE TRIGGER IF NOT EXISTS trg_fieldbooks_updated_at
-  BEFORE UPDATE ON fieldbooks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+  DROP TRIGGER IF EXISTS trg_fieldbooks_updated_at ON fieldbooks;
+  CREATE TRIGGER trg_fieldbooks_updated_at
+    BEFORE UPDATE ON fieldbooks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+END $$;
 
 -- Enable RLS (matching the project-scoped pattern)
 ALTER TABLE fieldbooks ENABLE ROW LEVEL SECURITY;

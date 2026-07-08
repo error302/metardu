@@ -55,8 +55,16 @@ CREATE INDEX IF NOT EXISTS idx_beacon_condition
   ON beacon_registry(condition)
   WHERE condition != 'good';
 
--- Update the find_nearby_beacons function to also return sigma columns
-CREATE OR REPLACE FUNCTION find_nearby_beacons(
+-- Update the find_nearby_beacons function to also return sigma columns.
+-- PostgreSQL cannot use CREATE OR REPLACE when widening the return type
+-- or changing the LANGUAGE (plpgsql → sql), so we DROP first then CREATE.
+-- The new signature preserves locality (from migration 020) and adds
+-- sigma_e / sigma_n / sigma_rl / source_confidence.
+DROP FUNCTION IF EXISTS find_nearby_beacons(
+  DOUBLE PRECISION, DOUBLE PRECISION, INTEGER, INTEGER
+);
+
+CREATE FUNCTION find_nearby_beacons(
   p_easting DOUBLE PRECISION,
   p_northing DOUBLE PRECISION,
   p_radius_m INTEGER DEFAULT 500,
@@ -73,6 +81,7 @@ CREATE OR REPLACE FUNCTION find_nearby_beacons(
   sigma_rl DOUBLE PRECISION,
   source_confidence REAL,
   county VARCHAR,
+  locality TEXT,
   condition VARCHAR,
   distance_m DOUBLE PRECISION
 ) AS $$
@@ -88,8 +97,8 @@ CREATE OR REPLACE FUNCTION find_nearby_beacons(
     b.sigma_rl,
     b.source_confidence,
     b.county,
+    b.locality,
     b.condition,
-    -- Approximate distance using Pythagoras (sufficient for <10km in UTM)
     SQRT(POWER(b.easting - p_easting, 2) + POWER(b.northing - p_northing, 2)) AS distance_m
   FROM beacon_registry b
   WHERE b.easting IS NOT NULL

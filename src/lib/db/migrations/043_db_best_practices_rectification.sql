@@ -155,11 +155,11 @@ CREATE INDEX IF NOT EXISTS idx_online_service_logs_created_at
 CREATE INDEX IF NOT EXISTS idx_user_subscriptions_status
   ON user_subscriptions(status) WHERE status = 'active';
 CREATE INDEX IF NOT EXISTS idx_user_subscriptions_expires_at
-  ON user_subscriptions(expires_at) WHERE expires_at IS NOT NULL;
+  ON user_subscriptions(current_period_end) WHERE current_period_end IS NOT NULL;
 
 -- alignments: queried by name within a project
 CREATE INDEX IF NOT EXISTS idx_alignments_project_name
-  ON alignments(project_id, name);
+  ON alignments(project_id, alignment_name);
 
 -- ============================================================================
 -- 3. SPATIAL INDEXES (PostGIS GIST)
@@ -211,23 +211,28 @@ CREATE INDEX IF NOT EXISTS idx_projects_centroid
 -- (after false northing 10,000,000 for southern hemisphere)
 
 ALTER TABLE beacon_registry
+  DROP CONSTRAINT IF EXISTS chk_beacon_easting_range,
   ADD CONSTRAINT chk_beacon_easting_range
   CHECK (easting IS NULL OR (easting >= 100000 AND easting <= 1000000));
 
 ALTER TABLE beacon_registry
+  DROP CONSTRAINT IF EXISTS chk_beacon_northing_range,
   ADD CONSTRAINT chk_beacon_northing_range
   CHECK (northing IS NULL OR (northing >= 9000000 AND northing <= 11000000));
 
 ALTER TABLE beacon_registry
+  DROP CONSTRAINT IF EXISTS chk_beacon_sigma_positive,
   ADD CONSTRAINT chk_beacon_sigma_positive
   CHECK (sigma_e > 0 AND sigma_n > 0 AND sigma_rl > 0);
 
 ALTER TABLE beacon_registry
+  DROP CONSTRAINT IF EXISTS chk_beacon_source_confidence_range,
   ADD CONSTRAINT chk_beacon_source_confidence_range
   CHECK (source_confidence >= 0 AND source_confidence <= 1);
 
 -- Projects: project_type and status enums
 ALTER TABLE projects
+  DROP CONSTRAINT IF EXISTS chk_projects_status,
   ADD CONSTRAINT chk_projects_status
   CHECK (status IN ('draft', 'active', 'completed', 'archived', 'cancelled'));
 
@@ -254,6 +259,7 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'payment_intents' AND column_name = 'amount'
   ) THEN
+    EXECUTE 'ALTER TABLE payment_intents DROP CONSTRAINT IF EXISTS chk_payment_amount_positive';
     ALTER TABLE payment_intents
       ADD CONSTRAINT chk_payment_amount_positive
       CHECK (amount >= 0);
@@ -267,6 +273,7 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'payment_history' AND column_name = 'amount'
   ) THEN
+    EXECUTE 'ALTER TABLE payment_history DROP CONSTRAINT IF EXISTS chk_payment_history_amount_positive';
     ALTER TABLE payment_history
       ADD CONSTRAINT chk_payment_history_amount_positive
       CHECK (amount >= 0);
@@ -280,6 +287,7 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'cpd_records' AND column_name = 'points'
   ) THEN
+    EXECUTE 'ALTER TABLE cpd_records DROP CONSTRAINT IF EXISTS chk_cpd_points_nonneg';
     ALTER TABLE cpd_records
       ADD CONSTRAINT chk_cpd_points_nonneg
       CHECK (points >= 0);
@@ -381,7 +389,7 @@ END $$;
 
 -- Active projects (most queries filter on status='active')
 CREATE INDEX IF NOT EXISTS idx_projects_active
-  ON projects(owner_id, created_at DESC)
+  ON projects(user_id, created_at DESC)
   WHERE status = 'active';
 
 -- Unread notifications
@@ -414,5 +422,5 @@ COMMENT ON INDEX idx_parcels_assigned_surveyor IS 'FK index — speeds up JOINs 
 COMMENT ON INDEX idx_gnss_sessions_user_id IS 'FK index — speeds up user GNSS history queries';
 COMMENT ON INDEX idx_beacon_registry_geom IS 'Spatial index — enables "find beacons near me" queries';
 COMMENT ON INDEX idx_projects_centroid IS 'Spatial index — enables map overview of all user projects';
-COMMENT ON CONSTRAINT chk_beacon_easting_range IS 'Validates UTM 37S easting is within Kenya bounds (100km to 1000km)';
-COMMENT ON CONSTRAINT chk_beacon_northing_range IS 'Validates UTM 37S northing is within Kenya bounds (9,000km to 11,000km)';
+COMMENT ON CONSTRAINT chk_beacon_easting_range ON beacon_registry IS 'Validates UTM 37S easting is within Kenya bounds (100km to 1000km)';
+COMMENT ON CONSTRAINT chk_beacon_northing_range ON beacon_registry IS 'Validates UTM 37S northing is within Kenya bounds (9,000km to 11,000km)';

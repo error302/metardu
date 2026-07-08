@@ -72,6 +72,14 @@ CREATE TABLE IF NOT EXISTS equipment (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Add missing columns if equipment table already existed (from earlier migration)
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS manufacturer VARCHAR(200);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS model VARCHAR(200);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS purchase_date DATE;
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS purchase_cost DECIMAL(12, 2);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active';
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS notes TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_equipment_user
     ON equipment(user_id, status);
 
