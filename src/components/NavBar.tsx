@@ -83,6 +83,7 @@ const searchablePages = [
   { category: 'Tools', group: 'Earthworks', href: '/tools/cut-fill', labelKey: 'Cut & Fill Volumes' },
   { category: 'Tools', group: 'Geodesy', href: '/tools/gnss-rinex', labelKey: 'GNSS RINEX Processing' },
   { category: 'Tools', group: 'Monitoring', href: '/tools/deformation-monitoring', labelKey: 'Deformation Monitoring' },
+  { category: 'Tools', group: 'Corridor', href: '/tools/corridor', labelKey: 'Corridor / Chainage Mode' },
   // Tools - Specialized (scope narrowing v1: mining + hydrographic removed)
   { category: 'Tools', group: 'Specialized', href: '/tools/drone', labelKey: 'tools.drone' },
   // Field

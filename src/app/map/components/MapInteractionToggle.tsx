@@ -5,10 +5,16 @@
  *
  * Problem: On mobile, single-finger drag pans the map, which hijacks page scroll.
  * Solution: Require two-finger drag to pan/zoom the map on touch devices.
+ *
+ * T1.5g FIX (2026-07-10): Migrated from raw absolute positioning to
+ * MapOverlaySlot. The gesture-lock button was at 'absolute bottom-20 left-3
+ * z-[1000]' which collided with other bottom-left overlays. Now uses
+ * bottom-left anchor with order=50 (above other controls).
  */
 
 import { useEffect, useState, useCallback } from 'react'
 import { Lock, Unlock, Hand } from 'lucide-react'
+import { MapOverlaySlot } from '@/app/map/components/MapOverlayManager'
 
 type LockState = 'locked' | 'unlocked'
 const STORAGE_KEY = 'metardu:map-gesture-lock'
@@ -92,7 +98,7 @@ export function MapInteractionToggle({ mapInstance }: { mapInstance: React.Mutab
 
   return (
     <>
-      <div className="absolute bottom-20 left-3 z-[1000]">
+      <MapOverlaySlot id="gesture-lock" anchor="bottom-left" order={50} layer="STAKEOUT">
         <button
           onClick={toggleLock}
           className={`flex items-center justify-center w-12 h-12 rounded-xl backdrop-blur-xl border transition-all duration-200 shadow-lg ${
@@ -105,7 +111,7 @@ export function MapInteractionToggle({ mapInstance }: { mapInstance: React.Mutab
         >
           {lockState === 'locked' ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
         </button>
-      </div>
+      </MapOverlaySlot>
       {lockState === 'locked' && showHint && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[999] pointer-events-none">
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0d0d14]/90 backdrop-blur-xl border border-[#D17B47]/20 shadow-2xl animate-in fade-in duration-300">

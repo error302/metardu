@@ -37,6 +37,8 @@ export const MapStatusBar = memo(function MapStatusBar() {
               <span className="text-[#D17B47]/70">N</span>
               <span className="text-[#D17B47] font-medium w-[64px] md:w-[80px] text-right">{mouseCoord.n.toFixed(1)}</span>
               <span className="text-[var(--text-muted)] text-[9px] md:text-[10px]">{currentUtmEpsg}</span>
+              {/* T1.5g: Show current epoch for time-dependent reference frame awareness */}
+              <span className="text-[var(--text-muted)] text-[9px] md:text-[10px] hidden lg:inline">| epoch {new Date().getFullYear() + (new Date().getMonth() / 12 + new Date().getDate() / 365).toFixed(1).substring(1)}</span>
             </div>
           ) : (
             <span className="text-[10px] md:text-[11px] text-[var(--text-muted)]">Move cursor for coordinates</span>

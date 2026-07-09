@@ -12,6 +12,7 @@
 
 import { useState, useCallback } from 'react'
 import { Magnet, Settings2, X } from 'lucide-react'
+import { MapOverlaySlot } from '@/app/map/components/MapOverlayManager'
 
 type SnapMode = 'vertex' | 'segment' | 'vertex_segment'
 type SnapType = 'osm' | 'parcels' | 'beacons' | 'grid' | 'all'
@@ -82,7 +83,8 @@ export function SnappingOptions({
   if (!open) return null
 
   return (
-    <div className="absolute top-[340px] right-3 z-30 w-72 bg-[#0d0d14]/95 backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-2 duration-200">
+    <MapOverlaySlot id="snapping-options" anchor="top-right" order={50} layer="PANELS" edgeMargin={16}>
+    <div className="w-72 bg-[#0d0d14]/95 backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-2 duration-200">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]/[0.06]">
         <div className="flex items-center gap-2">
@@ -198,5 +200,6 @@ export function SnappingOptions({
         </div>
       </div>
     </div>
+    </MapOverlaySlot>
   )
 }

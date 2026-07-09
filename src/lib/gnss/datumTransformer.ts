@@ -70,21 +70,25 @@ export interface UTMCoord {
 
 /**
  * Professional-grade datum transformer for Kenya survey coordinates.
- * 
+ *
  * Supports:
  * - WGS84 (GPS) → Arc 1960 / UTM Zone 37S (cadastral)
  * - Arc 1960 / UTM Zone 37S → WGS84 (inverse)
  * - WGS84 → UTM Zone 37S (projection only, no datum shift)
  * - Batch transforms for arrays of points
- * 
+ *
  * All transforms use proj4 for rigorous geodetic computation.
  * No intermediate rounding — full float precision throughout.
+ *
+ * T1.5g FIX (2026-07-10): Now exposes the transformation provenance via
+ * the DatumTransformationRegistry. Callers can use transformWithProvenance()
+ * to get a full audit trail of which transformation was applied.
  */
 export class DatumTransformer {
   /**
    * Convert WGS84 geographic coordinates to UTM Zone 37S.
    * This applies the datum shift from WGS84 to Arc 1960 AND projects to UTM.
-   * 
+   *
    * @param lat - Latitude in decimal degrees (negative for South)
    * @param lon - Longitude in decimal degrees
    * @returns UTM coordinates with zone and hemisphere
@@ -168,3 +172,14 @@ export class DatumTransformer {
     return { easting, northing, zone: 37, hemisphere: 'S' };
   }
 }
+
+// T1.5g: Re-export the provenance-tracked transform from the registry
+// so callers can import everything from one module.
+export {
+  transformWithProvenance,
+  getTowgs84String,
+  listTransformations,
+  registerLocalTransformation,
+  validateTransformation,
+} from '@/lib/geo/datumTransformationRegistry'
+export type { TransformedCoordinate, ProvenanceRecord, TransformationSet } from '@/lib/geo/datumTransformationRegistry'

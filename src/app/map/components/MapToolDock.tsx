@@ -179,6 +179,7 @@ const SurveyWorkflowBadge = memo(function SurveyWorkflowBadge({
       className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
       role="status"
       aria-label={`Workflow stage: ${label}`}
+      // T1.5g: top-center badge — managed by MapOverlaySlot in MapClient (order=2)
     >
       <div
         className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-xl border border-[var(--border-color)]/[0.08] bg-[#0d0d14]/70"
