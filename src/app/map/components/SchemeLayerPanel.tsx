@@ -53,7 +53,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
 
   return (
     <div
-      className="absolute top-52 right-3 z-30 sm:top-56 sm:right-4 max-w-[260px]"
+      className="max-w-[260px]"
       role="region"
       aria-label="Scheme layer controls"
     >

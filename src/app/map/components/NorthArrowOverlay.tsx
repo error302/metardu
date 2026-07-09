@@ -47,7 +47,7 @@ export function NorthArrowOverlay({ mapInstance }: NorthArrowOverlayProps) {
 
   return (
     <div
-      className="absolute bottom-24 right-3 z-[5] flex flex-col items-center select-none pointer-events-none"
+      className="flex flex-col items-center select-none pointer-events-none"
       aria-label={`North arrow, map rotation ${rotation.toFixed(1)} degrees`}
     >
       <div

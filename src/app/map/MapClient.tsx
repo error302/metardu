@@ -98,6 +98,7 @@ import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
 import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButton'
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
+import { MapOverlayProvider, MapOverlaySlot, OVERLAY_Z } from '@/app/map/components/MapOverlayManager'
 import { StakeoutRadar } from '@/components/survey/StakeoutRadar'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
@@ -1497,6 +1498,7 @@ export default function MapClient() {
           {/* ── Overlays (only when map is ready) ── */}
           {mapReady && (
             <>
+            <MapOverlayProvider>
               <MapOverlays />
 
               <MapCoordSearch />
@@ -1541,25 +1543,27 @@ export default function MapClient() {
                 }}
               />
 
-              {/* ── Stakeout Radar button (bottom-left, next to gesture lock) ── */}
+              {/* ── Stakeout Radar button (bottom-left, managed by overlay system) ── */}
               {!showStakeoutRadar && (
-                <button
-                  onClick={() => {
-                    const view = mapInstance.current?.getView()
-                    if (view) {
-                      const center = view.getCenter()
-                      if (center) {
-                        setStakeoutRadarTarget({ e: center[0], n: center[1] })
-                        setShowStakeoutRadar(true)
+                <MapOverlaySlot id="stakeout-radar-btn" anchor="bottom-left" order={20} layer="CONTROLS">
+                  <button
+                    onClick={() => {
+                      const view = mapInstance.current?.getView()
+                      if (view) {
+                        const center = view.getCenter()
+                        if (center) {
+                          setStakeoutRadarTarget({ e: center[0], n: center[1] })
+                          setShowStakeoutRadar(true)
+                        }
                       }
-                    }
-                  }}
-                  className="absolute bottom-20 left-16 z-20 sm:left-3 flex items-center justify-center w-12 h-12 rounded-xl bg-[#0d0d14]/70 backdrop-blur-xl border border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:text-[#D17B47] hover:border-[#D17B47]/30 transition-all shadow-lg"
-                  title="Launch stakeout radar for beacon recovery"
-                  aria-label="Stakeout radar"
-                >
-                  <Target className="w-5 h-5" />
-                </button>
+                    }}
+                    className="flex items-center justify-center w-12 h-12 rounded-xl bg-[#0d0d14]/70 backdrop-blur-xl border border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:text-[#D17B47] hover:border-[#D17B47]/30 transition-all shadow-lg"
+                    title="Launch stakeout radar for beacon recovery"
+                    aria-label="Stakeout radar"
+                  >
+                    <Target className="w-5 h-5" />
+                  </button>
+                </MapOverlaySlot>
               )}
 
               {/* ── Stakeout Radar (full-screen when active) ── */}
@@ -1571,38 +1575,48 @@ export default function MapClient() {
                 />
               )}
 
-              {/* ── Offline Download button (bottom-left, above radar) ── */}
-              {/* ── Offline Tile Download Button (bottom-right) ── */}
-              <OfflineDownloadButton />
+              {/* ── Offline Download button (bottom-left, managed by overlay system) ── */}
+              <MapOverlaySlot id="offline-download" anchor="bottom-left" order={10} layer="CONTROLS">
+                <OfflineDownloadButton />
+              </MapOverlaySlot>
 
-              <MapStatusBar />
+              {/* ── Coordinate status bar (bottom-center, full width) ── */}
+              <MapOverlaySlot id="status-bar" anchor="bottom-center" order={1} layer="BASE" edgeMargin={0}>
+                <MapStatusBar />
+              </MapOverlaySlot>
 
               <MapNotifications />
 
-              {/* Scheme Layer Panel (right side, zero-prop) */}
-              <SchemeLayerPanel />
+              {/* ── Scheme Layer Panel (top-right, managed by overlay system) ── */}
+              <MapOverlaySlot id="scheme-layers" anchor="top-right" order={40} layer="PANELS" edgeMargin={16}>
+                <SchemeLayerPanel />
+              </MapOverlaySlot>
 
-              {/* ── Right side controls ── */}
-              <div className="absolute top-14 right-3 z-20 sm:top-16 sm:right-4 flex flex-col gap-2 items-end">
-                {/* Projection Switcher (zero-prop) */}
-                <ProjectionSwitcher />
+              {/* ── Right side controls (top-right, managed by overlay system) ── */}
+              <MapOverlaySlot id="right-controls" anchor="top-right" order={10} layer="CONTROLS" edgeMargin={16}>
+                <div className="flex flex-col gap-2 items-end">
+                  {/* Projection Switcher */}
+                  <ProjectionSwitcher />
 
-                {/* Rotation Control (north reset) */}
-                <RotationControl />
+                  {/* Rotation Control (north reset) */}
+                  <RotationControl />
 
-                {/* Always-on North Arrow (rotates with map) */}
-                <NorthArrowOverlay mapInstance={mapInstance} />
-              </div>
+                  {/* Always-on North Arrow (rotates with map) */}
+                  <NorthArrowOverlay mapInstance={mapInstance} />
+                </div>
+              </MapOverlaySlot>
 
-              {/* ── Vertex Edit Toolbar (bottom-left, near map controls) ── */}
-              <div className="absolute bottom-24 left-3 z-20">
+              {/* ── Vertex Edit Toolbar (bottom-left, managed by overlay system) ── */}
+              <MapOverlaySlot id="vertex-edit" anchor="bottom-left" order={30} layer="CONTROLS">
                 <VertexEditToolbar />
-              </div>
+              </MapOverlaySlot>
 
-              {/* ── Print button (bottom-right) ── */}
-              <div className="absolute bottom-10 right-3 z-20 no-print print-hide flex items-center gap-2">
-                <MapPrintButton />
-              </div>
+              {/* ── Print button (bottom-right, managed by overlay system — no longer orphaned) ── */}
+              <MapOverlaySlot id="print-button" anchor="bottom-right" order={10} layer="CONTROLS" className="no-print print-hide">
+                <div className="flex items-center gap-2">
+                  <MapPrintButton />
+                </div>
+              </MapOverlaySlot>
 
               {/* ── Sheet Layout Overlay (print-only — no manual toggle) ── */}
               {showSheetLayout && (
@@ -1613,6 +1627,7 @@ export default function MapClient() {
                   projectName={schemeProjectId ? `Project ${schemeProjectId}` : 'Global Map'}
                 />
               )}
+            </MapOverlayProvider>
             </>
           )}
 

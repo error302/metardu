@@ -18,7 +18,7 @@ export const MapStatusBar = memo(function MapStatusBar() {
   const { mouseCoord, dragHint, isMobile, currentUtmEpsg } = useMapContext()
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-10" style={{ bottom: isMobile ? '64px' : '0px' }}>
+    <div className="w-full" style={{ paddingBottom: isMobile ? '64px' : '0px' }}>
       <div className="mx-2 mb-2 h-8 bg-[#0d0d14]/95 backdrop-blur-xl border border-[var(--border-color)]/[0.06] rounded-lg flex items-center justify-between px-2 md:px-3 overflow-x-auto">
         {/* Coordinates */}
         <div className="flex items-center gap-1.5 md:gap-3 min-w-0">

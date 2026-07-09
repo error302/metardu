@@ -16,7 +16,7 @@ export function OfflineDownloadButton() {
   return (
     <button
       onClick={() => setOfflineDialogOpen(true)}
-      className={`absolute bottom-32 left-3 z-20 flex items-center gap-2 px-3 h-10 rounded-xl backdrop-blur-xl border transition-all duration-200 shadow-lg ${
+      className={`flex items-center gap-2 px-3 h-10 rounded-xl backdrop-blur-xl border transition-all duration-200 shadow-lg ${
         offlineDialogOpen
           ? 'bg-[#D17B47]/15 border-[#D17B47]/30 text-[#D17B47]'
           : 'bg-[#0d0d14]/60 border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:bg-[#0d0d14]/80 hover:text-[var(--text-secondary)]'
