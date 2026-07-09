@@ -20,6 +20,8 @@ interface WorkspaceMapProps {
     adjustedStations?: Array<StationCoord> | null;
     stations?: any[];
   } | null;
+  /** T1.5 FIX (2026-07-09): UTM EPSG for coordinate transforms (default 'EPSG:21037') */
+  epsg?: string;
 }
 
 // ── Error Boundary ────────────────────────────────────────────────────
@@ -60,7 +62,7 @@ function extractCoord(s: StationCoord): [number, number] | null {
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMapProps) {
+export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:21037' }: WorkspaceMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const coordBarRef = useRef<HTMLDivElement>(null);
@@ -162,7 +164,7 @@ export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMap
           const c = extractCoord(s as StationCoord);
           if (!c) continue;
           try {
-            const [e3857, n3857] = proj.transform(c, 'EPSG:21037', 'EPSG:3857');
+            const [e3857, n3857] = proj.transform(c, epsg, 'EPSG:3857');
             const name = (s as StationCoord).pointName || `P${validCoords.length + 1}`;
             validCoords.push([e3857, n3857, name]);
 
@@ -236,7 +238,7 @@ export default function WorkspaceMap({ projectName, boundaryData }: WorkspaceMap
               coordinateFormat: (coord: any) => {
                 if (!coord) return '';
                 try {
-                  const [e, n] = proj.transform(coord, 'EPSG:3857', 'EPSG:21037');
+                  const [e, n] = proj.transform(coord, 'EPSG:3857', epsg);
                   const now = Date.now();
                   if (now - throttleRef.current > 100) {
                     throttleRef.current = now;

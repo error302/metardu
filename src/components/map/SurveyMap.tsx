@@ -33,6 +33,8 @@ interface SurveyMapProps {
   county?: string;
   /** Unique container ID for PDF print targeting */
   mapContainerId?: string;
+  /** T1.5 FIX (2026-07-09): UTM EPSG for coordinate transforms (default 'EPSG:21037') */
+  epsg?: string;
 }
 
 interface NearestStation extends KenCORSStation {
@@ -55,6 +57,7 @@ export default function SurveyMap({
   clientName,
   county,
   mapContainerId = 'metardu-map-container',
+  epsg = 'EPSG:21037',
 }: SurveyMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import('ol/Map').default | null>(null);
@@ -105,7 +108,7 @@ export default function SurveyMap({
 
   async function to3857Single(e: number, n: number): Promise<[number, number]> {
     const { transform } = await import('ol/proj');
-    return transform([e, n], 'EPSG:21037', SRID_3857) as [number, number];
+    return transform([e, n], epsg, SRID_3857) as [number, number];
   }
 
   useEffect(() => {
@@ -133,7 +136,7 @@ export default function SurveyMap({
 
       const center3857 = transform(
         [centroidEasting, centroidNorthing],
-        'EPSG:21037',
+        epsg,
         SRID_3857
       ) as [number, number];
 
@@ -284,7 +287,7 @@ export default function SurveyMap({
     if (!mapInstanceRef.current || adjustedStations.length < 3) return;
     const { transform } = await import('ol/proj');
     const coords = adjustedStations.map(s =>
-      transform([s.adjustedEasting, s.adjustedNorthing], 'EPSG:21037', SRID_3857)
+      transform([s.adjustedEasting, s.adjustedNorthing], epsg, SRID_3857)
     );
     const xs = coords.map(c => c[0]);
     const ys = coords.map(c => c[1]);
