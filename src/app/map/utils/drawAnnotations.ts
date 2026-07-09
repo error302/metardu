@@ -5,7 +5,8 @@
  *  - Bearing label (WCB format, e.g. "N 45°30'15" E")
  *  - Distance label (meters or km)
  *
- * All math runs in EPSG:21037 (Kenya grid, meters) for survey accuracy.
+ * T1.5 FIX (2026-07-09): All math runs in the caller-specified UTM CRS
+ * (default EPSG:21037 / Kenya grid, meters) for survey accuracy.
  * Rendered features use EPSG:3857 (Web Mercator).
  */
 
@@ -14,6 +15,8 @@ export interface DrawAnnotationOptions {
   coords3857: Array<[number, number]>
   /** Geometry type: 'LineString' or 'Polygon' */
   geomType: 'LineString' | 'Polygon'
+  /** T1.5: UTM EPSG for survey-accurate math (default 'EPSG:21037') */
+  epsg?: string
 }
 
 const OFFSET_METERS = 3
@@ -45,7 +48,7 @@ function formatBearingWCB(bearing: number): string {
 export async function createDrawAnnotationLayer(
   options: DrawAnnotationOptions,
 ): Promise<import('ol/layer/Vector').default> {
-  const { coords3857, geomType } = options
+  const { coords3857, geomType, epsg = 'EPSG:21037' } = options
 
   const [
     { default: VectorLayer },
@@ -79,12 +82,12 @@ export async function createDrawAnnotationLayer(
     const from3857 = coords[i]
     const to3857 = coords[(i + 1) % n]
 
-    // Transform to EPSG:21037 for survey-accurate math
+    // Transform to UTM for survey-accurate math
     let from21037: number[] | null = null
     let to21037: number[] | null = null
     try {
-      from21037 = transform(from3857, 'EPSG:3857', 'EPSG:21037')
-      to21037 = transform(to3857, 'EPSG:3857', 'EPSG:21037')
+      from21037 = transform(from3857, 'EPSG:3857', epsg)
+      to21037 = transform(to3857, 'EPSG:3857', epsg)
     } catch {
       continue
     }
@@ -116,11 +119,11 @@ export async function createDrawAnnotationLayer(
 
     const bearingPt = transform(
       [midE + px * bearingOffset, midN + py * bearingOffset],
-      'EPSG:21037', 'EPSG:3857'
+      epsg, 'EPSG:3857'
     )
     const distPt = transform(
       [midE + px * distOffset, midN + py * distOffset],
-      'EPSG:21037', 'EPSG:3857'
+      epsg, 'EPSG:3857'
     )
 
     const rotation = bearingToOLRotation(bearing)

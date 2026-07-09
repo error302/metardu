@@ -595,7 +595,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
     try {
       const { overlay, targetSource, targetLayer, directionSource, directionLayer } =
-        await createStakeoutOverlay(target)
+        await createStakeoutOverlay(target, epsg)
 
       // Store refs
       stakeoutOverlayRef.current = overlay
@@ -735,7 +735,8 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       const state = await updateStakeoutDirection(
         stakeoutDirectionSourceRef.current,
         currentPos,
-        target
+        target,
+        epsg,
       )
 
       // Update target marker proximity color
@@ -965,6 +966,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
           const layer = await createDrawAnnotationLayer({
             coords3857: coords,
             geomType: type as 'LineString' | 'Polygon',
+            epsg, // T1.5: pass the active UTM EPSG
           })
           allAnnotationLayers.push(layer)
         } catch {

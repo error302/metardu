@@ -240,7 +240,10 @@ export function stopStakeoutAudio(): void {
  * Returns the overlay and a Vector source for the direction line.
  * All OL imports are dynamic for SSR safety.
  */
-export async function createStakeoutOverlay(target: StakeoutTarget): Promise<{
+export async function createStakeoutOverlay(
+  target: StakeoutTarget,
+  epsg: string = 'EPSG:21037',
+): Promise<{
   overlay: import('ol/Overlay').default
   targetSource: import('ol/source/Vector').default
   targetLayer: import('ol/layer/Vector').default
@@ -271,8 +274,8 @@ export async function createStakeoutOverlay(target: StakeoutTarget): Promise<{
     import('ol/proj').then(m => ({ transform: m.transform })),
   ])
 
-  // Transform target from EPSG:21037 to EPSG:3857
-  const targetCoord = transform([target.easting, target.northing], 'EPSG:21037', 'EPSG:3857')
+  // Transform target from UTM to EPSG:3857
+  const targetCoord = transform([target.easting, target.northing], epsg, 'EPSG:3857')
 
   // ── Target marker overlay (DOM element) ──
   const overlayEl = document.createElement('div')
@@ -401,7 +404,8 @@ export async function createStakeoutOverlay(target: StakeoutTarget): Promise<{
 export async function updateStakeoutDirection(
   directionSource: import('ol/source/Vector').default,
   current: StakeoutPosition,
-  target: StakeoutTarget
+  target: StakeoutTarget,
+  epsg: string = 'EPSG:21037',
 ): Promise<StakeoutState> {
   const { default: Feature } = await import('ol/Feature')
   const { default: LineString } = await import('ol/geom/LineString')
@@ -409,8 +413,8 @@ export async function updateStakeoutDirection(
 
   const state = computeStakeoutState(current, target)
 
-  const fromCoord = transform([current.easting, current.northing], 'EPSG:21037', 'EPSG:3857')
-  const toCoord = transform([target.easting, target.northing], 'EPSG:21037', 'EPSG:3857')
+  const fromCoord = transform([current.easting, current.northing], epsg, 'EPSG:3857')
+  const toCoord = transform([target.easting, target.northing], epsg, 'EPSG:3857')
 
   // Clear previous direction features
   directionSource.clear()

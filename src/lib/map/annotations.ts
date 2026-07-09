@@ -25,8 +25,10 @@ import {
 export interface AnnotationOptions {
   /** Closed polygon in EPSG:3857 (first point repeated at end) */
   coords3857: Array<[number, number]>;
-  /** The original adjusted stations in EPSG:21037 */
+  /** The original adjusted stations in UTM (default EPSG:21037) */
   stations21037: Array<{ pointName: string; easting: number; northing: number }>;
+  /** T1.5 FIX (2026-07-09): UTM EPSG for the stations (default 'EPSG:21037') */
+  epsg?: string;
 }
 
 /**
@@ -59,7 +61,7 @@ function bearingToOLRotation(bearingDeg: number): number {
 export async function createAnnotationLayer(
   options: AnnotationOptions,
 ): Promise<import('ol/layer/Vector').default> {
-  const { stations21037 } = options;
+  const { stations21037, epsg = 'EPSG:21037' } = options;
 
   const [
     { default: VectorLayer },
@@ -121,12 +123,12 @@ export async function createAnnotationLayer(
     // Convert to EPSG:3857 for rendering
     const bearingCoord = transform(
       [bearingPt.easting, bearingPt.northing],
-      'EPSG:21037',
+      epsg,
       'EPSG:3857',
     );
     const distanceCoord = transform(
       [distancePt.easting, distancePt.northing],
-      'EPSG:21037',
+      epsg,
       'EPSG:3857',
     );
 
@@ -164,7 +166,7 @@ export async function createAnnotationLayer(
 
   const centroidCoord = transform(
     [centroid.easting, centroid.northing],
-    'EPSG:21037',
+    epsg,
     'EPSG:3857',
   );
 
