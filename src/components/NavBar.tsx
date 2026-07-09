@@ -85,6 +85,8 @@ const searchablePages = [
   { category: 'Tools', group: 'Monitoring', href: '/tools/deformation-monitoring', labelKey: 'Deformation Monitoring' },
   { category: 'Tools', group: 'Corridor', href: '/tools/corridor', labelKey: 'Corridor / Chainage Mode' },
   { category: 'Tools', group: 'Topographic', href: '/tools/topographic-survey', labelKey: 'Topographic Survey' },
+  { category: 'Tools', group: 'Quality', href: '/tools/control-point-verification', labelKey: 'Control Point Verification' },
+  { category: 'Tools', group: 'Career', href: '/tools/portfolio', labelKey: 'License Application Portfolio' },
   // Tools - Specialized (scope narrowing v1: mining + hydrographic removed)
   { category: 'Tools', group: 'Specialized', href: '/tools/drone', labelKey: 'tools.drone' },
   // Field
