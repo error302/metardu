@@ -210,10 +210,35 @@ export const GET = apiHandler(
       )
     }
 
-    const { rows } = await db.query(
-      `SELECT * FROM survey_points WHERE project_id = $1 ORDER BY point_name ASC`,
-      [projectId],
-    )
+    // T1.5d FIX (2026-07-10): Add is_control filter + text search.
+    // Previously this endpoint returned ALL points with no way to filter
+    // for control points only, and no text search. Now supports:
+    //   GET /api/survey-points?project_id=X                    — all points
+    //   GET /api/survey-points?project_id=X&is_control=true    — control points only
+    //   GET /api/survey-points?project_id=X&q=BEACON           — text search point_name
+    //   GET /api/survey-points?project_id=X&is_control=true&q=CP1
+    const isControl = searchParams.get('is_control')
+    const q = searchParams.get('q')?.trim()
+
+    let sql = `SELECT * FROM survey_points WHERE project_id = $1`
+    const params: unknown[] = [projectId]
+    let paramIdx = 2
+
+    if (isControl === 'true') {
+      sql += ` AND is_control = true`
+    } else if (isControl === 'false') {
+      sql += ` AND is_control = false`
+    }
+
+    if (q) {
+      sql += ` AND (point_name ILIKE $${paramIdx} OR code ILIKE $${paramIdx} OR description ILIKE $${paramIdx})`
+      params.push(`%${q}%`)
+      paramIdx++
+    }
+
+    sql += ` ORDER BY is_control DESC, point_name ASC`
+
+    const { rows } = await db.query(sql, params)
 
     return NextResponse.json({ data: rows, count: rows.length })
   },

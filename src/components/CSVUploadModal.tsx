@@ -74,7 +74,7 @@ export default function CSVUploadModal({
     try {
       const pointsToInsert = parsedPoints.map((p: any) => ({
         project_id: projectId,
-        name: p.name,
+        point_name: p.name,  // T1.5d FIX: was 'name' (column doesn't exist)
         easting: p.easting,
         northing: p.northing,
         elevation: p.elevation,

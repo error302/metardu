@@ -38,6 +38,7 @@ interface Beacon {
   authority?: string
   beacon_type: string
   description?: string
+  datum?: string  // T1.5d: added for beacon import
 }
 
 interface Project {
@@ -261,13 +262,16 @@ export default function BeaconsPage() {
     try {
       const { error } = await dbClient.from('survey_points').insert({
         project_id: importProject,
-        name: importBeacon.name,
+        point_name: importBeacon.name,  // T1.5d FIX: was 'name' (column doesn't exist)
         easting: importBeacon.easting,
         northing: importBeacon.northing,
         elevation: importBeacon.elevation,
         is_control: true,
-        control_order: 'primary',
-        locked: true
+        // T1.5d: control_order and locked columns don't exist — removed.
+        // The beacon's datum/utm_zone could be carried over here too.
+        datum: importBeacon.datum || 'Arc 1960',
+        utm_zone: importBeacon.utm_zone || 37,
+        source: 'beacon_registry',
       })
 
       if (error) throw error

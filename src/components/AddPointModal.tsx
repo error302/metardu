@@ -95,13 +95,13 @@ export default function AddPointModal({
         const { error: updateError } = await client
           .from('survey_points')
           .update({
-            name: name.trim(),
+            point_name: name.trim(),  // T1.5d FIX: was 'name' (column doesn't exist)
             easting: Number(parseFloat(easting).toFixed(4)),
             northing: Number(parseFloat(northing).toFixed(4)),
             elevation: Number(parseFloat(elevation || '0').toFixed(4)),
             is_control: Boolean(isControl),
-            control_order: isControl ? controlOrder : null,
-            locked: isControl ? locked : false
+            // T1.5d: control_order and locked columns don't exist — removed.
+            // Use is_control boolean + description/code for classification.
           })
           .eq('id', editPointId)
 
@@ -115,13 +115,12 @@ export default function AddPointModal({
           .from('survey_points')
           .insert({
             project_id: projectId,
-            name: name.trim(),
+            point_name: name.trim(),  // T1.5d FIX: was 'name' (column doesn't exist)
             easting: Number(parseFloat(easting).toFixed(4)),
             northing: Number(parseFloat(northing).toFixed(4)),
             elevation: Number(parseFloat(elevation || '0').toFixed(4)),
             is_control: Boolean(isControl),
-            control_order: isControl ? controlOrder : null,
-            locked: isControl ? locked : false
+            // T1.5d: control_order and locked columns don't exist — removed.
           })
 
         if (insertError) {
@@ -160,7 +159,7 @@ export default function AddPointModal({
         .from('survey_points')
         .insert({
           project_id: projectId,
-          name: name.trim(),
+          point_name: name.trim(),  // T1.5d FIX: was 'name' (column doesn't exist)
           easting: Number(parseFloat(easting).toFixed(4)),
           northing: Number(parseFloat(northing).toFixed(4)),
           elevation: Number(parseFloat(elevation || '0').toFixed(4)),

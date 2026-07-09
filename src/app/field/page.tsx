@@ -175,8 +175,17 @@ export default function FieldPage() {
     if (!selectedProject || batchParseResults.length === 0) return
 
     try {
+      // T1.5d FIX (2026-07-10): Map 'name' to 'point_name' (the actual DB column).
+      // The local type uses 'name' for convenience, but the DB column is 'point_name'.
       await dbClient.from('survey_points').insert(
-        batchParseResults.map((p) => ({ ...p, project_id: selectedProject }))
+        batchParseResults.map((p) => ({
+          project_id: selectedProject,
+          point_name: p.name,  // T1.5d: was 'name' (column doesn't exist)
+          easting: p.easting,
+          northing: p.northing,
+          elevation: p.elevation,
+          is_control: p.is_control ?? false,
+        }))
       )
       setBatchCSV('')
       setBatchParseResults([])
@@ -195,7 +204,7 @@ export default function FieldPage() {
 
     try {
       await dbClient.from('survey_points').insert({
-        name: pName,
+        point_name: pName,  // T1.5d FIX: was 'name' (column doesn't exist)
         easting: parseFloat(pE),
         northing: parseFloat(pN),
         elevation: pZ ? parseFloat(pZ) : null,

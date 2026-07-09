@@ -25,6 +25,14 @@ const patchSurveyPointSchema = z.object({
   elevation: z.number().nullable().optional(),
   description: z.string().nullable().optional(),
   code: z.string().nullable().optional(),
+  // T1.5d FIX (2026-07-10): Allow toggling is_control + CRS fields
+  is_control: z.boolean().optional(),
+  datum: z.string().nullable().optional(),
+  utm_zone: z.number().int().min(1).max(60).nullable().optional(),
+  hemisphere: z.enum(['N', 'S']).nullable().optional(),
+  epoch_year: z.number().int().min(1900).max(2100).nullable().optional(),
+  source: z.string().nullable().optional(),
+  observation_date: z.string().nullable().optional(),
   // Optimistic locking: frontend must send the updated_at value it last read
   updated_at: z.string(),
 })
@@ -67,6 +75,17 @@ export const PATCH = apiHandler(
       elevation: 'elevation',
       description: 'description',
       code: 'code',
+      // T1.5d FIX (2026-07-10): Allow toggling is_control via PATCH.
+      // Previously this was excluded, so the only way to promote a detail
+      // point to a control point was to delete + re-insert.
+      is_control: 'is_control',
+      // CRS / accuracy fields (migration 027) — allow updating these
+      datum: 'datum',
+      utm_zone: 'utm_zone',
+      hemisphere: 'hemisphere',
+      epoch_year: 'epoch_year',
+      source: 'source',
+      observation_date: 'observation_date',
     }
 
     for (const [bodyKey, colName] of Object.entries(allowedFields)) {

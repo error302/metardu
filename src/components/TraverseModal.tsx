@@ -293,10 +293,10 @@ export default function TraverseModal({
   const fetchControlPoints = useCallback(async () => {
     const { data } = await dbClient
       .from('survey_points')
-      .select('id, name, easting, northing')
+      .select('id, point_name as name, easting, northing')  // T1.5d FIX: alias point_name as name for backwards-compat with this component
       .eq('project_id', projectId)
       .eq('is_control', true)
-      .order('name')
+      .order('point_name')  // T1.5d FIX: was 'name'
     
     if (data) {
       setControlPoints(data)
