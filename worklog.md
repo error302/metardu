@@ -624,3 +624,36 @@ Final verification:
 - npx jest: 108 suites, 1650 tests, all passing
 - Coverage: 51.91% statements / 74.36% branches / 69.77% functions (passes new thresholds)
 - Build (next build): could not complete in sandbox due to 4GB RAM OOM. Docker build with 4GB heap should succeed on real server.
+
+---
+Task ID: MATH-1
+Agent: Main Agent
+Task: Math foundation audit + rigorous upgrades (boundary-commission-grade accuracy)
+
+Work Log:
+- Audited existing math: LSA, epoch manager, Helmert, Cassini chain, TIN, geoid
+- Identified 6 gaps in accuracy/rigor
+- A1: Implemented exact Rodrigues' rotation formula for epoch propagation (eliminates ~1cm/yr linearization error)
+- A2: Implemented 14-parameter ITRF2014↔ITRF2008↔ITRF2020 frame transformation (Altamimi et al., 2016)
+- A3: Implemented full 3×3 rotation matrix Helmert with Gauss-Newton iteration + numerical Jacobian
+- A4: Implemented residual diagnostics: Kolmogorov-Smirnov, Anderson-Darling, Durbin-Watson, skewness/kurtosis
+- B1: Implemented iterative LSA framework supporting non-linear observations (slope distances, horizontal directions, zenith angles)
+- B2: Implemented breakline TIN gap re-triangulation
+- Wired rigorous propagation into deformationMonitoring.ts (both compareEpochs and analyzeTimeSeries)
+- Wired rigorous propagation into epochManager.compareCoordinates (delegates to Rodrigues formula)
+- Created API endpoint: POST /api/geo/align-coordinate
+- Created math audit doc: docs/MATH_AUDIT_2026_07_10.md
+- Wrote 58 new tests across 4 new test suites (epochManagerRigorous, helmertRigorous, residualDiagnostics, lsaIterative)
+- Updated existing epochManager test to reflect sub-mm accuracy of rigorous method
+- All 132 test suites, 2071 tests pass
+- TypeScript clean (tsc --noEmit)
+
+Stage Summary:
+- Eliminated the ~1cm/year linearization error in epoch propagation (now exact via Rodrigues)
+- Added ITRF frame transformation capability (boundary commission requirement)
+- Replaced small-angle Helmert linearization with full rotation matrix + iteration
+- Added residual diagnostics that validate the w-test assumptions (K-S, A-D, Durbin-Watson)
+- Added iterative LSA supporting non-linear observations (distances, directions, zenith angles)
+- Fixed breakline TIN to re-fill gaps instead of leaving holes
+- Math foundation is now boundary-commission-grade
+

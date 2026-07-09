@@ -348,6 +348,10 @@ export interface CoordinateComparison {
  * Compare two coordinates from different epochs by propagating both to a
  * common epoch and computing the horizontal distance.
  *
+ * NOTE: This function delegates to the RIGOROUS Rodrigues' rotation formula
+ * (epochManagerRigorous.ts) for sub-mm accuracy. The original linear
+ * propagation is no longer used here — it accumulated ~1cm/year of error.
+ *
  * @param coord1 - First coordinate (with epoch)
  * @param coord2 - Second coordinate (with epoch)
  * @param toleranceM - Tolerance in meters (default 0.05 = 5cm)
@@ -358,10 +362,15 @@ export function compareCoordinates(
   coord2: EpochCoordinate,
   toleranceM: number = 0.05,
 ): CoordinateComparison {
+  // Lazy-import the rigorous propagator to avoid a circular dependency at
+  // module load time.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { propagateToEpochRigorous } = require('./epochManagerRigorous')
+
   // Propagate both to the later epoch (or coord2's epoch)
   const commonEpoch = Math.max(coord1.epoch, coord2.epoch)
-  const prop1 = propagateToEpoch(coord1, commonEpoch)
-  const prop2 = propagateToEpoch(coord2, commonEpoch)
+  const prop1 = propagateToEpochRigorous(coord1, commonEpoch)
+  const prop2 = propagateToEpochRigorous(coord2, commonEpoch)
 
   // Horizontal distance (haversine)
   const distanceM = haversineDistance(
@@ -371,10 +380,10 @@ export function compareCoordinates(
 
   const agrees = distanceM <= toleranceM
 
-  const details = `Propagated both coordinates to epoch ${commonEpoch.toFixed(3)}. ` +
-    `Coord 1: ${prop1.displacement.de.toFixed(4)}m E, ${prop1.displacement.dn.toFixed(4)}m N displacement. ` +
-    `Coord 2: ${prop2.displacement.de.toFixed(4)}m E, ${prop2.displacement.dn.toFixed(4)}m N displacement. ` +
-    `Horizontal distance after propagation: ${distanceM.toFixed(4)}m. ` +
+  const details = `Propagated both coordinates to epoch ${commonEpoch.toFixed(3)} using the RIGOROUS Rodrigues' rotation formula (no linearization error). ` +
+    `Coord 1: ${prop1.displacement.de.toFixed(5)}m E, ${prop1.displacement.dn.toFixed(5)}m N displacement. ` +
+    `Coord 2: ${prop2.displacement.de.toFixed(5)}m E, ${prop2.displacement.dn.toFixed(5)}m N displacement. ` +
+    `Horizontal distance after propagation: ${distanceM.toFixed(5)}m. ` +
     `Tolerance: ${toleranceM}m. ` +
     agrees ? 'AGREES within tolerance.' : 'DOES NOT AGREE — investigate.'
 

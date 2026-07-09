@@ -45,6 +45,7 @@ import {
   type EpochCoordinate,
   type ReferenceFrame,
 } from '@/lib/geo/epochManager'
+import { propagateToEpochRigorous } from '@/lib/geo/epochManagerRigorous'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -253,7 +254,9 @@ export function compareEpochs(
     const currMon = currentMap.get(id)!
 
     // Propagate both to the common epoch (remove tectonic drift)
-    const baseProp = propagateToEpoch(
+    // Use the RIGOROUS Rodrigues' rotation formula (no linearization error)
+    // — critical for dam monitoring where sub-mm precision is needed.
+    const baseProp = propagateToEpochRigorous(
       {
         latitude: baseMon.latitude,
         longitude: baseMon.longitude,
@@ -264,7 +267,7 @@ export function compareEpochs(
       commonEpoch,
     )
 
-    const currProp = propagateToEpoch(
+    const currProp = propagateToEpochRigorous(
       {
         latitude: currMon.latitude,
         longitude: currMon.longitude,
@@ -432,7 +435,7 @@ export function analyzeTimeSeries(
     }
 
     const commonEpoch = sortedEpochs[0].epoch
-    const prop = propagateToEpoch(
+    const prop = propagateToEpochRigorous(
       {
         latitude: mon.latitude,
         longitude: mon.longitude,

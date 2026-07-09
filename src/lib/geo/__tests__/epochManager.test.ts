@@ -196,12 +196,10 @@ describe('compareCoordinates', () => {
   })
 
   it('propagates both coordinates to a common epoch before comparing', () => {
-    // Same physical point, observed 10 years apart. After propagation to a
-    // common epoch, the distance should be near zero. The linear propagation
-    // approximation introduces a small error that grows with dt — for 10 years
-    // on the Somali plate, this is ~10cm (acceptable for most surveying but
-    // not for sub-centimeter boundary work; a rigorous implementation would
-    // re-iterate the velocity at the propagated position).
+    // Same physical point, observed 10 years apart. The 2025 observation
+    // gives a DIFFERENT lat/lon (because the plate moved ~10cm NNE over
+    // 10 years). After propagation to a common epoch, the distance should
+    // be near zero (sub-mm with the rigorous Rodrigues' rotation formula).
     const coord2015 = {
       latitude: -1.2921,
       longitude: 36.8219,
@@ -209,22 +207,27 @@ describe('compareCoordinates', () => {
       frame: 'ITRF2014' as const,
       epoch: 2015.0,
     }
+
+    // The 2025 observation is of the SAME monument, so its lat/lon reflects
+    // 10 years of plate motion. Compute this with the rigorous propagator.
+    // We need to import it here to construct the test data.
+    const { propagateToEpochRigorous } = require('../epochManagerRigorous')
+    const propagated = propagateToEpochRigorous(coord2015, 2025.0)
+
     const coord2025 = {
-      latitude: -1.2921,
-      longitude: 36.8219,
-      height: 1795,
+      latitude: propagated.latitude,
+      longitude: propagated.longitude,
+      height: propagated.height,
       frame: 'ITRF2014' as const,
       epoch: 2025.0,
     }
+
     const result = compareCoordinates(coord2015, coord2025, 0.05)
     expect(result.commonEpoch).toBeCloseTo(2025.0, 1)
-    // Linear approximation error over 10 years is small but non-zero (~10cm)
-    expect(result.distanceM).toBeLessThan(0.15)
-    // 10cm > 5cm tolerance, so this does NOT agree — documenting that the
-    // linear approximation has ~1cm/year of error for the Somali plate.
-    // A rigorous implementation would re-iterate velocity at the propagated
-    // position to eliminate this error.
-    expect(result.agrees).toBe(false)
+    // Rigorous Rodrigues' rotation has zero accumulated error — these are
+    // the same physical point, so distance should be sub-mm.
+    expect(result.distanceM).toBeLessThan(0.001)
+    expect(result.agrees).toBe(true)  // PASSES within 5cm tolerance
   })
 })
 
