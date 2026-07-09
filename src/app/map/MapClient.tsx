@@ -444,6 +444,7 @@ export default function MapClient() {
     gpsPos,
     gpsPos21037,
     projectId: schemeProjectId,
+    currentUtmEpsg, // T1.5: pass the active UTM EPSG to the interactions hook
     onDrawEnd: (areaSqM, perimeterM, featureType) => {
       if (featureType === 'Polygon') {
         setSaveMsg(`Area: ${areaSqM.toFixed(1)} m² (${(areaSqM / 10000).toFixed(4)} ha) · Perimeter: ${perimeterM.toFixed(1)} m`)

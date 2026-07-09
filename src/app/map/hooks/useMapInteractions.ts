@@ -65,6 +65,8 @@ interface UseMapInteractionsParams {
   setSaveMsg: (s: string) => void
   /** Current project ID from URL params (null = no project linked) */
   projectId: string | null
+  /** T1.5 FIX (2026-07-09): Active UTM EPSG for geometry transforms. Derived from ProjectionSwitcher. */
+  currentUtmEpsg: string
   /** Called when a feature is drawn — used to compute live area/perimeter */
   onDrawEnd?: (areaSqM: number, perimeterM: number, featureType: string) => void
   /** Called when a feature is identified by single-click */
@@ -76,6 +78,10 @@ interface UseMapInteractionsParams {
 }
 
 export function useMapInteractions(p: UseMapInteractionsParams) {
+  // T1.5 FIX (2026-07-09): Use the project's actual UTM zone for all geometry
+  // transforms, not a hardcoded 'EPSG:21037'. Falls back to 'EPSG:21037' if
+  // the caller didn't pass currentUtmEpsg (backwards compat).
+  const epsg = p.currentUtmEpsg || 'EPSG:21037'
 
   // ── SINGLE-CLICK IDENTIFY: click any feature → show its attributes ──
   useEffect(() => {
@@ -404,8 +410,8 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         if (coords.length >= 2) {
           try {
             const { transform } = await import('ol/proj')
-            const first = transform(coords[0], 'EPSG:3857', 'EPSG:21037')
-            const last = transform(coords[coords.length - 1], 'EPSG:3857', 'EPSG:21037')
+            const first = transform(coords[0], 'EPSG:3857', epsg)
+            const last = transform(coords[coords.length - 1], 'EPSG:3857', epsg)
             const dE = last[0] - first[0]
             const dN = last[1] - first[1]
             let bearing = (Math.atan2(dE, dN) * 180) / Math.PI
@@ -451,7 +457,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         if (geomType === 'Point') {
           const coord = geom.getCoordinates()
           try {
-            const [e, n] = transform(coord, 'EPSG:3857', 'EPSG:21037')
+            const [e, n] = transform(coord, 'EPSG:3857', epsg)
             points.push({ name: f.get('name') || f.get('label') || `P${points.length + 1}`, easting: e, northing: n, is_control: false })
           } catch { /* skip */ }
         }
@@ -466,7 +472,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
           else if (geomType === 'Polygon') coords = geom.getCoordinates()[0] || []
           for (const coord of coords) {
             try {
-              const [e, n] = transform(coord, 'EPSG:3857', 'EPSG:21037')
+              const [e, n] = transform(coord, 'EPSG:3857', epsg)
               points.push({ name: `V${points.length + 1}`, easting: e, northing: n, is_control: false })
             } catch { /* skip */ }
           }
@@ -488,14 +494,14 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         if (geomType === 'Point') {
           const coord = geom.getCoordinates()
           try {
-            const [e, n] = transform(coord, 'EPSG:3857', 'EPSG:21037')
+            const [e, n] = transform(coord, 'EPSG:3857', epsg)
             points.push({ name: f.get('name') || f.get('label') || `P${points.length + 1}`, easting: e, northing: n, is_control: false })
           } catch { /* skip */ }
         } else if (geomType === 'LineString' || geomType === 'Polygon') {
           const coords = geomType === 'Polygon' ? (geom.getCoordinates()[0] || []) : geom.getCoordinates()
           for (const coord of coords) {
             try {
-              const [e, n] = transform(coord, 'EPSG:3857', 'EPSG:21037')
+              const [e, n] = transform(coord, 'EPSG:3857', epsg)
               points.push({ name: `V${points.length + 1}`, easting: e, northing: n, is_control: false })
             } catch { /* skip */ }
           }
@@ -616,7 +622,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         const [gpsE, gpsN] = transform(
           [p.gpsPos.lon, p.gpsPos.lat],
           'EPSG:4326',
-          'EPSG:21037'
+          epsg
         ) as [number, number]
         const initialPos: StakeoutPosition = {
           easting: gpsE,
@@ -651,7 +657,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
       // Zoom to target
       const { transform } = await import('ol/proj')
-      const targetCoord = transform([target.easting, target.northing], 'EPSG:21037', 'EPSG:3857')
+      const targetCoord = transform([target.easting, target.northing], epsg, 'EPSG:3857')
       p.mapInstance.current.getView().animate({ center: targetCoord, zoom: 18, duration: 800 })
     } catch (err) {
       console.error('[activateStakeout] Failed:', err)
@@ -711,7 +717,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       const [gpsE, gpsN] = transform(
         [p.gpsPos.lon, p.gpsPos.lat],
         'EPSG:4326',
-        'EPSG:21037'
+        epsg
       ) as [number, number]
 
       const currentPos: StakeoutPosition = {
@@ -754,7 +760,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       const center = p.mapInstance.current.getView().getCenter()
       if (center) {
         import('ol/proj').then(({ transform }) => {
-          const [e, n] = transform(center, 'EPSG:3857', 'EPSG:21037')
+          const [e, n] = transform(center, 'EPSG:3857', epsg)
           activateStakeout({ easting: e, northing: n })
         })
       }
