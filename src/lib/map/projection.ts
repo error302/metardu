@@ -14,8 +14,15 @@
 export const EPSG_21037_DEF =
   '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs';
 
+// T1.5c FIX (2026-07-10): Zone 36 was using a DIFFERENT datum shift
+// (-143,-268,33,0,0,0,0 — a 3-parameter translation-only set, possibly from
+// an old Tanzania variant) while Zone 37 uses the national-standard 7-parameter
+// Bursa-Wolf (-160,-6,-302,-0.807,0.339,-1.619,-2.554). This means a surveyor
+// in Kisumu (Zone 36) got a different datum shift than one in Nairobi (Zone 37)
+// — a statutory inconsistency. Now both zones use the same national-standard
+// 7-parameter from EPSG transformation 1165 (Arc 1960 → WGS84, Kenya).
 export const EPSG_21036_DEF =
-  '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-143,-268,33,0,0,0,0 +units=m +no_defs';
+  '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs';
 
 export const EPSG_32736_DEF =
   '+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs';
