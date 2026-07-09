@@ -386,6 +386,31 @@ def _parse_rtklib_output(output: str) -> dict:
         raise RuntimeError(f"Failed to parse RTKLIB output: {e}. Line: {last_line[:200]}")
 
 
+# ─── GNSS RINEX Processing (Task 2: country-boundary-grade trust) ───────────
+# Registered as: gnss_process_rinex
+# Provides: RINEX parsing → SPP/PPP position with full covariance matrix
+# See gnss_processor.py for the full implementation.
+
+from gnss_processor import process_rinex as _process_rinex
+
+@register_task("gnss_process_rinex")
+async def gnss_process_rinex(params: dict[str, Any]) -> Any:
+    """
+    Process a RINEX observation file and compute a position via SPP or PPP.
+
+    Params:
+      - rinex_obs: base64-encoded RINEX observation file
+      - rinex_nav: (optional) base64-encoded RINEX navigation file
+      - use_precise_ephemeris: bool (default: false) — download IGS SP3
+      - station_name: optional station identifier
+
+    Returns:
+      { latitude, longitude, height, ecef, covariance, rms, n_satellites,
+        method, n_epochs, station_name }
+    """
+    return await _process_rinex(params)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
