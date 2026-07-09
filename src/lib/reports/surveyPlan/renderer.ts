@@ -458,7 +458,14 @@ export class SurveyPlanRenderer {
     const tableH = headerH + maxRows * rowH
 
     let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    const label = datum === 'ARC1960' ? `COORDINATE SCHEDULE (${datum} / UTM ${zone} EPSG:21037)` : `COORDINATE SCHEDULE (${datum})`
+    // T1.5 FIX (2026-07-09): Derive the EPSG code from the project's actual
+    // UTM zone, not a hardcoded 'EPSG:21037'. A Zone 36 project (Kisumu,
+    // Mombasa) would show the wrong EPSG in the PDF label.
+    const zoneNum = p.utm_zone || 37
+    const epsgCode = datum === 'ARC1960'
+      ? `EPSG:210${zoneNum < 10 ? '0' + zoneNum : zoneNum}`  // Arc 1960: 21036, 21037
+      : `EPSG:327${zoneNum < 10 ? '0' + zoneNum : zoneNum}`   // WGS 84: 32736, 32737
+    const label = datum === 'ARC1960' ? `COORDINATE SCHEDULE (${datum} / UTM ${zone} ${epsgCode})` : `COORDINATE SCHEDULE (${datum})`
     svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`
     const hY = startY + headerH
     svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
@@ -871,7 +878,14 @@ export class SurveyPlanRenderer {
     y += mmToPx(4)
     const info: Array<[string, string]> = [
       ['Title Ref:', p.reference || '\u2014'],
-      ['Datum:', `${p.datum || 'ARC1960'} / UTM Zone ${p.utm_zone}${p.hemisphere} (EPSG:21037)`],
+      // T1.5 FIX (2026-07-09): Derive EPSG from the project's actual UTM zone.
+      ['Datum:', (() => {
+        const z = p.utm_zone
+        const epsg = (p.datum || 'ARC1960') === 'ARC1960'
+          ? `EPSG:210${z < 10 ? '0' + z : z}`
+          : `EPSG:327${z < 10 ? '0' + z : z}`
+        return `${p.datum || 'ARC1960'} / UTM Zone ${p.utm_zone}${p.hemisphere} (${epsg})`
+      })()],
       ['Area:', p.area_sqm ? `${p.area_sqm.toFixed(2)} m\u00B2` : '\u2014'],
       ['Council:', p.municipality || '\u2014'],
       ['Client:', p.client_name || '\u2014'],

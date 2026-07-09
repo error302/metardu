@@ -232,7 +232,14 @@ function introductionSection(doc: jsPDF, data: SurveyReportData, opts: SurveyRep
   bodyText(doc, opts.customIntroduction || defaultIntro)
 
   _yPos += 2
-  bodyText(doc, 'Standards applied: Survey conducted in accordance with the Survey Act Cap. 299, RDM 1.1 and the Geodetic Reference System for Kenya (GRS80 / ARC1960). Coordinates are referenced to UTM Zone 37S (EPSG:21037).')
+  // T1.5 FIX (2026-07-09): Derive EPSG from the project's actual UTM zone,
+  // not a hardcoded 'EPSG:21037'. A Zone 36 project would show the wrong EPSG.
+  {
+    const z = data.project.utm_zone || 37
+    const h = data.project.hemisphere || 'S'
+    const epsg = `EPSG:210${z < 10 ? '0' + z : z}`
+    bodyText(doc, `Standards applied: Survey conducted in accordance with the Survey Act Cap. 299, RDM 1.1 and the Geodetic Reference System for Kenya (GRS80 / ARC1960). Coordinates are referenced to UTM Zone ${z}${h} (${epsg}).`)
+  }
 
   if (data.parcel) {
     const areaHa = data.parcel.area_ha.toFixed(4)
@@ -243,9 +250,20 @@ function introductionSection(doc: jsPDF, data: SurveyReportData, opts: SurveyRep
 
 function methodologySection(doc: jsPDF, data: SurveyReportData): void {
   sectionTitle(doc, 'Survey Methodology', '2')
-  bodyText(doc, 'Field observations were carried out using a total station or GNSS receiver. Traverse computation was performed using the Bowditch Rule for closed traverses. All computations were reduced to ARC1960 / UTM Zone 37S (EPSG:21037) as required by the Survey of Kenya.')
+  // T1.5 FIX (2026-07-09): Derive EPSG from the project's actual UTM zone.
+  {
+    const z = data.project.utm_zone || 37
+    const h = data.project.hemisphere || 'S'
+    const epsg = `EPSG:210${z < 10 ? '0' + z : z}`
+    bodyText(doc, `Field observations were carried out using a total station or GNSS receiver. Traverse computation was performed using the Bowditch Rule for closed traverses. All computations were reduced to ARC1960 / UTM Zone ${z}${h} (${epsg}) as required by the Survey of Kenya.`)
+  }
   _yPos += 2
-  labelValue(doc, 'Coordinate System', `ARC1960 / UTM Zone ${data.project.utm_zone}${data.project.hemisphere || 'S'} (EPSG:21037)`)
+  {
+    const z = data.project.utm_zone || 37
+    const h = data.project.hemisphere || 'S'
+    const epsg = `EPSG:210${z < 10 ? '0' + z : z}`
+    labelValue(doc, 'Coordinate System', `ARC1960 / UTM Zone ${z}${h} (${epsg})`)
+  }
   labelValue(doc, 'Reduction Method', data.traverse ? 'Bowditch Rule' : 'Coordinate Computation')
   labelValue(doc, 'Area Method', 'Coordinate (Shoelace Formula)')
   labelValue(doc, 'Scale', `1:${(data.project.scale || 1000).toLocaleString()}`)
