@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { requireProjectOwnership } from '@/lib/auth/ownership'
 
 /**
  * GET /api/project/[id]/points
@@ -15,6 +16,10 @@ import { db } from '@/lib/db'
  * accuracy, and provenance columns added by migration 027. This lets
  * downstream tools (LSA, deformation analysis, deed plan generation)
  * know the datum, zone, accuracy, and source of each coordinate.
+ *
+ * T1.7 FIX (2026-07-09): Added requireProjectOwnership — previously any
+ * authenticated user could read any project's survey points (IDOR). Mirrors
+ * the deed-plans endpoint pattern.
  *
  * Returns: { data: SurveyPoint[], meta: { project_crs } }
  *   where SurveyPoint = {
@@ -30,6 +35,10 @@ export const GET = apiHandler(
   { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
   async (_req, ctx) => {
     const { id } = ctx.params
+
+    // T1.7: Verify project ownership before returning data (IDOR fix).
+    const ownership = await requireProjectOwnership(id, ctx.userId)
+    if (!ownership.ok) return ownership.error!
 
     const { rows } = await db.query(
       `SELECT

@@ -740,6 +740,12 @@ export default function MapClient() {
       console.error('[MapClient] Failed to load project points:', err)
       setProjectPointsCount(0)
       setProjectControlCount(0)
+      // T1.7 FIX: Surface the error to the user so they know WHY the map is
+      // empty (migration not applied, permission denied, network error, etc.)
+      // instead of silently showing zero points.
+      const msg = err instanceof Error ? err.message : String(err)
+      setSaveMsg(`Failed to load project points: ${msg}`)
+      setTimeout(() => setSaveMsg(''), 6000)
     } finally {
       setProjectPointsLoading(false)
     }

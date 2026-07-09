@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom'
 
+// T1.8/T1.9 FIX (2026-07-09): Set required env vars for tests that import
+// @/lib/db (which triggers @/lib/env validation). Without this, any test
+// touching the DB layer fails with "Missing required environment variables".
+process.env.AUTH_SECRET = process.env.AUTH_SECRET || 'test-secret-for-jest'
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/test'
+
 // Polyfill Request/Response for Next.js server utilities in tests
 if (typeof globalThis.Request === 'undefined') {
   globalThis.Request = class Request {

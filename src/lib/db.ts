@@ -93,6 +93,43 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /** Slow query threshold in milliseconds */
 const SLOW_QUERY_THRESHOLD_MS = 5000
 
+/**
+ * T1.8 FIX (2026-07-09): Whitelist of table names allowed in
+ * updateWithOptimisticLock / deleteWithOptimisticLock. Prevents SQL injection
+ * via the `table` parameter (which is interpolated into the SQL string).
+ * Add tables here as needed — the list covers the entities that have
+ * `updated_at` columns per the canonical schema.
+ */
+const ALLOWED_TABLES = new Set([
+  'projects',
+  'deed_plans',
+  'survey_points',
+  'surveyor_profiles',
+  'marketplace_listings',
+  'marketplace_jobs',
+  'scheme_parcels',
+  'scheme_blocks',
+  'scheme_beacons',
+  'traverse_results',
+  'traverse_observations',
+  'payments',
+  'subscriptions',
+  'equipment',
+  'beacons',
+  'field_projects',
+  'cpd_certificates',
+  'cpd_activities',
+  'white_label_settings',
+  'announcements',
+])
+
+/** Assert that a table name is in the whitelist (SQL injection guard) */
+function assertTable(table: string): void {
+  if (!ALLOWED_TABLES.has(table)) {
+    throw new Error(`[db] table "${table}" is not in the optimistic-lock whitelist. Add it to ALLOWED_TABLES in src/lib/db.ts.`)
+  }
+}
+
 /** Get the singleton Pool instance (lazy-initialized) */
 export function getPool(): Pool {
   if (!pool) {
@@ -203,6 +240,68 @@ export const db = {
   },
 
   getClient: async (): Promise<PoolClient> => getPool().connect(),
+
+  /**
+   * T1.8 FIX (2026-07-09): Optimistic locking UPDATE — puts the guard in the
+   * SQL WHERE clause itself, eliminating the TOCTOU race in the old
+   * `checkOptimisticLock()` helper (which did SELECT → JS check → UPDATE
+   * without `AND updated_at = $2` in the UPDATE).
+   *
+   * Returns the updated row, or `null` if 0 rows were affected (meaning the
+   * row was either modified by another user or doesn't exist — caller should
+   * return 409 Conflict).
+   *
+   * @param table     - table name (validated against a whitelist; see assertTable)
+   * @param id        - row UUID
+   * @param updates   - { column: value, ... } — only these columns are SET
+   * @param clientUpdatedAt - the updated_at the client saw when it read the row
+   *
+   * @example
+   * const row = await db.updateWithOptimisticLock('projects', id, { name: 'New' }, body.updated_at)
+   * if (!row) return NextResponse.json({ error: 'CONFLICT' }, { status: 409 })
+   */
+  updateWithOptimisticLock: async <T = Record<string, unknown>>(
+    table: string,
+    id: string,
+    updates: Record<string, unknown>,
+    clientUpdatedAt: string,
+  ): Promise<T | null> => {
+    assertTable(table)
+    const cols = Object.keys(updates)
+    if (cols.length === 0) {
+      throw new Error('[db.updateWithOptimisticLock] no columns to update')
+    }
+    // Build SET clause: col1 = $1, col2 = $2, ...
+    // Always bump updated_at in the same statement (atomic with the guard).
+    const setClauses = cols.map((c, i) => `${c} = $${i + 1}`)
+    const params: unknown[] = [...cols.map(c => updates[c]), id, clientUpdatedAt]
+    const n = params.length
+    const sql = `UPDATE ${table}
+                 SET ${setClauses.join(', ')}, updated_at = NOW()
+                 WHERE id = $${n - 1} AND updated_at = $${n}
+                 RETURNING *`
+    const { rows } = await db.query(sql, params)
+    return (rows[0] as T) ?? null
+  },
+
+  /**
+   * T1.8 FIX (2026-07-09): Optimistic locking DELETE — same pattern as
+   * updateWithOptimisticLock but for deletes. Prevents deleting a row that
+   * was modified after the client last read it.
+   *
+   * Returns `true` if the row was deleted, `false` if 0 rows affected (conflict).
+   */
+  deleteWithOptimisticLock: async (
+    table: string,
+    id: string,
+    clientUpdatedAt: string,
+  ): Promise<boolean> => {
+    assertTable(table)
+    const sql = `DELETE FROM ${table}
+                 WHERE id = $1 AND updated_at = $2`
+    const result = await db.query(sql, [id, clientUpdatedAt])
+    return (result.rowCount ?? 0) > 0
+  },
 
   /**
    * Health check — runs SELECT 1 with a 2-second timeout.

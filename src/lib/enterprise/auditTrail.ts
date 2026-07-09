@@ -4,24 +4,24 @@
  * Provides structured logging, paginated querying, timeline retrieval,
  * and CSV export of all significant actions across the platform.
  *
- * DB table (run once to create):
- * ```sql
- * CREATE TABLE IF NOT EXISTS audit_logs (
- *   id SERIAL PRIMARY KEY,
- *   user_id UUID NOT NULL,
- *   action VARCHAR(100) NOT NULL,
- *   resource_type VARCHAR(50) NOT NULL,
- *   resource_id VARCHAR(100),
- *   details JSONB,
- *   ip_address INET,
- *   user_agent TEXT,
- *   created_at TIMESTAMPTZ DEFAULT NOW()
- * );
+ * T1.9 FIX (2026-07-09): Fixed silent failure — the INSERT and SELECT
+ * referenced columns `resource_type`, `resource_id`, `user_agent` which
+ * DON'T EXIST in the actual `audit_logs` table. The real columns are
+ * `table_name`, `record_id` (no `user_agent` — store in `details` JSONB).
+ * The catch block in callers was silently swallowing the Postgres error.
  *
- * CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
- * CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
- * CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
- * CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
+ * Real schema (migration 000_canonical_schema.sql:521):
+ * ```sql
+ * CREATE TABLE audit_logs (
+ *   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+ *   action        VARCHAR(255),
+ *   table_name    VARCHAR(255),
+ *   record_id     UUID,
+ *   user_id       UUID REFERENCES users(id),
+ *   details       JSONB,
+ *   ip_address    VARCHAR(45),
+ *   created_at    TIMESTAMPTZ DEFAULT NOW()
+ * );
  * ```
  */
 
@@ -32,7 +32,7 @@ import { db } from '@/lib/db';
 // ---------------------------------------------------------------------------
 
 export interface AuditEvent {
-  id: number;
+  id: string; // T1.9: UUID, not number (schema uses uuid_generate_v4)
   userId: string;
   action: string;
   resourceType: string;
@@ -60,28 +60,36 @@ export interface AuditQuery {
 
 /**
  * Insert a new audit event into the audit_logs table.
- * All fields are required except ipAddress and userAgent which are optional.
+ *
+ * T1.9: `resourceType` → `table_name`, `resourceId` → `record_id`.
+ * `userAgent` is stored inside `details` JSONB (no dedicated column).
+ * Returns the inserted row id (UUID string) or throws on failure.
  */
-export async function logAuditEvent(event: Omit<AuditEvent, 'id'>): Promise<number> {
+export async function logAuditEvent(event: Omit<AuditEvent, 'id'>): Promise<string> {
   const { userId, action, resourceType, resourceId, details, ipAddress, userAgent, timestamp } = event;
 
+  // Merge userAgent into details JSONB since there's no dedicated column.
+  const fullDetails: Record<string, unknown> = { ...details };
+  if (userAgent) {
+    fullDetails.user_agent = userAgent;
+  }
+
   const result = await db.query(
-    `INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO audit_logs (action, table_name, record_id, user_id, details, ip_address, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING id`,
     [
-      userId,
       action,
-      resourceType,
-      resourceId ?? null,
-      details ? JSON.stringify(details) : null,
+      resourceType,        // → table_name
+      resourceId ?? null,  // → record_id (UUID)
+      userId,
+      Object.keys(fullDetails).length > 0 ? JSON.stringify(fullDetails) : null,
       ipAddress ?? null,
-      userAgent ?? null,
       timestamp instanceof Date ? timestamp : new Date(),
     ],
   );
 
-  return result.rows[0].id as number;
+  return result.rows[0].id as string;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +99,9 @@ export async function logAuditEvent(event: Omit<AuditEvent, 'id'>): Promise<numb
 /**
  * Query audit logs with pagination and optional filters.
  * Returns both the matching events and the total count.
+ *
+ * T1.9: Uses real column names (table_name, record_id) and extracts
+ * userAgent from the details JSONB.
  */
 export async function queryAuditLogs(
   query: AuditQuery,
@@ -108,11 +119,11 @@ export async function queryAuditLogs(
     params.push(query.action);
   }
   if (query.resourceType) {
-    conditions.push(`al.resource_type = $${paramIdx++}`);
+    conditions.push(`al.table_name = $${paramIdx++}`); // T1.9: table_name
     params.push(query.resourceType);
   }
   if (query.resourceId) {
-    conditions.push(`al.resource_id = $${paramIdx++}`);
+    conditions.push(`al.record_id = $${paramIdx++}`); // T1.9: record_id
     params.push(query.resourceId);
   }
   if (query.startDate) {
@@ -135,16 +146,15 @@ export async function queryAuditLogs(
   );
   const total = parseInt(countResult.rows[0].total as string, 10) || 0;
 
-  // Data query
+  // Data query — T1.9: use real column names, extract userAgent from details
   const dataResult = await db.query(
     `SELECT al.id,
             al.user_id as "userId",
             al.action,
-            al.resource_type as "resourceType",
-            al.resource_id as "resourceId",
+            al.table_name as "resourceType",
+            al.record_id as "resourceId",
             al.details,
             al.ip_address as "ipAddress",
-            al.user_agent as "userAgent",
             al.created_at as "timestamp"
      FROM audit_logs al
      ${whereClause}
@@ -153,17 +163,20 @@ export async function queryAuditLogs(
     [...params, limit, offset],
   );
 
-  const events: AuditEvent[] = dataResult.rows.map((row: Record<string, unknown>) => ({
-    id: row.id as number,
-    userId: row.userId as string,
-    action: row.action as string,
-    resourceType: row.resourceType as string,
-    resourceId: row.resourceId as string | undefined,
-    details: row.details as Record<string, unknown> | undefined,
-    ipAddress: row.ipAddress as string | undefined,
-    userAgent: row.userAgent as string | undefined,
-    timestamp: new Date(row.timestamp as string),
-  }));
+  const events: AuditEvent[] = dataResult.rows.map((row: Record<string, unknown>) => {
+    const details = row.details as Record<string, unknown> | undefined;
+    return {
+      id: row.id as string,
+      userId: row.userId as string,
+      action: row.action as string,
+      resourceType: row.resourceType as string,
+      resourceId: (row.resourceId as string) || undefined,
+      details,
+      ipAddress: (row.ipAddress as string) || undefined,
+      userAgent: (details?.user_agent as string) || undefined, // T1.9: extract from JSONB
+      timestamp: new Date(row.timestamp as string),
+    };
+  });
 
   return { events, total };
 }
@@ -174,8 +187,6 @@ export async function queryAuditLogs(
 
 /**
  * Get an activity timeline for a specific resource.
- * Returns all audit events for the given resource type + id, ordered
- * chronologically (newest first).
  */
 export async function getAuditTimeline(
   resourceType: string,
@@ -185,30 +196,32 @@ export async function getAuditTimeline(
     `SELECT al.id,
             al.user_id as "userId",
             al.action,
-            al.resource_type as "resourceType",
-            al.resource_id as "resourceId",
+            al.table_name as "resourceType",
+            al.record_id as "resourceId",
             al.details,
             al.ip_address as "ipAddress",
-            al.user_agent as "userAgent",
             al.created_at as "timestamp"
      FROM audit_logs al
-     WHERE al.resource_type = $1 AND al.resource_id = $2
+     WHERE al.table_name = $1 AND al.record_id = $2
      ORDER BY al.created_at DESC
      LIMIT 500`,
     [resourceType, resourceId],
   );
 
-  return rows.map((row: Record<string, unknown>) => ({
-    id: row.id as number,
-    userId: row.userId as string,
-    action: row.action as string,
-    resourceType: row.resourceType as string,
-    resourceId: row.resourceId as string | undefined,
-    details: row.details as Record<string, unknown> | undefined,
-    ipAddress: row.ipAddress as string | undefined,
-    userAgent: row.userAgent as string | undefined,
-    timestamp: new Date(row.timestamp as string),
-  }));
+  return rows.map((row: Record<string, unknown>) => {
+    const details = row.details as Record<string, unknown> | undefined;
+    return {
+      id: row.id as string,
+      userId: row.userId as string,
+      action: row.action as string,
+      resourceType: row.resourceType as string,
+      resourceId: (row.resourceId as string) || undefined,
+      details,
+      ipAddress: (row.ipAddress as string) || undefined,
+      userAgent: (details?.user_agent as string) || undefined,
+      timestamp: new Date(row.timestamp as string),
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -217,10 +230,8 @@ export async function getAuditTimeline(
 
 /**
  * Export audit logs matching the query as a CSV string.
- * The first row is a header line with column names.
  */
 export async function exportAuditCSV(query: AuditQuery): Promise<string> {
-  // Fetch up to 10 000 rows for export
   const exportQuery: AuditQuery = {
     ...query,
     limit: Math.min(query.limit ?? 10000, 10000),
@@ -263,10 +274,6 @@ export async function exportAuditCSV(query: AuditQuery): Promise<string> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Escape a string for CSV: wrap in double quotes and double any internal
- * double quotes.
- */
 function csvEscape(value: string): string {
   if (!value) return '""';
   const escaped = value.replace(/"/g, '""');

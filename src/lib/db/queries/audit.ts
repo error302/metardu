@@ -5,10 +5,25 @@
  * This creates an immutable record of all computations and corrections.
  *
  * AUDIT FIX (H1, 2026-07-02): Rewrote from Prisma client to raw SQL.
- * The Prisma schema declared an `AuditLog` model with camelCase fields
- * (entityType, entityId, userName, timestamp) but the actual SQL table
- * is `audit_logs` with snake_case columns (entity_type, entity_id,
- * user_id, user_name, created_at). Now uses the real schema.
+ *
+ * T1.9 FIX (2026-07-09): Fixed silent failure — the INSERT referenced columns
+ * `entity_type`, `entity_id`, `user_name`, `changes` which DON'T EXIST in the
+ * actual `audit_logs` table (migration 000_canonical_schema.sql:521). The real
+ * columns are `table_name`, `record_id`, `details`. The catch block was silently
+ * swallowing the Postgres error, so 4 admin routes believed they were audited
+ * when nothing was being written. Now uses the correct column names.
+ *
+ * Real schema:
+ *   CREATE TABLE audit_logs (
+ *     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+ *     action        VARCHAR(255),
+ *     table_name    VARCHAR(255),
+ *     record_id     UUID,
+ *     user_id       UUID REFERENCES users(id),
+ *     details       JSONB,
+ *     ip_address    VARCHAR(45),
+ *     created_at    TIMESTAMPTZ DEFAULT NOW()
+ *   );
  */
 
 import { db } from '@/lib/db'
@@ -24,38 +39,60 @@ export interface CreateAuditEntry {
 
 export interface AuditLogRow {
   id: string
-  entity_type: string
-  entity_id: string
-  action: string
+  action: string | null
+  table_name: string | null
+  record_id: string | null
   user_id: string | null
-  user_name: string | null
-  changes: string | null
+  details: Record<string, unknown> | null
+  ip_address: string | null
   created_at: string
 }
 
 /**
  * Create an audit log entry.
  * This is fire-and-forget — it should never block the main operation.
+ *
+ * T1.9: `userName` is stored inside `details` JSONB (no dedicated column).
+ * `entityType` → `table_name`, `entityId` → `record_id`, `changes` → `details`.
  */
 export async function createAuditLog(entry: CreateAuditEntry): Promise<AuditLogRow | null> {
   try {
+    // Build details JSONB — stores userName + changes since there's no
+    // dedicated column for them in the real schema.
+    const details: Record<string, unknown> = {
+      user_name: entry.userName,
+    }
+    if (entry.changes) {
+      try {
+        details.changes = JSON.parse(entry.changes)
+      } catch {
+        details.changes = entry.changes // store as string if not valid JSON
+      }
+    }
+
     const { rows } = await db.query(
-      `INSERT INTO audit_logs (entity_type, entity_id, action, user_id, user_name, changes)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, entity_type, entity_id, action, user_id, user_name, changes, created_at`,
+      `INSERT INTO audit_logs (action, table_name, record_id, user_id, details)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, action, table_name, record_id, user_id, details, ip_address, created_at`,
       [
-        entry.entityType,
-        entry.entityId,
         entry.action,
+        entry.entityType,
+        entry.entityId, // UUID — will fail if not a valid UUID, caught below
         entry.userId,
-        entry.userName,
-        entry.changes ?? null,
+        JSON.stringify(details),
       ]
     )
     return rows[0] as AuditLogRow
   } catch (error) {
-    // Audit logging should never fail the main operation
-    console.error('Audit log creation failed:', error)
+    // Audit logging should never fail the main operation — but it MUST be
+    // visible when it fails so we can fix it. Log with full context.
+    console.error('[audit] createAuditLog FAILED (silent swallow was the old behavior):', {
+      error: error instanceof Error ? error.message : String(error),
+      entityType: entry.entityType,
+      entityId: entry.entityId,
+      action: entry.action,
+      userId: entry.userId,
+    })
     return null
   }
 }
@@ -68,9 +105,9 @@ export async function getAuditTrail(
   entityId: string
 ): Promise<AuditLogRow[]> {
   const { rows } = await db.query(
-    `SELECT id, entity_type, entity_id, action, user_id, user_name, changes, created_at
+    `SELECT id, action, table_name, record_id, user_id, details, ip_address, created_at
      FROM audit_logs
-     WHERE entity_type = $1 AND entity_id = $2
+     WHERE table_name = $1 AND record_id = $2
      ORDER BY created_at DESC`,
     [entityType, entityId]
   )
@@ -85,7 +122,7 @@ export async function getRecentAuditEntries(
   limit: number = 50
 ): Promise<AuditLogRow[]> {
   const { rows } = await db.query(
-    `SELECT id, entity_type, entity_id, action, user_id, user_name, changes, created_at
+    `SELECT id, action, table_name, record_id, user_id, details, ip_address, created_at
      FROM audit_logs
      WHERE user_id = $1
      ORDER BY created_at DESC

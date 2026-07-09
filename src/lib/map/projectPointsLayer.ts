@@ -38,6 +38,43 @@ interface SurveyPointRow {
 }
 
 /**
+ * Project-level CRS metadata returned in `meta.project_crs` by the endpoint.
+ * Used to derive the correct EPSG code for coordinate transforms.
+ */
+interface ProjectCrs {
+  utm_zone: number | null
+  hemisphere: string | null
+  datum: string | null
+}
+
+/**
+ * T1.5 FIX (2026-07-09): Derive the EPSG code from the project's CRS metadata
+ * instead of hardcoding 'EPSG:21037'. Kenya spans UTM zones 36S and 37S; a
+ * project in Mombasa (Zone 37S edge) or Kisumu (Zone 36S) would get silently
+ * wrong coordinates if we always used 21037.
+ *
+ * Supported combinations (matches ProjectionSwitcher.tsx):
+ *   Arc 1960 / UTM 36S → EPSG:21036
+ *   Arc 1960 / UTM 37S → EPSG:21037
+ *   WGS 84   / UTM 36S → EPSG:32736
+ *   WGS 84   / UTM 37S → EPSG:32737
+ *   (North zones are rare in Kenya but supported for completeness)
+ */
+function epsgFromProjectCrs(crs: ProjectCrs | null): string {
+  if (!crs || !crs.utm_zone) return 'EPSG:21037' // default for central Kenya
+  const zone = crs.utm_zone
+  const isNorth = (crs.hemisphere || 'S').toUpperCase() === 'N'
+  const isWgs84 = (crs.datum || '').toLowerCase().includes('wgs')
+
+  if (isWgs84) {
+    // WGS 84 UTM: 326xx (North), 327xx (South)
+    return `EPSG:${isNorth ? 32600 : 32700}${zone}`
+  }
+  // Arc 1960 UTM: 2103x (South — Kenya standard), 2109x (North — rare)
+  return `EPSG:${isNorth ? 21090 : 21000}${zone}`
+}
+
+/**
  * Load project survey points and create a styled vector layer.
  *
  * @param projectId The project ID
@@ -55,6 +92,8 @@ export async function createProjectPointsLayer(
   }
   const json = await res.json()
   const points: SurveyPointRow[] = json.data || []
+  // T1.5 FIX: Derive EPSG from the project's CRS metadata, not hardcoded.
+  const projCode = epsgFromProjectCrs(json.meta?.project_crs ?? null)
 
   if (points.length === 0) {
     // Return empty layer
@@ -97,7 +136,7 @@ export async function createProjectPointsLayer(
   ])
 
   const source = new VectorSource()
-  const projCode = 'EPSG:21037' // Kenya UTM 37S — matches schemeLayer
+  // projCode is derived from project CRS metadata above (T1.5 fix)
 
   let controlCount = 0
 
