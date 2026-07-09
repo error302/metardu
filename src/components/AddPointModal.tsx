@@ -103,14 +103,19 @@ export default function AddPointModal({
       }
 
       if (isEditMode) {
-        // PATCH requires updated_at for optimistic locking
+        // PATCH requires updated_at for optimistic locking.
+        // T1.5i FIX (2026-07-10): If editPointUpdatedAt is not provided by the
+        // caller, omit it from the request. The API will skip the optimistic
+        // lock guard (treat it as an unconditional update). This prevents the
+        // 409 Conflict that occurred when the fallback used new Date().toISOString().
+        const patchBody: Record<string, unknown> = { ...pointData }
+        if (editPointUpdatedAt) {
+          patchBody.updated_at = editPointUpdatedAt
+        }
         const res = await fetch(`/api/survey-points/${editPointId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...pointData,
-            updated_at: editPointUpdatedAt || new Date().toISOString(),
-          }),
+          body: JSON.stringify(patchBody),
         })
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: res.statusText }))

@@ -284,25 +284,38 @@ export default function FieldPage() {
       const project = projects.find(p => p.id === selectedProject)
       const surveyType = (project?.survey_type as any) || 'cadastral'
 
+      // T1.5i FIX (2026-07-10): Use control points from the project for
+      // opening/closing coordinates. Fall back to a loop traverse (same
+      // opening = closing) if no control points are available — the closure
+      // check still works, it just checks internal misclosure.
+      const controlPoints = points.filter((p: any) => p.is_control)
+      const openingPoint = controlPoints[0]
+      const closingPoint = controlPoints[controlPoints.length - 1] || controlPoints[0]
+
+      const openingE = openingPoint?.easting || 0
+      const openingN = openingPoint?.northing || 0
+      const closingE = closingPoint?.easting || openingE
+      const closingN = closingPoint?.northing || openingN
+
       const result = checkTolerance({
         surveyType,
         observations,
-        openingEasting: 264000,
-        openingNorthing: 9861000,
+        openingEasting: openingE,
+        openingNorthing: openingN,
         openingStation: tLegs[0]?.fromStation || 'A',
-        closingEasting: 264000,
-        closingNorthing: 9861000,
+        closingEasting: closingE,
+        closingNorthing: closingN,
         closingStation: tLegs[0]?.fromStation || 'A',
-        backsightBearingDeg: 0,
-        backsightBearingMin: 0,
-        backsightBearingSec: 0,
+        backsightBearingDeg: tLegs[0]?.bearing?.deg || 0,
+        backsightBearingMin: tLegs[0]?.bearing?.min || 0,
+        backsightBearingSec: tLegs[0]?.bearing?.sec || 0,
       })
       setToleranceResult(result)
     } catch {
       // Tolerance check may fail if data is incomplete — that's OK
       setToleranceResult(null)
     }
-  }, [tLegs, selectedProject, projects])
+  }, [tLegs, selectedProject, projects, points])
 
   const renderTabButton = (tab: Tab, Icon: any, label: string) => (
     <button

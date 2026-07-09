@@ -28,6 +28,8 @@
  *   // cutVolume = 1200.5 m³, fillVolume = 340.2 m³, netVolume = 860.3 m³ (cut)
  */
 
+import Delaunator from 'delaunator'
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface SurfacePoint {
@@ -104,9 +106,9 @@ export function buildTIN(points: SurfacePoint[]): TIN {
   }
 
   // Use Delaunator (already in package.json)
-  // Handle both ES module and CommonJS export patterns
-  const DelaunatorModule = require('delaunator')
-  const Delaunator = DelaunatorModule.default || DelaunatorModule
+  // T1.5i FIX (2026-07-10): Replaced require() with a proper ES import at the
+  // top of the file. The CommonJS require() worked in jest but breaks in the
+  // Next.js browser bundler.
   const delaunay = new Delaunator(coords)
   const triangles: Triangle[] = []
 

@@ -108,14 +108,21 @@ const OverlayContext = createContext<OverlayContextValue | null>(null)
 
 export function MapOverlayProvider({ children }: { children: ReactNode }) {
   const registrations = useRef<Map<string, OverlayRegistration>>(new Map())
-  const [, forceUpdate] = useState({})
+  // T1.5i FIX (2026-07-10): Replace forceUpdate({}) with a version counter.
+  // The old pattern caused infinite re-renders: ResizeObserver fires →
+  // setHeight → forceUpdate → re-render → layout → ResizeObserver fires again.
+  // Now: version only increments on register/unregister (mount/unmount), NOT
+  // on every height change. Height changes are read directly from the ref
+  // during render — no state update needed.
+  const [version, setVersion] = useState(0)
+  const heightDirtyRef = useRef(false)
 
   const register = useCallback((reg: Omit<OverlayRegistration, 'height'>) => {
     registrations.current.set(reg.id, { ...reg, height: 0 })
-    forceUpdate({})
+    setVersion(v => v + 1)
     return () => {
       registrations.current.delete(reg.id)
-      forceUpdate({})
+      setVersion(v => v + 1)
     }
   }, [])
 
@@ -123,9 +130,10 @@ export function MapOverlayProvider({ children }: { children: ReactNode }) {
     const existing = registrations.current.get(id)
     if (existing && existing.height !== height) {
       existing.height = height
-      // Don't force a re-render on every height change — only if it affects
-      // stacking. For simplicity we do update; React batches these.
-      forceUpdate({})
+      // Mark dirty but don't force re-render immediately.
+      // The next render (triggered by other state changes) will pick up
+      // the new height from the ref. This breaks the render loop.
+      heightDirtyRef.current = true
     }
   }, [])
 
@@ -135,10 +143,24 @@ export function MapOverlayProvider({ children }: { children: ReactNode }) {
       .sort((a, b) => a.order - b.order)
   }, [])
 
+  // If heights changed but no other state triggered a re-render, schedule
+  // a single deferred re-render via requestAnimationFrame. This prevents
+  // the infinite loop while still updating positions after resize.
+  React.useEffect(() => {
+    if (heightDirtyRef.current) {
+      heightDirtyRef.current = false
+      const raf = requestAnimationFrame(() => setVersion(v => v + 1))
+      return () => cancelAnimationFrame(raf)
+    }
+  }) // runs on every render — checks if heights need propagation
+
   const value = useMemo(
     () => ({ register, setHeight, getZone }),
     [register, setHeight, getZone],
   )
+
+  // version is read to trigger re-renders; the actual data is in the ref
+  void version
 
   return <OverlayContext.Provider value={value}>{children}</OverlayContext.Provider>
 }

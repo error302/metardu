@@ -33,8 +33,9 @@ const patchSurveyPointSchema = z.object({
   epoch_year: z.number().int().min(1900).max(2100).nullable().optional(),
   source: z.string().nullable().optional(),
   observation_date: z.string().nullable().optional(),
-  // Optimistic locking: frontend must send the updated_at value it last read
-  updated_at: z.string(),
+  // T1.5i FIX (2026-07-10): Make updated_at optional. When provided, optimistic
+  // locking is enforced. When omitted, the update is unconditional.
+  updated_at: z.string().optional(),
 })
 
 export const PATCH = apiHandler(
@@ -105,19 +106,35 @@ export const PATCH = apiHandler(
     // Always bump updated_at
     fields.push(`updated_at = NOW()`)
     values.push(id)
-    // T1.8: Add the optimistic lock guard to the WHERE clause
-    values.push(body.updated_at)
 
-    const result = await db.query(
-      `UPDATE survey_points SET ${fields.join(', ')} WHERE id = $${paramIdx} AND updated_at = $${paramIdx + 1} RETURNING *`,
-      values
-    )
+    // T1.5i FIX (2026-07-10): Make optimistic locking conditional.
+    // If updated_at is provided, use the guard (WHERE id = $N AND updated_at = $N+1).
+    // If updated_at is NOT provided (e.g. from AddPointModal without the prop),
+    // skip the guard (WHERE id = $N only) — unconditional update.
+    let sql: string
+    if (body.updated_at) {
+      values.push(body.updated_at)
+      sql = `UPDATE survey_points SET ${fields.join(', ')} WHERE id = $${paramIdx} AND updated_at = $${paramIdx + 1} RETURNING *`
+    } else {
+      sql = `UPDATE survey_points SET ${fields.join(', ')} WHERE id = $${paramIdx} RETURNING *`
+    }
 
+    const result = await db.query(sql, values)
+
+    // Only return 409 if the optimistic lock guard was used AND 0 rows returned.
+    // Without the guard, 0 rows means the point doesn't exist (404).
     if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'This survey point was modified by another user. Please refresh and try again.', code: 'CONFLICT' },
-        { status: 409 }
-      )
+      if (body.updated_at) {
+        return NextResponse.json(
+          { error: 'This survey point was modified by another user. Please refresh and try again.', code: 'CONFLICT' },
+          { status: 409 }
+        )
+      } else {
+        return NextResponse.json(
+          { error: 'Survey point not found', code: 'NOT_FOUND' },
+          { status: 404 }
+        )
+      }
     }
 
     return NextResponse.json({ data: result.rows[0] })
