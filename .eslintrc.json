@@ -43,7 +43,35 @@
       {
         "selector": "TSInterfaceDeclaration[id.name='SurveyPoint']",
         "message": "Do not declare a local 'SurveyPoint' interface. Import it from '@/types/surveyPoint' instead. If you need a different shape, use Point2D / Point3D / SurveyPointWithCode / SurveyPoint3D, or name your interface differently (e.g. 'SurveyPointRow')."
+      },
+      {
+        "selector": "CallExpression Literal[value=/^EPSG:21\\d{2}$/]",
+        "message": "T1.5 (2026-07-09): Hardcoded EPSG:21xxx in a function call — use currentUtmEpsg from MapReactContext instead. Hardcoded CRS literals cause silent wrong-coordinate bugs outside UTM Zone 37S (Mombasa, Kisumu, Turkana). See MapClient.tsx currentUtmEpsg for the pattern."
+      },
+      {
+        "selector": "CallExpression Literal[value=/^EPSG:3273\\d$/]",
+        "message": "T1.5 (2026-07-09): Hardcoded EPSG:3273x in a function call — use currentUtmEpsg from MapReactContext instead."
       }
     ]
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/lib/map/**/*.ts",
+        "src/lib/survey/**/*.ts",
+        "src/lib/geodesy/**/*.ts",
+        "src/lib/geo/**/*.ts",
+        "src/app/map/**/*.tsx",
+        "src/app/map/**/*.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "warn",
+        "@typescript-eslint/no-unsafe-assignment": "warn",
+        "@typescript-eslint/no-unsafe-member-access": "warn",
+        "@typescript-eslint/no-unsafe-call": "warn",
+        "@typescript-eslint/no-unsafe-argument": "warn",
+        "@typescript-eslint/no-unsafe-return": "warn"
+      }
+    }
+  ]
 }

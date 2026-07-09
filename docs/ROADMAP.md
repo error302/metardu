@@ -1,229 +1,185 @@
-# Metardu Roadmap
+# METARDU — Consolidated Roadmap
 
-Last updated: 2026-06-30
-Status: v0.3 redesign shipped, scope narrowed to cadastral + engineering + topographic
-
----
-
-## Completed
-
-### v0.3 Visual redesign (shipped)
-- [x] Tinted dark theme (#1A1816 charcoal, #D17B47 sienna accent)
-- [x] Font swap: Inter → Geist + Instrument Serif + JetBrains Mono
-- [x] Removed glassmorphism, gradients, glow shadows, animated orbs
-- [x] Three-mode theme system: Dark (default) · Light (alternate) · Field (sunlight)
-- [x] Landing page: asymmetric editorial hero with topographic map + coordinate overlay
-- [x] Tool pages: editorial PageHeader + flat paper cards (56 pages updated)
-- [x] `prefers-reduced-motion` fallback, `text-wrap: balance` on headings
-
-### Scope narrowing (shipped)
-- [x] Removed: hydrographic (22 files), marine/USV (7 files), mining (11 files)
-- [x] Kept: cadastral, engineering, topographic
-- [x] Drone folded into topographic as a method
-- [x] Deformation folded into engineering as a method
-- [x] Cleaned all broken imports, dead nav links, sitemap entries
-
-### Workflow hubs (shipped)
-- [x] `/cadastral-workflow` — 5 steps, localStorage tracking, Kenya-specific hints
-- [x] `/engineering-workflow` — 6 steps, RDM 1.1 accuracy standards
-- [x] `/topographic-workflow` — 5 steps, scale/density reference
-
-### Tool integrations (shipped)
-- [x] Deed plan ← project traverse points (`/deed-plan?project=<id>`)
-- [x] Contour generator ← project survey points (`/tools/contour-generator?project=<id>`)
-- [x] Mutation plan ← project deed plan (`/tools/mutation-plan?project=<id>`)
-- [x] New API: `GET /api/project/[id]/points`
-- [x] New API: `GET /api/project/[id]/deed-plans`
-
-### Backend infrastructure (shipped)
-- [x] API response envelope v3 (`{ data, error: { code, message, details } }`)
-- [x] Offline mutation queue (IndexedDB, auto-sync on reconnect)
-- [x] React Query onlineManager integration (Capacitor Network plugin)
-- [x] Health check endpoints (`/api/health/live`, `/api/health/ready`)
-- [x] API conventions doc (`docs/API_CONVENTIONS_V3.md`)
-- [x] System design doc (`docs/SYSTEM_DESIGN_V3.md`)
-
-### NextAuth v5 (staged, not activated)
-- [x] `src/lib/auth-v5.ts` — complete v5 config (JWT, cookie cache, createUser hooks)
-- [x] `scripts/auth-v5-codemod.js` — dry-run found 44 files / 46 call-sites
-- [ ] Install `next-auth@beta`, run codemod, apply Prisma migration, activate
+**Last updated:** 2026-07-09
+**Status:** Tier 0 (digitizing toolbar fixes) shipped. Tier 1 in progress.
+**Supersedes:** `PROFESSIONAL_GAP_ANALYSIS.md`, `GEOMATICS_GAP_ANALYSIS.md`, `ENGINEERING_CADASTRAL_GAP_ANALYSIS.md`, `TOPO_GAP_ANALYSIS.md` — those are now archived reference material; this document is the single source of truth for what's planned.
 
 ---
 
-## Next up — integrations to finish
+## How to read this roadmap
 
-### Engineering integrations
-- [x] Cross-sections tool auto-pulls from project levelling data
-  - Reuses `GET /api/project/[id]/points` (filter points with elevation along chainage)
-  - `/tools/cross-sections?project=<id>` auto-populates via `ProjectCrossSections` component
-- [x] Earthworks tool auto-pulls from cross-sections
-  - New API: `GET /api/project/[id]/cross-sections` — groups survey points by chainage (parsed from point name), supports optional `?interval=N` binning
-  - `/tools/earthworks?project=<id>` auto-populates existing ground profiles via `ProjectCrossSections`
+- **Tier 0** = surgical fixes already shipped (2026-07-09)
+- **Tier 1** = critical correctness & data integrity (P0) — do next
+- **Tier 2** = professional quality (P1) — next quarter
+- **Tier 3** = polish & differentiation (P2) — backlog
+- **Tier 4** = future (P3) — not committed
 
-### Mutation plan deep integration
-- [x] Refactor `MutationPlanGenerator` to accept `initialPlots` prop
-  - `MutationPlanGenerator` now accepts `initialPlots?: MutationPlot[]`
-  - `ProjectMutationPlan` passes deed plan boundary directly as prop
-  - Removed sessionStorage bridge entirely — clean prop injection
-  - Generator auto-advances to step 2 when initialPlots supplied
+Each gap has an ID (`G-NNN`), source doc(s), and effort estimate. Items marked ✅ are done.
 
 ---
 
-## Excellence features (from Gemini brainstorm, prioritized)
+## Tier 0 — Shipped 2026-07-09
 
-### Tier 1 — build next (high value, feasible)
+The digitizing toolbar (Split / Merge / Reshape / Rotate / Offset) had 8 bugs where the UI lied about what it did. All fixed:
 
-#### ArdhiSasa/NLIMS pre-flight topological validator
-**Why:** Surveyors get files rejected for sliver polygons, self-intersections, adjoiner overlaps. Pre-flight validation saves real hours. Sticky feature.
-**How:** turf.js + jsts for topology checks. Block save on invalid geometry. Export with exact NLIMS attribute schema.
-**Where:** `/cadastral-workflow` step 2 (boundary validate), plus standalone `/tools/topology-check`
-**Effort:** 1 session
-**Status:** ✅ SHIPPED — `/tools/topology-check`, 9 validation rules, turf.js engine
+| ID | Fix | File(s) |
+|----|-----|---------|
+| T0.1 | Merge uses real Shift+click selection, not all polygons | `MapClient.tsx` |
+| T0.2 | Rotate uses slider angle, not hardcoded 15° | `MapClient.tsx`, `editingTools.ts` |
+| T0.3 | Offset fires on Apply button, not slider drag | `MapClient.tsx`, `MapToolDock.tsx` |
+| T0.4 | Split/Reshape target the polygon the line crosses | `MapClient.tsx` |
+| T0.5 | Digitizing tools use `currentUtmEpsg()`, not hardcoded EPSG:21037 | `MapClient.tsx` |
+| T0.6 | Deleted dead `DigitizingToolbar.tsx` (266 lines, zero importers) | deleted |
+| T0.7 | All toast messages honestly describe the operation | `MapToolDock.tsx` |
+| T0.8 | Split state into `activeDrawTool` + `activeOneShotTool` | `MapClient.tsx` |
+| T0.9 | 20 contract regression tests added | `digitizingHandlerContract.test.ts` |
+| T0.10 | Hoisted dynamic OL imports out of hot path | `MapClient.tsx` |
+| Bonus | Fixed `rotatePolygon` — turf.transformRotate silently failed on concave shapes | `editingTools.ts` |
 
-#### COGO deed plan reconstructor
-**Why:** Historical paper deed plans list bearings/distances, not coordinates. Surveyors need to digitize these without AutoCAD.
-**How:** Parser for DMS bearings + distances → compute ΔE/ΔN → OpenLayers LineString/Polygon. "Swing & scale" tool to snap onto known control.
-**Where:** `/tools/cogo` (extend existing) or new `/tools/cogo-reconstruct`
-**Effort:** 1-2 sessions
-**Status:** ✅ SHIPPED — `/tools/cogo-reconstruct`, WCB + quadrant formats, swing & scale transform
-
-#### As-built deviation guard (engineering)
-**Why:** KeNHA tolerances are strict. Catching deviations early saves rework.
-**How:** Linear referencing on design centerline. Compare as-built points vs design elevation. Green/amber/red visual feedback.
-**Where:** `/engineering-workflow` step 6 (as-built), or `/tools/setting-out` extension
-**Effort:** 1-2 sessions
-**Status:** ✅ SHIPPED — `/tools/as-built-deviation`, KeNHA tolerance presets, linear interpolation
-
-#### Generative lot subdivision & road network allocator (cadastral)
-**Why:** Subdividing a 10ha parcel into 50×100 plots with road reserves takes days in CAD. Algorithmic generation in seconds + beacon list output is the highest-impact premium feature.
-**How:** Parent polygon input → road spine placement → sweeping-line slice perpendicular to spine → child polygons → beacon coordinates. NOT Voronoi (irregular plots) — must produce standard rectangular plots (50×100, 100×100).
-**Where:** New `/tools/subdivision-generator` or extend `/components/subdivision/SubdivisionPanel`
-**Effort:** 2-3 sessions for core engine
-**Status:** ✅ SHIPPED — `/tools/subdivision-generator`, Kenya plot presets, beacon CSV export
-
-### Geodesy features (from Gemini "deep tech" analysis)
-
-#### Combined Scale Factor (grid-to-ground area conversion)
-**Why:** At Nairobi (1,798m elevation), a 100ha parcel has ~0.03ha discrepancy between grid area (UTM coordinates) and true ground area (physical surface). The deed plan must state ground area.
-**How:** CSF = k × Fh (grid scale factor × elevation factor). Ground Area = Grid Area / CSF².
-**Where:** `/tools/scale-factor`
-**Effort:** 1 session
-**Status:** ✅ SHIPPED — Kenya location presets, two conversion modes (direct + polygon), legal note
-
-#### Helmert 7-Parameter Site Calibration (WGS84 ↔ Arc 1960)
-**Why:** RTK rovers output WGS84. Survey of Kenya registry uses Arc 1960 (Clarke 1880 ellipsoid). Horizontal shift is 100-200m without transformation. This is Kenya's "silent killer."
-**How:** 7-parameter similarity transformation (Tx, Ty, Tz, Rx, Ry, Rz, Scale) from 3+ control point pairs. Least squares for 4+ points.
-**Where:** `/tools/site-calibration`
-**Effort:** 2 sessions
-**Status:** ✅ SHIPPED — Helmert engine, RMS residual analysis, batch transform, color-coded border inputs
-
-#### Orthometric Height Conversion (EGM96 geoid)
-**Why:** GNSS gives ellipsoidal height (above WGS84 ellipsoid). Engineering needs orthometric height (above sea level / geoid). Water flows by gravity (geoid), not ellipsoid. At Nairobi, correction is ~10m.
-**How:** H = h - N. EGM96 5° grid with bilinear interpolation. Client-side, no external file.
-**Where:** `/tools/orthometric-height`
-**Effort:** 1 session
-**Status:** ✅ SHIPPED — Single + batch modes, Kenya geoid reference table, CSV export, engineering note
-
-#### Error Ellipse Visualization (95% confidence)
-**Why:** LSA engine already computes error ellipses (semi-major, semi-minor, orientation). Surveyors need to see them visually to assess network quality. Military-grade software rejects circular error approximations.
-**How:** SVG ellipse rendering in LSA results, scaled to fit, color-coded by threshold (green ≤20mm, amber 20-40mm, red >40mm). North arrow for orientation reference.
-**Where:** `/tools/lsa` (inline in results)
-**Effort:** 1 session
-**Status:** ✅ SHIPPED — SVG ellipses with 95% confidence, per-station visualization, legend
-
-### Tier 2 — build when needed (real but niche)
-
-#### Dual-surface TIN volume comparison (topographic/engineering)
-**How:** Extend existing `src/lib/engine/contours.ts` `computeVolumeFromTIN` to accept two TIN surfaces. Prismoidal column equation: `V = A_base × (Δz1+Δz2+Δz3)/3`. Cut/fill heatmap overlay on OpenLayers.
-**Where:** Extend `/tools/earthworks` or new `/tools/volume-comparison` (route exists)
-**Effort:** 1 session (extends existing volume code)
-**Status:** ✅ SHIPPED — `/tools/volume-comparison` is live with TIN and IDW grid methods, cut/fill volume computation via `computeVolumeBetweenSurfaces`, CSV export for both summary report and cut/fill grid, and a cut/fill heatmap visualization. Two-surface input via file upload (CSV/XYZ/TXT) with side-by-side comparison.
-
-#### Parabolic vertical curve profile designer (engineering)
-**Why:** Highway alignment audit — checking crest/sag curves against stopping sight distance (SSD).
-**How:** Parabolic curve equation `y = ((g2-g1)/2L)x² + g1·x + E_PVC`. K-factor check against design speed. Amber warning on failing curves.
-**Where:** New `/tools/vertical-curve` or fold into as-built deviation guard as "design compliance" mode
-**Effort:** 1 session
-**Status:** ✅ SHIPPED — `/tools/vertical-curve-designer`, multi-VIP alignment engine, AASHTO K-factor + SSD compliance, SVG profile diagram, station table, CSV export. Engine: `src/lib/survey/curves/verticalCurveDesigner.ts` (31 tests passing).
-
-#### Web Worker TIN generator
-**Why:** Contour generation can freeze on large datasets.
-**How:** Move Delaunay triangulation + contour interpolation to Web Worker.
-**Status:** ✅ SHIPPED — `src/lib/workers/tinWorker.ts` + `tinWorkerClient.ts` with auto-fallback to sync engine when Workers unavailable. Promise-based API (`triangulateAsync`, `buildTINSurfaceAsync`, `generateContoursAsync`) with progress callbacks. 13 tests passing.
-
-#### Automated breakline extraction
-**Why:** Auto-draw toe-of-slope, top-of-bank from TIN mesh.
-**How:** Compute triangle normal vectors, flag sharp angle changes, stitch into MultiLineString.
-**Status:** ✅ SHIPPED — `src/lib/engine/breaklineExtraction.ts` (triangle-normal dihedral algorithm, polyline stitching, ridge/slope-change/minor classification, GeoJSON + Breakline[] export). Integrated into `BreaklineEditor` as a new "Auto" tab with threshold slider and live preview. 20 tests passing.
-
-#### Spiral-to-curve alignment engine
-**Why:** KeNHA highway design uses clothoid spirals.
-**How:** Custom OpenLayers geometry for transition spirals. Dynamic chainage stationing.
-**Status:** ✅ SHIPPED — `src/lib/survey/curves/spiralAlignment.ts` (TS→SC→CS→ST stationing, clothoid series expansion, world-coordinate output, station interpolation). UI: new "Spiral Alignment" tab on `/tools/curves` with SVG plan diagram and station table. 29 tests passing.
-
-### Tier 3 — don't build (flawed or trap)
-
-#### Web Bluetooth NTRIP client
-**Why not:** Wrong Bluetooth stack (SPP vs GATT), wrong router (Pages vs App), Chromium-only, 3-month R&D trap. Metardu already has `NTRIPClientPanel` — use native Bluetooth, not Web Bluetooth API.
+**Commit:** `75e2489` — `fix(map): Tier 0 digitizing toolbar`
 
 ---
 
-## Technical debt
+## Tier 1 — Critical Correctness & Data Integrity (P0)
 
-### NextAuth v4 → v5 migration
-- Config ready (`src/lib/auth-v5.ts`)
-- Codemod ready (`scripts/auth-v5-codemod.js`, 44 files identified)
-- Timeline: 2-week side-quest when there's a quiet window
-- Blocker: needs Prisma schema migration + E2E test cycle
+### T1.1 — Delete dead Prisma schema ✅
+- **Done.** `prisma/schema.prisma` deleted (2026-07-09). Raw SQL in `src/lib/db/migrations/` is the single source of truth.
+- **Source:** AUDIT H1, PGA G-104
 
-### Tool page deep refits
-- PageHeader + card CSS updated globally (shipped)
-- [x] Traverse page refit — added SVG `TraverseDiagram` component showing
-      adjusted vs raw traverse, closing error vector, station markers,
-      north arrow, scale bar. Pattern: field-book table + output diagram.
-      Other pages (levelling, COGO, deed plan) can replicate this pattern.
-- [ ] Levelling, COGO, deed plan page refits — same pattern, lower priority
+### T1.2 — CI pipeline ✅ (already existed)
+- **Verified.** `.github/workflows/ci.yml` already runs: typecheck, lint (ratchet), build, i18n, jest+coverage, Playwright E2E, mobile build check, security audit. No action needed.
+- **Note:** Lint baseline is 1300 warnings — debt to ratchet down over time.
 
-### OKLCH color migration
-- Current tokens are hex
-- impeccable skill recommends OKLCH for perceptual uniformity
-- Low priority — current palette works
+### T1.3 — NextAuth v4 → v5 migration
+- **Scope:** `src/lib/auth.ts` (v4) → activate `src/lib/auth-v5.ts`. Update all `getServerSession()` callers. Test OAuth providers (Google, GitHub), magic link, and session cookie shape.
+- **Effort:** 3-5 days. See `docs/nextauth-v5-migration-plan.md` for the detailed plan.
+- **Risk:** v4 is end-of-life. Session shape changes could break RLS.
+- **Status:** Plan exists, not started.
 
-### Prisma schema cleanup
-- [x] Schema updated — `MINING` and `HYDROGRAPHIC` removed from `SurveyType`
-      enum in `prisma/schema.prisma`
-- [x] Migration SQL written — `prisma/migrations/20260702000000_drop_mining_hydrographic_survey_types/migration.sql`
-      with pre-flight check queries, PostgreSQL enum-swap pattern, and
-      post-migration verification queries
-- [ ] Migration NOT YET APPLIED — user must run pre-flight queries against
-      production DB, reassign any existing MINING/HYDROGRAPHIC projects,
-      then `npm run migrate`. See migration SQL header for full procedure.
+### T1.4 — Consolidated roadmap ✅
+- **Done.** This document replaces the 4 competing gap-analysis docs.
+
+### T1.5 — Eradicate hardcoded EPSG:21037 across src/lib
+- **Scope:** 60 occurrences across 24 files (per audit). Top hotspots:
+  - `src/app/map/hooks/useMapInteractions.ts` — 10 occurrences
+  - `src/lib/map/turfHelpers.ts` — 5 (high-risk: consumed by editingTools, topologyChecker)
+  - `src/app/map/utils/drawAnnotations.ts` — 4
+  - `src/components/map/SurveyMap.tsx`, `src/lib/map/annotations.ts`, `src/lib/map/stakeout.ts` — 3 each
+- **Approach:** Thread `currentUtmEpsg` from `MapReactContext` into all map lib functions. Pure lib files (outside React tree) need an `epsg` parameter added to their signatures.
+- **Bonus bug:** `surveyPlan/renderer.ts:874` and `surveyReport/index.ts:248` interpolate the project's actual UTM zone into PDF labels but append hardcoded `EPSG:21037` — produces "UTM Zone 36S (EPSG:21037)" for Zone 36 projects.
+- **ESLint guard:** Added `no-restricted-syntax` rule banning `EPSG:21xxx` literals in function calls (2026-07-09). New occurrences will warn.
+- **Effort:** 2-3 days. Status: ESLint guard shipped; 60 fixes pending.
+
+### T1.6 — ESLint enforcement for geo handlers ✅
+- **Done.** Added `overrides` block in `.eslintrc.json` for `src/lib/map/`, `src/lib/survey/`, `src/lib/geodesy/`, `src/lib/geo/`, `src/app/map/`. Rules: `no-explicit-any`, `no-unsafe-*` escalated to `warn` (will escalate to `error` once existing violations are cleaned).
+
+### T1.7 — Map disconnected from scheme data (G-07)
+- **Scope:** Digitizing tools now work (Tier 0), but the map can't render parcel boundaries from the DB. The `/api/project/[id]/points` endpoint is broken.
+- **Source:** PGA G-15, AUDIT C8
+- **Effort:** 2 days
+
+### T1.8 — Optimistic locking on survey data
+- **Status:** Partially resolved per AUDIT H4. Verify `updated_at` + `If-Match` header pattern is enforced on all mutation endpoints.
+- **Effort:** 1 day to verify + fix gaps
+
+### T1.9 — Audit trail underuse
+- **Scope:** `audit_log` table exists but <30% of mutation endpoints write to it. Add audit logging to all parcel/deed/project mutations.
+- **Source:** PGA G-09, AUDIT C3
+- **Effort:** 2 days
+
+### T1.10 — API consistency (expand-and-contract)
+- **Scope:** Several endpoints return inconsistent shapes. Enforce the v3 response envelope (`{ data, error: { code, message, details } }`) on all routes.
+- **Source:** PGA G-07, AUDIT H3
+- **Effort:** 3 days
 
 ---
 
-## Infrastructure
+## Tier 2 — Professional Quality (P1)
 
-### Redis cache for calculators
-- System design doc prescribes cache-aside for deterministic calculator results
-- Needs Redis instance
-- Expected 60-80% cache hit rate
-- Build when QPS justifies it
+### Cadastral / Surveying
+- **G-12** Sectional properties act compliance (Kenya Sectional Properties Act 2020)
+- **G-13** Deed plan FR (Folio Reference) lookup integration with KIS
+- **G-14** Beacon certificate auto-generation from surveyed beacons
+- **G-15** Encroachment audit — detect parcel overlaps during digitizing (topology checker exists but not wired to save path)
 
-### BullMQ async sync queue
-- Current offline queue is synchronous (FIFO on reconnect)
-- Parallel processing for large queues
-- Build when queue depth > 1000 typical
+### Engineering / Computation
+- **G-22** Least-squares adjustment (LSA) — engine exists, not wired to traverse UI
+- **G-23** Error ellipse visualization on adjusted points
+- **G-24** Real-time QC on GNSS observations (NTRIP client exists, no QC display)
+- **G-25** Clothoid transition curves — engine exists, no UI
+- **G-26** Earthworks (end-area) — engine exists, no BoQ export
 
-### Multi-region deployment
-- Single region fine for Kenya
-- Build when expanding beyond East Africa
+### UX / UI
+- **G-41** Honest error messages — 20+ files emit generic "Failed to X". Tier 0 fixed digitizing area only.
+- **G-42** Mobile field UI — Capacitor Android app works but iOS unsupported
+- **G-43** Offline tile download — works but no progress indicator
+- **G-44** Coordinate search — supports lat/lon/UTM/DMS but no MGRS
+
+### Infrastructure
+- **G-61** Redis-backed session store (currently in-memory)
+- **G-62** BullMQ for background jobs (currently ad-hoc)
+- **G-63** OpenTelemetry traces — instrumentation exists, not exported to collector
+- **G-64** Multi-region deployment (currently single Nairobi DC)
 
 ---
 
-## Internal skills (meta)
+## Tier 3 — Polish & Differentiation (P2)
 
-### Capture Metardu conventions as skills
-- Use `anthropics/skills/skill-creator` framework
-- Document: Prisma schema patterns, calculator input validation, offline sync rules
-- Progressive disclosure: SKILL.md ≤500 lines, references for depth
-- Low priority — internal documentation, not user-facing
+- **G-71** Topo-plan SVG renderer — align with LinkedIn "State of Kart" reference
+- **G-72** DXF layer standard compliance (see `docs/DXF_LAYER_STANDARD.md`)
+- **G-73** LandXML 1.2 export (currently 1.0)
+- **G-74** IFC 4.3 alignment export
+- **G-75** PDF report templates — 6 generators use hardcoded EPSG in labels (see T1.5 bonus bug)
+- **G-76** Marketplace: CPD certificate auto-generation
+- **G-77** Marketplace: AI plan checker
+- **G-78** Multi-language: complete Swahili/Amharic translations (currently ~60% coverage)
+
+---
+
+## Tier 4 — Future (P3)
+
+- **G-91** PostGIS migration for spatial queries (currently client-side Turf)
+- **G-92** Vector tiles for large cadastral schemes (>5k parcels)
+- **G-93** iOS support via Capacitor
+- **G-94** Bureau of Land Management (BLM) compliance for US expansion
+- **G-95** Drone photogrammetry pipeline (currently manual)
+
+---
+
+## Out of Scope (Explicitly Declined)
+
+- **Hydrographic surveying** — removed in v0.3 scope narrowing
+- **Marine/USV** — removed in v0.3
+- **Mining surveying** — removed in v0.3
+- **Deformation monitoring** — folded into engineering as a method (not standalone)
+
+---
+
+## Technical Debt Log
+
+| Item | Status | Notes |
+|------|--------|-------|
+| NextAuth v4 → v5 | T1.3 | Plan exists, 3-5 day effort |
+| Prisma schema drift | ✅ T1.1 | Deleted |
+| Lint warning baseline (1300) | Active | Ratchet down via CI `--max-warnings 0` on changed files |
+| Hardcoded EPSG:21037 (60 occurrences) | T1.5 | ESLint guard added; fixes pending |
+| `any` types in geo handlers | T1.6 | ESLint override added as `warn`; escalate to `error` after cleanup |
+| Single squashed git commit | Accepted | History only on GitHub; can't reconstruct locally |
+
+---
+
+## Source of Truth Pointers
+
+| What | Where |
+|------|-------|
+| Live DB schema | `src/lib/db/migrations/*.sql` (44 files, 106 tables) |
+| DB connection | `src/lib/db.ts` (raw pg Pool + RLS via AsyncLocalStorage) |
+| Migration runner | `scripts/migrate-unified.mjs` |
+| Auth (current) | `src/lib/auth.ts` (NextAuth v4) |
+| Auth (target) | `src/lib/auth-v5.ts` (not activated) |
+| Map state | `src/app/map/MapReactContext.tsx` |
+| Digitizing tools | `src/app/map/MapClient.tsx` + `src/lib/map/editingTools.ts` |
+| Cassini projection | `src/lib/geo/cassini/` |
+| Audit findings (archive) | `docs/AUDIT.md` (513 lines) |
+| System design | `docs/SYSTEM_DESIGN_V3.md` |
+| Archived gap analyses | `docs/PROFESSIONAL_GAP_ANALYSIS.md`, `docs/GEOMATICS_GAP_ANALYSIS.md`, `docs/ENGINEERING_CADASTRAL_GAP_ANALYSIS.md`, `docs/TOPO_GAP_ANALYSIS.md` |

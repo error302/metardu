@@ -29,6 +29,10 @@ ENV AUTH_SECRET=$AUTH_SECRET
 # was dead code (src/lib/db/client.ts had 0 importers and has been deleted).
 # All DB access goes through src/lib/db.ts (raw pg Pool). This saves ~10s
 # of build time and ~50MB of image size.
+# T1.1 FIX (2026-07-09): Deleted prisma/schema.prisma entirely — it was
+# deprecated dead code with zero importers, zero deps, and a deprecation
+# banner prescribing its own deletion. Raw SQL in src/lib/db/migrations/
+# is the single source of truth for the schema.
 RUN npm run build
 
 FROM node:20-alpine AS runner
