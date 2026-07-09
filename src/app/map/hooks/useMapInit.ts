@@ -306,26 +306,34 @@ export function useMapInit(params: UseMapInitParams) {
             new Attribution({ collapsible: true }),
             new MousePosition({
               coordinateFormat: (coord: number[]) => {
-                const lon = coord[0]
-                const lat = coord[1]
-                if (lon == null || lat == null || isNaN(lon) || isNaN(lat)) return ''
+                if (coord[0] == null || coord[1] == null || isNaN(coord[0]) || isNaN(coord[1])) return ''
                 try {
-                  const [e, n] = proj.transform(coord, 'EPSG:3857', params.currentUtmEpsg || 'EPSG:21037')
+                  const utmEpsg = params.currentUtmEpsg || 'EPSG:21037'
+                  // T1.5b FIX (2026-07-10): Transform to BOTH geographic (EPSG:4326) and
+                  // the active UTM zone. Previously, lon/lat were stored as raw EPSG:3857
+                  // Web Mercator meters — labeled "Lon/Lat" but actually eastings/northings
+                  // in meters. That's a statutory-accuracy bug: a surveyor reading
+                  // "Lon: 4105720" would be misled into thinking the data is corrupt or
+                  // would copy a Mercator meter value into a statutory form.
+                  const [lon, lat] = proj.transform(coord, 'EPSG:3857', 'EPSG:4326')
+                  const [e, n] = proj.transform(coord, 'EPSG:3857', utmEpsg)
                   const eSafe = (e != null && !isNaN(e)) ? e : 0
                   const nSafe = (n != null && !isNaN(n)) ? n : 0
+                  const lonSafe = (lon != null && !isNaN(lon)) ? lon : 0
+                  const latSafe = (lat != null && !isNaN(lat)) ? lat : 0
                   const now = Date.now()
                   if (now - mouseCoordThrottleRef.current > 100) {
                     mouseCoordThrottleRef.current = now
-                    setMouseCoord({ lon, lat, e: eSafe, n: nSafe })
+                    setMouseCoord({ lon: lonSafe, lat: latSafe, e: eSafe, n: nSafe })
                   }
-                  return `E: ${eSafe.toFixed(1)}  N: ${nSafe.toFixed(1)}`
+                  return `Lon: ${lonSafe.toFixed(6)}  Lat: ${latSafe.toFixed(6)}  E: ${eSafe.toFixed(1)}  N: ${nSafe.toFixed(1)}`
                 } catch {
                   const now = Date.now()
                   if (now - mouseCoordThrottleRef.current > 100) {
                     mouseCoordThrottleRef.current = now
-                    setMouseCoord({ lon, lat, e: 0, n: 0 })
+                    setMouseCoord({ lon: 0, lat: 0, e: 0, n: 0 })
                   }
-                  return `${lon.toFixed(5)}, ${lat.toFixed(5)}`
+                  return ''
                 }
               },
               projection: 'EPSG:3857',
