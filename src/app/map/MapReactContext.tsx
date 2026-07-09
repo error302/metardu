@@ -110,15 +110,31 @@ export interface MapContextValue {
   // passed only to the floating DigitizingToolbar. Now exposed via context so
   // the CapturePanel inside MapToolDock can render them inline (cleaner UI,
   // removes the cluttered bottom-center floating bar).
+  //
+  // T0.8 FIX (2026-07-09): Internally, MapClient splits this into `activeDrawTool`
+  // (split/reshape — needs an OL Draw interaction) and `activeOneShotTool`
+  // (merge/rotate/offset — fires immediately on Apply). The context still
+  // exposes a single `activeDigitizingTool` for backwards-compat with the UI.
   activeDigitizingTool: 'draw' | 'split' | 'merge' | 'reshape' | 'rotate' | 'offset' | null
   setActiveDigitizingTool: (tool: 'draw' | 'split' | 'merge' | 'reshape' | 'rotate' | 'offset' | null) => void
   offsetDistance: number
   setOffsetDistance: (d: number) => void
   // AUDIT FIX (2026-07-05): Rotate angle — was hardcoded to 15° with no
-  // user control. Now exposed via context so the DigitizingToolbar can
-  // show a slider (0-360°) that lets the user pick the rotation angle.
+  // user control. Now exposed via context so the MapToolDock can show a
+  // slider (0-360°) that lets the user pick the rotation angle.
+  // T0.2 FIX (2026-07-09): The slider now ACTUALLY controls rotation —
+  // the handler reads rotateAngle instead of a hardcoded 15.
   rotateAngle: number
   setRotateAngle: (a: number) => void
+  // T0.3 + T0.8 FIX (2026-07-09): One-shot tools (Merge/Rotate/Offset) now
+  // require an explicit Apply click. This prevents the Offset slider from
+  // spawning a duplicate feature on every drag tick, and lets the user
+  // rotate the same polygon multiple times without re-activating the tool.
+  applyOneShotTool: () => void
+  // T0.5 FIX (2026-07-09): The active UTM EPSG code (e.g. 'EPSG:21037') used
+  // for geometry math. Derived from activeProjection. Panels can display this
+  // so users know which CRS their digitizing operations are happening in.
+  currentUtmEpsg: string
   snappingEnabled: boolean
   setSnappingEnabled: (v: boolean) => void
   showSnappingOptions: boolean

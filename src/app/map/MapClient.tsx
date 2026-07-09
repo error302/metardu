@@ -291,7 +291,35 @@ export default function MapClient() {
   const [identifiedFeature, setIdentifiedFeature] = useState<IdentifiedFeature | null>(null)
 
   // ── Digitizing Tools state ──
-  const [activeDigitizingTool, setActiveDigitizingTool] = useState<'draw' | 'split' | 'merge' | 'reshape' | 'rotate' | 'offset' | null>(null)
+  // T0.8 FIX (2026-07-09): Previously a single `activeDigitizingTool` union
+  // conflated draw-based tools (Split, Reshape — need an OL Draw interaction)
+  // with one-shot tools (Merge, Rotate, Offset — operate immediately on the
+  // current selection). The conflation caused: (a) rotating twice silently
+  // no-op'd because state was nulled after the first run, (b) the Offset
+  // branch fired on every slider drag because offsetDistance was in the
+  // effect deps. Now split into two pieces:
+  //   activeDrawTool     — 'split' | 'reshape' | null  (needs a Draw interaction)
+  //   activeOneShotTool  — 'merge' | 'rotate' | 'offset' | null  (immediate op)
+  // The UI (MapToolDock) still calls setActiveDigitizingTool for backwards-
+  // compat with the context shape; we route it to the correct piece below.
+  type DrawTool = 'split' | 'reshape'
+  type OneShotTool = 'merge' | 'rotate' | 'offset'
+  const [activeDrawTool, setActiveDrawTool] = useState<DrawTool | null>(null)
+  const [activeOneShotTool, setActiveOneShotTool] = useState<OneShotTool | null>(null)
+  // Backwards-compat shim: the context exposes a single `activeDigitizingTool`
+  // setter accepting the full union (including 'draw', which is a no-op here
+  // since draw is handled by a separate interaction). We route the tool to the
+  // correct piece. Reading is also unified.
+  const activeDigitizingTool: 'draw' | DrawTool | OneShotTool | null = activeDrawTool ?? activeOneShotTool ?? null
+  const setActiveDigitizingTool = useCallback((tool: 'draw' | DrawTool | OneShotTool | null) => {
+    setActiveDrawTool(tool === 'split' || tool === 'reshape' ? tool : null)
+    setActiveOneShotTool(tool === 'merge' || tool === 'rotate' || tool === 'offset' ? tool : null)
+  }, [])
+  // T0.3 FIX: One-shot tools fire on explicit "Apply" click, not on slider drag.
+  // `oneShotTrigger` is a monotonic counter — incrementing it requests a fresh
+  // application of `activeOneShotTool` using the current `offsetDistance` /
+  // `rotateAngle`. This decouples "configure the parameters" from "execute".
+  const [oneShotTrigger, setOneShotTrigger] = useState(0)
   const [offsetDistance, setOffsetDistance] = useState(5)
   const [rotateAngle, setRotateAngle] = useState(15)
   const [snappingEnabled, setSnappingEnabled] = useState(true)
@@ -318,6 +346,24 @@ export default function MapClient() {
 
   // ── Map projection (Tier 2: Projection switching) ──
   const [activeProjection, setActiveProjection] = useState<string>('EPSG:3857')
+
+  // T0.5 FIX (2026-07-09): Kill the 11 hardcoded `EPSG:21037` literals in the
+  // digitizing handlers. The geometry ops (Turf) need a planar UTM CRS in
+  // metres; EPSG:3857 (Web Mercator) is NOT suitable — distances are non-
+  // conformal at Kenyan latitudes. If the user has the switcher on Web Mercator,
+  // we still need a UTM code for the math. Pick the right Kenya UTM zone from
+  // the active projection; default to EPSG:21037 (Arc 1960 / UTM 37S) which
+  // covers Nairobi and is the historical surveying default.
+  const currentUtmEpsg = useMemo<string>(() => {
+    switch (activeProjection) {
+      case 'EPSG:21036': return 'EPSG:21036' // Arc 1960 / UTM 36S
+      case 'EPSG:32736': return 'EPSG:32736' // WGS 84 / UTM 36S
+      case 'EPSG:21037': return 'EPSG:21037' // Arc 1960 / UTM 37S
+      case 'EPSG:3857':
+      default:
+        return 'EPSG:21037' // sensible default for central Kenya
+    }
+  }, [activeProjection])
 
   // ── History hook ──
   const ctx: MapContext = useMemo(() => ({
@@ -715,256 +761,173 @@ export default function MapClient() {
     setShowProjectPoints(newVisible)
   }, [showProjectPoints])
 
-  // ── Digitizing tool: create OL interactions for split/merge/reshape/rotate/offset ──
+  // ── Digitizing tool: create OL interactions for split/reshape ──
+  // T0.8 FIX (2026-07-09): This effect now ONLY handles draw-based tools
+  // (Split, Reshape). One-shot tools (Merge, Rotate, Offset) are handled by
+  // a separate effect driven by `oneShotTrigger` — see below. This fixes:
+  //   - Rotate no-op'ing on second click (state was nulled after first run)
+  //   - Offset spawning duplicates on slider drag (offsetDistance was in deps)
+  //   - Merge firing on tool activation instead of on explicit Apply
   const editingToolRef = useRef<any>(null) // current editing interaction
 
   useEffect(() => {
     if (!mapInstance.current || !mapReady) return
 
-    // Clean up previous editing interaction
+    // Clean up previous editing interaction whenever deps change
     if (editingToolRef.current) {
       try { mapInstance.current.removeInteraction(editingToolRef.current) } catch { /* */ }
       editingToolRef.current = null
     }
 
-    if (!activeDigitizingTool || activeDigitizingTool === 'draw') return
+    // Only Split and Reshape need a Draw interaction here.
+    if (!activeDrawTool) return
 
     const map = mapInstance.current
     const drawSource = drawSourceRef.current
+    if (!map || !drawSource) return
 
     ;(async () => {
       try {
-        if (activeDigitizingTool === 'split' || activeDigitizingTool === 'reshape') {
-          // Create a line draw interaction for splitting/reshaping
-          const { default: Draw } = await import('ol/interaction/Draw')
-          const { default: VectorSource } = await import('ol/source/Vector')
-          const { default: Style } = await import('ol/style/Style')
-          const { default: Stroke } = await import('ol/style/Stroke')
-          const { default: Fill } = await import('ol/style/Fill')
+        // T0.10 FIX: hoist OL imports — these were `await import(...)` inside
+        // the drawend handler, paying the dynamic-import cost on every click.
+        const { default: Draw } = await import('ol/interaction/Draw')
+        const { default: VectorSource } = await import('ol/source/Vector')
+        const { default: Style } = await import('ol/style/Style')
+        const { default: Stroke } = await import('ol/style/Stroke')
+        const { default: Fill } = await import('ol/style/Fill')
+        const { default: Feature } = await import('ol/Feature')
+        const { default: Polygon } = await import('ol/geom/Polygon')
+        const proj = await import('ol/proj')
+        const { splitPolygonWithLine, reshapePolygon } = await import('@/lib/map/editingTools')
+        const turf = await import('@turf/turf')
 
-          const tempSource = new VectorSource()
-          const draw = new Draw({
-            source: tempSource,
-            type: 'LineString',
-            style: new Style({
-              fill: new Fill({ color: 'rgba(209, 123, 71, 0.2)' }),
-              stroke: new Stroke({ color: '#D17B47', width: 2, lineDash: [8, 4] }),
-            }),
-          })
+        const tempSource = new VectorSource()
+        const draw = new Draw({
+          source: tempSource,
+          type: 'LineString',
+          style: new Style({
+            fill: new Fill({ color: 'rgba(209, 123, 71, 0.2)' }),
+            stroke: new Stroke({ color: '#D17B47', width: 2, lineDash: [8, 4] }),
+          }),
+        })
 
-          draw.on('drawend', async (e: any) => {
-            const lineFeature = e.feature
-            const lineGeom = lineFeature.getGeometry()
-            if (!lineGeom || !drawSource) return
+        const epsg = currentUtmEpsg // T0.5: captured once per effect run
 
-            const lineCoords3857 = lineGeom.getCoordinates()
-            // Transform to UTM for geometry operations
-            const proj = await import('ol/proj')
-            const lineCoordsUTM = lineCoords3857.map((c: number[]) =>
-              proj.transform(c, 'EPSG:3857', 'EPSG:21037'),
-            )
+        draw.on('drawend', (e: any) => {
+          const lineFeature = e.feature
+          const lineGeom = lineFeature.getGeometry()
+          if (!lineGeom) return
 
-            if (activeDigitizingTool === 'split') {
-              // Find the first polygon in the draw source
-              const polygons = drawSource.getFeatures().filter((f: any) => {
-                const g = f.getGeometry()
-                return g && g.getType() === 'Polygon'
-              })
+          const lineCoords3857 = lineGeom.getCoordinates() as number[][]
+          const lineCoordsUTM = lineCoords3857.map((c: number[]) =>
+            proj.transform(c, 'EPSG:3857', epsg),
+          ) as [number, number][]
 
-              if (polygons.length === 0) {
-                setSaveMsg('No polygon to split — draw a polygon first')
-                setTimeout(() => setSaveMsg(''), 3000)
-                return
-              }
-
-              const targetPolygon = polygons[0]
-              const polyCoords3857 = targetPolygon.getGeometry().getCoordinates()[0]
-              const polyCoordsUTM = polyCoords3857.map((c: number[]) =>
-                proj.transform(c, 'EPSG:3857', 'EPSG:21037'),
-              )
-
-              const { splitPolygonWithLine } = await import('@/lib/map/editingTools')
-              const result = splitPolygonWithLine(polyCoordsUTM as [number, number][], lineCoordsUTM as [number, number][])
-
-              if (!result) {
-                setSaveMsg('Split failed — line must cross the polygon at two points')
-                setTimeout(() => setSaveMsg(''), 4000)
-                return
-              }
-
-              // Transform results back to 3857
-              const p1_3857 = result.polygon1.map(([e, n]) => proj.transform([e, n], 'EPSG:21037', 'EPSG:3857'))
-              const p2_3857 = result.polygon2.map(([e, n]) => proj.transform([e, n], 'EPSG:21037', 'EPSG:3857'))
-
-              const { default: Feature } = await import('ol/Feature')
-              const { default: Polygon } = await import('ol/geom/Polygon')
-
-              // Remove original polygon, add two new ones
-              drawSource.removeFeature(targetPolygon)
-              drawSource.addFeature(new Feature({ geometry: new Polygon([p1_3857]), source: 'split' }))
-              drawSource.addFeature(new Feature({ geometry: new Polygon([p2_3857]), source: 'split' }))
-
-              setSaveMsg(`Split into 2 polygons (${result.area1.toFixed(1)}m² + ${result.area2.toFixed(1)}m²)`)
-              setTimeout(() => setSaveMsg(''), 5000)
-            } else if (activeDigitizingTool === 'reshape') {
-              // Find the first polygon in the draw source to reshape
-              const polygons = drawSource.getFeatures().filter((f: any) => {
-                const g = f.getGeometry()
-                return g && g.getType() === 'Polygon'
-              })
-
-              if (polygons.length === 0) {
-                setSaveMsg('No polygon to reshape — draw a polygon first')
-                setTimeout(() => setSaveMsg(''), 3000)
-                return
-              }
-
-              const targetPolygon = polygons[0]
-              const polyCoords3857 = targetPolygon.getGeometry().getCoordinates()[0]
-              const polyCoordsUTM = polyCoords3857.map((c: number[]) =>
-                proj.transform(c, 'EPSG:3857', 'EPSG:21037'),
-              )
-
-              const { reshapePolygon } = await import('@/lib/map/editingTools')
-              const result = reshapePolygon(polyCoordsUTM as [number, number][], lineCoordsUTM as [number, number][])
-
-              if (!result) {
-                setSaveMsg('Reshape failed — line must intersect the polygon boundary')
-                setTimeout(() => setSaveMsg(''), 4000)
-                return
-              }
-
-              const reshaped3857 = result.map(([e, n]) => proj.transform([e, n], 'EPSG:21037', 'EPSG:3857'))
-
-              const { default: Feature } = await import('ol/Feature')
-              const { default: Polygon } = await import('ol/geom/Polygon')
-
-              // Remove original, add reshaped polygon
-              drawSource.removeFeature(targetPolygon)
-              drawSource.addFeature(new Feature({ geometry: new Polygon([reshaped3857]), source: 'reshape' }))
-
-              setSaveMsg('Polygon reshaped')
-              setTimeout(() => setSaveMsg(''), 3000)
-            }
-          })
-
-          map.addInteraction(draw)
-          editingToolRef.current = draw
-        }
-
-        if (activeDigitizingTool === 'merge') {
-          // Merge uses the selected features
-          const { mergePolygons } = await import('@/lib/map/editingTools')
-          const selectedFeatures = drawSource?.getFeatures().filter((f: any) => {
+          // T0.4 FIX: Don't blindly grab polygons[0]. Prefer (a) the user's
+          // selection from selectInteractionRef, then (b) the polygon the
+          // line actually intersects (Turf lineIntersect). Error if zero or
+          // ambiguous (>1 candidate and none selected).
+          const allPolygons = drawSource.getFeatures().filter((f: any) => {
             const g = f.getGeometry()
             return g && g.getType() === 'Polygon'
-          }) || []
-
-          if (selectedFeatures.length < 2) {
-            setSaveMsg('Select 2+ polygons to merge (draw them first)')
-            setTimeout(() => setSaveMsg(''), 3000)
-            return
-          }
-
-          const proj = await import('ol/proj')
-          const polyCoordsUTM = selectedFeatures.map((f: any) => {
-            const coords3857 = f.getGeometry().getCoordinates()[0]
-            return coords3857.map((c: number[]) => proj.transform(c, 'EPSG:3857', 'EPSG:21037'))
           })
 
-          const merged = mergePolygons(polyCoordsUTM as [number, number][][])
-          if (!merged) {
-            setSaveMsg('Merge failed — polygons must be adjacent')
-            setTimeout(() => setSaveMsg(''), 4000)
-            return
-          }
-
-          const merged3857 = merged.map(([e, n]) => proj.transform([e, n], 'EPSG:21037', 'EPSG:3857'))
-
-          const { default: Feature } = await import('ol/Feature')
-          const { default: Polygon } = await import('ol/geom/Polygon')
-
-          // Remove originals, add merged
-          selectedFeatures.forEach((f: any) => drawSource.removeFeature(f))
-          drawSource.addFeature(new Feature({ geometry: new Polygon([merged3857]), source: 'merge' }))
-
-          setSaveMsg(`Merged ${selectedFeatures.length} polygons into 1`)
-          setTimeout(() => setSaveMsg(''), 4000)
-          setActiveDigitizingTool(null)
-        }
-
-        if (activeDigitizingTool === 'rotate' && selectedFeature) {
-          // Rotate the selected feature by 15° (simplified — full drag rotation is complex)
-          const { rotatePolygon } = await import('@/lib/map/editingTools')
-          const geom = selectedFeature.getGeometry?.()
-          if (!geom || geom.getType() !== 'Polygon') {
-            setSaveMsg('Select a polygon to rotate')
+          if (allPolygons.length === 0) {
+            setSaveMsg('No polygon to ' + (activeDrawTool === 'split' ? 'split' : 'reshape') + ' — draw a polygon first')
             setTimeout(() => setSaveMsg(''), 3000)
             return
           }
 
-          const proj = await import('ol/proj')
-          const coords3857 = geom.getCoordinates()[0]
-          const coordsUTM = coords3857.map((c: number[]) => proj.transform(c, 'EPSG:3857', 'EPSG:21037'))
-
-          const rotated = rotatePolygon(coordsUTM as [number, number][], 15)
-          const rotated3857 = rotated.map(([e, n]) => proj.transform([e, n], 'EPSG:21037', 'EPSG:3857'))
-
-          const { default: Polygon } = await import('ol/geom/Polygon')
-          selectedFeature.setGeometry(new Polygon([rotated3857]))
-
-          setSaveMsg('Rotated 15° clockwise')
-          setTimeout(() => setSaveMsg(''), 3000)
-        }
-
-        if (activeDigitizingTool === 'offset' && selectedFeature) {
-          const { createOffset } = await import('@/lib/map/editingTools')
-          const geom = selectedFeature.getGeometry?.()
-          if (!geom) {
-            setSaveMsg('Select a feature to offset')
-            setTimeout(() => setSaveMsg(''), 3000)
-            return
+          // (a) Prefer selected polygons from the OL Select interaction.
+          let targetPolygons: any[] = []
+          const sel = selectInteractionRef.current
+          if (sel) {
+            try {
+              const selFeatures = sel.getFeatures?.().getArray?.() ?? []
+              targetPolygons = selFeatures.filter((f: any) => {
+                const g = f.getGeometry()
+                return g && g.getType() === 'Polygon'
+              })
+              // Fallback: if select-interaction lookup didn't yield anything,
+              // try the single-feature `selectedFeature` state.
+              if (targetPolygons.length === 0 && selectedFeature) {
+                const g = selectedFeature.getGeometry?.()
+                if (g && g.getType() === 'Polygon') targetPolygons = [selectedFeature]
+              }
+            } catch { /* select interaction not ready */ }
           }
 
-          const isPolygon = geom.getType() === 'Polygon'
-          const coords3857 = isPolygon ? geom.getCoordinates()[0] : geom.getCoordinates()
-          const proj = await import('ol/proj')
-          const coordsUTM = coords3857.map((c: number[]) => proj.transform(c, 'EPSG:3857', 'EPSG:21037'))
-
-          const offset = createOffset(coordsUTM as [number, number][], offsetDistance, isPolygon)
-          if (!offset) {
-            setSaveMsg('Offset failed')
-            setTimeout(() => setSaveMsg(''), 3000)
-            return
-          }
-
-          const offset3857 = offset.map(([e, n]) => proj.transform([e, n], 'EPSG:21037', 'EPSG:3857'))
-
-          const { default: Feature } = await import('ol/Feature')
-          let newFeature: any
-          if (isPolygon) {
-            const { default: Polygon } = await import('ol/geom/Polygon')
-            newFeature = new Feature({
-              geometry: new Polygon([offset3857]),
-              source: 'offset',
-              offsetDistance,
+          // (b) If still no target, find polygons the line actually intersects.
+          if (targetPolygons.length === 0) {
+            const lineTurf = turf.lineString(lineCoordsUTM)
+            const candidates = allPolygons.filter((f: any) => {
+              try {
+                const c3857 = f.getGeometry().getCoordinates()[0] as number[][]
+                const cUtm = c3857.map((c: number[]) => proj.transform(c, 'EPSG:3857', epsg)) as [number, number][]
+                const closed = cUtm[0][0] === cUtm[cUtm.length - 1][0] && cUtm[0][1] === cUtm[cUtm.length - 1][1]
+                  ? cUtm : [...cUtm, cUtm[0]]
+                const polyTurf = turf.polygon([closed])
+                return turf.lineIntersect(lineTurf, polyTurf).features.length > 0
+              } catch {
+                return false
+              }
             })
-          } else {
-            const { default: LineString } = await import('ol/geom/LineString')
-            newFeature = new Feature({
-              geometry: new LineString(offset3857),
-              source: 'offset',
-              offsetDistance,
-            })
+            if (candidates.length === 1) {
+              targetPolygons = [candidates[0]]
+            } else if (candidates.length > 1) {
+              setSaveMsg(`Line crosses ${candidates.length} polygons — Shift+click to pick one first`)
+              setTimeout(() => setSaveMsg(''), 5000)
+              return
+            } else {
+              setSaveMsg('Line does not cross any polygon — draw the line across a polygon')
+              setTimeout(() => setSaveMsg(''), 4000)
+              return
+            }
           }
-          drawSource?.addFeature(newFeature)
 
-          setSaveMsg(`Offset created at ${offsetDistance}m`)
-          setTimeout(() => setSaveMsg(''), 3000)
-          setActiveDigitizingTool(null)
-        }
+          // For Split/Reshape, operate on the first target (user can repeat for others)
+          const targetPolygon = targetPolygons[0]
+          const polyCoords3857 = targetPolygon.getGeometry().getCoordinates()[0] as number[][]
+          const polyCoordsUTM = polyCoords3857.map((c: number[]) =>
+            proj.transform(c, 'EPSG:3857', epsg),
+          ) as [number, number][]
+
+          if (activeDrawTool === 'split') {
+            const result = splitPolygonWithLine(polyCoordsUTM, lineCoordsUTM)
+            if (!result) {
+              setSaveMsg('Split failed — line must cross the polygon at two points')
+              setTimeout(() => setSaveMsg(''), 4000)
+              return
+            }
+            const p1_3857 = result.polygon1.map(([e, n]) => proj.transform([e, n], epsg, 'EPSG:3857'))
+            const p2_3857 = result.polygon2.map(([e, n]) => proj.transform([e, n], epsg, 'EPSG:3857'))
+
+            drawSource.removeFeature(targetPolygon)
+            drawSource.addFeature(new Feature({ geometry: new Polygon([p1_3857]), source: 'split' }))
+            drawSource.addFeature(new Feature({ geometry: new Polygon([p2_3857]), source: 'split' }))
+
+            setSaveMsg(`Split into 2 polygons (${result.area1.toFixed(1)}m² + ${result.area2.toFixed(1)}m²)`)
+            setTimeout(() => setSaveMsg(''), 5000)
+          } else if (activeDrawTool === 'reshape') {
+            const result = reshapePolygon(polyCoordsUTM, lineCoordsUTM)
+            if (!result) {
+              setSaveMsg('Reshape failed — line must intersect the polygon boundary at 2 points')
+              setTimeout(() => setSaveMsg(''), 4000)
+              return
+            }
+            const reshaped3857 = result.map(([e, n]) => proj.transform([e, n], epsg, 'EPSG:3857'))
+            drawSource.removeFeature(targetPolygon)
+            drawSource.addFeature(new Feature({ geometry: new Polygon([reshaped3857]), source: 'reshape' }))
+
+            setSaveMsg('Polygon reshaped')
+            setTimeout(() => setSaveMsg(''), 3000)
+          }
+        })
+
+        map.addInteraction(draw)
+        editingToolRef.current = draw
       } catch (err) {
-        console.error('[DigitizingTool] Error:', err)
+        console.error('[DigitizingTool:draw] Error:', err)
       }
     })()
 
@@ -974,7 +937,164 @@ export default function MapClient() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDigitizingTool, mapReady, selectedFeature, offsetDistance])
+  }, [activeDrawTool, mapReady, currentUtmEpsg]) // T0.3: NOT offsetDistance/rotateAngle/selectedFeature
+
+  // ── One-shot digitizing tools: Merge / Rotate / Offset ──
+  // T0.3 + T0.8 FIX (2026-07-09): These tools fire ONLY when `oneShotTrigger`
+  // increments (via the Apply button in MapToolDock). This decouples parameter
+  // configuration (slider drag) from execution, fixing the duplicate-offset bug
+  // and the rotate-twice-no-op bug.
+  useEffect(() => {
+    if (!mapInstance.current || !mapReady) return
+    if (!activeOneShotTool) return
+    if (oneShotTrigger === 0) return // initial mount — don't fire
+
+    const drawSource = drawSourceRef.current
+    if (!drawSource) return
+
+    ;(async () => {
+      try {
+        const proj = await import('ol/proj')
+        const { default: Feature } = await import('ol/Feature')
+        const { default: Polygon } = await import('ol/geom/Polygon')
+        const { default: LineString } = await import('ol/geom/LineString')
+        const epsg = currentUtmEpsg
+
+        // ── MERGE ──
+        // T0.1 FIX (2026-07-09): Use the OL Select interaction's collection
+        // (Shift+click multi-select), NOT drawSource.getFeatures(). The old
+        // code grabbed every Polygon in the source and called it "selected".
+        if (activeOneShotTool === 'merge') {
+          const { mergePolygons } = await import('@/lib/map/editingTools')
+
+          let selected: any[] = []
+          const sel = selectInteractionRef.current
+          if (sel) {
+            try {
+              selected = (sel.getFeatures?.().getArray?.() ?? []).filter((f: any) => {
+                const g = f.getGeometry()
+                return g && g.getType() === 'Polygon'
+              })
+            } catch { /* */ }
+          }
+
+          if (selected.length < 2) {
+            setSaveMsg('Shift+click 2+ adjacent polygons on the map, then click Merge')
+            setTimeout(() => setSaveMsg(''), 5000)
+            return
+          }
+
+          const polyCoordsUTM = selected.map((f: any) => {
+            const c3857 = f.getGeometry().getCoordinates()[0] as number[][]
+            return c3857.map((c: number[]) => proj.transform(c, 'EPSG:3857', epsg)) as [number, number][]
+          })
+
+          const merged = mergePolygons(polyCoordsUTM)
+          if (!merged) {
+            setSaveMsg(`Merge failed — ${selected.length} polygons are not adjacent. They must share an edge.`)
+            setTimeout(() => setSaveMsg(''), 5000)
+            return
+          }
+
+          const merged3857 = merged.map(([e, n]) => proj.transform([e, n], epsg, 'EPSG:3857'))
+
+          // Remove originals, add merged
+          selected.forEach((f: any) => {
+            try { drawSource.removeFeature(f) } catch { /* already gone */ }
+          })
+          drawSource.addFeature(new Feature({ geometry: new Polygon([merged3857]), source: 'merge' }))
+
+          // Clear the selection so the user doesn't try to merge the same set again
+          try { sel?.getFeatures?.().clear?.() } catch { /* */ }
+
+          setSaveMsg(`Merged ${selected.length} polygons into 1`)
+          setTimeout(() => setSaveMsg(''), 4000)
+          return
+        }
+
+        // ── ROTATE ──
+        // T0.2 FIX (2026-07-09): Replace hardcoded `15` with `rotateAngle`.
+        // The slider in MapToolDock now actually controls the rotation.
+        if (activeOneShotTool === 'rotate') {
+          const { rotatePolygon } = await import('@/lib/map/editingTools')
+          if (!selectedFeature) {
+            setSaveMsg('Click a polygon on the map to select it, then click Apply Rotation')
+            setTimeout(() => setSaveMsg(''), 4000)
+            return
+          }
+          const geom = selectedFeature.getGeometry?.()
+          if (!geom || geom.getType() !== 'Polygon') {
+            setSaveMsg('Rotate works on polygons — select a polygon first')
+            setTimeout(() => setSaveMsg(''), 4000)
+            return
+          }
+
+          const coords3857 = geom.getCoordinates()[0] as number[][]
+          const coordsUTM = coords3857.map((c: number[]) => proj.transform(c, 'EPSG:3857', epsg)) as [number, number][]
+
+          const rotated = rotatePolygon(coordsUTM, rotateAngle)
+          const rotated3857 = rotated.map(([e, n]) => proj.transform([e, n], epsg, 'EPSG:3857'))
+          selectedFeature.setGeometry(new Polygon([rotated3857]))
+
+          setSaveMsg(`Rotated ${rotateAngle}° clockwise`)
+          setTimeout(() => setSaveMsg(''), 3000)
+          return
+        }
+
+        // ── OFFSET ──
+        // T0.3 FIX (2026-07-09): No longer fires on slider drag. The Apply
+        // button increments oneShotTrigger; we read the current offsetDistance
+        // here. Negative distances are supported (left side).
+        if (activeOneShotTool === 'offset') {
+          const { createOffset } = await import('@/lib/map/editingTools')
+          if (!selectedFeature) {
+            setSaveMsg('Click a feature on the map to select it, then click Create Offset')
+            setTimeout(() => setSaveMsg(''), 4000)
+            return
+          }
+          const geom = selectedFeature.getGeometry?.()
+          if (!geom) {
+            setSaveMsg('Select a feature to offset')
+            setTimeout(() => setSaveMsg(''), 3000)
+            return
+          }
+
+          const isPolygon = geom.getType() === 'Polygon'
+          const coords3857 = (isPolygon ? geom.getCoordinates()[0] : geom.getCoordinates()) as number[][]
+          const coordsUTM = coords3857.map((c: number[]) => proj.transform(c, 'EPSG:3857', epsg)) as [number, number][]
+
+          const offset = createOffset(coordsUTM, offsetDistance, isPolygon)
+          if (!offset) {
+            setSaveMsg(`Offset failed at ${offsetDistance}m — try a smaller distance`)
+            setTimeout(() => setSaveMsg(''), 4000)
+            return
+          }
+
+          const offset3857 = offset.map(([e, n]) => proj.transform([e, n], epsg, 'EPSG:3857'))
+          const newFeature = new Feature({
+            geometry: isPolygon ? new Polygon([offset3857]) : new LineString(offset3857),
+            source: 'offset',
+            offsetDistance,
+          })
+          drawSource.addFeature(newFeature)
+
+          setSaveMsg(`Offset created at ${offsetDistance}m`)
+          setTimeout(() => setSaveMsg(''), 3000)
+          return
+        }
+      } catch (err) {
+        console.error('[DigitizingTool:oneShot] Error:', err)
+      }
+    })()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [oneShotTrigger]) // ONLY oneShotTrigger drives this effect
+
+  // T0.3 + T0.8: Expose an apply() function the UI can call. Increments the
+  // trigger counter; the effect above picks up the current activeOneShotTool
+  // + offsetDistance + rotateAngle from state.
+  const applyOneShotTool = useCallback(() => {
+    setOneShotTrigger(n => n + 1)
+  }, [])
 
   // ── Scheme layer: toggle layer visibility ──
   const toggleSchemeParcelVisibility = useCallback(() => {
@@ -1215,6 +1335,10 @@ export default function MapClient() {
     setOffsetDistance,
     rotateAngle,
     setRotateAngle,
+    // T0.3 + T0.8: explicit Apply button for one-shot tools
+    applyOneShotTool,
+    // T0.5: expose the active UTM EPSG so panels can show "operating in EPSG:21037"
+    currentUtmEpsg,
     snappingEnabled,
     setSnappingEnabled,
     showSnappingOptions,

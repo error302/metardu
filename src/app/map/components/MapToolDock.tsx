@@ -350,11 +350,9 @@ const CapturePanel = memo(function CapturePanel() {
       <ActionBtn label="Delete Selected" icon={<Trash2 className="w-4 h-4" />} isActive={false} onClick={ctx.deleteSelected} danger shortcut="Del" />
 
       {/* ── Advanced Editing (Split / Merge / Reshape / Rotate / Offset) ── */}
-      {/* AUDIT FIX (2026-07-05): These tools were previously in a separate
-          floating DigitizingToolbar at the bottom-center of the map,
-          which cluttered the UI and confused users. Now they live inline
-          under the CapturePanel's "Advanced" section, sharing the same
-          activeDigitizingTool state via context. */}
+      {/* T0.6 FIX (2026-07-09): The floating DigitizingToolbar.tsx has been
+          deleted (it was dead code — zero importers). This inline panel in
+          MapToolDock is now the single source of truth for these tools. */}
       <SectionLabel hint="X">Advanced</SectionLabel>
       <div className="grid grid-cols-5 gap-1">
         <ToolBtn
@@ -394,60 +392,94 @@ const CapturePanel = memo(function CapturePanel() {
         />
       </div>
 
-      {/* Offset distance slider — only visible when Offset is active */}
+      {/* Offset distance slider + Apply button — only visible when Offset is active.
+          T0.3 FIX (2026-07-09): Added the Apply button. Previously dragging the
+          slider re-triggered the effect and stacked duplicate offsets. Now the
+          slider only updates the parameter; the user clicks Apply to execute. */}
       {ctx.activeDigitizingTool === 'offset' && (
-        <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06]">
+        <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] space-y-2">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">Distance:</span>
             <input
               aria-label="Offset distance"
               type="range"
-              min="1"
+              min="-50"
               max="50"
+              step="1"
               value={ctx.offsetDistance}
               onChange={e => ctx.setOffsetDistance(parseFloat(e.target.value))}
               className="flex-1"
             />
-            <span className="font-mono text-[10px] text-[var(--text-primary)]">{ctx.offsetDistance}m</span>
+            <span className="font-mono text-[10px] text-[var(--text-primary)] w-10 text-right">{ctx.offsetDistance}m</span>
           </div>
+          <button
+            onClick={ctx.applyOneShotTool}
+            className="w-full py-1.5 rounded-lg bg-[var(--accent)]/15 border border-[var(--accent)]/30 text-[10px] font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/25 transition-colors"
+          >
+            Create Offset
+          </button>
         </div>
       )}
 
-      {/* AUDIT FIX (2026-07-05): Rotate angle slider.
-          Was hardcoded to 15° — now the user can pick any angle 0-360°. */}
+      {/* T0.2 FIX (2026-07-09): Rotate angle slider + Apply button.
+          Was hardcoded to 15° — now the user can pick any angle -180° to 360°
+          and the value actually flows through to rotatePolygon().
+          The Apply button lets the user rotate the same polygon multiple times
+          (previously the tool auto-deactivated after one rotation). */}
       {ctx.activeDigitizingTool === 'rotate' && (
-        <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06]">
+        <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] space-y-2">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">Angle:</span>
             <input
               aria-label="Rotation angle"
               type="range"
-              min="0"
+              min="-180"
               max="360"
               step="1"
               value={ctx.rotateAngle}
               onChange={e => ctx.setRotateAngle(parseFloat(e.target.value))}
               className="flex-1"
             />
-            <span className="font-mono text-[10px] text-[var(--text-primary)]">{ctx.rotateAngle}°</span>
+            <span className="font-mono text-[10px] text-[var(--text-primary)] w-10 text-right">{ctx.rotateAngle}°</span>
           </div>
+          <button
+            onClick={ctx.applyOneShotTool}
+            className="w-full py-1.5 rounded-lg bg-[var(--accent)]/15 border border-[var(--accent)]/30 text-[10px] font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/25 transition-colors"
+          >
+            Apply Rotation
+          </button>
         </div>
       )}
 
-      {/* Active tool instruction banner */}
+      {/* Merge Apply button — T0.1 FIX (2026-07-09): Merge now operates on the
+          user's Shift+click multi-selection (not every polygon in the source). */}
+      {ctx.activeDigitizingTool === 'merge' && (
+        <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06]">
+          <button
+            onClick={ctx.applyOneShotTool}
+            className="w-full py-1.5 rounded-lg bg-[var(--accent)]/15 border border-[var(--accent)]/30 text-[10px] font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/25 transition-colors"
+          >
+            Merge Selected Polygons
+          </button>
+        </div>
+      )}
+
+      {/* Active tool instruction banner — T0.7 FIX (2026-07-09): all messages
+          now honestly describe what the tool does and what the user must do. */}
       {ctx.activeDigitizingTool && ctx.activeDigitizingTool !== 'draw' && (
         <div className="mt-2 p-2.5 rounded-lg bg-[var(--accent)]/[0.06] border border-[var(--accent)]/20 flex items-start gap-2">
           <Info className="w-3 h-3 text-[var(--accent)] shrink-0 mt-0.5" />
           <div className="flex-1">
             <span className="font-mono text-[9px] text-[var(--accent)] uppercase tracking-[0.08em]">
               {ctx.activeDigitizingTool}
+              <span className="text-[var(--text-muted)] ml-2 normal-case tracking-normal">[{ctx.currentUtmEpsg}]</span>
             </span>
             <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
-              {ctx.activeDigitizingTool === 'split' && 'Draw a line across the polygon to split it into two parts. The line must cross the polygon at 2 points.'}
-              {ctx.activeDigitizingTool === 'merge' && 'Merges ALL polygons in the draw source into one. Draw 2+ adjacent polygons first, then click Merge.'}
-              {ctx.activeDigitizingTool === 'reshape' && 'Draw a new line across the polygon boundary. The boundary between intersection points will be replaced with your new line.'}
-              {ctx.activeDigitizingTool === 'rotate' && 'Click a polygon on the map to select it. Adjust the angle slider, then click Rotate to apply.'}
-              {ctx.activeDigitizingTool === 'offset' && 'Click a feature on the map to select it. Adjust the distance slider, then click Offset to create a parallel copy.'}
+              {ctx.activeDigitizingTool === 'split' && 'Draw a line across the polygon to split it into two. The line must cross the polygon at 2 points. If multiple polygons are present, Shift+click the one you want split first.'}
+              {ctx.activeDigitizingTool === 'merge' && 'Shift+click 2 or more adjacent polygons on the map (they must share an edge), then click "Merge Selected Polygons". Non-adjacent polygons cannot be merged.'}
+              {ctx.activeDigitizingTool === 'reshape' && 'Draw a new line across the polygon boundary. The boundary between the two intersection points will be replaced with your new line. Shift+click the target polygon first if multiple are present.'}
+              {ctx.activeDigitizingTool === 'rotate' && 'Click a polygon on the map to select it. Adjust the angle slider (negative = counterclockwise), then click "Apply Rotation". You can apply repeatedly to rotate further.'}
+              {ctx.activeDigitizingTool === 'offset' && 'Click a feature on the map to select it. Adjust the distance slider (negative = inward for polygons), then click "Create Offset". A new offset feature is added; the original is unchanged.'}
             </p>
           </div>
         </div>

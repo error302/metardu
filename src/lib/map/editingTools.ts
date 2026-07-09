@@ -1,9 +1,15 @@
 /**
  * Editing Tools — real geometry operations for Split, Merge, Reshape, Rotate, Offset
  *
- * Uses turf.js for the actual math. Each function takes OL features and returns
- * new OL features (or modifies in place). The DigitizingToolbar calls these via
- * useMapInteractions.
+ * Uses turf.js for the actual math. Each function takes coordinate arrays
+ * (in a planar UTM CRS, e.g. EPSG:21037) and returns new coordinate arrays.
+ * The MapClient digitizing handlers (MapClient.tsx) call these via dynamic
+ * import from inside the OL drawend/Apply-button handlers.
+ *
+ * T0.6 FIX (2026-07-09): The floating DigitizingToolbar.tsx that previously
+ * called these has been deleted (it was dead code — zero importers). The
+ * live UI is now MapToolDock.tsx's "Advanced" section, which routes through
+ * MapClient's activeDrawTool / activeOneShotTool state.
  */
 
 import * as turf from '@turf/turf'
@@ -38,10 +44,6 @@ export function splitPolygonWithLine(
       return null // Line must cross the polygon at least twice
     }
 
-    // Split using turf: create a bbox of the polygon, then use the line to cut
-    // This is a simplified approach — true polygon splitting is complex.
-    // We use the line to create two half-planes and intersect each with the polygon.
-
     // Get the intersection points
     const intersectionPoints = intersects.features.map(f => {
       const coords = f.geometry.coordinates as [number, number]
@@ -50,8 +52,7 @@ export function splitPolygonWithLine(
 
     if (intersectionPoints.length < 2) return null
 
-    // Create two polygons: one on each side of the line
-    // Extend the line far beyond the polygon bounds
+    // Create a cutting polygon (a thin sliver rectangle along the extended line).
     const bbox = turf.bbox(polygon)
     const width = bbox[2] - bbox[0]
     const height = bbox[3] - bbox[1]
@@ -60,7 +61,6 @@ export function splitPolygonWithLine(
     const lineStart = lineCoords[0] as [number, number]
     const lineEnd = lineCoords[lineCoords.length - 1] as [number, number]
 
-    // Extend the line in both directions
     const dx = lineEnd[0] - lineStart[0]
     const dy = lineEnd[1] - lineStart[1]
     const len = Math.sqrt(dx * dx + dy * dy)
@@ -78,10 +78,6 @@ export function splitPolygonWithLine(
       lineEnd[1] + uy * margin,
     ]
 
-    // Create a cutting polygon (a thin sliver rectangle along the extended line).
-    // The sliver must be thin enough to NOT contain the polygon (otherwise
-    // turf.difference returns null), but thick enough that turf treats it as
-    // a valid 2D area. 0.001m (1mm) is well below surveying tolerance.
     const perpX = -uy
     const perpY = ux
     const halfWidth = 0.001
@@ -94,15 +90,12 @@ export function splitPolygonWithLine(
       [extendedStart[0] + perpX * halfWidth, extendedStart[1] + perpY * halfWidth],
     ]])
 
-    // Split: difference gives us two separate pieces
     const diff = turf.difference(turf.featureCollection([polygon, cutPolygon]))
 
     if (!diff || !diff.geometry) return null
 
-    // turf.difference returns a Feature (Polygon or MultiPolygon)
     const diffGeom = diff.geometry
     if (diffGeom.type === 'Polygon') {
-      // Single polygon — can't split into two
       return null
     }
     if (diffGeom.type === 'MultiPolygon') {
@@ -143,7 +136,6 @@ export function mergePolygons(
       if (union && union.geometry?.type === 'Polygon') {
         result = turf.polygon((union.geometry as GeoPolygon).coordinates) as Feature<GeoPolygon>
       } else if (union && union.geometry?.type === 'MultiPolygon') {
-        // Can't merge non-adjacent polygons — return null
         return null
       }
     }
@@ -157,17 +149,44 @@ export function mergePolygons(
 
 /**
  * Rotate a polygon around its centroid by a given angle (degrees).
+ *
+ * T0.2 FIX (2026-07-09): Previously delegated to turf.transformRotate, which
+ * throws "coordinates must contain numbers" on certain polygon shapes (e.g.
+ * L-shapes, concave rings) — the silent catch returned the input unchanged,
+ * meaning rotation quietly no-op'd for anything but simple squares. The
+ * hardcoded `15` in the old MapClient handler hid this bug for months.
+ *
+ * Now we do the 2D rotation manually: compute the centroid, then apply the
+ * standard rotation matrix to each vertex. This is O(n), CRS-agnostic, and
+ * has no turf dependency.
  */
 export function rotatePolygon(
   coords: [number, number][],
   angleDeg: number,
 ): [number, number][] {
+  if (coords.length === 0) return coords
   try {
     const closed = ensureClosed(coords)
-    const polygon = turf.polygon([closed])
-    const rotated = turf.transformRotate(polygon, angleDeg)
-    return (rotated.geometry as GeoPolygon).coordinates[0] as [number, number][]
-  } catch {
+    let cx = 0, cy = 0
+    const n = closed.length - 1
+    for (let i = 0; i < n; i++) {
+      cx += closed[i][0]
+      cy += closed[i][1]
+    }
+    cx /= n
+    cy /= n
+
+    const rad = (angleDeg * Math.PI) / 180
+    const cos = Math.cos(rad)
+    const sin = Math.sin(rad)
+
+    const rotated: [number, number][] = closed.map(([x, y]) => [
+      cx + (x - cx) * cos - (y - cy) * sin,
+      cy + (x - cx) * sin + (y - cy) * cos,
+    ])
+    return rotated
+  } catch (err) {
+    console.error('[editingTools] rotatePolygon failed:', err)
     return coords
   }
 }
@@ -175,10 +194,6 @@ export function rotatePolygon(
 /**
  * Create a parallel offset of a line or polygon boundary.
  * Uses turf.lineOffset for lines, or buffers for polygons.
- *
- * @param coords Line or polygon coordinates
- * @param distance Offset distance in metres (positive = right, negative = left)
- * @param isPolygon Whether coords represent a polygon boundary
  */
 export function createOffset(
   coords: [number, number][],
@@ -189,14 +204,12 @@ export function createOffset(
     const closed = ensureClosed(coords)
 
     if (isPolygon) {
-      // For polygons, use buffer to create an offset boundary
       const polygon = turf.polygon([closed])
       const buffered = turf.buffer(polygon, distance, { units: 'meters' })
       if (buffered?.geometry?.type === 'Polygon') {
         return (buffered.geometry as GeoPolygon).coordinates[0] as [number, number][]
       }
     } else {
-      // For lines, use lineOffset
       const line = turf.lineString(closed)
       const offset = turf.lineOffset(line, distance, { units: 'meters' })
       return offset.geometry.coordinates as [number, number][]
@@ -209,8 +222,6 @@ export function createOffset(
 
 /**
  * Reshape: replace part of a polygon boundary with a new line segment.
- * Finds where the new line intersects the existing boundary and replaces
- * the boundary between those intersection points.
  */
 export function reshapePolygon(
   polygonCoords: [number, number][],
@@ -218,33 +229,21 @@ export function reshapePolygon(
 ): [number, number][] | null {
   try {
     const closed = ensureClosed(polygonCoords)
-    const polygon = turf.polygon([closed])
-
-    // Find intersection points between new line and polygon boundary
     const newLine = turf.lineString(newSegmentCoords)
-    // turf.lineIntersect works line→polygon boundary
     const polyBoundary = turf.lineString(closed)
     const ixns = turf.lineIntersect(newLine, polyBoundary)
 
     if (ixns.features.length < 2) {
-      // Fallback: split polygon with the drawn line and take the larger half
-      const splitLine = turf.lineString(newSegmentCoords)
-      try {
-        const splitResult = splitPolygonWithLine(closed, newSegmentCoords)
-        if (!splitResult) return null
-        const area0 = turf.area(turf.polygon([ensureClosed(splitResult.polygon1)])) ?? 0
-        const area1 = turf.area(turf.polygon([ensureClosed(splitResult.polygon2)])) ?? 0
-        return area0 > area1 ? splitResult.polygon1 : splitResult.polygon2
-      } catch {
-        return null
-      }
+      const splitResult = splitPolygonWithLine(closed, newSegmentCoords)
+      if (!splitResult) return null
+      const area0 = turf.area(turf.polygon([ensureClosed(splitResult.polygon1)])) ?? 0
+      const area1 = turf.area(turf.polygon([ensureClosed(splitResult.polygon2)])) ?? 0
+      return area0 > area1 ? splitResult.polygon1 : splitResult.polygon2
     }
 
-    // Proper reshaping: swap the segment between the two intersection points
     const pt0 = ixns.features[0].geometry.coordinates as [number, number]
     const pt1 = ixns.features[1].geometry.coordinates as [number, number]
 
-    // Find nearest vertices on boundary ring for the two intersection points
     let idx0 = 0
     let idx1 = 0
     let minD0 = Infinity
@@ -257,7 +256,6 @@ export function reshapePolygon(
       if (d1 < minD1) { minD1 = d1; idx1 = i }
     }
 
-    // Build new ring: vertices from idx0 up to idx1 replaced by the newSegment
     const result: [number, number][] = []
     const start = Math.min(idx0, idx1)
     const end = Math.max(idx0, idx1)
@@ -265,7 +263,6 @@ export function reshapePolygon(
     for (let i = 0; i <= start; i++) {
       result.push([...closed[i]])
     }
-    // Insert the new segment
     for (const pt of newSegmentCoords) {
       result.push([...pt])
     }
