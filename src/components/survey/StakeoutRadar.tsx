@@ -21,9 +21,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Target, Navigation, Crosshair, Volume2, VolumeX, X } from 'lucide-react'
 
 interface StakeoutRadarProps {
-  targetE: number  // Target easting (EPSG:21037)
-  targetN: number  // Target northing (EPSG:21037)
+  targetE: number  // Target easting (UTM)
+  targetN: number  // Target northing (UTM)
   onClose?: () => void
+  /** T1.5 FIX (2026-07-09): UTM EPSG for GPS→UTM transform (default 'EPSG:21037') */
+  epsg?: string
 }
 
 interface Position {
@@ -34,7 +36,7 @@ interface Position {
   northing: number
 }
 
-export function StakeoutRadar({ targetE, targetN, onClose }: StakeoutRadarProps) {
+export function StakeoutRadar({ targetE, targetN, onClose, epsg = 'EPSG:21037' }: StakeoutRadarProps) {
   const [position, setPosition] = useState<Position | null>(null)
   const [distance, setDistance] = useState<number | null>(null)
   const [bearing, setBearing] = useState<number | null>(null)
@@ -44,16 +46,16 @@ export function StakeoutRadar({ targetE, targetN, onClose }: StakeoutRadarProps)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const lastBeepRef = useRef<number>(0)
 
-  // Transform WGS84 to EPSG:21037
+  // Transform WGS84 to UTM
   const transformToUTM = useCallback(async (lat: number, lng: number): Promise<{ easting: number; northing: number }> => {
     try {
       const { transform } = await import('ol/proj')
-      const [e, n] = transform([lng, lat], 'EPSG:4326', 'EPSG:21037') as [number, number]
+      const [e, n] = transform([lng, lat], 'EPSG:4326', epsg) as [number, number]
       return { easting: e, northing: n }
     } catch {
       return { easting: 0, northing: 0 }
     }
-  }, [])
+  }, [epsg])
 
   // Start watching position
   const startWatch = useCallback(() => {

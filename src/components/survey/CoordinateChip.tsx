@@ -26,6 +26,8 @@ interface CoordinateChipProps {
   accuracy?: number
   /** Compact mode — smaller text, single line per datum */
   compact?: boolean
+  /** T1.5 FIX (2026-07-09): UTM EPSG for the transform (default 'EPSG:21037') */
+  epsg?: string
 }
 
 interface DatumDisplay {
@@ -41,6 +43,7 @@ export function CoordinateChip({
   label,
   accuracy,
   compact = false,
+  epsg = 'EPSG:21037',
 }: CoordinateChipProps) {
   const [datums, setDatums] = useState<DatumDisplay>({
     wgs84: { lat, lng },
@@ -53,11 +56,11 @@ export function CoordinateChip({
 
     async function transform() {
       try {
-        // Transform to EPSG:21037 (Arc 1960 / UTM 37S)
+        // Transform to UTM (Arc 1960 / UTM 37S by default)
         let utm37s: { easting: number; northing: number } | null = null
         try {
           const { transform } = await import('ol/proj')
-          const [e, n] = transform([lng, lat], 'EPSG:4326', 'EPSG:21037') as [number, number]
+          const [e, n] = transform([lng, lat], 'EPSG:4326', epsg) as [number, number]
           if (!cancelled && isFinite(e) && isFinite(n)) {
             utm37s = { easting: e, northing: n }
           }

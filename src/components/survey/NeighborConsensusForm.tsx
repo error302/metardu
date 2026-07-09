@@ -32,6 +32,8 @@ interface NeighborConsensusFormProps {
   surveyorLicense: string
   onConsensusCaptured?: (record: NeighborConsensusRecord) => void
   onClose?: () => void
+  /** T1.5 FIX (2026-07-09): UTM EPSG for GPS→UTM transform (default 'EPSG:21037') */
+  epsg?: string
 }
 
 export function NeighborConsensusForm({
@@ -42,6 +44,7 @@ export function NeighborConsensusForm({
   surveyorLicense,
   onConsensusCaptured,
   onClose,
+  epsg = 'EPSG:21037',
 }: NeighborConsensusFormProps) {
   const [neighborName, setNeighborName] = useState('')
   const [neighborNationalId, setNeighborNationalId] = useState('')
@@ -77,7 +80,7 @@ export function NeighborConsensusForm({
       async (pos) => {
         try {
           const { transform } = await import('ol/proj')
-          const [e, n] = transform([pos.coords.longitude, pos.coords.latitude], 'EPSG:4326', 'EPSG:21037') as [number, number]
+          const [e, n] = transform([pos.coords.longitude, pos.coords.latitude], 'EPSG:4326', epsg) as [number, number]
           const position = { easting: e, northing: n }
           setCurrentPos(position)
 

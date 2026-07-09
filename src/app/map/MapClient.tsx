@@ -416,6 +416,7 @@ export default function MapClient() {
     popupRef,
     createBasemaps,
     onPopupRender: renderPopup,
+    currentUtmEpsg, // T1.5: pass for mouse position coordinate display
   })
 
   // ── Map state persistence ──

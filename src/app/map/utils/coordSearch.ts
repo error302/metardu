@@ -224,6 +224,7 @@ function looksLikeParcelNumber(input: string): boolean {
 export async function handleCoordSearch(
   searchInput: string,
   mapInstance: MutableRefObject<any>,
+  epsg: string = 'EPSG:21037',
 ): Promise<void> {
   if (!mapInstance.current || !searchInput.trim()) return
 
@@ -277,10 +278,10 @@ export async function handleCoordSearch(
 
     // If values look like Eastings/Northings (large numbers), treat differently
     if (Math.abs(parts[0]) > 100 && Math.abs(parts[1]) > 100) {
-      // Likely UTM coordinates - try to transform from EPSG:21037
+      // Likely UTM coordinates - try to transform from the active UTM zone
       try {
         const { transform } = await import('ol/proj')
-        const [x, y] = transform([parts[0], parts[1]], 'EPSG:21037', 'EPSG:3857')
+        const [x, y] = transform([parts[0], parts[1]], epsg, 'EPSG:3857')
         mapInstance.current.getView().animate({ center: [x, y], zoom: 16, duration: 600 })
       } catch { /* fallback */ }
     } else {

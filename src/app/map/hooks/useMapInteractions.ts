@@ -1065,8 +1065,8 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
   const handleCoordSearchLocal = useCallback(async (searchInput: string) => {
     const { handleCoordSearch } = await import('@/app/map/utils/coordSearch')
-    await handleCoordSearch(searchInput, p.mapInstance)
-  }, [])
+    await handleCoordSearch(searchInput, p.mapInstance, epsg)
+  }, [epsg])
 
   const updateFeatureName = useCallback((name: string, selectedFeature: any) => {
     if (selectedFeature) {

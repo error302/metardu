@@ -46,6 +46,8 @@ interface UseMapInitParams {
   popupRef: React.MutableRefObject<HTMLDivElement | null>
   createBasemaps: (olModules: any) => Record<string, any>
   onPopupRender: (popupElement: HTMLDivElement, data: any, hidePopup: () => void) => void
+  /** T1.5 FIX (2026-07-09): UTM EPSG for mouse position coordinate display */
+  currentUtmEpsg?: string
 }
 
 export function useMapInit(params: UseMapInitParams) {
@@ -308,7 +310,7 @@ export function useMapInit(params: UseMapInitParams) {
                 const lat = coord[1]
                 if (lon == null || lat == null || isNaN(lon) || isNaN(lat)) return ''
                 try {
-                  const [e, n] = proj.transform(coord, 'EPSG:3857', 'EPSG:21037')
+                  const [e, n] = proj.transform(coord, 'EPSG:3857', params.currentUtmEpsg || 'EPSG:21037')
                   const eSafe = (e != null && !isNaN(e)) ? e : 0
                   const nSafe = (n != null && !isNaN(n)) ? n : 0
                   const now = Date.now()
