@@ -205,7 +205,8 @@ export async function createParcelFromTraverse(
  * All OL imports are dynamic for SSR compatibility.
  */
 export async function createTraversePolygonPreview(
-  traversePoints: Array<{ easting: number; northing: number; pointName: string }>
+  traversePoints: Array<{ easting: number; northing: number; pointName: string }>,
+  epsg: string = 'EPSG:21037',
 ): Promise<{
   source: import('ol/source/Vector').default
   layer: import('ol/layer/Vector').default
@@ -238,9 +239,9 @@ export async function createTraversePolygonPreview(
 
   const source = new VectorSource()
 
-  // Transform coordinates from EPSG:21037 to EPSG:3857 for display
+  // Transform coordinates from UTM to EPSG:3857 for display
   const ring3857 = traversePoints.map(p => {
-    const [x, y] = transform([p.easting, p.northing], 'EPSG:21037', 'EPSG:3857')
+    const [x, y] = transform([p.easting, p.northing], epsg, 'EPSG:3857')
     return [x, y]
   })
   // Close the ring
@@ -260,7 +261,7 @@ export async function createTraversePolygonPreview(
 
   // Add point markers for each traverse station
   for (const p of traversePoints) {
-    const coord = transform([p.easting, p.northing], 'EPSG:21037', 'EPSG:3857')
+    const coord = transform([p.easting, p.northing], epsg, 'EPSG:3857')
     const pointFeature = new Feature({
       geometry: new Point(coord),
     })

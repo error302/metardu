@@ -89,9 +89,9 @@ export async function createParcelLayer(
  */
 export async function createParcelLayerFromScheme(
   projectId: string,
-  options: { showLabels?: boolean } = {},
+  options: { showLabels?: boolean; epsg?: string } = {},
 ): Promise<import('ol/layer/Vector').default> {
-  const { showLabels = true } = options
+  const { showLabels = true, epsg = 'EPSG:21037' } = options
 
   // Ensure projections are registered before any coordinate transforms
   await registerProjections()
@@ -148,7 +148,7 @@ export async function createParcelLayerFromScheme(
 
     for (const ring of rings) {
       const transformedRing: Array<[number, number]> = ring.map((coord: number[]) => {
-        return transform([coord[0], coord[1]], 'EPSG:21037', 'EPSG:3857') as [number, number]
+        return transform([coord[0], coord[1]], epsg, 'EPSG:3857') as [number, number]
       })
       transformedRings.push(transformedRing)
     }

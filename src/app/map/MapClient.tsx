@@ -647,6 +647,7 @@ export default function MapClient() {
       const result = await createSchemeLayers(schemeProjectId, mapInstance.current, {
         autoZoom: true,
         showParcelLabels: true,
+        epsg: currentUtmEpsg, // T1.5: pass the active UTM EPSG
       })
 
       schemeCleanupRef.current = result.cleanup

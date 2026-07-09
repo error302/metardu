@@ -76,6 +76,8 @@ export interface SchemeLayerOptions {
   onParcelClick?: (properties: SchemeFeature['properties']) => void
   /** Callback when a beacon feature is clicked */
   onBeaconClick?: (properties: SchemeFeature['properties']) => void
+  /** T1.5 FIX (2026-07-09): UTM EPSG for coordinate transforms (default 'EPSG:21037') */
+  epsg?: string
 }
 
 // ─── Data Fetching ────────────────────────────────────────────────────────
@@ -111,12 +113,13 @@ export async function loadSchemeData(projectId: string): Promise<SchemeGeoJSON> 
  */
 async function transformRing(
   ring: number[][],
+  epsg: string = 'EPSG:21037',
 ): Promise<Array<[number, number]>> {
   const { transform } = await import('ol/proj')
   return ring.map(coord => {
     const transformed = transform(
       [coord[0], coord[1]],
-      'EPSG:21037',
+      epsg,
       'EPSG:3857',
     ) as [number, number]
     return transformed
@@ -128,9 +131,10 @@ async function transformRing(
  */
 async function transformCoord(
   coord: number[],
+  epsg: string = 'EPSG:21037',
 ): Promise<[number, number]> {
   const { transform } = await import('ol/proj')
-  return transform([coord[0], coord[1]], 'EPSG:21037', 'EPSG:3857') as [number, number]
+  return transform([coord[0], coord[1]], epsg, 'EPSG:3857') as [number, number]
 }
 
 // ─── Layer Factories ──────────────────────────────────────────────────────
@@ -150,7 +154,7 @@ export async function createSchemeParcelLayer(
   projectId: string,
   options: SchemeLayerOptions = {},
 ): Promise<import('ol/layer/Vector').default> {
-  const { showParcelLabels = true } = options
+  const { showParcelLabels = true, epsg = 'EPSG:21037' } = options
 
   // Ensure projections are registered before any transforms
   await registerProjections()
@@ -188,7 +192,7 @@ export async function createSchemeParcelLayer(
     const transformedRings: Array<Array<[number, number]>> = []
 
     for (const ring of rings) {
-      const transformedRing = await transformRing(ring)
+      const transformedRing = await transformRing(ring, epsg)
       transformedRings.push(transformedRing)
     }
 
@@ -231,6 +235,7 @@ export async function createSchemeParcelLayer(
  */
 export async function createSchemeBlockLayer(
   projectId: string,
+  epsg: string = 'EPSG:21037',
 ): Promise<import('ol/layer/Vector').default> {
   await registerProjections()
 
@@ -265,7 +270,7 @@ export async function createSchemeBlockLayer(
     if (feat.geometry.type !== 'Point') continue
 
     const coord = feat.geometry.coordinates as number[]
-    const [x, y] = await transformCoord(coord)
+    const [x, y] = await transformCoord(coord, epsg)
 
     const olFeature = new Feature({
       geometry: new Point([x, y]),
@@ -323,6 +328,7 @@ export async function createSchemeBlockLayer(
  */
 export async function createSchemeBeaconLayer(
   projectId: string,
+  epsg: string = 'EPSG:21037',
 ): Promise<import('ol/layer/Vector').default> {
   await registerProjections()
 
@@ -361,7 +367,7 @@ export async function createSchemeBeaconLayer(
     seenStations.add(stationKey)
 
     const coord = feat.geometry.coordinates as number[]
-    const [x, y] = await transformCoord(coord)
+    const [x, y] = await transformCoord(coord, epsg)
 
     const olFeature = new Feature({
       geometry: new Point([x, y]),
@@ -709,9 +715,9 @@ export async function zoomToSchemeExtent(
  */
 async function buildParcelLayerFromData(
   data: SchemeGeoJSON,
-  options: { showParcelLabels?: boolean } = {},
+  options: { showParcelLabels?: boolean; epsg?: string } = {},
 ): Promise<import('ol/layer/Vector').default> {
-  const { showParcelLabels = true } = options
+  const { showParcelLabels = true, epsg = 'EPSG:21037' } = options
 
   const [
     { default: VectorLayer },
@@ -741,7 +747,7 @@ async function buildParcelLayerFromData(
     const transformedRings: Array<Array<[number, number]>> = []
 
     for (const ring of rings) {
-      const transformedRing = await transformRing(ring)
+      const transformedRing = await transformRing(ring, epsg)
       transformedRings.push(transformedRing)
     }
 
@@ -776,6 +782,7 @@ async function buildParcelLayerFromData(
  */
 async function buildBlockLayerFromData(
   data: SchemeGeoJSON,
+  epsg: string = 'EPSG:21037',
 ): Promise<import('ol/layer/Vector').default> {
   const [
     { default: VectorLayer },
@@ -806,7 +813,7 @@ async function buildBlockLayerFromData(
     if (feat.geometry.type !== 'Point') continue
 
     const coord = feat.geometry.coordinates as number[]
-    const [x, y] = await transformCoord(coord)
+    const [x, y] = await transformCoord(coord, epsg)
 
     const olFeature = new Feature({
       geometry: new Point([x, y]),
@@ -857,6 +864,7 @@ async function buildBlockLayerFromData(
  */
 async function buildBeaconLayerFromData(
   data: SchemeGeoJSON,
+  epsg: string = 'EPSG:21037',
 ): Promise<import('ol/layer/Vector').default> {
   const [
     { default: VectorLayer },
@@ -889,7 +897,7 @@ async function buildBeaconLayerFromData(
     seenStations.add(stationKey)
 
     const coord = feat.geometry.coordinates as number[]
-    const [x, y] = await transformCoord(coord)
+    const [x, y] = await transformCoord(coord, epsg)
 
     const olFeature = new Feature({
       geometry: new Point([x, y]),
@@ -949,7 +957,7 @@ export async function createSchemeLayers(
   beaconCount: number
   extent: number[] | null
 }> {
-  const { autoZoom = true, showParcelLabels = true } = options
+  const { autoZoom = true, showParcelLabels = true, epsg = 'EPSG:21037' } = options
 
   // Ensure projections are registered
   await registerProjections()
@@ -959,9 +967,9 @@ export async function createSchemeLayers(
 
   // Create all three layers using the shared data
   const [parcelLayer, blockLayer, beaconLayer] = await Promise.all([
-    buildParcelLayerFromData(data, { showParcelLabels }),
-    buildBlockLayerFromData(data),
-    buildBeaconLayerFromData(data),
+    buildParcelLayerFromData(data, { showParcelLabels, epsg }),
+    buildBlockLayerFromData(data, epsg),
+    buildBeaconLayerFromData(data, epsg),
   ])
 
   // Add layers to map

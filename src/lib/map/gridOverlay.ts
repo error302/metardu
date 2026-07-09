@@ -81,7 +81,8 @@ export async function createGridOverlayLayer(): Promise<import('ol/layer/Vector'
  */
 export async function updateGridOverlay(
   map: import('ol/Map').default,
-  interval: GridInterval = 'auto'
+  interval: GridInterval = 'auto',
+  epsg: string = 'EPSG:21037',
 ): Promise<void> {
   const { transform } = await import('ol/proj');
   const {
@@ -126,12 +127,12 @@ export async function updateGridOverlay(
 
   const resolvedInterval: number = interval === 'auto' ? getAutoInterval(zoom) : interval;
 
-  // Convert extent corners from EPSG:3857 to EPSG:21037
+  // Convert extent corners from EPSG:3857 to UTM
   const bottomLeft3857: [number, number] = [extent[0], extent[1]];
   const topRight3857: [number, number] = [extent[2], extent[3]];
 
-  const bottomLeft21037 = transform(bottomLeft3857, 'EPSG:3857', 'EPSG:21037') as [number, number];
-  const topRight21037 = transform(topRight3857, 'EPSG:3857', 'EPSG:21037') as [number, number];
+  const bottomLeft21037 = transform(bottomLeft3857, 'EPSG:3857', epsg) as [number, number];
+  const topRight21037 = transform(topRight3857, 'EPSG:3857', epsg) as [number, number];
 
   const minE = bottomLeft21037[0];
   const maxE = topRight21037[0];
