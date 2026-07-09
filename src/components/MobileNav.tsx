@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react'
 import {
   FolderKanban, LayoutDashboard, MapPinned, UserRound, UsersRound, Wrench, FileText,
   CalendarDays, Radar, Store, ChevronRight, X, AlertTriangle, Clock,
-  BookOpen, Compass
+  BookOpen, Compass, MapPin
 } from 'lucide-react'
 import { PRIMARY_NAV_ITEMS, isNavItemActive } from '@/lib/navigation-shell'
 
@@ -25,6 +25,7 @@ const iconMap: Record<string, any> = {
 const MORE_PAGES = [
   { href: '/fieldbook', label: 'Field Book', icon: BookOpen, color: 'text-orange-400' },
   { href: '/field', label: 'Field Mode', icon: Compass, color: 'text-cyan-400' },
+  { href: '/beacons', label: 'Beacon Registry', icon: MapPin, color: 'text-amber-400' },
   { href: '/schedule', label: 'Job Schedule', icon: CalendarDays, color: 'text-blue-400' },
   { href: '/equipment', label: 'Equipment Tracker', icon: Radar, color: 'text-green-400' },
   { href: '/marketplace', label: 'Equipment Marketplace', icon: Store, color: 'text-amber-400' },

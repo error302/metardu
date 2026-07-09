@@ -21,6 +21,9 @@ import {
   Upload,
 } from 'lucide-react'
 import { FieldBookMobile } from '@/components/fieldbook/FieldBookMobile'
+import { ToleranceBadge } from '@/components/survey/ToleranceBadge'
+import { checkTolerance, type ToleranceCheckResult } from '@/lib/survey/liveToleranceChecker'
+import type { RawObservation } from '@/lib/computations/traverseEngine'
 
 type Tab = 'points' | 'traverse' | 'leveling' | 'radiation' | 'offline' | 'map'
 type SyncStatus = 'synced' | 'pending' | 'offline'
@@ -60,6 +63,9 @@ export default function FieldPage() {
   const [tSec, setTSec] = useState('')
   const [tLegs, setTLegs] = useState<any[]>([])
   const [tTotal, setTTotal] = useState(0)
+
+  // Tolerance check state (Phase 1 — live field-side closure checking)
+  const [toleranceResult, setToleranceResult] = useState<ToleranceCheckResult | null>(null)
 
   // Leveling state
   const [lStation, setLStation] = useState('')
@@ -249,6 +255,54 @@ export default function FieldPage() {
   }
 
   const traverseTotal = tLegs.reduce((sum, l) => sum + l.distance, 0)
+
+  // Phase 1: Live tolerance check — recompute whenever traverse legs change
+  useEffect(() => {
+    if (tLegs.length < 3 || !selectedProject) {
+      setToleranceResult(null)
+      return
+    }
+
+    try {
+      // Convert field page traverse legs to RawObservation format
+      const observations: RawObservation[] = tLegs.map((leg) => ({
+        station: leg.toStation,
+        bs: leg.fromStation,
+        fs: leg.toStation,
+        hclDeg: String(leg.bearing.deg),
+        hclMin: String(leg.bearing.min),
+        hclSec: String(leg.bearing.sec),
+        hcrDeg: String((leg.bearing.deg + 180) % 360),
+        hcrMin: String(leg.bearing.min),
+        hcrSec: String(leg.bearing.sec),
+        slopeDist: String(leg.distance),
+        vaDeg: '90', vaMin: '00', vaSec: '00',
+        ih: '1.5', th: '1.5',
+      }))
+
+      // Get project survey type
+      const project = projects.find(p => p.id === selectedProject)
+      const surveyType = (project?.survey_type as any) || 'cadastral'
+
+      const result = checkTolerance({
+        surveyType,
+        observations,
+        openingEasting: 264000,
+        openingNorthing: 9861000,
+        openingStation: tLegs[0]?.fromStation || 'A',
+        closingEasting: 264000,
+        closingNorthing: 9861000,
+        closingStation: tLegs[0]?.fromStation || 'A',
+        backsightBearingDeg: 0,
+        backsightBearingMin: 0,
+        backsightBearingSec: 0,
+      })
+      setToleranceResult(result)
+    } catch {
+      // Tolerance check may fail if data is incomplete — that's OK
+      setToleranceResult(null)
+    }
+  }, [tLegs, selectedProject, projects])
 
   const renderTabButton = (tab: Tab, Icon: any, label: string) => (
     <button
@@ -463,7 +517,14 @@ export default function FieldPage() {
               <h2 className="text-xs font-semibold text-white uppercase tracking-wide">{t('field.traverse')}</h2>
               <span className="text-[10px] text-[var(--text-muted)]">{t('field.total')}: {traverseTotal.toFixed(2)} m</span>
             </div>
-            
+
+            {/* Phase 1: Live tolerance badge — shows green/red closure status */}
+            {toleranceResult && (
+              <div className="sticky top-0 z-10">
+                <ToleranceBadge result={toleranceResult} compact />
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('field.traverse')} →</label>

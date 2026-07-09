@@ -693,6 +693,9 @@ export default function NavBar() {
                   <Link href="/field" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     {t('field.fieldMode')}
                   </Link>
+                  <Link href="/beacons" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                    Beacon Registry
+                  </Link>
                   <Link href="/docs" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     Documentation
                   </Link>
