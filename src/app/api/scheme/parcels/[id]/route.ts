@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
+import { apiHandler } from '@/lib/apiHandler'
 import { UpdateParcelSchema } from '@/lib/validation/apiSchemas'
 
 export const dynamic = 'force-dynamic'
@@ -26,10 +26,6 @@ export const PATCH = apiHandler(
     if (check.rows.length === 0) {
       return NextResponse.json({ error: 'Parcel not found' }, { status: 404 })
     }
-
-    // Optimistic locking — check if the record was modified since the client last read it
-    const conflict = checkOptimisticLock(validated, check.rows[0])
-    if (conflict) return conflict
 
     if (validated.parcel_number) {
       const dupCheck = await db.query(
@@ -71,10 +67,26 @@ export const PATCH = apiHandler(
 
     updates.push(`updated_at = NOW()`)
     values.push(parcelId)
+    // T1.8 FIX (2026-07-09): Optimistic lock guard in the SQL WHERE clause itself.
+    // The old checkOptimisticLock() did SELECT → JS check → UPDATE without the guard,
+    // allowing a TOCTOU race. Now the UPDATE is atomic: if updated_at changed,
+    // 0 rows are returned and we send 409.
+    const clientUpdatedAt = validated.updated_at
+    if (!clientUpdatedAt) {
+      return NextResponse.json({ error: 'updated_at is required for optimistic locking', code: 'CONFLICT' }, { status: 409 })
+    }
+    values.push(clientUpdatedAt)
     const result = await db.query(
-      `UPDATE parcels SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      `UPDATE parcels SET ${updates.join(', ')} WHERE id = $${paramIndex} AND updated_at = $${paramIndex + 1} RETURNING *`,
       values
     )
+
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'This parcel was modified by another user. Please refresh and try again.', code: 'CONFLICT' },
+        { status: 409 }
+      )
+    }
 
     return NextResponse.json({ data: result.rows[0] })
   }

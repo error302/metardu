@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
+import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 
@@ -50,9 +50,7 @@ export const PATCH = apiHandler(
       )
     }
 
-    // Optimistic lock check
-    const conflict = checkOptimisticLock(body as unknown as Record<string, unknown>, rows[0])
-    if (conflict) return conflict
+    // T1.8 FIX (2026-07-09): Optimistic lock guard moved to the SQL WHERE clause.
 
     // Build dynamic UPDATE for users table
     const userFields: string[] = []
@@ -100,10 +98,18 @@ export const PATCH = apiHandler(
     if (userFields.length > 0) {
       userFields.push(`updated_at = NOW()`)
       userValues.push(userId)
-      await db.query(
-        `UPDATE users SET ${userFields.join(', ')} WHERE id = $${userParamIdx}`,
+      // T1.8: Add optimistic lock guard to WHERE clause
+      userValues.push(body.updated_at)
+      const userResult = await db.query(
+        `UPDATE users SET ${userFields.join(', ')} WHERE id = $${userParamIdx} AND updated_at = $${userParamIdx + 1} RETURNING id`,
         userValues
       )
+      if (userResult.rows.length === 0) {
+        return NextResponse.json(
+          { error: 'This user was modified by another admin. Please refresh and try again.', code: 'CONFLICT' },
+          { status: 409 }
+        )
+      }
     }
 
     // Update surveyor_profiles table if there are profile fields to update

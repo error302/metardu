@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { apiHandler, apiSuccess, checkOptimisticLock } from '@/lib/apiHandler'
+import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 
@@ -47,21 +47,31 @@ export const PATCH = apiHandler(
       )
     }
 
-    // Optimistic lock check
-    const conflict = checkOptimisticLock(payload as unknown as Record<string, unknown>, rows[0])
-    if (conflict) return conflict
+    // T1.8 FIX (2026-07-09): Optimistic lock guard moved to the SQL WHERE clause.
 
     if (payload.verified) {
-      await db.query(
-        `UPDATE users SET verified_isk = true, updated_at = NOW() WHERE id = $1`,
-        [userId],
+      const result = await db.query(
+        `UPDATE users SET verified_isk = true, updated_at = NOW() WHERE id = $1 AND updated_at = $2 RETURNING id`,
+        [userId, payload.updated_at],
       )
+      if (result.rows.length === 0) {
+        return NextResponse.json(
+          { error: 'This user was modified by another admin. Please refresh and try again.', code: 'CONFLICT' },
+          { status: 409 }
+        )
+      }
     } else {
       // Reject: clear the ISK number so they can resubmit
-      await db.query(
-        `UPDATE users SET isk_number = NULL, updated_at = NOW() WHERE id = $1`,
-        [userId],
+      const result = await db.query(
+        `UPDATE users SET isk_number = NULL, updated_at = NOW() WHERE id = $1 AND updated_at = $2 RETURNING id`,
+        [userId, payload.updated_at],
       )
+      if (result.rows.length === 0) {
+        return NextResponse.json(
+          { error: 'This user was modified by another admin. Please refresh and try again.', code: 'CONFLICT' },
+          { status: 409 }
+        )
+      }
     }
 
     return apiSuccess({ userId, verified: payload.verified })

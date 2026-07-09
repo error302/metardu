@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
+import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { requireSurveyPointOwnership } from '@/lib/auth/ownership'
 import { z } from 'zod'
@@ -53,9 +53,7 @@ export const PATCH = apiHandler(
       )
     }
 
-    // Optimistic lock check
-    const conflict = checkOptimisticLock(body as unknown as Record<string, unknown>, rows[0])
-    if (conflict) return conflict
+    // T1.8 FIX (2026-07-09): Optimistic lock guard moved to the SQL WHERE clause.
 
     // Build dynamic UPDATE — only SET fields that were provided
     const fields: string[] = []
@@ -88,11 +86,20 @@ export const PATCH = apiHandler(
     // Always bump updated_at
     fields.push(`updated_at = NOW()`)
     values.push(id)
+    // T1.8: Add the optimistic lock guard to the WHERE clause
+    values.push(body.updated_at)
 
     const result = await db.query(
-      `UPDATE survey_points SET ${fields.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      `UPDATE survey_points SET ${fields.join(', ')} WHERE id = $${paramIdx} AND updated_at = $${paramIdx + 1} RETURNING *`,
       values
     )
+
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'This survey point was modified by another user. Please refresh and try again.', code: 'CONFLICT' },
+        { status: 409 }
+      )
+    }
 
     return NextResponse.json({ data: result.rows[0] })
   }

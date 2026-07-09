@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/auth/session'
-import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
+import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
 
 /**
@@ -85,9 +85,8 @@ export const PATCH = apiHandler(
       return NextResponse.json({ error: 'Forbidden — you do not own this project', code: 'FORBIDDEN' }, { status: 403 })
     }
 
-    // Optimistic lock check
-    const conflict = checkOptimisticLock(body as unknown as Record<string, unknown>, rows[0])
-    if (conflict) return conflict
+    // T1.8 FIX (2026-07-09): Optimistic lock guard moved to the SQL WHERE clause.
+    // The old checkOptimisticLock() did SELECT → JS check → UPDATE without the guard.
 
     // Build dynamic UPDATE — only SET fields that were provided
     const fields: string[] = []
@@ -121,11 +120,20 @@ export const PATCH = apiHandler(
     // Always bump updated_at
     fields.push(`updated_at = NOW()`)
     values.push(id)
+    // T1.8: Add the optimistic lock guard to the WHERE clause
+    values.push(body.updated_at)
 
     const result = await db.query(
-      `UPDATE projects SET ${fields.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      `UPDATE projects SET ${fields.join(', ')} WHERE id = $${paramIdx} AND updated_at = $${paramIdx + 1} RETURNING *`,
       values
     )
+
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'This project was modified by another user. Please refresh and try again.', code: 'CONFLICT' },
+        { status: 409 }
+      )
+    }
 
     return NextResponse.json({ data: result.rows[0] })
   }

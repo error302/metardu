@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { apiHandler, checkOptimisticLock } from '@/lib/apiHandler'
+import { apiHandler } from '@/lib/apiHandler'
 import { apiSuccess, apiError } from '@/lib/api/response'
 import { db } from '@/lib/db'
 export const dynamic = 'force-dynamic'
@@ -73,9 +73,7 @@ export const PATCH = apiHandler({ auth: true, optimisticLock: true }, async (req
     return NextResponse.json(apiError('You can only edit your own listings'), { status: 403 })
   }
 
-  // Optimistic locking — check if the record was modified since the client last read it
-  const conflict = checkOptimisticLock(body, existing[0])
-  if (conflict) return conflict
+  // T1.8 FIX (2026-07-09): Optimistic lock guard moved to the SQL WHERE clause.
 
   // Build dynamic SET clause for allowed fields
   const allowedFields: Record<string, unknown> = {}
@@ -95,11 +93,24 @@ export const PATCH = apiHandler({ auth: true, optimisticLock: true }, async (req
   }
 
   params.push(id)
+  // T1.8: Add the optimistic lock guard to the WHERE clause
+  const clientUpdatedAt = body.updated_at as string | undefined
+  if (!clientUpdatedAt) {
+    return NextResponse.json(apiError('updated_at is required for optimistic locking'), { status: 409 })
+  }
+  params.push(clientUpdatedAt)
 
   const { rows } = await db.query(
-    `UPDATE instrument_listings SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`,
+    `UPDATE instrument_listings SET ${setClauses.join(', ')} WHERE id = $${idx} AND updated_at = $${idx + 1} RETURNING *`,
     params
   )
+
+  if (rows.length === 0) {
+    return NextResponse.json(
+      apiError('This listing was modified by another user. Please refresh and try again.'),
+      { status: 409 }
+    )
+  }
 
   return NextResponse.json(apiSuccess(rowToListing(rows[0])))
 })

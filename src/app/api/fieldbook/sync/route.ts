@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { apiHandler, checkOptimisticLock } from '@/lib/api/handler'
+import { apiHandler } from '@/lib/api/handler'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 export const dynamic = 'force-dynamic'
@@ -65,12 +65,10 @@ export const POST = apiHandler({
           { status: 400 }
         )
       }
-
-      const conflict = checkOptimisticLock(
-        obs as unknown as Record<string, unknown>,
-        existing.rows[0]
-      )
-      if (conflict) return conflict
+      // T1.8 FIX (2026-07-09): Removed checkOptimisticLock() JS check.
+      // The guard is now in the SQL: ON CONFLICT DO UPDATE ... WHERE
+      // survey_points.updated_at = $22. If the guard fails, 0 rows are
+      // returned and we send 409 below.
     }
 
     // Upsert: if the observation ID already exists (re-sync), update it
@@ -109,6 +107,7 @@ export const POST = apiHandler({
         longitude = EXCLUDED.longitude,
         notes = EXCLUDED.notes,
         updated_at = NOW()
+      WHERE survey_points.updated_at = $22
       RETURNING id`,
       [
         obs.id, obs.projectId, obs.station, obs.backsight ?? null, obs.foresight ?? null,
@@ -118,8 +117,20 @@ export const POST = apiHandler({
         obs.easting ?? null, obs.northing ?? null, obs.elevation ?? null,
         obs.latitude ?? null, obs.longitude ?? null, obs.notes ?? null,
         obs.createdAt, ctx.userId,
+        // T1.8: $22 — client's updated_at for the ON CONFLICT WHERE guard.
+        // Only used when updating an existing row; null for new inserts.
+        (obs as Record<string, unknown>).updated_at ?? null,
       ],
     )
+
+    // T1.8: If we were updating an existing row and got 0 rows back, the
+    // optimistic lock guard failed — another user modified it.
+    if (existing.rows.length > 0 && result.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'This observation was modified by another user. Please refresh and try again.', code: 'CONFLICT' },
+        { status: 409 }
+      )
+    }
 
     return NextResponse.json({ ok: true, id: result.rows[0]?.id })
   },
