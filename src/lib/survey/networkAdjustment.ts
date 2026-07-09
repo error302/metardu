@@ -60,6 +60,8 @@ export interface AdjustmentResult {
   iterations: number
   passedTolerance: boolean
   warnings: string[]
+  /** T1.5g: LSA statistical report (global test, w-test, reliability) */
+  statisticalReport?: import('./lsaStatisticalTesting').StatisticalReport
 }
 
 export function adjustNetwork(
@@ -253,6 +255,40 @@ export function adjustNetwork(
     }
   })
 
+  // T1.5g FIX (2026-07-10): Compute LSA statistical report (global test + w-test + reliability)
+  let statisticalReport: AdjustmentResult['statisticalReport']
+  if (dof > 0 && residuals.length > 0) {
+    try {
+      const { computeStatisticalReport, computeQvvDiagonal } = require('./lsaStatisticalTesting')
+
+      // Build observation labels for the w-test
+      const observationLabels = observations.flatMap(obs => [
+        { from: obs.from, to: obs.to, component: 'E' as const },
+        { from: obs.from, to: obs.to, component: 'N' as const },
+        { from: obs.from, to: obs.to, component: 'H' as const },
+      ])
+
+      // Compute Qvv diagonal (needed for w-test and reliability)
+      const QvvDiag = computeQvvDiagonal(A, W, Qxx)
+
+      statisticalReport = computeStatisticalReport(
+        sigmaZero,
+        dof,
+        residuals,
+        QvvDiag,
+        observationLabels,
+        0.05,
+      )
+
+      // Add statistical report warnings to the existing warnings
+      if (statisticalReport && statisticalReport.warnings.length > 0) {
+        warnings.push(...statisticalReport.warnings)
+      }
+    } catch {
+      // Statistical testing is non-blocking — if it fails, the adjustment is still valid
+    }
+  }
+
   return {
     adjustedStations,
     sigmaZero,
@@ -260,6 +296,7 @@ export function adjustNetwork(
     iterations: 1,
     passedTolerance,
     warnings,
+    statisticalReport,
   }
 }
 

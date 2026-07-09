@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/api-client/client'
 import { geographicToUTM } from '@/lib/geodesy/coordinates'
 
 interface AddPointModalProps {
@@ -21,6 +20,7 @@ interface AddPointModalProps {
   editPointIsControl?: boolean
   editPointControlOrder?: string
   editPointLocked?: boolean
+  editPointUpdatedAt?: string
 }
 
 export default function AddPointModal({
@@ -39,7 +39,8 @@ export default function AddPointModal({
   editPointElevation,
   editPointIsControl,
   editPointControlOrder,
-  editPointLocked
+  editPointLocked,
+  editPointUpdatedAt,
 }: AddPointModalProps) {
   const [name, setName] = useState('')
   const [easting, setEasting] = useState('')
@@ -89,48 +90,48 @@ export default function AddPointModal({
     setLoading(true)
 
     try {
-      const client = createClient()
+      // T1.5g FIX (2026-07-10): Use the REST API instead of direct Supabase client.
+      // Previously this bypassed the API layer (no auth, no audit, no optimistic locking).
+      // Now uses POST /api/survey-points (create) and PATCH /api/survey-points/[id] (update).
+
+      const pointData = {
+        point_name: name.trim(),
+        easting: Number(parseFloat(easting).toFixed(4)),
+        northing: Number(parseFloat(northing).toFixed(4)),
+        elevation: Number(parseFloat(elevation || '0').toFixed(4)),
+        is_control: Boolean(isControl),
+      }
 
       if (isEditMode) {
-        const { error: updateError } = await client
-          .from('survey_points')
-          .update({
-            point_name: name.trim(),  // T1.5d FIX: was 'name' (column doesn't exist)
-            easting: Number(parseFloat(easting).toFixed(4)),
-            northing: Number(parseFloat(northing).toFixed(4)),
-            elevation: Number(parseFloat(elevation || '0').toFixed(4)),
-            is_control: Boolean(isControl),
-            // T1.5d: control_order and locked columns don't exist — removed.
-            // Use is_control boolean + description/code for classification.
-          })
-          .eq('id', editPointId)
-
-        if (updateError) {
-          setError(`Failed to update point: ${updateError.message}`)
-          setLoading(false)
-          return
+        // PATCH requires updated_at for optimistic locking
+        const res = await fetch(`/api/survey-points/${editPointId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...pointData,
+            updated_at: editPointUpdatedAt || new Date().toISOString(),
+          }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }))
+          throw new Error(err.error || `Failed to update point (${res.status})`)
         }
       } else {
-        const { error: insertError } = await client
-          .from('survey_points')
-          .insert({
+        // POST to create
+        const res = await fetch('/api/survey-points', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             project_id: projectId,
-            point_name: name.trim(),  // T1.5d FIX: was 'name' (column doesn't exist)
-            easting: Number(parseFloat(easting).toFixed(4)),
-            northing: Number(parseFloat(northing).toFixed(4)),
-            elevation: Number(parseFloat(elevation || '0').toFixed(4)),
-            is_control: Boolean(isControl),
-            // T1.5d: control_order and locked columns don't exist — removed.
-          })
-
-        if (insertError) {
-          if (insertError.code === '23505') {
-            setError(`Point "${name}" already exists in this project. Use a different name.`)
-          } else {
-            setError(`Failed to add point: ${insertError.message}`)
+            ...pointData,
+          }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }))
+          if (res.status === 409 && err.error?.includes('already exists')) {
+            throw new Error(`Point "${name}" already exists in this project. Use a different name.`)
           }
-          setLoading(false)
-          return
+          throw new Error(err.error || `Failed to add point (${res.status})`)
         }
       }
 
@@ -140,40 +141,35 @@ export default function AddPointModal({
       onClose()
 
     } catch (err) {
-      setError('Unexpected error. Please try again.')
+      setError(err instanceof Error ? err.message : 'Unexpected error. Please try again.')
       setLoading(false)
     }
   }
 
   const handleSaveAndAddAnother = async () => {
     if (isEditMode) return // Only for new points
-    
+
     setError(null)
     setSuccessMsg(null)
     setLoading(true)
 
     try {
-      const client = createClient()
-
-      const { error: insertError } = await client
-        .from('survey_points')
-        .insert({
+      const res = await fetch('/api/survey-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           project_id: projectId,
-          point_name: name.trim(),  // T1.5d FIX: was 'name' (column doesn't exist)
+          point_name: name.trim(),
           easting: Number(parseFloat(easting).toFixed(4)),
           northing: Number(parseFloat(northing).toFixed(4)),
           elevation: Number(parseFloat(elevation || '0').toFixed(4)),
-          is_control: Boolean(isControl)
-        })
+          is_control: Boolean(isControl),
+        }),
+      })
 
-      if (insertError) {
-        if (insertError.code === '23505') {
-          setError(`Point "${name}" already exists in this project.`)
-        } else {
-          setError(`Failed to add point: ${insertError.message}`)
-        }
-        setLoading(false)
-        return
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }))
+        throw new Error(err.error || `Failed to add point (${res.status})`)
       }
 
       // Success - clear fields but keep checkbox state
