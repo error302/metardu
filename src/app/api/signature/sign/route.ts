@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { hashDocument, generateVerificationToken } from '@/lib/compute/digitalSignature'
+import { appendAuditEntry } from '@/lib/audit/auditLog'
 import type { SignDocumentRequest } from '@/types/signature'
 
 export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
@@ -50,6 +51,32 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   }
 
   const signature = insertResult.rows[0]
+
+  // T1.9 FIX (2026-07-09): Add tamper-evident audit chain entry for every
+  // document signing. This is critical for legal compliance — a signed
+  // document without an audit trail is not admissible as evidence.
+  // Fire-and-forget: audit failure does NOT block the signing response.
+  appendAuditEntry({
+    userId: ctx.userId,
+    userName: surveyorName,
+    entityType: 'document',
+    entityId: signature.id,
+    action: 'sign',
+    payload: {
+      new: {
+        documentId,
+        documentType,
+        method,
+        iskNumber,
+        firmName,
+        documentHash,
+        signedAt,
+      },
+      reason: `Document signed via ${method}`,
+    },
+  }).catch((err) => {
+    console.error('[audit] Failed to record signature audit entry:', err)
+  })
 
   return NextResponse.json({
     signatureId: signature.id,

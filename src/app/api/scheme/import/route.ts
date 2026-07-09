@@ -5,7 +5,16 @@ import { apiHandler } from '@/lib/apiHandler'
 export const dynamic = 'force-dynamic'
 
 export const POST = apiHandler(
-  { auth: true, rawBody: true, audit: 'csv_import' , rateLimit: { max: 60, windowMs: 60000 } },
+  {
+    auth: true, rawBody: true, audit: 'csv_import', rateLimit: { max: 60, windowMs: 60000 },
+    // T1.9 FIX (2026-07-09): Add audit chain for bulk parcel imports.
+    // Bulk imports can create/modify many parcels at once — needs tamper-evident logging.
+    auditChain: {
+      entityType: 'parcel',
+      action: 'import',
+      reason: 'Bulk CSV parcel import',
+    },
+  },
   async (req, ctx) => {
     const formData = await req.formData()
     const projectId = formData.get('project_id')

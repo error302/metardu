@@ -28,7 +28,18 @@ const CreateSubmissionSchema = z.object({
 })
 
 export const POST = apiHandler(
-  { auth: true, schema: CreateSubmissionSchema, rateLimit: { max: 30, windowMs: 60000 } },
+  {
+    auth: true,
+    schema: CreateSubmissionSchema,
+    rateLimit: { max: 30, windowMs: 60000 },
+    // T1.9 FIX (2026-07-09): Add audit chain for submission creation.
+    auditChain: {
+      entityType: 'document',
+      action: 'submit',
+      projectIdFromBody: 'projectId',
+      reason: 'Submission created',
+    },
+  },
   async (_req, ctx) => {
     const { projectId } = ctx.body as z.infer<typeof CreateSubmissionSchema>
 

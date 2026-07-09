@@ -36,7 +36,21 @@ function validateIdentifier(name: string): string {
   return name
 }
 
-export const POST = apiHandler({ auth: true, schema: RestoreSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
+export const POST = apiHandler({
+  auth: true,
+  schema: RestoreSchema,
+  rateLimit: { max: 60, windowMs: 60000 },
+  // T1.9 FIX (2026-07-09): Add tamper-evident audit chain for state rollbacks.
+  // This is the most dangerous operation in the system — it silently overwrites
+  // an entity with a previous snapshot. Without an audit trail, a malicious
+  // admin could restore a parcel to a pre-survey state and erase the audit trail.
+  auditChain: {
+    entityType: 'document',
+    action: 'update',
+    entityIdParam: 'id',
+    reason: 'Entity restored from version snapshot',
+  },
+}, async (req, ctx) => {
   const { version_id } = ctx.body as z.infer<typeof RestoreSchema>
 
   // IDOR protection — verify the version belongs to the requesting user
@@ -115,11 +129,33 @@ export const POST = apiHandler({ auth: true, schema: RestoreSchema, rateLimit: {
 
   // Add entity_id as the WHERE parameter
   values.push(entity_id)
-
-  await db.query(
-    `UPDATE ${entity_type} SET ${updates.join(', ')} WHERE id = $${paramIdx}`,
-    values
-  )
+  // T1.8 FIX (2026-07-09): Add optimistic lock guard to the restore UPDATE.
+  // Without this, two concurrent restores could race — the last one wins
+  // silently. With the guard, if the entity was modified between the SELECT
+  // above and this UPDATE, 0 rows are returned and we send 409.
+  // Note: we use the entity's current updated_at (from entityRows[0]) as the
+  // guard value — this is the value the client implicitly "saw" when they
+  // decided to restore.
+  const currentUpdatedAt = entityRows[0].updated_at
+  if (currentUpdatedAt) {
+    values.push(currentUpdatedAt)
+    const result = await db.query(
+      `UPDATE ${entity_type} SET ${updates.join(', ')} WHERE id = $${paramIdx} AND updated_at = $${paramIdx + 1} RETURNING id`,
+      values
+    )
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'This entity was modified by another user between your read and the restore. Please refresh and try again.', code: 'CONFLICT' },
+        { status: 409 }
+      )
+    }
+  } else {
+    // No updated_at column on this entity type — proceed without the guard
+    await db.query(
+      `UPDATE ${entity_type} SET ${updates.join(', ')} WHERE id = $${paramIdx}`,
+      values
+    )
+  }
 
   return NextResponse.json({
     restored: true,

@@ -50,7 +50,18 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   })
 })
 
-export const POST = apiHandler({ auth: true, schema: UpdateSchemeStatusSchema }, async (req, ctx) => {
+export const POST = apiHandler({
+  auth: true,
+  schema: UpdateSchemeStatusSchema,
+  // T1.9 FIX (2026-07-09): Add audit chain for scheme status changes.
+  // Status cascades to all parcels in the scheme — needs tamper-evident logging.
+  auditChain: {
+    entityType: 'parcel',
+    action: 'update',
+    projectIdFromBody: 'projectId',
+    reason: 'Scheme status changed',
+  },
+}, async (req, ctx) => {
   const userRole = (ctx.session!.user as { role?: string }).role || 'surveyor'
 
   // Only admins can change scheme status

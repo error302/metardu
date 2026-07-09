@@ -20,7 +20,16 @@ export const dynamic = 'force-dynamic'
  * No more generating each parcel's deed plan one by one.
  */
 export const POST = apiHandler(
-  { auth: true, schema: BatchDeedPlanSchema, rateLimit: { max: 5, windowMs: 60000 } },
+  {
+    auth: true, schema: BatchDeedPlanSchema, rateLimit: { max: 5, windowMs: 60000 },
+    // T1.9 FIX (2026-07-09): Add audit chain for batch deed plan generation.
+    auditChain: {
+      entityType: 'document',
+      action: 'generate',
+      projectIdFromBody: 'projectId',
+      reason: 'Batch deed plan generation',
+    },
+  },
   async (req, ctx) => {
     const { projectId } = ctx.body as z.infer<typeof BatchDeedPlanSchema>
 
