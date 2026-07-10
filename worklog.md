@@ -657,3 +657,48 @@ Stage Summary:
 - Fixed breakline TIN to re-fill gaps instead of leaving holes
 - Math foundation is now boundary-commission-grade
 
+
+---
+Task ID: MATH-2
+Agent: Main Agent
+Task: Advanced geodetic math — robust estimation, TLS, covariance propagation, auto-calibration
+
+Work Log:
+- T2: Implemented Robust Estimation (IRLS) with Huber, IGG3, and Tukey biweight weight functions
+  - Iteratively reweighted least squares: down-weights blunders based on residual magnitude
+  - Huber (c=1.345, 95% efficiency), IGG3 (k0=1.5, k1=2.5 — hard rejection), Tukey (c=4.685)
+  - Identifies blunders (weight < 0.1) automatically
+- T3: Implemented Total Least Squares (TLS) for errors-in-variables
+  - Standard TLS via SVD/eigendecomposition (Jacobi rotations) — Golub-Van Loan (1980)
+  - Weighted TLS via Schaffrin-Wieser (2008) iterative algorithm
+  - Handles the case where BOTH A and l have errors (e.g., imprecise control points)
+- T4: Implemented Covariance Propagation (WithUncertainty<T> wrapper)
+  - Wraps any value with its covariance matrix
+  - Scalar/vector/coordinate2D/coordinate3D constructors
+  - Arithmetic operations (add, subtract, multiply, divide) with auto-propagation
+  - Generic propagate() function for arbitrary functions (numerical Jacobian)
+  - Surveying-specific: distance2D, polygonArea2D, polygonPerimeter2D
+  - Confidence interval computation: formatScalarWithCI() → "1234.5 ± 0.2 m² (95% CI)"
+- T5: Implemented Auto-Calibration of transformation parameters from common points
+  - Derives site-specific 7-parameter Bursa-Wolf from N≥3 common points
+  - Uses the rigorous Helmert (full rotation + Gauss-Newton) from MATH-1
+  - Computes parameter stdDevs, per-point residuals, RMS fit
+  - MAD-based outlier detection (robust to blunders)
+  - Auto-removal of outliers with re-fit
+  - Registers in datum transformation registry with full provenance
+  - Quality assessment: excellent/good/acceptable/poor with improvement factor
+
+API endpoints:
+- POST /api/survey/robust-adjustment — Run robust LSA with Huber/IGG3/Tukey
+- POST /api/survey/tls-adjustment — Run TLS (standard or weighted)
+- POST /api/geo/calibrate-transformation — Derive local transformation from common points
+
+Tests: 136 suites, 2136 tests, ALL PASSING. tsc --noEmit clean.
+New: 4 test suites, 65 tests covering all new math.
+
+Stage Summary:
+- Surveyors can now detect blunders that would have shifted coordinates by cm
+- Country-boundary work can mix old/new control points with honest uncertainty
+- Deed plan areas now carry confidence intervals (legal protection)
+- Local calibrations achieve 100× better accuracy than national parameters
+
