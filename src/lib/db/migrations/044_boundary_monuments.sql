@@ -25,8 +25,7 @@ CREATE TABLE IF NOT EXISTS boundary_monuments (
     monument_type       VARCHAR(50) NOT NULL DEFAULT 'pillar',
                         -- pillar | beacon | cairn | wall | river_mark | other
     boundary_name       VARCHAR(200) NOT NULL,           -- e.g., 'Kenya-Tanzania'
-    treaty_reference    VARCHAR(500,                     -- e.g., 'Anglo-German Agreement 1886, Article III'
-                        NOT NULL,
+    treaty_reference    VARCHAR(500) NOT NULL,             -- e.g., 'Anglo-German Agreement 1886, Article III'
     treaty_date         DATE,                            -- when the treaty was signed
 
     -- ─── Coordinates (time-dependent) ───

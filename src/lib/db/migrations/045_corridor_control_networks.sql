@@ -62,13 +62,13 @@ CREATE TABLE IF NOT EXISTS corridor_control_points (
     northing        DOUBLE PRECISION NOT NULL,
     elevation       DOUBLE PRECISION,
     chainage        DOUBLE PRECISION,       -- position along corridor
-    offset          DOUBLE PRECISION DEFAULT 0, -- offset from centerline
+    "offset"        DOUBLE PRECISION DEFAULT 0, -- offset from centerline
 
     -- Accuracy
     sigma_e         DOUBLE PRECISION,
     sigma_n         DOUBLE PRECISION,
     sigma_h         DOUBLE PRECISION,
-    order           VARCHAR(50),            -- First Order, Second Order, etc.
+    "order"         VARCHAR(50),            -- First Order, Second Order, etc.
 
     -- Epoch
     epoch_year      INTEGER,
