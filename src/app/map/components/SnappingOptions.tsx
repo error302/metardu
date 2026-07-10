@@ -12,7 +12,6 @@
 
 import { useState, useCallback } from 'react'
 import { Magnet, Settings2, X } from 'lucide-react'
-import { MapOverlaySlot } from '@/app/map/components/MapOverlayManager'
 
 type SnapMode = 'vertex' | 'segment' | 'vertex_segment'
 type SnapType = 'osm' | 'parcels' | 'beacons' | 'grid' | 'all'
@@ -83,8 +82,7 @@ export function SnappingOptions({
   if (!open) return null
 
   return (
-    <MapOverlaySlot id="snapping-options" anchor="top-right" order={50} layer="PANELS" edgeMargin={16}>
-    <div className="w-72 bg-[#0d0d14]/95 backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-2 duration-200">
+    <div className="absolute top-[340px] right-3 z-30 w-72 bg-[var(--bg-secondary)]/95 backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-2 duration-200">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]/[0.06]">
         <div className="flex items-center gap-2">
@@ -133,7 +131,7 @@ export function SnappingOptions({
                 disabled={!enabled}
                 className={`px-2 py-1.5 rounded-lg text-[9px] font-medium transition-colors disabled:opacity-30 ${
                   localMode === m
-                    ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47]'
+                    ? 'bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-[var(--accent)]'
                     : 'bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
                 }`}
               >
@@ -200,6 +198,5 @@ export function SnappingOptions({
         </div>
       </div>
     </div>
-    </MapOverlaySlot>
   )
 }

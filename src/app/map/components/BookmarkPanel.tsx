@@ -88,14 +88,14 @@ export const BookmarkPanel = memo(function BookmarkPanel() {
   }, [bookmarks])
 
   return (
-    <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-[var(--border-color)]/[0.06] rounded-lg w-56">
+    <div className="bg-[var(--bg-secondary)]/90 backdrop-blur-xl border border-[var(--border-color)]/[0.06] rounded-lg w-56">
       {/* Header */}
       <div
         className="flex items-center justify-between px-3 py-2 cursor-pointer select-none"
         onClick={() => setCollapsed(!collapsed)}
       >
         <div className="flex items-center gap-2">
-          <Bookmark className="w-3.5 h-3.5 text-[#D17B47]" />
+          <Bookmark className="w-3.5 h-3.5 text-[var(--accent)]" />
           <span className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold">
             Bookmarks
           </span>
@@ -112,12 +112,12 @@ export const BookmarkPanel = memo(function BookmarkPanel() {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               aria-label="Bookmark name" placeholder="Bookmark name"
-              className="flex-1 h-7 px-2 text-[10px] bg-[var(--bg-card)]/5 border border-[var(--border-color)]/[0.08] rounded text-[var(--text-primary)] placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/40"
+              className="flex-1 h-7 px-2 text-[10px] bg-[var(--bg-card)]/5 border border-[var(--border-color)]/[0.08] rounded text-[var(--text-primary)] placeholder-gray-600 focus:outline-none focus:border-[var(--accent)]/40"
               onKeyDown={(e) => { if (e.key === 'Enter') saveCurrentView() }}
             />
             <button
               onClick={saveCurrentView}
-              className="h-7 px-2 text-[10px] bg-[#D17B47]/20 text-[#D17B47] border border-[#D17B47]/30 rounded hover:bg-[#D17B47]/30 transition-colors"
+              className="h-7 px-2 text-[10px] bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 rounded hover:bg-[var(--accent)]/30 transition-colors"
               title="Save current view"
             >
               Save

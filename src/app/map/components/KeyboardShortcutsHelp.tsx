@@ -49,13 +49,13 @@ export const KeyboardShortcutsHelp = memo(function KeyboardShortcutsHelp() {
       onClick={() => setVisible(false)}
     >
       <div
-        className="bg-[#14141e]/95 border border-[var(--border-color)]/[0.08] rounded-xl shadow-2xl backdrop-blur-xl p-5 min-w-[320px] max-w-[420px]"
+        className="bg-[var(--bg-secondary)]/95 border border-[var(--border-color)]/[0.08] rounded-xl shadow-2xl backdrop-blur-xl p-5 min-w-[320px] max-w-[420px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Keyboard className="w-4 h-4 text-[#D17B47]" />
+            <Keyboard className="w-4 h-4 text-[var(--accent)]" />
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">Keyboard Shortcuts</h3>
           </div>
           <button

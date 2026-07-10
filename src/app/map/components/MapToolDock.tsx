@@ -109,7 +109,7 @@ function ToolBtn({ label, icon, isActive, onClick, shortcut }: {
         flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-200
         w-[52px] h-[52px] shrink-0 relative
         ${isActive
-          ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47] shadow-[0_0_12px_rgba(209, 123, 71,0.15)]'
+          ? 'bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-[var(--accent)] shadow-[0_0_12px_rgba(209, 123, 71,0.15)]'
           : 'bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)]'}
       `}
     >
@@ -145,7 +145,7 @@ function ActionBtn({ label, icon, isActive, onClick, danger, shortcut, disabled 
           : danger && isActive
             ? 'bg-[var(--error)]/10 border border-red-500/30 text-[var(--error)]'
             : isActive
-              ? 'bg-[#D17B47]/10 border border-[#D17B47]/30 text-[#D17B47]'
+              ? 'bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-[var(--accent)]'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.04] hover:text-[var(--text-secondary)] border border-transparent'}
       `}
     >
@@ -182,7 +182,7 @@ const SurveyWorkflowBadge = memo(function SurveyWorkflowBadge({
       // T1.5g: top-center badge — managed by MapOverlaySlot in MapClient (order=2)
     >
       <div
-        className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-xl border border-[var(--border-color)]/[0.08] bg-[#0d0d14]/70"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-xl border border-[var(--border-color)]/[0.08] bg-[var(--bg-secondary)]/70"
         style={{ boxShadow: `0 0 16px ${accent}20` }}
       >
         <div
@@ -506,7 +506,7 @@ const CapturePanel = memo(function CapturePanel() {
             value={ctx.featureName}
             onChange={(e) => ctx.updateFeatureName(e.target.value)}
             aria-label="Feature name…" placeholder="Feature name…"
-            className="w-full h-7 bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.06] rounded-md px-2 text-[11px] text-[var(--text-primary)] placeholder-gray-600 focus:outline-none focus:border-[#D17B47]/30 transition-colors"
+            className="w-full h-7 bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.06] rounded-md px-2 text-[11px] text-[var(--text-primary)] placeholder-gray-600 focus:outline-none focus:border-[var(--accent)]/30 transition-colors"
           />
         </div>
       )}
@@ -874,7 +874,7 @@ export const MapToolDock = memo(function MapToolDock() {
           <div
             className={`
               fixed inset-x-0 bottom-0 z-40
-              bg-[#0d0d14]/95 backdrop-blur-2xl
+              bg-[var(--bg-secondary)]/95 backdrop-blur-2xl
               border-t border-[var(--border-color)]/[0.08]
               rounded-t-2xl
               shadow-[0_-8px_40px_rgba(0,0,0,0.5)]
@@ -916,7 +916,7 @@ export const MapToolDock = memo(function MapToolDock() {
         )}
 
         {/* Bottom horizontal dock bar */}
-        <div className="fixed bottom-0 inset-x-0 z-50 flex items-center justify-center gap-1 px-2 py-2 bg-[#0d0d14]/90 backdrop-blur-2xl border-t border-[var(--border-color)]/[0.06]">
+        <div className="fixed bottom-0 inset-x-0 z-50 flex items-center justify-center gap-1 px-2 py-2 bg-[var(--bg-secondary)]/90 backdrop-blur-2xl border-t border-[var(--border-color)]/[0.06]">
           {CATEGORIES.map(cat => {
             const Icon = cat.icon
             const active = isCategoryActive(cat.id)
@@ -970,7 +970,7 @@ export const MapToolDock = memo(function MapToolDock() {
           setDockVisible(!dockVisible)
           if (dockVisible) closeDrawer()
         }}
-        className="absolute top-3 left-3 z-30 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full bg-[#0d0d14]/60 backdrop-blur-xl border border-[var(--border-color)]/[0.08] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[#0d0d14]/80 transition-all"
+        className="absolute top-3 left-3 z-30 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full bg-[var(--bg-secondary)]/60 backdrop-blur-xl border border-[var(--border-color)]/[0.08] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]/80 transition-all"
         title={dockVisible ? 'Hide tools (Esc)' : 'Show tools'}
         aria-label={dockVisible ? 'Hide map tools' : 'Show map tools'}
       >
@@ -999,8 +999,8 @@ export const MapToolDock = memo(function MapToolDock() {
                 ${isOpen
                   ? `bg-[var(--bg-card)]/[0.10] border border-[var(--border-color)]/[0.15] text-[var(--text-primary)]`
                   : active
-                    ? 'bg-[#0d0d14]/60 border border-[var(--border-color)]/[0.08] text-[var(--text-primary)]/70 hover:bg-[#0d0d14]/80'
-                    : 'bg-[#0d0d14]/40 border border-[var(--border-color)]/[0.04] text-[var(--text-muted)] hover:bg-[#0d0d14]/60 hover:text-[var(--text-secondary)]'}
+                    ? 'bg-[var(--bg-secondary)]/60 border border-[var(--border-color)]/[0.08] text-[var(--text-primary)]/70 hover:bg-[var(--bg-secondary)]/80'
+                    : 'bg-[var(--bg-secondary)]/40 border border-[var(--border-color)]/[0.04] text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]/60 hover:text-[var(--text-secondary)]'}
               `}
               style={isOpen ? { boxShadow: `0 0 14px ${accent}30, inset 0 0 8px ${accent}10` } : undefined}
             >
@@ -1018,7 +1018,7 @@ export const MapToolDock = memo(function MapToolDock() {
             absolute top-3 left-14 z-20
             w-[260px] sm:w-[280px]
             max-h-[calc(100%-80px)]
-            bg-[#0d0d14]/90 backdrop-blur-2xl
+            bg-[var(--bg-secondary)]/90 backdrop-blur-2xl
             border border-[var(--border-color)]/[0.06]
             rounded-2xl
             shadow-[0_8px_40px_rgba(0,0,0,0.4)]

@@ -27,7 +27,7 @@ import dynamic from 'next/dynamic';
 const MapViewer = dynamic(() => import('@/components/field/MapViewer'), {
   ssr: false,
   loading: () => (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0f]">
+    <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-primary)]">
       <p className="text-white/50 text-sm">Loading map…</p>
     </div>
   ),
@@ -177,7 +177,7 @@ export default function FieldMapPage() {
 
   /* ── Render ───────────────────────────────────────────────────── */
   return (
-    <div className="relative w-full overflow-hidden bg-[#0a0a0f]" style={{ height: '100dvh' }}>
+    <div className="relative w-full overflow-hidden bg-[var(--bg-primary)]" style={{ height: '100dvh' }}>
       {/* ═══════════════════════════════════════════════════════════ */}
       {/*  MAP — FULL BLEED (absolute, no padding)                    */}
       {/* ═══════════════════════════════════════════════════════════ */}

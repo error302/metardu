@@ -429,12 +429,12 @@ export default function NavBar() {
 
   if (!mounted) {
     return (
-      <div className="h-16 border-b border-[var(--border-color)] bg-[#0a0a0f]" />
+      <div className="h-16 border-b border-[var(--border-color)] bg-[var(--bg-primary)]" />
     )
   }
 
   return (
-    <nav className="border-b border-[var(--border-color)] bg-[#0a0a0f] sticky top-0 z-50 pt-[env(safe-area-inset-top,0px)]">
+    <nav className="border-b border-[var(--border-color)] bg-[var(--bg-primary)] sticky top-0 z-50 pt-[env(safe-area-inset-top,0px)]">
       <div ref={navRef} className="max-w-7xl mx-auto px-4">
         {/* Main Navbar */}
         <div className="relative h-16 flex items-center justify-between">
@@ -663,7 +663,7 @@ export default function NavBar() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[#0a0a0f] border-t border-[var(--border-color)] max-h-[80vh] overflow-y-auto pb-4">
+          <div className="md:hidden bg-[var(--bg-primary)] border-t border-[var(--border-color)] max-h-[80vh] overflow-y-auto pb-4">
             <div className="py-2">
               {mobileLinks.map((item) => (
                 <Link

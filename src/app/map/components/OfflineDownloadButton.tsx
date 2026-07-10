@@ -18,8 +18,8 @@ export function OfflineDownloadButton() {
       onClick={() => setOfflineDialogOpen(true)}
       className={`flex items-center gap-2 px-3 h-10 rounded-xl backdrop-blur-xl border transition-all duration-200 shadow-lg ${
         offlineDialogOpen
-          ? 'bg-[#D17B47]/15 border-[#D17B47]/30 text-[#D17B47]'
-          : 'bg-[#0d0d14]/60 border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:bg-[#0d0d14]/80 hover:text-[var(--text-secondary)]'
+          ? 'bg-[var(--accent)]/15 border-[var(--accent)]/30 text-[var(--accent)]'
+          : 'bg-[var(--bg-secondary)]/60 border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]/80 hover:text-[var(--text-secondary)]'
       }`}
       title="Download offline map tiles for this area"
     >

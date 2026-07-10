@@ -149,16 +149,16 @@ export function QuickCompute() {
 
         {/* Panel */}
         <div
-          className={`w-full sm:w-80 bg-[#0d0d14]/98 backdrop-blur-xl border-l border-white/[0.06]
+          className={`w-full sm:w-80 bg-[var(--bg-secondary)]/98 backdrop-blur-xl border-l border-[var(--border-color)]/[0.06]
                       overflow-y-auto custom-scrollbar-quick
                       transition-transform duration-300 ease-out
                       ${open ? 'translate-x-0' : 'translate-x-full'}`}
         >
           {/* Panel header */}
-          <div className="sticky top-0 z-10 p-4 bg-[#0d0d14]/95 backdrop-blur-xl border-b border-white/[0.06]">
+          <div className="sticky top-0 z-10 p-4 bg-[var(--bg-secondary)]/95 backdrop-blur-xl border-b border-[var(--border-color)]/[0.06]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-[#D17B47]/10 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
                   <BoltIcon className="w-4 h-4" active />
                 </div>
                 <h2 className="font-semibold text-white text-base tracking-wide">Quick Compute</h2>
@@ -171,7 +171,7 @@ export function QuickCompute() {
               </button>
             </div>
             <p className="mt-1.5 text-[11px] text-gray-500 leading-snug">
-              Fast access to all computation tools. Visit <a href="/tools" className="text-[#D17B47] hover:underline">Tools page</a> for full details &amp; favorites.
+              Fast access to all computation tools. Visit <a href="/tools" className="text-[var(--accent)] hover:underline">Tools page</a> for full details &amp; favorites.
             </p>
           </div>
 
@@ -191,7 +191,7 @@ export function QuickCompute() {
                       className="flex items-center justify-between group px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all duration-200"
                     >
                       <span className="font-medium">{item.label}</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-gray-600 group-hover:text-[#D17B47] group-hover:translate-x-0.5 transition-all duration-200" />
+                      <ChevronRightIcon className="w-3.5 h-3.5 text-gray-600 group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all duration-200" />
                     </Link>
                   ))}
                 </div>

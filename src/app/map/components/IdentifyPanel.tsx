@@ -14,7 +14,6 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { MapOverlaySlot } from '@/app/map/components/MapOverlayManager'
 import {
   X, MapPin, User, Ruler, Navigation, Copy,
   Edit3, Trash2, ZoomIn, Building2, FileText,
@@ -88,13 +87,12 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
   const StatusIcon = statusCfg?.icon
 
   return (
-    <MapOverlaySlot id="identify-panel" anchor="top-right" order={45} layer="PANELS" edgeMargin={16}>
-    <div className="w-80 max-h-[calc(100%-320px)] bg-[#0d0d14]/95 backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-right-2 duration-200">
+    <div className="absolute top-[280px] right-3 z-30 w-80 max-h-[calc(100%-320px)] bg-[var(--bg-secondary)]/95 backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-right-2 duration-200">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]/[0.06] bg-gradient-to-r from-[#D17B47]/5 to-transparent">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#D17B47]/10 flex items-center justify-center">
-            <TypeIcon className="w-4 h-4 text-[#D17B47]" />
+          <div className="w-8 h-8 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
+            <TypeIcon className="w-4 h-4 text-[var(--accent)]" />
           </div>
           <div>
             <span className="text-sm font-semibold text-[var(--text-primary)]">Identify</span>
@@ -228,8 +226,8 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
                   key={`${beacon}-${i}`}
                   className="flex items-center gap-2 p-1.5 rounded-lg bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.04] hover:bg-[var(--bg-card)]/[0.04] transition-colors cursor-pointer"
                 >
-                  <div className="w-5 h-5 rounded bg-[#D17B47]/10 flex items-center justify-center shrink-0">
-                    <MapPin className="w-2.5 h-2.5 text-[#D17B47]" />
+                  <div className="w-5 h-5 rounded bg-[var(--accent)]/10 flex items-center justify-center shrink-0">
+                    <MapPin className="w-2.5 h-2.5 text-[var(--accent)]" />
                   </div>
                   <span className="text-[10px] font-mono text-[var(--text-secondary)] flex-1 truncate">{beacon.beaconNumber}</span>
                   <span className="text-[9px] text-[var(--text-muted)] font-mono">
@@ -263,7 +261,7 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
         {onEdit && (
           <button
             onClick={() => onEdit(feature)}
-            className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-[#D17B47]/10 border border-[#D17B47]/30 text-xs text-[#D17B47] hover:bg-[#D17B47]/20 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-xs text-[var(--accent)] hover:bg-[var(--accent)]/20 transition-colors"
           >
             <Edit3 className="w-3.5 h-3.5" />
             Edit
@@ -279,6 +277,5 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo }: 
         )}
       </div>
     </div>
-    </MapOverlaySlot>
   )
 }

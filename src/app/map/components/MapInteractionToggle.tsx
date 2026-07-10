@@ -103,8 +103,8 @@ export function MapInteractionToggle({ mapInstance }: { mapInstance: React.Mutab
           onClick={toggleLock}
           className={`flex items-center justify-center w-12 h-12 rounded-xl backdrop-blur-xl border transition-all duration-200 shadow-lg ${
             lockState === 'locked'
-              ? 'bg-[#D17B47]/15 border-[#D17B47]/30 text-[#D17B47]'
-              : 'bg-[#0d0d14]/80 border-[var(--border-color)]/[0.06] text-[var(--text-secondary)]'
+              ? 'bg-[var(--accent)]/15 border-[var(--accent)]/30 text-[var(--accent)]'
+              : 'bg-[var(--bg-secondary)]/80 border-[var(--border-color)]/[0.06] text-[var(--text-secondary)]'
           }`}
           title={lockState === 'locked' ? 'Map locked — tap to unlock single-finger pan' : 'Map unlocked — tap to lock'}
           aria-label={lockState === 'locked' ? 'Unlock map gestures' : 'Lock map gestures'}
@@ -114,8 +114,8 @@ export function MapInteractionToggle({ mapInstance }: { mapInstance: React.Mutab
       </MapOverlaySlot>
       {lockState === 'locked' && showHint && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[999] pointer-events-none">
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0d0d14]/90 backdrop-blur-xl border border-[#D17B47]/20 shadow-2xl animate-in fade-in duration-300">
-            <Hand className="w-4 h-4 text-[#D17B47]" />
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)]/90 backdrop-blur-xl border border-[var(--accent)]/20 shadow-2xl animate-in fade-in duration-300">
+            <Hand className="w-4 h-4 text-[var(--accent)]" />
             <span className="text-xs text-[var(--text-primary)] font-medium">Use two fingers to pan the map</span>
           </div>
         </div>

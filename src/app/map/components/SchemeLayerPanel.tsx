@@ -13,7 +13,7 @@
  *  - Traverse-to-parcel preview/confirm/cancel workflow
  *
  * Positioned at the top-right of the map, styled to match the
- * existing dark glass-morphism UI (bg-[#14141e]/95, #D17B47 accents).
+ * existing dark glass-morphism UI (bg-[var(--bg-secondary)]/95, #D17B47 accents).
  *
  * Now consumes all state and actions from MapReactContext via useMapContext().
  * Previously received 18 props from MapClient — now reads from context directly.
@@ -57,11 +57,11 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
       role="region"
       aria-label="Scheme layer controls"
     >
-      <div className="bg-[#14141e]/95 border border-[var(--border-color)]/[0.08] rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden">
+      <div className="bg-[var(--bg-secondary)]/95 border border-[var(--border-color)]/[0.08] rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border-color)]/[0.06]">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#D17B47]" />
+            <div className="w-2 h-2 rounded-full bg-[var(--accent)]" />
             <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
               Scheme Data
             </span>
@@ -75,9 +75,9 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
             <button
               onClick={loadSchemeData}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg
-                         bg-[#D17B47]/15 border border-[#D17B47]/30 text-[#D17B47]
+                         bg-[var(--accent)]/15 border border-[var(--accent)]/30 text-[var(--accent)]
                          text-xs font-semibold transition-all duration-200
-                         hover:bg-[#D17B47]/25 hover:border-[#D17B47]/50
+                         hover:bg-[var(--accent)]/25 hover:border-[var(--accent)]/50
                          focus:outline-none focus:ring-1 focus:ring-[#D17B47]/50"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -90,7 +90,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
           {/* Loading State */}
           {loading && (
             <div className="flex items-center justify-center gap-2 py-3">
-              <svg className="animate-spin h-4 w-4 text-[#D17B47]" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin h-4 w-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
