@@ -376,6 +376,17 @@ export default function MapClient() {
   useMapState(mapInstance, drawSourceRef, mapReady)
 
   // ── Interactions hook ──
+  const currentUtmEpsg = useMemo(() => {
+    if (activeProjection.startsWith('EPSG:21037')) return 'EPSG:21037'
+    if (activeProjection.startsWith('EPSG:32737')) return 'EPSG:32737'
+    return 'EPSG:21037'
+  }, [activeProjection])
+
+  const applyOneShotTool = useCallback(() => {
+    // Placeholder — one-shot digitizing tools are triggered via activeDigitizingTool state
+    if (activeDigitizingTool) setActiveDigitizingTool(null)
+  }, [activeDigitizingTool])
+
   const interactions = useMapInteractions({
     mapInstance,
     drawSourceRef,
@@ -397,6 +408,7 @@ export default function MapClient() {
     stakeoutTarget,
     gpsPos,
     gpsPos21037,
+    currentUtmEpsg,
     projectId: schemeProjectId,
     onDrawEnd: (areaSqM, perimeterM, featureType) => {
       if (featureType === 'Polygon') {
@@ -1264,6 +1276,8 @@ export default function MapClient() {
     vertexEditingVertices,
     gpsPos21037,
     activeProjection,
+    currentUtmEpsg,
+    applyOneShotTool,
     showSheetLayout,
     isPrinting,
     paperSize,
@@ -1329,7 +1343,7 @@ export default function MapClient() {
     hasTraverse, traverseParcelPreviewActive, schemeProjectId,
     vertexEditingEnabled, snapEnabled, snapTolerance, vertexEditState, vertexEditingVertices,
     gpsPos21037,
-    activeProjection, showSheetLayout, isPrinting,
+    activeProjection, currentUtmEpsg, applyOneShotTool, showSheetLayout, isPrinting,
     paperSize, orientation, offlineMapExtent, schemeProjectId,
     hasFeature, canUndo, canRedo,
     setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen,
