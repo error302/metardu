@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useCallback } from 'react'
-import { AlertTriangle , CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ShieldAlert, Zap, Compass, Folder, Lock } from 'lucide-react'
 import { adjustNetwork, Station, Observation, AdjustmentResult } from '@/lib/survey/networkAdjustment'
+import { adjustNetworkRobust, type RobustLSAResult, type WeightFunction } from '@/lib/survey/robustEstimation'
 import { generateNetworkDXF } from '@/lib/survey/networkAdjustmentDXF'
 import { ErrorEllipseCanvas } from './ErrorEllipseCanvas'
 import { z } from 'zod'
@@ -36,6 +37,9 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
   const [stations, setStations] = useState<Station[]>([])
   const [observations, setObservations] = useState<Observation[]>([])
   const [result, setResult] = useState<AdjustmentResult | null>(null)
+  const [robustResult, setRobustResult] = useState<RobustLSAResult | null>(null)
+  const [robustMode, setRobustMode] = useState(false)
+  const [weightFunction, setWeightFunction] = useState<WeightFunction>('huber')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [importStatus, setImportStatus] = useState('')
@@ -204,10 +208,50 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
   const handleCompute = () => {
     setError(null)
     setResult(null)
+    setRobustResult(null)
     try {
-      const res = adjustNetwork(stations, observations)
-      setResult(res)
-      saveResult(res)
+      if (robustMode) {
+        // Convert Station/Observation to the format expected by adjustNetworkRobust
+        const robustStations = stations.map(s => ({
+          id: s.id, name: s.name,
+          easting: s.easting, northing: s.northing, elevation: s.elevation,
+          isFixed: s.isFixed,
+        }))
+        const robustObs = observations.map(o => ({
+          type: 'coordinate_diff' as const,
+          from: o.from, to: o.to,
+          deltaE: o.deltaE, deltaN: o.deltaN, deltaH: o.deltaH,
+          stdDevE: o.stdDevE, stdDevN: o.stdDevN, stdDevH: o.stdDevH,
+        }))
+        const res = adjustNetworkRobust(robustStations, robustObs, {
+          weightFunction,
+          maxIterations: 30,
+        })
+        setRobustResult(res)
+        // Also set the standard result (for the adjusted coordinates table + error ellipses)
+        setResult({
+          adjustedStations: res.adjustedStations,
+          sigmaZero: res.sigmaZero,
+          degreesOfFreedom: res.degreesOfFreedom,
+          iterations: res.iterations,
+          passedTolerance: res.blunders.length === 0,
+          warnings: [...res.warnings, ...res.blunders.map(b =>
+            `BLUNDER: ${b.from || '?'}→${b.to || '?'} (${b.type}) — residual=${b.residual.toFixed(4)}m, weight=${b.finalWeight.toFixed(3)}`,
+          )],
+        })
+        saveResult({
+          adjustedStations: res.adjustedStations,
+          sigmaZero: res.sigmaZero,
+          degreesOfFreedom: res.degreesOfFreedom,
+          iterations: res.iterations,
+          passedTolerance: res.blunders.length === 0,
+          warnings: res.warnings,
+        })
+      } else {
+        const res = adjustNetwork(stations, observations)
+        setResult(res)
+        saveResult(res)
+      }
     } catch (err: unknown) {
       setError((err as Error).message ?? 'Adjustment failed.')
     }
@@ -277,15 +321,15 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
       <div className="flex flex-wrap gap-2">
         <button
           onClick={handleImportFromTraverse}
-          className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium"
+          className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium flex items-center gap-1.5"
         >
-          [Compass] Import from Traverse
+          <Compass className="w-4 h-4" /> Import from Traverse
         </button>
         <button
           onClick={handleImportGSI}
-          className="text-sm bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 font-medium"
+          className="text-sm bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 font-medium flex items-center gap-1.5"
         >
-          [Folder] Import GSI File
+          <Folder className="w-4 h-4" /> Import GSI File
         </button>
       </div>
 
@@ -423,13 +467,52 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
         </div>
       </section>
 
+      {/* Robust Estimation Controls */}
+      <section className="bg-zinc-900/50 border border-zinc-700 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-medium text-white flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-amber-400" />
+              Robust Estimation (Blunder Detection)
+            </h3>
+            <p className="text-xs text-zinc-500 mt-1">
+              Down-weights observations with large residuals using IRLS. Detects blunders that standard LSA misses.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={robustMode}
+              onChange={e => { setRobustMode(e.target.checked); setResult(null); setRobustResult(null) }}
+              className="w-4 h-4 accent-green-600"
+            />
+            <span className="text-sm text-zinc-300">Enable Robust Mode</span>
+          </label>
+        </div>
+        {robustMode && (
+          <div className="flex items-center gap-4 text-sm">
+            <label className="text-zinc-400">Weight Function:</label>
+            <select
+              value={weightFunction}
+              onChange={e => setWeightFunction(e.target.value as WeightFunction)}
+              className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white"
+            >
+              <option value="huber">Huber (gentle, 95% efficient)</option>
+              <option value="igg3">IGG3 (Chinese standard, hard reject at 2.5σ)</option>
+              <option value="tukey">Tukey Biweight (most aggressive)</option>
+            </select>
+          </div>
+        )}
+      </section>
+
       <div className="flex gap-3">
         <button
           onClick={handleCompute}
           disabled={stations.length < 2 || observations.length === 0}
-          className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 disabled:opacity-40 font-medium"
+          className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 disabled:opacity-40 font-medium flex items-center gap-2"
         >
-          Run Adjustment
+          {robustMode && <Zap className="w-4 h-4" />}
+          {robustMode ? 'Run Robust Adjustment' : 'Run Adjustment'}
         </button>
         {result && (
           <button
@@ -450,8 +533,11 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
       {result && (
         <section className="space-y-5">
           <div className={`p-4 rounded-lg border ${result.passedTolerance ? 'bg-green-900/30 border-green-700' : 'bg-amber-900/30 border-amber-700'}`}>
-            <h3 className="font-semibold mb-2 text-white">
-              {result.passedTolerance ? '<CheckCircle2 className="w-3.5 h-3.5 inline shrink-0" /> Adjustment Passed' : '<AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Adjustment — Check Residuals'}
+            <h3 className="font-semibold mb-2 text-white flex items-center gap-2">
+              {result.passedTolerance
+                ? <><CheckCircle2 className="w-4 h-4" /> Adjustment Passed</>
+                : <><AlertTriangle className="w-4 h-4" /> Adjustment — Check Residuals</>
+              }
             </h3>
             <div className="grid grid-cols-3 gap-4 text-sm text-zinc-300">
               <div><span className="text-zinc-500">σ₀ (ref std dev)</span><br /><strong>{result.sigmaZero.toFixed(4)}</strong></div>
@@ -489,7 +575,7 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
                       <td className="px-3 py-2 border border-zinc-700 font-mono">{s.residualE.toFixed(5)}</td>
                       <td className="px-3 py-2 border border-zinc-700 font-mono">{s.residualN.toFixed(5)}</td>
                       <td className="px-3 py-2 border border-zinc-700 font-mono">{s.semiMajor.toFixed(5)}</td>
-                      <td className="px-3 py-2 border border-zinc-700">{s.isFixed ? '[Lock] Fixed' : 'Free'}</td>
+                      <td className="px-3 py-2 border border-zinc-700">{s.isFixed ? <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> Fixed</span> : 'Free'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -504,6 +590,59 @@ export function NetworkAdjustmentPanel({ projectId, projectData, surveyorProfile
             width={700}
             height={450}
           />
+
+          {/* Robust Adjustment: Blunder Detection Panel */}
+          {robustResult && (
+            <div className={`p-4 rounded-lg border ${robustResult.blunders.length === 0 ? 'bg-green-900/30 border-green-700' : 'bg-red-900/30 border-red-700'}`}>
+              <h3 className="font-semibold mb-2 text-white flex items-center gap-2">
+                {robustResult.blunders.length === 0
+                  ? <><CheckCircle2 className="w-4 h-4" /> No Blunders Detected</>
+                  : <><AlertTriangle className="w-4 h-4" /> {robustResult.blunders.length} Blunder(s) Detected</>
+                }
+                <span className="text-xs font-normal text-zinc-400 ml-2">
+                  ({robustResult.method.toUpperCase()} IRLS, {robustResult.iterations} iterations)
+                </span>
+              </h3>
+              <p className="text-sm text-zinc-300 mb-3">{robustResult.summary}</p>
+
+              {/* Per-observation weights table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse text-zinc-300">
+                  <thead>
+                    <tr className="bg-zinc-800 text-left">
+                      <th className="px-3 py-2 border border-zinc-700">#</th>
+                      <th className="px-3 py-2 border border-zinc-700">From → To</th>
+                      <th className="px-3 py-2 border border-zinc-700">Type</th>
+                      <th className="px-3 py-2 border border-zinc-700">Residual (m)</th>
+                      <th className="px-3 py-2 border border-zinc-700">Std. Residual</th>
+                      <th className="px-3 py-2 border border-zinc-700">Final Weight</th>
+                      <th className="px-3 py-2 border border-zinc-700">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {robustResult.blunders.map((b, i) => (
+                      <tr key={i} className="bg-red-950/30">
+                        <td className="px-3 py-2 border border-zinc-700">{b.index + 1}</td>
+                        <td className="px-3 py-2 border border-zinc-700 font-medium">{b.from || '?'} → {b.to || '?'}</td>
+                        <td className="px-3 py-2 border border-zinc-700">{b.type}</td>
+                        <td className="px-3 py-2 border border-zinc-700 font-mono">{b.residual.toFixed(4)}</td>
+                        <td className="px-3 py-2 border border-zinc-700 font-mono">{b.standardizedResidual.toFixed(2)}σ</td>
+                        <td className="px-3 py-2 border border-zinc-700 font-mono text-red-400">{b.finalWeight.toFixed(3)}</td>
+                        <td className="px-3 py-2 border border-zinc-700 text-red-400 font-medium">BLUNDER</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {robustResult.blunders.length > 0 && (
+                <p className="text-xs text-zinc-400 mt-3">
+                  💡 Blunders are down-weighted automatically. Re-check the observation field notes for the flagged legs —
+                  look for swapped face, wrong target height, or transcription errors. After correcting, re-run the adjustment.
+                </p>
+              )}
+            </div>
+          )}
 
           {saving && <p className="text-sm text-zinc-500 italic">Saving results…</p>}
         </section>

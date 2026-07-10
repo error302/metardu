@@ -1,11 +1,17 @@
 'use client';
 
-import { useState } from 'react'
-import { FileText, Download, Save, CheckCircle, AlertCircle, Plus, Trash2, Printer } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { FileText, Download, Save, CheckCircle, AlertCircle, Plus, Trash2, Printer, Ruler } from 'lucide-react'
 import { DeedPlanInput, DeedPlanOutput, BoundaryPoint, BeaconType } from '@/types/deedPlan'
 import { generateDeedPlan } from '@/lib/compute/deedPlanApi'
 import { saveDeedPlan } from '@/lib/api-client/deedPlans'
 import { printDeedPlan } from '@/lib/print/deedPlanPrint'
+import {
+  coordinate2D,
+  polygonArea2D,
+  formatScalarWithCI,
+  scalarCI,
+} from '@/lib/survey/covariancePropagation'
 
 interface DeedPlanGeneratorProps {
   projectId: string
@@ -82,6 +88,21 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
     surveyDate: new Date().toISOString().split('T')[0],
     signatureDate: new Date().toISOString().split('T')[0]
   })
+
+  // Compute area with confidence interval from boundary points.
+  // Uses covariance propagation: assumes each boundary point has ~5mm std dev
+  // (typical for cadastral traverse). If the surveyor has LSA covariances,
+  // those would be wired in here from the network adjustment result.
+  const areaWithUncertainty = useMemo(() => {
+    if (input.boundaryPoints.length < 3) return null
+    // Default per-point accuracy: 5mm in E and N (typical for closed traverse)
+    // Future: wire in actual LSA covariances from the network adjustment
+    const sigmaPoint = 0.005
+    const vertices = input.boundaryPoints.map(p =>
+      coordinate2D(p.easting, p.northing, sigmaPoint, sigmaPoint, 0),
+    )
+    return polygonArea2D(vertices)
+  }, [input.boundaryPoints])
 
   const handleGenerate = async () => {
     setIsGenerating(true)
@@ -723,11 +744,33 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
             </div>
           </div>
 
+          {/* Area with Confidence Interval — for statutory submissions */}
+          {areaWithUncertainty && (
+            <div className="flex items-center gap-4 p-4 rounded-lg border border-blue-700/60 bg-blue-950/20">
+              <Ruler className="h-6 w-6 text-blue-400 shrink-0" />
+              <div className="flex-1">
+                <div className="font-semibold text-blue-200">
+                  Computed Area: {formatScalarWithCI(areaWithUncertainty, { unit: 'm²', decimals: 2 })}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Confidence interval derived from boundary point uncertainties via covariance propagation (Var(A) = J·Σ·Jᵀ).
+                  Assumes 5mm per-point accuracy — replace with LSA covariances for sub-cm precision.
+                </div>
+              </div>
+              <div className="text-right text-xs">
+                <div className="text-gray-400">Std Dev</div>
+                <div className="font-mono text-blue-300">
+                  ±{scalarCI(areaWithUncertainty).stdDev.toFixed(4)} m²
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* SVG Preview */}
           <div className="bg-white rounded-lg p-4 border overflow-auto">
-            <div 
+            <div
               className="mx-auto"
-              dangerouslySetInnerHTML={{ __html: output.svg }} 
+              dangerouslySetInnerHTML={{ __html: output.svg }}
             />
           </div>
 

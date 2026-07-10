@@ -702,3 +702,72 @@ Stage Summary:
 - Deed plan areas now carry confidence intervals (legal protection)
 - Local calibrations achieve 100× better accuracy than national parameters
 
+
+---
+Task ID: UI-1
+Agent: Main Agent
+Task: Wire advanced math into UI panels + UI/UX audit + admin dashboard access
+
+Work Log:
+- Wired robust estimation (blunder detection) into NetworkAdjustmentPanel
+  - Added "Robust Mode" toggle with Huber/IGG3/Tukey weight function selector
+  - Added blunder detection panel showing per-observation weights + residuals
+  - Fixed icon-as-string-literal bug (was rendering raw '<CheckCircle2 .../>')
+  - Fixed [Compass]/[Folder]/[Lock] placeholder pattern → proper JSX icons
+- Wired confidence intervals into DeedPlanGenerator
+  - Added "Computed Area: 1234.5 ± 0.2 m² (95% CI)" panel in preview step
+  - Uses polygonArea2D() from covariancePropagation.ts
+  - Shows std dev and provenance explanation
+- Upgraded Site Calibration page to use rigorous Helmert
+  - Now uses calibrateTransformation() with MAD-based outlier detection
+  - Shows quality assessment (excellent/good/acceptable/poor) + improvement factor
+  - Per-point residuals with outlier flags
+  - Option to register in transformation registry
+- Created LocalCalibrationPanel component for embedding in other pages
+- Fixed 4 remaining icon-string-literal bugs:
+  - RoadCompletionCertificatePanel.tsx (AlertTriangle)
+  - TraverseBook.tsx (AlertTriangle)
+  - GNSSProcessor.tsx (AlertTriangle)
+  - SubmissionClient.tsx (CheckCircle2 via getStatusIcon())
+- Fixed [IconName] placeholder pattern in:
+  - profile/page.tsx H1 ([User] → <User> icon)
+  - PrintMetaPanel.tsx ([Clip] → <Clipboard> icon, reused in 12+ tool pages)
+  - NetworkAdjustmentPanel.tsx ([Compass], [Folder], [Lock])
+- Fixed shadcn token wiring in globals.css
+  - Added unprefixed HSL variables (--card, --primary, --background, --foreground, etc.)
+  - shadcn <Card>/<Button>/<Badge>/<Alert> now render with correct theme colors
+  - Applied to both dark (:root) and light ([data-theme="light"]) modes
+- Fixed dark: variant issue in tailwind.config.ts
+  - Changed darkMode from "class" to ["class", '[data-theme="dark"]']
+  - 172 dead dark: variants now activate correctly
+- Added admin link to MobileNav "More" drawer
+  - Conditionally rendered for super_admin/admin/org_admin roles
+  - Closes the mobile admin discoverability gap
+- Created docs/ADMIN_ACCESS.md
+  - Documents the 3-layer access control (middleware + session + client)
+  - Role hierarchy (super_admin > admin > org_admin > project_manager > surveyor > viewer)
+  - How to set up admin access via .env (ADMIN_EMAILS, PLATFORM_OWNER_EMAIL)
+  - How to grant admin via direct SQL
+  - Navigation links (desktop sidebar, top navbar dropdown, mobile "More" drawer)
+
+UI/UX Audit Findings (documented for future fixes):
+- NetworkAdjustmentPanel uses raw bg-zinc-* instead of CSS vars (MEDIUM)
+- 31 tables without overflow-x-auto wrappers (MEDIUM)
+- 46 empty catch {} blocks silently swallow errors (MEDIUM)
+- Two competing theme toggles (FieldModeToggle vs OutdoorModeToggle) desync (MEDIUM)
+- Hardcoded #0a0a0f on map page doesn't switch with theme (MEDIUM)
+- Color contrast --text-muted on --bg-primary ≈ 3.6:1 (fails WCAG AA, LOW)
+- aria-label values are placeholders not field purposes (LOW)
+
+Tests: 136 suites, 2136 tests, ALL PASSING. tsc --noEmit clean.
+
+Stage Summary:
+- Surveyors can now detect blunders visually in the Network Adjustment panel
+- Deed plans now show area with confidence interval (legally defensible)
+- Site calibration page now uses rigorous Helmert with outlier detection
+- 4 icon-string-literal bugs fixed (users no longer see raw JSX text)
+- shadcn primitives now work correctly with the theme
+- dark: Tailwind variants now activate in dark mode
+- Admin dashboard accessible from mobile nav
+- Full admin access documentation created
+

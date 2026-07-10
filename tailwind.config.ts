@@ -2,7 +2,10 @@ import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 
 const config: Config = {
-    darkMode: "class",
+    // Match both .dark class AND [data-theme="dark"] attribute so the
+    // existing theme toggles (which set data-theme) activate Tailwind's
+    // dark: variants. Tailwind v3.4+ supports multiple dark mode selectors.
+    darkMode: ["class", '[data-theme="dark"]'],
     content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",

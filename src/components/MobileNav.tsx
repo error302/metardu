@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react'
 import {
   FolderKanban, LayoutDashboard, MapPinned, UserRound, UsersRound, Wrench, FileText,
   CalendarDays, Radar, Store, ChevronRight, X, AlertTriangle, Clock,
-  BookOpen, Compass, MapPin
+  BookOpen, Compass, MapPin, ShieldCheck
 } from 'lucide-react'
 import { PRIMARY_NAV_ITEMS, isNavItemActive } from '@/lib/navigation-shell'
 
@@ -177,6 +177,41 @@ export default function MobileNav() {
                 })}
               </div>
             </div>
+
+            {/* Admin Section (only for admin users) */}
+            {mounted && isAuthenticated && (() => {
+              const userRole = (session?.user as { role?: string })?.role
+              const isAdmin = userRole === 'super_admin' || userRole === 'admin' || userRole === 'org_admin'
+              if (!isAdmin) return null
+              return (
+                <div className="px-5 pt-4 pb-2">
+                  <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.15em] mb-2">Administration</p>
+                  <div className="space-y-1">
+                    <Link
+                      href="/admin"
+                      onClick={() => setShowMore(false)}
+                      className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
+                        pathname === '/admin' || pathname.startsWith('/admin/')
+                          ? 'bg-[var(--accent)]/10 border border-[var(--accent)]/20'
+                          : 'hover:bg-[var(--bg-tertiary)] border border-transparent'
+                      }`}
+                    >
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                        pathname === '/admin' ? 'bg-[var(--accent)]/15' : 'bg-[var(--bg-tertiary)]'
+                      }`}>
+                        <ShieldCheck className={`w-4.5 h-4.5 ${pathname === '/admin' ? 'text-[var(--accent)]' : 'text-[var(--accent)]'}`} strokeWidth={1.8} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-sm font-medium ${pathname === '/admin' ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+                          Admin Dashboard
+                        </span>
+                      </div>
+                      <ChevronRight className={`w-4 h-4 ${pathname === '/admin' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`} />
+                    </Link>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Settings Section */}
             <div className="px-5 pt-4 pb-6">

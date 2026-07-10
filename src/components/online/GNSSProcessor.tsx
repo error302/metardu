@@ -226,7 +226,7 @@ export default function GNSSProcessor({ projectId = '' }: { projectId?: string }
                     <td className="p-3 text-right font-mono">{r.distance.toFixed(3)}</td>
                     <td className="p-3 text-right font-mono">{(r.rmsError * 1000).toFixed(1)}mm</td>
                     <td className="p-3 text-right font-mono">{r.ratio.toFixed(1)}</td>
-                    <td className="p-3 text-center">{r.fixed ? '' : '<AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> '}</td>
+                    <td className="p-3 text-center">{r.fixed ? '' : <AlertTriangle className="w-3.5 h-3.5 inline shrink-0 text-amber-500" />}</td>
                     <td className="p-3 text-center">{r.qualityClass}</td>
                   </tr>
                 ))}

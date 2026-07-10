@@ -427,7 +427,12 @@ function CertificatePreview({ certificate }: { certificate: ReturnType<typeof ge
 
       {/* Status Badge */}
       <div className={`text-center py-2 rounded-lg ${certificate.isComplete ? 'bg-green-900/50 text-green-400' : 'bg-amber-900/50 text-amber-400'}`}>
-        <span className="font-bold">{certificate.isComplete ? ' CERTIFIED — COMPLIANT' : '<AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> PENDING — RESERVATIONS NOTED'}</span>
+        <span className="font-bold flex items-center justify-center gap-1.5">
+          {certificate.isComplete
+            ? 'CERTIFIED — COMPLIANT'
+            : <><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> PENDING — RESERVATIONS NOTED</>
+          }
+        </span>
       </div>
 
       {/* Sections */}

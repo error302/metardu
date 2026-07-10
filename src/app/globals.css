@@ -97,6 +97,34 @@ h1, h2, h3 { text-wrap: balance; }
   --shadcn-chart-3: 30 50% 56%;
   --shadcn-chart-4: 210 30% 55%;
   --shadcn-chart-5: 340 40% 58%;
+
+  /* Unprefixed shadcn tokens — wire --shadcn-* to the names tailwind.config.ts expects.
+     Without these, shadcn <Card>/<Button>/<Badge>/<Alert> render with no theme color. */
+  --background: 20 14% 9%;
+  --foreground: 30 14% 89%;
+  --card: 20 12% 11%;
+  --card-foreground: 30 14% 89%;
+  --popover: 20 14% 11%;
+  --popover-foreground: 30 14% 89%;
+  --primary: 22 60% 56%;
+  --primary-foreground: 20 14% 9%;
+  --secondary: 20 10% 15%;
+  --secondary-foreground: 30 14% 89%;
+  --muted: 20 10% 15%;
+  --muted-foreground: 30 8% 55%;
+  --accent: 22 60% 56%;
+  --accent-foreground: 20 14% 9%;
+  --destructive: 0 50% 58%;
+  --destructive-foreground: 30 14% 89%;
+  --border: 20 10% 18%;
+  --input: 20 10% 18%;
+  --ring: 22 60% 56%;
+  --radius: 0.5rem;
+  --chart-1: 22 60% 56%;
+  --chart-2: 90 20% 58%;
+  --chart-3: 30 50% 56%;
+  --chart-4: 210 30% 55%;
+  --chart-5: 340 40% 58%;
 }
 
 /* ========================================================================
@@ -150,6 +178,27 @@ html[data-theme="light"] {
   --shadcn-border: 60 4% 86%;
   --shadcn-input: 60 4% 86%;
   --shadcn-ring: 18 60% 45%;
+
+  /* Unprefixed shadcn tokens for light mode */
+  --background: 60 6% 98%;
+  --foreground: 20 14% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 14% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 14% 9%;
+  --primary: 18 60% 45%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 60 6% 95%;
+  --secondary-foreground: 20 14% 9%;
+  --muted: 60 6% 95%;
+  --muted-foreground: 30 5% 40%;
+  --accent: 18 60% 45%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 50% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 60 4% 86%;
+  --input: 60 4% 86%;
+  --ring: 18 60% 45%;
 }
 
 /* ========================================================================

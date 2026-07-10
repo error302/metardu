@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react'
+import { Clipboard } from 'lucide-react'
 
 export interface PrintMeta {
   projectName: string
@@ -75,7 +76,7 @@ export function PrintMetaPanel({ meta, onChange }: PrintMetaPanelProps) {
         aria-expanded={open}
       >
         <span className="flex items-center gap-2">
-          <span className="text-sm font-medium">[Clip] Print Header</span>
+          <span className="text-sm font-medium flex items-center gap-1.5"><Clipboard className="w-4 h-4" /> Print Header</span>
           <span className="text-xs text-[var(--text-muted)]">
             project · surveyor · instrument — required for official output
           </span>

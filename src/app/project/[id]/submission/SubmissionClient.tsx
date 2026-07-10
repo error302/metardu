@@ -214,13 +214,13 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
   const getStatusIcon = (status: DocumentStatus) => {
     switch (status) {
       case 'ready':
-        return '<CheckCircle2 className="w-3.5 h-3.5 inline shrink-0" /> ';
+        return <CheckCircle2 className="w-3.5 h-3.5 inline shrink-0 text-green-500" />;
       case 'generating':
-        return '[Sync]';
+        return <span className="text-amber-500">⟳</span>;
       case 'error':
-        return '[X]';
+        return <span className="text-red-500">✕</span>;
       default:
-        return '[Wait]';
+        return <span className="text-zinc-400">…</span>;
     }
   };
 

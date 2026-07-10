@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { useRouter } from 'next/navigation'
+import { User } from 'lucide-react'
 
 interface Profile {
   id: string
@@ -158,7 +159,7 @@ export default function ProfilePage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-8">[User] Your Profile</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-8 flex items-center gap-2"><User className="w-6 h-6" /> Your Profile</h1>
 
         <div className="space-y-6">
           <div className="card">
