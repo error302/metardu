@@ -100,6 +100,7 @@ import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButto
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
 import { StakeoutRadar } from '@/components/survey/StakeoutRadar'
+import { OsmBuildingsLayer } from '@/app/map/components/OsmBuildingsLayer'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
 import { switchMapView } from '@/lib/map/nativeProjectionView'
@@ -304,6 +305,9 @@ export default function MapClient() {
   // ── Stakeout Radar state ──
   const [showStakeoutRadar, setShowStakeoutRadar] = useState(false)
   const [stakeoutRadarTarget, setStakeoutRadarTarget] = useState<{ e: number; n: number } | null>(null)
+
+  // ── OSM Buildings overlay toggle ──
+  const [showOsmBuildings, setShowOsmBuildings] = useState(false)
 
   const {
     print: printMap,
@@ -1473,9 +1477,28 @@ export default function MapClient() {
                 {/* Rotation Control (north reset) */}
                 <RotationControl />
 
+                {/* OSM Buildings Toggle */}
+                <button
+                  onClick={() => setShowOsmBuildings(!showOsmBuildings)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all backdrop-blur-xl border ${
+                    showOsmBuildings
+                      ? 'bg-[var(--accent)]/15 border-[var(--accent)]/30 text-[var(--accent)]'
+                      : 'bg-[var(--bg-secondary)]/60 border-[var(--border-color)]/[0.08] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]/80'
+                  }`}
+                  title="Toggle OpenStreetMap building footprints (requires Python worker + PBF file)"
+                >
+                  <span className="text-sm">🏗</span>
+                  <span className="hidden sm:inline">OSM Buildings</span>
+                </button>
+
                 {/* Always-on North Arrow (rotates with map) */}
                 <NorthArrowOverlay mapInstance={mapInstance} />
               </div>
+
+              {/* OSM Buildings Overlay Layer */}
+              {mapInstance && (
+                <OsmBuildingsLayer map={mapInstance} visible={showOsmBuildings} />
+              )}
 
               {/* ── Vertex Edit Toolbar (bottom-left, near map controls) ── */}
               <div className="absolute bottom-24 left-3 z-20">

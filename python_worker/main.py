@@ -13,7 +13,42 @@ import math
 import json
 import os
 
+# ─── OSM Feature Servers (Pyrosm, Pyosmium, OSMPythonTools) ────────────────
+# These routers add OSM data capabilities:
+#   - /osm/features      — Pyrosm local PBF parsing (buildings, roads, POIs)
+#   - /osm/stream-extract — Pyosmium streaming extract (memory-efficient)
+#   - /osm/nearby-features — OSMPythonTools Overpass queries for deed plans
+#   - /osm/auto-abuttals  — Auto-populate deed plan abuttals from OSM
+try:
+    from osm_feature_server import router as osm_features_router
+    app_osm_features = osm_features_router
+except ImportError as e:
+    print(f"[worker] OSM feature server not available: {e}")
+    app_osm_features = None
+
+try:
+    from osm_streaming import stream_router as osm_stream_router
+    app_osm_stream = osm_stream_router
+except ImportError as e:
+    print(f"[worker] OSM streaming not available: {e}")
+    app_osm_stream = None
+
+try:
+    from osm_overpass import overpass_router as osm_overpass_router
+    app_osm_overpass = osm_overpass_router
+except ImportError as e:
+    print(f"[worker] OSM Overpass not available: {e}")
+    app_osm_overpass = None
+
 app = FastAPI(title="METARDU Compute Worker", version="0.1.0")
+
+# ─── Register OSM Routers ───────────────────────────────────────────────────
+if app_osm_features:
+    app.include_router(app_osm_features)
+if app_osm_stream:
+    app.include_router(app_osm_stream)
+if app_osm_overpass:
+    app.include_router(app_osm_overpass)
 
 # --- Worker Secret: MUST be set via environment variable ---
 WORKER_SECRET = os.environ.get("WORKER_SECRET", "")
