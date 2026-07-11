@@ -6,6 +6,7 @@ import Link from 'next/link'
 // jsPDF loaded dynamically on PDF generation
 
 import { createClient } from '@/lib/api-client/client'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { heightOfCollimation, riseAndFall } from '@/lib/engine/leveling'
 import { bowditchAdjustment, forwardTraverse } from '@/lib/engine/traverse'
@@ -1159,7 +1160,21 @@ export default function DigitalFieldBookPage() {
             InstrumentStreamBar — provides zero-manual-entry data collection
             via total station (Web Serial) and GNSS rover (Web Bluetooth).
             The old MobileMeasurementCapture was manual-only. The new bar
-            auto-detects the best mode based on survey type + browser support. */}
+            auto-detects the best mode based on survey type + browser support.
+            AUDIT FIX (2026-07-10): wrapped in ErrorBoundary so a stale chunk
+            (chunk 2723 etc.) doesn't take down the whole field book page —
+            the surveyor can still manually enter readings while we recover. */}
+        <ErrorBoundary
+          fallback={
+            <div className="mx-3 my-4 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs">
+              <p className="text-amber-300 font-semibold mb-1">Instrument connection unavailable</p>
+              <p className="text-amber-200/70 mb-2">A deferred chunk failed to load — your draft is safe. Reload to reconnect the total station / GNSS rover.</p>
+              <button onClick={() => window.location.reload()} className="px-3 py-1.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-200 hover:bg-amber-500/30">
+                Reload
+              </button>
+            </div>
+          }
+        >
         <InstrumentStreamBar
           surveyType={type as StreamSurveyType}
           onReading={(reading: StreamedReading) => {
@@ -1205,6 +1220,7 @@ export default function DigitalFieldBookPage() {
           instrumentHeight={1.5}
           targetHeight={1.5}
         />
+        </ErrorBoundary>
         <FieldbookAuditDrawer
           open={auditDrawerOpen}
           onClose={() => setAuditDrawerOpen(false)}
@@ -1326,8 +1342,16 @@ export default function DigitalFieldBookPage() {
               GNSS Rover & NTRIP
             </summary>
             <div className="mt-3 space-y-3">
-              <GNSSRoverConnection />
-              <NTRIPClientPanel />
+              <ErrorBoundary
+                fallback={
+                  <p className="text-xs text-amber-300/70">
+                    Connection module unavailable — reload to reconnect instrument.
+                  </p>
+                }
+              >
+                <GNSSRoverConnection />
+                <NTRIPClientPanel />
+              </ErrorBoundary>
             </div>
           </details>
 
@@ -1337,7 +1361,15 @@ export default function DigitalFieldBookPage() {
               GNSS Quality Report
             </summary>
             <div className="mt-3">
-              <GNSSQualityReport />
+              <ErrorBoundary
+                fallback={
+                  <p className="text-xs text-amber-300/70">
+                    Quality module unavailable — reload to view stats.
+                  </p>
+                }
+              >
+                <GNSSQualityReport />
+              </ErrorBoundary>
             </div>
           </details>
         </div>
@@ -1355,13 +1387,26 @@ export default function DigitalFieldBookPage() {
             </TabButton>
           </div>
 
-          {!currentComputed.ok && (
-            <div className="p-3 bg-red-900/15 border border-red-700 rounded text-sm text-red-300">
-              {currentComputed.errors.map((e: string, i: number) => (
-                <div key={`item-${i}`}>{e}</div>
-              ))}
-            </div>
-          )}
+          {!currentComputed.ok && (() => {
+            // UX: suppress the red "Calculation Errors" banner on initial empty
+            // render. The user hasn't entered any data yet, so the empty-field
+            // errors are noise — the engine won't actually fail until the user
+            // tries to Save or Compute without filling required fields.
+            // Only surface the banner when the user has entered at least one row
+            // (or a start coordinate for traverse) so they know *why* it failed.
+            const hasUserInput =
+              (type === 'leveling' && levelRows.some((r) => r.station.trim() || r.bs.trim() || r.is.trim() || r.fs.trim())) ||
+              (type === 'traverse' && (travRows.length > 1 || travRows.some((r) => r.station.trim()) || !!startE.trim() || !!startN.trim())) ||
+              (type === 'control' && controlRows.some((r) => r.pointId.trim() || r.bearing.trim() || r.slopeDistance.trim()))
+            if (!hasUserInput) return null
+            return (
+              <div className="p-3 bg-red-900/15 border border-red-700 rounded text-sm text-red-300">
+                {currentComputed.errors.map((e: string, i: number) => (
+                  <div key={`item-${i}`}>{e}</div>
+                ))}
+              </div>
+            )
+          })()}
 
           {type === 'leveling' && (
             <LevelingBook

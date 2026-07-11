@@ -57,6 +57,10 @@ function isMapRoute(pathname: string): boolean {
   return pathname === '/map' || pathname.startsWith('/map/')
 }
 
+function isFieldbookRoute(pathname: string): boolean {
+  return pathname === '/fieldbook' || pathname.startsWith('/fieldbook/')
+}
+
 /* ── Shell Component ─────────────────────────────────────────────── */
 
 // Only show the loading screen once per browser session (not on every route change)
@@ -70,6 +74,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const auth = isAuthRoute(pathname)
   const dashboard = isDashboardRoute(pathname) // Uses sidebar nav, not top NavBar
   const mapPage = isMapRoute(pathname)
+  const fieldbookPage = isFieldbookRoute(pathname)
+  // Map and fieldbook are full-data-entry surfaces — the global overlays
+  // (Footer, FeedbackWidget, QuickCompute, MobileNav, CommandPalette)
+  // overlap the entry form and steal taps from the surveyor on a phone.
+  const hideGlobalOverlays = mapPage || fieldbookPage
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [initialLoading, setInitialLoading] = useState(!_hasShownLoadingScreen)
 
@@ -215,12 +224,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
               {children}
             </main>
             <Footer />
-            {!mapPage && <FeedbackWidget />}
+            {!hideGlobalOverlays && <FeedbackWidget />}
             <KeyboardShortcuts />
-            {/* Hide QuickCompute and FeedbackWidget on map page — they overlap map tools */}
-            {!mapPage && <QuickCompute />}
-            {!dashboard && <MobileNav />}
-            <CommandPalette />
+            {/* Hide QuickCompute and FeedbackWidget on map + fieldbook pages — they overlap entry controls */}
+            {!hideGlobalOverlays && <QuickCompute />}
+            {!dashboard && !hideGlobalOverlays && <MobileNav />}
+            {!hideGlobalOverlays && <CommandPalette />}
             <NotificationToast />
             <OnboardingTour />
             {onboardingModal}

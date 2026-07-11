@@ -90,6 +90,7 @@ import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { RotationControl } from '@/app/map/components/RotationControl'
 import { NorthArrowOverlay } from '@/app/map/components/NorthArrowOverlay'
+import { MapOverlayProvider } from '@/app/map/components/MapOverlayManager'
 import { MapPrintButton } from '@/app/map/components/MapPrintButton'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
@@ -1364,6 +1365,7 @@ export default function MapClient() {
   return (
     <MapErrorBoundary>
       <MapProvider value={mapContextValue}>
+      <MapOverlayProvider>
       <div
         id="metardu-global-map"
         className="h-[calc(100vh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
@@ -1510,6 +1512,7 @@ export default function MapClient() {
         {/* Offline tile downloader (re-enabled — backend now implemented) */}
         {mapReady && <OfflineTileDownloader />}
       </div>
+      </MapOverlayProvider>
       </MapProvider>
     </MapErrorBoundary>
   )
