@@ -180,6 +180,22 @@ export async function middleware(request: NextRequest) {
   // Add security headers to all responses
   const response = NextResponse.next()
 
+  // ─── API Versioning ──────────────────────────────────────────────────────
+  // ByteByteGo audit fix: support /api/v1/* paths by rewriting to /api/*
+  // This allows clients to use /api/v1/projects while existing clients
+  // continue using /api/projects. Future v2 routes can be added selectively.
+  const apiVersionMatch = request.nextUrl.pathname.match(/^\/api\/v(\d+)\//)
+  if (apiVersionMatch) {
+    const version = apiVersionMatch[1]
+    const newPath = request.nextUrl.pathname.replace(/^\/api\/v\d+\//, '/api/')
+    const newUrl = new URL(newPath, request.url)
+    newUrl.search = request.nextUrl.search
+    // Rewrite (not redirect) so the route handler sees /api/projects
+    response.headers.set('X-API-Version', version)
+    // Use NextResponse.rewrite for internal routing
+    return NextResponse.rewrite(newUrl)
+  }
+
   // Generate per-request nonce and set CSP headers
   const nonce = generateNonce()
   const cspHeaders = getCspHeaders(nonce)

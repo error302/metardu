@@ -121,8 +121,9 @@ services:
 
   # Public exposure: bore.pub tunnel proxies port 3000 over TCP.
   # Public URL: http://bore.pub:7788 — stable as long as this container runs.
+  # ByteByteGo audit fix: pinned to specific version instead of :latest
   metardu-bore:
-    image: ekzhang/bore:latest
+    image: ekzhang/bore:0.5.0
     container_name: metardu-bore
     command:
       - "local"
