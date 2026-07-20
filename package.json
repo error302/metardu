@@ -167,7 +167,7 @@
     "autoprefixer": "^10.4.27",
     "better-sqlite3": "^12.9.0",
     "eslint": "^8.56.0",
-    "eslint-config-next": "^14.2.0",
+    "eslint-config-next": "^16.2.10",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
     "lightningcss": "^1.32.0",
