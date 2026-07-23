@@ -1,0 +1,269 @@
+# METARDU — Agent Master Plan
+
+> **Purpose**: A single, persistent, resumable plan for all agent-driven work on METARDU.
+> Updated after every committed change. When you stop, pick up from the next `pending` item.
+
+**Last updated**: 2026-07-24
+**Maintained by**: Agent (GLM via Super Z)
+**Source repos**: `error302/metardu` (this repo), plus supporting skill repos `agency-agents`, `ponytail`, `superpowers` (cloned locally at `/home/z/my-project/repos/`).
+
+---
+
+## How to use this plan
+
+1. **Read this file first** every session.
+2. Find the next `pending` item in the status tables below.
+3. Read the linked worklog section in `/home/z/my-project/worklog.md` (local, not committed) for full context.
+4. Do the work using the ponytail + superpowers + agency-agents stack.
+5. Commit with `feat:` / `fix:` / `chore:` prefix. Push to `origin/main`.
+6. Update the status here (`pending` → `in_progress` → `done` or `skipped`).
+7. Commit the plan update.
+8. Repeat.
+
+**Status legend**: `pending` (not started) · `in_progress` (being worked) · `done` (shipped) · `skipped` (decided not to do) · `blocked` (waiting on a decision)
+
+**Convention**: Each item has an ID (`P0-1`, `UI-3`, `ENG-2`, etc.) so the worklog and commits can reference it.
+
+---
+
+## Already-resolved audit items (verified during deep-dive)
+
+These were listed as open in `docs/AUDIT.md` but are actually fixed in the current codebase. No action needed.
+
+| ID | Finding | Resolution |
+|----|---------|-----------|
+| C8 | `/api/project/[id]/points` queries `is_control` column that didn't exist | Migration `025_survey_points_control_flag.sql` adds the column. Route works. |
+| C2 | `/api/sync` accepts `surveyorId` from body (impersonation) | Route now derives identity from `getServerSession`, ignores body-supplied surveyorId. |
+| H4 | Offline conflict resolution was destructive LWW | Three-way merge with common-ancestor diff implemented. |
+| H7 | No backup automation | `metardu-backup` sidecar container with dcron, GPG encryption, 30-day retention. |
+| H10 | EBK/ISK license verification self-attested | `professional_memberships` table (migration 038) with documentary-proof workflow. |
+| H11 | Deformation analysis lacks statistical rigor | Pelzer global congruence test + confidence ellipses implemented. |
+| H12 | LSA placeholder angle observations | Real angle + azimuth observation equations implemented. |
+| H13 | No Baarda reliability | Full reliability (r_i, MDB, w-test) in `networkAdjustment.ts`. |
+| H14 | No staging environment | `docker-compose.staging.yml` + `deploy-staging.yml` + `promote.yml` + `rollback.yml`. |
+| T1.1 | Dead Prisma schema | Deleted. Raw SQL migrations are source of truth. |
+| T1.6 | ESLint enforcement for geo handlers | Override block shipped. |
+
+---
+
+## Phase 0 — Stop the bleeding (P0, this week)
+
+Small, high-leverage fixes that reduce real-world risk. Each is independently shippable.
+
+| ID | Title | Status | Files | Effort | Notes |
+|----|-------|--------|-------|--------|-------|
+| P0-1 | Fix `gcpOptimizer` zero-export bug (Pix4D/WebODM export `lat=0,lng=0`) | pending | `src/lib/engine/gcpOptimizer.ts`, `src/components/survey/GCPOptimizerPanel.tsx` | small | Add `utmZone`+`hemisphere` params to exporters; call `utmToGeographic`; add zone selector to panel. Default Kenya Zone 37S. |
+| P0-2 | Enforce plan-gates on the 9 gated tool pages (not just catalog) | pending | New `src/lib/subscription/toolGates.ts`, new `src/components/shared/ToolGate.tsx`, 9 tool `page.tsx` files | medium | Export `TOOL_GATES` from page.tsx to shared lib; wrap each gated tool page with `<ToolGate>`. |
+| P0-3 | Reconcile C3 audit-chain contradiction | pending | Research: `src/lib/audit/auditLog.ts`, DB triggers in migrations, `src/lib/apiHandler.ts` | small | Does `appendAuditEntry` fire via PostgreSQL triggers on all mutations, or only when called explicitly? If triggers exist, C3 is resolved. If not, wire `auditChain` option into `apiHandler` as a first-class feature. |
+| P0-4 | Fix M-Pesa callback (C4) — table mismatch, missing callback params, amount not verified | pending | `src/lib/payments/mpesa.ts`, `src/app/api/payments/mpesa/callback/route.ts` | medium | Highest-leverage fix before any M-Pesa customer goes live. Cross-ref `GOING_LIVE_CHECKLIST.md`. |
+| P0-5 | Move hardcoded credentials out of `docker-compose.yml` (H8) | pending | `docker-compose.yml`, `.env.example` | small | Use `${VAR:?...}` required-substitution for `POSTGRES_PASSWORD`, `AUTH_SECRET`, `WORKER_SECRET`. |
+| P0-6 | Wire `ntrip-proxy.js` into docker-compose as its own service | pending | `docker-compose.yml`, `ntrip-proxy.js` | small | Documented but not wired. RTK corrections from browser are broken until done. Populate `ALLOWED_HOSTS`. |
+| P0-7 | Pick one tunnel strategy (Cloudflare vs Bore vs Nginx-direct) and remove the others | pending | `docker-compose.yml`, `CLOUDFLARE_TUNNEL_SETUP.md`, `docs/deployment/duckdns-cloudflare-tunnel.md` | small | Production reality is Nginx+Certbot in front of Cloudflare DNS. Bore is redundant. |
+
+---
+
+## Phase 1 — High-leverage cleanup (P1, this month)
+
+Bigger items that compound. Each is a multi-day effort.
+
+| ID | Title | Status | Files | Effort | Notes |
+|----|-------|--------|-------|--------|-------|
+| P1-1 | Execute NextAuth v4→v5 migration (T1.3) | pending | `src/lib/auth-v5.ts` (staged), 44 files / 46 call-sites | large (3-5 days) | 7-phase plan at `docs/nextauth-v5-migration-plan.md`. Rollback flag `NEXT_PUBLIC_AUTH_V5=false`. v4 is EOL. |
+| P1-2 | Eradicate hardcoded `EPSG:21037` (T1.5) — 60 occurrences across 24 files | pending | `src/app/map/hooks/useMapInteractions.ts` (10), `src/lib/map/turfHelpers.ts` (5), `src/app/map/utils/drawAnnotations.ts` (4), `src/components/map/SurveyMap.tsx`, `src/lib/map/annotations.ts`, `src/lib/map/stakeout.ts` (3 each), PDF generators | large (2-3 days) | Thread `currentUtmEpsg` from `MapReactContext` into all map lib functions. ESLint guard already shipped. Bonus: fix PDF label "UTM Zone 36S (EPSG:21037)" bug in `surveyPlan/renderer.ts:874`, `surveyReport/index.ts:248`. |
+| P1-3 | Wire `appendAuditEntry` into `apiHandler` as first-class `auditChain` option (if C3 not already resolved by triggers) | pending (depends on P0-3) | `src/lib/apiHandler.ts` (already half-designed), all cadastral mutation routes | medium (2 days) | The `auditChain` option already exists in `apiHandler` — just needs to be added to ~30 mutation routes. |
+| P1-4 | Consolidate to one tool registry (3 competing: `TOOL_DEFS` 54, `ProcessingToolbox TOOLS` ~40, 87 route dirs) | pending | `src/app/tools/page.tsx`, `src/components/tools/ProcessingToolbox.tsx` | medium | Pick one source of truth. Unify the two favorites stores (`metardu-tool-favorites` vs `metardu-fav-tools`). Fix canonical URL (`/tools/all` → `/tools`). |
+| P1-5 | Consolidate 5 overlapping LSA implementations | pending | `src/lib/engine/leastSquares.ts`, `leastSquaresAdjustment.ts`, `networkAdjustment.ts`, `src/lib/survey/lsaIterative.ts`, `src/lib/survey/networkAdjustment.ts` | medium | Pick `engine/networkAdjustment.ts` as canonical. Deprecate (don't delete yet) the others with `@deprecated` JSDoc pointing to canonical. |
+| P1-6 | Add tests for `lib/geo/cassini/*` (1941 LOC, no test file — the flagship Kenya tool) | pending | New `src/lib/geo/cassini/__tests__/` | medium (1-2 days) | KAT against the 226 national sheets' known control points (SKP209, SKP208, 149S3, etc.). Round-trip tests. Sub-sheet corner accuracy tests. |
+| P1-7 | Delete or relabel `docs/todo.md` (vestigial 9-line git push checklist, not a backlog) | pending | `docs/todo.md` | tiny | Replace with pointer to ROADMAP.md and this MASTER_PLAN.md. |
+| P1-8 | Finish API client Wave 2 migration (~217 inline fetches → typed `api()` client) | pending | Per `docs/api-client-migration-recipe.md` Wave 2 list | medium | Wave 1 done (6 pages, 38 fetches). Wave 2 = 4 mid-impact pages. Wave 4 = ~150 small components (later). |
+| P1-9 | RSC migration Batch 2 (extract interactivity from thin-wrapper pages, esp. 805-LOC `app/page.tsx`) | pending | `src/app/page.tsx`, ~50 read-only pages | large | Per `docs/rsc-migration-recipe.md`. Ponytail rule: don't convert unless migration removes code. |
+| P1-10 | Type hygiene next batch (cadastralEditing.ts 54, queryBuilder.ts 43, fieldbook/page.tsx 38) | pending | Per `docs/type-hygiene-migration-recipe.md` | medium | ~1,987 `any` across 380 files. ESLint at `warn`. Skip `lib/api-client/client.ts` (deprecated). |
+| P1-11 | Re-add dropped geomatics gaps to ROADMAP (total station integration, GNSS RTK BLE, real-time QC) | pending | `docs/ROADMAP.md` | small | #1 Kenyan surveyor requests per `GEOMATICS_GAP_ANALYSIS.md`. Currently have no ROADMAP home. Add as Tier 2. |
+
+---
+
+## Phase 2 — Strategic / differentiating (P2, this quarter)
+
+| ID | Title | Status | Files | Effort | Notes |
+|----|-------|--------|-------|--------|-------|
+| P2-1 | Resume Phase 13 from Milestone A (canonical submission domain model) | pending | Per `docs/PHASE13_SUBMISSION_PACKAGE_HANDOFF.md` line 1212 resume protocol | large (2-4 weeks) | 10 workstreams: `project_submissions` table, surveyor identity unification (`getActiveSurveyorProfile()`), SRVY2025-1 submission numbering, Form No. 4 upgrade, computation workbook generator, package assembler+validator. |
+| P2-2 | Fix C1 — broken `transformToWGS84` in `datums.ts:326-353` | pending | `src/lib/geodesy/datums.ts` | small | Math-side implicitly fixed by MATH_AUDIT_2026_07_10's rigorous Helmert, but the specific broken function still exists. Delete or replace with call to `helmertRigorous.ts`. |
+| P2-3 | C5 — add CRS/accuracy/provenance columns to `survey_points` (already in migration 027, verify usage) | pending | `src/lib/db/migrations/027_*.sql`, `src/types/surveyPoint.ts`, all consumers | medium | Migration 027 added the columns. Verify they're populated and consumed. |
+| P2-4 | C6 — add `organizations` table with FK (column exists with no FK) | pending | New migration, `src/lib/db/migrations/` | medium | `user_roles.organization_id` has no FK. Add `organizations` table (may already exist per migration 028 — verify), wire FK, enable org-level RLS. |
+| P2-5 | C7 — NLIMS exporter hardcodes UTM 37S (wrong for Zone 36S/35N) | pending | `src/lib/export/nlimsExporter.ts:187-189`, `formNo4.ts:178`, `formC22.ts:227`, `traverseComputationSheet.ts:275`, `areaComputationSheet.ts:139` | medium | Thread project's actual UTM zone into all exporters. Tied to P1-2. |
+| P2-6 | C9 — GNSS baseline processing is a regex stub. Decide: remove feature or implement real double-difference+LAMBDA | pending | `src/lib/online/gnssBaseline.ts` | large | Decision required. Removing is cheaper; implementing is a major differentiator. |
+| P2-7 | C10 — CI enforcement (lint/typecheck/tests must fail the build) | pending | `.github/workflows/ci.yml`, `Dockerfile`, `next.config.js` | small | Remove `continue-on-error: true` on ESLint. Remove `ignoreBuildErrors`. Add `--coverage` and `--max-warnings 0` on changed files. |
+| P2-8 | PostGIS migration for spatial queries (G-91, currently client-side Turf) | pending | New `src/lib/db/migrations/`, `src/lib/spatial/` | large | Defer until parcel counts > 5k. For now, Turf is fine. |
+| P2-9 | Vector tiles for large cadastral schemes (>5k parcels, G-92) | pending | New `src/lib/map/vectorTiles/` | large | Defer until G-91 done. |
+| P2-10 | iOS support via Capacitor (G-93) | pending | `capacitor.config.ts`, new `ios/` | large | Android works. iOS needs Apple Developer account + Mac build agent. |
+
+---
+
+## Phase 3 — Polish (P3, backlog)
+
+| ID | Title | Status | Effort | Notes |
+|----|-------|--------|--------|-------|
+| P3-1 | L1 — OpenAPI/Swagger spec for API | pending | medium | |
+| P3-2 | L2 — API versioning policy (when to bump v1→v2) | pending | small | |
+| P3-3 | L3 — Cursor pagination for large tables | pending | medium | |
+| P3-4 | L4 — Streaming responses for large exports | pending | medium | |
+| P3-5 | L6 — OpenTelemetry traces exported to collector | pending | medium | Instrumentation exists, not exported. |
+| P3-6 | L7 — MFA/2FA for admin accounts | pending | medium | |
+| P3-7 | L8 — Session revocation list (JWT can't be invalidated) | pending | medium | Tied to P1-1 (NextAuth v5 has better revocation). |
+| P3-8 | M2 — EGM2008 2.5′ grid (currently EGM96 5°) | pending | medium | |
+| P3-9 | M12 — Remove Vitest from production deps (unused) | pending | tiny | |
+| P3-10 | M13 — Add Dependabot config | pending | tiny | |
+| P3-11 | M14 — Fix i18n mistranslations (Swahili "Miradi"=projection, French "Estimation"=easting) | pending | small | |
+| P3-12 | M15 — Honest error messages (20+ files emit generic "Failed to X") | pending | medium | |
+| P3-13 | M16 — ARIA coverage uneven (239 hits across 84 files of 200+ components) | pending | large | Tied to UI work. |
+| P3-14 | G-71 — Topo-plan SVG renderer alignment with LinkedIn SoK reference | pending | medium | |
+| P3-15 | G-72 — DXF layer standard compliance (see `docs/DXF_LAYER_STANDARD.md`) | pending | medium | Implementation `initialiseSokDXFLayers()` exists in `src/lib/drawing/dxfLayers.ts`. Verify wired. |
+| P3-16 | G-73 — LandXML 1.2 export (currently 1.0) | pending | medium | |
+| P3-17 | G-75 — PDF report templates: 6 generators hardcode EPSG in labels | pending | small | Tied to P1-2. |
+| P3-18 | G-78 — Complete Swahili/Amharic translations (~60% coverage) | pending | medium | |
+
+---
+
+## UI / UX Workstream
+
+Findings from Task 5-ui deep-dive (see `/home/z/my-project/worklog.md` section `5-ui`).
+
+### Meta-problems (fix these first — everything else compounds)
+
+| ID | Title | Status | Files | Effort | Notes |
+|----|-------|--------|-------|--------|-------|
+| UI-M1 | Two competing design systems in `globals.css` (warm charcoal v0.3 vs "Billion Dollar Look" glassmorphism) | pending | `src/app/globals.css` (lines 1-485 vs 1053-1175) | medium | Pick one. The black-and-orange v0.3 is the restored theme. Delete the glassmorphism block. |
+| UI-M2 | 1,255 LOC of beautifully designed workspace UI is dead code (`EnhancedSplitLayout`, `SplitWorkspaceLayout`, `WorkspaceShell`, `ExportToolbar`, `ComputationLog`) | pending | `src/components/workspace/*`, `src/components/organisms/WorkspaceShell.tsx` | medium | Wire `EnhancedSplitLayout` into `ProjectWorkspaceClient.tsx`. Biggest single UX win. |
+| UI-M3 | Multiple competing implementations (2 Cmd+K searches, 2 `?` overlays, 3 onboarding systems, 2 theme toggles, 2 tool catalogs) | pending | various | medium | See UI-4, UI-5, UI-6, UI-12, P1-4. |
+
+### Top 15 concrete improvements (ranked by impact/effort)
+
+| ID | Title | Impact | Effort | Status | Files |
+|----|-------|--------|--------|--------|-------|
+| UI-1 | Fix `<Input aria-label="Input">` default bug — every unlabeled shadcn input reads as "Input" | high | small | pending | `src/components/ui/input.tsx` |
+| UI-2 | Replace cyan/blue palette in `animated-glassy-pricing.tsx` with brand tokens | high | small | pending | `src/components/ui/animated-glassy-pricing.tsx` |
+| UI-3 | Fix `SolutionStepsRenderer` line 69 — `l.startsWith('')` is always true, failed checks render as green success | high | small | pending | `src/components/SolutionStepsRenderer.tsx` |
+| UI-4 | Wire `EnhancedSplitLayout` into `ProjectWorkspaceClient` — 1,255 LOC of dead workspace UI comes alive | high | medium | pending | `src/app/projects/[id]/` (find the client component), `src/components/workspace/EnhancedSplitLayout.tsx` |
+| UI-5 | Delete one of the two Cmd+K search systems. Keep `CommandPalette`, remove `NavBar.GlobalSearch` | high | medium | pending | `src/components/NavBar.tsx`, `src/components/search/CommandPalette.tsx` |
+| UI-6 | Delete one of the two `?` overlays. Keep `HotkeyHelpOverlay`, merge `KeyboardShortcuts` statics into registry | high | medium | pending | `src/components/shared/HotkeyHelpOverlay.tsx`, `src/components/KeyboardShortcuts.tsx` |
+| UI-7 | Fix landing-page pricing bullets — empty `<span aria-hidden></span>` renders as nothing | high | small | pending | `src/app/page.tsx` |
+| UI-8 | Add `<ThemeProvider attribute="data-theme">` from next-themes (installed but never wired) | high | small | pending | `src/app/layout.tsx` |
+| UI-9 | Migrate Google Fonts `<link>` → `next/font/google` for self-hosting + LCP win on 3G | med | small | pending | `src/app/layout.tsx` |
+| UI-10 | Group AppSidebar's 14 nav items into 4 sections (Workflows/Tools/Data/Account) | med | small | pending | `src/components/layout/AppSidebar.tsx` |
+| UI-11 | Replace WorkflowStepper's Tailwind blue/green with brand tokens | med | small | pending | `src/components/workspace/WorkflowStepper.tsx` |
+| UI-12 | Consolidate three onboarding systems into one (~500 LOC removed) | med | medium | pending | `src/components/ui/OnboardingModal.tsx`, `src/components/shared/OnboardingChecklist.tsx`, `src/components/shared/OnboardingWrapper.tsx`, `src/components/onboarding/OnboardingTour.tsx` |
+| UI-13 | Wire `DashboardSearch` (561 LOC) into the dashboard — built, never imported | med | medium | pending | `src/app/(dashboard)/page.tsx` or `src/app/dashboard/page.tsx`, `src/components/dashboard/DashboardSearch.tsx` |
+| UI-14 | Replace 5 hardcoded navy hex colors in `login/page.tsx` with CSS variables | med | small | pending | `src/app/login/page.tsx` |
+| UI-15 | Delete 3 unused landing images OR use them (mobile fieldbook UI deserves a feature section) | low | small | pending | `public/landing/` |
+
+### What to preserve (don't touch)
+
+- `PageHeader` (55 LOC, 56+ tool pages) — consistent, works.
+- Field mode (sunlight-readable + ambient-light-sensor auto-switch) — genuinely excellent.
+- `MobileFieldUX` (haptics + voice + quick-actions), `MobileFieldbookShell` — real mobile story for fieldbook.
+- Tool print pipeline (`lib/print/*` — 9 Kenya-specific document generators).
+- `OfflineIndicator` + `PWAInstallBanner` (iOS Safari 3-step fallback sheet).
+- `WorkflowQualityGate`.
+- Footer legal disclaimer.
+- FAQ pattern (`<details>` + JSON-LD).
+- `ComputationLog` design (currently dead — wire it in via UI-4, don't rewrite).
+- Kenya-specific copy throughout (Survey Act Cap 299, RDM 1.1, NLIMS, ArdhiSasa, ISK/EBK/SoK, M-Pesa, KES in 13 currencies).
+
+---
+
+## Engine Workstream
+
+Findings from Task 2-engine deep-dive (see worklog section `2-engine`).
+
+| ID | Title | Status | Files | Effort | Notes |
+|----|-------|--------|-------|--------|-------|
+| ENG-1 | Fix `gcpOptimizer` zero-export bug (same as P0-1) | pending | `src/lib/engine/gcpOptimizer.ts` | small | |
+| ENG-2 | Enforce `cassiniFeetToUTMExact` 100-300m warning (function is exported, warning not enforced) | pending | `src/lib/geo/cassini/exact.ts:31` | small | Either remove, rename with deprecation prefix, or throw. |
+| ENG-3 | Fix `crossCheckLeveling` simplified setup-attribution | pending | `src/lib/engine/calculationCrossCheck.ts` | medium | Admits in-code that HCP comparison is "simplified". Needs proper setup-attribution model. |
+| ENG-4 | Fix `parser.ts` UTM range check (naive 100k-900k, wrong for UTM 37S Kenya where eastings can be negative) | pending | `src/lib/engine/parser.ts:49` | small | |
+| ENG-5 | Fix `massHaulDiagram.ts` average haul distance (conflates cut+fill, understates haul) | pending | `src/lib/engine/massHaulDiagram.ts:187` | small | Proper formula integrates \|cumulative volume\| over alignment length. |
+| ENG-6 | Fix `contours.ts` silent fallback (Delaunator fails → empty triangle array, no log) | pending | `src/lib/engine/contours.ts` | small | |
+| ENG-7 | Remove `survey/networkAdjustment.ts` DB side effect (Supabase client inside engine module) | pending | `src/lib/survey/networkAdjustment.ts:27` | small | Engine modules should be pure. Move DB logging to caller. |
+| ENG-8 | Unify `TRAVERSE_PRECISION_STANDARDS` (two parallel taxonomies in `traverse.ts` and `standards/rdm11.ts`) | pending | `src/lib/engine/traverse.ts`, `src/lib/standards/rdm11.ts` | medium | Cross-reference the 8 survey-type taxonomy with the 6 RDM order taxonomy. |
+| ENG-9 | Implement Takahashi off-diagonal Q_vv (TODO at `networkAdjustment.ts:1423`) | pending | `src/lib/engine/networkAdjustment.ts` | medium | Needed for cross-observation reliability analysis. |
+| ENG-10 | Auto-select datum based on country (currently `DATUM_REGISTRY` has 15+ datums but `helmertTransform` takes params explicitly) | pending | `src/lib/geodesy/datums.ts`, `src/lib/engine/computationalAccuracy.ts` | medium | |
+| ENG-11 | Provenance audit for synthetic Cassini data (`synthetic_148_subsheets.json`, etc.) | pending | `data/cassini/` | medium | No test asserts synthetic sheets match real-world coords within tolerance. |
+| ENG-12 | `auditTrail.ts` djb2 fallback is trivially collidable | pending | `src/lib/engine/auditTrail.ts` | small | For Cap 299 liability defense, require SubtleCrypto or fail closed. |
+
+---
+
+## Docs / Debt Workstream
+
+| ID | Title | Status | Files | Effort | Notes |
+|----|-------|--------|-------|--------|-------|
+| DOC-1 | Delete or relabel `docs/todo.md` (same as P1-7) | pending | `docs/todo.md` | tiny | |
+| DOC-2 | Reconcile tunnel-strategy drift across docs (same as P0-7) | pending | `CLOUDFLARE_TUNNEL_SETUP.md`, `docs/deployment/duckdns-cloudflare-tunnel.md` | small | |
+| DOC-3 | Cross-reference `GOING_LIVE_CHECKLIST.md` with AUDIT.md Phase 1 blockers | pending | `docs/GOING_LIVE_CHECKLIST.md` | small | Currently checklist is code-blocker-blind. Add "Do not go live until P0-1 through P0-5 are done" warning. |
+| DOC-4 | Update `docs/AUDIT.md` to mark C8, C2, H4, H7, H10, H11, H12, H13, H14 as resolved | pending | `docs/AUDIT.md` | small | They're fixed in code but the doc still lists them as open. |
+| DOC-5 | Archive the 4 gap-analysis docs with explicit "SUPERSEDED by ROADMAP.md + MASTER_PLAN.md" header | pending | `docs/PROFESSIONAL_GAP_ANALYSIS.md`, `docs/GEOMATICS_GAP_ANALYSIS.md`, `docs/ENGINEERING_CADASTRAL_GAP_ANALYSIS.md`, `docs/TOPO_GAP_ANALYSIS.md` | tiny | ROADMAP.md already says this but the docs themselves don't. |
+
+---
+
+## Resume Protocol
+
+When picking up after a stop:
+
+1. `cd /home/z/my-project/repos/metardu && git pull origin main`
+2. Read this file (`docs/MASTER_PLAN.md`).
+3. Find the first `pending` item in Phase 0, then Phase 1, then UI, then Engine, then Docs.
+4. Read the linked worklog section in `/home/z/my-project/worklog.md` (local only) for full context. If the worklog is gone, re-derive from the file paths listed here.
+5. Check `git log --oneline -10` to see what was recently shipped.
+6. Start work. Commit with `feat:` / `fix:` / `chore:` prefix referencing the item ID (e.g., `fix(engine): P0-1 gcpOptimizer zero-export bug`).
+7. Update the item status here to `in_progress` when starting, `done` when shipped.
+8. Commit the plan update in the same commit or a follow-up `chore(plan): mark P0-1 done`.
+9. Push.
+
+**If blocked**: set status to `blocked`, add a `Blocked by:` note, move to the next item.
+
+**If deciding not to do**: set status to `skipped`, add a `Reason:` note.
+
+---
+
+## Commit message conventions
+
+Follow the existing repo style (lowercase type prefix):
+
+- `fix(engine): P0-1 gcpOptimizer Pix4D/WebODM export now transforms UTM→WGS84`
+- `feat(ui): UI-8 wire ThemeProvider so toasts follow dark/light`
+- `chore(plan): mark P0-1 done, start P0-2`
+- `docs: DOC-4 mark C8/C2/H4/H7/H10-H14 as resolved in AUDIT.md`
+
+Always reference the item ID so `git log --grep "P0-1"` finds the work.
+
+---
+
+## Stack alignment (how ponytail + superpowers + agency-agents apply)
+
+- **ponytail** (runtime persona): default `full`. Use `ultra` for architecture decisions (P1-1, P1-5, P2-1, P2-6). Use `/ponytail-review` between tasks. Use `/ponytail-audit` at branch finish.
+- **superpowers** (workflow): `brainstorming` before any large item (P1-1, P2-1, P2-6). `writing-plans` for multi-day items. `subagent-driven-development` per task. `systematic-debugging` for P0-4 (M-Pesa callback). `verification-before-completion` before claiming done (show the test pass).
+- **agency-agents** (specialized subagents):
+  - `engineering-codebase-onboarding-engineer` — already done (this plan is the output).
+  - `engineering-software-architect` — P1-1 (NextAuth v5 ADRs), P1-5 (LSA consolidation), P2-1 (Phase 13).
+  - `engineering-code-reviewer` — per-task during SDD.
+  - `engineering-minimal-change-engineer` — P0-1, P0-5, P0-6, P2-2, P2-7 (small surgical fixes).
+  - `gis-web-gis-developer` — P1-2 (EPSG cleanup), P0-6 (NTRIP proxy), P2-8 (PostGIS).
+  - `gis-spatial-data-engineer` — P2-3, P2-4, unindexed FK cleanup.
+  - `security-ai-generated-code-auditor` — P0-3 (C3 audit chain), P0-4 (C4 M-Pesa), P2-2 (C1 datum), P2-7 (C10 CI).
+  - `security-secrets-credential-engineer` — P0-5 (H8 hardcoded creds).
+  - `design-ui-finish-gate-reviewer` — UI-M1, UI-M2, UI-M3 (meta-problems), UI-4 (workspace wiring).
+  - `testing-reality-checker` — P0-3 (audit-chain contradiction), P1-6 (Cassini tests).
+  - `specialized-codebase-archaeologist` — P1-5 (5 overlapping LSA).
+  - `project-management-project-shepherd` — P2-1 (Phase 13 resume).
+  - `engineering-technical-writer` — DOC-3, DOC-4, DOC-5.
+
+For **NEXUS strategy**: METARDU is too mature for NEXUS-Full. Use **NEXUS-Sprint** (15-25 agents, 2-6 weeks) for Phase 1 batches. Use **NEXUS-Micro** (5-10 agents, 1-5 days) for Phase 0.
+
+---
+
+## Local reference (not committed)
+
+- `/home/z/my-project/worklog.md` — full deep-dive notes (5 sections: supporting-skills, engine, risk-docs, deploy-docs, misc-docs, tools, ui). ~1,450 lines.
+- `/home/z/my-project/repos/agency-agents/` — cloned skill catalog.
+- `/home/z/my-project/repos/ponytail/` — cloned persona.
+- `/home/z/my-project/repos/superpowers/` — cloned workflow framework.
+- `/home/z/my-project/repos/metardu/` — this repo.
