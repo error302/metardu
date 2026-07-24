@@ -8,7 +8,7 @@ import Footer from '@/components/Footer'
 import FeedbackWidget from '@/components/FeedbackWidget'
 import { QuickCompute } from '@/components/layout/QuickCompute'
 import MobileNav from '@/components/MobileNav'
-import KeyboardShortcuts from '@/components/KeyboardShortcuts'
+import { HotkeyHelpOverlay } from '@/components/shared/HotkeyHelpOverlay'
 import { AppUpdateBanner } from '@/components/app/AppUpdateBanner'
 import { OfflineIndicator } from '@/components/app/OfflineIndicator'
 import { PWAInstallBanner } from '@/components/app/PWAInstallBanner'
@@ -158,7 +158,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 <NotificationBell />
               </div>
               <CommandPalette />
-              <KeyboardShortcuts />
+              <HotkeyHelpOverlay />
               <NotificationToast />
               {onboardingModal}
             </SubscriptionProvider>
@@ -188,7 +188,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 <FieldModeToggle />
               </div>
               <CommandPalette />
-              <KeyboardShortcuts />
+              <HotkeyHelpOverlay />
               <NotificationToast />
               {onboardingModal}
             </SubscriptionProvider>
@@ -225,7 +225,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </main>
             <Footer />
             {!hideGlobalOverlays && <FeedbackWidget />}
-            <KeyboardShortcuts />
+            <HotkeyHelpOverlay />
             {/* Hide QuickCompute and FeedbackWidget on map + fieldbook pages — they overlap entry controls */}
             {!hideGlobalOverlays && <QuickCompute />}
             {!dashboard && !hideGlobalOverlays && <MobileNav />}
