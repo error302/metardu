@@ -78,7 +78,7 @@ Bigger items that compound. Each is a multi-day effort.
 | P1-8 | Finish API client Wave 2 migration (~217 inline fetches → typed `api()` client) | pending | Per `docs/api-client-migration-recipe.md` Wave 2 list | medium | Wave 1 done (6 pages, 38 fetches). Wave 2 = 4 mid-impact pages. Wave 4 = ~150 small components (later). |
 | P1-9 | RSC migration Batch 2 (extract interactivity from thin-wrapper pages, esp. 805-LOC `app/page.tsx`) | pending | `src/app/page.tsx`, ~50 read-only pages | large | Per `docs/rsc-migration-recipe.md`. Ponytail rule: don't convert unless migration removes code. |
 | P1-10 | Type hygiene next batch (cadastralEditing.ts 54, queryBuilder.ts 43, fieldbook/page.tsx 38) | pending | Per `docs/type-hygiene-migration-recipe.md` | medium | ~1,987 `any` across 380 files. ESLint at `warn`. Skip `lib/api-client/client.ts` (deprecated). |
-| P1-11 | Re-add dropped geomatics gaps to ROADMAP (total station integration, GNSS RTK BLE, real-time QC) | pending | `docs/ROADMAP.md` | small | #1 Kenyan surveyor requests per `GEOMATICS_GAP_ANALYSIS.md`. Currently have no ROADMAP home. Add as Tier 2. |
+| P1-11 | Re-add dropped geomatics gaps to ROADMAP (total station integration, GNSS RTK BLE, real-time QC) | done | `docs/ROADMAP.md` (new Tier 2 "Field Hardware Integration" subsection, G-27/G-28/G-29) | small | Added 3 gaps from `GEOMATICS_GAP_ANALYSIS.md` that were the #1 Kenyan surveyor requests but had no ROADMAP home. G-27 (total station via Web Serial), G-28 (GNSS RTK over BLE — depends on P0-6 NTRIP proxy), G-29 (real-time QC dashboard — depends on G-28). Each entry names the existing stub component and the missing wiring. |
 
 ---
 
