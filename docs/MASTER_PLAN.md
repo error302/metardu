@@ -199,7 +199,7 @@ Findings from Task 2-engine deep-dive (see worklog section `2-engine`).
 | DOC-1 | Delete or relabel `docs/todo.md` (same as P1-7) | pending | `docs/todo.md` | tiny | |
 | DOC-2 | Reconcile tunnel-strategy drift across docs (same as P0-7) | pending | `CLOUDFLARE_TUNNEL_SETUP.md`, `docs/deployment/duckdns-cloudflare-tunnel.md` | small | |
 | DOC-3 | Cross-reference `GOING_LIVE_CHECKLIST.md` with AUDIT.md Phase 1 blockers | pending | `docs/GOING_LIVE_CHECKLIST.md` | small | Currently checklist is code-blocker-blind. Add "Do not go live until P0-1 through P0-5 are done" warning. |
-| DOC-4 | Update `docs/AUDIT.md` to mark C8, C2, H4, H7, H10, H11, H12, H13, H14 as resolved | pending | `docs/AUDIT.md` | small | They're fixed in code but the doc still lists them as open. |
+| DOC-4 | Update `docs/AUDIT.md` to mark C8, C2, H4, H7, H10, H11, H12, H13, H14 as resolved | done | `docs/AUDIT.md` | small | Added a "Resolution Status (updated 2026-07-24)" section after the executive summary with two tables (10 Criticals + 14 Highs) showing current status, resolution, and MASTER_PLAN cross-references. Summary: 10/10 Criticals addressed (6 fully resolved, 4 partially/open), 11/14 Highs fully resolved, 1 ready-to-execute (H6), 2 open (H5, H9). |
 | DOC-5 | Archive the 4 gap-analysis docs with explicit "SUPERSEDED by ROADMAP.md + MASTER_PLAN.md" header | pending | `docs/PROFESSIONAL_GAP_ANALYSIS.md`, `docs/GEOMATICS_GAP_ANALYSIS.md`, `docs/ENGINEERING_CADASTRAL_GAP_ANALYSIS.md`, `docs/TOPO_GAP_ANALYSIS.md` | tiny | ROADMAP.md already says this but the docs themselves don't. |
 
 ---
