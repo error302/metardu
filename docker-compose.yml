@@ -119,26 +119,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Public exposure: bore.pub tunnel proxies port 3000 over TCP.
-  # Public URL: http://bore.pub:7788 — stable as long as this container runs.
-  # ByteByteGo audit fix: pinned to specific version instead of :latest
-  metardu-bore:
-    image: ekzhang/bore:0.5.0
-    container_name: metardu-bore
-    command:
-      - "local"
-      - "3000"
-      - "--to"
-      - "bore.pub"
-      - "--port"
-      - "7788"
-      - "--local-host"
-      - "metardu-app"
-    restart: unless-stopped
-    depends_on:
-      metardu-app:
-        condition: service_healthy
-
   # P0-6 (2026-07-24): NTRIP WebSocket Proxy.
   # Browsers cannot open raw TCP sockets to NTRIP casters (RTCM
   # correction streams for GNSS rovers), so this WebSocket-to-TCP
