@@ -141,7 +141,7 @@ Findings from Task 5-ui deep-dive (see `/home/z/my-project/worklog.md` section `
 | ID | Title | Impact | Effort | Status | Files |
 |----|-------|--------|--------|--------|-------|
 | UI-1 | Fix `<Input aria-label="Input">` default bug — every unlabeled shadcn input reads as "Input" | high | small | done | `src/components/ui/input.tsx` |
-| UI-2 | Replace cyan/blue palette in `animated-glassy-pricing.tsx` with brand tokens | high | small | pending | `src/components/ui/animated-glassy-pricing.tsx` |
+| UI-2 | Replace cyan/blue palette in `animated-glassy-pricing.tsx` with brand tokens | high | small | done | `src/components/ui/animated-glassy-pricing.tsx` |
 | UI-3 | Fix `SolutionStepsRenderer` line 69 — `l.startsWith('')` is always true, failed checks render as green success | high | small | done | `src/components/SolutionStepsRenderer.tsx` |
 | UI-4 | Wire `EnhancedSplitLayout` into `ProjectWorkspaceClient` — 1,255 LOC of dead workspace UI comes alive | high | medium | pending | `src/app/projects/[id]/` (find the client component), `src/components/workspace/EnhancedSplitLayout.tsx` |
 | UI-5 | Delete one of the two Cmd+K search systems. Keep `CommandPalette`, remove `NavBar.GlobalSearch` | high | medium | pending | `src/components/NavBar.tsx`, `src/components/search/CommandPalette.tsx` |
