@@ -150,7 +150,7 @@ Findings from Task 5-ui deep-dive (see `/home/z/my-project/worklog.md` section `
 | UI-8 | Add `<ThemeProvider attribute="data-theme">` from next-themes (installed but never wired) | high | small | done | `src/app/layout.tsx` |
 | UI-9 | Migrate Google Fonts `<link>` → `next/font/google` for self-hosting + LCP win on 3G | med | small | pending | `src/app/layout.tsx` |
 | UI-10 | Group AppSidebar's 14 nav items into 4 sections (Workflows/Tools/Data/Account) | med | small | pending | `src/components/layout/AppSidebar.tsx` |
-| UI-11 | Replace WorkflowStepper's Tailwind blue/green with brand tokens | med | small | pending | `src/components/workspace/WorkflowStepper.tsx` |
+| UI-11 | Replace WorkflowStepper's Tailwind blue/green with brand tokens | med | small | done | `src/components/workspace/WorkflowStepper.tsx` — `bg-blue-600`→`var(--accent)`, `bg-green-500`→`var(--accent-dim)`, `text-green-400`→`var(--accent-dim)`, `bg-green-400`/`bg-gray-200` connectors→`var(--accent)`/`var(--border-color)`. Active step now uses burnt sienna with black text; done step uses dimmed accent with white text. |
 | UI-12 | Consolidate three onboarding systems into one (~500 LOC removed) | med | medium | pending | `src/components/ui/OnboardingModal.tsx`, `src/components/shared/OnboardingChecklist.tsx`, `src/components/shared/OnboardingWrapper.tsx`, `src/components/onboarding/OnboardingTour.tsx` |
 | UI-13 | Wire `DashboardSearch` (561 LOC) into the dashboard — built, never imported | med | medium | pending | `src/app/(dashboard)/page.tsx` or `src/app/dashboard/page.tsx`, `src/components/dashboard/DashboardSearch.tsx` |
 | UI-14 | Replace 5 hardcoded navy hex colors in `login/page.tsx` with CSS variables | med | small | pending | `src/app/login/page.tsx` |
