@@ -100,7 +100,19 @@ export const GET = apiHandler(
  * Add a beacon to the registry.
  */
 export const POST = apiHandler(
-  { auth: true, rateLimit: { max: 30, windowMs: 60000 } },
+  {
+    auth: true,
+    rateLimit: { max: 30, windowMs: 60000 },
+    // P1-3 (2026-07-24): Beacon registry writes are a fraud vector —
+    // a forged beacon could support a fraudulent deed plan. The chain
+    // entry proves who registered the beacon and when, and is
+    // tamper-detectable via verifyChain().
+    auditChain: {
+      entityType: 'control_point',
+      action: 'create',
+      reason: 'beacon registry submission',
+    },
+  },
   async (req, ctx) => {
     const user = await getAuthUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
