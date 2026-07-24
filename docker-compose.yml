@@ -139,6 +139,29 @@ services:
       metardu-app:
         condition: service_healthy
 
+  # P0-6 (2026-07-24): NTRIP WebSocket Proxy.
+  # Browsers cannot open raw TCP sockets to NTRIP casters (RTCM
+  # correction streams for GNSS rovers), so this WebSocket-to-TCP
+  # bridge is required for any in-browser RTK workflow.
+  #
+  # The proxy listens on port 8090 (ws://host:8090/ntrip). The Next.js
+  # app's NTRIPClientPanel connects here. Configure the caster
+  # allowlist via NTRIP_ALLOWED_HOSTS (comma-separated). If unset,
+  # all hosts are allowed (useful for dev; restrict in production).
+  #
+  # Health check: GET http://host:8090/health → { status, connections, allowedHosts }
+  metardu-ntrip:
+    build:
+      context: .
+      dockerfile: Dockerfile.ntrip
+    container_name: metardu-ntrip
+    ports:
+      - "${NTRIP_PORT:-8090}:8090"
+    environment:
+      - PORT=8090
+      - ALLOWED_HOSTS=${NTRIP_ALLOWED_HOSTS:-}
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   backups:
