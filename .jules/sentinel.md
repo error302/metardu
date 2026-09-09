@@ -1,0 +1,4 @@
+## 2026-08-30 - Fix XSS in Plan Generators
+**Vulnerability:** XSS vulnerability through unsanitized SVG content injection using `dangerouslySetInnerHTML` in MutationPlanGenerator and DeedPlanGenerator components. A malicious payload within a generated SVG plan (e.g. from user inputs processed by the backend or injected manually into the client state) could execute arbitrary JavaScript.
+**Learning:** Even though SVG rendering is isolated in `<svg>` tags, it can still contain dangerous elements like `<script>` or event handlers like `onload`. The `dangerouslySetInnerHTML` React prop bypasses XSS protection.
+**Prevention:** Always use the `sanitizeHtml` wrapper from `@/lib/security/sanitize` when rendering dynamically generated SVG or HTML content via `dangerouslySetInnerHTML` to prevent XSS.
