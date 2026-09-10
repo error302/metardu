@@ -1,4 +1,5 @@
 'use client';
+import { sanitizeHtml } from '@/lib/security/sanitize'
 
 import { useState, useMemo } from 'react'
 import { FileText, Download, Save, CheckCircle, AlertCircle, Plus, Trash2, Printer, Ruler } from 'lucide-react'
@@ -8,9 +9,9 @@ import { saveDeedPlan } from '@/lib/api-client/deedPlans'
 import { printDeedPlan } from '@/lib/print/deedPlanPrint'
 import { trackDeedGenerate, trackDeedDownload } from '@/lib/analytics/events'
 import {
-  coordinate2D,
   polygonArea2D,
   formatScalarWithCI,
+  coordinate2D,
   scalarCI,
 } from '@/lib/survey/covariancePropagation'
 
@@ -786,7 +787,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
           <div className="bg-white rounded-lg p-4 border overflow-auto">
             <div
               className="mx-auto"
-              dangerouslySetInnerHTML={{ __html: output.svg }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(output.svg) }}
             />
           </div>
 
