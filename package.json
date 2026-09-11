@@ -98,14 +98,14 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "crypto-browserify": "^3.12.1",
+    "crypto-browserify": "^3.5.1",
     "d3-contour": "^4.0.2",
     "delaunator": "^5.1.0",
     "docx": "^9.6.1",
     "dompurify": "^3.3.3",
     "dxf-writer": "^1.18.4",
     "embla-carousel-react": "^8.6.0",
-    "exceljs": "^4.4.0",
+    "exceljs": "^3.4.0",
     "framer-motion": "^12.38.0",
     "idb": "^8.0.3",
     "input-otp": "^1.4.2",
@@ -114,10 +114,10 @@
     "jszip": "^3.10.1",
     "konva": "^9.3.22",
     "lucide-react": "^1.8.0",
-    "next": "^14.2.0",
+    "next": "^16.3.4",
     "next-auth": "^4.24.15",
     "next-themes": "^0.4.6",
-    "nodemailer": "^8.0.5",
+    "nodemailer": "^10.0.3",
     "ol": "^10.8.0",
     "papaparse": "^5.4.1",
     "pdf-lib": "^1.17.1",
@@ -136,7 +136,7 @@
     "reactflow": "^11.10.1",
     "recharts": "^2.15.4",
     "redis": "^5.12.1",
-    "sharp": "^0.33.5",
+    "sharp": "^0.35.4",
     "shp-write": "^0.3.2",
     "sonner": "^2.0.7",
     "svg2pdf.js": "^2.7.0",
@@ -192,6 +192,6 @@
     "serialize-javascript": "^7.0.5"
   },
   "optionalDependencies": {
-    "puppeteer": "^24.41.0"
+    "puppeteer": "^25.10.0"
   }
 }
