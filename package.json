@@ -164,6 +164,7 @@
     "@types/node": "^20.10.0",
     "@types/nodemailer": "^8.0.0",
     "@types/papaparse": "^5.3.14",
+    "@types/pg": "^8.23.1",
     "@types/proj4": "^2.5.6",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18.2.0",
@@ -189,7 +190,8 @@
     "dompurify": "^3.3.3",
     "glob": "^10.5.0",
     "jszip": "^3.10.1",
-    "serialize-javascript": "^7.0.5"
+    "serialize-javascript": "^7.0.5",
+    "uuid": "^11.1.1"
   },
   "optionalDependencies": {
     "puppeteer": "^24.41.0"
