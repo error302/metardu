@@ -403,16 +403,22 @@ export default function PointCloudImportPage() {
 
   // ─── Computed statistics ─────────────────────────────────────────────────
 
-  const boundingBox = points.length > 0
-    ? {
-        minE: Math.min(...points.map(p => p.easting)),
-        maxE: Math.max(...points.map(p => p.easting)),
-        minN: Math.min(...points.map(p => p.northing)),
-        maxN: Math.max(...points.map(p => p.northing)),
-        minZ: Math.min(...points.map(p => p.elevation)),
-        maxZ: Math.max(...points.map(p => p.elevation)),
-      }
-    : null;
+  const boundingBox = (() => {
+    if (points.length === 0) return null;
+    let minE = Infinity, maxE = -Infinity;
+    let minN = Infinity, maxN = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      if (p.easting < minE) minE = p.easting;
+      if (p.easting > maxE) maxE = p.easting;
+      if (p.northing < minN) minN = p.northing;
+      if (p.northing > maxN) maxN = p.northing;
+      if (p.elevation < minZ) minZ = p.elevation;
+      if (p.elevation > maxZ) maxZ = p.elevation;
+    }
+    return { minE, maxE, minN, maxN, minZ, maxZ };
+  })();
 
   const avgSpacing = (() => {
     if (points.length < 2) return 0;
