@@ -20,10 +20,10 @@ jobs:
       #
       # Critical-level audit also runs and uploads the full report as an
       # artifact for triage.
-      - run: npm audit --audit-level=high --production
+      - run: npm audit --audit-level=high --omit=dev
         continue-on-error: true  # Don't block — just notify. Critical-level below is the gate.
-      - run: npm audit --audit-level=critical --production
-      - run: npm audit --audit-level=critical 2>&1 | tee audit-report.txt
+      - run: npm audit --audit-level=critical --omit=dev
+      - run: npm audit --audit-level=critical --omit=dev 2>&1 | tee audit-report.txt
         if: always()
       - uses: actions/upload-artifact@v4
         if: always()
