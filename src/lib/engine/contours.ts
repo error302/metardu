@@ -327,9 +327,14 @@ export function generateContours(
 
   if (triangles.length === 0) return []
 
-  const elevations = points.map(p => p.elevation)
-  const minElev = Math.min(...elevations)
-  const maxElev = Math.max(...elevations)
+  // Optimize: Avoid allocating an intermediate array and using the spread operator
+  // to prevent V8 "Maximum call stack size exceeded" on large datasets (10k+ points).
+  let minElev = Infinity
+  let maxElev = -Infinity
+  for (const p of points) {
+    if (p.elevation < minElev) minElev = p.elevation
+    if (p.elevation > maxElev) maxElev = p.elevation
+  }
 
   const firstContour = Math.ceil(minElev / interval) * interval
   const contourElevations: number[] = []
