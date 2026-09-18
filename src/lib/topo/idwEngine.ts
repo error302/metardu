@@ -76,12 +76,16 @@ export function runIDWSync(
     throw new Error('IDW requires at least one survey point.')
   }
 
-  const xs = samples.map(p => p.x)
-  const ys = samples.map(p => p.y)
-  const rawMinX = Math.min(...xs)
-  const rawMaxX = Math.max(...xs)
-  const rawMinY = Math.min(...ys)
-  const rawMaxY = Math.max(...ys)
+  // ⚡ Bolt Optimization: Avoid spread operator and .map on potentially large point cloud arrays
+  // to prevent "Maximum call stack size exceeded" errors and reduce memory allocation.
+  let rawMinX = Infinity, rawMaxX = -Infinity, rawMinY = Infinity, rawMaxY = -Infinity
+  for (let i = 0; i < samples.length; i++) {
+    const p = samples[i]
+    if (p.x < rawMinX) rawMinX = p.x
+    if (p.x > rawMaxX) rawMaxX = p.x
+    if (p.y < rawMinY) rawMinY = p.y
+    if (p.y > rawMaxY) rawMaxY = p.y
+  }
 
   const padX = (rawMaxX - rawMinX) * 0.05 || 1
   const padY = (rawMaxY - rawMinY) * 0.05 || 1
