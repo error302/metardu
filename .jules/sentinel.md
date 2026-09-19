@@ -1,0 +1,4 @@
+## 2025-02-14 - Fix Unsanitized `dangerouslySetInnerHTML` Usage
+**Vulnerability:** Found multiple instances of `dangerouslySetInnerHTML` being called without `sanitizeHtml` wrapping the content, leading to potential XSS vulnerabilities in SVG and HTML rendering. Specifically in `DeedPlanGenerator.tsx`, `MutationPlanGenerator.tsx`, and `beacon-reference/page.tsx`.
+**Learning:** Even generated SVGs or static symbols can be vectors if they originate from unverified sources or if they bypass sanitization. The codebase provides a dedicated `sanitizeHtml` utility to handle these cases, but its usage was not strictly enforced across all components.
+**Prevention:** Ensure all usages of `dangerouslySetInnerHTML` for dynamic or potentially untrusted content, especially SVGs, are wrapped with `sanitizeHtml`. Add linting rules or code review checks to catch raw usages.
