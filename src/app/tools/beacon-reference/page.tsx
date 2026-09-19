@@ -5,6 +5,7 @@ import { BEACON_DEFINITIONS, getBeaconSymbolSVG, BEACON_CATEGORIES, BEACON_IMAGE
 import Image from 'next/image'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { sanitizeHtml } from '@/lib/security/sanitize'
 
 const STATUSES: BeaconStatus[] = ['FOUND', 'SET', 'DESTROYED', 'NOT_FOUND']
 
@@ -92,7 +93,7 @@ export default function BeaconReferencePage() {
                             <div 
                               className="w-10 h-10"
                               dangerouslySetInnerHTML={{ 
-                                __html: getBeaconSymbolSVG(type, status, 16) 
+                                __html: sanitizeHtml(getBeaconSymbolSVG(type, status, 16))
                               }} 
                             />
                             <span className="text-[9px] text-[var(--text-muted)] mt-1">{status}</span>
