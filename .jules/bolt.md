@@ -1,0 +1,3 @@
+## 2025-01-22 - Optimize bounding box calculation for point clouds
+**Learning:** Using the spread operator (`...`) with `Math.min()` or `Math.max()` on large arrays, such as point cloud data (`opts.spotHeights`), triggers V8 "Maximum call stack size exceeded" errors and excessive memory allocation.
+**Action:** When computing bounds (min/max) over large datasets, always iterate using a `for` loop or `reduce` instead of mapping and spreading to avoid stack overflows and overhead from intermediate arrays.
