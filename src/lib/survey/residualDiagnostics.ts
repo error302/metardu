@@ -139,8 +139,12 @@ export function computeMoments(residuals: number[]): MomentStats {
   const skewness = sumCubed / n
   const kurtosis = sumFourth / n - 3  // excess kurtosis
 
-  const min = Math.min(...residuals)
-  const max = Math.max(...residuals)
+  let min = Infinity
+  let max = -Infinity
+  for (const r of residuals) {
+    if (r < min) min = r
+    if (r > max) max = r
+  }
 
   return { mean, standardDeviation: sd, skewness, kurtosis, min, max, n }
 }
