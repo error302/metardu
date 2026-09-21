@@ -50,7 +50,7 @@ export default function SuperelevationPage() {
                 type="number"
                 value={designSpeed}
                 onChange={e => setDesignSpeed(Number(e.target.value))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white min-h-[44px]"
                 min={20}
                 max={120}
               />
@@ -61,7 +61,7 @@ export default function SuperelevationPage() {
                 type="number"
                 value={radius}
                 onChange={e => setRadius(Number(e.target.value))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white min-h-[44px]"
                 min={25}
                 max={5000}
               />
@@ -75,7 +75,7 @@ export default function SuperelevationPage() {
                 type="number"
                 value={numLanes}
                 onChange={e => setNumLanes(Number(e.target.value))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white min-h-[44px]"
                 min={1}
                 max={6}
               />
@@ -87,7 +87,7 @@ export default function SuperelevationPage() {
                 step="0.1"
                 value={laneWidth}
                 onChange={e => setLaneWidth(Number(e.target.value))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white min-h-[44px]"
                 min={2.5}
                 max={4.0}
               />
