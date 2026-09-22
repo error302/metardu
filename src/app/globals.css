@@ -717,7 +717,7 @@ html.field-mode small {
 
   /* --- Inputs ---------------------------------------------------------- */
   .input {
-    @apply w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)];
+    @apply w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 min-h-[44px] py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)];
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
   }
   .input:hover {
@@ -731,7 +731,7 @@ html.field-mode small {
 
   /* --- Buttons (Magnetic Spring Physics) --------------------------------------------------------- */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 min-h-[44px] py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] disabled:pointer-events-none disabled:opacity-50;
     transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
@@ -759,7 +759,7 @@ html.field-mode small {
 
   /* --- Badge (v0.3: flat, no scale on hover) ------------------------- */
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium tracking-[0.06em] uppercase;
+    @apply inline-flex items-center px-2 py-0.5 text-xs font-mono font-medium tracking-[0.06em] uppercase;
   }
   .badge:hover {
     /* no transform — flat design */
@@ -767,7 +767,7 @@ html.field-mode small {
 
   /* --- Table helpers --------------------------------------------------- */
   .table-header {
-    @apply bg-[var(--bg-secondary)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)];
+    @apply bg-[var(--bg-secondary)] text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)];
   }
   .table-row {
     @apply border-b border-[var(--border-color)] transition-colors duration-150;
@@ -795,7 +795,7 @@ html.field-mode small {
     @apply p-5;
   }
   .label {
-    @apply font-mono text-[10px] text-[var(--text-muted)] tracking-[0.08em] uppercase;
+    @apply font-mono text-xs text-[var(--text-secondary)] tracking-[0.08em] uppercase;
   }
 }
 
