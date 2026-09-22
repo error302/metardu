@@ -31,7 +31,7 @@ export function PageHeader({ title, subtitle, reference, badge }: PageHeaderProp
       <div className="flex items-end justify-between gap-4">
         <div className="min-w-0">
           {badge && (
-            <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.12em] uppercase mb-2">
+            <div className="font-mono text-xs text-[var(--accent)] tracking-[0.12em] uppercase mb-2">
               {badge}
             </div>
           )}

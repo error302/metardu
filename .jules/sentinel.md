@@ -1,0 +1,4 @@
+## 2024-05-18 - Fix Stored XSS via unsanitized SVG injection
+**Vulnerability:** The `DeedPlanGenerator` and `MutationPlanGenerator` components were rendering user-generated SVG strings directly into the DOM using `dangerouslySetInnerHTML` without any sanitization. This could allow for stored XSS attacks if a malicious user injects `<script>` tags or malicious attributes into the generated SVG.
+**Learning:** Even if helper libraries use XML escaping for inner interpolations, the raw output string mapped to the DOM via `dangerouslySetInnerHTML` needs to be consistently wrapped with a sanitizer (`DOMPurify`) to guarantee security against all possible injection vectors.
+**Prevention:** Always use the provided `sanitizeHtml` wrapper from `@/lib/security/sanitize` when rendering dynamically generated HTML or SVGs with `dangerouslySetInnerHTML`.

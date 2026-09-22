@@ -7,7 +7,7 @@ export default function SolutionStepsRenderer({ title, steps }: { title?: string
     <div className="card">
       <div className="card-header flex items-center justify-between gap-4">
         <span className="label">Solution</span>
-        {title ? <span className="text-xs text-[var(--text-muted)]">{title}</span> : null}
+        {title ? <span className="text-xs text-[var(--text-secondary)]">{title}</span> : null}
       </div>
       <div className="card-body space-y-4">
         {steps.map((s, i) => {
@@ -31,7 +31,7 @@ function StepBody({ step }: { step: SolutionStep }) {
       <div className="grid md:grid-cols-2 gap-2">
         {items.map((it, idx) => (
           <div key={`${it}-${idx}`} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
-            <div className="text-xs text-[var(--text-muted)]">{it.left}</div>
+            <div className="text-xs text-[var(--text-secondary)]">{it.left}</div>
             <div className="font-mono text-sm text-[var(--text-primary)] text-right">{it.right}</div>
           </div>
         ))}
@@ -101,8 +101,8 @@ function StepBody({ step }: { step: SolutionStep }) {
       <div className="space-y-2">
         {items.map((it, idx) => (
           <div key={`${it}-${idx}`} className="flex items-baseline justify-between gap-3 p-2 rounded bg-gray-950/30 border border-[var(--border-color)]">
-            <div className="text-xs text-[var(--text-muted)]">{it.left}</div>
-            <div className="font-mono text-sm text-amber-200 text-right">{it.right}</div>
+            <div className="text-xs text-[var(--text-secondary)]">{it.left}</div>
+            <div className="font-mono text-sm text-amber-400 text-right">{it.right}</div>
           </div>
         ))}
       </div>
@@ -139,7 +139,7 @@ function parsePairs(text: string | undefined, sep: '=' | ':') {
 
 function FallbackText({ text, highlight }: { text?: string; highlight?: boolean }) {
   const value = text?.trim() ? text : '—'
-  return <div className={`font-mono text-sm whitespace-pre-wrap ${highlight ? 'text-amber-200 font-semibold' : 'text-[var(--text-primary)]'}`}>{value}</div>
+  return <div className={`font-mono text-sm whitespace-pre-wrap ${highlight ? 'text-amber-400 font-semibold' : 'text-[var(--text-primary)]'}`}>{value}</div>
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -154,8 +154,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className="grid grid-cols-[110px_1fr] gap-3 text-sm">
-      <div className="text-[var(--text-muted)]">{label}</div>
-      <div className={`font-mono whitespace-pre-wrap ${highlight ? 'text-amber-200 font-semibold' : 'text-[var(--text-primary)]'}`}>{value}</div>
+      <div className="text-[var(--text-secondary)]">{label}</div>
+      <div className={`font-mono whitespace-pre-wrap ${highlight ? 'text-amber-400 font-semibold' : 'text-[var(--text-primary)]'}`}>{value}</div>
     </div>
   )
 }
