@@ -1,0 +1,3 @@
+## 2024-05-24 - V8 Call Stack Limits with Spread Operator
+**Learning:** Point clouds can be massive arrays (often tens of thousands to millions of points). Using the spread operator (`...`) on large arrays with `Math.min()` or `Math.max()` causes V8 'Maximum call stack size exceeded' errors and allocates excessive memory because the JS engine attempts to push all array elements onto the function call stack.
+**Action:** Always use a `for` loop or `reduce` instead of the spread operator when calculating bounds or other aggregations on large datasets like point clouds or densely sampled survey data.

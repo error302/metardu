@@ -64,13 +64,19 @@ export function classifyPointCloud(
 ): ClassifiedPoint[] {
   if (points.length === 0) return []
 
-  // Step 1: Find bounding box
-  const xs = points.map(p => p.x)
-  const ys = points.map(p => p.y)
-  const minX = Math.min(...xs)
-  const maxX = Math.max(...xs)
-  const minY = Math.min(...ys)
-  const maxY = Math.max(...ys)
+  // Step 1: Find bounding box (optimized for large point clouds)
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i]
+    if (p.x < minX) minX = p.x
+    if (p.x > maxX) maxX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.y > maxY) maxY = p.y
+  }
 
   // Step 2: Grid the points and find lowest in each cell as ground seed
   const cols = Math.ceil((maxX - minX) / params.cellSize)
