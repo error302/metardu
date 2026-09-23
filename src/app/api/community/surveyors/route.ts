@@ -97,14 +97,14 @@ export const GET = apiHandler(
     )
 
     // Map to the shape the community page expects
-    const surveyors = rows.map((r) => ({
+    const surveyors = rows.map((r: any) => ({
       id: r.id,
       fullName: r.full_name || r.firm_name || 'Anonymous Surveyor',
       iskNumber: r.isk_number || undefined,
       verifiedIsk: Boolean(r.verified_isk),
       firmName: r.firm_name || undefined,
-      county: extractCountyFromAddress(r.address),
-      specialty: inferSpecialty(r.bio),
+      county: extractCountyFromAddress(r.address || null),
+      specialty: inferSpecialty(r.bio || null),
       avatarUrl: r.avatar_url || undefined,
       projectsCount: parseInt(String(r.projects_count ?? '0'), 10),
     }))

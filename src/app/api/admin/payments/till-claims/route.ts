@@ -62,7 +62,7 @@ export const GET = apiHandler(
         LIMIT 200`,
     )
 
-    const claims = res.rows.map((row) => ({
+    const claims = res.rows.map((row: any) => ({
       id: row.id,
       userId: row.user_id,
       userEmail: row.user_email,

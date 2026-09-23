@@ -94,10 +94,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       expiredIntents: staleIntents.rowCount ?? 0,
-      expiredIntentIds: staleIntents.rows.map((r) => r.id),
+      expiredIntentIds: staleIntents.rows.map((r: any) => r.id),
       flaggedStaleClaims: staleClaims.rowCount ?? 0,
-      intentStatusCounts: Object.fromEntries(intentSummary.rows.map((r) => [r.status, Number(r.count)])),
-      tillClaimStatusCounts: Object.fromEntries(claimSummary.rows.map((r) => [r.status, Number(r.count)])),
+      intentStatusCounts: Object.fromEntries(intentSummary.rows.map((r: any) => [r.status, Number(r.count)])),
+      tillClaimStatusCounts: Object.fromEntries(claimSummary.rows.map((r: any) => [r.status, Number(r.count)])),
     })
   } catch (err) {
     logger.error('[reconcile-payments] sweep failed:', { error: err })
