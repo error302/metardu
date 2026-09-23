@@ -104,6 +104,7 @@ export default function ScaleFactorPage() {
                 {KENYA_LOCATIONS.map(loc => (
                   <button
                     key={loc.name}
+                    aria-label={`Load preset location: ${loc.name}`}
                     onClick={() => loadLocation(loc.name)}
                     className="px-3 py-1.5 text-xs font-mono border border-[var(--border-color)] rounded-md text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
                   >
@@ -144,11 +145,11 @@ export default function ScaleFactorPage() {
             <div className="card-body">
               <div className="flex gap-4 mb-4">
                 <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <input aria-label="Simple" type="radio" checked={mode === 'simple'} onChange={() => setMode('simple')} />
+                  <input aria-label="Enter area directly" type="radio" checked={mode === 'simple'} onChange={() => setMode('simple')} />
                   Enter area directly
                 </label>
                 <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <input aria-label="Polygon" type="radio" checked={mode === 'polygon'} onChange={() => setMode('polygon')} />
+                  <input aria-label="Enter polygon coordinates" type="radio" checked={mode === 'polygon'} onChange={() => setMode('polygon')} />
                   Enter polygon coordinates
                 </label>
               </div>
@@ -165,9 +166,9 @@ export default function ScaleFactorPage() {
                     {coords.map(c => (
                       <div key={c.id} className="grid grid-cols-[28px_1fr_1fr_28px] gap-1 items-center">
                         <span className="font-mono text-xs text-[var(--text-muted)]">{c.id}</span>
-                        <input className="input font-mono text-xs px-2 py-1" value={c.easting} onChange={e => updateCoord(c.id, 'easting', e.target.value)} placeholder="Easting" />
-                        <input className="input font-mono text-xs px-2 py-1" value={c.northing} onChange={e => updateCoord(c.id, 'northing', e.target.value)} placeholder="Northing" />
-                        <button onClick={() => removeCoord(c.id)} className="text-[var(--text-muted)] hover:text-[var(--error)] text-sm">×</button>
+                        <input aria-label={`Easting for vertex ${c.id}`} className="input font-mono text-xs px-2 py-1" value={c.easting} onChange={e => updateCoord(c.id, 'easting', e.target.value)} placeholder="Easting" />
+                        <input aria-label={`Northing for vertex ${c.id}`} className="input font-mono text-xs px-2 py-1" value={c.northing} onChange={e => updateCoord(c.id, 'northing', e.target.value)} placeholder="Northing" />
+                        <button aria-label={`Remove vertex ${c.id}`} onClick={() => removeCoord(c.id)} className="text-[var(--text-muted)] hover:text-[var(--error)] text-sm">×</button>
                       </div>
                     ))}
                   </div>
