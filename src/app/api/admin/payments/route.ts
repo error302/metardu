@@ -54,7 +54,7 @@ export const GET = apiHandler(
       db.query<CountRow>('SELECT COUNT(*)::int AS count FROM payment_history'),
     ])
 
-    const payments = paymentsRes.rows.map((row: { id: string; user_id: string; user_email: string; user_name: string; amount: string; currency: string; method?: string; plan_id: string; provider: string; provider_ref: string | null; status: string; receipt_number: string | null; created_at: string }) => ({
+    const payments = paymentsRes.rows.map((row: any) => ({
       id: row.id,
       userId: row.user_id,
       userEmail: row.user_email,

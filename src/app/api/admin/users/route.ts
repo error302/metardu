@@ -109,7 +109,7 @@ export const GET = apiHandler(
       [...params, limit, offset],
     )
 
-    const users = dataResult.rows.map((row: { id: string; email: string; full_name?: string; isk_number?: string; verified_isk: boolean; is_suspended: boolean; suspension_reason?: string | null; plan_id?: string; subscription_status?: string | null; disabled: boolean; role: string; last_login_at?: string; created_at: string; updated_at?: string }) => ({
+    const users = dataResult.rows.map((row: any) => ({
       id: row.id,
       email: row.email,
       fullName: row.full_name || row.email?.split('@')[0],

@@ -130,7 +130,7 @@ export const GET = apiHandler(
        LIMIT 10`,
     )
 
-    const recentSignups = recentSignupsRes.rows.map((row: { id: string; email: string; full_name?: string; created_at: string; role: string; plan_id?: string }) => ({
+    const recentSignups = recentSignupsRes.rows.map((row: any) => ({
       id: row.id,
       email: row.email,
       name: row.full_name || row.email?.split('@')[0],
@@ -169,7 +169,7 @@ export const GET = apiHandler(
        ORDER BY created_at DESC
        LIMIT 10`,
     )
-    const iskQueue = iskQueueRes.rows.map((row: { id: string; email: string; full_name?: string; isk_number: string; created_at: string }) => ({
+    const iskQueue = iskQueueRes.rows.map((row: any) => ({
       id: row.id,
       email: row.email,
       name: row.full_name || row.email?.split('@')[0],
