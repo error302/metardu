@@ -1,0 +1,3 @@
+## 2024-05-24 - Maximum call stack size exceeded using Math.max() with spread operator on large point cloud arrays
+**Learning:** Spread arguments (`...arr.map(...)`) combined with `Math.max()` or `Math.min()` throws a V8 'Maximum call stack size exceeded' error or causes excessive memory allocation (OOM) when parsing and processing large datasets like point cloud arrays, since argument arrays map to function parameters.
+**Action:** Use an explicit `for` loop to compute the bounds of extensive array datasets, tracking the lowest minimum and highest maximum manually without creating intermediately mapped heap allocations and function spread argument expansions.
