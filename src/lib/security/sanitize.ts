@@ -18,8 +18,13 @@
  *   (external references). DOMPurify additionally strips all on* event
  *   handlers regardless of this list.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let initializedDOMPurify: any = null;
+// Use a more relaxed type locally to satisfy strict ESLint rules
+type DOMPurifyInstance = {
+  addHook(hook: string, cb: (currentNode: Element, data: { attrName: string; keepAttr: boolean }) => void): void;
+  sanitize(source: string, config?: Record<string, unknown>): string | DocumentFragment;
+};
+
+let initializedDOMPurify: DOMPurifyInstance | null = null;
 
 export function sanitizeHtml(dirty: string): string {
   // DOMPurify requires `window` — use synchronous client-side loading
@@ -27,11 +32,10 @@ export function sanitizeHtml(dirty: string): string {
     if (!initializedDOMPurify) {
       // DOMPurify requires window; guarded client-side load.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const createDOMPurify = require('dompurify') as unknown as typeof import('dompurify') & { default?: typeof import('dompurify') };
+      const createDOMPurify = require('dompurify') as unknown as { default?: DOMPurifyInstance } & DOMPurifyInstance;
       initializedDOMPurify = createDOMPurify.default || createDOMPurify;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      initializedDOMPurify.addHook('uponSanitizeAttribute', (currentNode: Element, hookEvent: any) => {
+      initializedDOMPurify.addHook('uponSanitizeAttribute', (currentNode: Element, hookEvent: { attrName: string; keepAttr: boolean }) => {
         if (currentNode.namespaceURI === 'http://www.w3.org/2000/svg' || currentNode.nodeName.toLowerCase() === 'svg') {
           if (hookEvent.attrName === 'href' || hookEvent.attrName === 'xlink:href') {
             hookEvent.keepAttr = false;
