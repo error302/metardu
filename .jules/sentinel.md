@@ -1,0 +1,7 @@
+## 2024-05-24 - Cross-Site Scripting (XSS) via Unsanitized SVG Output
+
+**Vulnerability:** Raw SVG output generated dynamically (`output.svg` in `DeedPlanGenerator` and `svgOutput` in `MutationPlanGenerator`) was being directly rendered using React's `dangerouslySetInnerHTML` without proper sanitization. Additionally, the existing `sanitizeHtml` utility explicitly allowed SVG drawing attributes but stripped `href` and `xlink:href` via a rigid array approach, which failed to effectively protect against SVG-specific vectors or led to overly aggressive stripping.
+
+**Learning:** SVG is a powerful vector for XSS because it can contain embedded `<script>` tags, `<foreignObject>` tags that load external content, and `href`/`xlink:href` attributes that can execute `javascript:` URIs when interacted with. A hardcoded allowlist for DOMPurify is difficult to maintain and often breaks legitimate SVGs. Using DOMPurify's built-in `USE_PROFILES: { html: true, svg: true }` combined with `FORBID_TAGS: ['image', 'foreignObject']` and a custom hook to strip `href`/`xlink:href` only from SVG nodes is a much more robust pattern.
+
+**Prevention:** Always wrap dynamically generated SVG output in a sanitization layer before injecting it via `dangerouslySetInnerHTML`. Use DOMPurify's SVG profile but add hooks (`DOMPurify.addHook('uponSanitizeAttribute', ...)`) to selectively neutralize dangerous attributes (like `href` in SVG) while retaining standard HTML functionality (like `<a>` links).
