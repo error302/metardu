@@ -38,7 +38,7 @@ export async function generatePdf(options: PdfGenerationOptions): Promise<Buffer
 
     // Set HTML content
     await page.setContent(html, {
-      waitUntil: 'networkidle0',
+      waitUntil: 'load',
     })
 
     // Wait for fonts and images to load
@@ -46,7 +46,7 @@ export async function generatePdf(options: PdfGenerationOptions): Promise<Buffer
 
   // Generate PDF
   const pdfBuffer = await page.pdf({
-    format: paperSize.toLowerCase() as 'a4' | 'a3',
+    format: paperSize as 'A4' | 'A3',
     printBackground: true,
     margin: {
       top: '10mm',
