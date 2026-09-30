@@ -1,0 +1,3 @@
+## 2024-11-20 - [Performance Anti-Pattern: Math.min/max with spread on large arrays]
+**Learning:** Using `Math.min(...array)` or `Math.max(...array)` on very large datasets (like point cloud data or massive spot height arrays) causes V8 "Maximum call stack size exceeded" errors because JavaScript engines limit the number of arguments that can be passed to a function. Additionally, chaining `.map()` before spreading creates unnecessary intermediate array allocations, taking O(N) extra memory and requiring multiple passes.
+**Action:** Avoid the spread operator with `Math.min`/`Math.max` for any potentially large collections of data. Use a single standard `for` loop to compute min/max bounds in a single pass O(n) without additional memory allocation or stack limits.
