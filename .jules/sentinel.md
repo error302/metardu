@@ -1,0 +1,5 @@
+
+## 2026-09-30 - Prevent XSS in dynamically rendered plan generator SVGs
+**Vulnerability:** The `svgOutput` and `output.svg` properties in `MutationPlanGenerator` and `DeedPlanGenerator` were being rendered directly using `dangerouslySetInnerHTML` without proper sanitization. Given these strings are constructed from user-provided inputs (e.g. project name, location), there is a significant Cross-Site Scripting (XSS) risk if a malicious user inputs script tags or external handlers.
+**Learning:** Even if SVG generation is abstracted in an internal renderer, any raw HTML string output bound to DOM elements via `dangerouslySetInnerHTML` must be explicitly sanitized, especially when generated from untrusted client-side inputs.
+**Prevention:** Always wrap dynamically generated SVG or HTML string outputs with the `sanitizeHtml` function provided in `@/lib/security/sanitize` prior to rendering them with `dangerouslySetInnerHTML`. Note that `sanitizeHtml` safely delegates to DOMPurify with strict profiles correctly tailored for the SVG subsets used in our domain.

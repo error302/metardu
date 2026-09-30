@@ -102,7 +102,7 @@
     "d3-contour": "^4.0.2",
     "delaunator": "^5.1.0",
     "docx": "^9.6.1",
-    "dompurify": "^3.3.3",
+    "dompurify": "^3.4.13",
     "dxf-writer": "^1.18.4",
     "embla-carousel-react": "^8.6.0",
     "exceljs": "^4.4.0",
@@ -186,7 +186,7 @@
   },
   "overrides": {
     "@tootallnate/once": "^3.0.1",
-    "dompurify": "^3.3.3",
+    "dompurify": "^3.4.13",
     "glob": "^10.5.0",
     "jszip": "^3.10.1",
     "serialize-javascript": "^7.0.5"
