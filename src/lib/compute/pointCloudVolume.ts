@@ -64,19 +64,16 @@ export function gridMethodVolume(
 
   // Compute the bounding box of both surfaces combined
   const allPoints = [...surface1, ...surface2]
-  const minE = Math.min(...allPoints.map(p => p.easting))
-  const maxE = Math.max(...allPoints.map(p => p.easting))
-  const minN = Math.min(...allPoints.map(p => p.northing))
-  const maxN = Math.max(...allPoints.map(p => p.northing))
+  const bounds = getBounds(allPoints)
 
-  const width = maxE - minE
-  const height = maxN - minN
+  const width = bounds.maxE - bounds.minE
+  const height = bounds.maxN - bounds.minN
   const cols = Math.ceil(width / cellSize)
   const rows = Math.ceil(height / cellSize)
 
   // Build interpolation grids for both surfaces
-  const grid1 = interpolateToGrid(surface1, minE, minN, cols, rows, cellSize)
-  const grid2 = interpolateToGrid(surface2, minE, minN, cols, rows, cellSize)
+  const grid1 = interpolateToGrid(surface1, bounds.minE, bounds.minN, cols, rows, cellSize)
+  const grid2 = interpolateToGrid(surface2, bounds.minE, bounds.minN, cols, rows, cellSize)
 
   let cut = 0
   let fill = 0
@@ -276,12 +273,18 @@ export function tinToTinVolume(
 }
 
 function getBounds(points: Point3D[]) {
-  return {
-    minE: Math.min(...points.map(p => p.easting)),
-    maxE: Math.max(...points.map(p => p.easting)),
-    minN: Math.min(...points.map(p => p.northing)),
-    maxN: Math.max(...points.map(p => p.northing)),
+  // Use a loop instead of Math.min(...points) to avoid V8 "Maximum call stack size exceeded"
+  // on large point clouds (>150k points) and avoid expensive intermediate array allocations.
+  let minE = Infinity, maxE = -Infinity
+  let minN = Infinity, maxN = -Infinity
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i]
+    if (p.easting < minE) minE = p.easting
+    if (p.easting > maxE) maxE = p.easting
+    if (p.northing < minN) minN = p.northing
+    if (p.northing > maxN) maxN = p.northing
   }
+  return { minE, maxE, minN, maxN }
 }
 
 // ─── Stockpile Volume (single surface + base plane) ─────────────────────────
