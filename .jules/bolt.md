@@ -1,0 +1,3 @@
+## 2024-06-11 - Math.min/max spread operator anti-pattern on large datasets
+**Learning:** Using `Math.min(...points.map(p => p.val))` on large datasets like point clouds (>150k items) causes a V8 "Maximum call stack size exceeded" error because the spread operator passes array elements as function arguments, exceeding the engine's argument limit. It also causes excessive memory allocation due to multiple intermediate array `.map()` calls.
+**Action:** Always use an iterative `for` loop or `reduce` instead of the spread operator when calculating min/max bounds on large geometric or mathematical datasets.
