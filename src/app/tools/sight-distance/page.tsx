@@ -130,10 +130,10 @@ export default function SightDistancePage() {
                 <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
                   <div className="text-sm text-zinc-400 mb-1">Stopping Sight Distance</div>
                   <div className="text-2xl font-bold text-amber-400">{result.ssdComputed.toFixed(1)}m</div>
-                  <div className="text-xs text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     SSD = V²/254(f+g) + Vt/3.6
                   </div>
-                  <div className="text-xs text-zinc-600 mt-0.5">
+                  <div className="text-xs text-zinc-400 mt-0.5">
                     f={result.frictionFactor.toFixed(4)}, g={computed.gradient}%, t=2.5s
                   </div>
                   {Math.abs(result.ssdGradeCorrection) > 0.1 && (
@@ -146,7 +146,7 @@ export default function SightDistancePage() {
                 <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
                   <div className="text-sm text-zinc-400 mb-1">Min SSD (RDM 1.3)</div>
                   <div className="text-2xl font-bold text-green-400">{result.ssdMin}m</div>
-                  <div className="text-xs text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     Terrain: {computed.terrain}
                   </div>
                   <div className={`text-xs mt-1 ${result.isSSDCompliant ? 'text-green-400' : 'text-red-400'}`}>

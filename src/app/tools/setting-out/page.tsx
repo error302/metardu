@@ -100,25 +100,25 @@ export default function SettingOutPage() {
   return (
     <div className="min-h-screen p-6 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Setting Out</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-6">Import design from DXF → compute stakeout list → export to instrument → compare as-built</p>
+      <p className="text-sm text-[var(--text-secondary)] mb-6">Import design from DXF → compute stakeout list → export to instrument → compare as-built</p>
 
       {/* Step 1: Import DXF */}
       <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] border border-[var(--border-color)] rounded-xl p-4 mb-4">
         <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">1. Import Design from DXF</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="dxf-file">DXF File</label>
+            <label className="text-xs text-[var(--text-secondary)] block mb-1" htmlFor="dxf-file">DXF File</label>
             <input id="dxf-file" type="file" accept=".dxf" onChange={handleFileUpload}
               className="w-full text-xs text-[var(--text-secondary)]" />
             {dxfContent && <CheckCircle2 className="w-4 h-4 text-green-500 inline ml-2" />}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="station-e">Station E</label><input id="station-e" value={stationE} onChange={e => setStationE(e.target.value)} className={inputCls} placeholder="264000" /></div>
-            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="station-n">Station N</label><input id="station-n" value={stationN} onChange={e => setStationN(e.target.value)} className={inputCls} placeholder="9861000" /></div>
-            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="station-rl">Station RL</label><input id="station-rl" value={stationRL} onChange={e => setStationRL(e.target.value)} className={inputCls} /></div>
-            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="ih">IH</label><input id="ih" defaultValue="1.5" className={inputCls} /></div>
-            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="backsight-e">Backsight E</label><input id="backsight-e" value={backsightE} onChange={e => setBacksightE(e.target.value)} className={inputCls} /></div>
-            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="backsight-n">Backsight N</label><input id="backsight-n" value={backsightN} onChange={e => setBacksightN(e.target.value)} className={inputCls} /></div>
+            <div><label className="text-xs text-[var(--text-secondary)] block mb-1" htmlFor="station-e">Station E</label><input id="station-e" value={stationE} onChange={e => setStationE(e.target.value)} className={inputCls} placeholder="264000" /></div>
+            <div><label className="text-xs text-[var(--text-secondary)] block mb-1" htmlFor="station-n">Station N</label><input id="station-n" value={stationN} onChange={e => setStationN(e.target.value)} className={inputCls} placeholder="9861000" /></div>
+            <div><label className="text-xs text-[var(--text-secondary)] block mb-1" htmlFor="station-rl">Station RL</label><input id="station-rl" value={stationRL} onChange={e => setStationRL(e.target.value)} className={inputCls} /></div>
+            <div><label className="text-xs text-[var(--text-secondary)] block mb-1" htmlFor="ih">IH</label><input id="ih" defaultValue="1.5" className={inputCls} /></div>
+            <div><label className="text-xs text-[var(--text-secondary)] block mb-1" htmlFor="backsight-e">Backsight E</label><input id="backsight-e" value={backsightE} onChange={e => setBacksightE(e.target.value)} className={inputCls} /></div>
+            <div><label className="text-xs text-[var(--text-secondary)] block mb-1" htmlFor="backsight-n">Backsight N</label><input id="backsight-n" value={backsightN} onChange={e => setBacksightN(e.target.value)} className={inputCls} /></div>
           </div>
         </div>
         <button onClick={handleImport} disabled={loading} className="mt-3 px-4 py-2 bg-[var(--accent)] text-black text-xs font-semibold rounded-lg hover:bg-[var(--accent-dim)] disabled:opacity-50">
@@ -149,7 +149,7 @@ export default function SettingOutPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead><tr className="text-[var(--text-muted)] border-b border-[var(--border-color)]">
+              <thead><tr className="text-[var(--text-secondary)] border-b border-[var(--border-color)]">
                 <th className="text-left py-2 px-1">ID</th><th className="text-right">Hz Angle</th><th className="text-right">HD (m)</th><th className="text-right">SD (m)</th><th className="text-right">Design E</th><th className="text-right">Design N</th><th className="text-right">RL</th>
               </tr></thead>
               <tbody>
@@ -167,7 +167,7 @@ export default function SettingOutPage() {
               </tbody>
             </table>
           </div>
-          <div className="mt-2 text-[10px] text-[var(--text-muted)]">BS bearing: {result.bsBearing} | {result.rows.length} points</div>
+          <div className="mt-2 text-xs text-[var(--text-secondary)]">BS bearing: {result.bsBearing} | {result.rows.length} points</div>
         </div>
       )}
 
@@ -175,7 +175,7 @@ export default function SettingOutPage() {
       {result && (
         <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] border border-[var(--border-color)] rounded-xl p-4 mb-4">
           <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">3. As-Built Comparison</h2>
-          <p className="text-[10px] text-[var(--text-muted)] mb-2">Paste as-built shots (one per line: id,easting,northing,rl)</p>
+          <p className="text-xs text-[var(--text-secondary)] mb-2">Paste as-built shots (one per line: id,easting,northing,rl)</p>
           <textarea value={asBuiltInput} onChange={e => setAsBuiltInput(e.target.value)} placeholder="P1,264100.010,9861100.005,1500.002" className={inputCls + ' h-20 font-mono mb-2'} />
           <button onClick={handleCompare} className="px-4 py-2 bg-[var(--accent)] text-black text-xs font-semibold rounded-lg hover:bg-[var(--accent-dim)]">Compare As-Built vs Design</button>
 
@@ -185,7 +185,7 @@ export default function SettingOutPage() {
                 {comparison.summary}
               </div>
               <table className="w-full text-xs">
-                <thead><tr className="text-[var(--text-muted)] border-b border-[var(--border-color)]">
+                <thead><tr className="text-[var(--text-secondary)] border-b border-[var(--border-color)]">
                   <th className="text-left py-1">ID</th><th className="text-right">dE (mm)</th><th className="text-right">dN (mm)</th><th className="text-right">dH (mm)</th><th className="text-right">|H| (mm)</th><th className="text-center">Status</th>
                 </tr></thead>
                 <tbody>
