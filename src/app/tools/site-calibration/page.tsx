@@ -164,17 +164,17 @@ export default function SiteCalibrationPage() {
           <div className="card">
             <div className="card-header">
               <span className="label">Control point pairs</span>
-              <span className="font-mono text-[10px] text-[var(--text-muted)]">{points.length} points</span>
+              <span className="font-mono text-xs text-[var(--text-secondary)]">{points.length} points</span>
             </div>
             <div className="card-body">
-              <p className="text-xs text-[var(--text-muted)] mb-4 font-mono">
+              <p className="text-xs text-[var(--text-secondary)] mb-4 font-mono">
                 Enter control points with known coordinates in both systems. Source = GNSS (WGS84). Target = Registry (Arc 1960).
                 Use 5+ points for blunder detection, 8+ for high-confidence calibration.
               </p>
               <div className="overflow-x-auto">
                 <div className="min-w-[700px] space-y-1">
                   {/* Header */}
-                  <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_1fr_28px] gap-1 items-center font-mono text-[9px] text-[var(--text-muted)] tracking-[0.04em] uppercase">
+                  <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_1fr_28px] gap-1 items-center font-mono text-xs text-[var(--text-secondary)] tracking-[0.04em] uppercase">
                     <span>Name</span>
                     <span className="text-[var(--accent)]">Src X</span>
                     <span className="text-[var(--accent)]">Src Y</span>
@@ -186,19 +186,19 @@ export default function SiteCalibrationPage() {
                   </div>
                   {points.map(p => (
                     <div key={p.id} className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_1fr_28px] gap-1 items-center">
-                      <input className="input font-mono text-xs px-1 py-1" value={p.name} onChange={e => updatePoint(p.id, 'name', e.target.value)} aria-label="Point name" placeholder="CP1" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--accent)' }} value={p.sx} onChange={e => updatePoint(p.id, 'sx', e.target.value)} aria-label="Station X" placeholder="274812" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--accent)' }} value={p.sy} onChange={e => updatePoint(p.id, 'sy', e.target.value)} aria-label="Station Y" placeholder="9856214" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--accent)' }} value={p.sz} onChange={e => updatePoint(p.id, 'sz', e.target.value)} aria-label="Station Z" placeholder="1798" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--primary-blue)' }} value={p.tx} onChange={e => updatePoint(p.id, 'tx', e.target.value)} aria-label="Target X" placeholder="274712" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--primary-blue)' }} value={p.ty} onChange={e => updatePoint(p.id, 'ty', e.target.value)} aria-label="Target Y" placeholder="9856314" />
-                      <input className="input font-mono text-xs px-1 py-1" style={{ borderColor: 'var(--primary-blue)' }} value={p.tz} onChange={e => updatePoint(p.id, 'tz', e.target.value)} aria-label="Target Z" placeholder="1790" />
-                      <button onClick={() => removePoint(p.id)} className="text-[var(--text-muted)] hover:text-[var(--error)] text-sm">×</button>
+                      <input className="input font-mono text-xs px-2 py-2" value={p.name} onChange={e => updatePoint(p.id, 'name', e.target.value)} aria-label="Point name" placeholder="CP1" />
+                      <input className="input font-mono text-xs px-2 py-2" style={{ borderColor: 'var(--accent)' }} value={p.sx} onChange={e => updatePoint(p.id, 'sx', e.target.value)} aria-label="Station X" placeholder="274812" />
+                      <input className="input font-mono text-xs px-2 py-2" style={{ borderColor: 'var(--accent)' }} value={p.sy} onChange={e => updatePoint(p.id, 'sy', e.target.value)} aria-label="Station Y" placeholder="9856214" />
+                      <input className="input font-mono text-xs px-2 py-2" style={{ borderColor: 'var(--accent)' }} value={p.sz} onChange={e => updatePoint(p.id, 'sz', e.target.value)} aria-label="Station Z" placeholder="1798" />
+                      <input className="input font-mono text-xs px-2 py-2" style={{ borderColor: 'var(--primary-blue)' }} value={p.tx} onChange={e => updatePoint(p.id, 'tx', e.target.value)} aria-label="Target X" placeholder="274712" />
+                      <input className="input font-mono text-xs px-2 py-2" style={{ borderColor: 'var(--primary-blue)' }} value={p.ty} onChange={e => updatePoint(p.id, 'ty', e.target.value)} aria-label="Target Y" placeholder="9856314" />
+                      <input className="input font-mono text-xs px-2 py-2" style={{ borderColor: 'var(--primary-blue)' }} value={p.tz} onChange={e => updatePoint(p.id, 'tz', e.target.value)} aria-label="Target Z" placeholder="1790" />
+                      <button onClick={() => removePoint(p.id)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--error)] text-sm">×</button>
                     </div>
                   ))}
                 </div>
               </div>
-              <button onClick={addPoint} className="mt-3 font-mono text-[11px] text-[var(--accent)] hover:opacity-80">+ Add control point</button>
+              <button onClick={addPoint} className="mt-3 font-mono text-sm text-[var(--accent)] hover:opacity-80">+ Add control point</button>
             </div>
           </div>
 
@@ -212,9 +212,9 @@ export default function SiteCalibrationPage() {
           {!result || !quality ? (
             <div className="card">
               <div className="card-body text-center py-16">
-                <p className="text-sm text-[var(--text-muted)]">Enter control points and compute.</p>
-                <p className="text-xs text-[var(--text-muted)] mt-2 font-mono">Rigorous 7-param: Tx, Ty, Tz, Rx, Ry, Rz, Scale</p>
-                <p className="text-xs text-[var(--text-muted)] mt-1 font-mono">Full rotation matrix + Gauss-Newton iteration</p>
+                <p className="text-sm text-[var(--text-secondary)]">Enter control points and compute.</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-2 font-mono">Rigorous 7-param: Tx, Ty, Tz, Rx, Ry, Rz, Scale</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-1 font-mono">Full rotation matrix + Gauss-Newton iteration</p>
               </div>
             </div>
           ) : (
@@ -228,7 +228,7 @@ export default function SiteCalibrationPage() {
               }`}>
                 <div className="card-header">
                   <span className="label">Quality: {quality.assessment.toUpperCase()}</span>
-                  <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                  <span className="font-mono text-xs text-[var(--text-secondary)]">
                     {result.iterations} iter · {result.pointCount} pts
                   </span>
                 </div>
@@ -236,15 +236,15 @@ export default function SiteCalibrationPage() {
                   <p className="text-xs text-[var(--text-primary)] mb-3">{quality.recommendation}</p>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <div className="font-mono text-[9px] text-[var(--text-muted)] uppercase mb-1">RMS Fit</div>
+                      <div className="font-mono text-xs text-[var(--text-secondary)] uppercase mb-1">RMS Fit</div>
                       <div className="font-display text-base text-[var(--text-primary)]">{result.rmsFit.toFixed(4)} m</div>
                     </div>
                     <div>
-                      <div className="font-mono text-[9px] text-[var(--text-muted)] uppercase mb-1">95% CI</div>
+                      <div className="font-mono text-xs text-[var(--text-secondary)] uppercase mb-1">95% CI</div>
                       <div className="font-display text-base text-[var(--text-primary)]">±{result.estimatedLocalAccuracy.toFixed(4)} m</div>
                     </div>
                     <div>
-                      <div className="font-mono text-[9px] text-[var(--text-muted)] uppercase mb-1">vs National</div>
+                      <div className="font-mono text-xs text-[var(--text-secondary)] uppercase mb-1">vs National</div>
                       <div className="font-display text-base text-[var(--success)]">{quality.improvementFactor.toFixed(0)}× better</div>
                     </div>
                   </div>
@@ -270,7 +270,7 @@ export default function SiteCalibrationPage() {
                 <div className="card-header">
                   <span className="label">Per-point residuals</span>
                   {result.outlierCount > 0 && (
-                    <span className="font-mono text-[10px] text-[var(--error)]">
+                    <span className="font-mono text-xs text-[var(--error)]">
                       {result.outlierCount} outlier{result.outlierCount > 1 ? 's' : ''}
                     </span>
                   )}
@@ -278,7 +278,7 @@ export default function SiteCalibrationPage() {
                 <div className="card-body">
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="text-[var(--text-muted)] border-b border-[var(--border-color)]">
+                      <tr className="p-2 text-[var(--text-secondary)] border-b border-[var(--border-color)]">
                         <th className="text-left py-2">Point</th>
                         <th className="text-right py-2">dX (mm)</th>
                         <th className="text-right py-2">dY (mm)</th>
@@ -312,7 +312,7 @@ export default function SiteCalibrationPage() {
               <div className="card">
                 <div className="card-header"><span className="label">Batch transform</span></div>
                 <div className="card-body space-y-3">
-                  <p className="text-xs text-[var(--text-muted)] font-mono">Paste points to transform (one per line: "X Y Z" or "name X Y Z"):</p>
+                  <p className="text-xs text-[var(--text-secondary)] font-mono">Paste points to transform (one per line: "X Y Z" or "name X Y Z"):</p>
                   <textarea
                     className="input font-mono text-xs h-24"
                     value={transformInput}
@@ -322,7 +322,7 @@ export default function SiteCalibrationPage() {
                   <button onClick={runTransform} className="btn btn-secondary text-xs w-full">Transform points</button>
                   {transformOutput && (
                     <div className="border border-[var(--border-color)] rounded-md p-3 bg-[var(--bg-secondary)]">
-                      <div className="font-mono text-[9px] text-[var(--text-muted)] tracking-[0.06em] uppercase mb-2">Output (target system)</div>
+                      <div className="font-mono text-xs text-[var(--text-secondary)] tracking-[0.06em] uppercase mb-2">Output (target system)</div>
                       <pre className="font-mono text-xs text-[var(--success)] whitespace-pre-wrap">{transformOutput}</pre>
                     </div>
                   )}
@@ -350,10 +350,10 @@ export default function SiteCalibrationPage() {
 function ParamRow({ label, value, stddev, highlight }: { label: string; value: string; stddev?: string; highlight?: boolean }) {
   return (
     <div className="flex justify-between items-baseline">
-      <span className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.04em] uppercase">{label}</span>
+      <span className="font-mono text-xs text-[var(--text-secondary)] tracking-[0.04em] uppercase">{label}</span>
       <div className="text-right">
         <span className={`font-mono text-sm ${highlight ? 'text-[var(--accent)] font-medium' : 'text-[var(--text-primary)]'}`}>{value}</span>
-        {stddev && <span className="font-mono text-[10px] text-[var(--text-muted)] ml-2">±{stddev.replace('±', '')}</span>}
+        {stddev && <span className="font-mono text-xs text-[var(--text-secondary)] ml-2">±{stddev.replace('±', '')}</span>}
       </div>
     </div>
   )
