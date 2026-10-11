@@ -64,10 +64,16 @@ export function gridMethodVolume(
 
   // Compute the bounding box of both surfaces combined
   const allPoints = [...surface1, ...surface2]
-  const minE = Math.min(...allPoints.map(p => p.easting))
-  const maxE = Math.max(...allPoints.map(p => p.easting))
-  const minN = Math.min(...allPoints.map(p => p.northing))
-  const maxN = Math.max(...allPoints.map(p => p.northing))
+  const { minE, maxE, minN, maxN } = allPoints.reduce(
+    (acc, p) => {
+      if (p.easting < acc.minE) acc.minE = p.easting
+      if (p.easting > acc.maxE) acc.maxE = p.easting
+      if (p.northing < acc.minN) acc.minN = p.northing
+      if (p.northing > acc.maxN) acc.maxN = p.northing
+      return acc
+    },
+    { minE: Infinity, maxE: -Infinity, minN: Infinity, maxN: -Infinity }
+  )
 
   const width = maxE - minE
   const height = maxN - minN
@@ -276,12 +282,16 @@ export function tinToTinVolume(
 }
 
 function getBounds(points: Point3D[]) {
-  return {
-    minE: Math.min(...points.map(p => p.easting)),
-    maxE: Math.max(...points.map(p => p.easting)),
-    minN: Math.min(...points.map(p => p.northing)),
-    maxN: Math.max(...points.map(p => p.northing)),
-  }
+  return points.reduce(
+    (acc, p) => {
+      if (p.easting < acc.minE) acc.minE = p.easting
+      if (p.easting > acc.maxE) acc.maxE = p.easting
+      if (p.northing < acc.minN) acc.minN = p.northing
+      if (p.northing > acc.maxN) acc.maxN = p.northing
+      return acc
+    },
+    { minE: Infinity, maxE: -Infinity, minN: Infinity, maxN: -Infinity }
+  )
 }
 
 // ─── Stockpile Volume (single surface + base plane) ─────────────────────────
