@@ -1,0 +1,3 @@
+## 2025-01-28 - Replace Math.max spread with loop for point clouds
+**Learning:** Avoid using the spread operator (`...`) with `Math.min()` or `Math.max()` on large arrays (e.g., point cloud data) in this codebase. This causes V8 'Maximum call stack size exceeded' errors and excessive memory allocation because it creates intermediate arrays with `.map()` and spreads all elements as arguments to `Math.min/max`.
+**Action:** Use standard `for` loops or `reduce` instead when calculating bounds on large datasets to process them in a single pass without exceeding call stack limits or allocating intermediate arrays.
