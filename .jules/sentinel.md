@@ -1,0 +1,5 @@
+
+## 2026-08-30 - [Missing DOMPurify in SVG Rendering]
+**Vulnerability:** Found `dangerouslySetInnerHTML` being used to render SVG variables (`output.svg` and `svgOutput`) in `DeedPlanGenerator.tsx` and `MutationPlanGenerator.tsx` without wrapping the strings in the local DOMPurify `sanitizeHtml()` utility.
+**Learning:** Although internal SVG rendering functions (like `renderFormNo3` and `deedPlanRenderer`) might use `escapeXml()` to encode specific user inputs, relying solely on upstream escaping violates defense-in-depth principles. Any dynamically generated content passed to `dangerouslySetInnerHTML` must still be passed through the project's DOMPurify instance right at the boundary. The exception is purely static resources like SVG icons (e.g., `beacon-reference/page.tsx`), which are not user-generated and can break if unnecessarily sanitized.
+**Prevention:** Always ensure `dangerouslySetInnerHTML={{ __html: content }}` includes `sanitizeHtml(content)` when the `content` relies on user input or upstream processing logic that could fail or be bypassed.
