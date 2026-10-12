@@ -65,6 +65,7 @@ interface DashboardData {
   revenue: {
     total: number
     byMonth: { month: string; total: number }[]
+    byCurrency: { currency: string; total: number }[]
   }
   recentSignups: {
     id: string
@@ -82,7 +83,8 @@ interface DashboardData {
     iskNumber: string
     submittedAt: string
   }[]
-  activeSubscriptions: { free: number; pro: number; enterprise: number }
+  activeSubscriptions: Record<string, number>
+  trialSubscriptions: number
   submissionsThisMonth: number
   system: {
     database: {
@@ -103,12 +105,12 @@ interface DashboardData {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatCurrency(amount: number): string {
+function formatCurrency(amount: number, currencyCode = 'KES'): string {
+  const currency = /^[A-Z]{3}$/.test(currencyCode) ? currencyCode : 'KES'
   return new Intl.NumberFormat('en-KE', {
     style: 'currency',
-    currency: 'KES',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    currency,
+    ...(currency === 'KES' ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {}),
   }).format(amount)
 }
 
@@ -212,6 +214,13 @@ export default function AdminDashboardPage() {
 
   // ISK queue processing
   const [iskProcessing, setIskProcessing] = useState<Set<string>>(new Set())
+
+  const activePlanCounts = data?.activeSubscriptions ?? {}
+  const activePaidSubscriptionCount = Object.entries(activePlanCounts)
+    .filter(([plan]) => plan !== 'free')
+    .reduce((total, [, count]) => total + count, 0)
+  const otherCurrencyRevenue = (data?.revenue.byCurrency ?? [])
+    .filter(({ currency, total }) => currency !== 'KES' && total !== 0)
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -438,9 +447,9 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           icon={CreditCard}
-          label="Pro Subscribers"
-          value={data.activeSubscriptions?.pro ?? 0}
-          subValue={`Enterprise: ${data.activeSubscriptions?.enterprise ?? 0}`}
+          label="Active paid subscriptions"
+          value={activePaidSubscriptionCount}
+          subValue={`Trials: ${data.trialSubscriptions ?? 0} · Free: ${activePlanCounts.free ?? 0}`}
           color="#a78bfa"
         />
         <StatCard
@@ -459,13 +468,9 @@ export default function AdminDashboardPage() {
         />
         {/* Subscription Donut Chart */}
         <div className="card p-4">
-          <p className="text-xs text-[var(--text-secondary)] mb-2">Subscriptions</p>
+          <p className="text-xs text-[var(--text-secondary)] mb-2">Active subscriptions by plan</p>
           <SubscriptionDonutChart
-            data={[
-              { name: 'free', value: data.activeSubscriptions?.free ?? 0 },
-              { name: 'pro', value: data.activeSubscriptions?.pro ?? 0 },
-              { name: 'enterprise', value: data.activeSubscriptions?.enterprise ?? 0 },
-            ]}
+            data={Object.entries(activePlanCounts).map(([name, value]) => ({ name, value }))}
           />
         </div>
       </div>
@@ -481,12 +486,24 @@ export default function AdminDashboardPage() {
                 Revenue Overview
               </h2>
             </div>
-            <span className="text-xs text-[var(--text-muted)]">Completed payments</span>
+            <span className="text-xs text-[var(--text-muted)]">KES payments · other currencies shown separately</span>
           </div>
           <div className="p-5">
             <p className="text-3xl font-bold text-[var(--text-primary)] mb-4">
               {formatCurrency(data.revenue.total)}
             </p>
+            {otherCurrencyRevenue.length > 0 && (
+              <div className="mb-4 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]/60 p-3">
+                <p className="text-xs font-medium text-[var(--text-secondary)]">Other currencies · no conversion applied</p>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  {otherCurrencyRevenue.map(({ currency, total }) => (
+                    <span key={currency} className="text-sm text-[var(--text-primary)]">
+                      {currency} <span className="font-mono tabular-nums">{formatCurrency(total, currency)}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             {data.revenue.byMonth.length > 0 ? (
               <RevenueLineChart data={data.revenue.byMonth} />
             ) : (

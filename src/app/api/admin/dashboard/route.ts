@@ -1,5 +1,6 @@
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db, setCurrentRlsServiceRole } from '@/lib/db'
+import { buildRevenueDashboardMetrics, buildSubscriptionDashboardMetrics } from '@/lib/admin/dashboardMetrics'
 
 interface CountRow {
   count: number
@@ -19,6 +20,10 @@ interface MonthTotalRow {
   total: number
 }
 
+interface CurrencyTotalRow extends TotalRow {
+  currency: string
+}
+
 interface SignupRow {
   id: string
   email: string
@@ -30,6 +35,7 @@ interface SignupRow {
 
 interface PlanCountRow {
   plan_id: string | null
+  status: string
   count: number
 }
 
@@ -101,21 +107,29 @@ export const GET = apiHandler(
     const totalBeacons = totalBeaconsRes.rows[0]?.count ?? 0
 
     // ── Revenue stats ──
-    const [totalRevenueRes, revenueByMonthRes] = await Promise.all([
-      db.query<TotalRow>(
-        `SELECT COALESCE(SUM(amount), 0)::float AS total FROM payment_history WHERE status = 'completed'`,
+    const [revenueByCurrencyRes, revenueByMonthRes] = await Promise.all([
+      db.query<CurrencyTotalRow>(
+        `SELECT COALESCE(NULLIF(UPPER(currency), ''), 'KES') AS currency,
+                COALESCE(SUM(amount), 0)::float AS total
+         FROM payment_history
+         WHERE status = 'completed'
+         GROUP BY COALESCE(NULLIF(UPPER(currency), ''), 'KES')
+         ORDER BY currency`,
       ),
       db.query<MonthTotalRow>(
         `SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COALESCE(SUM(amount), 0)::float AS total
          FROM payment_history
          WHERE status = 'completed'
+           AND COALESCE(NULLIF(UPPER(currency), ''), 'KES') = 'KES'
          GROUP BY TO_CHAR(created_at, 'YYYY-MM')
          ORDER BY month DESC
          LIMIT 12`,
       ),
     ])
 
-    const totalRevenue = totalRevenueRes.rows[0]?.total ?? 0
+    const revenueMetrics = buildRevenueDashboardMetrics(revenueByCurrencyRes.rows)
+    const revenueByCurrency = revenueMetrics.byCurrency
+    const totalRevenue = revenueMetrics.kesTotal
     const revenueByMonth = revenueByMonthRes.rows.map((row) => ({
       month: row.month,
       total: row.total,
@@ -148,13 +162,13 @@ export const GET = apiHandler(
 
     // ── Subscription breakdown ──
     const subCountsRes = await db.query<PlanCountRow>(
-      `SELECT plan_id, COUNT(*)::int AS count FROM user_subscriptions GROUP BY plan_id`,
+      `SELECT plan_id, status, COUNT(*)::int AS count
+       FROM user_subscriptions
+       WHERE (status = 'active' AND (current_period_end IS NULL OR current_period_end >= NOW()))
+          OR (status = 'trial' AND (trial_ends_at IS NULL OR trial_ends_at >= NOW()))
+       GROUP BY plan_id, status`,
     )
-    const activeSubscriptions: Record<string, number> = { free: 0, pro: 0, enterprise: 0 }
-    for (const row of subCountsRes.rows) {
-      const plan = row.plan_id || 'free'
-      activeSubscriptions[plan] = (activeSubscriptions[plan] || 0) + row.count
-    }
+    const subscriptionMetrics = buildSubscriptionDashboardMetrics(subCountsRes.rows)
 
     // ── Submissions this month ──
     const submissionsRes = await db.query<CountRow>(
@@ -209,11 +223,13 @@ export const GET = apiHandler(
       revenue: {
         total: totalRevenue,
         byMonth: revenueByMonth,
+        byCurrency: revenueByCurrency,
       },
       recentSignups,
       iskPendingCount,
       iskQueue,
-      activeSubscriptions,
+      activeSubscriptions: subscriptionMetrics.activeByPlan,
+      trialSubscriptions: subscriptionMetrics.trialCount,
       submissionsThisMonth,
       system: {
         database: {

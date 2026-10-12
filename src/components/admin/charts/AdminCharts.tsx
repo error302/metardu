@@ -222,11 +222,13 @@ interface SubData {
   value: number
 }
 
-const SUB_COLORS = ['#94a3b8', '#60a5fa', '#a855f7'] // free, pro, enterprise
+const SUB_COLORS = ['#94a3b8', '#60a5fa', '#22c1c3', '#f59e0b', '#a855f7']
 
 const subChartConfig: ChartConfig = {
   free: { label: 'Free', color: '#94a3b8' },
   pro: { label: 'Pro', color: '#60a5fa' },
+  team: { label: 'Team', color: '#22c1c3' },
+  firm: { label: 'Firm', color: '#f59e0b' },
   enterprise: { label: 'Enterprise', color: '#a855f7' },
 }
 
