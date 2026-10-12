@@ -13,6 +13,8 @@
  */
 
 import { describe, expect, it } from '@jest/globals'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   EMAIL_TEMPLATES,
   passwordResetEmail,
@@ -38,6 +40,13 @@ const PAYLOAD = '"><script>alert(1)</script><img src=x onerror=alert(2)>'
  * formatter's catch-and-return-raw fallback path (which must still be escaped
  * by the caller). Carries the payload so any leak is caught.
  */
+describe('branded email logo asset', () => {
+  it('ships a PNG at the public path used by the email shell', () => {
+    const logo = readFileSync(resolve(process.cwd(), 'public/metardu-email-mark.png'))
+    expect(Array.from(logo.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+  })
+})
+
 const BAD_DATE = PAYLOAD
 const TO = 'recipient@example.com'
 
